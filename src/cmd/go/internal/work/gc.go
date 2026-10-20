@@ -22,7 +22,6 @@ import (
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
-	"cmd/go/internal/logos/capabilities"
 	"cmd/go/internal/str"
 	"cmd/internal/quoted"
 	"crypto/sha1"
@@ -654,7 +653,7 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	if err != nil {
 		return err
 	}
-	ldflags = capabilities.AppendLinkCapFlag(ldflags, root.Package.Module)
+	ldflags = logosLinkCapFlag(ldflags, root.Objdir)
 
 	// On OS X when using external linking to build a shared library,
 	// the argument passed here to -o ends up recorded in the final

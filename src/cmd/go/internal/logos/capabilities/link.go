@@ -6,8 +6,9 @@ package capabilities
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"io"
 	"maps"
 	"os"
 	"path/filepath"
@@ -16,7 +17,6 @@ import (
 
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/logos/config"
-	"cmd/go/internal/modinfo"
 )
 
 // LinkPolicy is the JSON policy cmd/go writes for the linker -logos.cap
@@ -39,13 +39,11 @@ type LinkPolicy struct {
 	CgoAllowed              []string `json:"cgo_allowed"`
 }
 
-// PolicyForLink builds the linker policy from a parsed logos.toml, the
-// main module, and the recorded cgo allowances.
-func PolicyForLink(cf *config.File, mod *modinfo.ModulePublic) *LinkPolicy {
-	p := &LinkPolicy{CgoAllowed: CgoAllowed()}
-	if mod != nil && mod.Path != "" {
-		p.MainModules = []string{mod.Path}
-	}
+// PolicyForLink builds the linker policy from the governing main-module
+// logos.toml, every modload main module path, and the recorded cgo
+// allowances.
+func PolicyForLink(cf *config.File, mainModules []string) *LinkPolicy {
+	p := &LinkPolicy{CgoAllowed: CgoAllowed(), MainModules: mainModules}
 	if cf == nil {
 		p.TransitiveReflect = string(Warn)
 		p.TransitiveExec = string(Deny)
@@ -100,43 +98,76 @@ func CgoAllowed() []string {
 	return slices.Sorted(maps.Keys(cgoAllowedSet.byPath))
 }
 
+// linkPolicySnapshot holds the marshaled effective policy for this build,
+// recorded by SnapshotLinkPolicy during link action construction (after
+// load, so the cgo allowance set is final) and consumed by HashLinkPolicy
+// and AppendLinkCapFlag. It is refreshed on every snapshot, so successive
+// builds in one process never reuse another build's policy.
+var linkPolicySnapshot = struct {
+	sync.Mutex
+	set  bool
+	data []byte
+}{}
+
+// SnapshotLinkPolicy records the effective linker policy for this build
+// from the governing main-module config and every main module path. A
+// config load failure records no policy; the load phase already failed
+// the build before linking.
+func SnapshotLinkPolicy(cf *config.File, mainModules []string, err error) {
+	linkPolicySnapshot.Lock()
+	defer linkPolicySnapshot.Unlock()
+	linkPolicySnapshot.set = false
+	linkPolicySnapshot.data = nil
+	if err != nil || cf == nil {
+		return
+	}
+	data, merr := MarshalPolicy(PolicyForLink(cf, mainModules))
+	if merr != nil {
+		return
+	}
+	linkPolicySnapshot.set = true
+	linkPolicySnapshot.data = data
+}
+
+// HashLinkPolicy mixes the snapshotted effective policy into the link
+// action ID hash, so a policy change forces a relink and its audit. It
+// writes nothing outside logos mode, leaving plain go action IDs
+// byte-identical to upstream.
+func HashLinkPolicy(h io.Writer) {
+	if !cfg.Logos {
+		return
+	}
+	linkPolicySnapshot.Lock()
+	data := linkPolicySnapshot.data
+	set := linkPolicySnapshot.set
+	linkPolicySnapshot.Unlock()
+	if !set {
+		return
+	}
+	sum := sha256.Sum256(data)
+	fmt.Fprintf(h, "logoslinkcap %x\n", sum)
+}
+
 // AppendLinkCapFlag appends the linker flag carrying the capabilities
 // policy for one linked binary, or returns ldflags unchanged outside
-// logos mode. The policy file is content-addressed under the temporary
-// directory, so identical policies reuse one path (stable action IDs) and
-// changed policies force a relink. A config load failure appends nothing;
-// the load phase already failed the build before linking.
-func AppendLinkCapFlag(ldflags []string, mod *modinfo.ModulePublic) []string {
+// logos mode. The policy is written to the link action's own object
+// directory, never to a shared temporary file, so a pre-existing file
+// cannot substitute another policy. A config load failure appends
+// nothing; the load phase already failed the build before linking.
+func AppendLinkCapFlag(ldflags []string, objdir string) []string {
 	if !cfg.Logos {
 		return ldflags
 	}
-	return append(ldflags, linkCapFlag(mod)...)
-}
-
-// linkCapFlag builds the -logos.cap flag for one linked binary.
-func linkCapFlag(mod *modinfo.ModulePublic) []string {
-	modRoot := ""
-	if mod != nil {
-		modRoot = mod.Dir
+	linkPolicySnapshot.Lock()
+	data := linkPolicySnapshot.data
+	set := linkPolicySnapshot.set
+	linkPolicySnapshot.Unlock()
+	if !set {
+		return ldflags
 	}
-	cf, err := config.Load(modRoot)
-	if err != nil {
-		return nil
+	path := filepath.Join(objdir, "logos-cap.json")
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return ldflags
 	}
-	data, err := MarshalPolicy(PolicyForLink(cf, mod))
-	if err != nil {
-		return nil
-	}
-	sum := sha256.Sum256(data)
-	name := "logos-cap-" + hex.EncodeToString(sum[:8]) + ".json"
-	path := filepath.Join(os.TempDir(), name)
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
-	if err == nil {
-		if _, err := f.Write(data); err != nil {
-			f.Close()
-			return nil
-		}
-		f.Close()
-	}
-	return []string{"-logos.cap=" + path}
+	return append(ldflags, "-logos.cap="+path)
 }

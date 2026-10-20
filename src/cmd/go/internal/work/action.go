@@ -966,6 +966,7 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 		a1.Deps = append(a1.Deps, &Action{Mode: "nop", Deps: a.Deps[1:]})
 		return a
 	})
+	logosSnapshotLinkPolicy(s)
 
 	if mode == ModeInstall || mode == ModeBuggyInstall {
 		a = b.installAction(a, mode)

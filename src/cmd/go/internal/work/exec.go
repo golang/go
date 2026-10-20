@@ -1598,6 +1598,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 		if p != nil {
 			fmt.Fprintf(h, "linkflags %q\n", p.Internal.Ldflags)
 		}
+		logosHashLinkPolicy(h)
 
 		// GOARM, GOMIPS, etc.
 		key, val, _ := cfg.GetArchEnv()
