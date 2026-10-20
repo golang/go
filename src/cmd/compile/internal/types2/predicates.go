@@ -209,7 +209,7 @@ func hasNil(t Type) bool {
 	switch u := t.Underlying().(type) {
 	case *Basic:
 		return u.kind == UnsafePointer
-	case *Slice, *Pointer, *Signature, *Map, *Chan:
+	case *Slice, *Pointer, *Signature, *Map, *Chan, *Option: // logos M3-S2 hook: `nil` is assignable to every `T?`.
 		return true
 	case *Interface:
 		return !isTypeParam(t) || underIs(t, func(u Type) bool {
@@ -306,6 +306,12 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 		// Two pointer types are identical if they have identical base types.
 		if y, ok := y.(*Pointer); ok {
 			return c.identical(x.base, y.base, p)
+		}
+
+	case *Option: // logos M3-S2 hook: option identity is structural over elements.
+		// Two option types are identical if they have identical element types.
+		if y, ok := y.(*Option); ok {
+			return c.identical(x.Elem, y.Elem, p)
 		}
 
 	case *Tuple:

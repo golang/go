@@ -318,6 +318,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 	case *syntax.AssertedStruct:
 		return check.logosAssertedStruct(e, def) // logos M2-S6 hook.
 
+	case *syntax.OptionType:
+		return check.logosOptionType(e, def) // logos M3-S2 hook.
+
 	case *syntax.Operation:
 		if e.Op == syntax.Mul && e.Y == nil {
 			typ := new(Pointer)

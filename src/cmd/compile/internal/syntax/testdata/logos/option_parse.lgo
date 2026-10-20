@@ -1,0 +1,75 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M3-S2 parser attacks: option types `T?` (SPEC T-202), `??` with lower
+// precedence than `||` and right associativity, and `?.` chains (SPEC
+// T-104.3). Every form without an ERROR comment must parse cleanly in
+// LogosMode; each ERROR comment pins a parse error that M3-S2 keeps
+// (regex against the parser message, same matcher as TestSyntaxErrors).
+
+package p
+
+type User struct {
+	Name string
+	Age  int
+}
+
+// Postfix `?` binds outermost: `*User?` is an option of a pointer,
+// `[]int?` an option of a slice (an element option needs parentheses).
+var _ *User?
+var _ []int?
+var _ [](int?)
+var _ map[string]int?
+var _ map[string](int?)
+var _ chan int?
+var _ [3]int?
+var _ func(int?) string?
+var _ (int?)?
+var _ any?
+
+type Holder struct {
+	F int?
+	G *User?
+	M map[string]int?
+}
+
+func params(u *User?, x int?, m map[string]int) (string?, error) {
+	y := x ?? 0
+	_ = y
+	return nil, nil
+}
+
+// `??` groups to the right and binds less tightly than `||`.
+func prec(a, b, c, d int, o1, o2, o3 int?) {
+	_ = a ?? b ?? c
+	_ = a || b ?? d
+	_ = o1 ?? o2 ?? o3
+}
+
+// `?.` chains over options; a newline after `?.` ends no statement.
+func chains(u *User?) {
+	_ = u?.Name
+	_ = u?.
+		Name
+}
+
+// A gap keeps the old tokens: `?` plus `.` is try-plus-selector, not `?.`.
+func gap(o *User?) {
+	_ = o? .Name
+}
+
+// The joined spelling `T??` is a syntax error (SPEC T-202). It sits in a
+// parameter list so the following comma keeps the parse to one error:
+// `??` ends no operand, so no semicolon follows it.
+type T struct{}
+
+func badNest(x T??, y int) { // ERROR syntax error: T\?\? is not allowed; use \(T\?\)\?
+	_, _ = x, y
+}
+
+// No name may follow `?.`; the error lands on the offending token,
+// as for `.` (so a following `}` keeps closing the block).
+func badSel(x int) {
+	_ = x?.
+} // ERROR syntax error: unexpected \}, expected name after \?\.

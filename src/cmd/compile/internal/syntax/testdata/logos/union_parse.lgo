@@ -62,20 +62,20 @@ type BadTrail interface { int | } // ERROR unexpected \}, expected ~ term or typ
 // Malformed member: trailing `|` after several terms starts a term that never comes.
 type BadTrail2 interface { int | string | } // ERROR unexpected \}, expected ~ term or type
 
-// NOT-YET (M3, T-104.3): `?.` still scans as `?` plus `.` at this seam,
-// so `o?.Name` parses as try-plus-selector and no ERROR can pin it here;
-// types2 rejects the misuse until M3 gives it option-chaining meaning.
-// `??` stays a parse error, pinned below.
+// M3-S2 (T-104.3): `?.` scans as one unit and `??` is the coalesce
+// operator, so both forms below parse cleanly here; the types2 misuse
+// rules (not_an_option, option result types) are pinned by
+// option_types.lgo instead. Only a `?.` with no name still errors.
 type Opt struct {
 	Name string
 }
 
-func notYet(o Opt, a, b int) {
+func optSel(o Opt, a, b int) {
 	_ = o?.Name
-	v := a ?? b // ERROR at end of statement
+	v := a ?? b
 	_ = v
 	_ = dangling?.
-} // ERROR unexpected \}, expected name or \(
+} // ERROR syntax error: unexpected \}, expected name after \?\.
 // Switch expressions (M2-S5): `=>` arms are not Go syntax today. The
 // type form covers every member plus nil, so no default is needed;
 // the value form carries a default (T-203.1).

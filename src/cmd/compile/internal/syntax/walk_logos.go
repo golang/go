@@ -9,13 +9,23 @@ package syntax
 
 // walkLogos visits the children of loGo/s nodes in pre-order, matching
 // the house order (parent before child): TryExpr before its operand,
-// ErrdeferStmt before its call, SwitchExpr before its init, tag, and
-// arms, ArmClause before its cases and body, AssertedStruct before its
-// assertions and struct, PropertyType before its value type.
+// ErrdeferStmt before its call, OptionType before its element,
+// CoalesceExpr before its operands, OptSelectExpr before its receiver
+// and name, SwitchExpr before its init, tag, and arms, ArmClause before
+// its cases and body, AssertedStruct before its assertions and struct,
+// PropertyType before its value type.
 func (w walker) walkLogos(n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		w.node(n.X)
+	case *OptionType:
+		w.node(n.Elem)
+	case *CoalesceExpr:
+		w.node(n.X)
+		w.node(n.Y)
+	case *OptSelectExpr:
+		w.node(n.X)
+		w.node(n.Sel)
 	case *ErrdeferStmt:
 		w.node(n.Call)
 	case *SwitchExpr:

@@ -417,6 +417,9 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	if !x.isValid() || isTyped(x.typ()) || !isValid(target) {
 		return x.typ(), nil, 0
 	}
+	if t, val, code, ok := check.logosOptionImplicit(x, target); ok { // logos M3-S2 hook.
+		return t, val, code
+	}
 	// x is untyped
 
 	if isUntyped(target) {
@@ -1145,6 +1148,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	case *syntax.TryExpr:
 		return check.logosTryOperand(x, e) // logos M1-S3 hook.
+	case *syntax.CoalesceExpr:
+		return check.logosCoalesce(x, e) // logos M3-S2 hook.
+	case *syntax.OptSelectExpr:
+		return check.logosOptSelect(x, e) // logos M3-S2 hook.
 	case *syntax.SwitchExpr:
 		return check.logosSwitchExpr(x, e) // logos M2-S5 hook.
 	case *syntax.CallExpr:
@@ -1362,6 +1369,7 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 	// exactly one (possibly invalid or comma-ok) value
 	list = []*operand{&x}
 	if allowCommaOk && (x.mode() == mapindex || x.mode() == commaok || x.mode() == commaerr) {
+		check.logosUnwrapMapIndex(&x) // logos M3-S2 hook: `v, ok := m[k]` keeps Go types.
 		var what string = "ok value of (comma, ok) expression"
 		var typ Type = Typ[UntypedBool]
 		if x.mode() == commaerr {

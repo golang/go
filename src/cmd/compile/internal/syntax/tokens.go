@@ -69,6 +69,8 @@ const (
 	_Var         // var
 	_Question    // ?
 	_FatArrow    // =>
+	_QuestionDot // ?.
+	_Coalesce    // ??
 
 	// empty line comment to exclude it from .String
 	tokenCount //
@@ -153,6 +155,7 @@ const (
 // Operator precedences
 const (
 	_ = iota
+	precCoalesce
 	precOrOr
 	precAndAnd
 	precCmp

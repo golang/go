@@ -1,0 +1,151 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M3-S2 option types (SPEC Sec 2.2, T-202; Sec 1.4, T-104.3):
+// assignability of `nil` and `T` into `T?`, no conversion back,
+// `?.` and `??` typing, map reads, and the pinned diagnostics
+// [correctness::not_an_option] and [correctness::nil_deref_unproven].
+// Narrowing after `!= nil` is M3-S4; here every plain selection on an
+// option fails.
+
+type OptUser struct {
+	Name string
+	Age  int
+}
+
+func (u OptUser) Greet() string { return u.Name }
+func (u *OptUser) SetAge(a int) { u.Age = a }
+
+type OptProfile struct {
+	Nick string?
+}
+
+type OptAccount struct {
+	P OptProfile?
+}
+
+// Assignability: `nil` and `T` go into `T?`.
+func optAssigns(n int, u OptUser) {
+	var x int? = nil
+	x = n
+	x = 42
+	var s string? = "hi"
+	var up *OptUser? = nil
+	up = &u
+	up = nil
+	var z int?
+	_ = x
+	_ = s
+	_ = up
+	_ = z
+}
+
+// `T?` does not convert back to `T`.
+func optNoOut(x int?, up *OptUser?) {
+	var i int = x /* ERROR "cannot use x (variable of type int?) as int value in" */
+	var u OptUser = up /* ERROR "cannot use up (variable of type *OptUser?) as OptUser value in" */
+	_, _ = i, u
+}
+
+// A plain method call on an option fails, even to read.
+func optMethods(up *OptUser?) {
+	_ = up.Greet /* ERROR "[correctness::nil_deref_unproven] cannot call method on *OptUser? without proving != nil" */ ()
+	_ = up.Name /* ERROR "[correctness::nil_deref_unproven] cannot access field Name of *OptUser? without proving != nil" */
+}
+
+// `?.` needs an option receiver.
+func optChainBad(u OptUser, n int) {
+	_ = u /* ERROR "[correctness::not_an_option] ?. on non-option type OptUser" */ ?. Name
+	_ = n /* ERROR "[correctness::not_an_option] ?. on non-option type int" */ ?. Foo
+}
+
+// `?.` over fields and methods yields options, flattening `F?`.
+func optChain(up *OptUser?, a *OptAccount?) {
+	_ = up?.Name
+	_ = up?.Greet()
+	up?.SetAge(3)
+	_ = up?.Name ?? "anon"
+	_ = a?.P
+	_ = a?.P?.Nick
+	var p OptProfile? = a?.P
+	_ = p
+}
+
+// `??` needs an option on the left and types as the element.
+func optCoalBad(n int, d string) {
+	_ = n /* ERROR "[correctness::not_an_option] ?? with non-option left type int" */ ?? d
+}
+
+func optCoal(x int?, y int?, d int) {
+	_ = x ?? d
+	_ = x ?? y ?? d
+	s := x ?? d
+	var si int = s
+	_, _ = s, si
+	_ = y ?? d
+}
+
+// A `??` fallback must match the element type.
+func optCoalMismatch(x int?, sd string) {
+	var s string = x ?? sd /* ERROR "as int value in ?? right-hand side" */
+	_ = s
+}
+
+// A single-value map read yields `V?`; `v, ok` keeps Go types.
+func optMapRead(m map[string]int) {
+	var v int = m /* ERROR "of type int?) as int value in" */ ["k"]
+	_ = v
+	x := m["k"]
+	var i int = x /* ERROR "cannot use x (variable of type int?) as int value in" */
+	_ = i
+	a, ok := m["k"]
+	var ai int = a
+	var ook bool = ok
+	_, _ = ai, ook
+	var w int = m["k"] ?? 7
+	_ = w
+	m["k"] = 3
+	m["k"]++
+}
+
+// Options compare with `nil` (narrowing itself is M3-S4).
+func optNilCmp(x int?) {
+	if x != nil {
+		_ = x
+	}
+}
+
+// Options flow through results and parameters.
+func optResults(x int?) int? {
+	return x
+}
+
+func optNilResult() int? {
+	return nil
+}
+
+func optConstResult() int? {
+	return 42
+}
+
+// `(T?)?` nests; it is not the same type as `T?`.
+func optNested(x (int?)?) {
+	var y int? = x /* ERROR "as int? value in" */
+	_ = y
+	var z (int?)? = nil
+	var w (int?)? = x
+	_, _ = z, w
+}
+
+// Option fields need no initializer and take values in literals.
+type OptHolder struct {
+	F int?
+}
+
+func optLit() {
+	_ = OptHolder{}
+	_ = OptHolder{F: 42}
+}

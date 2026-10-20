@@ -8,15 +8,30 @@ package syntax
 // lines only in printer.go; the logic lives here).
 
 // printLogos prints loGo/s nodes in source form: `X?` for TryExpr,
-// `errdefer <call>` for ErrdeferStmt, `switch ... { case ... => ... }` for
-// SwitchExpr and ArmClause, and `struct : I, J { ... }` for
-// AssertedStruct. Every form reparses to the same tree, so printing is
-// idempotent. ShortForm elides the arms of a SwitchExpr like the body of
-// a function literal.
+// `T?` for OptionType, `x ?? y` for CoalesceExpr, `x?.Sel` for
+// OptSelectExpr, `errdefer <call>` for ErrdeferStmt,
+// `switch ... { case ... => ... }` for SwitchExpr and ArmClause, and
+// `struct : I, J { ... }` for AssertedStruct. Every form reparses to the
+// same tree, so printing is idempotent. ShortForm elides the arms of a
+// SwitchExpr like the body of a function literal.
 func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		p.print(n.X, _Question)
+	case *OptionType:
+		// A nested option needs parentheses (`(T?)?`), because the
+		// joined spelling `T??` is a syntax error (SPEC T-202).
+		if _, ok := n.Elem.(*OptionType); ok {
+			p.print(_Lparen, n.Elem, _Rparen, _Question)
+		} else {
+			p.print(n.Elem, _Question)
+		}
+	case *CoalesceExpr:
+		// Flat like a binary Operation; precedence parens stay the
+		// caller's house-wide TODO.
+		p.print(n.X, blank, _Coalesce, blank, n.Y)
+	case *OptSelectExpr:
+		p.print(n.X, _QuestionDot, n.Sel)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
 	case *SwitchExpr:

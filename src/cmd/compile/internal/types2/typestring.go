@@ -185,6 +185,18 @@ func (w *typeWriter) typ(typ Type) {
 		w.byte('*')
 		w.typ(t.base)
 
+	case *Option: // logos M3-S2 hook: loGo/s option type `T?` prints with the caller's qualifier.
+		// A nested option needs parentheses (`(T?)?`), because the
+		// joined spelling `T??` is not valid source (SPEC T-202).
+		if _, ok := t.Elem.(*Option); ok {
+			w.byte('(')
+			w.typ(t.Elem)
+			w.string(")?")
+		} else {
+			w.typ(t.Elem)
+			w.byte('?')
+		}
+
 	case *Tuple:
 		w.tuple(t, false)
 

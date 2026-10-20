@@ -41,6 +41,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
+	if check.logosOptionAssign(x, T, context) { // logos M3-S2 hook.
+		return
+	}
+
 	if isUntyped(x.typ()) {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface
@@ -218,6 +222,8 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	if v != nil {
 		check.usedVars[v] = v_used // restore v.used
 	}
+
+	check.logosUnwrapMapIndex(&x) // logos M3-S2 hook: `m[k] = v` stores V.
 
 	if !x.isValid() || !isValid(x.typ()) {
 		return Typ[Invalid]

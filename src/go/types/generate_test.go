@@ -188,7 +188,7 @@ var filemap = map[string]action{
 	},
 	"package.go":    nil,
 	"pointer.go":    nil,
-	"predicates.go": nil,
+	"predicates.go": stripLogosHooks,
 	"range.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "syntax.ForStmt->ast.RangeStmt", "ident.Value->ident.Name") // must happen before renaming identifiers
@@ -201,11 +201,15 @@ var filemap = map[string]action{
 		renameIdents(f, "syntax->ast")
 		fixAtPosCall(f)
 	},
-	"scope.go":         func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
-	"selection.go":     nil,
-	"sizes.go":         func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
-	"slice.go":         nil,
-	"subst.go":         func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"scope.go":     func(f *ast.File) { fixTokenPos(f); renameIdents(f, "InsertLazy->_InsertLazy") },
+	"selection.go": nil,
+	"sizes.go":     func(f *ast.File) { renameIdents(f, "IsSyncAtomicAlign64->_IsSyncAtomicAlign64") },
+	"slice.go":     nil,
+	"subst.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
+		fixTokenPos(f)
+		renameSelectors(f, "Trace->_Trace")
+	},
 	"termlist.go":      nil,
 	"termlist_test.go": nil,
 	"trie.go":          nil,
@@ -216,13 +220,16 @@ var filemap = map[string]action{
 	"typeparam.go":     nil,
 	"typeterm_test.go": nil,
 	"typeterm.go":      nil,
-	"typestring.go":    nil,
+	"typestring.go":    stripLogosHooks,
 	"under.go":         nil,
-	"unify.go":         fixSprintf,
-	"universe.go":      fixGlobalTypVarDecl,
-	"util_test.go":     fixTokenPos,
-	"validtype.go":     func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
-	"version.go":       func(f *ast.File) { renameIdents(f, "poser->positioner") },
+	"unify.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
+		fixSprintf(f)
+	},
+	"universe.go":  fixGlobalTypVarDecl,
+	"util_test.go": fixTokenPos,
+	"validtype.go": func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"version.go":   func(f *ast.File) { renameIdents(f, "poser->positioner") },
 }
 
 // TODO(gri) We should be able to make these rewriters more configurable/composable.
@@ -542,7 +549,12 @@ func fixSprintf(f *ast.File) {
 //	if !check.logosXxx(...) { body }        // wrapper: replaced by body
 //	check.logosXxx(...)                     // bare call: dropped
 //	case *syntax.X: <hooks only>            // case clause: dropped
+//	case *LogoType: <body>                  // logo-only type clause: dropped
+//	case *T, *LogoType:                     // mixed type list: logo type removed
 //
+// Logo types are types2-only types that go/types cannot represent (no
+// go/ast node produces them): Option today; Union and AssertedStruct stay
+// syntax-level, not types2 types, so they never reach these switches.
 // The hooks must follow the gofmt layout, each on lines of its own. Anything
 // else that still calls check.logosXxx afterwards is a new hook shape and
 // causes a panic, rather than generating go/types code that doesn't compile.
@@ -625,13 +637,20 @@ func stripLogosHooks(f *ast.File) {
 		return list
 	}
 
+	// logosOnlyCase reports whether every expr in a type-switch case list is
+	// a logo type (Option and friends) — the clause drops as a unit.
+	logosOnlyCase := func(list []ast.Expr) bool {
+		return len(list) > 0 && !slices.ContainsFunc(list, func(e ast.Expr) bool { return !isLogosType(e) })
+	}
+
 	ast.Inspect(f, func(n ast.Node) bool {
 		switch n := n.(type) {
 		case *ast.BlockStmt:
 			n.List = stmts(n.List)
 			// A block holding case clauses is the body of a switch.
 			for i := 0; i < len(n.List); {
-				if cc, _ := n.List[i].(*ast.CaseClause); cc != nil && len(cc.Body) > 0 && !slices.ContainsFunc(cc.Body, func(s ast.Stmt) bool { return !isHook(s) }) {
+				cc, _ := n.List[i].(*ast.CaseClause)
+				if cc != nil && (logosOnlyCase(cc.List) || (len(cc.Body) > 0 && !slices.ContainsFunc(cc.Body, func(s ast.Stmt) bool { return !isHook(s) }))) {
 					drop(cc.Pos(), cc.End())
 					n.List = slices.Delete(n.List, i, i+1)
 					continue
@@ -640,6 +659,15 @@ func stripLogosHooks(f *ast.File) {
 			}
 		case *ast.CaseClause:
 			n.Body = stmts(n.Body)
+			// A type-switch clause naming only logo types is dropped by the
+			// parent BlockStmt (see logosOnlyCase). A mixed list loses just
+			// the logo entries, and its `// logos` marker comment drops with
+			// them so the output stays upstream-clean.
+			before := len(n.List)
+			n.List = slices.DeleteFunc(n.List, isLogosType)
+			if len(n.List) != before {
+				dropLogosComment(f, tf, drop, tf.Line(n.Case))
+			}
 		}
 		return true
 	})
@@ -652,6 +680,17 @@ func stripLogosHooks(f *ast.File) {
 	})
 }
 
+// dropLogosComment drops any `// logos` comment on the given line of file f.
+func dropLogosComment(f *ast.File, tf *token.File, drop func(pos, end token.Pos), line int) {
+	for _, cg := range f.Comments {
+		for _, c := range cg.List {
+			if strings.HasPrefix(c.Text, "// logos") && tf.Line(c.Pos()) == line {
+				drop(c.Pos(), c.End())
+			}
+		}
+	}
+}
+
 // isLogosCall reports whether x is a call of the form check.logosXxx(...).
 func isLogosCall(x ast.Node) bool {
 	if call, _ := x.(*ast.CallExpr); call != nil {
@@ -660,6 +699,24 @@ func isLogosCall(x ast.Node) bool {
 		}
 	}
 	return false
+}
+
+// isLogosType reports whether e names a types2-only type that go/types
+// cannot represent (no go/ast node produces it): *Option today. These
+// appear as type-switch case list entries; upstream type switches that
+// handle a loGo/s form get one clause per such type.
+func isLogosType(e ast.Expr) bool {
+	if star, _ := e.(*ast.StarExpr); star != nil {
+		if id, _ := star.X.(*ast.Ident); id != nil {
+			return logosTypes[id.Name]
+		}
+	}
+	return false
+}
+
+// logosTypes is the set of types2 types with no go/ast counterpart.
+var logosTypes = map[string]bool{
+	"Option": true,
 }
 
 // asIdent returns x as *ast.Ident if it is an identifier with the given name.

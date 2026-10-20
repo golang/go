@@ -312,6 +312,11 @@ func (subst *subster) typ(typ Type) Type {
 			return &Chan{dir: t.dir, elem: elem}
 		}
 
+	case *Option: // logos M3-S2 hook: substitute inside the element type.
+		if elem := subst.typ(t.Elem); elem != t.Elem {
+			return &Option{Elem: elem}
+		}
+
 	case *Named:
 		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing

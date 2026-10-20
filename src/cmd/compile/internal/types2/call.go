@@ -246,6 +246,10 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		return predeclaredFuncs[id].kind
 	}
 
+	if check.logosOptionalCall(x, call) { // logos M3-S2 hook: `x?.M(args)`.
+		return statement
+	}
+
 	// ordinary function/method call
 	// signature may be generic
 	cgocall := x.mode() == cgofunc
@@ -823,6 +827,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 	// its base type must also be complete.
 	if p, ok := x.typ().Underlying().(*Pointer); ok && !check.isComplete(p.base) {
 		goto Error
+	}
+
+	if check.logosOptionSelect(x, e, sel) { // logos M3-S2 hook: plain selection on `T?`.
+		return
 	}
 
 	if check.logosPropertySelector(x, e, sel) { // logos M4-S1 hook: `x.F` on a property interface.

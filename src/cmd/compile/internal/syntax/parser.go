@@ -599,7 +599,7 @@ func (p *parser) constDecl(group *Group) Decl {
 
 	d.NameList = p.nameList(p.name())
 	if p.tok != _EOF && p.tok != _Semi && p.tok != _Rparen {
-		d.Type = p.typeOrNil()
+		d.Type = p.logosOptionType(p.typeOrNil()) // M3-S2: `const C T?` is allowed.
 		if p.gotAssign() {
 			d.Values = p.exprList()
 		}
@@ -664,23 +664,23 @@ func (p *parser) typeDecl(group *Group) Decl {
 				// d.Name "[" pname ptype "," ...
 				d.TParamList = p.paramList(pname, ptype, _Rbrack, true, false) // ptype may be nil
 				d.Alias = p.gotAssign()
-				d.Type = p.typeOrNil()
+				d.Type = p.logosOptionType(p.typeOrNil()) // M3-S2: generic header with option body.
 			} else {
 				// d.Name "[" pname "]" ...
 				// d.Name "[" x ...
-				d.Type = p.arrayType(pos, x)
+				d.Type = p.logosOptionType(p.arrayType(pos, x)) // M3-S2: `type A [3]int?`.
 			}
 		case _Rbrack:
 			// d.Name "[" "]" ...
 			p.next()
-			d.Type = p.sliceType(pos)
+			d.Type = p.logosOptionType(p.sliceType(pos)) // M3-S2: `type A []int?`.
 		default:
 			// d.Name "[" ...
-			d.Type = p.arrayType(pos, nil)
+			d.Type = p.logosOptionType(p.arrayType(pos, nil)) // M3-S2: `type A [N]int?`.
 		}
 	} else {
 		d.Alias = p.gotAssign()
-		d.Type = p.logosTypeDeclType(d) // M2-S6 hook: inline struct assertions.
+		d.Type = p.logosOptionType(p.logosTypeDeclType(d)) // M3-S2: `type A T?`; M2-S6 hook inside.
 	}
 
 	if d.Type == nil {
@@ -880,7 +880,17 @@ func (p *parser) binaryExpr(x Expr, prec int) Expr {
 	if x == nil {
 		x = p.unaryExpr()
 	}
-	for (p.tok == _Operator || p.tok == _Star) && p.prec > prec {
+	for (p.tok == _Operator || p.tok == _Star || p.tok == _Coalesce) && p.prec > prec {
+		if p.tok == _Coalesce {
+			// logos M3-S2 hook: `??` binds less tightly than `||`
+			// and groups to the right (SPEC T-104.3). The scanner
+			// only produces _Coalesce in LogosMode.
+			if p.mode&LogosMode == 0 {
+				break
+			}
+			x = p.logosCoalesce(x, p.pos())
+			continue
+		}
 		t := new(Operation)
 		t.pos = p.pos()
 		t.Op = p.op
@@ -1258,6 +1268,15 @@ loop:
 		case _Question:
 			x = p.logosQuestion(x, pos)
 
+		case _QuestionDot:
+			// logos M3-S2 hook: `?.` optional selection (SPEC
+			// T-104.3). The scanner only produces _QuestionDot in
+			// LogosMode.
+			if p.mode&LogosMode == 0 {
+				break loop
+			}
+			x = p.logosOptSelect(x, pos)
+
 		default:
 			break loop
 		}
@@ -1340,9 +1359,10 @@ func (p *parser) type_() Expr {
 		typ = p.badExpr()
 		p.syntaxError("expected type")
 		p.advance(_Comma, _Colon, _Semi, _Rparen, _Rbrack, _Rbrace)
+		return typ
 	}
 
-	return typ
+	return p.logosOptionType(typ) // M3-S2 hook: postfix `?` (SPEC T-202).
 }
 
 func newIndirect(pos Pos, typ Expr) Expr {
@@ -1370,7 +1390,7 @@ func (p *parser) typeOrNil() Expr {
 	case _Star:
 		// ptrtype
 		p.next()
-		return newIndirect(pos, p.type_())
+		return newIndirect(pos, p.logosTypeElem()) // M3-S2: `*U?` is an option of a pointer.
 
 	case _Arrow:
 		// recvchantype
@@ -1415,9 +1435,9 @@ func (p *parser) typeOrNil() Expr {
 		p.want(_Lbrack)
 		t := new(MapType)
 		t.pos = pos
-		t.Key = p.type_()
+		t.Key = p.logosTypeElem() // M3-S2: `?` after `]` belongs to the map.
 		p.want(_Rbrack)
-		t.Value = p.type_()
+		t.Value = p.logosTypeElem()
 		return t
 
 	case _Struct:
@@ -1522,7 +1542,7 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
 	t := new(ArrayType)
 	t.pos = pos
 	t.Len = len
-	t.Elem = p.type_()
+	t.Elem = p.logosTypeElem() // M3-S2: `?` after `]` belongs to the array.
 	return t
 }
 
@@ -1530,7 +1550,7 @@ func (p *parser) arrayType(pos Pos, len Expr) Expr {
 func (p *parser) sliceType(pos Pos) Expr {
 	t := new(SliceType)
 	t.pos = pos
-	t.Elem = p.type_()
+	t.Elem = p.logosTypeElem() // M3-S2: `?` after `]` belongs to the slice.
 	return t
 }
 
@@ -1608,7 +1628,7 @@ func (p *parser) funcResult() []*Field {
 	if typ := p.typeOrNil(); typ != nil {
 		f := new(Field)
 		f.pos = pos
-		f.Type = typ
+		f.Type = p.logosOptionType(typ) // M3-S2: `func() int?` returns an option.
 		return []*Field{f}
 	}
 
@@ -1727,7 +1747,7 @@ func (p *parser) arrayOrTArgs() Expr {
 	pos := p.pos()
 	p.want(_Lbrack)
 	if p.got(_Rbrack) {
-		return p.sliceType(pos)
+		return p.logosOptionType(p.sliceType(pos)) // M3-S2: field `F []int?`.
 	}
 
 	// x [n]E or x[n,], x[n1, n2], ...
@@ -1740,7 +1760,7 @@ func (p *parser) arrayOrTArgs() Expr {
 			t.pos = pos
 			t.Len = n
 			t.Elem = elem
-			return t
+			return p.logosOptionType(t) // M3-S2: field `F [3]int?`.
 		}
 	}
 
@@ -1961,7 +1981,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 
 		if p.tok == _Dot {
 			// name "." ...
-			f.Type = p.qualifiedName(name)
+			f.Type = p.logosOptionType(p.qualifiedName(name)) // M3-S2: `(pkg.T?)`.
 			if typeSetsOk && p.tok == _Operator && p.op == Or {
 				// name "." name "|" ...
 				f = p.embeddedElem(f)
@@ -1983,7 +2003,7 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 		t := new(DotsType)
 		t.pos = p.pos()
 		p.next()
-		t.Elem = p.typeOrNil()
+		t.Elem = p.logosOptionType(p.typeOrNil()) // M3-S2: `...int?` is variadic of option.
 		if t.Elem == nil {
 			f.Type = p.badExpr()
 			p.syntaxError("... is missing type")
@@ -2000,6 +2020,15 @@ func (p *parser) paramDeclOrNil(name *Name, follow token) *Field {
 	}
 
 	f.Type = p.typeOrNil()
+	if f.Type == nil && f.Name != nil && (p.tok == _Question || p.tok == _Coalesce) {
+		// M3-S2: unnamed parameter of option type (`(int?)`): the
+		// name just read is the type. (`T??` reports through the
+		// wrap below.) Plain mode never sees these tokens.
+		f.Type = p.logosOptionType(f.Name)
+		f.Name = nil
+	} else {
+		f.Type = p.logosOptionType(f.Type) // M3-S2 hook: parameter types may be options.
+	}
 	if typeSetsOk && p.tok == _Operator && p.op == Or && f.Type != nil {
 		// [name] type "|"
 		f = p.embeddedElem(f)
@@ -2883,10 +2912,10 @@ func (p *parser) typeList(strict bool) (x Expr, comma bool) {
 	}
 	if p.got(_Comma) {
 		comma = true
-		if t := p.typeOrNil(); t != nil {
+		if t := p.logosOptionType(p.typeOrNil()); t != nil {
 			list := []Expr{x, t}
 			for p.got(_Comma) {
-				if t = p.typeOrNil(); t == nil {
+				if t = p.logosOptionType(p.typeOrNil()); t == nil {
 					break
 				}
 				list = append(list, t)

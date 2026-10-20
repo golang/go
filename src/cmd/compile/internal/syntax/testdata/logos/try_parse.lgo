@@ -155,12 +155,14 @@ func keepAddAssign(errdefer int) {
 	errdefer += 1
 }
 
+// M3-S2 scans `??` with no gap as one _Coalesce token, so a doubled `?`
+// needs a gap to stay two postfix operators.
 func badDeferParenTryTry() error {
-	defer (g())?? // ERROR expression in defer must not be parenthesized
+	defer (g())? ? // ERROR expression in defer must not be parenthesized
 	return nil
 }
 
 func badGoParenTryTry() error {
-	go (g())?? // ERROR expression in go must not be parenthesized
+	go (g())? ? // ERROR expression in go must not be parenthesized
 	return nil
 }

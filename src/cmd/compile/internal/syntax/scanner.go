@@ -46,7 +46,7 @@ type scanner struct {
 	bad       bool     // valid if tok is _Literal, true if a syntax error occurred, lit may be malformed
 	kind      LitKind  // valid if tok is _Literal
 	op        Operator // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
-	prec      int      // valid if tok is _Operator, _Star, _AssignOp, or _IncOp
+	prec      int      // valid if tok is _Operator, _Star, _AssignOp, _IncOp, or _Coalesce
 }
 
 func (s *scanner) init(src io.Reader, errh func(line, col uint, msg string), mode uint) {
@@ -360,11 +360,16 @@ redo:
 	case '?':
 		// '?' is loGo/s-only (M1-S1). In LogosMode it scans as
 		// _Question and ends an operand like ')', so a following
-		// newline or EOF yields ';'. Otherwise it keeps the exact
-		// upstream invalid-character path (same message, position,
-		// and rescan behavior as the default case below).
+		// newline or EOF yields ';'. M3-S2 adds the joined tails
+		// `?.` (_QuestionDot, like `.`) and `??` (_Coalesce, like
+		// `||`): neither ends an operand. Otherwise it keeps the
+		// exact upstream invalid-character path (same message,
+		// position, and rescan behavior as the default case below).
 		if s.mode&uint(LogosMode) != 0 {
 			s.nextch()
+			if s.logosQuestionTail() { // M3-S2 hook: `?.` and `??`.
+				break
+			}
 			s.nlsemi = true
 			s.tok = _Question
 			break

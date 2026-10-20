@@ -483,6 +483,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 			if !x.isValid() {
 				return
 			}
+			check.logosUnwrapMapIndex(&x) // logos M3-S2 hook: `m[k]++` operates on V.
 			if !allNumeric(x.typ()) {
 				check.errorf(s.Lhs, NonNumericIncDec, invalidOp+"%s%s%s (non-numeric type %s)", s.Lhs, s.Op, s.Op, x.typ())
 				return

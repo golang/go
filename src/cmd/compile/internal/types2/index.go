@@ -119,6 +119,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		// ok to continue even if indexing failed - map element type is known
 		x.mode_ = mapindex
 		x.typ_ = typ.elem
+		check.logosMapIndexOption(x) // logos M3-S2 hook: `m[k]` types as `V?`.
 		x.expr = e
 		return false
 
@@ -193,6 +194,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 				// ok to continue even if indexing failed - map element type is known
 				x.mode_ = mapindex
 				x.typ_ = elem
+				check.logosMapIndexOption(x) // logos M3-S2 hook: `m[k]` types as `V?`.
 				x.expr = e
 				return false
 			}
