@@ -1,0 +1,50 @@
+# M22-S6: the Sec 11 end-to-end example ejects to pure Go and prints the same
+# output. test/logos/example/order_service.lgo is the single source: a fake
+# database, a closed union, a property interface, a const map, options, errdefer,
+# go group, Locked and Hot, and a leading-dot chain. order_service.out is the
+# expected output of the native build and of the ejected tree.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/example/order_service.lgo m/order_service.lgo
+cd m
+
+# The native build prints the expected output file.
+logos run .
+cmp stdout $GOROOT/test/logos/example/order_service.out
+cp stdout $WORK/native-stdout.txt
+
+# Snapshot the source tree; eject must never write into it.
+cp order_service.lgo $WORK/order_service.lgo.orig
+cp go.mod $WORK/go.mod.orig
+
+# Eject the module: plain .go name, no loGo/s source, one support module.
+logos eject -o out
+exists out/order_service.go
+exists out/go.mod
+exists out/_logos_deps/rt/go.mod
+exists out/_logos_deps/rt/sync/sync.go
+! exists out/order_service.lgo
+! grep '^//go:build !logos' out/order_service.go
+
+# The ejected tree runs under plain go with identical output.
+cd out
+go run .
+cmp stdout $WORK/native-stdout.txt
+cmp stdout $GOROOT/test/logos/example/order_service.out
+
+# The ejected tree is vet- and gofmt-clean.
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The source tree is unchanged after the eject.
+cmp order_service.lgo $WORK/order_service.lgo.orig
+cmp go.mod $WORK/go.mod.orig
+
+-- m/go.mod --
+module example.com/order
+
+go 1.27

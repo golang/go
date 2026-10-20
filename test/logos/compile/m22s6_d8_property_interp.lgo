@@ -1,0 +1,34 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D8 (SPEC T-104.4, T-203.2): a property read through an
+// interface fails inside `$"..."` braces, while the same read works as a
+// plain expression and as a local binding.
+//
+// want: 1 n
+// got:  a.ID undefined (type A has no field or method ID)
+//       a.Name undefined (type A has no field or method Name)
+//
+// Flip the header to `// run` and add m22s6_d8_property_interp.out when
+// fixed.
+
+type A interface {
+	const ID int64
+	const Name string
+}
+
+type R struct : A {
+	ID   int64
+	Name string
+}
+
+func audit(a A) string {
+	return $"{a.ID} {a.Name}"
+}
+
+func main() {
+	fmt.Println(audit(&R{ID: 1, Name: "n"}))
+}

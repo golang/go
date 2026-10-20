@@ -1,0 +1,366 @@
+// run
+
+// Command order_service is the loGo/s end-to-end example (SPEC Sec 11):
+// an order service over a fake database. main runs four batches through
+// ProcessBatch and prints receipts, the ledger, and the database counters.
+// order_service.out holds the expected output, and the ejected module must
+// print the same under plain go.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"maps"
+	"os"
+	"slices"
+
+	"logos/sync"
+)
+
+// Auditable is a property interface: an implementor lists it after `:` and
+// exposes ID and Author read-only through the interface.
+type Auditable interface {
+	const ID int64
+	const Author string
+	Validate() error
+}
+
+// Filled, Rejected, and Pending are the members of the closed union
+// OrderResult.
+type Filled struct {
+	TxID  string
+	Price int64
+}
+
+type Rejected struct {
+	Reason string
+	Code   int
+}
+
+type Pending struct{}
+
+// OrderResult is a closed union: a ledger entry is exactly one of its
+// members or none.
+type OrderResult interface {
+	Filled | Rejected | Pending
+}
+
+// feeTierBps lowers to a switch in read-only data: no init cost and no
+// GC scan.
+const feeTierBps = map[string]int64{
+	"VIP":      2,
+	"STANDARD": 10,
+	"GUEST":    25,
+}
+
+// quoteCents is the price list of the fake database.
+const quoteCents = map[string]int64{
+	"ACME":    12000,
+	"GLOBEX":  34000,
+	"INITECH": 7500,
+}
+
+// CreateOrderReq asserts at its declaration that *CreateOrderReq
+// implements Auditable. PromoTag is an option. Field defaults are left
+// out because a `: I` list drops them (M22-S6 D6).
+type CreateOrderReq struct : Auditable {
+	ID       int64
+	Author   string
+	Symbol   string
+	Qty      int64
+	Tier     string
+	PromoTag string?
+}
+
+// Validate rejects a request with a non-positive quantity. The int64
+// conversions strip the const qualifier that `$"..."` rejects (M22-S6 D1).
+func (r const *CreateOrderReq) Validate() error {
+	if r.Qty <= 0 {
+		return errors.New($"invalid quantity {int64(r.Qty)} for order {int64(r.ID)}")
+	}
+	return nil
+}
+
+// RiskConfig holds the limits that the service reads without a lock.
+type RiskConfig struct {
+	HoldQty int64 = 500
+	MaxQty  int64 = 1000
+}
+
+// dbStats counts what the fake database has seen.
+type dbStats struct {
+	Trades    int
+	Commits   int
+	Rollbacks int
+	Closes    int
+}
+
+// Database is the fake database: an in-memory price list and counters,
+// safe for concurrent use.
+type Database struct {
+	stats sync.Locked[dbStats]
+}
+
+// Tx is one open transaction of the fake database.
+type Tx struct {
+	db *Database
+}
+
+// NewDatabase returns an empty fake database.
+func NewDatabase() *Database {
+	return &Database{}
+}
+
+// Begin opens a transaction unless ctx is done.
+func (d *Database) Begin(ctx context.Context) (*Tx, error) {
+	return &Tx{db: d}, ctx.Err()
+}
+
+// Stats returns a snapshot of the counters.
+func (d *Database) Stats() dbStats {
+	var snap dbStats
+	d.stats.WithLock(s => {
+		snap = *s
+	})
+	return snap
+}
+
+// ExecuteTrade prices qty units of symbol plus a fee of bps basis points,
+// and fails for a symbol without a quote.
+func (t *Tx) ExecuteTrade(symbol string, qty, bps int64) (int64, error) {
+	quote, ok := quoteCents[symbol]
+	if !ok {
+		return 0, errors.New($"no quote for symbol {symbol}")
+	}
+	t.db.stats.WithLock(s => {
+		s.Trades++
+	})
+	gross := quote * qty
+	return gross + gross*bps/10000, nil
+}
+
+// Commit counts one commit.
+func (t *Tx) Commit() error {
+	t.db.stats.WithLock(s => {
+		s.Commits++
+	})
+	return nil
+}
+
+// Rollback counts one rollback.
+func (t *Tx) Rollback() error {
+	t.db.stats.WithLock(s => {
+		s.Rollbacks++
+	})
+	return nil
+}
+
+// Close counts one close.
+func (t *Tx) Close() error {
+	t.db.stats.WithLock(s => {
+		s.Closes++
+	})
+	return nil
+}
+
+// OrderService processes batches of orders against the database.
+type OrderService struct {
+	db     *Database
+	logger *slog.Logger
+	ledger sync.Locked[map[int64]OrderResult]
+	config sync.Hot[RiskConfig]
+}
+
+// NewOrderService returns a service with an empty ledger and the default
+// risk limits.
+func NewOrderService(db *Database, logger *slog.Logger) *OrderService {
+	svc := &OrderService{db: db, logger: logger}
+	svc.ledger.WithLock(m => {
+		*m = map[int64]OrderResult{}
+	})
+	svc.config.Store(&RiskConfig{})
+	return svc
+}
+
+// SetLimits replaces the risk limits; readers of the old limits finish
+// undisturbed.
+func (s *OrderService) SetLimits(holdQty, maxQty int64) {
+	s.config.Update(old => &RiskConfig{HoldQty: holdQty, MaxQty: maxQty})
+}
+
+// ProcessBatch validates every request, runs the batch in one
+// transaction with at most 8 requests in flight, and returns one receipt
+// per request of at least 10 units. A receipt acknowledges the request,
+// filled or not. On failure the transaction rolls back and the ledger
+// forgets the batch. The batch is a plain slice because the compiler
+// rejects chains on a const slice (M22-S6 D3).
+func (s *OrderService) ProcessBatch(ctx context.Context, batch []CreateOrderReq) ([]string, error) {
+	for i := range batch {
+		batch[i].Validate()?
+	}
+
+	tx := s.db.Begin(ctx)?
+	defer tx.Close()?
+	errdefer tx.Rollback()?
+	errdefer s.forget(batch)
+
+	go group (ctx, limit = 8) {
+		for _, req := range batch {
+			go {
+				res := s.execute(tx, req)?
+				s.ledger.WithLock(m => {
+					(*m)[req.ID] = res
+				})
+			}
+		}
+	}
+
+	tx.Commit()?
+
+	receipts := batch
+		.filter(r => r.Qty >= 10)
+		.map(r => receipt(r))
+
+	s.logger.Info("batch committed", "orders", len(batch), "receipts", len(receipts))
+	return receipts, nil
+}
+
+// receipt formats the receipt line of one request. It is a function
+// because a chain lambda cannot hold `$"..."` or `??` (M22-S6 D4).
+func receipt(r CreateOrderReq) string {
+	return $"Order #{r.ID} by {r.Author} ({r.PromoTag ?? "NO-PROMO"})"
+}
+
+// execute prices one request against the current limits. The int64
+// conversion strips a const qualifier (M22-S6 D1).
+func (s *OrderService) execute(tx *Tx, req CreateOrderReq) (OrderResult, error) {
+	cfg := s.config.Load()
+	if req.Qty > cfg.MaxQty {
+		return Rejected{Reason: $"quantity {req.Qty} above limit {int64(cfg.MaxQty)}", Code: 422}, nil
+	}
+	if req.Qty > cfg.HoldQty {
+		return Pending{}, nil
+	}
+	bps := feeTierBps[req.Tier] ?? 25
+	price := tx.ExecuteTrade(req.Symbol, req.Qty, bps)?
+	return Filled{TxID: $"TX-{req.ID}", Price: price}, nil
+}
+
+// forget drops the ledger entries of a batch that failed.
+func (s *OrderService) forget(batch const []CreateOrderReq) {
+	s.ledger.WithLock(m => {
+		for _, req := range batch {
+			delete(*m, req.ID)
+		}
+	})
+}
+
+// Report lists the ledger in order of order id. describe runs outside the
+// lambda because eject fails on `$"..."` inside one (M22-S6 D7).
+func (s *OrderService) Report() []string {
+	var lines []string
+	s.ledger.WithLock(m => {
+		for _, id := range slices.Sorted(maps.Keys(*m)) {
+			res, _ := (*m)[id]
+			lines = append(lines, describe(id, res))
+		}
+	})
+	return lines
+}
+
+// describe renders one ledger entry.
+func describe(id int64, r OrderResult) string {
+	var line string
+	switch v := r.(type) {
+	case Filled:
+		line = $"#{id} filled {v.TxID} at {v.Price}"
+	case Rejected:
+		line = $"#{id} rejected: {v.Reason} (code {v.Code})"
+	case Pending:
+		line = $"#{id} pending review"
+	case nil:
+		line = $"#{id} unknown"
+	}
+	return line
+}
+
+// Audit names who submitted an order, reading the Auditable properties
+// through the interface. The reads bind to locals first because a property
+// read inside `$"..."` braces fails (M22-S6 D8).
+func Audit(a Auditable) string {
+	id, author := a.ID, a.Author
+	return $"order {id} submitted by {author}"
+}
+
+func newLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: dropTime}))
+}
+
+func dropTime(groups []string, a slog.Attr) slog.Attr {
+	if len(groups) == 0 && a.Key == slog.TimeKey {
+		return slog.Attr{}
+	}
+	return a
+}
+
+func show(title string, lines []string) {
+	fmt.Println(title)
+	for _, line := range lines {
+		fmt.Println("  " + line)
+	}
+}
+
+func run() error {
+	ctx := context.Background()
+	svc := NewOrderService(NewDatabase(), newLogger())
+
+	first := []CreateOrderReq{
+		{ID: 101, Author: "ada", Symbol: "ACME", Qty: 40, Tier: "STANDARD"},
+		{ID: 102, Author: "bob", Symbol: "GLOBEX", Qty: 5, Tier: "VIP"},
+		{ID: 103, Author: "cyd", Symbol: "INITECH", Qty: 700, Tier: "PLATINUM"},
+		{ID: 104, Author: "dee", Symbol: "ACME", Qty: 2000, Tier: "GUEST"},
+		{ID: 105, Author: "eve", Symbol: "GLOBEX", Qty: 12, Tier: "PLATINUM"},
+	}
+	// A struct literal rejects a plain string or nil for its option field
+	// (M22-S6 D5).
+	first[0].PromoTag = "SPRING"
+	fmt.Println(Audit(&first[0]))
+	receipts := svc.ProcessBatch(ctx, first)?
+	show("batch 1 receipts:", receipts)
+	show("batch 1 ledger:", svc.Report())
+	fmt.Println("batch 1 trades:", svc.db.Stats().Trades)
+
+	svc.SetLimits(800, 1000)
+	second := []CreateOrderReq{
+		{ID: 103, Author: "cyd", Symbol: "INITECH", Qty: 700, Tier: "PLATINUM"},
+	}
+	receipts = svc.ProcessBatch(ctx, second)?
+	show("batch 2 receipts:", receipts)
+	show("batch 2 ledger:", svc.Report())
+
+	_, err := svc.ProcessBatch(ctx, []CreateOrderReq{
+		{ID: 201, Author: "fay", Symbol: "ACME", Qty: 10, Tier: "STANDARD"},
+		{ID: 202, Author: "gus", Symbol: "ACME", Qty: 0, Tier: "STANDARD"},
+	})
+	fmt.Println("batch 3 error:", err)
+
+	_, err = svc.ProcessBatch(ctx, []CreateOrderReq{
+		{ID: 301, Author: "hal", Symbol: "ACME", Qty: 10, Tier: "STANDARD"},
+		{ID: 302, Author: "ivy", Symbol: "NOPE", Qty: 10, Tier: "STANDARD"},
+	})
+	fmt.Println("batch 4 error:", err)
+	show("final ledger:", svc.Report())
+
+	stats := svc.db.Stats()
+	fmt.Println("commits:", stats.Commits, "rollbacks:", stats.Rollbacks, "closes:", stats.Closes)
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Println("fatal:", err)
+		os.Exit(1)
+	}
+}

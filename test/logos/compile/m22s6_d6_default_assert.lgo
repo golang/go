@@ -1,0 +1,31 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D6 (SPEC T-104.5, T-203.3): a struct that lists an
+// assertion (`struct : I`) loses its field defaults, so `Req{}` and every
+// literal that omits Qty get zero without any diagnostic. The Sec 11
+// CreateOrderReq combines `: Auditable` with `Qty int64 = 1`. Without the
+// `: G` list the same literal prints 1.
+//
+// want: 1
+// got:  0
+//
+// Flip the header to `// run` and add m22s6_d6_default_assert.out when
+// fixed.
+
+type G interface {
+	Hello() string
+}
+
+type Req struct : G {
+	Qty int64 = 1
+}
+
+func (r Req) Hello() string { return "hi" }
+
+func main() {
+	fmt.Println(Req{}.Qty)
+}

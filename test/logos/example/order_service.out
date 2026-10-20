@@ -1,0 +1,32 @@
+order 101 submitted by ada
+level=INFO msg="batch committed" orders=5 receipts=4
+batch 1 receipts:
+  Order #101 by ada (SPRING)
+  Order #103 by cyd (NO-PROMO)
+  Order #104 by dee (NO-PROMO)
+  Order #105 by eve (NO-PROMO)
+batch 1 ledger:
+  #101 filled TX-101 at 480480
+  #102 filled TX-102 at 170034
+  #103 pending review
+  #104 rejected: quantity 2000 above limit 1000 (code 422)
+  #105 filled TX-105 at 409020
+batch 1 trades: 3
+level=INFO msg="batch committed" orders=1 receipts=1
+batch 2 receipts:
+  Order #103 by cyd (NO-PROMO)
+batch 2 ledger:
+  #101 filled TX-101 at 480480
+  #102 filled TX-102 at 170034
+  #103 filled TX-103 at 5263125
+  #104 rejected: quantity 2000 above limit 1000 (code 422)
+  #105 filled TX-105 at 409020
+batch 3 error: invalid quantity 0 for order 202
+batch 4 error: no quote for symbol NOPE
+final ledger:
+  #101 filled TX-101 at 480480
+  #102 filled TX-102 at 170034
+  #103 filled TX-103 at 5263125
+  #104 rejected: quantity 2000 above limit 1000 (code 422)
+  #105 filled TX-105 at 409020
+commits: 2 rollbacks: 1 closes: 3

@@ -1,0 +1,28 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D4 (SPEC T-104.3, T-104.6): a `??` at the top of a chain
+// lambda body stays unlowered when the chain fragment is re-parsed as Go.
+// See m22s6_d4_chain_interp.lgo for the `$"..."` form of the same defect.
+//
+// want: [none b]
+// got:  internal compiler error: logos: cannot parse chain fragment
+//       "func() []string { ... return x.O ?? \"none\" } ..." :
+//       logos-chain:2:104: invalid character U+003F '?'
+//
+// Flip the header to `// run` and add m22s6_d4_chain_coalesce.out when
+// fixed.
+
+type P struct {
+	N int64
+	O string?
+}
+
+func main() {
+	xs := []P{{N: 1}, {N: 2}}
+	xs[1].O = "b"
+	fmt.Println(xs.map(x => x.O ?? "none"))
+}

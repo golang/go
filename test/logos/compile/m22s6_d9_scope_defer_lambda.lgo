@@ -1,0 +1,25 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D9 (SPEC T-104.2): `scope defer` inside a lambda body is
+// not lowered. Found while probing lambdas for the Sec 11 example, which
+// does not use it. The same statement inside a `func` literal prints 1
+// then s.
+//
+// want: 1 then s
+// got:  internal compiler error: logos: *syntax.ScopeDeferStmt survived lowering at ./<file>:<line>:3
+//
+// Flip the header to `// run` and add m22s6_d9_scope_defer_lambda.out when
+// fixed.
+
+func call(g func(int)) { g(1) }
+
+func main() {
+	call(x => {
+		scope defer fmt.Println("s")
+		fmt.Println(x)
+	})
+}

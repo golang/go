@@ -1,0 +1,26 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D5 (SPEC T-202): `T` and `nil` MUST be assignable to `T?`,
+// and they are for variables, parameters, results, and field assignment,
+// but not for an option-typed field of a composite literal.
+//
+// want: c
+// got:  cannot use "c" (untyped string constant) as rt.Option[string] value in struct literal
+//       cannot use nil as rt.Option[string] value in struct literal
+//
+// Flip the header to `// run` and add m22s6_d5_option_literal.out when
+// fixed.
+
+type P struct {
+	O string?
+}
+
+func main() {
+	q := P{O: "c"}
+	r := P{O: nil}
+	fmt.Println(q.O ?? "none", r.O ?? "none")
+}
