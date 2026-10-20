@@ -1,0 +1,718 @@
+# M16-S2 (SPEC Sec 14.2; #27, #78, #187): the wasm host loader.
+# logos build writes <name>.loader.mjs beside a .wasm output; go build
+# writes the same bytes only with --wasm-loader (the plain-go default is
+# off until the run.bash flip, R-U1, G3). The loader re-reads memory.buffer
+# after every call into wasm, checks the int32 errCode, and throws the
+# message that readErrorString reads from wasm memory. Without node the
+# whole gate is blocked (A-NODE), not passed.
+[!exec:node] skip 'A-NODE: node is required to run the loader'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOOS=js
+env GOARCH=wasm
+
+cp $GOROOT/lib/wasm/wasm_exec.js lgo/wasm_exec.js
+cp $GOROOT/lib/wasm/wasm_exec.js gomod/wasm_exec.js
+cp $GOROOT/lib/wasm/wasm_exec.js goimpl/wasm_exec.js
+
+# go help build stays byte-identical to the baseline: the flag has no help
+# text. Only logos help names it.
+go help build
+cmp stdout help_build.txt
+logos help build
+stdout '-wasm-loader'
+
+# A loGo/s main package: logos build writes the loader by default, and the
+# //logos: directives behave as the //go: forms.
+cd lgo
+logos build -o app.wasm .
+exists app.wasm
+exists app.loader.mjs
+exec node ../check.mjs app.wasm app.loader.mjs text
+stdout '^loader-ok$'
+cp app.loader.mjs ../lgo.loader.mjs
+
+# logos build -n shows the loader write and makes none; --wasm-loader=false
+# turns the loader off.
+rm app.loader.mjs
+logos build -n -o app.wasm .
+stderr 'app\.loader\.mjs'
+! exists app.loader.mjs
+logos build --wasm-loader=false -o app.wasm .
+! exists app.loader.mjs
+
+# A non-wasm output name writes no loader.
+logos build -o app.bin .
+! exists app.loader.mjs
+! exists app.bin.loader.mjs
+
+# The default output name of a wasm main package has no .wasm suffix, so a
+# build without -o writes no loader.
+logos build .
+exists wasmlgo
+! exists wasmlgo.loader.mjs
+
+# logos eject spells the directives in their //go: forms, ships the wasm
+# helpers of logos/rt, and the ejected module builds under plain go into a
+# wasm module that the same loader drives.
+logos eject -o out
+exists out/main.go
+grep '^//go:wasmimport host add$' out/main.go
+grep '^//go:wasmexport incr$' out/main.go
+grep '^//go:wasmexport checkHost$' out/main.go
+! grep '//logos:' out/main.go
+exists out/_logos_deps/rt/wasmerr.go
+exists out/_logos_deps/rt/wasmhost_wasm.go
+cd out
+go build -o ../ejected.wasm .
+cd ..
+cp ../lgo.loader.mjs ejected.loader.mjs
+exec node ../check.mjs ejected.wasm ejected.loader.mjs text
+stdout '^loader-ok$'
+cd ..
+
+# A non-wasm target writes no loader under either command, even for a .wasm
+# output name, and adds no logos/rt import; the same build on a wasm target
+# does both.
+cd plain
+env GOOS=linux
+env GOARCH=amd64
+go build -x --wasm-loader -o app.wasm .
+exists app.wasm
+! exists app.loader.mjs
+! stderr 'packagefile logos/rt='
+! stderr 'loader\.mjs'
+logos build -x -o app.wasm .
+! exists app.loader.mjs
+! stderr 'packagefile logos/rt='
+env GOOS=js
+env GOARCH=wasm
+go build -x --wasm-loader -o app.wasm .
+stderr 'packagefile logos/rt='
+exists app.loader.mjs
+rm app.loader.mjs
+go build -x -o app.wasm .
+! stderr 'packagefile logos/rt='
+! exists app.loader.mjs
+cd ..
+
+# A Go main package with //go:wasmexport and an explicit logos/rt import:
+# plain go writes no loader by default, writes it with --wasm-loader, and
+# logos build writes it by default, with identical loader bytes.
+cd gomod
+go build -o app.wasm .
+exists app.wasm
+! exists app.loader.mjs
+go build --wasm-loader -o app.wasm .
+exists app.loader.mjs
+exec node ../check.mjs app.wasm app.loader.mjs text
+stdout '^loader-ok$'
+cmp app.loader.mjs ../lgo.loader.mjs
+rm app.loader.mjs
+logos build -o app.wasm .
+exists app.loader.mjs
+cmp app.loader.mjs ../lgo.loader.mjs
+exec node ../check.mjs app.wasm app.loader.mjs text
+stdout '^loader-ok$'
+go build --wasm-loader=false -o other.wasm .
+! exists other.loader.mjs
+cd ..
+
+# A Go main package that never imports logos/rt still gets the helpers the
+# loader calls: the build adds the implicit import when it emits the loader,
+# and the linker keeps its wasmexports. The std action IDs stay equal, so
+# no standard-library package rebuilds when the flag is added.
+cd goimpl
+go build -debug-actiongraph=$WORK/before.json -o plain.wasm .
+! exists plain.loader.mjs
+go build --wasm-loader -debug-actiongraph=$WORK/after.json -o app.wasm .
+exists app.loader.mjs
+cmp app.loader.mjs ../lgo.loader.mjs
+exec node ../check.mjs app.wasm app.loader.mjs codes
+stdout '^loader-ok$'
+exec node ../compare.mjs $WORK/before.json $WORK/after.json
+stdout '^action-ids-equal$'
+logos build -o logos.wasm .
+exists logos.loader.mjs
+cmp logos.loader.mjs ../lgo.loader.mjs
+exec node ../check.mjs logos.wasm logos.loader.mjs codes
+stdout '^loader-ok$'
+
+# GOOS=wasip1 gets the same loader bytes, and the same exports work in a
+# reactor module that the host initializes through WASI.
+env GOOS=wasip1
+go build -buildmode=c-shared --wasm-loader -o wasi.wasm .
+cmp wasi.loader.mjs ../lgo.loader.mjs
+exec node ../wasi.mjs wasi.wasm wasi.loader.mjs
+stdout '^wasi-ok$'
+cd ..
+
+-- check.mjs --
+import { readFileSync, statSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import assert from "node:assert/strict";
+
+const [wasmPath, loaderPath, mode] = process.argv.slice(2);
+const loader = await import(pathToFileURL(resolve(loaderPath)).href);
+assert.equal(typeof loader.instantiateLogos, "function");
+assert.ok(statSync(loaderPath).size <= 1400, "loader exceeds 1.4 KB");
+
+const { instance, exports } = await loader.instantiateLogos(readFileSync(wasmPath), {
+  host: { add: (a, b) => a + b },
+});
+
+// #27: a 1 MB input forces memory.grow, which detaches every older view.
+const stale = instance.exports.mem.buffer;
+const before = stale.byteLength;
+const input = new Uint8Array(1 << 20);
+for (let i = 0; i < input.length; i++) input[i] = (i * 31) & 255;
+const want = input.map((v) => (v + 1) & 255);
+exports.incr(input);
+assert.equal(stale.byteLength, 0, "the 1 MB call did not grow memory");
+assert.ok(instance.exports.mem.buffer.byteLength > before);
+assert.equal(Buffer.compare(input, want), 0, "incr result differs after memory.grow");
+exports.incr(input);
+assert.equal(input[0], (want[0] + 1) & 255, "a call after growth saw stale memory");
+
+if (mode === "text") {
+  assert.throws(() => exports.fail(new Uint8Array(3)), { message: "fail: refused 3 bytes" });
+  assert.throws(() => exports.checkHost(2, 3, 6), { message: "host add mismatch" });
+} else {
+  assert.throws(() => exports.fail(new Uint8Array(3)), Error);
+  assert.throws(() => exports.checkHost(2, 3, 6), Error);
+}
+exports.checkHost(2, 3, 5);
+exports.align();
+assert.equal(exports.run, undefined);
+assert.equal(exports._logos_scratch_alloc, undefined);
+console.log("loader-ok");
+
+-- wasi.mjs --
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+import { WASI } from "node:wasi";
+import assert from "node:assert/strict";
+
+const [wasmPath, loaderPath] = process.argv.slice(2);
+const loader = await import(pathToFileURL(resolve(loaderPath)).href);
+const wasi = new WASI({ version: "preview1" });
+const { instance, exports } = await loader.instantiateLogos(readFileSync(wasmPath), {
+  wasi_snapshot_preview1: wasi.wasiImport,
+  host: { add: (a, b) => a + b },
+});
+wasi.initialize(instance);
+const input = new Uint8Array(1 << 20).fill(3);
+exports.incr(input);
+assert.equal(input[100], 4);
+assert.throws(() => exports.fail(new Uint8Array(3)), Error);
+console.log("wasi-ok");
+
+-- compare.mjs --
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+
+const load = (path) => JSON.parse(readFileSync(path, "utf8"));
+const isStd = (a) => a.Package && a.ActionID && !a.Package.split("/")[0].includes(".") && a.Package !== "command-line-arguments";
+const keyOf = (a) => a.Package + " " + a.Mode;
+const beforeList = load(process.argv[2]);
+const afterList = load(process.argv[3]);
+const before = new Map(beforeList.filter(isStd).map((a) => [keyOf(a), a.ActionID]));
+const after = new Map(afterList.filter(isStd).map((a) => [keyOf(a), a.ActionID]));
+assert.ok(before.size > 10, "the before graph has no std actions");
+for (const [key, id] of before) {
+  assert.equal(after.get(key), id, key + " changed its action ID when --wasm-loader was added");
+}
+const rt = afterList.find((a) => a.Package === "logos/rt" && a.Mode === "build");
+assert.ok(rt, "the loader build has no logos/rt action");
+const underRt = new Set();
+for (const todo = [rt.ID]; todo.length > 0; ) {
+  const id = todo.pop();
+  if (!underRt.has(id)) {
+    underRt.add(id);
+    todo.push(...(afterList[id].Deps ?? []));
+  }
+}
+for (const a of afterList.filter(isStd)) {
+  assert.ok(before.has(keyOf(a)) || underRt.has(a.ID), keyOf(a) + " is a new std action outside logos/rt");
+}
+console.log("action-ids-equal");
+
+-- lgo/go.mod --
+module example.com/wasmlgo
+
+go 1.27
+
+-- lgo/main.lgo --
+package main
+
+import (
+	"errors"
+	"strconv"
+	"sync/atomic"
+	"unsafe"
+
+	"logos/rt"
+)
+
+type fields struct {
+	b byte
+	i int64
+	u uint64
+	f float64
+}
+
+type elems struct {
+	b byte
+	a [3]int64
+}
+
+//logos:wasmimport host add
+func hostAdd(a, b int32) int32
+
+func refusal(n int32) error {
+	return errors.New("fail: refused " + strconv.Itoa(int(n)) + " bytes")
+}
+
+//logos:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return rt.WasmError(nil)
+}
+
+//logos:wasmexport fail
+func fail(p unsafe.Pointer, n int32) int32 {
+	return rt.WasmError(refusal(n))
+}
+
+//logos:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return rt.WasmError(errors.New("host add mismatch"))
+	}
+	return rt.WasmError(nil)
+}
+
+//logos:wasmexport align
+func align() int32 {
+	var f fields
+	var e elems
+	if unsafe.Alignof(f.i) != 8 || unsafe.Alignof(f.u) != 8 || unsafe.Alignof(f.f) != 8 {
+		return rt.WasmError(errors.New("alignof is not 8"))
+	}
+	for _, off := range []uintptr{unsafe.Offsetof(f.i), unsafe.Offsetof(f.u), unsafe.Offsetof(f.f)} {
+		if off%8 != 0 {
+			return rt.WasmError(errors.New("field offset " + strconv.Itoa(int(off)) + " is not a multiple of 8"))
+		}
+	}
+	for k := range e.a {
+		if (unsafe.Offsetof(e.a)+uintptr(k)*unsafe.Sizeof(e.a[0]))%8 != 0 {
+			return rt.WasmError(errors.New("element " + strconv.Itoa(k) + " is misaligned"))
+		}
+		atomic.AddInt64(&e.a[k], int64(k)+1)
+	}
+	atomic.AddInt64(&f.i, 1)
+	atomic.StoreUint64(&f.u, 2)
+	if atomic.LoadInt64(&f.i) != 1 || atomic.LoadUint64(&f.u) != 2 || atomic.LoadInt64(&e.a[2]) != 3 {
+		return rt.WasmError(errors.New("atomic result is wrong"))
+	}
+	return rt.WasmError(nil)
+}
+
+func main() {
+	select {}
+}
+
+-- gomod/go.mod --
+module example.com/wasmgo
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+import (
+	"errors"
+	"strconv"
+	"sync/atomic"
+	"unsafe"
+
+	"logos/rt"
+)
+
+type fields struct {
+	b byte
+	i int64
+	u uint64
+	f float64
+}
+
+type elems struct {
+	b byte
+	a [3]int64
+}
+
+//go:wasmimport host add
+func hostAdd(a, b int32) int32
+
+func refusal(n int32) error {
+	return errors.New("fail: refused " + strconv.Itoa(int(n)) + " bytes")
+}
+
+//go:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return rt.WasmError(nil)
+}
+
+//go:wasmexport fail
+func fail(p unsafe.Pointer, n int32) int32 {
+	return rt.WasmError(refusal(n))
+}
+
+//go:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return rt.WasmError(errors.New("host add mismatch"))
+	}
+	return rt.WasmError(nil)
+}
+
+//go:wasmexport align
+func align() int32 {
+	var f fields
+	var e elems
+	if unsafe.Alignof(f.i) != 8 || unsafe.Alignof(f.u) != 8 || unsafe.Alignof(f.f) != 8 {
+		return rt.WasmError(errors.New("alignof is not 8"))
+	}
+	for _, off := range []uintptr{unsafe.Offsetof(f.i), unsafe.Offsetof(f.u), unsafe.Offsetof(f.f)} {
+		if off%8 != 0 {
+			return rt.WasmError(errors.New("field offset " + strconv.Itoa(int(off)) + " is not a multiple of 8"))
+		}
+	}
+	for k := range e.a {
+		if (unsafe.Offsetof(e.a)+uintptr(k)*unsafe.Sizeof(e.a[0]))%8 != 0 {
+			return rt.WasmError(errors.New("element " + strconv.Itoa(k) + " is misaligned"))
+		}
+		atomic.AddInt64(&e.a[k], int64(k)+1)
+	}
+	atomic.AddInt64(&f.i, 1)
+	atomic.StoreUint64(&f.u, 2)
+	if atomic.LoadInt64(&f.i) != 1 || atomic.LoadUint64(&f.u) != 2 || atomic.LoadInt64(&e.a[2]) != 3 {
+		return rt.WasmError(errors.New("atomic result is wrong"))
+	}
+	return rt.WasmError(nil)
+}
+
+func main() {
+	select {}
+}
+
+-- plain/go.mod --
+module example.com/plain
+
+go 1.27
+
+-- plain/main.go --
+package main
+
+func main() {}
+
+-- goimpl/go.mod --
+module example.com/wasmimpl
+
+go 1.27
+
+-- goimpl/main.go --
+package main
+
+import (
+	"sync/atomic"
+	"unsafe"
+)
+
+type fields struct {
+	b byte
+	i int64
+	u uint64
+	f float64
+}
+
+type elems struct {
+	b byte
+	a [3]int64
+}
+
+//go:wasmimport host add
+func hostAdd(a, b int32) int32
+
+//go:wasmexport incr
+func incr(p unsafe.Pointer, n int32) int32 {
+	b := unsafe.Slice((*byte)(p), n)
+	for i := range b {
+		b[i]++
+	}
+	return 0
+}
+
+//go:wasmexport fail
+func fail(p unsafe.Pointer, n int32) int32 {
+	return 7
+}
+
+//go:wasmexport checkHost
+func checkHost(a, b, want int32) int32 {
+	if hostAdd(a, b) != want {
+		return 1
+	}
+	return 0
+}
+
+//go:wasmexport align
+func align() int32 {
+	var f fields
+	var e elems
+	if unsafe.Alignof(f.i) != 8 || unsafe.Alignof(f.u) != 8 || unsafe.Alignof(f.f) != 8 {
+		return 1
+	}
+	for _, off := range []uintptr{unsafe.Offsetof(f.i), unsafe.Offsetof(f.u), unsafe.Offsetof(f.f)} {
+		if off%8 != 0 {
+			return 2
+		}
+	}
+	for k := range e.a {
+		if (unsafe.Offsetof(e.a)+uintptr(k)*unsafe.Sizeof(e.a[0]))%8 != 0 {
+			return 3
+		}
+		atomic.AddInt64(&e.a[k], int64(k)+1)
+	}
+	atomic.AddInt64(&f.i, 1)
+	atomic.StoreUint64(&f.u, 2)
+	if atomic.LoadInt64(&f.i) != 1 || atomic.LoadUint64(&f.u) != 2 || atomic.LoadInt64(&e.a[2]) != 3 {
+		return 4
+	}
+	return 0
+}
+
+func main() {
+	select {}
+}
+
+-- help_build.txt --
+usage: go build [-o output] [build flags] [packages]
+
+Build compiles the packages named by the import paths,
+along with their dependencies, but it does not install the results.
+
+If the arguments to build are a list of .go files from a single directory,
+build treats them as a list of source files specifying a single package.
+
+When compiling packages, build ignores files that end in '_test.go'.
+
+When compiling a single main package, build writes the resulting
+executable to an output file named after the last non-major-version
+component of the package import path. The '.exe' suffix is added
+when writing a Windows executable.
+So 'go build example/sam' writes 'sam' or 'sam.exe'.
+'go build example.com/foo/v2' writes 'foo' or 'foo.exe', not 'v2.exe'.
+
+When compiling a package from a list of .go files, the executable
+is named after the first source file.
+'go build ed.go rx.go' writes 'ed' or 'ed.exe'.
+
+When compiling multiple packages or a single non-main package,
+build compiles the packages but discards the resulting object,
+serving only as a check that the packages can be built.
+
+The -o flag forces build to write the resulting executable or object
+to the named output file or directory, instead of the default behavior described
+in the last two paragraphs. If the named output is an existing directory or
+ends with a slash or backslash, then any resulting executables
+will be written to that directory.
+
+The build flags are shared by the build, clean, get, install, list, run,
+and test commands:
+
+	-C dir
+		Change to dir before running the command.
+		Any files named on the command line are interpreted after
+		changing directories.
+		If used, this flag must be the first one in the command line.
+	-a
+		force rebuilding of packages that are already up-to-date.
+	-n
+		print the commands but do not run them.
+	-p n
+		the number of programs, such as build commands or
+		test binaries, that can be run in parallel.
+		The default is GOMAXPROCS, normally the number of CPUs available.
+	-race
+		enable data race detection.
+		Supported only on darwin/amd64, darwin/arm64, freebsd/amd64, linux/amd64,
+		linux/arm64 (only for 48-bit VMA), linux/ppc64le, linux/riscv64 and
+		windows/amd64.
+	-msan
+		enable interoperation with memory sanitizer.
+		Supported only on linux/amd64, linux/arm64, linux/loong64, freebsd/amd64
+		and only with Clang/LLVM as the host C compiler.
+		PIE build mode will be used on all platforms except linux/amd64.
+	-asan
+		enable interoperation with address sanitizer.
+		Supported only on linux/arm64, linux/amd64, linux/loong64.
+		Supported on linux/amd64 or linux/arm64 and only with GCC 7 and higher
+		or Clang/LLVM 9 and higher.
+		And supported on linux/loong64 only with Clang/LLVM 16 and higher.
+	-cover
+		enable code coverage instrumentation.
+	-covermode set,count,atomic
+		set the mode for coverage analysis.
+		The default is "set" unless -race is enabled,
+		in which case it is "atomic".
+		The values:
+		set: bool: does this statement run?
+		count: int: how many times does this statement run?
+		atomic: int: count, but correct in multithreaded tests;
+			significantly more expensive.
+		Sets -cover.
+	-coverpkg pattern1,pattern2,pattern3
+		For a build that targets package 'main' (e.g. building a Go
+		executable), apply coverage analysis to each package whose
+		import path matches the patterns. The default is to apply
+		coverage analysis to packages in the main Go module. See
+		'go help packages' for a description of package patterns.
+		Sets -cover.
+	-v
+		print the names of packages as they are compiled.
+	-work
+		print the name of the temporary work directory and
+		do not delete it when exiting.
+	-x
+		print the commands.
+	-asmflags '[pattern=]arg list'
+		arguments to pass on each go tool asm invocation.
+	-buildmode mode
+		build mode to use. See 'go help buildmode' for more.
+	-buildvcs
+		Whether to stamp binaries with version control information
+		("true", "false", or "auto"). By default ("auto"), version control
+		information is stamped into a binary if the main package, the main module
+		containing it, and the current directory are all in the same repository.
+		Use -buildvcs=false to always omit version control information, or
+		-buildvcs=true to error out if version control information is available but
+		cannot be included due to a missing tool or ambiguous directory structure.
+	-compiler name
+		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+	-gccgoflags '[pattern=]arg list'
+		arguments to pass on each gccgo compiler/linker invocation.
+	-gcflags '[pattern=]arg list'
+		arguments to pass on each go tool compile invocation.
+	-installsuffix suffix
+		a suffix to use in the name of the package installation directory,
+		in order to keep output separate from default builds.
+		If using the -race flag, the install suffix is automatically set to race
+		or, if set explicitly, has _race appended to it. Likewise for the -msan
+		and -asan flags. Using a -buildmode option that requires non-default compile
+		flags has a similar effect.
+	-json
+		Emit build output in JSON suitable for automated processing.
+		See 'go help buildjson' for the encoding details.
+	-ldflags '[pattern=]arg list'
+		arguments to pass on each go tool link invocation.
+	-linkshared
+		build code that will be linked against shared libraries previously
+		created with -buildmode=shared.
+	-mod mode
+		module download mode to use: readonly, vendor, or mod.
+		By default, if a vendor directory is present and the go version in go.mod
+		is 1.14 or higher, the go command acts as if -mod=vendor were set.
+		Otherwise, the go command acts as if -mod=readonly were set.
+		See https://go.dev/ref/mod#build-commands for details.
+	-modcacherw
+		leave newly-created directories in the module cache read-write
+		instead of making them read-only.
+	-modfile file
+		in module aware mode, read (and possibly write) an alternate go.mod
+		file instead of the one in the module root directory. A file named
+		"go.mod" must still be present in order to determine the module root
+		directory, but it is not accessed. When -modfile is specified, an
+		alternate go.sum file is also used: its path is derived from the
+		-modfile flag by trimming the ".mod" extension and appending ".sum".
+	-overlay file
+		read a JSON config file that provides an overlay for build operations.
+		The file is a JSON object with a single field, named 'Replace', that
+		maps each disk file path (a string) to its backing file path, so that
+		a build will run as if the disk file path exists with the contents
+		given by the backing file paths, or as if the disk file path does not
+		exist if its backing file path is empty. Support for the -overlay flag
+		has some limitations: importantly, cgo files included from outside the
+		include path must be in the same directory as the Go package they are
+		included from, overlays will not appear when binaries and tests are
+		run through go run and go test respectively, and files beneath
+		GOMODCACHE may not be replaced.
+	-pgo file
+		specify the file path of a profile for profile-guided optimization (PGO).
+		When the special name "auto" is specified, for each main package in the
+		build, the go command selects a file named "default.pgo" in the package's
+		directory if that file exists, and applies it to the (transitive)
+		dependencies of the main package (other packages are not affected).
+		Special name "off" turns off PGO. The default is "auto".
+	-pkgdir dir
+		install and load all packages from dir instead of the usual locations.
+		For example, when building with a non-standard configuration,
+		use -pkgdir to keep generated packages in a separate location.
+	-tags tag,list
+		a comma-separated list of additional build tags to consider satisfied
+		during the build. For more information about build tags, see
+		'go help buildconstraint'. (Earlier versions of Go used a
+		space-separated list, and that form is deprecated but still recognized.)
+	-trimpath
+		remove all file system paths from the resulting executable.
+		Instead of absolute file system paths, the recorded file names
+		will begin either a module path@version (when using modules),
+		or a plain import path (when using the standard library, or GOPATH).
+	-toolexec 'cmd args'
+		a program to use to invoke toolchain programs like vet and asm.
+		For example, instead of running asm, the go command will run
+		'cmd args /path/to/asm <arguments for asm>'.
+		The TOOLEXEC_IMPORTPATH environment variable will be set,
+		matching 'go list -f {{.ImportPath}}' for the package being built.
+
+The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
+space-separated list of arguments to pass to an underlying tool
+during the build. To embed spaces in an element in the list, surround
+it with either single or double quotes. The argument list may be
+preceded by a package pattern and an equal sign, which restricts
+the use of that argument list to the building of packages matching
+that pattern (see 'go help packages' for a description of package
+patterns). Without a pattern, the argument list applies only to the
+packages named on the command line. The flags may be repeated
+with different patterns in order to specify different arguments for
+different sets of packages. If a package matches patterns given in
+multiple flags, the latest match on the command line wins.
+For example, 'go build -gcflags=-S fmt' prints the disassembly
+only for package fmt, while 'go build -gcflags=all=-S fmt'
+prints the disassembly for fmt and all its dependencies.
+
+For more about specifying packages, see 'go help packages'.
+For more about where binaries are installed, run 'go help gopath'.
+For more about calling between Go and C/C++, run 'go help c'.
+For more about project organization, run 'go help modules'.
+
+Note: go build adheres to certain conventions for organizing projects:
+it primarily supports go modules (see 'go help modules') while
+also supporting an alternative GOPATH mode (see 'go help gopath').
+Not all projects can follow these conventions,
+however. Installations that have their own conventions or that use
+a separate software build system may choose to use lower-level
+invocations such as 'go tool compile' and 'go tool link' to avoid
+some of the overheads and design decisions of the build tool.
+
+See also: go install, go get, go clean.

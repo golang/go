@@ -30,7 +30,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #24 | M5 | src/internal/types/testdata/logos/ctfe.lgo (BadMapRange); test/logos/run/const_map.lgo (sorted range) | tested |
 | #25 | M12 | src/cmd/go/testdata/script/logos_cap_unsafe.txt | tested |
 | #26 | M8 | src/logos/sync/sync_test.go (TestHotUpdateConcurrent, TestHotLayout) | tested |
-| #27 | M16 |  | planned |
+| #27 | M16 | src/cmd/go/testdata/script/logos_wasm_loader.txt | tested |
 | #28 | M13 |  | planned |
 | #29 | M19 |  | planned |
 | #30 | M13 |  | planned |
@@ -81,7 +81,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #75 |M2| test/logos/redteam/attack_075_nil_arm_common_type | tested |
 | #76 | M7 |  | planned |
 | #77 | M9 |  | planned |
-| #78 | M16 |  | planned |
+| #78 | M16 | test/logos/codegen/wasm_align.lgo | tested |
 | #79 |M1| test/logos/redteam/attack_079_import_alias_collision | tested |
 | #80 | M22 |  | planned |
 | #81 | M18 |  | planned |
@@ -190,6 +190,6 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #184 | M0 | src/cmd/go/testdata/script/logos_interop.txt (case 2) | tested |
 | #185 | M2 | test/logos/redteam/attack_185_dual_use_union; src/cmd/go/testdata/script/logos_eject_union.txt; src/cmd/go/testdata/script/logos_interop_union.txt | tested |
 | #186 | M3 | src/cmd/go/testdata/script/logos_interop_nil.txt | tested |
-| #187 | M16 |  | planned |
+| #187 | M16 | src/cmd/go/testdata/script/logos_wasm_loader.txt | tested |
 | #188 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #189 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |

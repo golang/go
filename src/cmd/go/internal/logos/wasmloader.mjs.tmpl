@@ -1,0 +1,37 @@
+import "./wasm_exec.js";
+function readErrorString(wasmExports, getMem) {
+ const at = wasmExports._logos_errmsg_ptr() >>> 0;
+ return new TextDecoder().decode(getMem().subarray(at, at + wasmExports._logos_errmsg_len()));
+}
+export async function instantiateLogos(wasmBytes, imports) {
+ const go = new Go();
+ const { instance } = await WebAssembly.instantiate(wasmBytes, { ...go.importObject, ...imports });
+ const wasmExports = instance.exports;
+ const getMem = () => new Uint8Array((wasmExports.mem ?? wasmExports.memory).buffer);
+ if (wasmExports.run) await Promise.race([go.run(instance), 0]);
+ const exports = {};
+ for (const name in wasmExports) {
+  const fn = wasmExports[name];
+  if (typeof fn != "function" || /^(_|run$|resume$|getsp$)/.test(name)) continue;
+  exports[name] = (...args) => {
+   const held = [];
+   try {
+    const flat = args.flatMap((a) => {
+     if (!ArrayBuffer.isView(a)) return [a];
+     const v = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
+     const p = wasmExports._logos_scratch_alloc(v.length) >>> 0;
+     held.push([v, p]);
+     getMem().set(v, p);
+     return [p, v.length];
+    });
+    if (fn(...flat)) throw new Error(readErrorString(wasmExports, getMem));
+   } finally {
+    for (const [v, p] of held) {
+     v.set(getMem().subarray(p, p + v.length));
+     wasmExports._logos_scratch_reset(p);
+    }
+   }
+  };
+ }
+ return { instance, exports };
+}

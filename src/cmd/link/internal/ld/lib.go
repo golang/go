@@ -563,6 +563,7 @@ func (ctxt *Link) loadlib() {
 	if *flagAsan {
 		loadinternal(ctxt, "runtime/asan")
 	}
+	loadLogosWasmRT(ctxt)
 	loadinternal(ctxt, "runtime")
 	for ; i < len(ctxt.Library); i++ {
 		lib := ctxt.Library[i]

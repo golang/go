@@ -35,6 +35,7 @@ func ConfigureCommand(cmd *base.Command) {
 	addPedanticFlag(cmd.Lookup("lint"))
 	addJSONDiagnosticsFlag(cmd.Lookup("build"))
 	addJSONDiagnosticsFlag(cmd.Lookup("lint"))
+	addWasmLoaderHelp(cmd.Lookup("build"))
 }
 
 // pedanticFlag is the --pedantic flag value: a boolean that also records
@@ -83,6 +84,17 @@ func addJSONDiagnosticsFlag(cmd *base.Command) {
 		cmd.Flag.BoolVar(&cfg.LogosJSON, "json-diagnostics", false, "")
 	}
 	addHelp(cmd, "-json-diagnostics", "\n\t-json-diagnostics\n\t\tprint each compiler and lint diagnostic as one JSON object\n\t\tper line on stderr (logos builds only).\n")
+}
+
+// addWasmLoaderHelp documents the --wasm-loader flag in the logos help of
+// cmd. The flag itself is registered with the shared build flags, so plain
+// go accepts it too, but only logos help names it: "go help build" keeps
+// the upstream text.
+func addWasmLoaderHelp(cmd *base.Command) {
+	if cmd == nil {
+		return
+	}
+	addHelp(cmd, "-wasm-loader", "\n\t-wasm-loader\n\t\twrite <name>.loader.mjs, the wasm host loader, beside the output of a\n\t\tGOARCH=wasm main package when -o names a file with a .wasm suffix.\n\t\tThe default is true; -wasm-loader=false turns it off.\n")
 }
 
 // addHelp appends a flag description to the long help of cmd before its

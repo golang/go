@@ -182,11 +182,13 @@ func firstCleanPackage(g *moduleKinds, goNames, logosNames []string) *Package {
 
 // needsLogosRT decides the implicit logos/rt import: every logos package
 // gets it, so lowered code can call TraceErr, Join, and the helpers later
-// milestones add, even when no source file names the import. Plain Go
-// packages never get it. M11 appends logos/rt/json and M14 appends
+// milestones add, even when no source file names the import. A Go main
+// package gets it only when its build emits the wasm host loader (SPEC Sec
+// 14.2), so its //go:wasmexport functions share the loader helpers; other
+// plain Go packages never get it. M11 appends logos/rt/json and M14 appends
 // simd/archsimd after this import, in that fixed order.
 func needsLogosRT(p *Package) bool {
-	return p.IsLogos()
+	return p.IsLogos() || EmitsWasmLoader(p)
 }
 
 // LogosRTPkg is the import path of the loGo/s support package implicitly

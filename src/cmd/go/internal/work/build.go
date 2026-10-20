@@ -348,6 +348,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
 	cmd.Flag.BoolVar(&cfg.BuildMSan, "msan", false, "")
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "")
+	addWasmLoaderFlag(&cmd.Flag)
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "")
@@ -548,6 +549,7 @@ func runBuild(ctx context.Context, cmd *base.Command, args []string) {
 		p.StaleReason = "build -o flag in use"
 		a := b.AutoAction(moduleLoader, ModeInstall, depMode, p)
 		b.Do(ctx, a)
+		b.writeWasmLoader(p)
 		return
 	}
 

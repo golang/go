@@ -54,6 +54,9 @@ func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syn
 		errh(syntax.Error{Msg: err.Error()})
 		return nil
 	}
+	if isLogosFile(filename) {
+		data = rewriteLogosWasmDirectives(data, logosMode(filename))
+	}
 	file, _ := syntax.Parse(fbase, bytes.NewReader(data), errh, pragh, mode)
 	if file != nil {
 		logosStore.Lock()
