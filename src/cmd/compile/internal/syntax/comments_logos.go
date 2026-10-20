@@ -26,6 +26,20 @@ func CommentsDoMode(src io.Reader, mode Mode, handler func(line, col uint, text 
 // hide or invent a parenthesis. It reports false when open is not a
 // parenthesis of src or no closing parenthesis follows.
 func ParenEnd(src []byte, open Pos, mode Mode) (Pos, bool) {
+	return closeEnd(src, open, mode, _Lparen, _Rparen)
+}
+
+// BracketEnd is ParenEnd for brackets: it returns the position just after the
+// bracket that closes the "[" at open, the opening bracket of an index or
+// slice expression, under the same rules.
+func BracketEnd(src []byte, open Pos, mode Mode) (Pos, bool) {
+	return closeEnd(src, open, mode, _Lbrack, _Rbrack)
+}
+
+// closeEnd returns the position just after the token that closes the openTok
+// at open, scanning src with the tokens of the given mode. Only openTok and
+// closeTok are counted, so other kinds of bracket inside are skipped.
+func closeEnd(src []byte, open Pos, mode Mode, openTok, closeTok token) (Pos, bool) {
 	from, ok := lineOffset(src, open.Line())
 	if !ok {
 		return Pos{}, false
@@ -35,29 +49,22 @@ func ParenEnd(src []byte, open Pos, mode Mode) (Pos, bool) {
 	depth := 0
 	for s.next(); s.tok != _EOF; s.next() {
 		if depth == 0 {
-			if s.tok == _Lparen && s.line == linebase && s.col == open.Col() {
+			if s.tok == openTok && s.line == linebase && s.col == open.Col() {
 				depth = 1
 			}
 			continue
 		}
-		depth += parenDelta(s.tok)
+		switch s.tok {
+		case openTok:
+			depth++
+		case closeTok:
+			depth--
+		}
 		if depth == 0 {
 			return MakePos(open.Base(), open.Line()+s.line-linebase, s.col+1), true
 		}
 	}
 	return Pos{}, false
-}
-
-// parenDelta is +1 for an opening parenthesis token, -1 for a closing one,
-// and 0 for every other token.
-func parenDelta(tok token) int {
-	switch tok {
-	case _Lparen:
-		return 1
-	case _Rparen:
-		return -1
-	}
-	return 0
 }
 
 // lineOffset returns the byte offset of the start of the 1-based line.

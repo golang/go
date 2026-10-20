@@ -5,6 +5,7 @@
 package lint
 
 import (
+	"fmt"
 	"go/constant"
 
 	"cmd/compile/internal/syntax"
@@ -51,11 +52,11 @@ func checkUnboundedChannelOp(pass *Pass) {
 			switch n := n.(type) {
 			case *syntax.FuncDecl:
 				if n.Body != nil {
-					newChanUnit(pass, n).run()
+					newChanUnit(pass, f, n).run()
 				}
 				return false
 			case *syntax.FuncLit:
-				newChanUnit(pass, n).run()
+				newChanUnit(pass, f, n).run()
 				return false
 			}
 			return true
@@ -63,10 +64,12 @@ func checkUnboundedChannelOp(pass *Pass) {
 	}
 }
 
-// chanOp is one operation not covered by a done select: its node, the local
-// channel variable it names or nil, and its description.
+// chanOp is one operation not covered by a done select: its node, the
+// position just after its last token, the local channel variable it names or
+// nil, and its description.
 type chanOp struct {
 	node syntax.Node
+	end  syntax.Pos
 	ch   *types2.Var
 	what string
 }
@@ -74,6 +77,7 @@ type chanOp struct {
 // chanUnit is the analysis of one function and the literals inside it.
 type chanUnit struct {
 	pass *Pass
+	file *syntax.File
 	root syntax.Node
 	// free is set while walking code whose channel operations are covered:
 	// the cases of a done select and a go group child block.
@@ -88,9 +92,10 @@ type chanUnit struct {
 	ops    []chanOp
 }
 
-// newChanUnit prepares the analysis of the function rooted at root.
-func newChanUnit(pass *Pass, root syntax.Node) *chanUnit {
-	return &chanUnit{pass: pass, root: root}
+// newChanUnit prepares the analysis of the function rooted at root, a node of
+// file f.
+func newChanUnit(pass *Pass, f *syntax.File, root syntax.Node) *chanUnit {
+	return &chanUnit{pass: pass, file: f, root: root}
 }
 
 // run collects the made channels, walks the operations, and reports those on
@@ -107,7 +112,11 @@ func (u *chanUnit) run() {
 		if op.ch != nil && u.bounded(op.ch) {
 			continue
 		}
-		u.pass.Reportf(op.node, "%s may block forever: put it in a select with a <-ctx.Done() case, or make the channel locally with a constant capacity that covers every send", op.what)
+		u.pass.Report(Diagnostic{
+			Pos:     syntax.StartPos(op.node),
+			End:     op.end,
+			Message: fmt.Sprintf("%s may block forever: put it in a select with a <-ctx.Done() case, or make the channel locally with a constant capacity that covers every send", op.what),
+		})
 	}
 }
 
@@ -293,7 +302,7 @@ func (u *chanUnit) send(s *syntax.SendStmt) {
 	if ch != nil {
 		u.count(ch)
 	}
-	u.record(s, ch, "send on "+syntax.String(s.Chan))
+	u.record(s, u.exprEnd(s.Value), ch, "send on "+syntax.String(s.Chan))
 }
 
 // count adds a send to the channel's total, or marks it as sent in a loop.
@@ -314,14 +323,52 @@ func (u *chanUnit) recv(op *syntax.Operation) {
 	if isDoneCall(op.X) {
 		return
 	}
-	u.record(op, u.chanVar(op.X), "receive from "+syntax.String(op.X))
+	u.record(op, u.exprEnd(op.X), u.chanVar(op.X), "receive from "+syntax.String(op.X))
 }
 
-// record keeps an operation that is not covered.
-func (u *chanUnit) record(n syntax.Node, ch *types2.Var, what string) {
+// record keeps an operation that is not covered; end is the position just
+// after its last token.
+func (u *chanUnit) record(n syntax.Node, end syntax.Pos, ch *types2.Var, what string) {
 	if !u.free {
-		u.ops = append(u.ops, chanOp{node: n, ch: ch, what: what})
+		u.ops = append(u.ops, chanOp{node: n, end: end, ch: ch, what: what})
 	}
+}
+
+// exprEnd returns the position just after the last token of x, an operand of
+// a channel operation in the file of u. syntax.EndPos stops before the closing
+// bracket or parenthesis of a call, index, slice, parenthesized expression, or
+// type assertion, so each of those ends at the matching token in the source. A
+// unary or binary operation ends where its last operand ends. Without the
+// source of the file it falls back to syntax.EndPos.
+func (u *chanUnit) exprEnd(x syntax.Expr) syntax.Pos {
+	mode := syntax.Mode(0)
+	if u.pass.Kind == KindLgo {
+		mode = syntax.LogosMode
+	}
+	switch x := x.(type) {
+	case *syntax.CallExpr:
+		return u.pass.CallEnd(u.file, x)
+	case *syntax.IndexExpr, *syntax.SliceExpr:
+		if end, ok := syntax.BracketEnd(u.pass.Source(u.file), x.Pos(), mode); ok {
+			return end
+		}
+	case *syntax.ParenExpr:
+		if end, ok := syntax.ParenEnd(u.pass.Source(u.file), x.Pos(), mode); ok {
+			return end
+		}
+	case *syntax.AssertExpr:
+		// The "(" of x.(T) follows the "." at the node's position.
+		open := syntax.MakePos(x.Pos().Base(), x.Pos().Line(), x.Pos().Col()+1)
+		if end, ok := syntax.ParenEnd(u.pass.Source(u.file), open, mode); ok {
+			return end
+		}
+	case *syntax.Operation:
+		if x.Y != nil {
+			return u.exprEnd(x.Y)
+		}
+		return u.exprEnd(x.X)
+	}
+	return syntax.EndPos(x)
 }
 
 // chanVar returns the local variable x names, or nil.
