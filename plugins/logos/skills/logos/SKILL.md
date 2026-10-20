@@ -155,12 +155,12 @@ Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logo
 | `$"{{secret}}"` | literal braces; the operand text is never a format string |
 | `p := &100`, `s := &"s"`, `n := &f()` | `new(expr)`; each evaluation yields a fresh variable |
 | `type Cfg struct { Port int = 8080 }` | default before the tag, filled into `.lgo` composite literals |
-| `s := State{A: 10, ..src}` | fields with identical names and types copy; explicit fields win |
+| `s := State{A: 10, ..src()}` | fields with identical names and types copy; explicit fields win |
 | `var t (int, error)` then `a, b := t` | struct-backed tuple; packed from calls, unpacked by assignment |
-| `f := x => x + 1`, `g := (a, b) => a < b` | function literal typed against its target signature |
+| `var f func(int) int = x => x + 1` | function literal typed against its target signature |
 | `xs.filter(x => x > 2).map(x => 2 * x).take(5)` | one fused loop with the receiver evaluated once |
 | `batch` newline `.filter(x => ...)` | leading-dot continuation: no semicolon before `.` plus a letter |
-| `func Count(n int) iter.Seq[int] { yield i }` | `return func(_logos_yield func(int) bool) { ... }` with each yield as an early-exit check |
+| `func Count(n int) iter.Seq[int] { for i := range n { yield i } }` | `return func(_logos_yield func(int) bool) { ... }` with each yield as an early-exit check |
 | `scope defer note("unlock")` | guarding `defer` plus inline exit stanzas at each block exit |
 
 Rules:
@@ -174,7 +174,7 @@ Rules:
 - Chains on slices: `filter map find any all sortBy first last get take drop sum count`. Consecutive `filter`/`map`/`take`/`drop` fuse into one loop; the receiver evaluates once and lambda parameters are const views (rewriting the parameter or the receiver reports `const_view_mutation`). `find`/`first`/`last`/`get` return `T?`; `take`/`drop`/`get` clamp (`take(-5)` is empty, `get(-1)` is none). `sortBy` is stable with `NaN` first, as `cmp.Compare` orders. Float `.sum()` uses fixed pairwise order. `?` in an expression lambda returns from the enclosing function; a `?` nested in a lambda body, in a `??` fallback, or in a `?.` call argument reports `[correctness::nested_try_capture]`; a `?` mid-block in a block lambda reports `misplaced_try`. When produced elements implement `io.Closer`, failures close the produced prefix in reverse order.
 - Leading-dot continuation: in `.lgo`, a newline followed by blanks and then `.` plus a letter or `_` inserts no semicolon. `x` newline `.5` still breaks; plain Go scanning is unchanged.
 - `yield e` is allowed only directly inside a function returning `iter.Seq[T]` (one value) or `iter.Seq2[K, V]` (two values), else `[correctness::yield_outside_generator]`; a closure inside the generator may not yield. Falling off the end finishes the sequence; a valued `return` acts as bare. Early `break` in the consumer stops the body.
-- `scope defer f()` runs when control leaves the enclosing block: last in, first out; arguments evaluated at the statement; every exit (`return`, `break`, `continue`, labeled forms, `goto` out of the block, panic) runs it first; a loop body runs it each iteration. Lowering is a guarding `defer` plus inline exit stanzas (not a wrapper closure, so plain `defer` tails keep firing at function exit).
+- `scope defer f()` runs when control leaves the enclosing block: last in, first out; arguments evaluated at the statement; every exit (`return`, `break`, `continue`, labeled forms, `goto` out of the block, panic) runs it first; a loop body runs it each iteration. Lowering is an armed-flag guarding `defer` plus inline exit stanzas (not a wrapper closure, so plain `defer` tails keep firing at function exit); a `goto` past the statement leaves it disarmed.
 
 ## Best practices
 
