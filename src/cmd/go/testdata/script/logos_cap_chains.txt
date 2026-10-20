@@ -1,0 +1,701 @@
+# M12-S2 gap: the linker audit reports every third-party chain per sink.
+# A standard-library chain (encoding/json reflection) that reaches a sink
+# first, or an allowlisted dependency with a shorter chain, must not hide
+# another dependency's chain to the same sink; standard-library-only,
+# runtime-only, and first-party chains never blame.
+# RED expectation: the single shortest chain per sink hides cases A, D, X,
+# and E (the build succeeds or prints no warning), blames value-receiver
+# methods under a bogus package name in case V, treats a dotless module
+# path as standard library in case M, and exempts a dependency generic that
+# the main object instantiates in case G.
+# The exec fixtures guard their os/exec call behind an argument count the
+# test never reaches, so the call stays reachable to the linker and never
+# runs.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Case A: dependency reaches reflect.Value.Method while main uses
+# encoding/json -> denied, blamed on the dependency only.
+cd a/main
+! logos build -o $WORK/bin/ca$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/jdep'' reaches ''reflect\.ValueOf'''
+stderr 'example\.com/jdep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'example\.com/jdep\.layer4\(\)'
+stderr 'reflect\.ValueOf\(\)'
+stderr 'transitive_reflect|reflect_allowlist'
+! stderr 'Transitive dependency ''([^e]|e[^x])'
+! stderr 'unauthorized_(cgo|exec|net)'
+cd ../..
+
+# Case B: encoding/json alone under a deny policy stays clean and runs.
+cd b/main
+logos build -o $WORK/bin/cb$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/cb$GOEXE
+stdout '^\{"a":1\}$'
+cd ../..
+
+# Case C: ordinary encoding/json plus a dependency that never reaches a
+# sink builds under the default policy with no capability diagnostics.
+cd c/main
+logos build -o $WORK/bin/cc$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/cc$GOEXE
+stdout '^\{"n":7\}$'
+cd ../..
+
+# Case D: a dependency that decodes with encoding/json reaches reflect
+# only through the standard library: the default warn policy prints the
+# warning for the dependency, while the main package's own encoding/json
+# use and the runtime stay unblamed and no exec, net, or cgo error appears.
+cd d/main
+logos build -o $WORK/bin/cd$GOEXE ./cmd
+stderr 'WARNING \[capabilities::unauthorized_reflect\]: Transitive dependency ''example\.com/ddep'' reaches ''reflect\.New'''
+stderr 'example\.com/ddep\.Count\(\)'
+! stderr 'ERROR'
+! stderr 'unauthorized_(cgo|exec|net)'
+! stderr 'Transitive dependency ''([^e]|e[^x])'
+exec $WORK/bin/cd$GOEXE
+stdout '^\{"d":1\} 1$'
+cd ../..
+
+# Case X: a dependency that reaches os.startProcess through reflection while
+# the main package uses encoding/json is denied and blamed on the dependency.
+cd x/main
+! logos build -o $WORK/bin/cx$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/xdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/xdep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+! stderr 'Transitive dependency ''([^e]|e[^x])'
+! stderr 'unauthorized_(cgo|net)'
+cd ../..
+
+# Case F: first-party packages under the main module never blame, even
+# when they reach exec and reflection through encoding/json.
+cd f/main
+logos build -o $WORK/bin/cf$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/cf$GOEXE
+stdout '^\{"f":2\}$'
+cd ../..
+
+# Case E: an allowlisted dependency with the shorter chain does not hide a
+# second dependency's chain to the same sink.
+cd e/main
+! logos build -o $WORK/bin/ce$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/bdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/bdep\.Init\(\)'
+! stderr 'Transitive dependency ''example\.com/adep'''
+! stderr 'adep\.'
+cd ../..
+
+# Case V: a value-receiver method of an allowlisted dependency attributes
+# to its import path, not to the receiver type.
+cd v/main
+logos build -o $WORK/bin/cv$GOEXE ./cmd
+! stderr 'capabilities'
+exec $WORK/bin/cv$GOEXE
+stdout '^run$'
+cd ../..
+
+# Case I: the dependency frame nearest the sink takes the blame, so an
+# allowlisted caller does not excuse the dependency below it.
+cd i/main
+! logos build -o $WORK/bin/ci$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/inner'' reaches ''os\.startProcess'''
+stderr 'example\.com/outer\.Init\(\)'
+stderr 'example\.com/inner\.Init\(\)'
+! stderr 'Transitive dependency ''example\.com/outer'''
+cd ../..
+
+# Case M: a dependency whose module path has no dot is third-party, not
+# standard library: it is blamed by its module path.
+cd m/main
+! logos build -o $WORK/bin/cm$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''mylib'' reaches ''os\.startProcess'''
+stderr 'mylib\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+! stderr 'Transitive dependency ''([^m]|m[^y])'
+cd ../..
+
+# Case G: a dependency generic instantiated by the main package is still the
+# dependency's code: the instantiation sits in the main object but is blamed
+# on the generic's own package.
+cd g/main
+! logos build -o $WORK/bin/cg$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/gdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/gdep\.Each\['
+! stderr 'Transitive dependency ''([^e]|e[^x])'
+cd ../..
+
+# Case T: -trimpath rewrites file names and clears GOROOT for the linker; the
+# standard library is still never blamed and a dotless dependency still is.
+cd b/main
+logos build -trimpath -o $WORK/bin/ct$GOEXE ./cmd
+! stderr 'capabilities'
+cd ../../m/main
+! logos build -trimpath -o $WORK/bin/ctm$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''mylib'' reaches ''os\.startProcess'''
+! stderr 'Transitive dependency ''([^m]|m[^y])'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/amain
+
+go 1.27
+
+require example.com/jdep v0.0.0
+
+replace example.com/jdep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+
+-- a/main/cmd/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"example.com/jdep"
+)
+
+func main() {
+	out, err := json.Marshal(map[string]int{"a": 1})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+	dep.Init()
+}
+
+-- a/dep/go.mod --
+module example.com/jdep
+
+go 1.27
+
+-- a/dep/dep.go --
+package dep
+
+import "reflect"
+
+type Plugin struct{}
+
+func (p *Plugin) Run() string { return "run" }
+
+//go:noinline
+func Init() { layer1() }
+
+//go:noinline
+func layer1() { layer2() }
+
+//go:noinline
+func layer2() { layer3() }
+
+//go:noinline
+func layer3() { layer4() }
+
+//go:noinline
+func layer4() {
+	m := reflect.ValueOf(&Plugin{}).Method(0)
+	_ = m.Call(nil)
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+transitive_exec = "deny"
+transitive_net = "deny"
+
+-- b/main/cmd/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+func main() {
+	out, err := json.Marshal(map[string]int{"a": 1})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/cmd/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"example.com/cdep"
+)
+
+func main() {
+	out, err := json.Marshal(map[string]int{"n": dep.Seven()})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+}
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package dep
+
+//go:noinline
+func Seven() int { return 7 }
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/cmd/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"example.com/ddep"
+)
+
+func main() {
+	out, err := json.Marshal(map[string]int{"d": 1})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out), dep.Count())
+}
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package dep
+
+import "encoding/json"
+
+//go:noinline
+func Count() int {
+	var m map[string]int
+	if err := json.Unmarshal([]byte(`{"x":1}`), &m); err != nil {
+		return -1
+	}
+	return len(m)
+}
+
+-- x/main/go.mod --
+module example.com/xmain
+
+go 1.27
+
+require example.com/xdep v0.0.0
+
+replace example.com/xdep => ../dep
+
+-- x/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- x/main/cmd/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"example.com/xdep"
+)
+
+func main() {
+	out, err := json.Marshal(map[string]int{"x": 1})
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(out))
+	dep.Init()
+}
+
+-- x/dep/go.mod --
+module example.com/xdep
+
+go 1.27
+
+-- x/dep/dep.go --
+package dep
+
+import (
+	"os/exec"
+	"reflect"
+)
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	m := reflect.ValueOf(cmd).MethodByName("Start")
+	m.Call(nil)
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_reflect = "deny"
+transitive_exec = "deny"
+
+-- f/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fmain/inner"
+)
+
+func main() {
+	fmt.Println(inner.Encode(map[string]int{"f": 2}))
+}
+
+-- f/main/inner/inner.go --
+package inner
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"reflect"
+)
+
+//go:noinline
+func Encode(v any) string {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+	if reflect.ValueOf(v).Kind() != reflect.Map {
+		return ""
+	}
+	out, err := json.Marshal(v)
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require (
+	example.com/adep v0.0.0
+	example.com/bdep v0.0.0
+)
+
+replace example.com/adep => ../adep
+
+replace example.com/bdep => ../bdep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/adep/**"]
+
+-- e/main/cmd/main.lgo --
+package main
+
+import (
+	"example.com/adep"
+	"example.com/bdep"
+)
+
+func main() {
+	adep.Init()
+	bdep.Init()
+	println("done")
+}
+
+-- e/adep/go.mod --
+module example.com/adep
+
+go 1.27
+
+-- e/adep/dep.go --
+package adep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}
+
+-- e/bdep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- e/bdep/dep.go --
+package bdep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() { l1() }
+
+//go:noinline
+func l1() { l2() }
+
+//go:noinline
+func l2() { l3() }
+
+//go:noinline
+func l3() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}
+
+-- v/main/go.mod --
+module example.com/vmain
+
+go 1.27
+
+require example.com/vdep v0.0.0
+
+replace example.com/vdep => ../dep
+
+-- v/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/vdep/**"]
+
+-- v/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/vdep"
+)
+
+func main() {
+	fmt.Println(dep.T{}.Run())
+}
+
+-- v/dep/go.mod --
+module example.com/vdep
+
+go 1.27
+
+-- v/dep/dep.go --
+package dep
+
+import (
+	"os"
+	"os/exec"
+)
+
+type T struct{}
+
+//go:noinline
+func (T) Run() string {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+	return "run"
+}
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/gdep v0.0.0
+
+replace example.com/gdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- g/main/cmd/main.lgo --
+package main
+
+import "example.com/gdep"
+
+func main() {
+	println(gdep.Each([]int{1, 2}))
+}
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+-- g/dep/dep.go --
+package gdep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Each[T any](xs []T) int {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+	return len(xs)
+}
+
+-- m/main/go.mod --
+module example.com/mmain
+
+go 1.27
+
+require mylib v0.0.0
+
+replace mylib => ../dep
+
+-- m/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- m/main/cmd/main.lgo --
+package main
+
+import "mylib"
+
+func main() {
+	dep.Init()
+	println("done")
+}
+
+-- m/dep/go.mod --
+module mylib
+
+go 1.27
+
+-- m/dep/dep.go --
+package dep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}
+
+-- i/main/go.mod --
+module example.com/imain
+
+go 1.27
+
+require (
+	example.com/outer v0.0.0
+	example.com/inner v0.0.0
+)
+
+replace example.com/outer => ../outer
+
+replace example.com/inner => ../inner
+
+-- i/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/outer/**"]
+
+-- i/main/cmd/main.lgo --
+package main
+
+import "example.com/outer"
+
+func main() {
+	outer.Init()
+	println("done")
+}
+
+-- i/outer/go.mod --
+module example.com/outer
+
+go 1.27
+
+require example.com/inner v0.0.0
+
+replace example.com/inner => ../inner
+
+-- i/outer/outer.go --
+package outer
+
+import "example.com/inner"
+
+//go:noinline
+func Init() { inner.Init() }
+
+-- i/inner/go.mod --
+module example.com/inner
+
+go 1.27
+
+-- i/inner/inner.go --
+package inner
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 99 {
+		_ = exec.Command("true").Run()
+	}
+}

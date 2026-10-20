@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/link/internal/sym"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -47,35 +48,6 @@ func TestLogosCapPolicyJSON(t *testing.T) {
 	}
 }
 
-func TestLogosCapPkgOfSym(t *testing.T) {
-	tests := []struct{ sym, want string }{
-		{"main.main", "main"},
-		{"os/exec.Command", "os/exec"},
-		{"os/exec.(*Cmd).Start", "os/exec"},
-		{"example.com/dep.Init", "example.com/dep"},
-		{"reflect.Value.MethodByName", "reflect.Value"},
-		{"example.com/g.Foo[example.com/x.Bar]", "example.com/g"},
-		{"example.com/cdep._Cfunc_fortytwo.abi0", "example.com/cdep"},
-		{"runtime.cgocall.abi0", "runtime"},
-		{"main._Cfunc_answer", "main"},
-		{"main._Cfunc_answer.stkobj", "main"},
-		{"example.com/cdep._Cfunc_f.args_stackmap", "example.com/cdep"},
-		{"example.com/cdep._Cfunc_f.arginfo0", "example.com/cdep"},
-		{"flag.init.0", "flag"},
-		{"unicode.init", "unicode"},
-		{"flag..inittask", "flag"},
-		{"main..inittask", "main"},
-		{"main.init.0", "main"},
-		{"flag.(*FlagSet).defaultUsage-fm", "flag"},
-		{"gopkg.in/yaml.v2.Unmarshal", "gopkg.in/yaml.v2"},
-	}
-	for _, tc := range tests {
-		if got := capPkgOfSym(tc.sym); got != tc.want {
-			t.Errorf("capPkgOfSym(%q) = %q, want %q", tc.sym, got, tc.want)
-		}
-	}
-}
-
 func TestLogosCapTrampoline(t *testing.T) {
 	for _, sym := range []string{
 		"example.com/cdep._Cfunc_fortytwo",
@@ -112,15 +84,70 @@ func TestLogosCapSinkName(t *testing.T) {
 	}
 }
 
-func TestLogosCapStdPkg(t *testing.T) {
-	for _, pkg := range []string{"os/exec", "runtime", "main", "command-line-arguments", "reflect"} {
-		if !capIsStdPkg(pkg) {
-			t.Errorf("capIsStdPkg(%q) = false, want true", pkg)
+func TestLogosCapLocalPkg(t *testing.T) {
+	for _, pkg := range []string{"main", "command-line-arguments", "_/home/dev/proj"} {
+		if !capIsLocalPkg(pkg) {
+			t.Errorf("capIsLocalPkg(%q) = false, want true", pkg)
 		}
 	}
-	for _, pkg := range []string{"example.com/dep", "github.com/evil/logger"} {
-		if capIsStdPkg(pkg) {
-			t.Errorf("capIsStdPkg(%q) = true, want false", pkg)
+	for _, pkg := range []string{"os/exec", "mylib", "example.com/dep", "maintenance", "_dep"} {
+		if capIsLocalPkg(pkg) {
+			t.Errorf("capIsLocalPkg(%q) = true, want false", pkg)
+		}
+	}
+}
+
+func TestLogosCapExemptPkg(t *testing.T) {
+	a := &logosCapAuditor{
+		std:    map[string]bool{"os/exec": true, "runtime": true, "vendor/golang.org/x/net": true},
+		policy: &logosCapPolicy{MainModules: []string{"example.com/app"}},
+	}
+	for _, pkg := range []string{
+		"os/exec", "runtime", "vendor/golang.org/x/net",
+		"main", "command-line-arguments",
+		"example.com/app", "example.com/app/internal/util",
+	} {
+		if !a.exemptPkg(pkg) {
+			t.Errorf("exemptPkg(%q) = false, want true", pkg)
+		}
+	}
+	for _, pkg := range []string{
+		"mylib", "mylib/sub", "example.com/dep", "example.com/application",
+		"github.com/evil/logger", "os/execx", "golang.org/x/net",
+	} {
+		if a.exemptPkg(pkg) {
+			t.Errorf("exemptPkg(%q) = true, want false", pkg)
+		}
+	}
+}
+
+func TestLogosCapNamedPkg(t *testing.T) {
+	libs := make(map[string]*sym.Library)
+	for _, pkg := range []string{"main", "encoding", "os/exec", "mylib", "example.com/dep", "gopkg.in/yaml.v2"} {
+		libs[pkg] = &sym.Library{Pkg: pkg}
+	}
+	a := &logosCapAuditor{ctxt: &Link{LibraryByPkg: libs}}
+	tests := []struct{ name, want string }{
+		{"main.main", "main"},
+		{"os/exec.Command", "os/exec"},
+		{"os/exec.(*Cmd).Start", "os/exec"},
+		{"mylib.Init", "mylib"},
+		{"example.com/dep.Init", "example.com/dep"},
+		{"example.com/dep.Each[go.shape.int]", "example.com/dep"},
+		{"example.com/dep.Each[example.com/other.T]", "example.com/dep"},
+		{"example.com/dep.T.Run", "example.com/dep"},
+		{"gopkg.in/yaml%2ev2.Unmarshal", "gopkg.in/yaml.v2"},
+		{"encoding.TextAppender.AppendText-fm", "encoding"},
+		{"go:(*struct { encoding.TextAppender }).AppendText", ""},
+		{"go:struct { encoding.TextMarshaler }", ""},
+		{"type:.eq.[2]string", ""},
+		{"unlinked.Func", ""},
+		{"_rt0_amd64_linux", ""},
+		{"example.com/dep%zz.Init", ""},
+	}
+	for _, tc := range tests {
+		if got := a.namedPkg(tc.name); got != tc.want {
+			t.Errorf("namedPkg(%q) = %q, want %q", tc.name, got, tc.want)
 		}
 	}
 }

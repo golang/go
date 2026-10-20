@@ -8,14 +8,12 @@ import (
 	"cmd/internal/goobj"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
-	"cmp"
 	"encoding/binary"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path"
-	"runtime"
 	"slices"
 	"strings"
 )
@@ -101,16 +99,17 @@ func capIsCgoTrampoline(name string) bool {
 }
 
 // logosCapAuditor is a BFS over the live symbol graph from the link roots,
-// recording the parent of every visit for shortest-chain backtraces. It
-// runs after the deadcode fixpoint, so AttrReachable already excludes dead
-// code: a dependency that imports a sink package without calling it
-// contributes no path.
+// recording the parent and every reverse edge of each visit for chain
+// backtraces. It runs after the deadcode fixpoint, so AttrReachable already
+// excludes dead code: a dependency that imports a sink package without
+// calling it contributes no path.
 type logosCapAuditor struct {
 	ctxt   *Link
 	ldr    *loader.Loader
 	policy *logosCapPolicy
-	goroot string
-	parent map[loader.Sym]loader.Sym
+	std    map[string]bool
+	graph  *capGraph
+	roles  map[loader.Sym]capRole
 	queue  []loader.Sym
 	impls  []logosCapImpl
 	hits   []logosCapHit
@@ -132,13 +131,13 @@ func logosCapAudit(ctxt *Link, d *deadcodePass) {
 		Errorf("logos capabilities: parse policy %s: %v", *flagLogosCap, err)
 		return
 	}
-	goroot := cmp.Or(os.Getenv("GOROOT"), runtime.GOROOT())
 	a := &logosCapAuditor{
 		ctxt:   ctxt,
 		ldr:    ctxt.loader,
 		policy: &policy,
-		goroot: goroot,
-		parent: make(map[loader.Sym]loader.Sym),
+		std:    ctxt.loader.StdPackages(),
+		graph:  newCapGraph(),
+		roles:  make(map[loader.Sym]capRole),
 	}
 	a.collectImpls(d)
 	a.seedRoots(d)
@@ -219,20 +218,15 @@ func (a *logosCapAuditor) seedRoots(d *deadcodePass) {
 	}
 }
 
-// enqueue visits s with parent p, skipping dull, visited, and dead
-// symbols. Parent presence marks visited; roots carry parent 0.
+// enqueue records the edge p -> s and visits s on first sight, skipping
+// dull and dead symbols. Roots carry parent 0.
 func (a *logosCapAuditor) enqueue(s, p loader.Sym) {
-	if s == 0 || s == p {
+	if s == 0 || s == p || !a.ldr.AttrReachable(s) {
 		return
 	}
-	if _, ok := a.parent[s]; ok {
-		return
+	if a.graph.visit(s, p) {
+		a.queue = append(a.queue, s)
 	}
-	if !a.ldr.AttrReachable(s) {
-		return
-	}
-	a.parent[s] = p
-	a.queue = append(a.queue, s)
 }
 
 // flood walks relocations from the roots, recording parents. Marker
@@ -250,7 +244,7 @@ func (a *logosCapAuditor) flood(d *deadcodePass) {
 		} else if capIsCgoTrampoline(name) && a.ldr.SymType(s).IsText() {
 			a.hits = append(a.hits, logosCapHit{sink: s, kind: CapCgo, name: "runtime.cgocall"})
 		}
-		if a.ldr.IsReflectMethod(s) || a.callsReflectLookup(s) {
+		if a.isReflectSite(s) {
 			for _, impl := range a.impls {
 				if capIsExportedMethod(impl.name) {
 					a.enqueue(impl.fn, s)
@@ -274,6 +268,14 @@ var reflectLookupSyms = []string{
 	"reflect.Value.MethodByName",
 	"reflect.Type.Method",
 	"reflect.Type.MethodByName",
+}
+
+// isReflectSite reports whether s is a function that may look methods up
+// reflectively. Type descriptors never are: their method tables name
+// reflect.Value.Method without calling it, and counting them would make
+// every function that mentions reflect.Value reach every exported method.
+func (a *logosCapAuditor) isReflectSite(s loader.Sym) bool {
+	return a.ldr.SymType(s).IsText() && (a.ldr.IsReflectMethod(s) || a.callsReflectLookup(s))
 }
 
 // callsReflectLookup reports whether s references a reflective method
@@ -369,48 +371,84 @@ func (a *logosCapAuditor) followAux(s loader.Sym) {
 	}
 }
 
-// chainTo rebuilds the root-to-sink chain through the parent map.
-func (a *logosCapAuditor) chainTo(sink loader.Sym) []loader.Sym {
-	var rev []loader.Sym
-	for cur := sink; cur != 0; cur = a.parent[cur] {
-		rev = append(rev, cur)
-		if _, ok := a.parent[cur]; !ok {
-			break
-		}
-	}
-	slices.Reverse(rev)
-	return rev
+// capFinding is one dependency chain to one reached sink.
+type capFinding struct {
+	kind  CapabilityKind
+	sink  string
+	dep   string
+	chain []loader.Sym
 }
 
-// report checks every reached sink against the policy and emits one
+// findings collects every blamed chain per reached sink: one shortest
+// chain per dependency, folding the sink symbols that share a display name
+// (ABI wrappers, per-call-site cgo trampolines) into the shortest. Order
+// follows hit order, then dependency path, so output is stable.
+func (a *logosCapAuditor) findings() []capFinding {
+	var out []capFinding
+	index := make(map[string]int)
+	for _, hit := range a.hits {
+		for _, b := range a.blamedChains(hit) {
+			out = addFinding(out, index, capFinding{kind: hit.kind, sink: hit.name, dep: b.dep, chain: b.chain})
+		}
+	}
+	return out
+}
+
+// blamedChains returns the dependency chains for one hit. Cgo is a
+// property of a package's own C calls: the standard library's cgo (the net
+// resolver, os/user) never blames the dependencies that call it, so a cgo
+// sink blames only a dependency that owns it.
+func (a *logosCapAuditor) blamedChains(hit logosCapHit) []capBlame {
+	if hit.kind == CapCgo && a.role(hit.sink).dep == "" {
+		return nil
+	}
+	return a.graph.blamedChains(hit.sink, a.role)
+}
+
+// addFinding appends f, or replaces the kept finding for the same sink
+// name and dependency when f's chain is shorter. index maps that pair to
+// its position in out.
+func addFinding(out []capFinding, index map[string]int, f capFinding) []capFinding {
+	key := f.sink + "\x00" + f.dep
+	i, seen := index[key]
+	switch {
+	case !seen:
+		index[key] = len(out)
+		return append(out, f)
+	case len(f.chain) < len(out[i].chain):
+		out[i] = f
+	}
+	return out
+}
+
+// report checks every blamed chain against the policy and emits one
 // diagnostic per violating chain.
 func (a *logosCapAuditor) report() {
-	for _, hit := range a.hits {
-		chain := a.chainTo(hit.sink)
-		dep := a.blame(chain)
-		if dep == "" {
-			continue
-		}
-		sinkName := hit.name
-		if hit.kind == CapCgo {
-			if slices.Contains(a.policy.CgoAllowed, dep) {
-				continue
-			}
-			a.emit("ERROR", "unauthorized_cgo", dep, sinkName, chain,
-				`Remove the dependency or allow cgo for its module with [build] cgo = "allow" in logos.toml.`)
-			continue
-		}
-		rule := a.ruleFor(hit.kind)
-		if rule.sev == logosAllow || capAllowlisted(rule.allow, dep) {
-			continue
-		}
-		word := "ERROR"
-		if rule.sev == logosWarn {
-			word = "WARNING"
-		}
-		a.emit(word, rule.id, dep, sinkName, chain,
-			fmt.Sprintf("Remove the dependency or explicitly authorize %q under '%s' in logos.toml.", dep+"/**", rule.allowKey))
+	for _, f := range a.findings() {
+		a.judge(f)
 	}
+}
+
+// judge applies the policy row for f's sink kind and emits the diagnostic
+// when the dependency is not exempt.
+func (a *logosCapAuditor) judge(f capFinding) {
+	if f.kind == CapCgo {
+		if !slices.Contains(a.policy.CgoAllowed, f.dep) {
+			a.emit("ERROR", "unauthorized_cgo", f.dep, f.sink, f.chain,
+				`Remove the dependency or allow cgo for its module with [build] cgo = "allow" in logos.toml.`)
+		}
+		return
+	}
+	rule := a.ruleFor(f.kind)
+	if rule.sev == logosAllow || capAllowlisted(rule.allow, f.dep) {
+		return
+	}
+	word := "ERROR"
+	if rule.sev == logosWarn {
+		word = "WARNING"
+	}
+	a.emit(word, rule.id, f.dep, f.sink, f.chain,
+		fmt.Sprintf("Remove the dependency or explicitly authorize %q under '%s' in logos.toml.", f.dep+"/**", rule.allowKey))
 }
 
 // capRule is the policy row for one sink kind.
@@ -451,23 +489,74 @@ func (a *logosCapAuditor) emit(word, ruleID, dep, sink string, chain []loader.Sy
 	fmt.Fprintln(os.Stderr, report)
 }
 
-// blame walks the chain from the sink back to the roots and returns the
-// first package outside GOROOT that is neither standard library nor under
-// a main module. Empty means no violation: pure standard-library
-// reachability and first-party calls never blame.
-func (a *logosCapAuditor) blame(chain []loader.Sym) string {
-	for i := len(chain) - 1; i >= 0; i-- {
-		f := a.frameOf(chain[i])
-		if f.file != "unknown" && capPathUnder(f.file, a.goroot) {
-			continue
-		}
-		pkg := capPkgOfSym(f.name)
-		if capIsStdPkg(pkg) || a.underMainModules(pkg) {
-			continue
-		}
+// role returns how the chain search treats symbol s. The result is
+// memoized: the search asks about every symbol that can reach a sink.
+func (a *logosCapAuditor) role(s loader.Sym) capRole {
+	if r, ok := a.roles[s]; ok {
+		return r
+	}
+	r := a.roleOf(s)
+	a.roles[s] = r
+	return r
+}
+
+// roleOf classifies s. Only functions carry blame; data symbols (type
+// descriptors, itabs, funcvals) sit between the frames that call and are
+// called. Functions of package runtime are walls. A function is blamed on
+// the package that owns its code unless that package is first-party or
+// standard library, and compiler glue that names no linked package is
+// exempt.
+func (a *logosCapAuditor) roleOf(s loader.Sym) capRole {
+	if !a.ldr.SymType(s).IsText() {
+		return capRole{}
+	}
+	pkg := a.textPkg(s)
+	switch {
+	case pkg == "runtime":
+		return capRole{wall: true}
+	case pkg == "" || a.exemptPkg(pkg):
+		return capRole{}
+	}
+	return capRole{dep: pkg}
+}
+
+// textPkg returns the import path of the package that owns the code of
+// text symbol s, or "" when the name carries no linked package. The
+// object's own package wins when the name starts with it. Otherwise the
+// object is another package's: a generic instantiated there, or compiler
+// glue such as method value wrappers, so the name decides.
+func (a *logosCapAuditor) textPkg(s loader.Sym) string {
+	name := a.ldr.SymName(s)
+	if pkg := a.ldr.SymPkg(s); pkg != "" && strings.HasPrefix(name, objabi.PathToPrefix(pkg)+".") {
 		return pkg
 	}
-	return ""
+	return a.namedPkg(name)
+}
+
+// namedPkg parses the package from a symbol name: the text up to the first
+// dot after the last slash, outside any type argument list, with its path
+// escapes undone. Only a linked package counts, so glue named like
+// "go:(*struct { encoding" or "type:.eq" yields "".
+func (a *logosCapAuditor) namedPkg(name string) string {
+	base, _, _ := strings.Cut(name, "[")
+	elem := base[strings.LastIndexByte(base, '/')+1:]
+	dot := strings.IndexByte(elem, '.')
+	if dot < 0 {
+		return ""
+	}
+	pkg, err := objabi.PrefixToPath(base[:len(base)-len(elem)+dot])
+	if err != nil || a.ctxt.LibraryByPkg[pkg] == nil {
+		return ""
+	}
+	return pkg
+}
+
+// exemptPkg reports whether pkg never takes blame: the program's own
+// packages, first-party packages under a main module, and the standard
+// library as the compiler marked it. The module path is no evidence of
+// the standard library: a replaced dependency may have a dotless path.
+func (a *logosCapAuditor) exemptPkg(pkg string) bool {
+	return capIsLocalPkg(pkg) || a.underMainModules(pkg) || a.std[pkg]
 }
 
 // underMainModules reports whether pkg sits under a main module.
@@ -583,68 +672,11 @@ func capSinkName(name string) string {
 	return name
 }
 
-// capOwnerName strips linker metadata suffixes (stack objects, argument
-// maps) to the owning function symbol name. Metadata frames attribute to
-// their owner's package, never to a dotted pseudo-package.
-func capOwnerName(name string) string {
-	base, suffix, ok := strings.CutLast(name, ".")
-	if !ok {
-		return name
-	}
-	if suffix == "stkobj" || suffix == "args_stackmap" {
-		return base
-	}
-	if rest, ok := strings.CutPrefix(suffix, "arginfo"); ok && capIsDigits(rest) {
-		return base
-	}
-	return name
-}
-
-// capIsDigits reports whether s is a non-empty run of ASCII digits.
-func capIsDigits(s string) bool {
-	if s == "" {
-		return false
-	}
-	for i := range len(s) {
-		if s[i] < '0' || s[i] > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// capPkgOfSym returns the package path of a linker symbol name. ABI
-// wrapper suffixes are stripped first so versioned symbols attribute to
-// their package; package init symbols (pkg.init, pkg.init.N,
-// pkg..inittask) attribute to their package.
-func capPkgOfSym(name string) string {
-	base, _, _ := strings.Cut(capSinkName(capOwnerName(name)), "[")
-	if pkg, _, ok := strings.Cut(base, ".("); ok {
-		return pkg
-	}
-	if pkg, ok := strings.CutSuffix(base, "..inittask"); ok {
-		return pkg
-	}
-	parts := strings.Split(base, ".")
-	n := len(parts)
-	switch {
-	case n >= 2 && parts[n-1] == "init":
-		parts = parts[:n-1]
-	case n >= 3 && parts[n-2] == "init" && capIsDigits(parts[n-1]):
-		parts = parts[:n-2]
-	}
-	if pkg, _, ok := strings.CutLast(strings.Join(parts, "."), "."); ok {
-		return pkg
-	}
-	return strings.Join(parts, ".")
-}
-
-// capIsStdPkg reports whether pkg is standard library, main, or another
-// dotless first element (command-line-arguments, GOPATH _-paths): those
-// frames never blame.
-func capIsStdPkg(pkg string) bool {
-	first, _, _ := strings.Cut(pkg, "/")
-	return !strings.Contains(first, ".")
+// capIsLocalPkg reports whether pkg is a package of the program itself that
+// no other package imports: main, a command-line package, or a local
+// directory outside any module ("_/..."). Those frames never blame.
+func capIsLocalPkg(pkg string) bool {
+	return pkg == "main" || pkg == "command-line-arguments" || strings.HasPrefix(pkg, "_/")
 }
 
 // capIsExportedMethod reports whether a method name is exported.
@@ -653,11 +685,6 @@ func capIsExportedMethod(name string) bool {
 		return r >= 'A' && r <= 'Z'
 	}
 	return false
-}
-
-// capPathUnder reports whether file sits under dir.
-func capPathUnder(file, dir string) bool {
-	return dir != "" && (file == dir || strings.HasPrefix(file, dir+string(os.PathSeparator)))
 }
 
 // capAllowlisted reports whether dep matches one of the allowlist globs.

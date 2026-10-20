@@ -1444,10 +1444,14 @@ The audit follows relocations. [T-Sec13]
 It adds synthetic edges for interface calls and reflective method lookups. [T-Sec13]
 Protected sinks are reflect.ValueOf, reflect.TypeOf, reflect.New, syscall.Exec, syscall.ForkExec, os.StartProcess, os.startProcess, net.sysSocket, runtime.cgocall, and runtime.logosCgocallFast. [T-Sec13]
 Packages that import unsafe are found through a compiler fact on the package graph. [T-Sec13]
-The standard library is exempt. [T-Sec13]
+The standard library, first-party packages under a main module, and the program's own packages are exempt. [T-Sec13]
+A dependency is not the standard library because its module path has no dot. [T-Sec13]
 A dependency that imports a sink package but never calls it passes as dead code. [T-Sec13]
 Reflection through reflect.Value.Method counts as reachable. [T-Sec13]
 On diamond graphs the report keeps the shortest chain. [T-Sec13]
+The audit reports one chain per sink and dependency, so a chain through the standard library alone never hides another dependency's chain to the same sink. [T-Sec13]
+A chain blames the dependency frame nearest the sink, and chains of standard-library or first-party frames blame nobody. [T-Sec13]
+Edges through package runtime never carry blame, because every function reaches the runtime's stack growth and crash paths. [T-Sec13]
 Policy comes from logos.toml capabilities. [T-Sec10][T-Sec13]
 
 ### 13.2 Reachability report
@@ -1457,6 +1461,7 @@ The report lists the shortest call chain with file and line per frame. [T-Sec13]
 For the allowlist keys that authorize each sink, see Sec 10.4. [T-Sec10][T-Sec13]
 Unsafe violations use capabilities::unauthorized_unsafe with the shortest import chain. [T-Sec13]
 cgo reachability reports capabilities::unauthorized_cgo unless the cgo policy allows the package. [T-Sec13][T-101.2]
+Only a dependency that owns the cgo wrapper is blamed: the standard library's own cgo never blames the dependencies that call it. [T-Sec13]
 The tailored cgo sink is the per-call-site `pkg._Cfunc_*` wrapper, reported as `runtime.cgocall`, because an external cgo call leaves the loader graph at the host object and `runtime.cgocall` is reachable only from `runtime.cgoContextPCs`. [T-Sec13]
 
 ## 14. Wasm profile

@@ -1,0 +1,71 @@
+# M12-S2: unauthorized_cgo names a dependency that owns a cgo wrapper. The
+# standard library's own cgo (the net resolver) never blames the dependencies
+# that call it: an ordinary net/http dependency builds under the default
+# policy.
+# RED expectation: the reverse chain search walks past the standard
+# library's trampoline and reports the dependency, so the build fails with
+# unauthorized_cgo.
+
+[!cgo] skip
+env CGO_ENABLED=1
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd main
+logos build -o $WORK/bin/stdcgo$GOEXE ./cmd
+! stderr 'capabilities'
+go tool nm $WORK/bin/stdcgo$GOEXE
+stdout '_C2?func_getaddrinfo'
+exec $WORK/bin/stdcgo$GOEXE
+stdout '^ok$'
+
+-- main/go.mod --
+module example.com/nmain
+
+go 1.27
+
+require example.com/ndep v0.0.0
+
+replace example.com/ndep => ../dep
+
+-- main/logos.toml --
+[capabilities]
+transitive_net = "allow"
+transitive_reflect = "allow"
+
+-- main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ndep"
+)
+
+func main() {
+	fmt.Println(dep.Fetch(""))
+}
+
+-- dep/go.mod --
+module example.com/ndep
+
+go 1.27
+
+-- dep/dep.go --
+package dep
+
+import (
+	"net/http"
+	"os"
+)
+
+//go:noinline
+func Fetch(u string) string {
+	if len(os.Args) > 99 {
+		if resp, err := http.Get(u); err == nil {
+			resp.Body.Close()
+		}
+	}
+	return "ok"
+}
