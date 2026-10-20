@@ -105,13 +105,23 @@ error:
 // MarshalText implements the [encoding.TextMarshaler] interface.
 // The encoding is the same as the one returned by [HardwareAddr.String].
 // This will be enabled in a future Go release; see issue #29678.
+// For backward compatibility invalid HardwareAddr values are
+// always encoded as base64 strings, with no error.
 func (a HardwareAddr) MarshalText() ([]byte, error) {
 	// For backward compatibility, marshal as plain []byte.
 	if netmarshalOld() {
 		return base64Encode(a), nil
 	}
 
-	return []byte(a.String()), nil
+	switch len(a) {
+	case 0, 6, 8, 20:
+		return []byte(a.String()), nil
+	default:
+		// ParseMAC only accepts 6, 8, or 20 byte addresses,
+		// so for backward compatibility fall back to the old
+		// marshaling for any other length.
+		return base64Encode(a), nil
+	}
 }
 
 // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
