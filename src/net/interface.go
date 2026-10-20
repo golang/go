@@ -175,9 +175,21 @@ func InterfaceByName(name string) (*Interface, error) {
 	if name == "" {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceName}
 	}
-	ift, err := interfaceTable(0)
+	ifi, err := interfaceByName(name)
 	if err != nil {
 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: name}, Err: err}
+	}
+	return ifi, nil
+}
+
+// interfaceByNameFromTable returns the interface with the given name,
+// or errNoSuchInterface, from a table of every interface, which it
+// also uses to refresh the IPv6 zone cache. It is the interfaceByName
+// of platforms that cannot look up a single interface by name.
+func interfaceByNameFromTable(name string) (*Interface, error) {
+	ift, err := interfaceTable(0)
+	if err != nil {
+		return nil, err
 	}
 	if len(ift) != 0 {
 		zoneCache.update(ift, false)
@@ -187,7 +199,7 @@ func InterfaceByName(name string) (*Interface, error) {
 			return &ifi, nil
 		}
 	}
-	return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: name}, Err: errNoSuchInterface}
+	return nil, errNoSuchInterface
 }
 
 // An ipv6ZoneCache represents a cache holding partial network
