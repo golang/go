@@ -260,6 +260,38 @@ func plainPointer() *int {
 	return &x
 }
 
+func aliasRetP() unsafe.Pointer {
+	var x int
+	p := unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
+	return p
+}
+
+func aliasChainP() unsafe.Pointer {
+	var x int
+	p := &x
+	q := unsafe.Pointer(p) // ERROR "arena_pointer_escape"
+	return q
+}
+
+func aliasGlobalP() {
+	var x int
+	p := unsafe.Pointer(&x) // ERROR "arena_pointer_escape"
+	globalP = p
+}
+
+func aliasReassignedP(other unsafe.Pointer) unsafe.Pointer {
+	var x int
+	p := unsafe.Pointer(&x)
+	p = other
+	return p
+}
+
+func aliasLocalP() int {
+	var x int
+	p := unsafe.Pointer(&x)
+	return *(*int)(p)
+}
+
 func constantU() uintptr {
 	return uintptr(5)
 }

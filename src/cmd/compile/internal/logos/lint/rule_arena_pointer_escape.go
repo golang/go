@@ -15,8 +15,9 @@ import (
 // goroutine arena: a local variable, a field of a local struct, an element of
 // a local array, and the result of new or of an address-of composite
 // literal. A local variable that every assignment in the function sets to
-// such an address stands for it as well. A slice element, a map entry, and
-// anything reached through a pointer is not frame storage.
+// such an address, or to unsafe.Pointer of one, stands for it as well. A
+// slice element, a map entry, and anything reached through a pointer is not
+// frame storage.
 //
 // Two forms are reported. An integer form, uintptr(unsafe.Pointer(&x)), is
 // reported wherever the value is stored, including arithmetic on it: an
@@ -90,6 +91,9 @@ type frameScan struct {
 	// pointers records what the assignments to each local variable set it
 	// to.
 	pointers map[*types2.Var]pointerState
+	// addrs records the pointer-form conversion each frame-address
+	// variable was assigned, so a later use reports that conversion.
+	addrs map[*types2.Var]*syntax.CallExpr
 }
 
 // pointerState is what every assignment seen so far sets a variable to.
@@ -109,6 +113,7 @@ func newFrameScan(pass *Pass, f *syntax.File, root syntax.Node) *frameScan {
 		root:     root,
 		results:  make(map[*types2.Var]bool),
 		pointers: make(map[*types2.Var]pointerState),
+		addrs:    make(map[*types2.Var]*syntax.CallExpr),
 	}
 }
 
@@ -176,8 +181,10 @@ func (s *frameScan) noteDecl(d *syntax.VarDecl) {
 }
 
 // noteTargets records each variable of targets as set to the matching value
-// of values. Without a matching value, the assignment is not a frame
-// address.
+// of values. A variable every assignment sets to a frame address, directly
+// or through unsafe.Pointer of one, stands for that address; the conversion
+// of the pointer form is kept so a later use reports it. Without a matching
+// value, or after any other assignment, the variable holds something else.
 func (s *frameScan) noteTargets(targets, values []syntax.Expr) {
 	for i, t := range targets {
 		id, ok := bareExpr(t).(*syntax.Name)
@@ -188,7 +195,15 @@ func (s *frameScan) noteTargets(targets, values []syntax.Expr) {
 		if v == nil {
 			continue
 		}
-		if len(values) == len(targets) && s.directAddr(values[i]) && s.pointers[v] != pointerOther {
+		delete(s.addrs, v)
+		if len(values) != len(targets) || s.pointers[v] == pointerOther {
+			s.pointers[v] = pointerOther
+			continue
+		}
+		if kind, call := s.carry(values[i]); kind == addrPointer {
+			s.pointers[v] = pointerFrame
+			s.addrs[v] = call
+		} else if s.directAddr(values[i]) {
 			s.pointers[v] = pointerFrame
 		} else {
 			s.pointers[v] = pointerOther
@@ -298,9 +313,17 @@ func (s *frameScan) report(kind addrKind, call *syntax.CallExpr) {
 }
 
 // carry returns how x carries a frame address, and the conversion call that
-// does so.
+// does so. A local that every assignment sets through unsafe.Pointer of a
+// frame address carries that conversion past its declaration.
 func (s *frameScan) carry(x syntax.Expr) (addrKind, *syntax.CallExpr) {
 	switch x := bareExpr(x).(type) {
+	case *syntax.Name:
+		if v := localVar(s.pass, x); v != nil && s.pointers[v] == pointerFrame {
+			if call := s.addrs[v]; call != nil {
+				return addrPointer, call
+			}
+		}
+		return addrNone, nil
 	case *syntax.CallExpr:
 		return s.carryConversion(x)
 	case *syntax.Operation:

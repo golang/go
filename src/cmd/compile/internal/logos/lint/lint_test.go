@@ -635,6 +635,67 @@ func r23(n int) int {
 	n++
 	return r23(n)
 }
+func r24(n int) int { // want
+	if n > 0 {
+		r24(n)
+		return n
+	}
+	return r24(n)
+}
+func r25(n int) int { // want
+	if n > 0 {
+		r25(n)
+	}
+	return r25(n)
+}
+func r26(n int) int { // want
+	switch n {
+	case 0:
+		return r26(n)
+	default:
+		return r26(n)
+	}
+}
+func r27(n int) int {
+	switch n {
+	case 0:
+		return 0
+	default:
+		return r27(n)
+	}
+}
+func r28(n int) int {
+	switch n {
+	case 0:
+		return r28(n)
+	}
+	return 0
+}
+func r29(n int) int { // want
+	switch n {
+	case 0:
+		return r29(n)
+	case 1:
+		return r29(n)
+	}
+	return r29(n)
+}
+func r30(n int) int { // want
+	if n > 0 {
+		if n > 1 {
+			return r30(n)
+		}
+	}
+	return r30(n)
+}
+func r31(n int) int {
+	if n > 0 {
+		if n > 1 {
+			return n
+		}
+	}
+	return r31(n)
+}
 `
 
 // TestInfiniteRecursion covers the always-recurse analysis in both kinds

@@ -408,6 +408,25 @@ func closureBodyIsNotWalked(p *int) func() *int {
 		return p
 	}
 }
+
+func siblingBlockExit(p *int) *int {
+	{
+		if p == nil {
+			return nil
+		}
+	}
+	return p // proved
+}
+
+func siblingBlockKilled(p, q *int) *int {
+	{
+		if p == nil {
+			return nil
+		}
+		p = q
+	}
+	return p
+}
 `
 
 // TestNilFlow checks the facts the control-flow walk holds at each return:

@@ -1,0 +1,100 @@
+// errorcheck
+
+// correctness::infinite_recursion (SPEC Sec 1.2, #157): a function whose
+// every path from entry calls itself with identical arguments before any
+// return. The rule is forbid in loGo/s and deny in Go (twin file
+// infinite_recursion_go.go).
+
+package p
+
+func selfDirect(n int) int { return selfDirect(n) } // ERROR "correctness::infinite_recursion"
+
+func selfAfterCall(n int) int { // ERROR "correctness::infinite_recursion"
+	if n > 0 {
+		selfAfterCall(n)
+		return n
+	}
+	return selfAfterCall(n)
+}
+
+func selfFallthrough(n int) int { // ERROR "correctness::infinite_recursion"
+	if n > 0 {
+		selfFallthrough(n)
+	}
+	return selfFallthrough(n)
+}
+
+func selfSwitch(n int) int { // ERROR "correctness::infinite_recursion"
+	switch n {
+	case 0:
+		return selfSwitch(n)
+	default:
+		return selfSwitch(n)
+	}
+}
+
+func selfSwitchFallthrough(n int) int { // ERROR "correctness::infinite_recursion"
+	switch n {
+	case 0:
+		return selfSwitchFallthrough(n)
+	case 1:
+		return selfSwitchFallthrough(n)
+	}
+	return selfSwitchFallthrough(n)
+}
+
+func selfNested(n int) int { // ERROR "correctness::infinite_recursion"
+	if n > 0 {
+		if n > 1 {
+			return selfNested(n)
+		}
+	}
+	return selfNested(n)
+}
+
+func nestedNoCall(n int) int {
+	if n > 0 {
+		if n > 1 {
+			return n
+		}
+	}
+	return nestedNoCall(n)
+}
+
+func guarded(n int) int {
+	if n > 0 {
+		return n
+	}
+	return guarded(n)
+}
+
+func guardNoCall(n int) int {
+	if n > 0 {
+		return n
+	}
+	return guardNoCall(n)
+}
+
+func partialSwitch(n int) int {
+	switch n {
+	case 0:
+		return 0
+	default:
+		return partialSwitch(n)
+	}
+}
+
+func switchNoDefault(n int) int {
+	switch n {
+	case 0:
+		return switchNoDefault(n)
+	}
+	return 0
+}
+
+func differentArgs(n int) int { return differentArgs(n - 1) }
+
+func reassigned(n int) int {
+	n--
+	return reassigned(n)
+}

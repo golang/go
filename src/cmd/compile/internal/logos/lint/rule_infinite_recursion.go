@@ -158,13 +158,15 @@ func rootName(e syntax.Expr) *syntax.Name {
 }
 
 // always reports whether every path through list reaches a self-call
-// before leaving the function.
+// before leaving the function. A branch whose leaving paths all call
+// first covers those paths, and the paths that fall through continue to
+// the statements below.
 func (r *recursion) always(list []syntax.Stmt) bool {
 	for _, s := range list {
 		if r.stmtCalls(s) {
 			return true
 		}
-		if r.mayLeave(s) {
+		if r.mayLeave(s) && !r.exitsCovered(s) {
 			return false
 		}
 	}
@@ -184,6 +186,8 @@ func (r *recursion) stmtCalls(s syntax.Stmt) bool {
 		return r.always(s.List)
 	case *syntax.IfStmt:
 		return r.ifCalls(s)
+	case *syntax.SwitchStmt:
+		return r.switchCalls(s)
 	}
 	return false
 }
@@ -201,6 +205,72 @@ func (r *recursion) ifCalls(s *syntax.IfStmt) bool {
 		return false
 	}
 	return r.stmtCalls(s.Else)
+}
+
+// switchCalls reports whether a switch statement reaches a self-call on
+// every path: the tag calls, or a default arm exists and every arm does.
+func (r *recursion) switchCalls(s *syntax.SwitchStmt) bool {
+	if s.Init != nil {
+		return false
+	}
+	if s.Tag != nil && r.exprCalls(s.Tag) {
+		return true
+	}
+	var def bool
+	for _, c := range s.Body {
+		if c.Cases == nil {
+			def = true
+		}
+		if !r.always(c.Body) {
+			return false
+		}
+	}
+	return def
+}
+
+// exitsCovered reports whether every path through s that leaves the
+// enclosing statement list reaches a self-call first: a taken arm that
+// self-calls before returning covers its path, while a path that falls
+// through continues to the statements below. Any other statement covers
+// no leaving path.
+func (r *recursion) exitsCovered(s syntax.Stmt) bool {
+	switch s := s.(type) {
+	case *syntax.IfStmt:
+		if s.Init != nil {
+			return false
+		}
+		if s.Else == nil {
+			return r.branchCovered(s.Then.List)
+		}
+		return r.branchCovered(s.Then.List) && r.branchCovered([]syntax.Stmt{s.Else})
+	case *syntax.SwitchStmt:
+		if s.Init != nil {
+			return false
+		}
+		for _, c := range s.Body {
+			if !r.branchCovered(c.Body) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// branchCovered reports whether every path through list either reaches a
+// self-call or falls out of list: a path that leaves the enclosing list
+// from inside list must call first, while a path that falls through
+// continues to the statements below.
+func (r *recursion) branchCovered(list []syntax.Stmt) bool {
+	for _, s := range list {
+		if r.stmtCalls(s) {
+			return true
+		}
+		if r.mayLeave(s) && !r.exitsCovered(s) {
+			return false
+		}
+	}
+	return true
 }
 
 // exprCalls reports whether evaluating e always reaches a self-call. The

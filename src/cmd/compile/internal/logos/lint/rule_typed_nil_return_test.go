@@ -111,6 +111,25 @@ func platformTupleErrorBoxed() (*os.File, *os.File, any) {
 func nonNil(e *Err) error {
 	return e
 }
+
+func optionNestedBlock(p *Err?) any {
+	{
+		if p == nil {
+			return nil
+		}
+	}
+	return p
+}
+
+func optionNestedBlockKilled(p *Err?, q *Err?) any {
+	{
+		if p == nil {
+			return nil
+		}
+		p = q
+	}
+	return p // want
+}
 `
 
 const typedNilGoSrc = `package p

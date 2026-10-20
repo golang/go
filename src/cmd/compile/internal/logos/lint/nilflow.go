@@ -231,8 +231,8 @@ func (w *flow) stmt(s syntax.Stmt, in nilFacts) nilFacts {
 	case *syntax.ForStmt:
 		return w.forStmt(s, in)
 	case *syntax.BlockStmt:
-		w.stmts(s.List, in)
-		return in.without(kills(s))
+		out := w.stmts(s.List, in)
+		return out.without(kills(s))
 	case *syntax.LabeledStmt:
 		return w.stmt(s.Stmt, in)
 	}

@@ -309,6 +309,25 @@ func nonNilParamIsFine(e *Err) error {
 	return e
 }
 
+func optionNestedBlock(p *Err?) any {
+	{
+		if p == nil {
+			return nil
+		}
+	}
+	return p
+}
+
+func optionNestedBlockKilled(p *Err?, q *Err?) any {
+	{
+		if p == nil {
+			return nil
+		}
+		p = q
+	}
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
 // ---- forbid ----
 
 //logos:allow(correctness::typed_nil_return) // ERROR "\[correctness::allow_forbidden_rule\]"
