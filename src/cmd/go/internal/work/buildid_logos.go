@@ -4,7 +4,10 @@
 
 package work
 
-import "strings"
+import (
+	"slices"
+	"strings"
+)
 
 // logosReportsBuildID reports whether the -V=full fields f end with a
 // build ID. The loGos tools print one under the release version go1.27.2
@@ -17,12 +20,21 @@ func logosReportsBuildID(f []string) bool {
 }
 
 // logosEjectNoCache reports whether action a compiles a package marked
-// for logos eject. Ejected packages skip the build cache like -a builds,
-// so the compiler always runs and writes fresh -logos.eject output.
-// It is false for every other action, keeping plain go and ordinary
-// logos builds on the cache.
+// for logos eject, or a package whose -gcflags carry -logos.eject=DIR
+// (the language server proxy passes it per package). Such packages skip
+// the build cache like -a builds, so the compiler always runs and writes
+// fresh -logos.eject output. It is false for every other action, keeping
+// plain go and ordinary logos builds on the cache.
 func logosEjectNoCache(a *Action) bool {
-	return a != nil && a.Package != nil && a.Package.Internal.LogosEject
+	if a == nil || a.Package == nil {
+		return false
+	}
+	return a.Package.Internal.LogosEject || slices.ContainsFunc(a.Package.Internal.Gcflags, logosEjectFlag)
+}
+
+// logosEjectFlag reports whether the compiler flag f is -logos.eject=DIR.
+func logosEjectFlag(f string) bool {
+	return strings.HasPrefix(f, "-logos.eject=")
 }
 
 // logosNextNoCache reports whether action a compiles a package marked

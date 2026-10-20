@@ -14,6 +14,7 @@ import (
 	"cmd/go/internal/logos/contextcmd"
 	"cmd/go/internal/logos/eject"
 	"cmd/go/internal/logos/lintcmd"
+	"cmd/go/internal/logos/lsp"
 	"cmd/go/internal/logos/next"
 )
 
@@ -28,6 +29,7 @@ func ConfigureCommand(cmd *base.Command) {
 	contextcmd.Register(cmd)
 	eject.Register(cmd)
 	lintcmd.Register(cmd)
+	lsp.Register(cmd)
 	next.Register(cmd)
 	addPedanticFlag(cmd.Lookup("build"))
 	addPedanticFlag(cmd.Lookup("lint"))

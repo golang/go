@@ -1,0 +1,418 @@
+# M21-S1: logos lsp proxies gopls over a mixed workspace. A client written
+# the way an editor is (no editor-specific code) opens a loGo/s file and a
+# Go file, asks for definitions across kinds and inside a ? statement,
+# breaks the loGo/s file to see compiler diagnostics, repairs it, and
+# checks that the workspace gained no file. If gopls is not on PATH the
+# script skips, and the gate is blocked and incomplete (record it as such).
+[!exec:gopls] skip
+[short] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env GOFLAGS=
+mkdir $WORK/home
+env HOME=$WORK/home
+env XDG_CACHE_HOME=$WORK/home/cache
+env XDG_CONFIG_HOME=$WORK/home/config
+
+cd client
+exec go run . ../ws
+stdout '^ok initialize drops diagnosticProvider$'
+stdout '^ok definition of a loGo/s symbol from a Go file lands in the .lgo file$'
+stdout '^ok definition of a Go symbol from a loGo/s file lands in the .go file$'
+stdout '^ok definition inside a \? statement maps back to the .lgo parameter$'
+stdout '^ok hover inside a \? statement$'
+stdout '^ok compiler diagnostic reaches publishDiagnostics at the .lgo position$'
+stdout '^ok requests on a loGo/s file that does not compile answer null$'
+stdout '^ok diagnostics clear after the repair$'
+stdout '^ok the workspace gained no file$'
+stdout '^ok shutdown$'
+! stderr .
+
+-- client/go.mod --
+module lspclient
+
+go 1.27
+-- client/main.go --
+// Command lspclient drives logos lsp over the workspace in its first
+// argument, as an editor would, and checks the answers.
+package main
+
+import (
+	"bufio"
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+)
+
+type message struct {
+	JSONRPC string          `json:"jsonrpc"`
+	ID      json.RawMessage `json:"id,omitempty"`
+	Method  string          `json:"method,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
+	Result  json.RawMessage `json:"result,omitempty"`
+	Error   json.RawMessage `json:"error,omitempty"`
+}
+
+type position struct {
+	Line      int `json:"line"`
+	Character int `json:"character"`
+}
+
+type location struct {
+	URI   string `json:"uri"`
+	Range struct {
+		Start position `json:"start"`
+	} `json:"range"`
+}
+
+type session struct {
+	in     io.Writer
+	msgs   chan message
+	notes  []message
+	nextID int
+}
+
+const wait = 180 * time.Second
+
+func fail(format string, args ...any) {
+	fmt.Fprintf(os.Stderr, "FAIL: "+format+"\n", args...)
+	os.Exit(1)
+}
+
+func must(ok bool, format string, args ...any) {
+	if !ok {
+		fail(format, args...)
+	}
+}
+
+func (s *session) send(m message) {
+	m.JSONRPC = "2.0"
+	body, err := json.Marshal(m)
+	if err != nil {
+		fail("%v", err)
+	}
+	if _, err := fmt.Fprintf(s.in, "Content-Length: %d\r\n\r\n%s", len(body), body); err != nil {
+		fail("writing to logos lsp: %v", err)
+	}
+}
+
+func (s *session) pump(r io.Reader) {
+	br := bufio.NewReader(r)
+	for {
+		n := -1
+		for {
+			line, err := br.ReadString('\n')
+			if err != nil {
+				close(s.msgs)
+				return
+			}
+			line = strings.TrimRight(line, "\r\n")
+			if line == "" {
+				break
+			}
+			if v, ok := strings.CutPrefix(line, "Content-Length: "); ok {
+				n, _ = strconv.Atoi(v)
+			}
+		}
+		body := make([]byte, n)
+		if _, err := io.ReadFull(br, body); err != nil {
+			close(s.msgs)
+			return
+		}
+		var m message
+		if err := json.Unmarshal(body, &m); err != nil {
+			fail("bad message %q: %v", body, err)
+		}
+		s.msgs <- m
+	}
+}
+
+func (s *session) next() message {
+	select {
+	case m, ok := <-s.msgs:
+		must(ok, "logos lsp closed its output early")
+		return m
+	case <-time.After(wait):
+		fail("timed out waiting for logos lsp")
+		return message{}
+	}
+}
+
+func (s *session) absorb(m message) {
+	if m.Method != "" && len(m.ID) > 0 {
+		s.send(message{ID: m.ID, Result: json.RawMessage("null")})
+		return
+	}
+	if m.Method != "" {
+		s.notes = append(s.notes, m)
+	}
+}
+
+func (s *session) notify(method string, params any) {
+	raw, _ := json.Marshal(params)
+	s.send(message{Method: method, Params: raw})
+}
+
+func (s *session) call(method string, params any) json.RawMessage {
+	s.nextID++
+	id := strconv.Itoa(s.nextID)
+	raw, _ := json.Marshal(params)
+	s.send(message{ID: json.RawMessage(id), Method: method, Params: raw})
+	for {
+		m := s.next()
+		if m.Method == "" && string(m.ID) == id {
+			must(len(m.Error) == 0, "%s failed: %s", method, m.Error)
+			return m.Result
+		}
+		s.absorb(m)
+	}
+}
+
+func (s *session) mark() int { return len(s.notes) }
+
+func (s *session) note(since int, method string, accept func(map[string]any) bool) map[string]any {
+	for from := since; ; {
+		for ; from < len(s.notes); from++ {
+			n := s.notes[from]
+			var params map[string]any
+			if n.Method == method && json.Unmarshal(n.Params, &params) == nil && accept(params) {
+				return params
+			}
+		}
+		s.absorb(s.next())
+	}
+}
+
+func uri(path string) string { return "file://" + filepath.ToSlash(path) }
+
+func doc(path string) map[string]any { return map[string]any{"uri": uri(path)} }
+
+func find(text, needle string, nth int) position {
+	off := -1
+	for i := 0; i <= nth; i++ {
+		j := strings.Index(text[off+1:], needle)
+		must(j >= 0, "%q not found in the text", needle)
+		off += 1 + j
+	}
+	before := text[:off]
+	line := strings.Count(before, "\n")
+	return position{Line: line, Character: off - (strings.LastIndex(before, "\n") + 1)}
+}
+
+func definition(s *session, path string, at position) []location {
+	raw := s.call("textDocument/definition", map[string]any{"textDocument": doc(path), "position": at})
+	var locs []location
+	if err := json.Unmarshal(raw, &locs); err != nil || len(locs) == 0 {
+		var one location
+		must(json.Unmarshal(raw, &one) == nil && one.URI != "", "definition answered %s", raw)
+		locs = []location{one}
+	}
+	return locs
+}
+
+func files(root string) []string {
+	var out []string
+	filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			rel, _ := filepath.Rel(root, path)
+			out = append(out, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	slices.Sort(out)
+	return out
+}
+
+func read(path string) string {
+	data, err := os.ReadFile(path)
+	must(err == nil, "%v", err)
+	return string(data)
+}
+
+func main() {
+	root, err := filepath.Abs(os.Args[1])
+	must(err == nil, "%v", err)
+	before := files(root)
+	aPath := filepath.Join(root, "lmod", "a", "a.lgo")
+	bPath := filepath.Join(root, "gomod", "b", "b.go")
+	cPath := filepath.Join(root, "lmod", "c", "c.lgo")
+	dPath := filepath.Join(root, "gomod", "d", "d.go")
+	aText, bText, cText, dText := read(aPath), read(bPath), read(cPath), read(dPath)
+
+	cmd := exec.Command("logos", "lsp")
+	cmd.Dir = root
+	cmd.Stderr = os.Stderr
+	stdin, err := cmd.StdinPipe()
+	must(err == nil, "%v", err)
+	stdout, err := cmd.StdoutPipe()
+	must(err == nil, "%v", err)
+	must(cmd.Start() == nil, "starting logos lsp")
+	s := &session{in: stdin, msgs: make(chan message, 1024)}
+	go s.pump(stdout)
+
+	init := s.call("initialize", map[string]any{
+		"processId":        nil,
+		"rootUri":          uri(root),
+		"workspaceFolders": []any{map[string]any{"uri": uri(root), "name": "ws"}},
+		"capabilities": map[string]any{
+			"general": map[string]any{"positionEncodings": []string{"utf-16"}},
+		},
+	})
+	must(!bytes.Contains(init, []byte("diagnosticProvider")), "initialize result keeps diagnosticProvider: %s", init)
+	fmt.Println("ok initialize drops diagnosticProvider")
+	s.notify("initialized", map[string]any{})
+
+	open := func(path, lang, text string, version int) {
+		s.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{
+			"uri": uri(path), "languageId": lang, "version": version, "text": text,
+		}})
+	}
+	open(bPath, "go", bText, 1)
+	open(aPath, "logos", aText, 1)
+	open(cPath, "logos", cText, 1)
+
+	at := find(bText, "a.Read", 0)
+	at.Character += len("a.")
+	locs := definition(s, bPath, at)
+	want := find(aText, "Read(path", 0)
+	must(locs[0].URI == uri(aPath) && locs[0].Range.Start == want,
+		"definition of a.Read = %+v, want %s at %+v", locs[0], uri(aPath), want)
+	fmt.Println("ok definition of a loGo/s symbol from a Go file lands in the .lgo file")
+
+	at = find(cText, "d.Thing", 0)
+	at.Character += len("d.")
+	locs = definition(s, cPath, at)
+	want = find(dText, "Thing(", 0)
+	must(locs[0].URI == uri(dPath) && locs[0].Range.Start == want,
+		"definition of d.Thing = %+v, want %s at %+v", locs[0], uri(dPath), want)
+	fmt.Println("ok definition of a Go symbol from a loGo/s file lands in the .go file")
+
+	operand := find(aText, "ReadFile(path)?", 0)
+	operand.Character += len("ReadFile(")
+	locs = definition(s, aPath, operand)
+	want = find(aText, "path string", 0)
+	must(locs[0].URI == uri(aPath) && locs[0].Range.Start == want,
+		"definition of the operand = %+v, want %s at %+v", locs[0], uri(aPath), want)
+	fmt.Println("ok definition inside a ? statement maps back to the .lgo parameter")
+
+	hover := s.call("textDocument/hover", map[string]any{
+		"textDocument": doc(aPath),
+		"position":     find(aText, "ReadFile(path)?", 0),
+	})
+	must(bytes.Contains(hover, []byte("ReadFile")), "hover inside the ? statement answered %s", hover)
+	fmt.Println("ok hover inside a ? statement")
+
+	broken := strings.Replace(aText, "return string(data), nil", "return undefinedName, nil", 1)
+	since := s.mark()
+	s.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": uri(aPath), "version": 2},
+		"contentChanges": []any{map[string]any{"text": broken}},
+	})
+	null := s.call("textDocument/hover", map[string]any{"textDocument": doc(aPath), "position": operand})
+	must(string(null) == "null", "hover on a file that does not compile answered %s", null)
+	line := find(broken, "undefinedName", 0).Line
+	diag := s.note(since, "textDocument/publishDiagnostics", func(p map[string]any) bool {
+		items, _ := p["diagnostics"].([]any)
+		for _, item := range items {
+			m, _ := item.(map[string]any)
+			msg, _ := m["message"].(string)
+			r, _ := m["range"].(map[string]any)
+			st, _ := r["start"].(map[string]any)
+			l, _ := st["line"].(float64)
+			if p["uri"] == uri(aPath) && strings.Contains(msg, "undefined") && int(l) == line {
+				return true
+			}
+		}
+		return false
+	})
+	_ = diag
+	fmt.Println("ok compiler diagnostic reaches publishDiagnostics at the .lgo position")
+	fmt.Println("ok requests on a loGo/s file that does not compile answer null")
+
+	since = s.mark()
+	s.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": uri(aPath), "version": 3},
+		"contentChanges": []any{map[string]any{"text": aText}},
+	})
+	hover = s.call("textDocument/hover", map[string]any{"textDocument": doc(aPath), "position": find(aText, "ReadFile(path)?", 0)})
+	must(bytes.Contains(hover, []byte("ReadFile")), "hover after the repair answered %s", hover)
+	s.note(since, "textDocument/publishDiagnostics", func(p map[string]any) bool {
+		items, _ := p["diagnostics"].([]any)
+		return p["uri"] == uri(aPath) && len(items) == 0
+	})
+	fmt.Println("ok diagnostics clear after the repair")
+
+	after := files(root)
+	must(slices.Equal(before, after), "the workspace changed: %v -> %v", before, after)
+	fmt.Println("ok the workspace gained no file")
+
+	s.call("shutdown", nil)
+	s.notify("exit", nil)
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		must(err == nil, "logos lsp exited with %v", err)
+	case <-time.After(wait):
+		fail("logos lsp did not exit after exit")
+	}
+	fmt.Println("ok shutdown")
+}
+-- ws/go.work --
+go 1.27
+
+use (
+	./lmod
+	./gomod
+)
+-- ws/lmod/go.mod --
+module example.com/lmod
+
+go 1.27
+-- ws/lmod/a/a.lgo --
+package a
+
+import "os"
+
+func Read(path string) (string, error) {
+	data := os.ReadFile(path)?
+	return string(data), nil
+}
+-- ws/lmod/c/c.lgo --
+package c
+
+import "example.com/gomod/d"
+
+func Use() int {
+	return d.Thing()
+}
+-- ws/gomod/go.mod --
+module example.com/gomod
+
+go 1.27
+
+require example.com/lmod v0.0.0
+
+replace example.com/lmod => ../lmod
+-- ws/gomod/b/b.go --
+package b
+
+import "example.com/lmod/a"
+
+func Use() (string, error) {
+	return a.Read("x")
+}
+-- ws/gomod/d/d.go --
+package d
+
+func Thing() int { return 1 }

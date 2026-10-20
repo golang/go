@@ -20,7 +20,9 @@ import (
 // Eject writes one ejected Go file per logos source into dir by applying
 // edits to the original bytes. Files without a src entry are skipped.
 // Every eject output comes from the same lowered nodes as the native
-// build, so comments outside replacement spans survive verbatim.
+// build, so comments outside replacement spans survive verbatim. Beside
+// each ejected file it writes the edit map of that file (see EditMap), so
+// a tool can translate positions between the original and ejected texts.
 func Eject(dir string, files []*syntax.File, src map[*syntax.File][]byte, edits map[*syntax.File][]Edit) error {
 	if err := os.MkdirAll(dir, 0o777); err != nil {
 		return err
@@ -31,11 +33,15 @@ func Eject(dir string, files []*syntax.File, src map[*syntax.File][]byte, edits 
 			continue
 		}
 		base := file.Pos().FileBase()
-		out, err := ApplyEdits(data, base, edits[file])
+		out, spans, err := ApplyEditsMapped(data, base, edits[file])
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(dir, ejectedName(base.Filename())), out, 0o666); err != nil {
+		name := filepath.Join(dir, ejectedName(base.Filename()))
+		if err := os.WriteFile(name, out, 0o666); err != nil {
+			return err
+		}
+		if err := writeEditMap(name+EditMapSuffix, base.Filename(), len(data), len(out), spans); err != nil {
 			return err
 		}
 	}

@@ -1,0 +1,19 @@
+# M21-S1: logos lsp reports a missing gopls and exits non-zero, writing
+# nothing on stdout (stdout carries only protocol messages). The script does
+# not need gopls, so it runs whether or not the gate of logos_lsp.txt can.
+
+# The command is part of logos mode only.
+logos help lsp
+stdout 'Lsp runs a Language Server Protocol server'
+! go help lsp
+stderr 'unknown help topic'
+
+mkdir $WORK/empty
+env PATH=$WORK/empty
+! logos lsp
+stderr '^logos lsp: gopls not found on PATH$'
+! stdout .
+
+# Arguments are refused before anything starts.
+! logos lsp extra
+stderr '^logos lsp: unexpected argument "extra"$'

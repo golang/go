@@ -88,22 +88,52 @@ func resolve(src []byte, starts []int, base *syntax.PosBase, e Edit) (splice, er
 	return splice{start: start, end: end, text: e.Text}, nil
 }
 
+// EditSpan records one applied edit in byte offsets: the bytes of the
+// original text from Start up to End became Len bytes of the edited text.
+// An insertion has Start equal to End. Spans come in source order and never
+// overlap, so a reader can map offsets between the two texts.
+type EditSpan struct {
+	Start int `json:"start"`
+	End   int `json:"end"`
+	Len   int `json:"len"`
+}
+
 // ApplyEdits applies edits to src and returns the new text. base is the
 // file base of the file whose positions the edits carry. Edits may be
 // given in any order; they must not overlap. Insertions at one offset keep
 // their input order.
 func ApplyEdits(src []byte, base *syntax.PosBase, edits []Edit) ([]byte, error) {
+	out, _, err := ApplyEditsMapped(src, base, edits)
+	return out, err
+}
+
+// ApplyEditsMapped applies edits like ApplyEdits and also returns the
+// applied edits as spans of byte offsets, in the order they took effect.
+func ApplyEditsMapped(src []byte, base *syntax.PosBase, edits []Edit) ([]byte, []EditSpan, error) {
 	want := base.Pos().FileBase()
 	starts := lineStarts(src)
 	splices := make([]splice, len(edits))
 	for i, e := range edits {
 		s, err := resolve(src, starts, want, e)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		splices[i] = s
 	}
-	return applySplices(src, splices)
+	out, err := applySplices(src, splices)
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, spansOf(splices), nil
+}
+
+// spansOf converts splices, already sorted by applySplices, to spans.
+func spansOf(sorted []splice) []EditSpan {
+	spans := make([]EditSpan, len(sorted))
+	for i, s := range sorted {
+		spans[i] = EditSpan{Start: s.start, End: s.end, Len: len(s.text)}
+	}
+	return spans
 }
 
 // sortSplices orders splices by start, then end, keeping the input order
