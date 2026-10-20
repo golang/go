@@ -229,7 +229,7 @@ func (versionFlag) Set(s string) error {
 	// build ID of the binary, so that if the compiler is changed and
 	// rebuilt, we notice and rebuild all packages.
 	if s == "full" {
-		if strings.Contains(buildcfg.Version, "devel") {
+		if strings.Contains(buildcfg.Version, "devel") || forkReportsBuildID { // loGos hook: fork tools change under a release version.
 			p += " buildID=" + buildID
 		}
 	}
