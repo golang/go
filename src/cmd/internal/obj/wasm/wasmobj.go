@@ -232,7 +232,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	// If the framesize is 0, then imply nosplit because it's a specially
 	// generated function.
-	needMoreStack := framesize > 0 && !s.Func().Text.From.Sym.NoSplit()
+	needMoreStack := framesize > 0 && !s.Func().Text.From.Sym.NoSplit() && !markLeafNoSplit(ctxt, s)
 
 	// If the maymorestack debug option is enabled, insert the
 	// call to maymorestack *before* processing resume points so
@@ -279,6 +279,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Introduce resume points for CALL instructions
 	// and collect other explicit resume points.
+	dispatch := needsDispatch(ctxt, s)
 	numResumePoints := 0
 	explicitBlockDepth := 0
 	pc := int64(0) // pc is only incremented when necessary, this avoids bloat of the BrTable instruction
@@ -301,6 +302,10 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case ARESUMEPOINT:
 			if explicitBlockDepth != 0 {
 				panic("RESUME can only be used on toplevel")
+			}
+			if !dispatch {
+				p.As = obj.ANOP
+				break
 			}
 			p.As = AEnd
 			for tablePC <= pc {

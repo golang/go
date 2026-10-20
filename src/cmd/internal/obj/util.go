@@ -219,7 +219,7 @@ func (ctxt *Link) NewProg() *Prog {
 }
 
 func (ctxt *Link) CanReuseProgs() bool {
-	return ctxt.Debugasm == 0
+	return ctxt.Debugasm == 0 && !ctxt.KeepProgs
 }
 
 func isZReg(r int) bool {

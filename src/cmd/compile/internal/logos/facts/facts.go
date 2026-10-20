@@ -87,6 +87,13 @@ type FnFact struct {
 	HasMayYield  bool
 }
 
+// MayYieldOnly reports whether MayYield is the only fact of fn. Such a
+// record says nothing about mutation, nilability, or purity of values, so a
+// consumer of those facts must treat the function as unanalyzed.
+func (fn FnFact) MayYieldOnly() bool {
+	return fn.HasMayYield && !fn.ReturnsNonNil && !fn.AlwaysNilError && !fn.PureConst && !fn.ReceiverMutated && fn.ParamMutated == ""
+}
+
 // PropFact is one prop record: an interface and its accessor-function prefix.
 type PropFact struct {
 	Interface string
@@ -120,6 +127,10 @@ type Facts struct {
 	Conforms    []ConformsFact
 	Comptimes   []ComptimeFact
 	Defaults    []DefaultFact
+	// GoPackage marks a package compiled from .go sources. Such a package
+	// carries per-function backend facts such as MayYield and nothing
+	// that makes it a loGo/s package, so importers must not read it as one.
+	GoPackage bool
 }
 
 // DefaultFact is one default record: a defaulted field of an exported
@@ -172,6 +183,9 @@ func Encode(fp goobj.FingerprintType, f *Facts) []byte {
 			if c.Object != "" && len(c.Source) > 0 {
 				recs = append(recs, record{line: "comptime " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
 			}
+		}
+		if f.GoPackage {
+			recs = append(recs, record{line: "lang go"})
 		}
 		for _, d := range f.Defaults {
 			if d.Type != "" && d.Field != "" && d.Text != "" {
@@ -355,6 +369,8 @@ func Decode(data []byte) (*Facts, error) {
 			} else {
 				f.Consts = append(f.Consts, PathFact{Object: fields[1], Path: fields[2]})
 			}
+		case line == "lang go":
+			f.GoPackage = true
 		case strings.HasPrefix(line, "fn "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf("logos facts line %d: bad fn record %q (want %q)", ln, line, "fn <object> <flag>[,<flag>...]")
@@ -474,6 +490,10 @@ func isIdent(s string) bool {
 	}
 	return true
 }
+
+// ValidObject reports whether s names a record object in the grammar
+// Decode accepts, so a producer can skip names it cannot spell.
+func ValidObject(s string) bool { return validObject(s) }
 
 // validObject reports whether s is Name, Type.Field, Type.Method, or
 // (*Type).Method.

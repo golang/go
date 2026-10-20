@@ -179,6 +179,49 @@ func TestDecodeLineNumbersAfterComptimeBody(t *testing.T) {
 	}
 }
 
+func TestGoPackageRecord(t *testing.T) {
+	fp := goobj.FingerprintType{1, 2, 3, 4, 5, 6, 7, 8}
+	in := &facts.Facts{
+		Fingerprint: fp,
+		GoPackage:   true,
+		Fns:         []facts.FnFact{{Object: "F", MayYield: true, HasMayYield: true}},
+	}
+	got := string(facts.Encode(fp, in))
+	want := "logos-facts 1\nfingerprint 0102030405060708\nfn F MayYield=1\nlang go\n"
+	if got != want {
+		t.Fatalf("Encode mismatch:\n got %q\nwant %q", got, want)
+	}
+	back, err := facts.Decode([]byte(got))
+	if err != nil {
+		t.Fatalf("Decode failed: %v", err)
+	}
+	if !back.GoPackage || len(back.Fns) != 1 || !back.Fns[0].MayYield {
+		t.Fatalf("round trip lost a field: %+v", back)
+	}
+	loGos, err := facts.Decode(facts.Encode(fp, &facts.Facts{Fns: in.Fns}))
+	if err != nil || loGos.GoPackage {
+		t.Fatalf("a package without the record must not decode as Go: %+v, %v", loGos, err)
+	}
+}
+
+func TestMayYieldOnly(t *testing.T) {
+	for name, c := range map[string]struct {
+		fn   facts.FnFact
+		want bool
+	}{
+		"yield only":      {facts.FnFact{Object: "F", MayYield: true, HasMayYield: true}, true},
+		"pure only":       {facts.FnFact{Object: "F", HasMayYield: true}, true},
+		"with nonnil":     {facts.FnFact{Object: "F", HasMayYield: true, ReturnsNonNil: true}, false},
+		"with receiver":   {facts.FnFact{Object: "F", HasMayYield: true, ReceiverMutated: true}, false},
+		"with param mask": {facts.FnFact{Object: "F", HasMayYield: true, ParamMutated: "1"}, false},
+		"no yield fact":   {facts.FnFact{Object: "F", PureConst: true}, false},
+	} {
+		if got := c.fn.MayYieldOnly(); got != c.want {
+			t.Errorf("%s: MayYieldOnly = %v, want %v", name, got, c.want)
+		}
+	}
+}
+
 func TestFnFlagNormalization(t *testing.T) {
 	back, err := facts.Decode([]byte("logos-facts 1\nfingerprint 0001020304050607\nfn S MayYield=0,ParamMutated=00AB\n"))
 	if err != nil {

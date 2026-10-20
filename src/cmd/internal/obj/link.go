@@ -1173,6 +1173,8 @@ type Link struct {
 	Flag_noRefName       bool   // do not include referenced symbol names in object file
 	Retpoline            bool   // emit use of retpoline stubs for indirect jmp/call
 	Flag_maymorestack    string // If not "", call this function before stack checks
+	WasmProfile          bool   // wasm: selective resume points (loGo/s M16-S1, obj/wasm/dispatch_logos.go)
+	KeepProgs            bool   // keep Progs intact after Free so Flush can run later
 	Bso                  *bufio.Writer
 	Pathname             string
 	Pkgpath              string // the current package's import path

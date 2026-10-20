@@ -1,0 +1,141 @@
+// skip
+
+// M16-S1: the wasm profile module. The testdir harness skips it; run it with
+// GOOS=js GOARCH=wasm logos test -short ./... from this directory, with
+// lib/wasm and node on PATH.
+
+package wasm
+
+import (
+	"context"
+	"errors"
+	"runtime"
+	"strconv"
+	"sync"
+	"time"
+)
+
+type Counter struct{ N int }
+
+//go:noinline
+func Leaf(a, b int) int { return a*b + 3 }
+
+//go:noinline
+func Straight(x int) int { return Leaf(x, 1) + Leaf(x, 2) }
+
+//go:noinline
+func (c *Counter) Add(d int) int {
+	c.N += d
+	return c.N
+}
+
+func Fib(n int) int {
+	if n < 2 {
+		return n
+	}
+	return Fib(n-1) + Fib(n-2)
+}
+
+func WithDefer() (r int) {
+	defer func() { r += 100 }()
+	return Straight(3)
+}
+
+func Parse(s string) (int, error) {
+	if s == "" {
+		return 0, errors.New("empty")
+	}
+	return len(s), nil
+}
+
+func Total(parts []string) (int, error) {
+	total := 0
+	for _, p := range parts {
+		n := Parse(p)?
+		total += Straight(n)
+	}
+	return total, nil
+}
+
+func sumWorker(mu *sync.Mutex, total *int, rounds int) error {
+	for j := range rounds {
+		mu.Lock()
+		*total += Straight(j) % 7
+		mu.Unlock()
+		if j%10 == 0 {
+			runtime.Gosched()
+		}
+	}
+	return nil
+}
+
+func GoroutineSum(ctx context.Context, workers, rounds int) (int, error) {
+	var mu sync.Mutex
+	total := 0
+	go group (ctx, limit = 20) {
+		for range workers {
+			go sumWorker(&mu, &total, rounds)
+		}
+	}
+	return total, nil
+}
+
+func produce(ctx context.Context, ch chan int, n int) error {
+	for i := range n {
+		select {
+		case ch <- i:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	close(ch)
+	return nil
+}
+
+func consume(ctx context.Context, ch chan int, sum *int) error {
+	for {
+		select {
+		case v, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			*sum += Leaf(v, 2)
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func ChannelSum(ctx context.Context, n int) (int, error) {
+	ch := make(chan int)
+	sum := 0
+	go group (ctx, limit = 2) {
+		go produce(ctx, ch, n)
+		go consume(ctx, ch, &sum)
+	}
+	return sum, nil
+}
+
+//go:noinline
+func Fault(s []int, i int) int { return s[i] }
+
+func BoundsParks() (s string) {
+	defer func() {
+		recover()
+		time.Sleep(5 * time.Millisecond)
+		s = "bounds"
+	}()
+	var xs []int
+	return strconv.Itoa(Fault(xs, 3))
+}
+
+func PanicParks() (s string) {
+	defer func() {
+		recover()
+		time.Sleep(5 * time.Millisecond)
+		s = "woke"
+	}()
+	var e error
+	_ = e.Error()
+	return "unreachable"
+}

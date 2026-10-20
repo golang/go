@@ -218,7 +218,7 @@ func hasLogosFacts(pkg *types2.Package) bool {
 		return false
 	}
 	f, ok := facts.Lookup(pkg.Path())
-	return ok && f != nil
+	return ok && f != nil && !f.GoPackage
 }
 
 // optParamSet reports which param indices carry opt facts.

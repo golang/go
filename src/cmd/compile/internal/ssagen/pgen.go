@@ -326,6 +326,9 @@ func Compile(fn *ir.Func, worker int, profile *pgoir.Profile) {
 		return
 	}
 
+	if logosWasmHold(fn, pp) { // logos M16-S1 hook: wasm profile defers assembly.
+		return
+	}
 	pp.Flush() // assemble, fill in boilerplate, etc.
 
 	// If we're compiling the package init function, search for any

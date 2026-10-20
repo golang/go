@@ -370,6 +370,8 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 		break
 	}
 
+	logosWasmFinish() // logos M16-S1 hook: solve wasm yield facts, assemble held functions.
+
 	base.Timer.AddEvent(int64(len(typecheck.Target.Funcs)), "funcs")
 
 	if base.Flag.CompilingRuntime {

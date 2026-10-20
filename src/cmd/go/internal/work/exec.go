@@ -411,6 +411,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 
 	logosLintActionID(h, a) // loGos hook: lint policy of loGo/s packages.
+	logosWasmActionID(h)    // loGos hook: wasm profile flags.
 
 	// Input files.
 	inputFiles := str.StringList(

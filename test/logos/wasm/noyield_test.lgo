@@ -1,0 +1,61 @@
+// skip
+
+package wasm
+
+import (
+	"context"
+	"testing"
+)
+
+func TestPureCalls(t *testing.T) {
+	if got := Straight(5); got != 21 {
+		t.Fatalf("Straight(5) = %d, want 21", got)
+	}
+	c := &Counter{}
+	if c.Add(2) != 2 || c.Add(3) != 5 {
+		t.Fatal("Counter.Add")
+	}
+	if got := Fib(20); got != 6765 {
+		t.Fatalf("Fib(20) = %d, want 6765", got)
+	}
+}
+
+func TestDeferKeepsResume(t *testing.T) {
+	if got := WithDefer(); got != 115 {
+		t.Fatalf("WithDefer() = %d, want 115", got)
+	}
+}
+
+func TestTryPropagation(t *testing.T) {
+	got, err := Total([]string{"ab", "cde"})
+	if err != nil || got != Straight(2)+Straight(3) {
+		t.Fatalf("Total = %d, %v", got, err)
+	}
+	if _, err := Total([]string{"ab", ""}); err == nil || err.Error() != "empty" {
+		t.Fatalf("Total error = %v, want empty", err)
+	}
+}
+
+func TestGoroutinesAndChannels(t *testing.T) {
+	ctx := context.Background()
+	got, err := GoroutineSum(ctx, 20, 100)
+	if err != nil || got != 6040 {
+		t.Fatalf("GoroutineSum = %d, %v, want 6040", got, err)
+	}
+	sum, err := ChannelSum(ctx, 50)
+	if err != nil || sum != 2600 {
+		t.Fatalf("ChannelSum = %d, %v, want 2600", sum, err)
+	}
+}
+
+func TestPanicRecoveryThatParks(t *testing.T) {
+	if got := PanicParks(); got != "woke" {
+		t.Fatalf("PanicParks = %q, want woke", got)
+	}
+}
+
+func TestPanicInCalleeThenRecoverAndPark(t *testing.T) {
+	if got := BoundsParks(); got != "bounds" {
+		t.Fatalf("BoundsParks = %q, want bounds", got)
+	}
+}

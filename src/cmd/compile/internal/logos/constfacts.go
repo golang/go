@@ -842,6 +842,9 @@ func (s *constBodyScan) calleeFacts(fn *types2.Func) (bool, uint64) {
 			if entry.Object != fn.Name() && entry.Object != constMethodName(fn) {
 				continue
 			}
+			if entry.MayYieldOnly() {
+				continue
+			}
 			var mask uint64
 			if entry.ParamMutated != "" {
 				if v, err := strconv.ParseUint(entry.ParamMutated, 16, 64); err == nil {

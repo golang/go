@@ -370,6 +370,7 @@ func CreateWasmImportWrapper(fn *ir.Func) bool {
 	ir.InitLSym(fn, true)
 
 	setupWasmImport(fn)
+	logosWasmImport(fn) // logos M16-S1 hook: record the import's yield fact.
 
 	pp := objw.NewProgs(fn, 0)
 	defer pp.Free()

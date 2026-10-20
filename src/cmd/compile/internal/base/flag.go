@@ -309,6 +309,7 @@ func ParseFlags() {
 	Ctxt.Debugasm = int(Flag.S)
 	Ctxt.Flag_maymorestack = Debug.MayMoreStack
 	Ctxt.Flag_noRefName = Debug.NoRefName != 0
+	logosWasmApply()
 
 	if flag.NArg() < 1 {
 		usage()

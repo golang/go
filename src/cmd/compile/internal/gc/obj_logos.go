@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logos/facts"
+	"cmd/compile/internal/logos/wasmyield"
 	"cmd/internal/bio"
 )
 
@@ -20,14 +21,22 @@ import (
 // members (cmd/link/internal/ld/lib.go), so no linker change is needed.
 // Until S2-S7 populate records through facts.SetCurrent, the member
 // carries the header and fingerprint only. The member is emitted only
-// for loGo/s packages: a plain-Go archive stays byte-identical to
-// upstream, and every member-counting reader (pack's object check,
-// nm, objdump) sees the same stream it always has.
+// for loGo/s packages and, for the MayYield facts of the WASM profile
+// (M16-S1, T-Sec6), for every package built for GOARCH=wasm: a plain-Go
+// archive on any other target stays byte-identical to upstream, and
+// every member-counting reader (pack's object check, nm, objdump) sees
+// the same stream it always has.
 func writeLogosFacts(bout *bio.Writer) {
-	if !base.Logos {
+	if !base.Logos && !wasmyield.Active() {
 		return
 	}
 	start := startArchiveEntry(bout)
 	bout.Write(facts.Encode(base.Ctxt.Fingerprint, facts.Current()))
 	finishArchiveEntry(bout, start, facts.MemberName)
+}
+
+// logosWasmFinish is the M16-S1 hook after the backend loop: it solves the
+// MayYield facts of the package and assembles the functions held for them.
+func logosWasmFinish() {
+	wasmyield.Finish()
 }
