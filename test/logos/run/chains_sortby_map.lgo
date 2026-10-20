@@ -1,0 +1,55 @@
+// run
+
+package main
+
+import "fmt"
+
+// sortBy after map: the key lambda takes the mapped element type, a map
+// lambda may return a function literal, and a slice expression may end a
+// lambda body. Every printed line is hand-computed in the .out file.
+
+var calls int
+
+func bump(x int) int {
+	calls++
+	return 10 * x
+}
+
+type pt struct {
+	name string
+	w    int
+}
+
+func main() {
+	xs := []int{3, 1, 2}
+	ws := []string{"pear", "fig", "apple"}
+
+	fmt.Println(xs.map(x => float64(x)).sortBy(x => x))
+	fmt.Println(xs.map(x => float64(x) / 2).sortBy(f => -f))
+	fmt.Println(xs.map(x => float64(x) / 2).filter(f => f > 0.75).sortBy(f => -f))
+	fmt.Println(ws.map(w => len(w)).filter(n => n > 3).sortBy(n => -n))
+	fmt.Println(xs.map(x => float64(x) / 2).count(f => f > 0.75))
+
+	calls = 0
+	fs := xs.map(x => func() int { return bump(x) }).sortBy(f => 0)
+	fmt.Println(len(fs), calls)
+	for _, f := range fs {
+		fmt.Println(f())
+	}
+	fmt.Println(calls)
+	fmt.Println(xs.map(x => func() int { return 10 * x }).count(f => f() > 15))
+
+	fmt.Println(ws.map(w => w[:len(w)]).sortBy(w => w))
+	fmt.Println(ws.map(w => w[1:]).sortBy(w => w))
+	fmt.Println(ws.map(w => w[:len(w)-1]).sortBy(w => w))
+	fmt.Println(ws.map(w => "<" + w[1:]).sortBy(w => w))
+	fmt.Println(xs.map(x => x*2 + len(ws[:x])).sortBy(n => n))
+	fmt.Println(xs.map(x => x * /* two */ 2).sortBy(n => n))
+
+	fmt.Println(ws.map(w => pt{w, len(w)}).sortBy(p => p.w))
+	fmt.Println(ws.map(w => pt{w, len(w)}).sortBy(p => p.name))
+	fmt.Println(ws.map(w => pt{w, len(w)}).filter(p => p.w > 3).sortBy(p => p.name))
+
+	fmt.Println(xs.sortBy(x => -x))
+	fmt.Println(ws.sortBy(w => len(w)))
+}

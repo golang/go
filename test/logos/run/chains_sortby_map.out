@@ -1,0 +1,22 @@
+[1 2 3]
+[1.5 1 0.5]
+[1.5 1]
+[5 4]
+2
+3 0
+30
+10
+20
+3
+2
+[apple fig pear]
+[ear ig pple]
+[appl fi pea]
+[<ear <ig <pple]
+[3 6 9]
+[2 4 6]
+[{fig 3} {pear 4} {apple 5}]
+[{apple 5} {fig 3} {pear 4}]
+[{apple 5} {pear 4}]
+[3 2 1]
+[fig pear apple]

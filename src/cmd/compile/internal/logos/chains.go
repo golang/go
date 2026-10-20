@@ -42,10 +42,15 @@ type chainHoist struct {
 // chainOp is one fused operation. savedBody captures the lambda body
 // before nested-chain lowering swaps it for a generated fragment:
 // later reads must see the original subtree, whose spans address
-// source, composed with nested splices.
+// source, composed with nested splices. argSpan is the exact source
+// span of the sole argument and bodySpan that of an expression-lambda
+// body: syntax end positions stop before closing delimiters, so the
+// token scan of the call bounds both.
 type chainOp struct {
 	method    string
 	arg       syntax.Expr
+	argSpan   span
+	bodySpan  span
 	lam       *syntax.LambdaExpr
 	savedBody syntax.Node
 	isTry     bool
@@ -337,13 +342,47 @@ func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base 
 	}
 }
 
+// soleArgSpan reports the exact source span of the only argument of a
+// chain call. The call's position is its opening parenthesis; the token
+// scan skips comments and closes on the matching parenthesis, so the
+// span ends on the argument's last token whatever its syntax shape.
+func (fl *fileLower) soleArgSpan(call *syntax.CallExpr) span {
+	lparen := fl.off(call.Pos())
+	if lparen < 0 || lparen >= len(fl.src) || fl.src[lparen] != '(' {
+		base.Fatalf("logos: chain call at %s has no source argument list", call.Pos().String())
+	}
+	split, ok := splitCall(fl.src, lparen)
+	if !ok || len(split.args) != 1 {
+		base.Fatalf("logos: cannot locate chain argument at %s", call.Pos().String())
+	}
+	return trimSpan(fl.src, split.args[0])
+}
+
+// lambdaBodySpan reports the exact source span of an expression-lambda
+// body: from the first token past the arrow to the end of the lambda
+// argument. A comment before the body stays out, since a line comment
+// there would end the `return` statement the closure wraps around it.
+func (fl *fileLower) lambdaBodySpan(lam *syntax.LambdaExpr, arg span) span {
+	start := arg.end
+	scanSegment(fl.src, fl.off(lam.Arrow)+len("=>"), arg.end, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		start = t.start
+		return false
+	})
+	return span{start: start, end: arg.end}
+}
+
 // chainOpOf reads one operation's argument and lambda flags.
 func (fl *fileLower) chainOpOf(cur *syntax.CallExpr, method string) chainOp {
 	op := chainOp{method: method}
 	if len(cur.ArgList) == 1 {
 		op.arg = cur.ArgList[0]
+		op.argSpan = fl.soleArgSpan(cur)
 		if lam, ok := syntax.Unparen(cur.ArgList[0]).(*syntax.LambdaExpr); ok {
 			op.lam = lam
+			op.bodySpan = fl.lambdaBodySpan(lam, op.argSpan)
 			if body, ok := lam.Body.(syntax.Expr); ok {
 				if _, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
 					op.isTry = true
@@ -555,18 +594,24 @@ type chainEmit struct {
 }
 
 // prepare builds closure texts and the materialized element spelling.
+// Each closure takes the element type its stage receives: the receiver
+// element type until a map, then the production of the latest map; the
+// materialized elements and the terminal closure see the final one.
 func (ce *chainEmit) prepare() {
 	cg := ce.cg
+	elem := cg.spellType(cg.elemT)
 	for i, op := range ce.ops {
-		if op.lam == nil {
-			continue
+		if op.lam != nil {
+			ce.closures = append(ce.closures, cg.closure(cg.prefix+fmt.Sprintf("_f%d", i), op, elem, ce.opResult(op)))
 		}
-		ce.closures = append(ce.closures, cg.closure(cg.prefix+fmt.Sprintf("_f%d", i), op, ce.opResult(op)))
+		if op.method == "map" {
+			elem = ce.opResult(op)
+		}
 	}
 	if ce.term.lam != nil {
-		ce.closures = append(ce.closures, cg.closure(cg.prefix+"_ft", ce.term, ce.opResult(ce.term)))
+		ce.closures = append(ce.closures, cg.closure(cg.prefix+"_ft", ce.term, elem, ce.opResult(ce.term)))
 	}
-	ce.outElem = ce.materialElem()
+	ce.outElem = elem
 }
 
 // rsuf returns the nil-error suffix for hoisted runs.
@@ -597,18 +642,6 @@ func (ce *chainEmit) opResult(op chainOp) string {
 		}
 		return cg.spellType(t)
 	}
-}
-
-// materialElem spells the materialized element type: the last map
-// production, else the receiver element type.
-func (ce *chainEmit) materialElem() string {
-	cg := ce.cg
-	for i := len(ce.ops) - 1; i >= 0; i-- {
-		if ce.ops[i].method == "map" {
-			return ce.opResult(ce.ops[i])
-		}
-	}
-	return cg.spellType(cg.elemT)
 }
 
 // prodType reports the produced type of a map or sortBy op.
@@ -662,11 +695,11 @@ func (cg *chainGen) blockProdType(block *syntax.BlockStmt) types2.Type {
 	return first
 }
 
-// closure builds one per-element closure for a lambda op. Pure bodies
-// return the value; `?` bodies return value and error explicitly.
-func (cg *chainGen) closure(name string, op chainOp, result string) string {
+// closure builds one per-element closure for a lambda op whose
+// parameter has type elem. Pure bodies return the value; `?` bodies
+// return value and error explicitly.
+func (cg *chainGen) closure(name string, op chainOp, elem, result string) string {
 	fl := cg.fl
-	elem := cg.spellType(cg.elemT)
 	pname := op.lam.Params[0].Value
 	if op.isTry {
 		body, ok := op.savedBody.(syntax.Expr)
@@ -692,30 +725,11 @@ func (cg *chainGen) closure(name string, op chainOp, result string) string {
 		inner := strings.TrimPrefix(text, "{")
 		return fmt.Sprintf("%s := func(%s %s) %s {%s }", name, pname, elem, result, inner)
 	}
-	body, ok := op.savedBody.(syntax.Expr)
-	if !ok {
+	if _, ok := op.savedBody.(syntax.Expr); !ok {
 		return ""
 	}
-	bodyText := fl.textOf(cg.delimSpan(body, cg.exprSpan(body)))
+	bodyText := fl.textOf(op.bodySpan)
 	return fmt.Sprintf("%s := func(%s %s) %s { return %s }", name, pname, elem, result, bodyText)
-}
-
-// delimSpan extends a lambda-body or index-arg span past its closing
-// delimiter. EndPos stops at the last inner token for composite
-// literals (`}`), indexes and slices (`]`), and assertions (`)`),
-// while calls already scan past their paren. Only those shapes
-// advance: every other body is followed by the arg-list `)`, which
-// must never be consumed.
-func (cg *chainGen) delimSpan(e syntax.Expr, sp span) span {
-	switch syntax.Unparen(e).(type) {
-	case *syntax.CompositeLit, *syntax.IndexExpr, *syntax.SliceExpr, *syntax.AssertExpr:
-		if sp.end < len(cg.fl.src) {
-			if c := cg.fl.src[sp.end]; c == '}' || c == ']' || c == ')' {
-				sp.end++
-			}
-		}
-	}
-	return sp
 }
 
 // inferType resolves the checked type behind a result spelling.
@@ -871,7 +885,7 @@ func (ce *chainEmit) argText(op chainOp) string {
 	if op.arg == nil {
 		return "0"
 	}
-	return cg.fl.textOf(cg.delimSpan(op.arg, cg.exprSpan(op.arg)))
+	return cg.fl.textOf(op.argSpan)
 }
 
 // filterLines emits a filter check, pure or `?`.
