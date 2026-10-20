@@ -1,0 +1,164 @@
+# M22-S4: a function marked //logos:zeroalloc fails the build with
+# [perf::zeroalloc_violation] when it allocates on the heap (SPEC Sec 22.4).
+# The directive is the author's assertion, so no policy lowers it and no
+# //logos:allow directive silences it. In a Go package only logos lint reads
+# the directive.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# A marked function that does not allocate builds and runs.
+cd clean
+logos build -o $WORK/bin/clean$GOEXE .
+! stderr .
+exec $WORK/bin/clean$GOEXE
+stdout 'total=6'
+cd ..
+
+# A marked function that allocates fails the build. The diagnostic names the
+# rule, the function, the allocating expression, and why escape analysis puts
+# it on the heap, at the line of the allocation, and no binary is written.
+cd bad
+! logos build -o $WORK/bin/bad$GOEXE .
+stderr 'main\.lgo:7:\d+: \[perf::zeroalloc_violation\] pack allocates: \[\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)'
+stderr 'main\.lgo:12:\d+: \[perf::zeroalloc_violation\] \(\*box\)\.clone allocates: &box\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)'
+! stderr 'warning:'
+! exists $WORK/bin/bad$GOEXE
+cd ..
+
+# The JSON record carries the rule and forbid, the severity no configuration
+# lowers.
+cd bad
+! logos build --json-diagnostics -o $WORK/bin/bad$GOEXE .
+stderr '"severity":"forbid","rule_id":"perf::zeroalloc_violation","file":"[^"]*main\.lgo","span":\{"start_line":7,'
+cd ..
+
+# perf = "allow" and a //logos:allow directive on the line change nothing.
+cd policy
+! logos build -o $WORK/bin/policy$GOEXE .
+stderr 'main\.lgo:6:\d+: \[perf::zeroalloc_violation\] pack allocates:'
+! exists $WORK/bin/policy$GOEXE
+cd ..
+
+# A directive that marks nothing fails the build: here a blank line separates
+# it from the function.
+cd misplaced
+! logos build -o $WORK/bin/misplaced$GOEXE .
+stderr 'main\.lgo:3:\d+: \[perf::zeroalloc_violation\] //logos:zeroalloc must be on its own line directly above a function declaration'
+cd ..
+
+# A Go package: logos lint reports the allocation and writes no binary;
+# logos build and go build ignore the directive.
+cd gopkg
+! logos lint ./...
+stderr 'main\.go:5:\d+: \[perf::zeroalloc_violation\] pack allocates: \[\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)'
+logos build ./...
+! stderr .
+go build ./...
+! stderr .
+cd ..
+
+-- clean/go.mod --
+module example.com/clean
+
+go 1.27
+
+-- clean/main.lgo --
+package main
+
+import "fmt"
+
+//logos:zeroalloc
+func total(xs []int) int {
+	n := 0
+	for _, x := range xs {
+		n += x
+	}
+	return n
+}
+
+func main() {
+	fmt.Printf("total=%d\n", total([]int{1, 2, 3}))
+}
+
+-- bad/go.mod --
+module example.com/bad
+
+go 1.27
+
+-- bad/main.lgo --
+package main
+
+type box struct{ v int }
+
+//logos:zeroalloc
+func pack(v int) []int {
+	return []int{v}
+}
+
+//logos:zeroalloc
+func (b *box) clone() *box {
+	return &box{b.v}
+}
+
+func main() {
+	println(len(pack(1)), (&box{1}).clone().v)
+}
+
+-- policy/go.mod --
+module example.com/policy
+
+go 1.27
+
+-- policy/logos.toml --
+[lints]
+perf = "allow"
+
+-- policy/main.lgo --
+package main
+
+//logos:zeroalloc
+func pack(v int) []int {
+	//logos:allow(perf::zeroalloc_violation)
+	return []int{v}
+}
+
+func main() {
+	println(len(pack(1)))
+}
+
+-- misplaced/go.mod --
+module example.com/misplaced
+
+go 1.27
+
+-- misplaced/main.lgo --
+package main
+
+//logos:zeroalloc
+
+func bump(n int) int {
+	return n + 1
+}
+
+func main() {
+	println(bump(1))
+}
+
+-- gopkg/go.mod --
+module example.com/gopkg
+
+go 1.27
+
+-- gopkg/main.go --
+package main
+
+//logos:zeroalloc
+func pack(v int) []int {
+	return []int{v}
+}
+
+func main() {
+	println(len(pack(1)))
+}

@@ -1,0 +1,173 @@
+// errorcheck
+
+package p
+
+// M22-S4 (SPEC Sec 22.4): a function marked //logos:zeroalloc that performs
+// a heap allocation fails with [perf::zeroalloc_violation], which names the
+// function and the reason escape analysis gives. Each failing function below
+// allocates at the lines that carry an ERROR comment; every other function,
+// marked or not, compiles without a diagnostic.
+
+type point struct{ x, y int }
+
+type box struct {
+	v  int
+	vs []int
+}
+
+var (
+	global = new(int)
+	sinkFn func() int
+)
+
+// total sums a slice. The directive may follow other doc lines.
+//
+//logos:zeroalloc
+func total(xs []int) int {
+	n := 0
+	for _, x := range xs {
+		n += x
+	}
+	return n
+}
+
+//logos:zeroalloc hot path, text after the directive is free
+func stackSlice(i int) int {
+	buf := []int{1, 2, 3, 4}
+	return buf[i&3]
+}
+
+//logos:zeroalloc
+func byValue(x, y int) point {
+	return point{x, y}
+}
+
+//logos:zeroalloc
+func constantPanic(i int, xs []int) int {
+	if i < 0 {
+		panic("negative index")
+	}
+	return xs[i]
+}
+
+//logos:zeroalloc
+func constBox() any {
+	return 42
+}
+
+//logos:zeroalloc
+func byteBox(b byte, ok bool) (any, any) {
+	return b, ok
+}
+
+//logos:zeroalloc
+func staticClosure() func() int {
+	return func() int { return 7 }
+}
+
+//logos:zeroalloc
+func emptyPtr() (*struct{}, *struct{}) {
+	return &struct{}{}, new(struct{})
+}
+
+//logos:zeroalloc
+func (b *box) bump() {
+	b.v++
+}
+
+//logos:zeroalloc
+func capture(x int) int {
+	f := func() int { return x + 1 }
+	return f()
+}
+
+//logos:zeroalloc
+func pack(v int) []int {
+	return []int{v} // ERROR "\[perf::zeroalloc_violation\] pack allocates: \[\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func newPoint(x, y int) *point {
+	return &point{x, y} // ERROR "\[perf::zeroalloc_violation\] newPoint allocates: &point\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func dynamicMake(n int) []byte {
+	return make([]byte, n) // ERROR "\[perf::zeroalloc_violation\] dynamicMake allocates: make\(\[\]byte, n\) escapes to heap: flows to"
+}
+
+//logos:zeroalloc
+func boxed(v int) any {
+	return v // ERROR "\[perf::zeroalloc_violation\] boxed allocates: v escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func leak() {
+	x := 1 // ERROR "\[perf::zeroalloc_violation\] leak allocates: moved to heap: x: flows to the heap \(assign\)"
+	global = &x
+}
+
+//logos:zeroalloc
+func counter() func() int {
+	n := 0 // ERROR "\[perf::zeroalloc_violation\] counter allocates: moved to heap: n"
+	return func() int { // ERROR "\[perf::zeroalloc_violation\] counter allocates: func literal escapes to heap: flows to result ~r0 \(return\)"
+		n++
+		return n
+	}
+}
+
+//logos:zeroalloc
+func channel() chan int {
+	return make(chan int) // ERROR "\[perf::zeroalloc_violation\] channel allocates: make\(chan int\) escapes to heap: channels always live on the heap"
+}
+
+//logos:zeroalloc
+func push(dst []int, v int) []int {
+	return append(dst, v)
+}
+
+//logos:zeroalloc
+func (b *box) record(vs []int) {
+	b.vs = append(b.vs, vs...)
+}
+
+//logos:zeroalloc
+func (b *box) clone() *box {
+	return &box{v: b.v} // ERROR "\[perf::zeroalloc_violation\] \(\*box\)\.clone allocates: &box\{\.\.\.\} escapes to heap"
+}
+
+//logos:zeroalloc
+func (p point) boxPoint() any {
+	return p // ERROR "\[perf::zeroalloc_violation\] point\.boxPoint allocates: p escapes to heap"
+}
+
+//logos:zeroalloc
+func storeClosure() {
+	n := 0
+	sinkFn = func() int { // ERROR "\[perf::zeroalloc_violation\] storeClosure allocates: func literal escapes to heap: flows to the heap"
+		return n
+	}
+}
+
+func allocator(n int) []int {
+	return make([]int, n)
+}
+
+//logos:zeroalloc
+func viaInlined() []int {
+	return allocator(3) // ERROR "\[perf::zeroalloc_violation\] viaInlined allocates: make\(\[\]int, .*\) escapes to heap"
+}
+
+//logos:zeroalloc
+func genericBox[T any](v T) *T { // ERROR "\[perf::zeroalloc_violation\] genericBox allocates: moved to heap: v"
+	return &v
+}
+
+func useGeneric() *int {
+	return genericBox(1)
+}
+
+// unmarked allocates freely: only marked functions are checked.
+func unmarked(v int) []int {
+	return []int{v}
+}

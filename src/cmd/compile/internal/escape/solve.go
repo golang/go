@@ -124,6 +124,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
 						logopt.LogOpt(l.n.Pos(), "escape", "escape", ir.FuncName(e_curfn), fmt.Sprintf("%v escapes to heap", l.n), explanation)
 					}
 				}
+				b.logosEscapeWalk(l, root) // logos M22: zeroalloc sites.
 				newAttrs |= attrEscapes | attrPersists | attrMutates | attrCalls
 			} else
 			// If l's address flows to a persistent location, then l needs

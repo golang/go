@@ -6,7 +6,8 @@
 // Hot[T] concurrent-update safety (#26), retire-free updates (#153), and
 // the atomic.Pointer-only layout (#154). Benchmarks are report-only
 // (T-PERF): BenchmarkWithLock targets within 2 ns/op of manual
-// Lock/defer Unlock, and BenchmarkHotLoad reports one atomic load.
+// Lock/defer Unlock, and BenchmarkHotLoad (hot_load_bench_test.go) reports
+// Hot.Load against a plain atomic.Pointer load.
 package sync_test
 
 import (
@@ -205,17 +206,5 @@ func BenchmarkManualLock(b *testing.B) {
 			defer mu.Unlock()
 			v++
 		}()
-	}
-}
-
-var hotSink *hotPoint
-
-func BenchmarkHotLoad(b *testing.B) {
-	h := new(logosync.Hot[hotPoint])
-	h.Store(&hotPoint{x: 1, y: 1})
-	b.ReportAllocs()
-	b.ResetTimer()
-	for b.Loop() {
-		hotSink = h.Load()
 	}
 }

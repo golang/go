@@ -15,11 +15,14 @@ import (
 	"cmd/internal/src"
 )
 
-// escapeLint is what the lints that read escape analysis need after it ran:
-// the package the first pass checked and the position map of its findings.
+// escapeLint is what the checks that read escape analysis need after it ran:
+// the package the first pass checked, the position map of its findings, and
+// which checks the package armed.
 type escapeLint struct {
-	in *lint.Input
-	m  *posMap
+	in        *lint.Input
+	m         *posMap
+	pins      bool
+	zeroAlloc bool
 }
 
 // logosEscape is the state logosLintHook keeps for LogosLintEscape.
@@ -33,34 +36,44 @@ var logosEscape *escapeLint
 // compile stop it here, except under -logos.lintonly, where the compile
 // continues to escape analysis so every finding of the package prints
 // together.
+//
+// A function marked //logos:zeroalloc (SPEC Sec 22.4) is checked on the same
+// compiles, without a policy: the directive is the assertion, so the check
+// arms escape analysis whenever the package marks a function, and a directive
+// that marks nothing fails here.
 func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *types2.Info) {
-	if !logosLintActive() {
+	if !base.Logos && !base.LogosLintOnly {
 		return
 	}
-	policy := logosLintPolicy()
 	kind := lint.KindGo
 	if base.Logos {
 		kind = lint.KindLgo
 	}
 	lintable, sources := logosLintInputs(files)
 	in := &lint.Input{
-		Pkg:      pkg,
-		Info:     info,
-		Files:    lintable,
-		Sources:  sources,
-		Kind:     kind,
-		Policy:   policy,
-		Reported: logosTakeSoft(),
+		Pkg:     pkg,
+		Info:    info,
+		Files:   lintable,
+		Sources: sources,
+		Kind:    kind,
 	}
-	for _, r := range lint.Run(in) {
+	results, zeroAlloc := logosZeroAllocArm(in)
+	pins := false
+	if base.LogosCfg != "" {
+		in.Policy = logosLintPolicy()
+		in.Reported = logosTakeSoft()
+		results = append(results, lint.Run(in)...)
+		pins = lint.PinActive(in)
+	}
+	for _, r := range results {
 		base.LogosReport(logosDiag(m, r))
 	}
 	if !base.LogosLintOnly {
 		base.ExitIfErrors()
 	}
-	if lint.PinActive(in) {
-		logosEscape = &escapeLint{in: in, m: m}
-		escape.LogosPinning = true
+	if pins || zeroAlloc {
+		logosEscape = &escapeLint{in: in, m: m, pins: pins, zeroAlloc: zeroAlloc}
+		escape.LogosPinning = pins
 	}
 }
 
@@ -70,15 +83,66 @@ func logosLintActive() bool {
 	return base.LogosCfg != "" && (base.Logos || base.LogosLintOnly)
 }
 
-// LogosLintEscape runs the lints that read escape analysis, once it has run
-// over the package (SPEC Sec 1.2, M9): perf::large_backing_array_pin. It
-// reports findings like logosLintHook and stops the compile on an error,
-// except under -logos.lintonly, where the compile ends right after.
+// logosZeroAllocArm makes escape analysis record the heap allocation sites
+// of the functions of in marked //logos:zeroalloc. It returns the results for
+// directives that mark nothing, and whether any function is marked.
+func logosZeroAllocArm(in *lint.Input) ([]lint.Result, bool) {
+	funcs, misplaced := lint.ZeroAllocFuncs(in)
+	marks := make(map[escape.LogosFuncKey]string, len(funcs))
+	for _, f := range funcs {
+		marks[escape.LogosFuncKey{File: f.File, Line: f.Line}] = f.Name
+	}
+	escape.LogosZeroAlloc = marks
+	return misplaced, len(marks) != 0
+}
+
+// LogosLintEscape runs the checks that read escape analysis, once it has run
+// over the package (SPEC Sec 1.2, M9; Sec 22.4): perf::large_backing_array_pin
+// and perf::zeroalloc_violation. It reports findings like logosLintHook and
+// stops the compile on an error, except under -logos.lintonly, where the
+// compile ends right after.
 func LogosLintEscape() {
 	st := logosEscape
 	if st == nil {
 		return
 	}
+	var results []lint.Result
+	if st.pins {
+		results = append(results, logosPinResults(st.in)...)
+	}
+	if st.zeroAlloc {
+		results = append(results, logosZeroAllocResults(st.in)...)
+	}
+	for _, r := range results {
+		base.LogosReport(logosDiag(st.m, r))
+	}
+	if !base.LogosLintOnly {
+		base.ExitIfErrors()
+	}
+}
+
+// logosZeroAllocResults converts the allocation sites that escape analysis
+// recorded inside marked functions to results. A site inside an inlined body
+// belongs to the call that inlined it, so it is reported at that call.
+func logosZeroAllocResults(in *lint.Input) []lint.Result {
+	allocs := escape.LogosAllocs()
+	found := make([]lint.ZeroAllocFinding, 0, len(allocs))
+	for _, a := range allocs {
+		pos := base.Ctxt.OutermostPos(a.Pos)
+		found = append(found, lint.ZeroAllocFinding{
+			Func:   a.Func,
+			File:   pos.RelFilename(),
+			Line:   pos.Line(),
+			Col:    pos.Col(),
+			Reason: a.Reason,
+		})
+	}
+	return lint.ZeroAllocResults(in, found)
+}
+
+// logosPinResults resolves the large backing store pins that escape analysis
+// found to results.
+func logosPinResults(in *lint.Input) []lint.Result {
 	pins := escape.LogosPins()
 	found := make([]lint.PinFinding, 0, len(pins))
 	for _, p := range pins {
@@ -91,12 +155,7 @@ func LogosLintEscape() {
 			Substring: p.Substring,
 		})
 	}
-	for _, r := range lint.RunPins(st.in, found) {
-		base.LogosReport(logosDiag(st.m, r))
-	}
-	if !base.LogosLintOnly {
-		base.ExitIfErrors()
-	}
+	return lint.RunPins(in, found)
 }
 
 // logosLintPolicy reads the -logos.cfg policy. A policy the go command

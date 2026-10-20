@@ -32,6 +32,12 @@ silences a deny or warn rule. A forbid rule ignores it in a loGo/s package,
 and the directive itself is then an error. Go packages run a forbid rule
 at deny, so the directive silences it there.
 
+The //logos:zeroalloc comment on the line above a function declaration
+makes the compiler fail with [perf::zeroalloc_violation] when the function,
+its function literals, or the code inlined into it allocates on the heap.
+No severity lowers that diagnostic and //logos:allow does not silence it.
+In a Go package only 'logos lint' applies it.
+
 The build flags are those of 'logos build'. The -pedantic flag enables the
 pedantic group, overriding logos.toml. The -json-diagnostics flag prints
 one JSON object per diagnostic on stderr. Packages of other modules and the

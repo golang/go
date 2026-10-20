@@ -94,9 +94,16 @@ func uniquePins(found []PinFinding) []PinFinding {
 // file it names so that directives of that file apply. It reports false when
 // the package holds no such file.
 func pinPos(in *Input, f PinFinding) (syntax.Pos, bool) {
-	for _, file := range in.Files {
-		if file.Pos().RelFilename() == f.File {
-			return syntax.MakePos(file.Pos().FileBase(), f.Line, f.Col), true
+	return filePos(in, f.File, f.Line, f.Col)
+}
+
+// filePos returns the syntax position of line and col in the source file of
+// in named file, in the file base of that file. It reports false when the
+// package holds no such file.
+func filePos(in *Input, file string, line, col uint) (syntax.Pos, bool) {
+	for _, f := range in.Files {
+		if f.Pos().RelFilename() == file {
+			return syntax.MakePos(f.Pos().FileBase(), line, col), true
 		}
 	}
 	return syntax.Pos{}, false

@@ -174,6 +174,7 @@ func (k hole) note(where ir.Node, why string) hole {
 			why:   why,
 		}
 	}
+	k = logosNote(k, where, why) // logos M22: allocation reasons need notes.
 	return k
 }
 
@@ -221,6 +222,7 @@ func (b *batch) flow(k hole, src *location) {
 			}
 
 		}
+		b.logosEscaped(src, dst, k.notes) // logos M22: zeroalloc sites.
 		src.attrs |= attrEscapes | attrPersists | attrMutates | attrCalls
 		return
 	}

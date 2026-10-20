@@ -1,0 +1,94 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+// M22-S4 (SPEC Sec 22.4): the cases the //logos:zeroalloc check does not
+// report must allocate nothing at run time, or the exemption would let an
+// allocating function pass. Each function below is marked //logos:zeroalloc,
+// so the build already proves escape analysis finds no site in it, and
+// testing.AllocsPerRun proves the allocator is never called. test/logos/
+// codegen/zeroalloc.lgo holds the errorcheck half of the same cases.
+
+type box struct {
+	v  int
+	vs []int
+}
+
+var (
+	sinkAny   any
+	sinkAny2  any
+	sinkFn    func() int
+	sinkEmpty = new(struct{})
+	sinkInts  []int
+)
+
+//logos:zeroalloc
+//go:noinline
+func constBox() any {
+	return 42
+}
+
+//logos:zeroalloc
+//go:noinline
+func byteBox(b byte, ok bool) (any, any) {
+	return b, ok
+}
+
+//logos:zeroalloc
+//go:noinline
+func staticClosure() func() int {
+	return func() int { return 7 }
+}
+
+//logos:zeroalloc
+//go:noinline
+func emptyPtr() *struct{} {
+	return new(struct{})
+}
+
+//logos:zeroalloc
+//go:noinline
+func (b *box) record(vs []int) {
+	b.vs = append(b.vs, vs...)
+}
+
+//logos:zeroalloc
+//go:noinline
+func push(dst []int, v int) []int {
+	return append(dst, v)
+}
+
+func main() {
+	b := &box{vs: make([]int, 0, 64)}
+	src := []int{1, 2, 3}
+	buf := make([]int, 0, 64)
+	cases := []struct {
+		name string
+		run  func()
+	}{
+		{"constBox", func() { sinkAny = constBox() }},
+		{"byteBox", func() { sinkAny, sinkAny2 = byteBox(7, true) }},
+		{"staticClosure", func() { sinkFn = staticClosure() }},
+		{"emptyPtr", func() { sinkEmpty = emptyPtr() }},
+		{"record", func() { b.vs = b.vs[:0]; b.record(src) }},
+		{"push", func() { sinkInts = push(buf[:0], 1) }},
+	}
+	failed := false
+	for _, c := range cases {
+		n := testing.AllocsPerRun(100, c.run)
+		fmt.Printf("%s allocs=%v\n", c.name, n)
+		if n != 0 {
+			fmt.Printf("FAIL %s allocates %v times per call\n", c.name, n)
+			failed = true
+		}
+	}
+	if failed {
+		os.Exit(1)
+	}
+}

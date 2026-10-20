@@ -1950,6 +1950,11 @@ func pack(v int) []int {
 }
 ```
 
+- The diagnostic MUST NOT be lowered by a `logos.toml` severity and MUST NOT be silenced by a `//logos:allow` directive. [T-Sec22]
+- A `//logos:zeroalloc` directive that is not on its own line directly above a function declaration MUST fail with `[perf::zeroalloc_violation]`. [T-Sec22]
+- The check MUST cover the function literals inside the marked function and the bodies inlined into it. It MUST report the allocation sites that escape analysis puts on the heap and `make(chan T)`. It MUST NOT report a constant converted to an interface, a function literal that captures nothing, or a zero-size object. [T-Sec22]
+- The check MUST NOT report an operation that falls back to the heap at run time: `append` past the capacity of its operand, a string concatenation or conversion longer than the stack buffer, or an insert that grows a map. The directive is an assertion about the allocation sites that escape analysis decides, not a proof that the function never calls the allocator. [T-Sec22]
+- In a Go package, `logos lint` MUST apply the check, and `logos build` and `go build` MUST ignore the directive. [T-Sec22][R-U1]
 - Codegen checks MUST pin the SIMD and fast-call emission. [T-Sec22]
 
 ### 22.5 Reproducibility and sizes

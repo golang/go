@@ -156,6 +156,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
 		e.discard(n.Cap)
 	case ir.OMAKECHAN:
 		n := n.(*ir.MakeExpr)
+		e.logosMakeChan(n) // logos M22: a channel is always heap-allocated.
 		e.discard(n.Len)
 	case ir.OMAKEMAP:
 		n := n.(*ir.MakeExpr)

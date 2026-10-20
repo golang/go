@@ -1,0 +1,30 @@
+// asmcheck
+
+package main
+
+import "unsafe"
+
+// M22-S4 (SPEC Sec 22.4): a call through the M20 fast-call trampoline
+// performs no heap allocation. The caller below is marked //logos:zeroalloc,
+// so the build itself proves escape analysis finds no allocation site, and
+// the emitted code shows the call goes to runtime.logosCgocallFast, not to
+// runtime.cgocall, with no runtime allocator call on the way. The caller
+// names the trampoline directly, so this file does not test which cgo
+// functions cmd/cgo routes to it: that choice is pinned by
+// TestFastcallEmission in cmd/cgo/internal/testlogos.
+
+//go:linkname fastcall runtime.logosCgocallFast
+func fastcall(fn, arg unsafe.Pointer) int32
+
+var sink int32
+
+//logos:zeroalloc
+//go:noinline
+func callFast(fn, arg unsafe.Pointer) int32 {
+	// amd64:"CALL runtime\\.logosCgocallFast" -"CALL runtime\\.cgocall" -"CALL runtime\\.(newobject|mallocgc\\w*|makeslice|growslice|convT\\w*)"
+	return fastcall(fn, arg)
+}
+
+func main() {
+	sink = callFast(nil, nil)
+}

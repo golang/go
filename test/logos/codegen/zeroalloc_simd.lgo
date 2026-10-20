@@ -1,0 +1,43 @@
+// asmcheck -goexperiment simd
+
+package main
+
+// M22-S4 (SPEC Sec 22.4): the SIMD array lowering of M14 performs no heap
+// allocation. The functions below are marked //logos:zeroalloc, so the
+// build itself proves escape analysis finds no allocation site, and the
+// emitted code confirms it: the vector instruction is present and no call
+// to a runtime allocator appears on the line. The control function
+// allocates on purpose; it shows the allocator pattern matches the
+// emission of an allocation, so the negative checks are not vacuous.
+
+//logos:zeroalloc
+//go:noinline
+func addF32x8(a, b [8]float32) [8]float32 {
+	// amd64/v3:"VADDPS" -"CALL runtime\\.(newobject|mallocgc\\w*|makeslice|growslice|convT\\w*)"
+	// arm64:"VFADD V[0-9]+\\.S4" -"CALL runtime\\.(newobject|mallocgc\\w*|makeslice|growslice|convT\\w*)"
+	return a + b
+}
+
+//logos:zeroalloc
+//go:noinline
+func addI32x8(a, b [8]int32) [8]int32 {
+	// amd64/v3:"VPADDD" -"CALL runtime\\.(newobject|mallocgc\\w*|makeslice|growslice|convT\\w*)"
+	// arm64:"VADD V[0-9]+\\.S4" -"CALL runtime\\.(newobject|mallocgc\\w*|makeslice|growslice|convT\\w*)"
+	return a + b
+}
+
+var sink = new([8]float32)
+
+//go:noinline
+func control(a, b [8]float32) {
+	// amd64/v3:"CALL runtime\\.(newobject|mallocgc\\w*)"
+	// arm64:"CALL runtime\\.(newobject|mallocgc\\w*)"
+	s := a + b
+	sink = &s
+}
+
+func main() {
+	var a, b [8]float32
+	control(addF32x8(a, b), b)
+	_ = addI32x8([8]int32{}, [8]int32{})
+}
