@@ -44,7 +44,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #38 | M6 | src/cmd/compile/internal/syntax/parser_paren_logos_test.go | tested |
 | #39 | M6 | test/logos/run/tuples.lgo (pair call unpack, tuple var pack) | tested |
 | #40 |M2| test/logos/redteam/attack_040_union_equality | tested |
-| #41 | M5, M6 |  | planned |
+| #41 | M5, M6 | src/internal/types/testdata/logos/chains.lgo (chainMutateRecv, chainMutateParam) | tested |
 | #42 |M1| test/logos/redteam/attack_042_defer_close_join | tested |
 | #43 |M2| test/logos/redteam/attack_043_zero_sized_member | tested |
 | #44 | M3 | src/cmd/go/testdata/script/logos_facts.txt | tested |
@@ -115,7 +115,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #109 | M10 |  | planned |
 | #110 | M5 | test/logos/run/freeze.lgo | tested |
 | #111 | M15 |  | planned |
-| #112 | M1 |  | planned |
+| #112 | M1 | src/cmd/go/testdata/script/logos_eject.txt | tested |
 | #113 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestScopeDeferOpenCoded) | tested |
 | #114 | M7 |  | planned |
 | #115 | M3 | src/internal/types/testdata/logos/union_exhaustive.lgo | tested |
@@ -188,7 +188,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #182 | M9 |  | planned |
 | #183 | M0 |  | planned |
 | #184 | M0 |  | planned |
-| #185 | M2 | test/logos/redteam/attack_185_dual_use_union | planned |
+| #185 | M2 | test/logos/redteam/attack_185_dual_use_union; src/cmd/go/testdata/script/logos_eject_union.txt; src/cmd/go/testdata/script/logos_interop_union.txt | tested |
 | #186 | M3 | src/cmd/go/testdata/script/logos_interop_nil.txt | tested |
 | #187 | M16 |  | planned |
 | #188 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |

@@ -29,6 +29,12 @@ exists out/go.mod
 exists out/_logos_deps/rt/go.mod
 exists out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
 
+# Ejected files take plain .go names and carry no logos build tag (#112).
+exec find out -name '*.gen.go'
+! stdout .
+! grep '^//go:build !logos' out/main.go
+! grep '^//go:build !logos' out/_logos_deps/example.com/dep@v0.0.0/greet/greet.go
+
 # The ejected tree runs under plain go with identical output.
 cd out
 go run .
