@@ -186,8 +186,8 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |
 | #181 | M18 |  | planned |
 | #182 | M9 |  | planned |
-| #183 | M0 |  | planned |
-| #184 | M0 |  | planned |
+| #183 | M0 | src/cmd/go/testdata/script/logos_interop.txt (case 1) | tested |
+| #184 | M0 | src/cmd/go/testdata/script/logos_interop.txt (case 2) | tested |
 | #185 | M2 | test/logos/redteam/attack_185_dual_use_union; src/cmd/go/testdata/script/logos_eject_union.txt; src/cmd/go/testdata/script/logos_interop_union.txt | tested |
 | #186 | M3 | src/cmd/go/testdata/script/logos_interop_nil.txt | tested |
 | #187 | M16 |  | planned |
