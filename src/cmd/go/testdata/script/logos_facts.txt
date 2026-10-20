@@ -1,0 +1,215 @@
+# M3-S1: the __.LOGOS facts sidecar travels beside __.PKGDEF, bound to its
+# fingerprint. The sidecar is syntax-agnostic, so this test uses plain
+# pointer results; option syntax (*User?) arrives in M3-S2 and only adds
+# record kinds (S2-S7) on top of this transport.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A .lgo package importing another .lgo package recovers facts: the module
+# builds, links (the linker skips the __.LOGOS member), and runs.
+cd lgo
+logos build ./...
+logos build -o $WORK/lgo-main$GOEXE ./cmd
+exec $WORK/lgo-main$GOEXE
+stdout '^facts ok: alice$'
+cd ..
+
+# A compiler archive carries both the export data and the sidecar member.
+# (A cmd/go-assembled archive additionally carries _go_.o; the link below
+# covers the linker path instead of listing it here.)
+go tool compile -p example.com/m/a -o $WORK/a.a gmod/t/a.go
+go tool pack t $WORK/a.a
+stdout '__\.PKGDEF'
+stdout '__\.LOGOS'
+
+# A fresh archive imports cleanly through the facts reader.
+mkdir $WORK/imp
+mkdir $WORK/imp/example.com
+mkdir $WORK/imp/example.com/m
+cp $WORK/a.a $WORK/imp/example.com/m/a.a
+go tool compile -I $WORK/imp -p example.com/m/b -o $WORK/b.a gmod/t/b.go
+
+# A stale __.LOGOS member (fingerprint edited after the fact) fails clean.
+mkdir $WORK/impstale
+mkdir $WORK/impstale/example.com
+mkdir $WORK/impstale/example.com/m
+cd gmod
+go run stale.go $WORK/a.a $WORK/stale.a
+cp $WORK/stale.a $WORK/impstale/example.com/m/a.a
+! go tool compile -I $WORK/impstale -p example.com/m/b -o $WORK/b-stale.a t/b.go
+stdout 'logos: stale facts for example\.com/m/a \(fingerprint mismatch\)'
+
+# A Go importer reads only __.PKGDEF and is unaffected by the member.
+go run impcheck.go $WORK/a.a
+stdout '^importer ok: F 0 1$'
+cd ..
+
+-- lgo/go.mod --
+module example.com/lgo
+
+go 1.27
+-- lgo/a/a.lgo --
+package a
+
+type User struct {
+	Name string
+}
+
+func F() *User {
+	return &User{Name: "alice"}
+}
+-- lgo/b/b.lgo --
+package b
+
+import "example.com/lgo/a"
+
+func G() string {
+	return a.F().Name
+}
+-- lgo/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lgo/b"
+)
+
+func main() {
+	fmt.Println("facts ok: " + b.G())
+}
+-- gmod/go.mod --
+module example.com/g
+
+go 1.27
+-- gmod/t/a.go --
+package a
+
+type User struct {
+	Name string
+}
+
+func F() *User {
+	return &User{Name: "u"}
+}
+-- gmod/t/b.go --
+package b
+
+import "example.com/m/a"
+
+func G() string {
+	return a.F().Name
+}
+-- gmod/stale.go --
+// Command stale copies a compiler archive while flipping one hex digit of
+// the __.LOGOS fingerprint line, producing an archive whose facts are stale
+// relative to its __.PKGDEF.
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func fatal(err any) {
+	fmt.Fprintf(os.Stderr, "stale: %v\n", err)
+	os.Exit(1)
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		fatal("usage: stale in.a out.a")
+	}
+	raw, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fatal(err)
+	}
+	if !bytes.HasPrefix(raw, []byte("!<arch>\n")) {
+		fatal("not an archive")
+	}
+	off := len("!<arch>\n")
+	found := false
+	for off+60 <= len(raw) {
+		hdr := raw[off : off+60]
+		if hdr[58] != '`' || hdr[59] != '\n' {
+			fatal("corrupt header")
+		}
+		name := strings.TrimRight(string(hdr[:16]), " ")
+		size, err := strconv.ParseUint(strings.TrimRight(string(hdr[48:58]), " "), 10, 64)
+		if err != nil {
+			fatal(err)
+		}
+		dataOff := off + 60
+		if name == "__.LOGOS" {
+			end := dataOff + int(size)
+			if end > len(raw) {
+				fatal("truncated member")
+			}
+			i := bytes.Index(raw[dataOff:end], []byte("fingerprint "))
+			if i < 0 {
+				fatal("no fingerprint line")
+			}
+			hexOff := dataOff + i + len("fingerprint ")
+			if hexOff >= end {
+				fatal("empty fingerprint")
+			}
+			if raw[hexOff] == '0' {
+				raw[hexOff] = '1'
+			} else {
+				raw[hexOff] = '0'
+			}
+			found = true
+			break
+		}
+		off = dataOff + int(size) + int(size&1)
+	}
+	if !found {
+		fatal("no __.LOGOS member")
+	}
+	if err := os.WriteFile(os.Args[2], raw, 0o666); err != nil {
+		fatal(err)
+	}
+}
+-- gmod/impcheck.go --
+// Command impcheck imports a compiler archive through go/importer with a
+// file-backed lookup, proving a Go importer reads only __.PKGDEF and is
+// unaffected by the __.LOGOS member.
+package main
+
+import (
+	"fmt"
+	"go/importer"
+	"go/token"
+	"go/types"
+	"io"
+	"os"
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintf(os.Stderr, "usage: impcheck file.a\n")
+		os.Exit(2)
+	}
+	path := os.Args[1]
+	imp := importer.ForCompiler(token.NewFileSet(), "gc", func(p string) (io.ReadCloser, error) {
+		if p != "example.com/m/a" {
+			return nil, fmt.Errorf("unknown package %s", p)
+		}
+		return os.Open(path)
+	})
+	pkg, err := imp.Import("example.com/m/a")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "impcheck: %v\n", err)
+		os.Exit(1)
+	}
+	fn, ok := pkg.Scope().Lookup("F").(*types.Func)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "impcheck: F not a func\n")
+		os.Exit(1)
+	}
+	sig := fn.Type().(*types.Signature)
+	fmt.Printf("importer ok: F %d %d\n", sig.Params().Len(), sig.Results().Len())
+}

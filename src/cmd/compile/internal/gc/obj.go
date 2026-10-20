@@ -64,6 +64,7 @@ func dumpobj1(outfile string, mode int) {
 		start := startArchiveEntry(bout)
 		dumpCompilerObj(bout)
 		finishArchiveEntry(bout, start, "__.PKGDEF")
+		writeLogosFacts(bout)
 	}
 	if mode&modeLinkerObj != 0 {
 		start := startArchiveEntry(bout)

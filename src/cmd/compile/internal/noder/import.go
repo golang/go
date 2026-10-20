@@ -214,6 +214,9 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 	if err != nil {
 		return
 	}
+	if _, err = readLogosFacts(f, path, data); err != nil {
+		return
+	}
 
 	if base.Debug.Export != 0 {
 		fmt.Printf("importing %s (%s)\n", path, f.Name())
