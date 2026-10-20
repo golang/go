@@ -2066,25 +2066,33 @@ func (fl *fileLower) findCallParens(selEnd int) (lparen, rparen int) {
 		lparen = t.start
 		return false
 	})
+	if lparen < 0 {
+		base.Fatalf("logos: optional call at offset %d has no (", selEnd)
+	}
 	depth := 0
 	scanSegment(fl.src, lparen, len(fl.src), func(t tok) bool {
 		if t.comment || t.auto {
 			return true
 		}
 		switch t.kind {
-		case token.LPAREN:
+		case token.LPAREN, token.LBRACK, token.LBRACE:
 			depth++
-		case token.RPAREN:
+		case token.RPAREN, token.RBRACK, token.RBRACE:
 			depth--
 			if depth == 0 {
 				rparen = t.start
 				return false
 			}
-		case token.SEMICOLON, token.EOF:
-			base.Fatalf("logos: optional call at offset %d has no )", lparen)
+		case token.SEMICOLON:
+			if depth == 0 {
+				base.Fatalf("logos: optional call at offset %d has no )", lparen)
+			}
 		}
 		return true
 	})
+	if rparen <= lparen {
+		base.Fatalf("logos: optional call at offset %d has no )", lparen)
+	}
 	return lparen, rparen
 }
 

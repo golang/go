@@ -163,18 +163,20 @@ func (fl *fileLower) chainsInDecl(decl *syntax.VarDecl) []*syntax.CallExpr {
 }
 
 // outermostChains filters calls to those contained in no other,
-// sorted inner-first.
+// sorted inner-first. Each span is scanned once, before any lowering
+// replaces nodes under the calls.
 func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr {
+	spans := make(map[*syntax.CallExpr]span, len(all))
+	for _, c := range all {
+		cs, ce := fl.chainSpan(c)
+		spans[c] = span{cs, ce}
+	}
 	var outer []*syntax.CallExpr
 	for _, c := range all {
 		contained := false
-		cs, ce := fl.chainSpan(c)
 		for _, o := range all {
-			if o == c {
-				continue
-			}
-			os, oe := fl.chainSpan(o)
-			if os <= cs && ce <= oe && (os < cs || ce < oe) {
+			if o != c && spans[o].start <= spans[c].start && spans[c].end <= spans[o].end &&
+				(spans[o].start < spans[c].start || spans[c].end < spans[o].end) {
 				contained = true
 				break
 			}
@@ -184,9 +186,7 @@ func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr 
 		}
 	}
 	slices.SortStableFunc(outer, func(a, b *syntax.CallExpr) int {
-		as, ae := fl.chainSpan(a)
-		bs, be := fl.chainSpan(b)
-		return ae - as - (be - bs)
+		return spans[a].end - spans[a].start - (spans[b].end - spans[b].start)
 	})
 	return outer
 }
@@ -198,17 +198,7 @@ func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.S
 	if len(calls) == 0 {
 		return nil
 	}
-	stmtStart := fl.off(syntax.StartPos(s))
-	switch s := s.(type) {
-	case *syntax.CallStmt:
-		if s.Call != nil {
-			stmtStart = fl.off(syntax.StartPos(s.Call))
-		}
-	case *syntax.ExprStmt:
-		if s.X != nil {
-			stmtStart = fl.off(syntax.StartPos(s.X))
-		}
-	}
+	stmtStart := fl.stmtStartOf(s)
 	var hoists []syntax.Stmt
 	for _, call := range calls {
 		for _, h := range fl.lowerChainTopLevel(call, enc, stmtStart) {
@@ -217,6 +207,23 @@ func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.S
 		}
 	}
 	return hoists
+}
+
+// stmtStartOf reports the offset of the first token of s, where hoisted
+// computations go. A call or expression statement sits at its call
+// parenthesis, so its start comes from the expression.
+func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
+	switch s := s.(type) {
+	case *syntax.CallStmt:
+		if s.Call != nil {
+			return fl.exprStart(s.Call)
+		}
+	case *syntax.ExprStmt:
+		if s.X != nil {
+			return fl.exprStart(s.X)
+		}
+	}
+	return fl.off(syntax.StartPos(s))
 }
 
 // lowerChainTopLevel lowers one outermost chain, returning hoists.
@@ -250,12 +257,66 @@ func (fl *fileLower) chainsInStmt(s syntax.Stmt) []*syntax.CallExpr {
 
 // chainSpan reports the full source span of a chain call.
 func (fl *fileLower) chainSpan(call *syntax.CallExpr) (int, int) {
-	return fl.off(syntax.StartPos(call)), fl.chainCallEnd(call)
+	return fl.exprStart(call), fl.chainCallEnd(call)
+}
+
+// exprStart reports the offset of the first token of e. A slice
+// expression sits at its `[`, which syntax.StartPos reports as the
+// start of everything it holds, so the descent runs through the
+// operands of slices, indexes, selectors, assertions, and calls to the
+// leftmost one, and StartPos takes over there. The descent keeps
+// parenthesized operands whole, where leftmostOf would unwrap them and
+// start inside the parentheses.
+func (fl *fileLower) exprStart(e syntax.Expr) int {
+	for {
+		switch t := e.(type) {
+		case *syntax.SliceExpr:
+			e = t.X
+		case *syntax.IndexExpr:
+			e = t.X
+		case *syntax.SelectorExpr:
+			e = t.X
+		case *syntax.AssertExpr:
+			e = t.X
+		case *syntax.CallExpr:
+			e = t.Fun
+		default:
+			return fl.off(syntax.StartPos(e))
+		}
+	}
+}
+
+// receiverSpan reports the exact source span of a chain call's
+// receiver: from its first token to the end of its last token before
+// the `.` that opens the selector. The selector sits at that dot, so
+// the token scan skips the comments and line breaks of a leading-dot
+// continuation, and the span ends on the receiver's last token whatever
+// its syntax shape.
+func (fl *fileLower) receiverSpan(call *syntax.CallExpr) span {
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	if !ok {
+		base.Fatalf("logos: chain call at %s has no receiver selector", call.Pos().String())
+	}
+	dot := fl.off(sel.Pos())
+	if dot < 0 || dot >= len(fl.src) || fl.src[dot] != '.' {
+		base.Fatalf("logos: chain call at %s has no source receiver", call.Pos().String())
+	}
+	start := fl.exprStart(sel.X)
+	end := start
+	if start < dot {
+		end = lastTokenEnd(fl.src, start, dot)
+	}
+	if end <= start {
+		base.Fatalf("logos: cannot locate chain receiver at %s", call.Pos().String())
+	}
+	return span{start: start, end: end}
 }
 
 // chainCallEnd reports the offset just past a call's closing paren.
-// A degenerate span marks a normalized fragment node with no source
-// parentheses to scan; it keeps its end position.
+// The call's position is its opening parenthesis, whatever the function
+// operand looks like, and the token scan matches it. A degenerate span
+// marks a normalized fragment node with no source parentheses to scan;
+// it keeps its end position.
 func (fl *fileLower) chainCallEnd(e syntax.Expr) int {
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
 	if !ok {
@@ -266,8 +327,15 @@ func (fl *fileLower) chainCallEnd(e syntax.Expr) int {
 	if start >= funEnd {
 		return fl.off(syntax.EndPos(e))
 	}
-	_, rparen := fl.findCallParens(funEnd)
-	return rparen + 1
+	lparen := fl.off(call.Pos())
+	if lparen < 0 || lparen >= len(fl.src) || fl.src[lparen] != '(' {
+		base.Fatalf("logos: call at %s has no source argument list", call.Pos().String())
+	}
+	split, ok := splitCall(fl.src, lparen)
+	if !ok {
+		base.Fatalf("logos: call at %s has no closing parenthesis", call.Pos().String())
+	}
+	return split.end
 }
 
 // isChainCall reports whether e is a chain method call.
@@ -312,11 +380,13 @@ func isFusibleMethod(m string) bool {
 	return false
 }
 
-// decomposeChain splits a chain into the fused run ops in source
-// order, the run base, and the terminal or barrier op, which is the
-// outermost call when it is not fusible.
-func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base syntax.Expr, term chainOp) {
+// decomposeChain splits a chain into the fused run ops in call order,
+// the run base, and the terminal or barrier op, which is the outermost
+// call when it is not fusible. The carrier is the innermost call of the
+// run: the one whose receiver is the base.
+func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base syntax.Expr, term chainOp, carrier *syntax.CallExpr) {
 	rest := syntax.Expr(call)
+	carrier = call
 	if m := chainMethodOf(call); !isFusibleMethod(m) {
 		term = fl.chainOpOf(call, m)
 		if sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); ok {
@@ -327,17 +397,18 @@ func (fl *fileLower) decomposeChain(call *syntax.CallExpr) (ops []chainOp, base 
 	for {
 		c, ok := syntax.Unparen(cur).(*syntax.CallExpr)
 		if !ok || !fl.isChainCall(c) {
-			return ops, cur, term
+			return ops, cur, term, carrier
 		}
 		m := chainMethodOf(c)
 		if !isFusibleMethod(m) {
-			return ops, cur, term
+			return ops, cur, term, carrier
 		}
 		ops = append(ops, fl.chainOpOf(c, m))
+		carrier = c
 		if sel, ok := syntax.Unparen(c.Fun).(*syntax.SelectorExpr); ok {
 			cur = sel.X
 		} else {
-			return ops, cur, term
+			return ops, cur, term, carrier
 		}
 	}
 }
@@ -403,6 +474,8 @@ type chainGen struct {
 	prefix    string
 	enc       []chainResult
 	stmtStart int
+	whole     span
+	kept      []span
 	hoists    []chainHoist
 	elemT     types2.Type
 }
@@ -418,11 +491,14 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 		return
 	}
 	cg.fl.loweredChains[call] = true
-	ops, base, term := cg.fl.decomposeChain(call)
+	ops, base, term, carrier := cg.fl.decomposeChain(call)
 	if len(ops) == 0 && term.method == "" {
 		return
 	}
 	slices.Reverse(ops)
+	recv := cg.fl.receiverSpan(carrier)
+	cg.whole.start, cg.whole.end = cg.fl.chainSpan(call)
+	cg.kept = keptSpans(recv, ops, term)
 	for i := range ops {
 		if ops[i].lam != nil {
 			ops[i].savedBody = ops[i].lam.Body
@@ -433,11 +509,23 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 		term.savedBody = term.lam.Body
 	}
 	cg.lowerArgChains(term.arg)
-	baseText := cg.sub(base)
+	baseText := cg.sub(base, recv)
 	elemT := cg.baseElem(base)
 	resultT := cg.fl.pkg.info.TypeOf(call)
 	isTry := cg.runIsTry(ops, term)
 	cg.emit(call, ops, baseText, elemT, resultT, term, isTry)
+}
+
+// keptSpans lists the source spans of a run whose text the generated
+// loop reuses: the receiver and the call arguments. Comments of the
+// chain outside them sit on the links between receiver, dots, method
+// names, and parentheses, which the replacement would drop.
+func keptSpans(recv span, ops []chainOp, term chainOp) []span {
+	kept := []span{recv, term.argSpan}
+	for _, op := range ops {
+		kept = append(kept, op.argSpan)
+	}
+	return kept
 }
 
 // baseElem reports the element type of a run base expression.
@@ -472,33 +560,21 @@ func (cg *chainGen) lowerArgChains(arg syntax.Expr) {
 	}
 }
 
-// sub lowers nested chains in e and returns its composed text. A chain
-// call in base position, such as a mid-chain sortBy, lowers as its own
-// run; its value feeds the outer loop.
-func (cg *chainGen) sub(e syntax.Expr) string {
+// sub lowers nested chains in the run base e and returns the composed
+// text of its receiver span. A chain call in base position, such as a
+// mid-chain sortBy, lowers as its own run; its value feeds the outer
+// loop.
+func (cg *chainGen) sub(e syntax.Expr, recv span) string {
+	var nested []*syntax.CallExpr
 	if bc, ok := syntax.Unparen(e).(*syntax.CallExpr); ok && cg.fl.isChainCall(bc) {
-		return cg.runNested(bc)
+		nested = []*syntax.CallExpr{bc}
+	} else {
+		nested = cg.nestedChains(e)
 	}
-	for _, n := range cg.nestedChains(e) {
+	for _, n := range nested {
 		cg.lowerNested(n)
 	}
-	sp := cg.exprSpan(e)
-	if _, ok := syntax.Unparen(e).(*syntax.CallExpr); !ok {
-		sp.end = extendPastClosers(cg.fl.src, sp.end)
-	}
-	return cg.fl.textOf(sp)
-}
-
-// extendPastClosers extends a chain base span past its closing
-// delimiters. EndPos stops at the last inner token for composite
-// literals (`}`), indexes and slices (`]`), and assertions and parens
-// (`)`). The base is always followed by `.method`, so the first
-// non-closer ends the scan before any outer construct.
-func extendPastClosers(src []byte, end int) int {
-	for end < len(src) && (src[end] == ')' || src[end] == ']' || src[end] == '}') {
-		end++
-	}
-	return end
+	return cg.fl.textOf(recv)
 }
 
 // lowerNested lowers one nested chain through a child generator with
@@ -508,13 +584,6 @@ func (cg *chainGen) lowerNested(call *syntax.CallExpr) {
 	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc, stmtStart: cg.stmtStart}
 	sub.run(call)
 	cg.hoists = append(cg.hoists, sub.hoists...)
-}
-
-// runNested lowers one nested chain and returns its composed text,
-// for base positions whose value feeds the outer loop directly.
-func (cg *chainGen) runNested(call *syntax.CallExpr) string {
-	cg.lowerNested(call)
-	return cg.fl.textOf(cg.exprSpan(call))
 }
 
 // nestedChains collects chain calls under e, inner-first, excluding e
@@ -531,39 +600,7 @@ func (cg *chainGen) nestedChains(e syntax.Expr) []*syntax.CallExpr {
 		}
 		return true
 	})
-	var outer []*syntax.CallExpr
-	for _, c := range all {
-		contained := false
-		cs, ce := cg.fl.chainSpan(c)
-		for _, o := range all {
-			if o == c {
-				continue
-			}
-			os, oe := cg.fl.chainSpan(o)
-			if os <= cs && ce <= oe && (os < cs || ce < oe) {
-				contained = true
-				break
-			}
-		}
-		if !contained {
-			outer = append(outer, c)
-		}
-	}
-	slices.SortStableFunc(outer, func(a, b *syntax.CallExpr) int {
-		as, ae := cg.fl.chainSpan(a)
-		bs, be := cg.fl.chainSpan(b)
-		return ae - as - (be - bs)
-	})
-	return outer
-}
-
-// exprSpan reports the source span of an expression, extended past
-// call parentheses.
-func (cg *chainGen) exprSpan(e syntax.Expr) span {
-	if _, ok := syntax.Unparen(e).(*syntax.CallExpr); ok {
-		return span{cg.fl.off(syntax.StartPos(e)), cg.fl.chainCallEnd(e)}
-	}
-	return span{cg.fl.off(syntax.StartPos(e)), cg.fl.off(syntax.EndPos(e))}
+	return cg.fl.outermostChains(all)
 }
 
 // enclosingZeros spells the zero values of the enclosing non-error
@@ -714,7 +751,7 @@ func (cg *chainGen) closure(name string, op chainOp, elem, result string) string
 		if !ok {
 			return ""
 		}
-		callText := fl.textOf(span{fl.off(syntax.StartPos(inner)), fl.chainCallEnd(inner)})
+		callText := fl.textOf(span{fl.exprStart(inner), fl.chainCallEnd(inner)})
 		zero := cg.zeroText(cg.inferType(op, result))
 		vn := cg.prefix + "_v"
 		en := cg.prefix + "_e"
@@ -1166,12 +1203,12 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText string, 
 	for _, line := range epilogue {
 		b.WriteString(line + "; ")
 	}
-	loopText := strings.TrimSpace(b.String())
+	loopText := leftoverComments(fl, cg.whole, cg.kept) + strings.TrimSpace(b.String())
 	if !isTry {
 		text := "func() " + ce.resultSpelling() + " { " + loopText + " }()"
 		native := parseChainExprFrag(fl, text, call.Pos())
 		replaceTupleExpr(fl.file, call, native)
-		fl.add(fl.off(syntax.StartPos(call)), fl.chainCallEnd(call), text)
+		fl.add(cg.whole.start, cg.whole.end, text)
 		return
 	}
 	if cg.enc == nil {
@@ -1189,7 +1226,7 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText string, 
 	cg.hoists = append(cg.hoists, chainHoist{stmts: hoistNative, text: hoistText})
 	native := nameOf(call.Pos(), temp)
 	replaceTupleExpr(fl.file, call, native)
-	fl.add(fl.off(syntax.StartPos(call)), fl.chainCallEnd(call), temp)
+	fl.add(cg.whole.start, cg.whole.end, temp)
 }
 
 // resultSpelling spells the chain result type.

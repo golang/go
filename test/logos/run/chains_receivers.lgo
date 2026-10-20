@@ -1,0 +1,257 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+// Receiver shapes: a chain whose receiver is a slice, index,
+// call-with-index, or parenthesized expression; comments and line breaks
+// between the receiver and the dot; and chains nested inside receivers.
+// Every printed line is hand-computed in the .out file.
+
+var calls int
+
+func three() []int {
+	calls++
+	return []int{10, 20, 30, 40}
+}
+
+func rows() [][]int {
+	return [][]int{{1, 2}, {3, 4, 5}}
+}
+
+type box struct{ items []int }
+
+type ints []int
+
+func (s ints) head() (int, error) {
+	if len(s) == 0 {
+		return 0, errors.New("empty")
+	}
+	return s[0], nil
+}
+
+func (s ints) copyIn(v []int) {
+	copy(s, v)
+}
+
+var tail = []int{1, 2, 3, 4}[1:].map(x => x * 2)
+
+var m = map[string][]int{"k": {4, 9, 2}}
+
+func half(x int) (int, error) {
+	if x%2 != 0 {
+		return 0, errors.New("odd")
+	}
+	return x / 2, nil
+}
+
+func halves(xs []int) ([]int, error) {
+	return xs[1:].map(x => half(x)?), nil
+}
+
+func fill(dst ints, xs []int) error {
+	dst[1:].copyIn(xs.map(x => half(x)?))
+	return nil
+}
+
+func heads(rs []ints) ([]int, error) {
+	return rs.map(r => r[1:].head()?), nil
+}
+
+var (
+	xs   = []int{5, 3, 8, 1}
+	ws   = []string{"pear", "fig", "apple"}
+	b    = box{items: []int{7, 6, 5}}
+	grid = [][]int{{1, 2}, {3, 4, 5}}
+)
+
+var a any = xs
+
+func sliceReceivers() {
+	fmt.Println(xs[1:].map(x => x * 2))
+	fmt.Println(xs[:2].sortBy(x => x))
+	fmt.Println(xs[1:3].filter(x => x > 3))
+	fmt.Println(xs[1:3:4].map(x => -x))
+	fmt.Println(xs[1:].take(2))
+	fmt.Println(xs[:3].drop(1))
+	fmt.Println(xs[1:].first() ?? -1)
+	fmt.Println(xs[1:].last() ?? -1)
+	fmt.Println(xs[1:].get(1) ?? -1)
+	fmt.Println(xs[2:].sum())
+	fmt.Println(xs[1:].count(x => x > 2))
+	fmt.Println(xs[1:].any(x => x > 7))
+	fmt.Println(xs[1:].all(x => x > 1))
+	fmt.Println(xs[1:].find(x => x > 5) ?? -1)
+	fmt.Println(ws[1:].map(w => w[1:]))
+}
+
+func parenReceivers() {
+	fmt.Println((xs[1:]).map(x => x + 1))
+	fmt.Println((xs[:2]).sortBy(x => x))
+	fmt.Println(((xs))[1:].map(x => x))
+	fmt.Println((xs).map(x => x * 2))
+	fmt.Println((xs[1:]).sum())
+}
+
+func indexReceivers() {
+	fmt.Println(grid[1].filter(x => x > 3))
+	fmt.Println(grid[1].sortBy(x => -x))
+	fmt.Println(rows()[len("a].b(")-4].filter(x => x > 3))
+	fmt.Println(grid[0].sortBy(x => -x))
+	fmt.Println(rows()[len(`x[.map(`)-6][1:].map(x => x * 10))
+	fmt.Println(grid[len("]]")-1].map(x => x + 1))
+	fmt.Println(grid[len(`)[`)-1][0:1].map(x => x * 2))
+	fmt.Println(grid[1][1:].count(x => x > 3))
+	fmt.Println(grid[1][:2].first() ?? -1)
+	fmt.Println(grid[1].map(x => x * 2))
+	fmt.Println(b.items[1:].map(x => x * x))
+	fmt.Println(a.([]int)[1:].map(x => x + 1))
+}
+
+func callReceivers() {
+	calls = 0
+	fmt.Println(three()[0:2].map(x => x / 10))
+	fmt.Println(three()[2:].sortBy(x => -x))
+	fmt.Println(calls)
+	fmt.Println(rows()[1].filter(x => x > 3))
+	fmt.Println(rows()[1][1:].map(x => x - 1))
+}
+
+func commentReceivers() {
+	fmt.Println(xs[1:] /* c */ .map(x => x * 2))
+	fmt.Println(xs[1:] /* ].map( ) */ .map(x => x + 1))
+	fmt.Println(grid[1] /* c */ .sortBy(x => -x))
+	fmt.Println((grid[1]) /* c */ .sortBy(x => x))
+	fmt.Println((xs[1:]) /* c */ .map(x => x))
+	fmt.Println(xs[1:] // note ).
+		.map(x => x * 2))
+	fmt.Println(grid[1] /* c */ // d
+		.filter(x => x > 3))
+}
+
+func lineReceivers() {
+	lead := xs[1:]
+		.map(x => x * 2)
+		.filter(x => x > 3)
+	fmt.Println(lead)
+	fmt.Println([]int{
+		4, 5, 6, 7,
+	}[1:3].map(x => x * 3))
+	spread := grid[1][
+		1:
+	].map(x => x + 100)
+	fmt.Println(spread)
+	fmt.Println([]int{
+		4, 5, 6, 7,
+	}[1:]
+		.map(x => x * 3))
+	fmt.Println(grid[1][
+		1:
+	]
+		.map(x => x * 2)
+		.sum())
+}
+
+func nestedReceivers() {
+	fmt.Println(xs.map(x => x * 2)[1:].filter(x => x > 5))
+	fmt.Println(xs.sortBy(x => x)[:2].map(x => x * 10))
+	fmt.Println((xs.filter(x => x > 2))[1:].map(x => -x))
+	fmt.Println(xs.map(x => x + 1)[1:][1:].sum())
+	fmt.Println(three().map(x => x / 10)[1:3].map(x => x + 1))
+	fmt.Println(xs.map(x => ws[1:].map(w => len(w) + x).sum()))
+	fmt.Println(xs[1:].map(x => grid[1][1:].sum() + x))
+	fmt.Println(grid.map(r => r[1:].map(x => x * 2))[1].sum())
+	fmt.Println(ws.map(w => len(w)).sortBy(n => n)[1:].map(n => n * 2))
+	fmt.Println((xs.map(x => x * 2)[1:]).filter(x => x > 5))
+	fmt.Println(xs[1:].sortBy(x => x).map(x => x * 2))
+	fmt.Println(xs[1:].map(x => x * 2).sortBy(x => -x)[:2])
+}
+
+func hoistReceivers() {
+	if v, err := halves([]int{1, 4, 6}); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(v)
+	}
+	if v, err := halves([]int{1, 4, 5}); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(v)
+	}
+	if v, err := heads([]ints{{1, 2}, {3, 4}}); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(v)
+	}
+	if v, err := heads([]ints{{1, 2}, {3}}); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(v)
+	}
+	fmt.Println(tail)
+}
+
+func stmtReceivers() {
+	d := ints{0, 0, 0}
+	fmt.Println(fill(d, []int{2, 4}), d)
+	fmt.Println(fill(d, []int{6, 3}), d)
+}
+
+func optionReceivers() {
+	fmt.Println((m["k"] ?? []int{}).filter(x => x > 3))
+	fmt.Println((m["k"] ?? []int{}).sortBy(x => x))
+	fmt.Println((m["k"] ?? []int{})[1:].map(x => x * 10))
+	fmt.Println((m["k"] ?? []int{}) /* c */ .sortBy(x => x))
+	fmt.Println((m["none"] ?? []int{}).map(x => x))
+}
+
+func id(xs []int) []int {
+	return xs
+}
+
+func callBases() {
+	f := id
+	fmt.Println((f)(xs).filter(x => x > 3))
+	fmt.Println(three().filter(x => x > 20))
+	fmt.Println((append(xs, 1)).filter(x => x < 4))
+	fmt.Println(id(xs).filter(x => x < 4))
+	fmt.Println((id(xs)).map(x => x * 2))
+}
+
+func literalArgs() {
+	fmt.Println(xs.filter(x => { y := x; return y > 4 }))
+	fmt.Println(xs.filter(x => { n := x; for i := 0; i < 1; i++ { n++ }; return n > 4 }))
+	fmt.Println(xs.map(x => { s := 0; for i := 0; i < x; i++ { s += i }; return s }))
+	fmt.Println(xs.filter(x => func() bool { y := x; return y > 4 }()))
+}
+
+func parenTry(xs []int) ([]int, error) {
+	return xs.map(x => (half)(x)?), nil
+}
+
+func parenTries() {
+	for _, in := range [][]int{{2, 4}, {2, 3}} {
+		v, err := parenTry(in)
+		fmt.Println(v, err)
+	}
+}
+
+func main() {
+	sliceReceivers()
+	parenReceivers()
+	indexReceivers()
+	callReceivers()
+	commentReceivers()
+	lineReceivers()
+	nestedReceivers()
+	hoistReceivers()
+	stmtReceivers()
+	optionReceivers()
+	callBases()
+	literalArgs()
+	parenTries()
+}
