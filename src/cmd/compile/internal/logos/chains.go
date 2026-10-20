@@ -279,6 +279,13 @@ func (fl *fileLower) isChainCall(e syntax.Expr) bool {
 	switch sel.Sel.Value {
 	case "filter", "map", "find", "any", "all", "sortBy",
 		"first", "last", "get", "take", "drop", "sum", "count":
+		// Array `.sum()` is the M14-S1 reduction, never a chain: the
+		// checker accepts chain calls on slices only.
+		if t := fl.pkg.info.TypeOf(sel.X); t != nil {
+			if _, ok := t.Underlying().(*types2.Array); ok {
+				return false
+			}
+		}
 		return true
 	}
 	return false

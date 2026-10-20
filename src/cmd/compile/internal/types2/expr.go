@@ -852,6 +852,10 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		return
 	}
 
+	if check.logosSimdBinary(x, e, op) { // logos M14-S1 hook: element-wise array operators.
+		return
+	}
+
 	if !check.op(binaryOpPredicates, x, op) {
 		x.invalidate()
 		return

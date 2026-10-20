@@ -103,7 +103,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #97 |M2| test/logos/redteam/attack_097_struct_variant_slots | tested |
 | #98 | M5 | test/logos/run/rodata_reflect.lgo | tested |
 | #99 | M3 | src/internal/types/testdata/logos/map_index.lgo | tested |
-| #100 | M15 |  | planned |
+| #100 | M15 | src/internal/types/testdata/logos/simd_types.lgo (simdTooLarge); test/logos/run/simd.lgo | tested |
 | #101 | M18 |  | planned |
 | #102 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #103 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |

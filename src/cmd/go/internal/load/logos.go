@@ -240,6 +240,22 @@ func needsLogosRT(p *Package) bool {
 // imported by every logos package.
 const LogosRTPkg = "logos/rt"
 
+// LogosSimdPkg is the import path implicitly imported by every logos
+// package when GOEXPERIMENT=simd, so lowered fixed-array SIMD code can
+// call into it without naming it (M14-S1).
+const LogosSimdPkg = "simd/archsimd"
+
+// needsLogosSimd reports whether p needs the implicit simd/archsimd
+// import: every logos package gets it when the simd experiment is on
+// for amd64 or arm64, the only targets whose lowering calls archsimd
+// (SPEC T-204.2). Other targets keep scalar code and no archsimd import.
+func needsLogosSimd(p *Package) bool {
+	if !p.IsLogos() || !cfg.Experiment.SIMD {
+		return false
+	}
+	return cfg.BuildContext.GOARCH == "amd64" || cfg.BuildContext.GOARCH == "arm64"
+}
+
 // needsLogosInterp reports whether p needs the implicit strconv and
 // unsafe imports: every logos package gets them, so lowered
 // interpolations can append without naming them (M6-S1). Plain Go
@@ -274,6 +290,32 @@ func addLogosRTXTestImport(ld *modload.Loader, ctx context.Context, opts Package
 	pxtest.Internal.Imports = append(pxtest.Internal.Imports, p1)
 	pxtest.Internal.CompiledImports = append(pxtest.Internal.CompiledImports, p1.ImportPath)
 	addLogosInterpXTestImport(ld, ctx, opts, pre, pxtest)
+	addLogosSimdXTestImport(ld, ctx, opts, pre, pxtest)
+}
+
+// addLogosSimdXTestImport loads the implicit simd/archsimd import for
+// the external test package of a logos package (M14-S1), mirroring
+// addLogosRTXTestImport: lowered array operators in external test
+// files need the same archive under GOEXPERIMENT=simd.
+func addLogosSimdXTestImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *preload, pxtest *Package) {
+	if pxtest == nil || !needsLogosSimd(pxtest) {
+		return
+	}
+	for _, q := range pxtest.Internal.Imports {
+		if q.ImportPath == LogosSimdPkg {
+			return
+		}
+	}
+	stk := ImportStack{{Pkg: pxtest.ImportPath}}
+	p1, err := loadImport(ld, ctx, opts, pre, LogosSimdPkg, pxtest.Dir, pxtest, &stk, nil, ResolveImport)
+	if err != nil && pxtest.Error == nil {
+		pxtest.Error = err
+	}
+	if err != nil || p1.Incomplete {
+		pxtest.Incomplete = true
+	}
+	pxtest.Internal.Imports = append(pxtest.Internal.Imports, p1)
+	pxtest.Internal.CompiledImports = append(pxtest.Internal.CompiledImports, p1.ImportPath)
 }
 
 // addLogosInterpXTestImport loads the implicit strconv and unsafe

@@ -1,0 +1,71 @@
+// asmcheck -goexperiment simd
+
+package main
+
+// M14-S1 attack (SPEC Sec 2.4, T-204.2): with GOEXPERIMENT=simd the
+// [8]float32 addition lowers through simd/archsimd, so amd64 emits
+// VADDPS and arm64 emits the vector FADD form.
+//
+// M14-S2 attack. On amd64 each vector form sits behind the archsimd CPU
+// feature check its methods need, and the check disappears once the
+// GOAMD64 level guarantees the feature (AVX and AVX2 at v3, AVX512 at
+// v4). The feature call names the check, so each shape below pins which
+// one it takes: a 32-byte float vector needs AVX, a 32-byte integer
+// vector AVX2, a 64-byte vector AVX512, and a 64-bit integer multiply
+// AVX512 even at 16 bytes, while the 64-bit float multiply needs AVX.
+// arm64 is baseline NEON and never calls an X86 check.
+
+//go:noinline
+func addF32x8(a, b [8]float32) [8]float32 {
+	// amd64/v1:"VADDPS" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v2:"VADDPS" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VADDPS" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VADDPS" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VFADD V[0-9]+\\.S4" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addI32x8(a, b [8]int32) [8]int32 {
+	// amd64/v1:"VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v2:"VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v3:"VPADDD" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPADDD" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VADD V[0-9]+\\.S4" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func addF32x16(a, b [16]float32) [16]float32 {
+	// amd64/v1:"VADDPS" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v3:"VADDPS" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v4:"VADDPS" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"VFADD V[0-9]+\\.S4" -"CALL simd/archsimd\\.X86Features"
+	return a + b
+}
+
+//go:noinline
+func mulU64x2(a, b [2]uint64) [2]uint64 {
+	// amd64/v1:"VPMULLQ" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v3:"VPMULLQ" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v4:"VPMULLQ" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	return a * b
+}
+
+//go:noinline
+func mulF64x2(a, b [2]float64) [2]float64 {
+	// amd64/v1:"VMULPD" "CALL simd/archsimd\\.X86Features\\.AVX\\(SB\\)"
+	// amd64/v3:"VMULPD" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	return a * b
+}
+
+func main() {
+	a := [8]float32{1, 2, 3, 4, 5, 6, 7, 8}
+	b := [8]float32{8, 7, 6, 5, 4, 3, 2, 1}
+	c := addF32x8(a, b)
+	var d, e [8]int32
+	var f, g [16]float32
+	var h, i [2]uint64
+	var j, k [2]float64
+	println(c[0], c[7], addI32x8(d, e)[0], addF32x16(f, g)[0], mulU64x2(h, i)[0], mulF64x2(j, k)[0])
+}

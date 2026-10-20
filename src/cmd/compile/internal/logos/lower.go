@@ -88,6 +88,7 @@ type fileLower struct {
 	splices   []splice
 	changed   bool
 	needRT    bool
+	needSimd  bool
 	siteDecls []*syntax.VarDecl
 	// constDecls and constText hold the M5-S4 generated declarations of
 	// this file, as parsed nodes and as eject text.
@@ -199,11 +200,19 @@ func (fl *fileLower) lowerFile() {
 		}
 		scanForLiterals(fl, decl)
 	}
+	fl.lowerSimd()    // M14-S1 hook: array operators and reductions to IIFEs.
 	fl.lowerTuples()  // M6-S5 hook: tuples to structs, pack/unpack.
 	fl.lowerLambdas() // M6-S6 hook: lambdas to function literals.
 	fl.lowerMakeLen() // M15-S2 hook: products in make lengths to MulLen; sets needRT before the import.
-	if fl.needRT {
-		fl.file.DeclList = append([]syntax.Decl{rtImport(fl.file.Pos())}, fl.file.DeclList...)
+	if fl.needRT || fl.needSimd {
+		var imps []syntax.Decl
+		if fl.needRT {
+			imps = append(imps, rtImport(fl.file.Pos()))
+		}
+		if fl.needSimd {
+			imps = append(imps, simdImport(fl.file.Pos()))
+		}
+		fl.file.DeclList = append(imps, fl.file.DeclList...)
 		fl.addHeaderSplice()
 	}
 	for _, decl := range fl.siteDecls {
@@ -241,7 +250,12 @@ func (fl *fileLower) addHeaderSplice() {
 	if ins < 0 {
 		ins = off
 	}
-	fl.add(ins, ins, "\n\nimport "+rtAlias+" "+fmt.Sprintf("%q", rtImportPath))
+	if fl.needRT {
+		fl.add(ins, ins, "\n\nimport "+rtAlias+" "+fmt.Sprintf("%q", rtImportPath))
+	}
+	if fl.needSimd {
+		fl.add(ins, ins, "\n\nimport "+logosSimdAlias+" "+fmt.Sprintf("%q", logosSimdPath))
+	}
 	if len(fl.siteDecls) > 0 {
 		text := "\n\n"
 		for i, decl := range fl.siteDecls {

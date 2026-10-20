@@ -758,17 +758,19 @@ _ = a
 _ = b
 ```
 
-Element-wise `+ - * / & | ^` MUST be allowed on `[N]T` with `N` a power of two, numeric `T`, and size at most 64 bytes. [T-204.2]
+Element-wise `+ - * / & | ^` MUST be allowed on `[N]T` with `N` a power of two, `T` an integer or floating-point kind other than complex (`int`, `uint`, and `uintptr` ride the 64-bit lane), and size at most 64 bytes. [T-204.2]
 
-`.sum()`, `.min()`, `.max()`, and `.dot()` MUST be allowed on the same shapes. [T-204.2]
+`.sum()`, `.min()`, `.max()`, and `.dot()` MUST be allowed on the same shapes; `a.dot(b)` takes one argument of `a`'s shape. [T-204.2]
 
 A larger array MUST fail with `[correctness::simd_array_too_large]`. [T-204.2]
 
-A non-power-of-two length MUST fail compilation. [T-204.2]
+A non-power-of-two length MUST fail with `[correctness::simd_array_shape]`. [T-204.2]
 
-With `GOEXPERIMENT=simd` on amd64 or arm64 the lowering MUST call `simd/archsimd`. [T-204.2]
+With `GOEXPERIMENT=simd` on amd64 or arm64 the lowering MUST call `simd/archsimd` for element types that are a fixed-width numeric kind or an alias of one (`byte`, `rune`, `float32`, or `type f32 = float32`); `int`, `uint`, `uintptr`, and defined (non-alias) element types keep the scalar form, because their pointers do not match the archsimd loaders. [T-204.2]
 
 Otherwise it MUST emit unrolled scalar code. [T-204.2]
+
+On amd64 each vector form MUST run only when the `simd/archsimd` CPU feature check its methods need is true (`X86.AVX()` for 128-bit shapes and 256-bit float shapes, `X86.AVX2()` for 256-bit integer shapes, `X86.AVX512()` for 512-bit shapes and for 64-bit integer `*`) and MUST take the scalar form when it is false; the check MUST be omitted when the build's `GOAMD64` level guarantees the feature (`v3` for AVX and AVX2, `v4` for AVX512), and arm64 needs no check because its forms are baseline NEON. [T-204.2]
 
 Direct ISA lowering is replaced by this two-form rule. [T-204.2]
 

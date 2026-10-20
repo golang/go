@@ -1973,6 +1973,13 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 			addImport("logos/rt", true)
 		}
 
+		// Fixed-array SIMD lowers through simd/archsimd when
+		// GOEXPERIMENT=simd, so every logos package carries that
+		// import under the experiment (M14-S1).
+		if needsLogosSimd(p) {
+			addImport("simd/archsimd", true)
+		}
+
 		// Interpolated strings lower to strconv appends and unsafe
 		// conversions, so every logos package carries both imports
 		// even when no source file names them (M6-S1).

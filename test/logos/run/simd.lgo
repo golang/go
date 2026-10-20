@@ -1,0 +1,323 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"math"
+)
+
+// M14-S1 attack (SPEC Sec 2.4, T-204.2): every operator and reduction
+// matches a scalar loop oracle written in this file. Float sums and
+// dots also match an explicit pairwise tree, pinning the fixed pairwise
+// order in both lowerings: the printed bit patterns are identical with
+// and without GOEXPERIMENT=simd.
+
+func oracleAdd4(a, b [4]float64) [4]float64 {
+	var r [4]float64
+	for i := range r {
+		r[i] = a[i] + b[i]
+	}
+	return r
+}
+
+func oracleMul8(a, b [8]float32) [8]float32 {
+	var r [8]float32
+	for i := range r {
+		r[i] = a[i] * b[i]
+	}
+	return r
+}
+
+func oracleAnd16(a, b [16]uint8) [16]uint8 {
+	var r [16]uint8
+	for i := range r {
+		r[i] = a[i] & b[i]
+	}
+	return r
+}
+
+func oracleSum64(a [64]byte) byte {
+	var s byte
+	for _, v := range a {
+		s += v
+	}
+	return s
+}
+
+func oracleDot4(a, b [4]float64) float64 {
+	var s float64
+	for i := range a {
+		s += a[i] * b[i]
+	}
+	return s
+}
+
+func checkAdd4() {
+	a := [4]float64{1, 2, 3, 4}
+	b := [4]float64{5, 6, 7, 8}
+	got := a + b
+	want := oracleAdd4(a, b)
+	if got != want {
+		panic(fmt.Sprintf("add4: got %v want %v", got, want))
+	}
+	d := a - b
+	for i := range d {
+		if d[i] != a[i]-b[i] {
+			panic("sub4 mismatch")
+		}
+	}
+	q := a / b
+	for i := range q {
+		if q[i] != a[i]/b[i] {
+			panic("div4 mismatch")
+		}
+	}
+	fmt.Println("add4", got)
+}
+
+func checkMul8() {
+	var a, b [8]float32
+	for i := range a {
+		a[i] = float32(i + 1)
+		b[i] = float32(2*i + 1)
+	}
+	got := a * b
+	want := oracleMul8(a, b)
+	if got != want {
+		panic(fmt.Sprintf("mul8: got %v want %v", got, want))
+	}
+	fmt.Println("mul8", got)
+}
+
+func checkAnd16() {
+	var a, b [16]uint8
+	for i := range a {
+		a[i] = uint8(i*17 + 3)
+		b[i] = uint8(i*11 + 5)
+	}
+	if (a & b) != oracleAnd16(a, b) {
+		panic("and16 mismatch")
+	}
+	if (a | b) != oracleOr16(a, b) {
+		panic("or16 mismatch")
+	}
+	if (a ^ b) != oracleXor16(a, b) {
+		panic("xor16 mismatch")
+	}
+	fmt.Println("and16", a&b)
+}
+
+func oracleOr16(a, b [16]uint8) [16]uint8 {
+	var r [16]uint8
+	for i := range r {
+		r[i] = a[i] | b[i]
+	}
+	return r
+}
+
+func oracleXor16(a, b [16]uint8) [16]uint8 {
+	var r [16]uint8
+	for i := range r {
+		r[i] = a[i] ^ b[i]
+	}
+	return r
+}
+
+func checkReductions() {
+	a := [4]float64{4, 2, 8, 1}
+	if a.sum() != 15 {
+		panic("sum4 mismatch")
+	}
+	if a.min() != 1 {
+		panic("min4 mismatch")
+	}
+	if a.max() != 8 {
+		panic("max4 mismatch")
+	}
+	b := [4]float64{1, 2, 3, 4}
+	if a.dot(b) != oracleDot4(a, b) {
+		panic("dot4 mismatch")
+	}
+	var c [32]byte
+	for i := range c {
+		c[i] = byte(i + 1)
+	}
+	var want byte
+	for _, v := range c {
+		want += v
+	}
+	if c.sum() != want {
+		panic("sum32 mismatch")
+	}
+	var d [64]byte
+	for i := range d {
+		d[i] = byte(i + 1)
+	}
+	if d.sum() != oracleSum64(d) {
+		panic("sum64 mismatch")
+	}
+	var e [2]uint64
+	e[0] = 7
+	e[1] = 3
+	if e.sum() != 10 || e.min() != 3 || e.max() != 7 {
+		panic("u64 reduction mismatch")
+	}
+	fmt.Println("reductions", a.sum(), a.min(), a.max(), a.dot(b), c.sum(), d.sum())
+}
+
+func checkIntDiv() {
+	a := [4]int32{17, -19, 100, 7}
+	b := [4]int32{5, 4, -3, 2}
+	got := a / b
+	for i := range got {
+		if got[i] != a[i]/b[i] {
+			panic("intdiv mismatch")
+		}
+	}
+	fmt.Println("intdiv", got)
+}
+
+func checkPairwise() {
+	t := [8]float64{1e16, 1, 1, 1, 1, 1, 1, -1e16}
+	s := t.sum()
+	lo := (t[0] + t[1]) + (t[2] + t[3])
+	hi := (t[4] + t[5]) + (t[6] + t[7])
+	p := lo + hi
+	if s != p {
+		panic(fmt.Sprintf("pairwise f64: got %v want %v", s, p))
+	}
+	fmt.Println("pairwise64", math.Float64bits(s))
+	u := [8]float32{1e7, 1, 1, 1, 1, 1, 1, -1e7}
+	su := u.sum()
+	lou := (u[0] + u[1]) + (u[2] + u[3])
+	hiu := (u[4] + u[5]) + (u[6] + u[7])
+	pu := lou + hiu
+	if su != pu {
+		panic(fmt.Sprintf("pairwise f32: got %v want %v", su, pu))
+	}
+	fmt.Println("pairwise32", math.Float32bits(su))
+	a := [4]float64{1e16, 1, -1e16, 2}
+	b := [4]float64{1, 1, 1, 1}
+	d := a.dot(b)
+	lod := (a[0]*b[0] + a[1]*b[1]) + (a[2]*b[2] + a[3]*b[3])
+	if d != lod {
+		panic(fmt.Sprintf("pairwise dot: got %v want %v", d, lod))
+	}
+	fmt.Println("pairwisedot", math.Float64bits(d))
+}
+
+type simdRunVec [4]float64
+
+func checkNamed() {
+	a := simdRunVec{1, 2, 3, 4}
+	b := simdRunVec{4, 3, 2, 1}
+	c := a + b
+	if c != (simdRunVec{5, 5, 5, 5}) {
+		panic("named add mismatch")
+	}
+	if a.sum() != 10 {
+		panic("named sum mismatch")
+	}
+	if a.dot(b) != 20 {
+		panic("named dot mismatch")
+	}
+	fmt.Println("named", c, a.sum(), a.dot(b))
+}
+
+type simdLane float64
+
+// Word kinds (int, uint, uintptr) and named element types have the same
+// size as a fixed-width lane but are distinct types, so the vector form
+// must not hand their pointers to archsimd (SPEC T-204.2 lowering).
+func checkWordKinds() {
+	var ia, ib [4]int
+	var ua, ub [4]uint
+	var pa, pb [2]uintptr
+	var na, nb [4]simdLane
+	for i := range ia {
+		ia[i] = i*3 - 2
+		ib[i] = 5 - i
+		ua[i] = uint(i + 1)
+		ub[i] = uint(7 * i)
+		na[i] = simdLane(i) + 0.5
+		nb[i] = simdLane(2 * i)
+	}
+	pa[0], pa[1] = 3, 4
+	pb[0], pb[1] = 1, 2
+
+	si := ia + ib
+	var wantSum, wantDot int
+	for i := range ia {
+		if si[i] != ia[i]+ib[i] {
+			panic("int add mismatch")
+		}
+		wantSum += ia[i]
+		wantDot += ia[i] * ib[i]
+	}
+	if ia.sum() != wantSum || ia.dot(ib) != wantDot {
+		panic("int reduction mismatch")
+	}
+
+	mu := ua * ub
+	for i := range mu {
+		if mu[i] != ua[i]*ub[i] {
+			panic("uint mul mismatch")
+		}
+	}
+
+	ps := pa + pb
+	if ps[0] != 4 || ps[1] != 6 || pa.sum() != 7 || pa.max() != 4 {
+		panic("uintptr mismatch")
+	}
+
+	ns := na + nb
+	var wantNSum, wantNDot simdLane
+	for i := range na {
+		if ns[i] != na[i]+nb[i] {
+			panic("named add mismatch")
+		}
+		wantNSum += na[i]
+		wantNDot += na[i] * nb[i]
+	}
+	if na.sum() != wantNSum || na.dot(nb) != wantNDot {
+		panic("named reduction mismatch")
+	}
+	fmt.Println("words", si, mu, ps, ns, na.sum(), na.dot(nb), ia.dot(ib))
+}
+
+type simdF32 = float32
+
+// A type alias names its target, so an alias of a fixed-width kind takes
+// the same form as float32. Every value is a quarter-multiple below 2^24,
+// so each partial sum is exact and the sum does not depend on order.
+func checkAlias() {
+	var x, y [8]simdF32
+	for i := range x {
+		x[i] = simdF32(i) + 0.25
+		y[i] = simdF32(8 - i)
+	}
+	s := x + y
+	for i := range s {
+		if s[i] != x[i]+y[i] {
+			panic("alias add mismatch")
+		}
+	}
+	if x.sum() != 30 {
+		panic("alias sum mismatch")
+	}
+	fmt.Println("alias", s, x.sum())
+}
+
+func main() {
+	checkAdd4()
+	checkMul8()
+	checkAnd16()
+	checkReductions()
+	checkIntDiv()
+	checkPairwise()
+	checkNamed()
+	checkWordKinds()
+	checkAlias()
+	fmt.Println("simd ok")
+}

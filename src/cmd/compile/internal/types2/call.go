@@ -172,6 +172,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	if check.logosChainCall(x, call) { // logos M6-S7 hook: slice chain methods.
 		return statement
 	}
+	if check.logosSimdCall(x, call) { // logos M14-S1 hook: array reductions.
+		return statement
+	}
 	var inst *syntax.IndexExpr // function instantiation, if any
 	if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
 		if check.indexExpr(x, iexpr) {

@@ -1,0 +1,127 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M14-S1 fixed-array SIMD typing (SPEC Sec 2.4, T-204.2): element-wise
+// operators and reductions on power-of-two-sized numeric arrays of at
+// most 64 bytes. Larger arrays fail with simd_array_too_large and
+// non-power-of-two lengths with simd_array_shape.
+
+func simdAllowed(
+	a4 [4]float64, b4 [4]float64,
+	a8 [8]float32, b8 [8]float32,
+	a16 [16]uint8, b16 [16]uint8,
+	a32 [32]byte, b32 [32]byte,
+	a64 [64]byte, b64 [64]byte,
+) {
+	_ = a4 + b4
+	_ = a4 - b4
+	_ = a4 * b4
+	_ = a4 / b4
+	_ = a8 + b8
+	_ = a8 - b8
+	_ = a8 * b8
+	_ = a8 / b8
+	_ = a16 + b16
+	_ = a16 - b16
+	_ = a16 & b16
+	_ = a16 | b16
+	_ = a16 ^ b16
+	_ = a32 + b32
+	_ = a32 & b32
+	_ = a64 + b64
+	_ = a64 | b64
+	_ = a4.sum()
+	_ = a4.min()
+	_ = a4.max()
+	_ = a4.dot(b4)
+	_ = a8.sum()
+	_ = a8.min()
+	_ = a8.max()
+	_ = a8.dot(b8)
+	_ = a16.sum()
+	_ = a16.min()
+	_ = a16.max()
+	_ = a16.dot(b16)
+	_ = a32.sum()
+	_ = a64.sum()
+}
+
+func simdIntShapes(ai [4]int32, bi [4]int32, au [2]uint64, bu [2]uint64, ai2 [8]int, bi2 [8]int, au2 [4]uint, bu2 [4]uint) {
+	_ = ai + bi
+	_ = ai - bi
+	_ = ai * bi
+	_ = ai / bi
+	_ = ai & bi
+	_ = ai | bi
+	_ = ai ^ bi
+	_ = au + bu
+	_ = au - bu
+	_ = au * bu
+	_ = au.sum()
+	_ = au.min()
+	_ = au.max()
+	_ = au.dot(bu)
+	_ = ai2 + bi2
+	_ = ai2.sum()
+	_ = au2 + bu2
+	_ = au2.sum()
+}
+
+func simdSingle(one [1]float64, two [2]float64) {
+	_ = one + one
+	_ = one.sum()
+	_ = one.dot(one)
+	_ = two + two
+	_ = two.sum()
+}
+
+type simdVec [4]float64
+
+type simdLane float64
+
+func simdNamed(a, b simdVec, c, d [4]simdLane) {
+	_ = a + b
+	_ = a.sum()
+	_ = a.dot(b)
+	_ = c + d
+	_ = c.sum()
+}
+
+func simdTooLarge(big1024 [1024]float64, big16 [16]float64, big128 [128]byte) {
+	_ = big1024 /* ERROR "[correctness::simd_array_too_large] [1024]float64 is 8192 bytes; element-wise operators need at most 64" */ + big1024
+	_ = big16 /* ERROR "simd_array_too_large" */ + big16
+	_ = big128 /* ERROR "simd_array_too_large" */ + big128
+	_ = big1024.sum /* ERROR "simd_array_too_large" */ ()
+}
+
+func simdBadLen(a3 [3]float64, b3 [3]float64, a6 [6]float32, b6 [6]float32, a0 [0]float64, b0 [0]float64) {
+	_ = a3 /* ERROR "simd_array_shape" */ + b3
+	_ = a6 /* ERROR "simd_array_shape" */ + b6
+	_ = a0 /* ERROR "simd_array_shape" */ + b0
+	_ = a3.sum /* ERROR "simd_array_shape" */ ()
+}
+
+func simdBadElem(s4 [4]string, t4 [4]string, c4 [4]complex128, d4 [4]complex128, bl4 [4]bool, bl42 [4]bool) {
+	_ = s4 /* ERROR "operator + not defined" */ + t4
+	_ = c4 /* ERROR "operator + not defined" */ + d4
+	_ = bl4 /* ERROR "operator + not defined" */ + bl42
+}
+
+func simdBadOp(a4 [4]float64, b4 [4]float64, a16 [16]uint8, b16 [16]uint8) {
+	_ = a4 /* ERROR "operator & not defined" */ & b4
+	_ = a4 /* ERROR "operator | not defined" */ | b4
+	_ = a4 /* ERROR "operator ^ not defined" */ ^ b4
+	_ = a16 /* ERROR "operator % not defined" */ % b16
+	_ = a4 /* ERROR "mismatched" */ + b16
+}
+
+func simdBadCall(a4 [4]float64, b4 [4]float64, a8 [8]float32) {
+	_ = a4.dot /* ERROR "have 0, want 1" */ ()
+	_ = a4.dot /* ERROR "have 2, want 1" */ (b4, b4)
+	_ = a4.dot(a8 /* ERROR "cannot use" */)
+	_ = a4.sum /* ERROR "have 1, want 0" */ (b4)
+	_ = a4.prod /* ERROR "no field or method" */ ()
+}
