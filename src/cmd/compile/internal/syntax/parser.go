@@ -1329,7 +1329,7 @@ func (p *parser) complitexpr() *CompositeLit {
 	p.want(_Lbrace)
 	x.Rbrace = p.list("composite literal", _Comma, _Rbrace, func() bool {
 		// value
-		e := p.bare_complitexpr()
+		e := p.logosSpreadOrElem() // M6-S4 hook: `..src` spread elements.
 		if p.tok == _Colon {
 			// key ':' value
 			l := new(KeyValueExpr)

@@ -341,9 +341,58 @@ func (t test) runLogosLgo(c logosCase, base, tempDir string, runcmd runCmd) erro
 		return t.runLogosLgoErrorcheck(c, base, tempDir, runcmd)
 	case "runoutput":
 		return t.runLogosLgoRunoutput(c, tempDir, runcmd)
+	case "asmcheck":
+		return t.runLogosLgoAsmcheck(c, base, tempDir)
 	default:
 		return logosUnsupportedActionErr(c.action)
 	}
+}
+
+// runLogosLgoAsmcheck runs one staged .lgo asmcheck case with the same
+// semantics as runLogosGoAsmcheck: expectations come from the staged
+// copy (byte-identical to the source tree file, so line numbers match),
+// and the assembly comes from `logos build -gcflags=-S=2` of the staged
+// module, because `go tool compile` bypasses logos file recognition.
+func (t test) runLogosLgoAsmcheck(c logosCase, base, tempDir string) error {
+	buildFlags, _ := splitOptFlags(c.flags)
+	long := filepath.Join(tempDir, base)
+	ops := t.wantedAsmOpcodes(long)
+	self := runtime.GOOS + "/" + runtime.GOARCH
+	var lastErr error
+	for _, env := range ops.Envs() {
+		if string(env) != self && !strings.HasPrefix(string(env), self+"/") && !*allCodegen {
+			continue
+		}
+		raw := os.Getenv("GO_GCFLAGS")
+		second := "-gcflags="
+		if b := strings.TrimSpace(raw); b != "" {
+			second += b + " "
+		}
+		second += "-S=2"
+		for _, f := range buildFlags {
+			second += " " + f
+		}
+		cmdline := []string{logosToolPath(t.T), "build", "-gcflags=all=" + raw, second, "."}
+		cmd := exec.Command(cmdline[0], cmdline[1:]...)
+		cmd.Dir = tempDir
+		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "PWD="+tempDir, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
+		cmd.Env = append(cmd.Env, env.Environ()...)
+		cmd.Env = append(cmd.Env, c.runenv...)
+		var buf bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &buf, &buf
+		if err := cmd.Run(); err != nil {
+			lastErr = err
+			t.Log(env, "\n", cmd.Stderr)
+		}
+		if err := t.asmCheck(buf.String(), long, env, ops[env]); err != nil {
+			lastErr = err
+			t.Log(err)
+		}
+	}
+	if lastErr != nil {
+		return errors.New("One or more asmcheck tests failed. Check log for failure details.")
+	}
+	return nil
 }
 
 // runLogosLgoErrorcheck runs one staged .lgo errorcheck case. It mirrors

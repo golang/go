@@ -1,0 +1,85 @@
+// run
+
+package main
+
+import "fmt"
+
+// M6-S4 spread `T{..src}` (SPEC T-104.5): fields with identical names
+// and identical types are copied; explicit fields win; the source is
+// evaluated once; self-update `s = State{A: s.B, B: s.A, ..s}` swaps
+// through one tuple assignment.
+
+type State struct {
+	A int
+	B int
+}
+
+type Named struct {
+	A     int
+	Label string
+}
+
+type Only struct {
+	Z int
+}
+
+type Big struct {
+	X   int
+	Y   int
+	Pad [4080]byte
+}
+
+var evals int
+
+func src() State {
+	evals++
+	return State{A: 1, B: 2}
+}
+
+func main() {
+	// Explicit fields win.
+	s := State{A: 10, ..State{A: 1, B: 2}}
+	fmt.Println(s.A, s.B)
+
+	// Spread-first order also works.
+	t := State{..State{A: 3, B: 4}, B: 40}
+	fmt.Println(t.A, t.B)
+
+	// The source is evaluated once.
+	evals = 0
+	u := State{B: 20, ..src()}
+	fmt.Println(u.A, u.B, evals)
+
+	// Self-update swaps through one tuple assignment.
+	v := State{A: 3, B: 4}
+	v = State{A: v.B, B: v.A, ..v}
+	fmt.Println(v.A, v.B)
+
+	// A different struct copies only shared names with identical types.
+	n := Named{Label: "a", ..State{A: 7, B: 8}}
+	fmt.Println(n.A, n.Label)
+	m := Named{..State{A: 9, B: 10}, Label: "b"}
+	fmt.Println(m.A, m.Label)
+
+	// A self-spread with no explicit fields is a no-op.
+	w := State{A: 11, B: 12}
+	w = State{..w}
+	fmt.Println(w.A, w.B)
+
+	// A source with no copied fields still evaluates once.
+	evals = 0
+	z := Only{Z: 5, ..src()}
+	fmt.Println(z.Z, evals)
+	evals = 0
+	_ = State{A: 1, B: 2, ..src()}
+	fmt.Println(evals)
+
+	// A 4 KB struct self-update keeps the untouched bytes.
+	var b Big
+	b.X = 5
+	b.Y = 6
+	b.Pad[0] = 7
+	b.Pad[4079] = 8
+	b = Big{X: b.Y, ..b}
+	fmt.Println(b.X, b.Y, b.Pad[0], b.Pad[4079])
+}

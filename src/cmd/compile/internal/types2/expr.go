@@ -1167,6 +1167,9 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 		return check.logosSwitchExpr(x, e) // logos M2-S5 hook.
 	case *syntax.ConstType:
 		return check.logosConstTypeExpr(x, e) // logos M5-S5 hook: `const T` in conversion position.
+	case *syntax.SpreadExpr:
+		check.logosSpreadMisplaced(x, e) // logos M6-S4 hook: `..src` outside a struct literal.
+		goto Error
 	case *syntax.CallExpr:
 		return check.callExpr(x, e)
 

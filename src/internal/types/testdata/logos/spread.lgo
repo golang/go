@@ -1,0 +1,71 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S4 type attacks: `T{..src}` spread elements (SPEC T-104.5). Spread
+// copies fields with identical names and identical types; explicit
+// fields win; the source is evaluated once.
+
+type SpreadState struct {
+	A int
+	B int
+}
+
+type SpreadOther struct {
+	A int
+	B string
+}
+
+type SpreadWide struct {
+	A int
+	B int
+	C int
+}
+
+// Same name with a different type fails (#119, #146).
+func spreadMismatch(s SpreadOther) {
+	_ = SpreadState{..s /* ERROR "[correctness::spread_type_mismatch] field B" */}
+}
+
+// Explicit fields win over spread fields of any type: naming B with a
+// new value suppresses the mismatched spread copy.
+func spreadExplicitWins(s SpreadOther) {
+	_ = SpreadState{B: 1, ..s}
+}
+
+// A spread source must be a struct.
+func spreadNonStruct(n int) {
+	_ = SpreadState{..n /* ERROR "spread source must be a struct" */}
+}
+
+// A spread in an array literal is not a struct element.
+func spreadArray(s SpreadState) {
+	_ = []int{./* ERROR "only as a struct composite literal element" */.s}
+}
+
+// A spread cannot be a field key: the diagnostic lands on the spread.
+func spreadAsKey(s SpreadState) {
+	_ = SpreadState{./* ERROR "invalid field name" */.s: 1}
+}
+
+// Mixing positional values with a spread fails like any other mixture.
+func spreadPositional(s SpreadState) {
+	_ = SpreadState{1 /* ERROR "mixture of field:value and value elements" */, ..s}
+}
+
+// A different struct with shared names copies the shared fields.
+func spreadWide(s SpreadState) SpreadWide {
+	return SpreadWide{..s}
+}
+
+type SpreadDisjoint struct {
+	Z int
+}
+
+// A source with no shared names copies nothing and stays valid; the
+// single evaluation is a run-time property covered in test/logos/run.
+func spreadDisjoint(s SpreadState) SpreadDisjoint {
+	return SpreadDisjoint{..s}
+}

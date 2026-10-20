@@ -7,7 +7,8 @@ package syntax
 // This file holds the loGo/s printing logic for M1-S2 and M2 (G3: hook
 // lines only in printer.go; the logic lives here).
 
-// printLogos prints loGo/s nodes in source form: `X?` for TryExpr,
+// printLogos prints loGo/s nodes in source form: `..src` for SpreadExpr,
+// `X?` for TryExpr,
 // `T?` for OptionType, `x ?? y` for CoalesceExpr, `x?.Sel` for
 // OptSelectExpr, `const T` for ConstType, `errdefer <call>` for
 // ErrdeferStmt, `switch ... { case ... => ... }` for SwitchExpr and
@@ -18,6 +19,8 @@ func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		p.print(n.X, _Question)
+	case *SpreadExpr:
+		p.print(_Dot, _Dot, n.X)
 	case *OptionType:
 		// A nested option needs parentheses (`(T?)?`), because the
 		// joined spelling `T??` is a syntax error (SPEC T-202).

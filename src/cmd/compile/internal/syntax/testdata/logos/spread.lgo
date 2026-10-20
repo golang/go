@@ -1,0 +1,32 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S4 parser attacks: `..src` spread elements (SPEC T-104.5). Every
+// form below must parse cleanly in LogosMode with no ERROR comment; the
+// trailing cases pin the parse diagnostics.
+
+type SpreadState struct {
+	A int
+	B int
+}
+
+func spreadForms(s, t SpreadState) {
+	_ = SpreadState{..s}
+	_ = SpreadState{A: 1, ..s}
+	_ = SpreadState{..s, B: 2}
+	_ = SpreadState{A: s.B, B: s.A, ..s}
+	_ = SpreadState{..s, ..t}
+	_ = SpreadState{..s.A}
+	_ = SpreadState{..t}
+	_ = []SpreadState{{A: 1, ..s}}
+	_ = &SpreadState{..s}
+}
+
+// A lone `.` starts no element: one error names the missing second dot,
+// and the enclosing literal still closes where the source closes it.
+func spreadLoneDot() {
+	_ = SpreadState{.A: 1} // ERROR syntax error: unexpected name A, expected \. for spread `\.\.src` in struct literal
+}

@@ -7,7 +7,8 @@ package syntax
 // This file holds the loGo/s position logic for M1-S2 (G3: hook lines
 // only in positions.go; the logic lives here).
 
-// startPosLogos reports the start position of loGo/s nodes: a TryExpr
+// startPosLogos reports the start position of loGo/s nodes: a SpreadExpr
+// starts at its first `.`, a TryExpr
 // starts at its operand (so StartPos covers `g` in `g()?`), an
 // OptionType starts at its element, a CoalesceExpr starts at its left
 // operand, an OptSelectExpr starts at its receiver, a ConstType starts
@@ -17,6 +18,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
 		return StartPos(n.X), true
+	case *SpreadExpr:
+		return n.Pos(), true
 	case *OptionType:
 		return StartPos(n.Elem), true
 	case *CoalesceExpr:
@@ -39,7 +42,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 	return Pos{}, false
 }
 
-// endPosLogos reports the approximate end position of loGo/s nodes: one
+// endPosLogos reports the approximate end position of loGo/s nodes: the
+// end of the source for a SpreadExpr, one
 // past `?` for a TryExpr or an OptionType (mirroring the Name
 // `p.Col()+len` precedent), the end of the right operand for a
 // CoalesceExpr, the end of the name for an OptSelectExpr, the end of
@@ -53,6 +57,8 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 	case *TryExpr:
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
+	case *SpreadExpr:
+		return EndPos(n.X), true
 	case *OptionType:
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true

@@ -93,6 +93,7 @@ type fileLower struct {
 	// wraps, wrapOwner maps a wrapped node to its wrapper ID for
 	// boundary-insert drains, wrapSeq mints wrapper IDs, and
 	// retResults maps each return to its function results.
+	spreadSeq  int
 	optMemo    map[*syntax.OptionType]syntax.Expr
 	narrowDone map[*syntax.Name]bool
 	wrapSpan   map[syntax.Expr]span
@@ -162,12 +163,14 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
-	fl.lowerZeroCopy()   // M5-S5 hook: zero-copy string/bytes conversions.
-	fl.lowerCTFE()       // M5-S2 hook: const composite literals and const func erasure.
-	fl.eraseConstViews() // M5-S1 hook: erase const views and bound recorded slices.
-	fl.lowerPlatform()   // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
-	fl.lowerUnions()     // M2 hook: switch expressions and struct assertions.
-	fl.lowerOptions()    // M3-S6 hook: single-value map reads and ?? over them.
+	fl.lowerZeroCopy()    // M5-S5 hook: zero-copy string/bytes conversions.
+	fl.lowerCTFE()        // M5-S2 hook: const composite literals and const func erasure.
+	fl.eraseConstViews()  // M5-S1 hook: erase const views and bound recorded slices.
+	fl.lowerPlatform()    // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
+	fl.lowerUnions()      // M2 hook: switch expressions and struct assertions.
+	fl.lowerOptions()     // M3-S6 hook: single-value map reads and ?? over them.
+	fl.lowerSpreads()     // M6-S4 hook: `..src` spread elements.
+	fl.flushTypeImports() // M6-S4 hook: imports for spelled elided spread literal types.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if ok && fn.Body != nil {
@@ -430,7 +433,7 @@ func rejectSurvivors(file *syntax.File) {
 		switch n.(type) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
-			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault:
+			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

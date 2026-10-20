@@ -326,9 +326,10 @@ type Info struct {
 	LogosAddrFresh     map[syntax.Expr]bool            // logos M6-S2 hook: `&expr` operations lowering to new(expr).
 	LogosFieldDefaults map[*Struct][]LogosFieldDefault // logos M6-S3 hook: struct field defaults.
 
-	LogosConstSlices map[syntax.Expr]bool  // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
-	LogosPropDecls   []*LogosPropDecl      // logos M4-S2 hook: asserted property interfaces per declaring struct.
-	LogosCTFE        map[*Const]ctfe.Value // logos M5-S2 hook: evaluated const values (scalars and composites) for lowering.
+	LogosConstSlices map[syntax.Expr]bool                   // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
+	LogosPropDecls   []*LogosPropDecl                       // logos M4-S2 hook: asserted property interfaces per declaring struct.
+	LogosCTFE        map[*Const]ctfe.Value                  // logos M5-S2 hook: evaluated const values (scalars and composites) for lowering.
+	LogosSpreads     map[*syntax.CompositeLit][]LogosSpread // logos M6-S4 hook: checked `..src` spreads per struct literal.
 }
 
 func (info *Info) recordTypes() bool {

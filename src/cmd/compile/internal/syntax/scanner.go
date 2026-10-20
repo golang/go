@@ -123,6 +123,10 @@ redo:
 		s.tok = _EOF
 
 	case '\n':
+		if s.logosLeadingDot() { // M6-S8 hook: leading-dot continuation.
+			nlsemi = false
+			goto redo
+		}
 		s.nextch()
 		s.lit = "newline"
 		s.tok = _Semi
