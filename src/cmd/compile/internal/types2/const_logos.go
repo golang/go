@@ -50,6 +50,11 @@ const (
 // Lowering erases views to their Go-facing form.
 type ConstView struct {
 	Elem Type
+	// ConstMap marks the view of a const map declaration (M5-S4, SPEC
+	// T-Sec9). Its plain uses materialize one regular map, so it converts
+	// to map[K]V and passes to standard-library parameters that do not mutate
+	// their map argument; every store fails as for any const view.
+	ConstMap bool
 }
 
 func (c *ConstView) Underlying() Type { return c }
@@ -131,7 +136,7 @@ func (check *Checker) logosConstAssign(x *operand, T Type, context string) bool 
 	if T == nil {
 		return false
 	}
-	if logosReferenceFree(csrc.Elem) {
+	if logosReferenceFree(csrc.Elem) || csrc.ConstMap {
 		x.typ_ = csrc.Elem
 		check.updateExprType(x.expr, csrc.Elem, false)
 		return false

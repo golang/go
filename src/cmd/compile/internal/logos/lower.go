@@ -37,7 +37,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	if f := EmitDefaultFacts(pkg, info, facts.Current()); f != nil { // M6-S3: struct field defaults.
 		facts.SetCurrent(f)
 	}
-	shared := &packageLower{info: info, tpkg: pkg}
+	shared := &packageLower{info: info, tpkg: pkg, constMaps: collectConstMaps(files, info)}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
 	for _, file := range files {
@@ -70,9 +70,10 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 
 // packageLower carries the state shared by every file of one package.
 type packageLower struct {
-	info    *types2.Info
-	tpkg    *types2.Package
-	siteSeq int
+	info      *types2.Info
+	tpkg      *types2.Package
+	siteSeq   int
+	constMaps map[*types2.Const]*constMapGen // M5-S4: every const map of the package.
 }
 
 // fileLower carries the state of lowering one file.
@@ -87,7 +88,11 @@ type fileLower struct {
 	changed   bool
 	needRT    bool
 	siteDecls []*syntax.VarDecl
-	names     map[*types2.Package]string
+	// constDecls and constText hold the M5-S4 generated declarations of
+	// this file, as parsed nodes and as eject text.
+	constDecls []syntax.Decl
+	constText  string
+	names      map[*types2.Package]string
 	// Option lowering state (M3): optMemo pins one lowering per shared
 	// `T?` type node, narrowDone pins rewritten narrowed reads,
 	// wrapSpan remembers original spans of synthetic wrapper tops for
@@ -165,16 +170,17 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
-	fl.collectInterpKinds() // M6-S1 hook: interpolation operand kinds before any rewrite.
-	fl.scanRodataMarkers()  // M5-S3 hook: hand-written //logos:rodata lines.
-	fl.lowerZeroCopy()      // M5-S5 hook: zero-copy string/bytes conversions.
-	fl.lowerCTFE()          // M5-S2 hook: const composite literals and const func erasure.
-	fl.eraseConstViews()    // M5-S1 hook: erase const views and bound recorded slices.
-	fl.lowerPlatform()      // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
-	fl.lowerUnions()        // M2 hook: switch expressions and struct assertions.
-	fl.lowerOptions()       // M3-S6 hook: single-value map reads and ?? over them.
-	fl.lowerSpreads()       // M6-S4 hook: `..src` spread elements.
-	fl.flushTypeImports()   // M6-S4 hook: imports for spelled elided spread literal types.
+	fl.collectInterpKinds()  // M6-S1 hook: interpolation operand kinds before any rewrite.
+	fl.scanRodataMarkers()   // M5-S3 hook: hand-written //logos:rodata lines.
+	fl.lowerZeroCopy()       // M5-S5 hook: zero-copy string/bytes conversions.
+	fl.lowerCTFE()           // M5-S2 hook: const composite literals and const func erasure.
+	fl.lowerConstMapRanges() // M5-S4 hook: range over a const map reads its sorted entries.
+	fl.eraseConstViews()     // M5-S1 hook: erase const views and bound recorded slices.
+	fl.lowerPlatform()       // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
+	fl.lowerUnions()         // M2 hook: switch expressions and struct assertions.
+	fl.lowerOptions()        // M3-S6 hook: single-value map reads and ?? over them.
+	fl.lowerSpreads()        // M6-S4 hook: `..src` spread elements.
+	fl.flushTypeImports()    // M6-S4 hook: imports for spelled elided spread literal types.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if ok && fn.Body != nil {
@@ -189,6 +195,10 @@ func (fl *fileLower) lowerFile() {
 	}
 	for _, decl := range fl.siteDecls {
 		fl.file.DeclList = append(fl.file.DeclList, decl)
+	}
+	fl.file.DeclList = append(fl.file.DeclList, fl.constDecls...) // M5-S4: generated const map code.
+	if fl.constText != "" {
+		fl.add(len(fl.src), len(fl.src), fl.constText)
 	}
 	fl.lowerProperties()     // M4-S2 hook: property accessors, selector lowering, prop facts.
 	fl.lowerStructDefaults() // M6-S3 hook: strip `= const`, fill composite literals.

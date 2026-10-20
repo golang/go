@@ -1,3 +1,5 @@
 heap delta=0
-initArray=R
+main.initArray=R
+main._logos_cm0_squares_sorted=R
+main._logos_cm0_squares_tab=R
 init OK

@@ -134,6 +134,45 @@ func copyValue(v Value) Value {
 	return v
 }
 
+// copyArg returns a deep copy of a call argument. A const func writes
+// through its parameters, and a map or slice argument can carry a recorded
+// const's value, so the callee must not reach the caller's storage (SPEC
+// T-201, T-Sec9). Arrays, structs, slice backings, and map entries copy
+// recursively.
+func copyArg(v Value) Value {
+	switch {
+	case v.array != nil:
+		out := make([]Value, len(v.array))
+		for i, e := range v.array {
+			out[i] = copyArg(e)
+		}
+		v.array = out
+	case v.strct != nil:
+		out := make([]Value, len(v.strct))
+		for i, e := range v.strct {
+			out[i] = copyArg(e)
+		}
+		v.strct = out
+	case v.slice != nil:
+		src := *v.slice.backing
+		backing := make([]Value, len(src))
+		for i, e := range src {
+			backing[i] = copyArg(e)
+		}
+		h := *v.slice
+		h.backing = &backing
+		v.slice = &h
+	case v.mval != nil:
+		m := &mapVal{keys: make([]Value, len(v.mval.keys)), vals: make([]Value, len(v.mval.vals))}
+		for i := range v.mval.keys {
+			m.keys[i] = copyArg(v.mval.keys[i])
+			m.vals[i] = copyArg(v.mval.vals[i])
+		}
+		v.mval = m
+	}
+	return v
+}
+
 // resolveType prechecks purity-class type shapes, then delegates to
 // the host. Named types resolving behind pointers, channels, or
 // uintptr arrive with Impure set and report the same reason.

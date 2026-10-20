@@ -98,7 +98,10 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 	defer func() { e.frames = e.frames[:len(e.frames)-1] }()
 	for i, p := range params {
 		if fn.Variadic && i == len(params)-1 {
-			elems := append([]Value{}, args[i:]...)
+			elems := make([]Value, 0, len(args)-i)
+			for _, a := range args[i:] {
+				elems = append(elems, copyArg(a))
+			}
 			var elemT *Type
 			if p.Type != nil && p.Type.Kind == KSlice {
 				elemT = p.Type.Elem
@@ -106,7 +109,7 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 			e.declare(nfr, p.Decl.Value, sliceValue(elemT, elems, len(elems)))
 			break
 		}
-		v := args[i]
+		v := copyArg(args[i])
 		if p.Type != nil {
 			if v, err = e.convert(v, p.Type, posOf(c)); err != nil {
 				return nil, false, err

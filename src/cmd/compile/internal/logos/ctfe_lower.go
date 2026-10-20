@@ -13,6 +13,7 @@ import (
 	"cmd/compile/internal/logos/ctfe"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"slices"
 )
 
 // ctfeResult bundles one const rewrite.
@@ -81,6 +82,12 @@ func (fl *fileLower) lowerCTFEFileList() {
 		if !ok {
 			continue
 		}
+		if g, ok := fl.pkg.constMaps[r.obj]; ok { // M5-S4 hook: const maps lower to tables and lookups.
+			fl.lowerConstMapSpec(cd, g)
+			fl.removeAt(list, i)
+			i--
+			continue
+		}
 		if !isCTFEComposite(r.val) {
 			cd.Values = r.lit
 			fl.add(fl.off(syntax.StartPos(r.init)), fl.endOff(r.init), r.text)
@@ -118,6 +125,12 @@ func (fl *fileLower) lowerCTFEBlock(b *syntax.BlockStmt) {
 			if !ok {
 				continue
 			}
+			if g, ok := fl.pkg.constMaps[r.obj]; ok { // M5-S4 hook: const maps lower to tables and lookups.
+				fl.lowerConstMapSpec(cd, g)
+				ds.DeclList = slices.Delete(ds.DeclList, j, j+1)
+				j--
+				continue
+			}
 			if !isCTFEComposite(r.val) {
 				cd.Values = r.lit
 				fl.add(fl.off(syntax.StartPos(r.init)), fl.endOff(r.init), r.text)
@@ -134,6 +147,10 @@ func (fl *fileLower) lowerCTFEBlock(b *syntax.BlockStmt) {
 				continue
 			}
 			j = fl.moveGroupedBlockVar(cd, j, ds, b, i, r)
+		}
+		if len(ds.DeclList) == 0 { // M5-S4: a statement emptied by const map removal leaves the block.
+			b.List = slices.Delete(b.List, i, i+1)
+			i--
 		}
 	}
 }

@@ -199,6 +199,9 @@ func (fl *fileLower) lowerOptExpr(e syntax.Expr) syntax.Expr {
 	case nil:
 		return nil
 	case *syntax.Name:
+		if out, ok := fl.lowerConstMapName(e); ok { // M5-S4 hook: plain const map uses materialize.
+			return out
+		}
 		return fl.narrowAccess(e)
 	case *syntax.BasicLit:
 		return e
@@ -209,6 +212,9 @@ func (fl *fileLower) lowerOptExpr(e syntax.Expr) syntax.Expr {
 	case *syntax.OptSelectExpr:
 		return fl.lowerOptSelect(e)
 	case *syntax.CallExpr:
+		if out, ok := fl.lowerConstMapLen(e); ok { // M5-S4 hook: len of a const map is a constant.
+			return out
+		}
 		return fl.lowerOptCallExpr(e)
 	case *syntax.IndexExpr:
 		return fl.lowerMapIndex(e)
@@ -943,6 +949,9 @@ func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
 // no option and are left alone. Children lower first so embedded forms
 // record their splices before the Lookup splices surround them.
 func (fl *fileLower) lowerMapIndex(e *syntax.IndexExpr) syntax.Expr {
+	if g, ok := fl.constMapUse(e.X); ok { // M5-S4 hook: reads of a const map use its lookup.
+		return fl.lowerConstMapRead(e, g)
+	}
 	opt := fl.asOption(fl.optType(e))
 	if opt == nil || keepMapRead(opt.Elem) {
 		e.X = fl.lowerOptExpr(e.X)
@@ -995,6 +1004,11 @@ func (fl *fileLower) lookupFinish(e *syntax.IndexExpr, lbrack, rbrack int, id in
 func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 	opt := fl.coeType(e.X)
 	ux, isIndex := syntax.Unparen(e.X).(*syntax.IndexExpr)
+	if isIndex {
+		if _, ok := fl.constMapUse(ux.X); ok { // M5-S4: a const map read takes the generic option path.
+			isIndex = false
+		}
+	}
 	if opt == nil && isIndex {
 		opt = fl.asOption(fl.optType(ux))
 	}

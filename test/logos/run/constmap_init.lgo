@@ -2,11 +2,10 @@
 
 package main
 
-// M5-S3 read-only placement, const-composite half (SPEC Sec 2.1, T-201;
-// T-PERF PLAN:687): touching const composites must add no heap bytes at
-// init. The const-map half of this file (1,000-key table, symbol type R)
-// belongs to M5-S4 and lands with test/logos/run/const_map.lgo; until
-// then this file pins the composite behavior the map tables reuse.
+// M5-S3 and M5-S4 read-only placement (SPEC Sec 2.1, Sec 9.1, T-201;
+// T-PERF PLAN:687): touching const composites adds no heap bytes at
+// init, and a const array and both tables of a 1,000-key const map are
+// read-only symbols (type R in go tool nm).
 
 import (
 	"fmt"
@@ -20,16 +19,17 @@ import (
 const initSlice = []int{2, 3, 5, 7, 11, 13, 17, 19}
 const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
 
-const probeSrc = `package main
-
-import "fmt"
-
-const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
-
-func main() {
-	fmt.Println(initArray)
+// probeSrc builds the nm probe: a const array and a 1,000-key const map,
+// which lowers to a perfect-hash table (more than 8 keys).
+func probeSrc() string {
+	var b strings.Builder
+	b.WriteString("package main\n\nimport \"fmt\"\n\nconst initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}\n\nconst squares = map[int]int{")
+	for k := range 1000 {
+		fmt.Fprintf(&b, "%d: %d, ", k, k*k)
+	}
+	b.WriteString("}\n\nfunc main() {\n\tn := 0\n\tfor range squares {\n\t\tn++\n\t}\n\tfmt.Println(initArray, squares[31] ?? -1, n)\n}\n")
+	return b.String()
 }
-`
 
 func main() {
 	var m runtime.MemStats
@@ -70,7 +70,7 @@ func main() {
 		fmt.Printf("FAIL gomode: %v\n", err)
 		os.Exit(1)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc()), 0644); err != nil {
 		fmt.Printf("FAIL source: %v\n", err)
 		os.Exit(1)
 	}
@@ -85,17 +85,19 @@ func main() {
 		fmt.Printf("FAIL nm: %v\n%s", err, nmOut)
 		os.Exit(1)
 	}
-	arrayType := ""
+	symType := map[string]string{}
 	for _, line := range strings.Split(string(nmOut), "\n") {
-		f := strings.Fields(line)
-		if len(f) >= 3 && f[len(f)-1] == "main.initArray" {
-			arrayType = f[1]
+		if f := strings.Fields(line); len(f) >= 3 {
+			symType[f[len(f)-1]] = f[1]
 		}
 	}
-	fmt.Printf("initArray=%s\n", arrayType)
-	if arrayType != "R" {
-		fmt.Println("FAIL const array not in rodata")
-		os.Exit(1)
+	for _, sym := range []string{"main.initArray", "main._logos_cm0_squares_sorted", "main._logos_cm0_squares_tab"} {
+		kind := symType[sym] ?? ""
+		fmt.Printf("%s=%s\n", sym, kind)
+		if kind != "R" {
+			fmt.Printf("FAIL %s not in rodata\n", sym)
+			os.Exit(1)
+		}
 	}
 	fmt.Println("init OK")
 }

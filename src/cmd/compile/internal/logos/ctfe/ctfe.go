@@ -342,6 +342,20 @@ func (v Value) MapLen() int {
 	return len(v.mval.keys)
 }
 
+// Fields returns the field values of a struct value in declaration order.
+func (v Value) Fields() []Value { return v.strct }
+
+// Elems returns the element values of an array value in index order.
+func (v Value) Elems() []Value { return v.array }
+
+// MapEntries returns the keys and values of a map value in insertion order.
+func (v Value) MapEntries() (keys, vals []Value) {
+	if v.mval == nil {
+		return nil, nil
+	}
+	return v.mval.keys, v.mval.vals
+}
+
 // MapKeyBits returns the float64 bits of map key i (tests).
 func (v Value) MapKeyBits(i int) uint64 {
 	return v.mval.keys[i].floatBits()
