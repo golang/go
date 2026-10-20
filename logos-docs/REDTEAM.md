@@ -24,7 +24,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #18 |M1| test/logos/redteam/attack_018_shadowed_named_return | tested |
 | #19 | M7 | src/internal/types/testdata/logos/viewas.lgo; test/logos/run/viewas.lgo | tested |
 | #20 | M18 |  | planned |
-| #21 | M8 |  | planned |
+| #21 | M8 | src/logos/sync/netidle_logos_test.go (576.8 B per idle connection) | tested |
 | #22 | M15 |  | planned |
 | #23 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
 | #24 | M5 | src/internal/types/testdata/logos/ctfe.lgo (BadMapRange); test/logos/run/const_map.lgo (sorted range) | tested |
@@ -146,7 +146,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #140 | M5 | src/cmd/compile/internal/logos/constmap_test.go (TestConstmapBudgetIsOneMillion, TestConstmapProbeIsSingleProbe); src/logos/rt/constmap_proof_test.go (TestConstTableGetSingleProbe) | tested |
 | #141 | M4 | test/logos/run/properties.lgo | tested |
 | #142 | M6 | test/logos/run/chains.lgo (at-return closes) | tested |
-| #143 | M8 |  | planned |
+| #143 | M8 | src/logos/sync/chanslot_logos_test.go | satisfied upstream |
 | #144 | M17, M20 |  | planned |
 | #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
