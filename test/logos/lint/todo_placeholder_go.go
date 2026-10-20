@@ -1,0 +1,143 @@
+// errorcheck
+
+package p
+
+import "errors"
+
+// M9-S2 slop::todo_placeholder (SPEC Sec 1.2), Go twin: logos lint applies
+// the rule to Go packages. A comment whose text starts with the marker
+// word TODO or FIXME, or a panic whose string literal says unimplemented,
+// not implemented, or the marker, flags unfinished work in a non-test
+// file. The rule is deny, so each finding fails the lint run and
+// //logos:allow silences one.
+
+// TODO: write the real parser // ERROR "todo_placeholder.*comment starts with TODO"
+func leadingTodo() {}
+
+// FIXME: handle the overflow // ERROR "todo_placeholder.*comment starts with FIXME"
+func leadingFixme() {}
+
+//TODO(alice): no space after the slashes // ERROR "todo_placeholder.*comment starts with TODO"
+func noSpace() {}
+
+//	TODO: a tab after the slashes // ERROR "todo_placeholder.*comment starts with TODO"
+func tabbed() {}
+
+// TODO // ERROR "todo_placeholder.*comment starts with TODO"
+func bareTodo() {}
+
+/* TODO: block comment */ // ERROR "todo_placeholder.*comment starts with TODO"
+func blockTodo() {}
+
+func trailing() {
+	x := 1 // TODO: trailing comment // ERROR "todo_placeholder.*comment starts with TODO"
+	_ = x
+}
+
+func inBody() {
+	// FIXME: inside a function body // ERROR "todo_placeholder.*comment starts with FIXME"
+}
+
+type fields struct {
+	a int // TODO: remove a // ERROR "todo_placeholder.*comment starts with TODO"
+}
+
+func panicUnimplemented() {
+	panic("unimplemented") // ERROR "todo_placeholder.*panic stub .unimplemented."
+}
+
+func panicNotImplemented() {
+	panic("not implemented") // ERROR "todo_placeholder.*panic stub .not implemented."
+}
+
+func panicTodo() {
+	panic("TODO") // ERROR "todo_placeholder.*panic stub .TODO."
+}
+
+func panicTodoText() {
+	panic("TODO: later") // ERROR "todo_placeholder.*panic stub"
+}
+
+func panicCapitalized() {
+	panic("Not Implemented yet") // ERROR "todo_placeholder.*panic stub"
+}
+
+func panicInSentence() {
+	panic("feature unimplemented on this platform") // ERROR "todo_placeholder.*panic stub"
+}
+
+func panicRaw() {
+	panic(`not implemented`) // ERROR "todo_placeholder.*panic stub"
+}
+
+type T struct{}
+
+func (T) method() {
+	panic("unimplemented") // ERROR "todo_placeholder.*panic stub"
+}
+
+// A TODO that does not start the comment is prose, not a marker.
+func proseTodo() {}
+
+// todo in lowercase is not a marker.
+func lowerTodo() {}
+
+// TODOS are tracked by the issue tracker, so the word does not start a marker.
+func pluralTodo() {}
+
+// TODOLIST neither, and FIXMEs neither.
+func gluedTodo() {}
+
+func notAMarker() {
+	x := 1 // see the TODO list
+	_ = x
+}
+
+var inString = "// TODO: this is data, not a comment"
+
+var inRaw = `// FIXME: so is this`
+
+func panicFine() {
+	panic("unreachable")
+}
+
+func panicTodoLower() {
+	panic("todo")
+}
+
+func panicErrorValue() {
+	panic(errors.New("unimplemented"))
+}
+
+func panicVariable(msg string) {
+	panic(msg)
+}
+
+func panicShadowed() {
+	panic := func(string) {}
+	panic("unimplemented")
+}
+
+func otherBuiltin() {
+	println("unimplemented")
+}
+
+//logos:allow(slop::todo_placeholder)
+func allowedBody() {
+	// TODO: tracked in the issue tracker
+	panic("unimplemented")
+}
+
+func allowedStatement() {
+	//logos:allow(slop::todo_placeholder)
+	panic("not implemented")
+}
+
+//logos:allow(slop::todo_placeholder)
+// TODO: the directive covers the comment that follows it
+func allowedLeading() {}
+
+//logos:allow(slop::todo_placeholder)
+
+// TODO: a blank line ends the directive block // ERROR "todo_placeholder.*comment starts with TODO"
+func notCovered() {}

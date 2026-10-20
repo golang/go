@@ -52,6 +52,7 @@ type Rec struct {
 
 const recs = []Rec{{Name: "a", Age: 1}, {Name: "b", Age: 2}}
 
+//logos:allow(complexity::cognitive_overflow)
 func main() {
 	if len(os.Args) > 2 && os.Args[1] == "child" {
 		switch os.Args[2] {

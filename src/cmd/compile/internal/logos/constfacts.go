@@ -824,8 +824,12 @@ func (s *constBodyScan) doFuncCall(fn *types2.Func, recv syntax.Expr, args []syn
 
 // calleeFacts returns the receiver flag and parameter mask for a
 // callee: the fixpoint state for the current package, recorded facts
-// for imports, and fail-closed for unknown bodies.
+// for imports, and fail-closed for unknown bodies. A universe method
+// such as error.Error has no package and no recorded facts.
 func (s *constBodyScan) calleeFacts(fn *types2.Func) (bool, uint64) {
+	if fn.Pkg() == nil {
+		return true, ^uint64(0)
+	}
 	if fn.Pkg() == s.pkg {
 		if mask, ok := s.paramMask[fn]; ok {
 			return s.recvMut[fn], mask

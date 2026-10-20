@@ -22,6 +22,7 @@ var defaultRan, defaultLoops atomic.Int32
 
 func failSibling() error { return errSib }
 
+//logos:allow(complexity::cognitive_overflow)
 func runGroup(ctx context.Context, ch1, ch2, ch3 chan int) error {
 	go group (ctx) {
 		go {

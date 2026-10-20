@@ -21,10 +21,12 @@ var allowDirective = regexp.MustCompile(`^//logos:allow\(([a-z][a-z_]*::[a-z][a-
 const AllowForbiddenRule = "correctness::allow_forbidden_rule"
 
 // directive is one //logos:allow comment and the statement or declaration
-// it precedes. The scope is the line range of the statements and
-// declarations starting on the first line after the comment block; it is
-// empty when none starts there. Positions inside a node compare by line
-// because the syntax package places a node at its operator or name.
+// it precedes. The scope runs from the line after the directive through the
+// last line of the statements and declarations starting on the first line
+// after the comment block, so it covers a comment between the directive and
+// that node; it is empty when no node starts there. Positions inside a node
+// compare by line because the syntax package places a node at its operator
+// or name.
 type directive struct {
 	rule     string
 	pos      syntax.Pos
@@ -74,7 +76,7 @@ func fileDirectives(f *syntax.File, src []byte, fileBase *syntax.PosBase, mode s
 		}
 		target := nextCodeLine(lines, line)
 		if lastLine, ok := starts[target]; ok {
-			d.scope, d.from, d.to = true, target, lastLine
+			d.scope, d.from, d.to = true, line+1, lastLine
 		}
 		out = append(out, d)
 	})

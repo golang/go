@@ -1,0 +1,1201 @@
+// errorcheck
+
+package p
+
+import "context"
+
+// M9-S2 complexity::cognitive_overflow (SPEC Sec 1.2): a function is
+// flagged when its nesting depth exceeds max_nesting_depth (3), its parameter
+// count exceeds max_function_params (4), its line count exceeds
+// max_function_lines (60), or its cognitive score exceeds
+// max_cognitive_complexity (15). Each metric below has a case at N-1, N, and
+// N+1: only N+1 is flagged. The rule is deny, so a finding fails the lint
+// run and //logos:allow silences one.
+//
+// Nesting depth counts the control structures (if, for, switch, select)
+// nested around the deepest one, the structure itself included. The score
+// adds 1 plus the number of enclosing structures for every if, for, switch,
+// select, conditioned case, goto, and labeled break or continue, and 1 for
+// each change of operator in a && and || chain. An else if continues its if
+// at the same level. A function literal is a function of its own.
+
+type T struct{}
+
+func work() {}
+
+func run(f func()) { f() }
+
+// Parameter count.
+
+func params3(a, b, c int) {}
+
+func params4(a, b, c, d int) {}
+
+func params5(a, b, c, d, e int) { // ERROR "cognitive_overflow.*parameter count 5 exceeds 4$"
+}
+
+func (t T) recv4(a, b, c, d int) {}
+
+func (t T) recv5(a, b, c, d, e int) { // ERROR "cognitive_overflow.*parameter count 5 exceeds 4$"
+}
+
+func variadic4(a, b, c int, rest ...int) {}
+
+func variadic5(a, b, c, d int, rest ...int) { // ERROR "cognitive_overflow.*parameter count 5 exceeds 4$"
+}
+
+func unnamed5(int, int, int, int, int) { // ERROR "cognitive_overflow.*parameter count 5 exceeds 4$"
+}
+
+type paramsFunc func(a, b, c, d, e int)
+
+type paramsIface interface {
+	params5(a, b, c, d, e int)
+}
+
+var lit4 = func(a, b, c, d int) {}
+
+var lit5 = func(a, b, c, d, e int) {} // ERROR "cognitive_overflow.*function literal.*parameter count 5 exceeds 4$"
+
+var lambda4 func(int, int, int, int) = (a, b, c, d) => {}
+
+var lambda5 func(int, int, int, int, int) = (a, b, c, d, e) => {} // ERROR "cognitive_overflow.*function literal.*parameter count 5 exceeds 4$"
+
+// Nesting depth.
+
+func nest2(n int) {
+	for i := 0; i < n; i++ {
+		if i > 1 {
+			work()
+		}
+	}
+}
+
+func nest3(n int) {
+	for i := 0; i < n; i++ {
+		if i > 1 {
+			for j := 0; j < i; j++ {
+				work()
+			}
+		}
+	}
+}
+
+func nest4(n int) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	for i := 0; i < n; i++ {
+		if i > 1 {
+			for j := 0; j < i; j++ {
+				if j > 1 {
+					work()
+				}
+			}
+		}
+	}
+}
+
+func nest4Switch(n int, v any) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	if n > 0 {
+		switch n {
+		default:
+			for i := 0; i < n; i++ {
+				switch v.(type) {
+				default:
+					work()
+				}
+			}
+		}
+	}
+}
+
+func nest4Select(ctx context.Context, n int) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	for i := 0; i < n; i++ {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+			if i > 1 {
+				for j := 0; j < i; j++ {
+					work()
+				}
+			}
+		}
+	}
+}
+
+func nest4Else(n int) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	if n > 0 {
+		work()
+	} else {
+		if n < -1 {
+			work()
+		} else {
+			for i := 0; i < n; i++ {
+				if i > 1 {
+					work()
+				}
+			}
+		}
+	}
+}
+
+func elseIfChain(n int) int {
+	if n == 1 {
+		return 1
+	} else if n == 2 {
+		return 2
+	} else if n == 3 {
+		return 3
+	} else if n == 4 {
+		return 4
+	} else if n == 5 {
+		return 5
+	}
+	return 0
+}
+
+func flatBlocks(n int) {
+	{
+		{
+			{
+				{
+					work()
+				}
+			}
+		}
+	}
+}
+
+func closureResets(n int) {
+	for i := 0; i < n; i++ {
+		if i > 0 {
+			run(func() {
+				for j := 0; j < i; j++ {
+					if j > 0 {
+						work()
+					}
+				}
+			})
+		}
+	}
+}
+
+func closureNest4(n int) {
+	run(func() { // ERROR "cognitive_overflow.*function literal.*nesting depth 4 exceeds 3$"
+		for i := 0; i < n; i++ {
+			if i > 1 {
+				for j := 0; j < i; j++ {
+					if j > 1 {
+						work()
+					}
+				}
+			}
+		}
+	})
+}
+
+func nest4ConstIf(n int) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	if n > 0 {
+		for i := 0; i < n; i++ {
+			if i > 1 {
+				const if 1 == 1 {
+					work()
+				}
+			}
+		}
+	}
+}
+
+func nest3ConstIf(n int) {
+	if n > 0 {
+		for i := 0; i < n; i++ {
+			const if 1 == 1 {
+				work()
+			}
+		}
+	}
+}
+
+func nest4SwitchExpr(n int) int { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3$"
+	if n > 0 {
+		for i := 0; i < n; i++ {
+			if i > 1 {
+				return switch n {
+				case 1 => 1
+				default => 0
+				}
+			}
+		}
+	}
+	return 0
+}
+
+// Line count: a function counts from its func line through its closing brace.
+
+func lines59() {
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+func lines60() {
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+func lines61() { // ERROR "cognitive_overflow.*line count 61 exceeds 60$"
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+func (t T) lines60Recv() {
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+func (t T) lines61Recv() { // ERROR "cognitive_overflow.*line count 61 exceeds 60$"
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+var litLines60 = func() {
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+var litLines61 = func() { // ERROR "cognitive_overflow.*function literal.*line count 61 exceeds 60$"
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+	work()
+}
+
+func commentsCount() { // ERROR "cognitive_overflow.*line count 61 exceeds 60$"
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	// comment
+
+	work()
+}
+
+// Cognitive score: 14, 15, and 16.
+
+func score14(ctx context.Context, done <-chan struct{}, xs []int, ok bool) int {
+	n := 0
+	if ok {
+		n++
+	}
+	for _, x := range xs {
+		n += x
+	}
+	switch n {
+	case 1:
+	case 2:
+	case 3:
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return n
+	case <-done:
+	default:
+	}
+	if n > 1 && ok || n < -1 {
+		n++
+	}
+	if n > 2 {
+		if ok {
+			n++
+		}
+	}
+	return n
+}
+
+func score15(ctx context.Context, done <-chan struct{}, xs []int, ok bool) int {
+	n := 0
+	if ok {
+		n++
+	}
+	for _, x := range xs {
+		n += x
+	}
+	switch n {
+	case 1:
+	case 2:
+	case 3:
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return n
+	case <-done:
+	default:
+	}
+	if n > 1 && ok || n < -1 {
+		n++
+	}
+	if n > 2 {
+		if ok {
+			n++
+		}
+	}
+	if n > 5 {
+		n--
+	}
+	return n
+}
+
+func score16(ctx context.Context, done <-chan struct{}, xs []int, ok bool) int { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+	n := 0
+	if ok {
+		n++
+	}
+	for _, x := range xs {
+		n += x
+	}
+	switch n {
+	case 1:
+	case 2:
+	case 3:
+	default:
+	}
+	select {
+	case <-ctx.Done():
+		return n
+	case <-done:
+	default:
+	}
+	if n > 1 && ok || n < -1 {
+		n++
+	}
+	if n > 2 {
+		if ok {
+			n++
+		}
+	}
+	if n > 5 {
+		n--
+	}
+	if n > 6 {
+		n--
+	}
+	return n
+}
+
+func switchScore15(n int) int {
+	switch n {
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 3:
+		return 3
+	case 4:
+		return 4
+	case 5:
+		return 5
+	case 6:
+		return 6
+	case 7:
+		return 7
+	case 8:
+		return 8
+	case 9:
+		return 9
+	case 10:
+		return 10
+	case 11:
+		return 11
+	case 12:
+		return 12
+	case 13:
+		return 13
+	case 14:
+		return 14
+	default:
+	}
+	return 0
+}
+
+func switchScore16(n int) int { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+	switch n {
+	case 1:
+		return 1
+	case 2:
+		return 2
+	case 3:
+		return 3
+	case 4:
+		return 4
+	case 5:
+		return 5
+	case 6:
+		return 6
+	case 7:
+		return 7
+	case 8:
+		return 8
+	case 9:
+		return 9
+	case 10:
+		return 10
+	case 11:
+		return 11
+	case 12:
+		return 12
+	case 13:
+		return 13
+	case 14:
+		return 14
+	case 15:
+		return 15
+	default:
+	}
+	return 0
+}
+
+func switchExprScore15(n int) int {
+	return switch n {
+	case 1 => 1
+	case 2 => 2
+	case 3 => 3
+	case 4 => 4
+	case 5 => 5
+	case 6 => 6
+	case 7 => 7
+	case 8 => 8
+	case 9 => 9
+	case 10 => 10
+	case 11 => 11
+	case 12 => 12
+	case 13 => 13
+	case 14 => 14
+	default => 0
+	}
+}
+
+func switchExprScore16(n int) int { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+	return switch n {
+	case 1 => 1
+	case 2 => 2
+	case 3 => 3
+	case 4 => 4
+	case 5 => 5
+	case 6 => 6
+	case 7 => 7
+	case 8 => 8
+	case 9 => 9
+	case 10 => 10
+	case 11 => 11
+	case 12 => 12
+	case 13 => 13
+	case 14 => 14
+	case 15 => 15
+	default => 0
+	}
+}
+
+func boolSame(a, b, c, d bool) bool {
+	return a && b && c && d || a || b || c
+}
+
+func boolRuns(a, b, c, d bool) {
+	if a && b && c && d && a && b {
+	}
+	if a || b || c || d || a || b {
+	}
+	if a && b && c && d && a && b {
+	}
+	if a || b || c || d || a || b {
+	}
+}
+
+func boolScore15(a, b, c, d bool) {
+	if a && b || c && d || a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func boolScore16(a, b, c, d bool) { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+	if a && b || c && d || a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func labeledScore15(a bool, n int) {
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			if j > i {
+				continue outer
+			}
+		}
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func labeledScore16(a bool, n int) { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+outer:
+	for i := 0; i < n; i++ {
+		for j := 0; j < n; j++ {
+			if j > i {
+				continue outer
+			}
+		}
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func gotoScore15(a bool, n int) {
+	i := 0
+loop:
+	if i < n {
+		i++
+		goto loop
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func gotoScore16(a bool, n int) { // ERROR "cognitive_overflow.*cognitive score 16 exceeds 15$"
+	i := 0
+loop:
+	if i < n {
+		i++
+		goto loop
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+	if a {
+		work()
+	}
+}
+
+func everything(a, b, c, d, e int) { // ERROR "cognitive_overflow.*nesting depth 4 exceeds 3, parameter count 5 exceeds 4"
+	for i := 0; i < a; i++ {
+		if i > b {
+			for j := 0; j < c; j++ {
+				if j > d {
+					work()
+				}
+			}
+		}
+	}
+}
+
+//logos:allow(complexity::cognitive_overflow)
+func allowed(a, b, c, d, e int) {
+	work()
+}

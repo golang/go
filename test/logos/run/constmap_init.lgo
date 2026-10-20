@@ -31,6 +31,7 @@ func probeSrc() string {
 	return b.String()
 }
 
+//logos:allow(complexity::cognitive_overflow)
 func main() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
