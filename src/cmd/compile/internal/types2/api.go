@@ -322,7 +322,9 @@ type Info struct {
 	// are suitable for use with the [go/version] package.
 	FileVersions map[*syntax.PosBase]string
 
-	LogosChecks map[syntax.Expr]LogosCheck // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
+	LogosChecks        map[syntax.Expr]LogosCheck      // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
+	LogosAddrFresh     map[syntax.Expr]bool            // logos M6-S2 hook: `&expr` operations lowering to new(expr).
+	LogosFieldDefaults map[*Struct][]LogosFieldDefault // logos M6-S3 hook: struct field defaults.
 
 	LogosConstSlices map[syntax.Expr]bool  // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
 	LogosPropDecls   []*LogosPropDecl      // logos M4-S2 hook: asserted property interfaces per declaring struct.

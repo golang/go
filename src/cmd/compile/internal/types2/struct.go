@@ -113,7 +113,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
 		// Fields declared syntactically with the same type (e.g.: a, b, c T)
 		// share the same type expression. Only check type if it's a new type.
 		if i == 0 || f.Type != prev {
-			typ = check.varType(f.Type)
+			typ = check.logosStructFieldType(f.Type) // logos M6-S3 hook: unwrap `F T = const` to T.
 			prev = f.Type
 		}
 		tag = ""

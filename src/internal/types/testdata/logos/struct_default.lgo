@@ -1,0 +1,33 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S3 struct field defaults (SPEC T-104.5): defaults stand before the
+// tag, apply in loGo/s composite literals, and stay zero under `var`
+// and `new` (with a `suspicious::unapplied_struct_default` warning).
+// A non-constant default fails with
+// `[correctness::default_not_constant]`.
+
+type DefCfg struct {
+	Port int = 8080 `json:"port"`
+	Host string = "localhost"
+}
+
+func defNumbers() int { return 3 }
+
+func useDefaults() {
+	var a DefCfg = DefCfg{}
+	var b DefCfg = DefCfg{Host: "x"}
+	var c DefCfg /* ERROR "[suspicious::unapplied_struct_default] zero declaration of DefCfg with field defaults" */
+	_ = c
+	_ = a
+	_ = b
+	_ = new /* ERROR "[suspicious::unapplied_struct_default] zero declaration of DefCfg with field defaults" */ (DefCfg)
+	_ = &DefCfg{}
+}
+
+type BadCfg struct {
+	N int = defNumbers /* ERROR "[correctness::default_not_constant] non-constant default for field N" */ ()
+}

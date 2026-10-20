@@ -75,6 +75,8 @@ func printLogos(p *printer, n Node) {
 			p.print(_Const, blank)
 		}
 		p.printNode(n.Type)
+	case *FieldDefault:
+		p.print(n.Type, blank, _Assign, blank, n.Default)
 	case *AssertedStruct:
 		p.print(_Struct, blank, _Colon, blank)
 		p.printExprList(n.Asserts)

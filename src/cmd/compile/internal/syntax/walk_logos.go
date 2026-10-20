@@ -56,5 +56,8 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Struct)
 	case *PropertyType:
 		w.node(n.Type)
+	case *FieldDefault:
+		w.node(n.Type)
+		w.node(n.Default)
 	}
 }

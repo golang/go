@@ -1,0 +1,130 @@
+# M6-S2 `&expr` and M6-S3 struct field defaults across modules.
+# A loGo/s module gets field defaults through facts; a Go module
+# importing the same loGo/s package gets zero values (documented hole).
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Case 1: the loGo/s consumer gets defaults and fresh &expr variables.
+cd lmod
+logos build ./...
+logos build -o $WORK/luse$GOEXE ./use
+exec $WORK/luse$GOEXE
+stdout '^port=8080 host=localhost!$'
+stdout '^42$'
+cd ..
+
+# Case 2: a Go package in another module gets zero values for the same literal.
+cd gmod
+logos build ./...
+logos build -o $WORK/guse$GOEXE ./gouse
+exec $WORK/guse$GOEXE
+stdout '^port=0 host=!$'
+cd ..
+
+# Case 3: the compiler archive carries the default records.
+go tool compile -p example.com/lmod/cfg -o $WORK/cfg.a lmod/cfg/cfg.lgo
+go run gmod/dumpfacts.go $WORK/cfg.a
+stdout '^default Cfg Host 11$'
+stdout '^default Cfg Port 4$'
+stdout '^"localhost"$'
+stdout '^8080$'
+
+-- lmod/go.mod --
+module example.com/lmod
+
+go 1.27
+-- lmod/cfg/cfg.lgo --
+package cfg
+
+type Cfg struct {
+	Port int = 8080 `json:"port"`
+	Host string = "localhost"
+}
+-- lmod/use/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lmod/cfg"
+)
+
+func main() {
+	c := cfg.Cfg{}
+	fmt.Printf("port=%d host=%s!\n", c.Port, c.Host)
+	p := &42
+	fmt.Println(*p)
+}
+-- gmod/go.mod --
+module example.com/gmod
+
+go 1.27
+
+require example.com/lmod v0.0.0
+
+replace example.com/lmod => ../lmod
+-- gmod/gouse/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/lmod/cfg"
+)
+
+func main() {
+	c := cfg.Cfg{}
+	fmt.Printf("port=%d host=%s!\n", c.Port, c.Host)
+}
+-- gmod/dumpfacts.go --
+// Command dumpfacts prints the __.LOGOS member of a compiler archive.
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func fatal(err any) {
+	fmt.Fprintf(os.Stderr, "dumpfacts: %v\n", err)
+	os.Exit(1)
+}
+
+func main() {
+	if len(os.Args) != 2 {
+		fatal("usage: dumpfacts archive")
+	}
+	raw, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		fatal(err)
+	}
+	if !bytes.HasPrefix(raw, []byte("!<arch>\n")) {
+		fatal("not an archive")
+	}
+	off := len("!<arch>\n")
+	for off+60 <= len(raw) {
+		hdr := raw[off : off+60]
+		if hdr[58] != '`' || hdr[59] != '\n' {
+			fatal("corrupt header")
+		}
+		name := strings.TrimRight(string(hdr[:16]), " ")
+		size, err := strconv.ParseUint(strings.TrimRight(string(hdr[48:58]), " "), 10, 64)
+		if err != nil {
+			fatal(err)
+		}
+		dataOff := off + 60
+		if name == "__.LOGOS" {
+			end := dataOff + int(size)
+			if end > len(raw) {
+				fatal("truncated member")
+			}
+			fmt.Printf("%s", raw[dataOff:end])
+			return
+		}
+		off = dataOff + int(size) + int(size&1)
+	}
+	fatal("no __.LOGOS member")
+}

@@ -25,6 +25,8 @@
 //	conforms <struct> <interface-package-path> <interface>
 //	comptime <object> <byte length>
 //	<source bytes>
+//	default <type> <field> <byte length>
+//	<default expression source text>
 //
 // <object> is Name, Type.Field, (*Type).Method, or Type.Method; <path> is
 // dot-separated steps R<i> result, P<i> parameter, F<name> field, E element,
@@ -117,6 +119,15 @@ type Facts struct {
 	Props       []PropFact
 	Conforms    []ConformsFact
 	Comptimes   []ComptimeFact
+	Defaults    []DefaultFact
+}
+
+// DefaultFact is one default record: a defaulted field of an exported
+// struct type and its default expression source text.
+type DefaultFact struct {
+	Type  string
+	Field string
+	Text  string
 }
 
 // Encode renders the facts in canonical form: header, fingerprint, then
@@ -160,6 +171,11 @@ func Encode(fp goobj.FingerprintType, f *Facts) []byte {
 		for _, c := range f.Comptimes {
 			if c.Object != "" && len(c.Source) > 0 {
 				recs = append(recs, record{line: "comptime " + c.Object + " " + strconv.Itoa(len(c.Source)), body: c.Source})
+			}
+		}
+		for _, d := range f.Defaults {
+			if d.Type != "" && d.Field != "" && d.Text != "" {
+				recs = append(recs, record{line: "default " + d.Type + " " + d.Field + " " + strconv.Itoa(len(d.Text)), body: []byte(d.Text)})
 			}
 		}
 	}
@@ -379,6 +395,34 @@ func Decode(data []byte) (*Facts, error) {
 				return nil, fmt.Errorf("logos facts line %d: bad interface %q", ln, fields[3])
 			}
 			f.Conforms = append(f.Conforms, ConformsFact{Type: fields[1], IfacePath: fields[2], Iface: fields[3]})
+		case strings.HasPrefix(line, "default "):
+			if len(fields) != 4 {
+				return nil, fmt.Errorf(`logos facts line %d: bad default record %q (want "default <type> <field> <length>")`, ln, line)
+			}
+			if !validObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad type %q", ln, fields[1])
+			}
+			if !isIdent(fields[2]) {
+				return nil, fmt.Errorf("logos facts line %d: bad field %q", ln, fields[2])
+			}
+			n, aerr := strconv.Atoi(fields[3])
+			if aerr != nil || n < 0 {
+				return nil, fmt.Errorf("logos facts line %d: bad default length %q", ln, fields[3])
+			}
+			if len(d.data)-d.off < n {
+				return nil, fmt.Errorf("logos facts line %d: truncated default body for %q (want %d bytes, have %d)", ln, fields[1], n, len(d.data)-d.off)
+			}
+			text := string(bytes.Clone(d.data[d.off : d.off+n]))
+			d.off += n
+			d.line += bytes.Count([]byte(text), []byte{'\n'})
+			if d.off < len(d.data) {
+				if d.data[d.off] != '\n' {
+					return nil, fmt.Errorf("logos facts line %d: want newline after default body", ln)
+				}
+				d.off++
+				d.line++
+			}
+			f.Defaults = append(f.Defaults, DefaultFact{Type: fields[1], Field: fields[2], Text: text})
 		case strings.HasPrefix(line, "comptime "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf(`logos facts line %d: bad comptime record %q (want "comptime <object> <length>")`, ln, line)

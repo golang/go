@@ -1,0 +1,18 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S2 `&expr` for non-addressable operands (SPEC T-104.5): each form
+// below types as a pointer. Freshness (a distinct variable per
+// evaluation) is a run property pinned by test/logos/run/addr_lit.lgo.
+
+func freshInt() int { return 7 }
+
+func addrLiterals() {
+	var pi *int = &100
+	var ps *string = &"s"
+	var pf *int = &freshInt()
+	_, _, _ = pi, ps, pf
+}

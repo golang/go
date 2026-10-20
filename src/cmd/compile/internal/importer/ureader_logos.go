@@ -22,7 +22,33 @@ var LogosOverlayEnabled bool
 func logosOverlayHook(pkg *types2.Package) *types2.Package {
 	LogosOverlayEnabled = false
 	logosRegisterPropFacts(pkg)
+	logosRegisterDefaultFacts(pkg)
 	return pkg
+}
+
+// logosRegisterDefaultFacts records the struct field defaults of an
+// imported loGo/s package for .lgo importers (M6-S3, SPEC T-104.5).
+// Each default record becomes one entry in the checker's imported
+// defaults table, keyed by struct package path and name. Packages
+// without facts leave the table unchanged.
+func logosRegisterDefaultFacts(pkg *types2.Package) {
+	if pkg == nil {
+		return
+	}
+	f, ok := facts.Lookup(pkg.Path())
+	if !ok || f == nil || len(f.Defaults) == 0 {
+		return
+	}
+	byType := make(map[string][]types2.LogosImportedDefault)
+	for _, d := range f.Defaults {
+		if d.Type == "" || d.Field == "" || d.Text == "" {
+			continue
+		}
+		byType[d.Type] = append(byType[d.Type], types2.LogosImportedDefault{Field: d.Field, Text: d.Text})
+	}
+	for typeName, defs := range byType {
+		types2.LogosNoteImportedDefaults(pkg.Path(), typeName, defs)
+	}
 }
 
 // logosRegisterPropFacts records the `: I` conformances of an imported

@@ -116,7 +116,12 @@ func checkConfig(m *testImporter) (types2.Config, *[]error) {
 	errs := new([]error)
 	conf := types2.Config{
 		Importer: m,
-		Error:    func(err error) { *errs = append(*errs, err) },
+		Error: func(err error) {
+			if types2.LogosWarnOnly(err) { // M6-S3: warn-severity rules never fail lowering.
+				return
+			}
+			*errs = append(*errs, err)
+		},
 	}
 	return conf, errs
 }
@@ -183,8 +188,13 @@ func checkLoweredClean(t *testing.T, imp *testImporter, path string) {
 	var cerrs []error
 	conf := types2.Config{
 		Importer: imp,
-		Error:    func(err error) { cerrs = append(cerrs, err) },
-		Logos:    true,
+		Error: func(err error) {
+			if types2.LogosWarnOnly(err) { // M6-S3: warn-severity rules never fail lowering.
+				return
+			}
+			cerrs = append(cerrs, err)
+		},
+		Logos: true,
 	}
 	files := []*syntax.File{f}
 	src := map[*syntax.File][]byte{f: data}

@@ -1,0 +1,32 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M6-S2 `&expr` operands and M6-S3 field defaults parse in LogosMode.
+// Every form without an ERROR comment must parse cleanly; each ERROR
+// comment pins the exact syntax error text.
+
+package p
+
+type Point struct {
+	X int
+	Y int
+}
+
+type NetCfg struct {
+	Port int = 8080 `json:"port"`
+	Host string = "localhost"
+	TLS  bool = true
+	Ratio float64 = 1.5
+	Origin Point = Point{X: 1, Y: 2}
+	Lo, Hi int = 3
+}
+
+func freshInt() int { return 1 }
+
+func addrExprs() {
+	p1 := &100
+	p2 := &"s"
+	p3 := &freshInt()
+	_, _, _ = p1, p2, p3
+}

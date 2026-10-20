@@ -244,6 +244,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		if !check.builtin(x, call, id) {
 			x.invalidate()
 		}
+		check.logosWarnNewDefault(x, call, id) // logos M6-S3 hook: new(T) of a defaulted struct stays zero.
 		x.expr = call
 		// a non-constant result implies a function call
 		if x.isValid() && x.mode() != constant_ {

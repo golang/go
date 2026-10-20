@@ -1699,6 +1699,7 @@ func (p *parser) fieldDecl(styp *StructType) {
 			typ = p.type_()
 		}
 
+		typ = p.logosFieldDefault(typ) // M6-S3 hook: `F T = const` defaults.
 		tag := p.oliteral()
 
 		for _, name := range names {

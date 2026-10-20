@@ -318,6 +318,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 	case *syntax.StructType:
 		typ := new(Struct)
 		check.structType(typ, e)
+		check.logosStructDefaults(e, typ) // logos M6-S3 hook: `F T = const` defaults.
 		return typ
 
 	case *syntax.AssertedStruct:

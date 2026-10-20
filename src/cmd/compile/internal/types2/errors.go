@@ -195,7 +195,7 @@ func (check *Checker) handleError(index int, pos syntax.Pos, code Code, msg stri
 		Code: code,
 	}
 
-	if check.firstErr == nil {
+	if check.firstErr == nil && !check.logosWarnOnly(e) { // logos M6-S3 hook: warn-severity rules never fail the check.
 		check.firstErr = e
 	}
 

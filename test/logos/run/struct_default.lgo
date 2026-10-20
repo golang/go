@@ -1,0 +1,23 @@
+// run
+
+package main
+
+import "fmt"
+
+type Cfg struct {
+	Port int = 8080 `json:"port"`
+	Host string = "localhost"
+}
+
+func main() {
+	a := Cfg{}
+	fmt.Println(a.Port, a.Host)
+	b := &Cfg{}
+	fmt.Println(b.Port, b.Host)
+	c := Cfg{Host: "x"}
+	fmt.Println(c.Port, c.Host)
+	var z Cfg
+	fmt.Println(z.Port, z.Host)
+	n := new(Cfg)
+	fmt.Println(n.Port, n.Host)
+}

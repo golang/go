@@ -308,7 +308,7 @@ func (w walker) node(n Node) {
 		}
 		w.stmtList(n.Body)
 
-	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct, *PropertyType, *OptionType, *CoalesceExpr, *OptSelectExpr, *ConstType, *ConstFuncDecl, *YieldStmt, *ScopeDeferStmt: // M1-S2, M2, M3-S2, M4-S1, M5-S1, M5-S2, M6-S9, M6-S10 hook: loGo/s nodes.
+	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct, *PropertyType, *OptionType, *CoalesceExpr, *OptSelectExpr, *ConstType, *ConstFuncDecl, *YieldStmt, *ScopeDeferStmt, *FieldDefault: // M1-S2, M2, M3-S2, M4-S1, M5-S1, M5-S2, M6-S3, M6-S9, M6-S10 hook: loGo/s nodes.
 		w.walkLogos(n)
 	default:
 		panic(fmt.Sprintf("internal error: unknown node type %T", n))

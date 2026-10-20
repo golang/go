@@ -33,6 +33,9 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	if f := EmitConstFacts(pkg, info, files, facts.Current()); f != nil { // M5-S1: const lines and mutation masks.
 		facts.SetCurrent(f)
 	}
+	if f := EmitDefaultFacts(pkg, info, facts.Current()); f != nil { // M6-S3: struct field defaults.
+		facts.SetCurrent(f)
+	}
 	shared := &packageLower{info: info, tpkg: pkg}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
@@ -180,7 +183,9 @@ func (fl *fileLower) lowerFile() {
 	for _, decl := range fl.siteDecls {
 		fl.file.DeclList = append(fl.file.DeclList, decl)
 	}
-	fl.lowerProperties() // M4-S2 hook: property accessors, selector lowering, prop facts.
+	fl.lowerProperties()     // M4-S2 hook: property accessors, selector lowering, prop facts.
+	fl.lowerStructDefaults() // M6-S3 hook: strip `= const`, fill composite literals.
+	fl.lowerAddrFresh()      // M6-S2 hook: `&expr` to new(expr).
 }
 
 // addHeaderSplice adds the eject-text edit that spells the rt import and
@@ -425,7 +430,7 @@ func rejectSurvivors(file *syntax.File) {
 		switch n.(type) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
-			*syntax.YieldStmt, *syntax.ScopeDeferStmt:
+			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

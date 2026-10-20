@@ -1,0 +1,27 @@
+// run
+
+package main
+
+import "fmt"
+
+var calls = 0
+
+func nextID() int {
+	calls++
+	return calls
+}
+
+func main() {
+	p := &100
+	q := &100
+	fmt.Println(*p, *q)
+	*p = 1
+	fmt.Println(*p, *q)
+	fmt.Println(p != q)
+	s := &"s"
+	fmt.Println(*s)
+	n := &nextID()
+	fmt.Println(*n, calls)
+	m := &nextID()
+	fmt.Println(*m, calls)
+}

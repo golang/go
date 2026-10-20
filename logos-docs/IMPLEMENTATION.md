@@ -1622,7 +1622,7 @@ Anchor: Dieter Rams
 ### M6-S3 Struct field defaults
 Anchor: Tony Hoare, Kenya Hara
 - Attack: syntax `Port int = 8080 \`json:"port"\`` (default before tag); types2: non-constant default -> `[correctness::default_not_constant]`; run: `Cfg{}`, `&Cfg{}`, `Cfg{Host: "x"}` get the default; `var c Cfg` and `new(Cfg)` stay zero; a struct literal `p.Cfg{}` written in a Go package of another module gets the zero value (documented hole: defaults apply only in loGo/s composite literals).
-- Build: parser hook in `fieldDecl` (`parser.go:1629`); lowering inserts missing defaulted fields into composite literals of the type (including in other packages through facts line `fn <Type> Defaults=<field list>` and the default expressions encoded as const composite text).
+- Build: parser hook in `fieldDecl` (`parser.go:1629`) wrapping the type in `FieldDefault`; types2 records defaults per checked `*Struct`, validates constness in `later`, and warns `suspicious::unapplied_struct_default` (soft, warning-only in builds) on zero declarations and `new(T)`; lowering strips `= const` from declarations and inserts missing defaulted fields into composite literals of the type (including in other packages through facts `default <Type> <Field> <len>` records carrying the default expression source text).
 - Gate: syntax, types2, testdir tests.
 
 ### M6-S4 Spread

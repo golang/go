@@ -107,6 +107,9 @@ func ejectCheck(t *testing.T, file *syntax.File) (*types2.Package, *types2.Info)
 	conf := &types2.Config{
 		Importer: &ejectImporter{pkgs: make(map[string]*types2.Package)},
 		Error: func(err error) {
+			if types2.LogosWarnOnly(err) { // M6-S3: warn-severity rules never fail eject.
+				return
+			}
 			errs = append(errs, err)
 		},
 		Logos: true,

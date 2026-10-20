@@ -379,7 +379,8 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 			// error reported before by arityMatch
 			obj.typ = Typ[Invalid]
 		} else {
-			check.logosZeroDecl(obj) // logos M3-S3 hook.
+			check.logosZeroDecl(obj)             // logos M3-S3 hook.
+			check.logosWarnZeroDefault(obj, typ) // logos M6-S3 hook: zero declaration of a defaulted struct.
 		}
 		return
 	}

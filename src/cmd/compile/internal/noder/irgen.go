@@ -84,6 +84,9 @@ recheck:
 	}
 	conf.Error = func(err error) {
 		terr := err.(types2.Error)
+		if logosReportSoftWarn(&m, terr) { // logos M6-S3 hook: warn-severity rules print, never fail.
+			return
+		}
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
 			fileBase := terr.Pos.FileBase()
