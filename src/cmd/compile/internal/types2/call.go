@@ -323,7 +323,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
-	check.logosLambdaCallArgs(call, sig) // logos M6-S6 hook: lambdas against parameter types.
+	sig = check.logosHotUpdateSig(call, sig) // logos M8-S5 hook: sync.Hot.Update takes func(const *T) *T.
+	check.logosLambdaCallArgs(call, sig)     // logos M6-S6 hook: lambdas against parameter types.
 	args, atargs := check.genericExprList(call.ArgList)
 	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 

@@ -14,6 +14,7 @@ type HSChild struct {
 
 type HSConfig struct {
 	Name  string
+	N     int
 	Tags  []string
 	Child *HSChild
 }
@@ -25,4 +26,38 @@ func hsHot() {
 	p.Name = "x"    // ERROR "cannot assign field through const view"
 	p.Tags[0] = "x" // ERROR "cannot assign index through const view"
 	_ = p
+}
+
+// M8-S5: sync.Hot.Update takes func(old const *T) *T in .lgo (SPEC
+// T-206). A literal declaring `old const *T` passes and reads through
+// the view; a literal declaring `old *T` fails ordinary assignability;
+// a lambda takes the const parameter from its target; stores through
+// `old` fail exactly like stores through Load's result.
+
+func hsHotUpdateOK() {
+	h := sync.Hot[HSConfig]{}
+	h.Store(&HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}})
+	h.Update(func(old const *HSConfig) *HSConfig {
+		return &HSConfig{Name: old.Name, N: old.N + 1, Tags: []string{"a"}, Child: &HSChild{N: 1}}
+	})
+	h.Update(old => &HSConfig{N: old.N + 1, Child: &HSChild{N: 2}})
+}
+
+func hsHotUpdateReject() {
+	h := sync.Hot[HSConfig]{}
+	h.Update(func(old *HSConfig) *HSConfig { // ERROR "cannot use func\(old \*HSConfig\) \*HSConfig \{…\} \(value of type func\(old \*HSConfig\) \*HSConfig\) as func\(old const \*HSConfig\) \*HSConfig value in argument to h\.Update"
+		return old
+	})
+}
+
+func hsHotUpdateMutate() {
+	h := sync.Hot[HSConfig]{}
+	h.Update(func(old const *HSConfig) *HSConfig {
+		old.N = 1 // ERROR "cannot assign field through const view"
+		return &HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}}
+	})
+	h.Update(old => {
+		old.N = 1 // ERROR "cannot assign field through const view"
+		return &HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}}
+	})
 }

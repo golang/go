@@ -530,6 +530,8 @@ func (fl *fileLower) spellLowered(t types2.Type) (string, bool) {
 		return "", false
 	}
 	switch c := types2.Unalias(t).(type) {
+	case *types2.ConstView: // M5-S1: lowering erases const views.
+		return fl.spellLowered(c.Elem)
 	case *types2.Named, *types2.Alias, *types2.Basic, *types2.TypeParam:
 		return fl.spellType(t)
 	case *types2.Pointer:

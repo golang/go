@@ -941,7 +941,7 @@ It MUST unlock after a panic. [T-206]
 
 A `WithLock` lambda MUST NOT return or store its argument. [T-206]
 
-`logos/sync.Hot[T]` MUST expose `Load() const *T`, `Store(*T)`, and `Update(func(old *T) *T)` with a CAS loop. [T-206]
+`logos/sync.Hot[T]` MUST expose `Load() const *T`, `Store(*T)`, and `Update(func(old const *T) *T)` with a CAS loop. [T-206]
 
 Concurrent updates MUST never expose a partial value. [T-206]
 

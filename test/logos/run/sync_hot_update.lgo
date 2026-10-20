@@ -1,0 +1,30 @@
+// run
+
+package main
+
+import (
+	"fmt"
+
+	"logos/sync"
+)
+
+// M8-S5 sync.Hot.Update from .lgo (SPEC T-206): the callback takes
+// `old const *T`, reading through the view to build its replacement;
+// lowering erases the view, so each update lands as a plain CAS swap
+// and Load observes the final value.
+
+type HSCounter struct {
+	Name string
+	N    int
+}
+
+func main() {
+	h := sync.Hot[HSCounter]{}
+	h.Store(&HSCounter{Name: "zero", N: 0})
+	h.Update(func(old const *HSCounter) *HSCounter {
+		return &HSCounter{Name: old.Name + "+lit", N: old.N + 1}
+	})
+	h.Update(old => &HSCounter{Name: old.Name + "+lam", N: old.N + 10})
+	got := h.Load()
+	fmt.Println(got.Name, got.N)
+}

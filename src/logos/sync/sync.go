@@ -8,10 +8,11 @@
 // .lgo code imports it as logos/sync; eject copies it into the shared
 // support module github.com/gosuda/loGos/rt/sync (T-0.3).
 //
-// The loGo/s view differs in one signature only: Hot.Load returns
-// const *T there (SPEC T-206), carried by a checker-side hook because
-// Go packages emit no const facts (T-Sec6). Every other signature is
-// identical in Go and loGo/s.
+// The loGo/s view differs in two signatures: Hot.Load returns
+// const *T there, and Hot.Update takes func(old const *T) *T (SPEC
+// T-206), each carried by a checker-side hook because Go packages
+// emit no const facts (T-Sec6). Every other signature is identical
+// in Go and loGo/s.
 package sync
 
 import (
