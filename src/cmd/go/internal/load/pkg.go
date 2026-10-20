@@ -2961,7 +2961,7 @@ func PackagesAndErrors(ld *modload.Loader, ctx context.Context, opts PackageOpts
 			if fi, err := fsys.Stat(p); err == nil && !fi.IsDir() {
 				pkgs := []*Package{GoFilesPackage(ld, ctx, opts, patterns)}
 				setPGOProfilePath(pkgs)
-				checkLogosModules(PackageList(pkgs))
+				checkLogosLoaded(ld, PackageList(pkgs))
 				return pkgs
 			}
 		}
@@ -3045,7 +3045,7 @@ func PackagesAndErrors(ld *modload.Loader, ctx context.Context, opts PackageOpts
 
 	setPGOProfilePath(pkgs)
 
-	checkLogosModules(PackageList(pkgs))
+	checkLogosLoaded(ld, PackageList(pkgs))
 
 	return pkgs
 }

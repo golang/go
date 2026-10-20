@@ -31,6 +31,8 @@ type File struct {
 	Project Project
 	// Build holds the [build] table.
 	Build Build
+	// Capabilities holds the [capabilities] table.
+	Capabilities Capabilities
 }
 
 // Project holds the [project] table: the module name (informational only),
@@ -54,6 +56,31 @@ type Build struct {
 	CgoAllowlist []string
 }
 
+// Capabilities holds the [capabilities] table (M12): severity keys, each one
+// of "deny", "warn", or "allow", and allowlist keys holding path globs.
+// Severities default to deny, except TransitiveReflect which defaults to
+// warn; allowlists default to empty.
+type Capabilities struct {
+	// DirectReflect guards direct reachability of reflect sinks.
+	DirectReflect string
+	// TransitiveReflect guards transitive reachability of reflect sinks.
+	TransitiveReflect string
+	// TransitiveExec guards transitive reachability of exec sinks.
+	TransitiveExec string
+	// TransitiveNet guards transitive reachability of net sinks.
+	TransitiveNet string
+	// TransitiveUnsafe guards transitive imports of "unsafe".
+	TransitiveUnsafe string
+	// ReflectAllowlist holds path globs exempt from reflect checks.
+	ReflectAllowlist []string
+	// TransitiveExecAllowlist holds path globs exempt from exec checks.
+	TransitiveExecAllowlist []string
+	// TransitiveNetAllowlist holds path globs exempt from net checks.
+	TransitiveNetAllowlist []string
+	// TransitiveUnsafeAllowlist holds path globs exempt from unsafe checks.
+	TransitiveUnsafeAllowlist []string
+}
+
 // strictFileExts lists every loGo/s source extension: .lgo, the scroll
 // (U+1F4DC), the lightning bolt (U+26A1), and the gopher extension
 // (U+0295 U+25D4 U+03D6 U+25D4 U+0294).
@@ -66,6 +93,13 @@ func defaultFile() *File {
 	return &File{
 		Project: Project{Edition: "2026", StrictFiles: slices.Clone(strictFileExts)},
 		Build:   Build{Cgo: "forbid"},
+		Capabilities: Capabilities{
+			DirectReflect:     "deny",
+			TransitiveReflect: "warn",
+			TransitiveExec:    "deny",
+			TransitiveNet:     "deny",
+			TransitiveUnsafe:  "deny",
+		},
 	}
 }
 
@@ -130,7 +164,56 @@ func (f *File) Format() []byte {
 		}
 		b.WriteString("]\n")
 	}
+	writeCapabilities(&b, f.Capabilities)
 	return []byte(b.String())
+}
+
+// writeCapabilities renders the [capabilities] table, omitting severities
+// at their defaults and nil allowlists so Format output re-parses to an
+// equal File.
+func writeCapabilities(b *strings.Builder, c Capabilities) {
+	sev := func(key, v, def string) {
+		if v != "" && v != def {
+			b.WriteString(key)
+			b.WriteString(" = ")
+			appendQuoted(b, v)
+			b.WriteByte('\n')
+		}
+	}
+	list := func(key string, vs []string) {
+		if vs == nil {
+			return
+		}
+		b.WriteString(key)
+		b.WriteString(" = [")
+		for i, s := range vs {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			appendQuoted(b, s)
+		}
+		b.WriteString("]\n")
+	}
+	emit := c.DirectReflect != "" && c.DirectReflect != "deny" ||
+		c.TransitiveReflect != "" && c.TransitiveReflect != "warn" ||
+		c.TransitiveExec != "" && c.TransitiveExec != "deny" ||
+		c.TransitiveNet != "" && c.TransitiveNet != "deny" ||
+		c.TransitiveUnsafe != "" && c.TransitiveUnsafe != "deny" ||
+		c.ReflectAllowlist != nil || c.TransitiveExecAllowlist != nil ||
+		c.TransitiveNetAllowlist != nil || c.TransitiveUnsafeAllowlist != nil
+	if !emit {
+		return
+	}
+	b.WriteString("[capabilities]\n")
+	sev("direct_reflect", c.DirectReflect, "deny")
+	sev("transitive_reflect", c.TransitiveReflect, "warn")
+	sev("transitive_exec", c.TransitiveExec, "deny")
+	sev("transitive_net", c.TransitiveNet, "deny")
+	sev("transitive_unsafe", c.TransitiveUnsafe, "deny")
+	list("reflect_allowlist", c.ReflectAllowlist)
+	list("transitive_exec_allowlist", c.TransitiveExecAllowlist)
+	list("transitive_net_allowlist", c.TransitiveNetAllowlist)
+	list("transitive_unsafe_allowlist", c.TransitiveUnsafeAllowlist)
 }
 
 // appendQuoted writes s as a TOML basic string, escaping quotes, backslashes,

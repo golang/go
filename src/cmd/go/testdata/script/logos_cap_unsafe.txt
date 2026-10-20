@@ -1,0 +1,305 @@
+# M12-S1: transitive unsafe imports fail under logos, pass allowlisted/warn/allow.
+# Plain go runs no audit. Each case uses its own fixture with a
+# replace-based dependency so the dep is not a main module.
+# RED expectation: cases A, C, F fail red because no audit exists yet,
+# so `! logos build` sees a successful build; case E fails red because
+# no warning is printed.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Case A: loGo/s main, Go dep importing unsafe, explicit deny -> fail with chain.
+cd a/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/dep'' imports ''unsafe'''
+stderr 'example\.com/main/cmd'
+stderr '-> example\.com/dep'
+stderr '-> unsafe'
+stderr 'transitive_unsafe_allowlist'
+cd ../..
+
+# Case B: same shape, dep allowlisted -> build passes and runs.
+cd b/main
+logos build -o $WORK/bin/b$GOEXE ./cmd
+exec $WORK/bin/b$GOEXE
+stdout '^42$'
+cd ../..
+
+# Case C: Go main, Go dep importing unsafe, explicit deny -> fail with chain.
+cd c/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/cdep'' imports ''unsafe'''
+stderr '-> unsafe'
+cd ../..
+
+# Case D: plain go runs no audit on the same fixture -> passes.
+cd c/main
+go build -o $WORK/bin/d$GOEXE ./cmd
+cd ../..
+
+# Case E: warn severity -> build passes but prints the warning.
+cd e/main
+logos build -o $WORK/bin/e$GOEXE ./cmd
+stderr '\[capabilities::unauthorized_unsafe\].*example\.com/edep'
+cd ../..
+
+# Case F: no logos.toml at all -> deny default -> fail with chain.
+cd f/main
+! logos build ./...
+stderr 'ERROR \[capabilities::unauthorized_unsafe\]: Transitive dependency ''example\.com/fdep'' imports ''unsafe'''
+cd ../..
+
+# Case G: explicit allow -> build passes silently.
+cd g/main
+logos build -o $WORK/bin/g$GOEXE ./cmd
+! stderr '\[capabilities::unauthorized_unsafe\]'
+
+-- a/main/go.mod --
+module example.com/main
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- a/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/dep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- a/dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- a/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- b/main/go.mod --
+module example.com/main
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep => ../dep
+
+-- b/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+transitive_unsafe_allowlist = ["example.com/dep/**"]
+
+-- b/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/dep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- b/dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- b/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_unsafe = "deny"
+
+-- c/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cdep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- c/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_unsafe = "warn"
+
+-- e/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/edep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fdep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/gdep v0.0.0
+
+replace example.com/gdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_unsafe = "allow"
+
+-- g/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gdep"
+)
+
+func main() { fmt.Println(dep.Msg()) }
+
+-- g/dep/go.mod --
+module example.com/gdep
+
+go 1.27
+
+-- g/dep/dep.go --
+package dep
+
+import (
+	"strconv"
+	"unsafe"
+)
+
+func Msg() string {
+	var x = 42
+	return strconv.Itoa(*(*int)(unsafe.Pointer(&x)))
+}

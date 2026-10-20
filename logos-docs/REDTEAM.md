@@ -28,7 +28,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #22 | M15 |  | planned |
 | #23 | M3 |  | planned |
 | #24 | M5 |  | planned |
-| #25 | M12 |  | planned |
+| #25 | M12 | src/cmd/go/testdata/script/logos_cap_unsafe.txt | tested |
 | #26 | M8 |  | planned |
 | #27 | M16 |  | planned |
 | #28 | M13 |  | planned |

@@ -1290,7 +1290,7 @@ A true value enables the Tier-0 arena experiment for Go packages and loGo/s pack
 The capabilities table holds five severity keys and four allowlist keys. [T-Sec10]
 direct_reflect is a string with default "deny". [T-Sec10]
 transitive_reflect is a string with default "warn". [T-Sec10]
-transitive_exec, transitive_net, and transitive_unsafe are strings. [T-Sec10]
+transitive_exec, transitive_net, and transitive_unsafe are strings with default "deny". [T-Sec10]
 Each severity key MUST be one of "deny", "warn", or "allow". [T-Sec10]
 reflect_allowlist, transitive_exec_allowlist, transitive_net_allowlist, and transitive_unsafe_allowlist are string arrays of path globs with default empty. [T-Sec10]
 An entry MAY name a Go module or a loGo/s module. [T-Sec10][R-U2]
