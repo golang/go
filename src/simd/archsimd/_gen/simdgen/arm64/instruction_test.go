@@ -114,31 +114,29 @@ var (
 	elemToGReg               = []string{"GReg:0", "Imm:1", "VReg:1"}
 
 	// Arrangement patterns
-	floatS32          = []string{"float32:4S"}
-	floating          = []string{"float32:2S", "float32:4S", "float64:2D"}
-	bitwise16B        = []string{"int8:16B", "uint8:16B"}
-	integer2D         = []string{"int64:2D", "uint64:2D"}
-	integerUpTo8Bits  = []string{"int8:16B", "int8:8B", "uint8:16B", "uint8:8B"}
-	integerUpTo16Bits = append([]string{"int16:4H", "int16:8H", "uint16:4H", "uint16:8H"}, integerUpTo8Bits...)
-	integerUpTo32Bits = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo16Bits...)
-	integerWideOnly   = []string{"int16:8H", "int32:4S", "int64:2D", "uint16:8H", "uint32:4S", "uint64:2D"}
-	polynomialArrngs  = []string{"int8:8B", "int8:16B", "int64:1D", "int64:2D", "uint8:8B", "uint8:16B", "uint64:1D", "uint64:2D"}
-	integer32And8Bits = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo8Bits...)
-	addvArngs         = append([]string{"int32:4S", "uint32:4S"}, integerUpTo16Bits...)
-	integer           = append([]string{"int64:2D", "uint64:2D"}, integerUpTo32Bits...)
-	integerWith1D     = append([]string{"int64:1D", "uint64:1D"}, integer...)
-	allArngs          = append(append([]string{}, floating...), integer...)
-	bitwise           = []string{
+	floatS32                   = []string{"float32:4S"}
+	floating                   = []string{"float32:2S", "float32:4S", "float64:2D"}
+	bitwise16B                 = []string{"int8:16B", "uint8:16B"}
+	integer2D                  = []string{"int64:2D", "uint64:2D"}
+	integerUpTo8Bits           = []string{"int8:16B", "int8:8B", "uint8:16B", "uint8:8B"}
+	integerUpTo16Bits          = append([]string{"int16:4H", "int16:8H", "uint16:4H", "uint16:8H"}, integerUpTo8Bits...)
+	integerUpTo32Bits          = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo16Bits...)
+	integerWideOnly            = []string{"int16:8H", "int32:4S", "int64:2D", "uint16:8H", "uint32:4S", "uint64:2D"}
+	polynomialArrngs           = []string{"int8:8B", "int8:16B", "int64:1D", "int64:2D", "uint8:8B", "uint8:16B", "uint64:1D", "uint64:2D"}
+	integer32And8Bits          = append([]string{"int32:2S", "int32:4S", "uint32:2S", "uint32:4S"}, integerUpTo8Bits...)
+	addvArngs                  = append([]string{"int32:4S", "uint32:4S"}, integerUpTo16Bits...)
+	integer                    = append([]string{"int64:2D", "uint64:2D"}, integerUpTo32Bits...)
+	integerUpTo32BitsFullWidth = []string{"int8:16B", "uint8:16B", "int16:8H", "uint16:8H", "int32:4S", "uint32:4S"}
+	integerWith1D              = append([]string{"int64:1D", "uint64:1D"}, integer...)
+	allArngs                   = append(append([]string{}, floating...), integer...)
+	bitwise                    = []string{
 		"int8:16B", "uint8:16B", "int8:8B", "uint8:8B",
 		"int16:16B", "uint16:16B", "int16:8B", "uint16:8B",
 		"int32:16B", "uint32:16B", "int32:8B", "uint32:8B",
 		"int64:16B", "uint64:16B",
 	}
-	fullwidth = []string{
-		"float32:4S", "float64:2D",
-		"int8:16B", "int16:8H", "int32:4S", "int64:2D",
-		"uint8:16B", "uint16:8H", "uint32:4S", "uint64:2D",
-	}
+	fullwidth = append(append([]string{"float32:4S", "float64:2D"},
+		integerUpTo32BitsFullWidth...), "int64:2D", "uint64:2D")
 )
 
 type Arm64InstructionTestSpec struct {
@@ -175,6 +173,7 @@ var arm64InstructionTests = []Arm64InstructionTestSpec{
 	{"^INS$", matchOps(insertFromLane), requireArngs(fullwidth, DefaultArngs), emitsDefs(10)},
 	{"^INS$", matchOps(insertFromGReg), requireArngs(fullwidth, DefaultArngs), emitsDefs(10)},
 	{"^UMOV$", matchOps(elemToGReg), requireArngs(integer, DefaultArngs), emitsDefs(14)},
+	{"^SMOV$", matchOps(elemToGReg), requireArngs(integerUpTo32BitsFullWidth, DefaultArngs), emitsDefs(6)},
 	{"^EXT$", requireOps(binaryWithImm), requireArngs(integerUpTo8Bits, DefaultArngs), emitsDefs(4)},
 	{"^TBL$", requireOps(binary), requireArngs(integerUpTo8Bits, DefaultArngs), emitsDefs(4)},
 	{"^TBX$", requireOps(threeArgsResultInArg0), requireArngs(integerUpTo8Bits, DefaultArngs), emitsDefs(4)},

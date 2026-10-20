@@ -36,6 +36,18 @@ var (
 	sinkM16 archsimd.Mask16x8
 	sinkM32 archsimd.Mask32x4
 	sinkM64 archsimd.Mask64x2
+
+	sinkScalarI8  int8
+	sinkScalarI8b int8
+	sinkScalarI64 int64
+	sinkScalarU64 uint64
+	sinkI64a      int64
+	sinkI64b      int64
+	sinkI64c      int64
+	sinkI64d      int64
+	sinkU64b      uint64
+	sinkU64c      uint64
+	sinkU64d      uint64
 )
 
 func broadcastConstImmFold(k int) {
@@ -98,6 +110,31 @@ func getHiFloat32(x archsimd.Float32x4) {
 func getHiFloat64(x archsimd.Float64x2) {
 	// arm64:`VDUP V0.D\[1\],`
 	sinkF64 = x.HiToLo()
+}
+
+func getElemExtFold(x8 archsimd.Int8x16, u8 archsimd.Uint8x16, x16 archsimd.Int16x8, x32 archsimd.Int32x4, u16 archsimd.Uint16x8, u32 archsimd.Uint32x4) {
+	// arm64:`VSMOV V0.B\[3\],` -`MOVB`
+	sinkI64a = int64(x8.GetElem(3))
+	// arm64:`VSMOV V0.B\[5\],`
+	sinkScalarI8 = x8.GetElem(5)
+	// arm64:`VSMOV V[0-9]+.H\[5\],` -`MOVH`
+	sinkI64b = int64(x16.GetElem(5))
+	// arm64:`VSMOV V[0-9]+.S\[2\],` -`MOVW`
+	sinkI64c = int64(x32.GetElem(2))
+	// arm64:`VMOV V1.B\[7\],` -`MOVBU`
+	sinkScalarU64 = uint64(u8.GetElem(7))
+	// arm64:`VMOV V[0-9]+.H\[3\],` -`MOVHU`
+	sinkU64b = uint64(u16.GetElem(3))
+	// arm64:`VMOV V[0-9]+.S\[1\],` -`MOVWU`
+	sinkU64c = uint64(u32.GetElem(1))
+	// arm64:`VSMOV V1.B\[7\],` -`MOVB`
+	sinkI64d = int64(int8(u8.GetElem(7)))
+	// arm64:`VMOV V0.B\[6\],` -`VSMOV`
+	sinkU64d = uint64(uint8(x8.GetElem(6)))
+	// arm64:`VSMOV V0.B\[4\],`
+	e := x8.GetElem(4)
+	sinkScalarI64 = int64(e)
+	sinkScalarI8b = e
 }
 
 // does x.And(y).Equal(zero) peephole to the expected cmtst?
@@ -376,4 +413,3 @@ func sveBroadcastFloatIfElse(x float32, m archsimd.Mask32s, z archsimd.Float32s)
 	// arm64:`ZCPYS\s+V[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastFloat32s(x).IfElse(m, z)
 }
-

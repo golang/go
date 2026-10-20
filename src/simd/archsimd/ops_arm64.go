@@ -873,21 +873,21 @@ func (x Float64x2) GetElem(index uint8) float64
 //
 // Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
-// Asm: VMOV
+// Asm: VSMOV
 func (x Int8x16) GetElem(index uint8) int8
 
 // GetElem returns the index'th element of x.
 //
 // Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
-// Asm: VMOV
+// Asm: VSMOV
 func (x Int16x8) GetElem(index uint8) int16
 
 // GetElem returns the index'th element of x.
 //
 // Performance: A non-constant value of index may result in significantly worse performance for this operation.
 //
-// Asm: VMOV
+// Asm: VSMOV
 func (x Int32x4) GetElem(index uint8) int32
 
 // GetElem returns the index'th element of x.

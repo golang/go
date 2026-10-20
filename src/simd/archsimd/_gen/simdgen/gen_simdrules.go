@@ -184,10 +184,13 @@ func parseArgsMatchRule(rule string) (bool, bool, string) {
 //	%s - lane size letter (B, H, S, D)
 //	%a - arrangement suffix (16B, 8H, 4S, 2D) for neon instructions
 //	%b - bits per lane (8, 16, 32, 64)
+//	%r - register-width letter of scalar move ops (B, H, W, D)
 func expandFormatSpecifiers(s string, elemBits int) string {
 	elemLetters := map[int]string{8: "B", 16: "H", 32: "S", 64: "D"}
+	regLetters := map[int]string{8: "B", 16: "H", 32: "W", 64: "D"}
 	arrangements := map[int]string{8: "16B", 16: "8H", 32: "4S", 64: "2D"}
 	s = strings.ReplaceAll(s, "%s", elemLetters[elemBits])
+	s = strings.ReplaceAll(s, "%r", regLetters[elemBits])
 	s = strings.ReplaceAll(s, "%a", arrangements[elemBits])
 	s = strings.ReplaceAll(s, "%b", fmt.Sprintf("%d", elemBits))
 	return s
@@ -654,66 +657,79 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 
 		if gOp.SpecialLower != nil {
-			if *gOp.SpecialLower == "sftimm" && CurrentArch().isSVE() {
-				sveRules = append(sveRules, sveSftimmRule(gOp, asm, "", constImmRange))
-			} else if *gOp.SpecialLower == "sftimm" {
-				if !sftimmCheck[data.Asm] {
-					sftimmCheck[data.Asm] = true
-					sftImmData := data
-					if tplName == "maskIn" {
-						sftImmData.TplName = "masksftimm"
-					} else {
-						sftImmData.TplName = "sftimm"
-					}
-					allData = append(allData, sftImmData)
-					asmCheck[sftImmData.Asm+"const"] = true
-				}
-			} else if ok, cond, out := parseAsmRule(*gOp.SpecialLower); ok {
-				if _, done := ruleDone[data.Asm]; !done {
-					ruleDone[data.Asm] = struct{}{}
-					optData := data
-					optData.TplName = "asmRule"
-					optData.RuleCond = cond
-					if cond != "" {
-						optData.RuleCond = "&& " + cond
-					}
-					optData.RuleOut = out
-					if maskType == OneMask {
-						optData.Args += " mask"
-					}
-					allData = append(allData, optData)
-				}
-			} else if ok, isEarly, rest := parseArgsMatchRule(*gOp.SpecialLower); ok {
-				key := data.Asm
-				if isEarly {
-					key = data.GoOp + data.GoType
-				}
-				if _, done := ruleDone[key]; !done {
-					ruleDone[key] = struct{}{}
-					// Get elemBits from the operation's inputs.
-					elemBits := 0
-					for _, in := range gOp.In {
-						if in.ElemBits != nil {
-							elemBits = *in.ElemBits
-							break
-						}
-					}
-					optData := data
-					optData.Rule = rest
-					optData.Rule = expandFormatSpecifiers(optData.Rule, elemBits)
-					optData.TplName = "specialLower"
-					// %g is the generic operation name
-					optData.Rule = strings.ReplaceAll(optData.Rule, "%g", optData.GoOp+optData.GoType)
-					// %h is the hardware operation name
-					optData.Rule = strings.ReplaceAll(optData.Rule, "%h", optData.Asm)
-
-					allData = append(allData, optData)
-				}
-				if isEarly {
+			// specialLower may carry several rules, one per line.
+			early := false
+			for _, part := range strings.Split(*gOp.SpecialLower, "\n") {
+				part = strings.TrimSpace(part)
+				if part == "" {
 					continue
 				}
-			} else {
-				panic("simdgen sees unknown special lower " + *gOp.SpecialLower + ", maybe implement it?")
+				if part == "sftimm" && CurrentArch().isSVE() {
+					sveRules = append(sveRules, sveSftimmRule(gOp, asm, "", constImmRange))
+				} else if part == "sftimm" {
+					if !sftimmCheck[data.Asm] {
+						sftimmCheck[data.Asm] = true
+						sftImmData := data
+						if tplName == "maskIn" {
+							sftImmData.TplName = "masksftimm"
+						} else {
+							sftImmData.TplName = "sftimm"
+						}
+						allData = append(allData, sftImmData)
+						asmCheck[sftImmData.Asm+"const"] = true
+					}
+				} else if ok, cond, out := parseAsmRule(part); ok {
+					key := data.Asm + "|" + part
+					if _, done := ruleDone[key]; !done {
+						ruleDone[key] = struct{}{}
+						optData := data
+						optData.TplName = "asmRule"
+						optData.RuleCond = cond
+						if cond != "" {
+							optData.RuleCond = "&& " + cond
+						}
+						optData.RuleOut = out
+						if maskType == OneMask {
+							optData.Args += " mask"
+						}
+						allData = append(allData, optData)
+					}
+				} else if ok, isEarly, rest := parseArgsMatchRule(part); ok {
+					key := data.Asm
+					if isEarly {
+						key = data.GoOp + data.GoType
+					}
+					key += "|" + part
+					if _, done := ruleDone[key]; !done {
+						ruleDone[key] = struct{}{}
+						// Get elemBits from the operation's inputs.
+						elemBits := 0
+						for _, in := range gOp.In {
+							if in.ElemBits != nil {
+								elemBits = *in.ElemBits
+								break
+							}
+						}
+						optData := data
+						optData.Rule = rest
+						optData.Rule = expandFormatSpecifiers(optData.Rule, elemBits)
+						optData.TplName = "specialLower"
+						// %g is the generic operation name
+						optData.Rule = strings.ReplaceAll(optData.Rule, "%g", optData.GoOp+optData.GoType)
+						// %h is the hardware operation name
+						optData.Rule = strings.ReplaceAll(optData.Rule, "%h", optData.Asm)
+
+						allData = append(allData, optData)
+					}
+					if isEarly {
+						early = true
+					}
+				} else {
+					panic("simdgen sees unknown special lower " + part + ", maybe implement it?")
+				}
+			}
+			if early {
+				continue
 			}
 		}
 		if gOp.MemFeatures != nil && *gOp.MemFeatures == "vbcst" {

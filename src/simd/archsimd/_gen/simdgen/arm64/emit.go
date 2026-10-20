@@ -92,6 +92,9 @@ func (template *template) Emit(arrangement string) *unify.Value {
 	case "INS", "UMOV":
 		arrangement = arrangement[len(arrangement)-1:]
 		mnemonic = "VMOV"
+	case "SMOV":
+		arrangement = arrangement[len(arrangement)-1:]
+		mnemonic = "VSMOV"
 	case "DUP":
 		arrangement = arrangement[len(arrangement)-1:]
 		mnemonic = "V" + mnemonic
