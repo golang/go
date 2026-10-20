@@ -19,8 +19,14 @@ import (
 // importer rejects stale facts cleanly. The linker already skips non-.o
 // members (cmd/link/internal/ld/lib.go), so no linker change is needed.
 // Until S2-S7 populate records through facts.SetCurrent, the member
-// carries the header and fingerprint only.
+// carries the header and fingerprint only. The member is emitted only
+// for loGo/s packages: a plain-Go archive stays byte-identical to
+// upstream, and every member-counting reader (pack's object check,
+// nm, objdump) sees the same stream it always has.
 func writeLogosFacts(bout *bio.Writer) {
+	if !base.Logos {
+		return
+	}
 	start := startArchiveEntry(bout)
 	bout.Write(facts.Encode(base.Ctxt.Fingerprint, facts.Current()))
 	finishArchiveEntry(bout, start, facts.MemberName)

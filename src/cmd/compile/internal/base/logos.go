@@ -13,6 +13,12 @@ import (
 // applying the lowering edits to the original bytes. Empty means no eject.
 var LogosEject string
 
+// Logos reports whether the package being compiled came from loGo/s
+// sources. It is set during typecheck (noder) and read at archive-write
+// time so a plain-Go archive stays byte-identical to upstream: the
+// __.LOGOS sidecar exists only when the package used the language.
+var Logos bool
+
 // logosRegisterFlags registers the loGo/s compiler flags.
 func logosRegisterFlags() {
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")

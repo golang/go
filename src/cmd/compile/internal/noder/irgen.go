@@ -52,11 +52,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info, map[*
 
 recheck:
 	// typechecking
+	base.Logos = allLogos(noders)
 	ctxt := types2.NewContext()
 	importer := gcimports{
 		ctxt:     ctxt,
 		packages: make(map[string]*types2.Package),
-		logos:    allLogos(noders),
+		logos:    base.Logos,
 	}
 	conf := types2.Config{
 		Context:            ctxt,

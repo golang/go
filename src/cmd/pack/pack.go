@@ -272,6 +272,12 @@ func (ar *Archive) addPkgdef() {
 		}
 
 		for _, e := range aro.Entries {
+			// The loGo/s sidecar travels with its package definition so a
+			// repacked archive keeps its facts. // logos M3-S1
+			if e.Type == archive.EntrySentinelNonObj && e.Name == "__.LOGOS" {
+				ar.a.AddEntry(archive.EntrySentinelNonObj, "__.LOGOS", 0, 0, 0, 0644, e.Size, io.NewSectionReader(f, e.Offset, e.Size))
+				continue
+			}
 			if e.Type != archive.EntryPkgDef {
 				continue
 			}
@@ -330,15 +336,23 @@ func (ar *Archive) extractContents1(e *archive.Entry, out io.Writer) {
 
 // isGoCompilerObjFile reports whether file is an object file created
 // by the Go compiler, which is an archive file with exactly one entry
-// of __.PKGDEF, or _go_.o, or both entries.
+// of __.PKGDEF, or _go_.o, or both entries. A loGo/s archive may carry
+// the __.LOGOS facts sidecar (a non-object member) beside them; it does
+// not count toward the object-file shape. // logos M3-S1
 func isGoCompilerObjFile(a *archive.Archive) bool {
-	switch len(a.Entries) {
+	var entries []archive.Entry
+	for _, e := range a.Entries {
+		if e.Type != archive.EntrySentinelNonObj || e.Name != "__.LOGOS" {
+			entries = append(entries, e)
+		}
+	}
+	switch len(entries) {
 	case 1:
-		return (a.Entries[0].Type == archive.EntryGoObj && a.Entries[0].Name == "_go_.o") ||
-			(a.Entries[0].Type == archive.EntryPkgDef && a.Entries[0].Name == "__.PKGDEF")
+		return (entries[0].Type == archive.EntryGoObj && entries[0].Name == "_go_.o") ||
+			(entries[0].Type == archive.EntryPkgDef && entries[0].Name == "__.PKGDEF")
 	case 2:
 		var foundPkgDef, foundGo bool
-		for _, e := range a.Entries {
+		for _, e := range entries {
 			if e.Type == archive.EntryPkgDef && e.Name == "__.PKGDEF" {
 				foundPkgDef = true
 			}

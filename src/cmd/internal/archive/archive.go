@@ -358,6 +358,17 @@ func (r *objReader) parseArchive(verbose bool) error {
 				Data:  Data{r.offset, size},
 			})
 			r.skip(size)
+		case "__.LOGOS": // logos M3-S1: loGo/s facts sidecar, never an object
+			r.a.Entries = append(r.a.Entries, Entry{
+				Name:  name,
+				Type:  EntrySentinelNonObj,
+				Mtime: mtime,
+				Uid:   uid,
+				Gid:   gid,
+				Mode:  mode,
+				Data:  Data{r.offset, size},
+			})
+			r.skip(size)
 		case "preferlinkext", "dynimportfail":
 			if size == 0 {
 				// These are not actual objects, but rather sentinel
