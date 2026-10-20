@@ -1,0 +1,41 @@
+// asmcheck
+
+package wasmwb
+
+// M19-S3 codegen check (SPEC Sec 19, T-301.2): on GOARCH=wasm a pointer
+// store keeps the write barrier while marking runs incrementally during
+// idle time: an 8-byte store is I64Store (storeOp, wasm/ssa.go) behind a
+// gcWriteBarrier call (OpWasmLoweredWB), and an 8-byte load is I64Load
+// (loadOp) with no barrier. A pointer-free store takes no barrier. Each
+// check names the full width, so a narrower lowering (I64Store32, I64Load32U)
+// fails it. The harness anchors a pattern at the start of an instruction,
+// so a call or a negated call needs the leading `.*`.
+
+type node struct {
+	next *node
+	val  int
+}
+
+//go:noinline
+func storePtr(p **node, q *node) {
+	// wasm:`I64Store\s` `.*runtime[.]gcWriteBarrier2\(SB\)` -`I64Store(8|16|32)\s`
+	*p = q
+}
+
+//go:noinline
+func loadPtr(p **node) *node {
+	// wasm:`I64Load\s+\$0` -`.*gcWriteBarrier` -`I64Load(8|16|32)[SU]\s`
+	return *p
+}
+
+//go:noinline
+func storeInt(n *node, v int) {
+	// wasm:`I64Store\s+\$8` -`.*gcWriteBarrier` -`I64Store(8|16|32)\s`
+	n.val = v
+}
+
+//go:noinline
+func storeTwoPtrs(n *node, a, b *node) {
+	// wasm:`I64Store\s` 2`.*runtime[.]gcWriteBarrier2\(SB\)` -`I64Store(8|16|32)\s`
+	n.next, a.next = a, b
+}

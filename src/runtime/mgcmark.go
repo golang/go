@@ -1270,7 +1270,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 	checkWork := int64(1<<63 - 1)
 	var check func() bool
 	if flags&(gcDrainIdle|gcDrainFractional) != 0 {
-		checkWork = initScanWork + drainCheckThreshold
+		checkWork = initScanWork + logosDrainCheckThreshold(drainCheckThreshold)
 		if idle {
 			check = pollWork
 		} else if flags&gcDrainFractional != 0 {
@@ -1371,7 +1371,7 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
 			gcw.heapScanWork = 0
 
 			if checkWork <= 0 {
-				checkWork += drainCheckThreshold
+				checkWork += logosDrainCheckThreshold(drainCheckThreshold)
 				if check != nil && check() {
 					break
 				}

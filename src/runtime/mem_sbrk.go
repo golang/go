@@ -198,7 +198,7 @@ func sysAllocOS(n uintptr, _ string) unsafe.Pointer {
 	var p uintptr
 	systemstack(func() {
 		lock(&memlock)
-		p = uintptr(memAlloc(n))
+		p = uintptr(logosMemAllocPerm(n))
 		memCheck()
 		unlock(&memlock)
 	})
@@ -219,7 +219,7 @@ func sysFreeOS(v unsafe.Pointer, n uintptr) {
 			memclrNoHeapPointers(v, n)
 			bloc -= n
 		} else {
-			memFree(v, n)
+			logosMemFree(v, n)
 			memCheck()
 		}
 		unlock(&memlock)
@@ -257,7 +257,7 @@ func sysReserveOS(v unsafe.Pointer, n uintptr, _ string) unsafe.Pointer {
 			p = uintptr(sbrk(n))
 		}
 		if p == 0 && v == nil {
-			p = uintptr(memAlloc(n))
+			p = uintptr(logosMemAllocPerm(n))
 			memCheck()
 		}
 		unlock(&memlock)

@@ -1,0 +1,166 @@
+// run -ldflags=-X=runtime.logosGCMode=wasm
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M19-S3 attack (SPEC Sec 19, T-301.2): the wasm collector marks in
+// slices during idle time of the JS event loop. A program that awaits a JS
+// timer while garbage piles up finishes a GC cycle in that idle time, every
+// slice runs on one M, and the event loop gets control back between slices
+// instead of waiting for the whole mark phase. The assertions hold the
+// structure of the slicing, not wall-clock bounds, so a loaded host cannot
+// fail them; the state machine behind the 2 ms deadline has exact tests in
+// src/runtime/logos_wasmgc_test.go.
+
+//go:build js && wasm
+
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"runtime/debug"
+	"syscall/js"
+	"time"
+	_ "unsafe"
+)
+
+//go:linkname idleStats runtime.logosWasmIdleStats
+func idleStats(mids []int64) (slices uint64, longest int64, marking bool)
+
+type node struct {
+	next *node?
+	pad  [3]uintptr
+}
+
+const (
+	liveNodes   = 1 << 21
+	idleBudget  = 60 * time.Second
+	minMarkWall = 20 * time.Millisecond
+	minSlices   = 4
+	minTicks    = 3
+	sliceBudget = 2 * time.Millisecond
+)
+
+var live, sink *node?
+
+func fail(format string, args ...any) {
+	panic(fmt.Sprintf(format, args...))
+}
+
+func numGC() uint32 {
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	return ms.NumGC
+}
+
+func sleep(ms int) {
+	done := make(chan struct{})
+	cb := js.FuncOf(func(js.Value, []js.Value) any {
+		close(done)
+		return nil
+	})
+	js.Global().Call("setTimeout", cb, ms)
+	<-done
+	cb.Release()
+}
+
+type ticker struct {
+	perf   js.Value
+	id     js.Value
+	fn     js.Func
+	last   float64
+	maxGap float64
+	ticks  int
+}
+
+func startTicker() *ticker {
+	t := &ticker{perf: js.Global().Get("performance")}
+	t.fn = js.FuncOf(func(js.Value, []js.Value) any {
+		now := t.perf.Call("now").Float()
+		if gap := now - t.last; gap > t.maxGap {
+			t.maxGap = gap
+		}
+		t.last = now
+		t.ticks++
+		return nil
+	})
+	t.reset()
+	t.id = js.Global().Call("setInterval", t.fn, 1)
+	return t
+}
+
+func (t *ticker) reset() {
+	t.last = t.perf.Call("now").Float()
+	t.maxGap = 0
+	t.ticks = 0
+}
+
+func (t *ticker) stop() {
+	js.Global().Call("clearInterval", t.id)
+	t.fn.Release()
+}
+
+func buildLive() {
+	for range liveNodes {
+		live = &node{next: live}
+	}
+}
+
+func startCycle() uint32 {
+	for {
+		sink = &node{}
+		if _, _, marking := idleStats(nil); marking {
+			break
+		}
+	}
+	return numGC()
+}
+
+func main() {
+	debug.SetGCPercent(100)
+	buildLive()
+	runtime.GC()
+	tk := startTicker()
+	defer tk.stop()
+
+	mids := make([]int64, 32)
+	slices0, _, _ := idleStats(mids)
+
+	done := startCycle()
+	tk.reset()
+	start := time.Now()
+	for numGC() == done {
+		if time.Since(start) > idleBudget {
+			fail("no GC cycle finished within %v of idle time", idleBudget)
+		}
+		sleep(5)
+	}
+	wall := time.Since(start)
+
+	if wall < minMarkWall {
+		fail("mark phase took %v, too short to exercise slicing (want at least %v): grow the live heap", wall, minMarkWall)
+	}
+	if got := time.Duration(tk.maxGap * float64(time.Millisecond)); got > wall/2 {
+		fail("event loop starved: longest gap between JS ticks was %v of a %v mark phase", got, wall)
+	}
+	if tk.ticks < minTicks {
+		fail("only %d JS ticks ran during a %v mark phase, want at least %d: the event loop did not get control between slices", tk.ticks, wall, minTicks)
+	}
+
+	slices, longest, _ := idleStats(mids)
+	if slices-slices0 < minSlices {
+		fail("the cycle finished in %d mark slices, want at least %d", slices-slices0, minSlices)
+	}
+	if time.Duration(longest) < sliceBudget {
+		fail("no mark slice ended at its %v deadline (longest %v)", sliceBudget, time.Duration(longest))
+	}
+	recorded := min(slices, uint64(len(mids)))
+	for i := uint64(1); i < recorded; i++ {
+		if mids[i] != mids[0] {
+			fail("mark slices ran on different Ms: slice %d on m%d, slice 0 on m%d", i, mids[i], mids[0])
+		}
+	}
+	runtime.KeepAlive(live)
+}

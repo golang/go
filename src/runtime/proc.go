@@ -118,9 +118,13 @@ var modinfo string
 
 var (
 	m0           m
+
 	g0           g
+
 	mcache0      *mcache
+
 	raceprocctx0 uintptr
+
 	raceFiniLock mutex
 )
 
@@ -679,6 +683,7 @@ var (
 	// Readers that cannot take the lock may (carefully!) use the atomic
 	// variables below.
 	allglock mutex
+
 	allgs    []*g
 
 	// allglen and allgptr are atomic variables that contain len(allgs) and
@@ -694,6 +699,7 @@ var (
 	// unsafe.Pointer, not uintptr, to ensure that GC can still reach it
 	// even if it points to a stale array.
 	allglen uintptr
+
 	allgptr **g
 )
 
@@ -1462,21 +1468,37 @@ type stwReason uint8
 // Avoid reusing reasons and add new ones instead.
 const (
 	stwUnknown                     stwReason = iota // "unknown"
+
 	stwGCMarkTerm                                   // "GC mark termination"
+
 	stwGCSweepTerm                                  // "GC sweep termination"
+
 	stwWriteHeapDump                                // "write heap dump"
+
 	stwGoroutineProfile                             // "goroutine profile"
+
 	stwGoroutineProfileCleanup                      // "goroutine profile cleanup"
+
 	stwAllGoroutinesStack                           // "all goroutines stack trace"
+
 	stwReadMemStats                                 // "read mem stats"
+
 	stwAllThreadsSyscall                            // "AllThreadsSyscall"
+
 	stwGOMAXPROCS                                   // "GOMAXPROCS"
+
 	stwStartTrace                                   // "start trace"
+
 	stwStopTrace                                    // "stop trace"
+
 	stwForTestCountPagesInUse                       // "CountPagesInUse (test)"
+
 	stwForTestReadMetricsSlow                       // "ReadMetricsSlow (test)"
+
 	stwForTestReadMemStatsSlow                      // "ReadMemStatsSlow (test)"
+
 	stwForTestPageCachePagesLeaked                  // "PageCachePagesLeaked (test)"
+
 	stwForTestResetDebugLog                         // "ResetDebugLog (test)"
 )
 
@@ -2841,6 +2863,7 @@ var (
 // versions of newosproc and newosproc0.
 const (
 	failthreadcreate  = "runtime: failed to create new OS thread\n"
+
 	failallocatestack = "runtime: failed to allocate stack for the new OS thread\n"
 )
 
@@ -3556,7 +3579,7 @@ top:
 	//
 	// If we're in the GC mark phase, can safely scan and blacken objects,
 	// and have work to do, run idle-time marking rather than give up the P.
-	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) && gcController.addIdleMarkWorker() {
+	if gcBlackenEnabled != 0 && gcShouldScheduleWorker(pp) && logosWasmWorkersMayRun() && gcController.addIdleMarkWorker() {
 		node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
 		if node != nil {
 			pp.gcMarkWorkerMode = gcMarkWorkerIdleMode
@@ -3817,6 +3840,9 @@ top:
 // background work loops, like idle GC. It checks a subset of the
 // conditions checked by the actual scheduler.
 func pollWork() bool {
+	if logosWasmSliceOver() {
+		return true
+	}
 	if !sched.runq.empty() {
 		return true
 	}
@@ -5788,11 +5814,17 @@ var prof struct {
 }
 
 func _System()                    { _System() }
+
 func _ExternalCode()              { _ExternalCode() }
+
 func _LostExternalCode()          { _LostExternalCode() }
+
 func _GC()                        { _GC() }
+
 func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
+
 func _LostContendedRuntimeLock()  { _LostContendedRuntimeLock() }
+
 func _VDSO()                      { _VDSO() }
 
 // Called if we receive a SIGPROF signal.

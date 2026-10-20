@@ -14,6 +14,7 @@ func osinit() {
 	physPageSize = 64 * 1024
 	initBloc()
 	blocMax = uintptr(currentMemory()) * physPageSize // record the initial linear memory size
+	logosWasmHeapInit()
 	numCPUStartup = getCPUCount()
 	getg().m.procid = 2
 }

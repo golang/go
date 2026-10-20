@@ -310,6 +310,9 @@ var gcMarkWorkerModeStrings = [...]string{
 func pollFractionalWorkerExit() bool {
 	// This should be kept in sync with the fractional worker
 	// scheduler logic in findRunnableGCWorker.
+	if logosWasmSliceOver() {
+		return true
+	}
 	now := nanotime()
 	delta := now - gcController.markStartTime
 	if delta <= 0 {
@@ -1853,6 +1856,7 @@ func gcBgMarkWorker(ready chan struct{}) {
 
 		startTime := nanotime()
 		pp.gcMarkWorkerStartTime = startTime
+		logosWasmSliceBegin(startTime)
 		var trackLimiterEvent bool
 		if pp.gcMarkWorkerMode == gcMarkWorkerIdleMode {
 			trackLimiterEvent = pp.limiterEvent.start(limiterEventIdleMarkWork, startTime)
