@@ -103,7 +103,12 @@ func TestScopeDeferOpenCoded(t *testing.T) {
 // lowers to a fixed pairwise recursion over halves, with no multiply
 // operator anywhere, so no implicit FMA contraction can apply. The
 // run fixture (crafted 1e16/-1e16/1.0 input) pins the bit-exact result.
+// The test reads the scalar lowering, so it pins a build without the
+// simd experiment: the vector form of a float slice sum stages the
+// elements through array-pointer conversions and keeps this recursion
+// (TestSimdSliceSumFloatKeepsTree).
 func TestChainSumPairwise(t *testing.T) {
+	scalarSliceTarget(t)
 	src := "package main\n\nfunc f(xs []float64) float64 {\n\treturn xs.sum()\n}\n"
 	out := lowerSnippetSrc(t, "sumsnip.lgo", src)
 	// Halving split of a recursive helper.

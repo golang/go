@@ -1513,9 +1513,17 @@ The loader carries target: 1.4 KB, excluding wasm_exec.js, measured by Benchmark
 
 ### 15.2 Amd64 masked tails, rotates, and checked lengths
 
-- Reductions over slices MUST use fault-suppressing masked loads for tail elements. [T-303]
+- In a native build, reductions over slices MUST use fault-suppressing masked loads for tail elements. [T-303]
 - Masked tails MUST NOT read past the end of the slice. [T-303]
 - The build MUST NOT add guard padding for vector tails. [T-303]
+- In a native build with `GOEXPERIMENT=simd` on amd64 or arm64, `.sum()` on a bare slice of a fixed-width numeric element kind or an alias of one MUST load full vectors for the body and load the tail once through a masked load that enables only the remaining elements. [T-303]
+- On amd64 that masked load MUST be VPMASKMOVD or VPMASKMOVQ for 32 and 64-bit elements, which need AVX2, and the zeroing K-masked VMOVDQU8 or VMOVDQU16 for 8 and 16-bit elements, which need AVX512. [T-303]
+- The amd64 vector form MUST run only when the archsimd CPU feature check its instructions need is true and MUST take the scalar loop when it is false, and the check MUST be omitted when the build's `GOAMD64` level guarantees the feature (`v3` for AVX2, `v4` for AVX512). [T-303]
+- On arm64, which has no masked load, the tail MUST load only the elements present. [T-303]
+- An integer slice sum MUST accumulate in vector lanes. [T-303]
+- A float slice sum MUST run the fixed pairwise halving tree of Sec 1.4 over the loaded elements, so its bits equal the scalar form with and without `GOEXPERIMENT=simd`. [T-303][T-104.6]
+- A slice sum with a fused operation, or over an `int`, `uint`, or `uintptr` element, MUST take the scalar form. [T-303]
+- Eject output of slice reductions MUST use the scalar form, so it builds with an upstream toolchain. [T-303][T-0.3]
 - At GOAMD64=v3 constant-count rotates MAY use RORXQ or RORXL besides SARX, SHLX, and SHRX. [T-303]
 - Variable-count rotates MUST stay on the existing path. [T-303]
 - A ternary-shaped branch at GOAMD64=v3 MAY compile to a conditional move. [T-303]

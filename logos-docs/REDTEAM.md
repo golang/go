@@ -25,7 +25,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #19 | M7 | src/internal/types/testdata/logos/viewas.lgo; test/logos/run/viewas.lgo | tested |
 | #20 | M18 |  | planned |
 | #21 | M8 | src/logos/sync/netidle_logos_test.go (576.8 B per idle connection) | tested |
-| #22 | M15 |  | planned |
+| #22 | M15 | test/logos/run/simd_slice_tail.lgo (page-end mmap); test/logos/codegen/simd_slice.lgo; src/simd/archsimd/logos_maskload_linux_amd64_test.go; src/cmd/compile/internal/logos/simdslice_test.go (no padding) | tested |
 | #23 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
 | #24 | M5 | src/internal/types/testdata/logos/ctfe.lgo (BadMapRange); test/logos/run/const_map.lgo (sorted range) | tested |
 | #25 | M12 | src/cmd/go/testdata/script/logos_cap_unsafe.txt | tested |

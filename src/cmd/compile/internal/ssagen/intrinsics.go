@@ -1675,6 +1675,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		// Only enable intrinsics, if SIMD experiment.
 		simdAMD64Intrinsics(addF)
 		simdARM64Intrinsics(addF)
+		logosSimdIntrinsics(addF)
 		initWasmSIMD()
 
 		addF(simdPackage, "ClearAVXUpperBits",

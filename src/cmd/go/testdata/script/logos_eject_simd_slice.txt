@@ -1,0 +1,129 @@
+# M15-S2 (T-303, T-0.3): eject output of a slice `.sum()` is the scalar
+# form, so it never names this toolchain's fork-only Load<T>SliceMasked
+# loaders and builds with an upstream toolchain. A native build keeps the
+# vector form under GOEXPERIMENT=simd. Every run prints the same bits:
+# the integer sums wrap alike and the float sums use the fixed pairwise
+# order, with the vector form, the scalar form, and the ejected module.
+
+[!GOARCH:amd64] [!GOARCH:arm64] skip 'GOEXPERIMENT=simd needs amd64 or arm64'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# The scalar form natively, no experiment.
+logos run .
+stdout '^f32 130 '
+cp stdout $WORK/scalar-stdout.txt
+
+# The vector form natively, experiment on.
+env GOEXPERIMENT=simd
+logos run .
+cmp stdout $WORK/scalar-stdout.txt
+
+# Eject under the experiment: no archsimd reference of any kind.
+logos eject -o out
+exists out/main.go
+! grep 'SliceMasked' out/main.go
+! grep 'archsimd' out/main.go
+! grep '_logos_simd' out/main.go
+
+# The ejected module runs with the experiment on and prints the same.
+cd out
+go run .
+cmp stdout $WORK/scalar-stdout.txt
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The ejected module runs with the experiment off and prints the same.
+env GOEXPERIMENT=
+cd out
+go run .
+cmp stdout $WORK/scalar-stdout.txt
+cd ..
+
+# Ejecting without the experiment gives the same text.
+cp out/main.go $WORK/eject-simd-main.go
+rm out
+logos eject -o out
+cmp out/main.go $WORK/eject-simd-main.go
+
+-- m/go.mod --
+module example.com/ejectsimdslice
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+	"math"
+)
+
+func sumF32(xs []float32) float32 {
+	return xs.sum()
+}
+
+func sumF64(xs []float64) float64 {
+	return xs.sum()
+}
+
+func sumI32(xs []int32) int32 {
+	return xs.sum()
+}
+
+func sumI64(xs []int64) int64 {
+	return xs.sum()
+}
+
+func sumU8(xs []uint8) uint8 {
+	return xs.sum()
+}
+
+func sumI16(xs []int16) int16 {
+	return xs.sum()
+}
+
+func mix(i int) int {
+	return (i*2654435761 + 12345) >> 3
+}
+
+func main() {
+	for _, n := range []int{0, 1, 5, 8, 9, 31, 64, 67, 130} {
+		f32 := make([]float32, n)
+		f64 := make([]float64, n)
+		c32 := make([]float32, n)
+		c64 := make([]float64, n)
+		i32 := make([]int32, n)
+		i64 := make([]int64, n)
+		u8 := make([]uint8, n)
+		i16 := make([]int16, n)
+		for i := range n {
+			f32[i] = float32(math.Ldexp(float64(mix(i)%2001-1000), (i*7)%13-6))
+			f64[i] = math.Ldexp(float64(mix(i)%2001-1000), (i*7)%13-6)
+			c32[i], c64[i] = 1, 1
+			if i%4 == 0 {
+				c32[i], c64[i] = 1e8, 1e16
+			}
+			if i%4 == 2 {
+				c32[i], c64[i] = -1e8, -1e16
+			}
+			i32[i] = int32(mix(i))
+			i64[i] = int64(mix(i)) * 1000003
+			u8[i] = uint8(mix(i))
+			i16[i] = int16(mix(i))
+		}
+		fmt.Println("f32", n, math.Float32bits(sumF32(f32)))
+		fmt.Println("f64", n, math.Float64bits(sumF64(f64)))
+		fmt.Println("c32", n, math.Float32bits(sumF32(c32)))
+		fmt.Println("c64", n, math.Float64bits(sumF64(c64)))
+		fmt.Println("i32", n, sumI32(i32))
+		fmt.Println("i64", n, sumI64(i64))
+		fmt.Println("u8", n, sumU8(u8))
+		fmt.Println("i16", n, sumI16(i16))
+	}
+}

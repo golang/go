@@ -1,0 +1,153 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"math"
+)
+
+// M15-S2 attack (SPEC Sec 15.2 and 2.4, T-303, T-204.2): `.sum()` on a
+// bare slice matches a scalar oracle for every element kind at every
+// length from empty through two vectors plus one of the widest lane
+// count and beyond, so each tail size runs. Integer sums wrap like the
+// oracle's left-to-right loop. Float sums equal an explicit pairwise
+// recursion over halves bit for bit, the fixed order the scalar form
+// uses. The printed digest of every sum's bits is the same with and
+// without GOEXPERIMENT=simd, so the vector form and the scalar form
+// agree.
+
+type intKind interface {
+	~int | ~uint | ~int8 | ~uint8 | ~int16 | ~uint16 | ~int32 | ~uint32 | ~int64 | ~uint64
+}
+
+type floatKind interface {
+	~float32 | ~float64
+}
+
+var lengths = func() []int {
+	var out []int
+	for n := 0; n <= 131; n++ {
+		out = append(out, n)
+	}
+	return append(out, 255, 256, 257, 1000, 4097)
+}()
+
+func oracleInt[T intKind](s []T) T {
+	var t T
+	for _, v := range s {
+		t += v
+	}
+	return t
+}
+
+func oracleFloat[T floatKind](s []T) T {
+	switch len(s) {
+	case 0:
+		return 0
+	case 1:
+		return s[0]
+	}
+	m := len(s) / 2
+	return oracleFloat(s[:m]) + oracleFloat(s[m:])
+}
+
+func mixInt(i int) int {
+	return (i*2654435761 + 12345) >> 3
+}
+
+// mixFloat varies the magnitude with the index, so a different
+// association order changes the rounded result.
+func mixFloat(i int) float64 {
+	return math.Ldexp(float64(mixInt(i)%2001-1000), (i*7)%13-6)
+}
+
+func digest(h uint64, bits uint64) uint64 {
+	return (h ^ bits) * 1099511628211
+}
+
+func checkInt[T intKind](name string, sum func([]T) T) {
+	h := uint64(14695981039346656037)
+	bad := 0
+	if got := sum(nil); got != 0 {
+		bad++
+		fmt.Println("MISMATCH nil", name, got)
+	}
+	for _, n := range lengths {
+		s := make([]T, n)
+		for i := range s {
+			s[i] = T(mixInt(i))
+		}
+		got, want := sum(s), oracleInt(s)
+		if got != want {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		h = digest(h, uint64(got))
+	}
+	fmt.Println(name, bad, h)
+}
+
+func checkFloat32(name string, sum func([]float32) float32) {
+	h := uint64(14695981039346656037)
+	bad := 0
+	if got := sum(nil); got != 0 {
+		bad++
+		fmt.Println("MISMATCH nil", name, got)
+	}
+	for _, n := range lengths {
+		s := make([]float32, n)
+		for i := range s {
+			s[i] = float32(mixFloat(i))
+		}
+		got, want := sum(s), oracleFloat(s)
+		if math.Float32bits(got) != math.Float32bits(want) {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		h = digest(h, uint64(math.Float32bits(got)))
+	}
+	fmt.Println(name, bad, h)
+}
+
+func checkFloat64(name string, sum func([]float64) float64) {
+	h := uint64(14695981039346656037)
+	bad := 0
+	if got := sum(nil); got != 0 {
+		bad++
+		fmt.Println("MISMATCH nil", name, got)
+	}
+	for _, n := range lengths {
+		s := make([]float64, n)
+		for i := range s {
+			s[i] = mixFloat(i)
+		}
+		got, want := sum(s), oracleFloat(s)
+		if math.Float64bits(got) != math.Float64bits(want) {
+			bad++
+			fmt.Println("MISMATCH", name, n, got, want)
+		}
+		h = digest(h, math.Float64bits(got))
+	}
+	fmt.Println(name, bad, h)
+}
+
+type f32 = float32
+
+func main() {
+	checkInt("int8", func(s []int8) int8 { return s.sum() })
+	checkInt("uint8", func(s []uint8) uint8 { return s.sum() })
+	checkInt("byte", func(s []byte) byte { return s.sum() })
+	checkInt("int16", func(s []int16) int16 { return s.sum() })
+	checkInt("uint16", func(s []uint16) uint16 { return s.sum() })
+	checkInt("int32", func(s []int32) int32 { return s.sum() })
+	checkInt("uint32", func(s []uint32) uint32 { return s.sum() })
+	checkInt("int64", func(s []int64) int64 { return s.sum() })
+	checkInt("uint64", func(s []uint64) uint64 { return s.sum() })
+	checkInt("int", func(s []int) int { return s.sum() })
+	checkFloat32("float32", func(s []float32) float32 { return s.sum() })
+	checkFloat32("f32", func(s []f32) f32 { return s.sum() })
+	checkFloat64("float64", func(s []float64) float64 { return s.sum() })
+	// The pinned order (#67): left-to-right gives 1, the split gives 0.
+	fmt.Println([]float64{1e16, -1e16, 1.0}.sum())
+}

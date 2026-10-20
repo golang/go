@@ -1,0 +1,90 @@
+// asmcheck -goexperiment simd
+
+package main
+
+// M15-S2 attack (SPEC Sec 15.2, T-303; PLAN #22): a slice `.sum()`
+// loads its tail through a fault-suppressing masked load, so no vector
+// load reads past the last element. On amd64 the instruction is
+// VPMASKMOVD or VPMASKMOVQ for 32 and 64-bit lanes (AVX2) and the
+// zeroing K-masked VMOVDQU8 or VMOVDQU16 for 8 and 16-bit lanes
+// (AVX512), and the loop holds no call: the loaders are intrinsics. The
+// vector form sits behind the archsimd feature check its instructions
+// need, which GOAMD64 v3 drops for AVX2 and v4 for AVX512. arm64 has no
+// masked load; its tail is the upstream partial loader, which inserts
+// only the elements present, and its vector add is baseline NEON.
+
+//go:noinline
+func sumI32(xs []int32) int32 {
+	// amd64/v1:"VPMASKMOVD\\s+\\(" "VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)" -"CALL simd/archsimd\\.Load"
+	// amd64/v2:"VPMASKMOVD\\s+\\(" "VPADDD" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)" -"CALL simd/archsimd\\.Load"
+	// amd64/v3:"VPMASKMOVD\\s+\\(" "VPADDD" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// amd64/v4:"VPMASKMOVD\\s+\\(" "VPADDD" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadInt32x4Part\\(SB\\)" "VADD V[0-9]+\\.S4" -"CALL simd/archsimd\\.X86Features" -"VPMASKMOV"
+	return xs.sum()
+}
+
+//go:noinline
+func sumU64(xs []uint64) uint64 {
+	// amd64/v1:"VPMASKMOVQ\\s+\\(" "VPADDQ" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v3:"VPMASKMOVQ\\s+\\(" "VPADDQ" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadUint64x2Part\\(SB\\)" "VADD V[0-9]+\\.D2" -"CALL simd/archsimd\\.X86Features"
+	return xs.sum()
+}
+
+//go:noinline
+func sumU16(xs []uint16) uint16 {
+	// amd64/v1:"VMOVDQU16\\.Z\\s+\\(" "VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v3:"VMOVDQU16\\.Z\\s+\\(" "VPADDW" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v4:"VMOVDQU16\\.Z\\s+\\(" "VPADDW" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadUint16x8Part\\(SB\\)" "VADD V[0-9]+\\.H8" -"CALL simd/archsimd\\.X86Features"
+	return xs.sum()
+}
+
+//go:noinline
+func sumU8(xs []uint8) uint8 {
+	// amd64/v1:"VMOVDQU8\\.Z\\s+\\(" "VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v3:"VMOVDQU8\\.Z\\s+\\(" "VPADDB" "CALL simd/archsimd\\.X86Features\\.AVX512\\(SB\\)"
+	// amd64/v4:"VMOVDQU8\\.Z\\s+\\(" "VPADDB" -"CALL simd/archsimd\\." -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadUint8x16Part\\(SB\\)" "VADD V[0-9]+\\.B16" -"CALL simd/archsimd\\.X86Features"
+	return xs.sum()
+}
+
+// A float sum keeps the pairwise halving tree, so the vector form only
+// stages the elements: its tail is the same masked load.
+//
+//go:noinline
+func sumF32(xs []float32) float32 {
+	// amd64/v1:"VPMASKMOVD\\s+\\(" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)" -"CALL simd/archsimd\\.Load"
+	// amd64/v3:"VPMASKMOVD\\s+\\(" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadFloat32x4Part\\(SB\\)" -"CALL simd/archsimd\\.X86Features"
+	return xs.sum()
+}
+
+//go:noinline
+func sumF64(xs []float64) float64 {
+	// amd64/v1:"VPMASKMOVQ\\s+\\(" "CALL simd/archsimd\\.X86Features\\.AVX2\\(SB\\)"
+	// amd64/v3:"VPMASKMOVQ\\s+\\(" -"CALL simd/archsimd\\.X86Features" -"CMPB internal/cpu\\.X86"
+	// arm64:"CALL simd/archsimd\\.LoadFloat64x2Part\\(SB\\)" -"CALL simd/archsimd\\.X86Features"
+	return xs.sum()
+}
+
+// int is not the *[N]int64 the loaders take, so it stays scalar and
+// emits no masked load or vector add.
+//
+//go:noinline
+func sumInt(xs []int) int {
+	// amd64:-"VPMASKMOV" -"VPADD" -"CALL simd/archsimd"
+	// arm64:-"VADD V" -"CALL simd/archsimd"
+	return xs.sum()
+}
+
+func main() {
+	var a []int32
+	var b []uint64
+	var c []uint16
+	var d []uint8
+	var e []float32
+	var f []float64
+	var g []int
+	println(sumI32(a), sumU64(b), sumU16(c), sumU8(d), sumF32(e), sumF64(f), sumInt(g))
+}

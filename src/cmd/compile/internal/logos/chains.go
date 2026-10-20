@@ -1141,7 +1141,7 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText string, 
 	cg.elemT = elemT
 	ce := &chainEmit{cg: cg, call: call, ops: ops, term: term, baseText: baseText, elemT: elemT, resultT: resultT, isTry: isTry}
 	ce.prepare()
-	prelude, body, epilogue := ce.loop()
+	prelude, body, epilogue := ce.runLoop()
 	var b strings.Builder
 	for _, line := range prelude {
 		b.WriteString(line + "; ")

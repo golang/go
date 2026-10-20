@@ -143,6 +143,13 @@ func simdLaneOf(kind types2.BasicKind) (simdLane, bool) {
 	return simdLane{}, false
 }
 
+// simdWordKind reports whether kind is `int`, `uint`, or `uintptr`,
+// whose pointers are not the *[N]int64 or *[N]uint64 the archsimd
+// loaders take.
+func simdWordKind(kind types2.BasicKind) bool {
+	return kind == types2.Int || kind == types2.Uint || kind == types2.Uintptr
+}
+
 // simdShape is a lowering-side array shape.
 type simdShape struct {
 	arr       *types2.Array
@@ -192,7 +199,7 @@ func (fl *fileLower) simdShapeOf(at *types2.Array, typ types2.Type) *simdShape {
 	// form. An alias is the type it names, so it resolves first (byte is
 	// uint8; `type f32 = float32` is float32).
 	_, predeclared := types2.Unalias(at.Elem()).(*types2.Basic)
-	exact := predeclared && b.Kind() != types2.Int && b.Kind() != types2.Uint && b.Kind() != types2.Uintptr
+	exact := predeclared && !simdWordKind(b.Kind())
 	return &simdShape{arr: at, lane: lane, len: n, spell: spell, under: under, named: spell != under, elem: elem, elemSpell: elemSpell, exact: exact}
 }
 
@@ -556,12 +563,6 @@ func parseSimdExprFrag(text string, pos syntax.Pos) syntax.Expr {
 	}
 	e := vals[0]
 	normalizeChainPos(e, pos)
-	syntax.Inspect(e, func(n syntax.Node) bool {
-		if b, ok := n.(*syntax.BlockStmt); ok {
-			b.Rbrace = pos
-		}
-		return true
-	})
 	return e
 }
 

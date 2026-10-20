@@ -1,0 +1,10 @@
+int8 ok 0
+uint8 ok 0
+int16 ok 0
+uint16 ok 0
+int32 ok 0
+uint32 ok 0
+int64 ok 0
+uint64 ok 0
+float32 ok 0
+float64 ok 0
