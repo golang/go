@@ -54,6 +54,22 @@ func chains(u *User?) {
 		Name
 }
 
+// A `?` after a parenthesized single result wraps that type, so `(T?)?`
+// is the nested option result and `(T)?` equals `T?`.
+func nestedResult() (int?)? {
+	return nil
+}
+
+func groupedResult() (int)? {
+	return nil
+}
+
+// A result list is not a type: `?` after a named or multi-value list is
+// a syntax error.
+func badNamedResult() (x int)? { // ERROR syntax error: \? applies to one unnamed result type; write \(T\)\? or \(T\?\)\?
+	return
+}
+
 // A gap keeps the old tokens: `?` plus `.` is try-plus-selector, not `?.`.
 func gap(o *User?) {
 	_ = o? .Name

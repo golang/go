@@ -149,3 +149,11 @@ func optLit() {
 	_ = OptHolder{}
 	_ = OptHolder{F: 42}
 }
+
+// A `T?` value wraps into `(T?)?`; the nested option never unwraps
+// implicitly.
+func optNestWrap(x int?, w (int?)?) {
+	var a (int?)? = x
+	var b int? = w /* ERROR "cannot use w (variable of type (int?)?) as int? value in" */
+	_, _ = a, b
+}

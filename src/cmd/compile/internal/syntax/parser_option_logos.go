@@ -85,6 +85,25 @@ func (p *parser) logosOptionType(typ Expr) Expr {
 	}
 }
 
+// logosOptionResult applies a postfix `?` that follows a parenthesized
+// result list. In `func() (T?)?`, the parentheses group one unnamed type,
+// so the `?` wraps that type and the result is the nested option (SPEC
+// T-202). A `?` after a named or multi-value list is a syntax error,
+// because a result list is not a type. With no `?`, it returns list
+// unchanged. In plain mode it returns list unchanged.
+func (p *parser) logosOptionResult(list []*Field) []*Field {
+	if p.mode&LogosMode == 0 || p.tok != _Question && p.tok != _Coalesce {
+		return list
+	}
+	if len(list) != 1 || list[0].Name != nil {
+		p.syntaxError("? applies to one unnamed result type; write (T)? or (T?)?")
+		p.next()
+		return list
+	}
+	list[0].Type = p.logosOptionType(list[0].Type)
+	return list
+}
+
 // logosTypeElem parses a component type: a slice, array, map, or channel
 // element, a map key, or a pointer base. It is type_ without the
 // postfix-`?` wrap, so in `[]int?` the `?` belongs to the slice, not the

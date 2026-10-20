@@ -1621,7 +1621,7 @@ func (p *parser) funcResult() []*Field {
 	}
 
 	if p.got(_Lparen) {
-		return p.paramList(nil, nil, _Rparen, false, false)
+		return p.logosOptionResult(p.paramList(nil, nil, _Rparen, false, false)) // M3-S2: `func() (T?)?`.
 	}
 
 	pos := p.pos()

@@ -137,13 +137,11 @@ func (check *Checker) logosOptionAssign(x *operand, T Type, context string) bool
 		check.updateExprType(x.expr, t, false)
 		return true
 	}
-	if Topt != nil && Vopt == nil {
+	if Topt != nil {
 		// A value wraps into an option only for the identical element
-		// type; options stay invariant like slices (see comparer).
-		return Identical(x.typ(), Topt.Elem)
-	}
-	if Topt != nil && Vopt != nil {
-		return Identical(Vopt.Elem, Topt.Elem)
+		// type, so `T?` wraps into `(T?)?`; options stay invariant like
+		// slices (see comparer).
+		return Identical(x.typ(), Topt.Elem) || Identical(x.typ(), T)
 	}
 	if Vopt != nil && Topt == nil && check.logosInGoCall() {
 		// A .lgo *T? lowers to the bare pointer, identical to a Go *T
