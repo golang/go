@@ -90,6 +90,7 @@ func (fl *fileLower) lowerCTFEFileList() {
 			vd := &syntax.VarDecl{NameList: cd.NameList, Type: cd.Type, Values: r.lit}
 			vd.SetPos(syntax.StartPos(cd))
 			(*list)[i] = vd
+			fl.markRodataVar(vd, r.val)
 			if kw, ok := constKeywordStart(fl.src, fl.off(syntax.StartPos(cd))); ok {
 				fl.add(kw, kw+5, "var")
 			}
@@ -146,6 +147,7 @@ func (fl *fileLower) moveGroupedVar(cd *syntax.ConstDecl, i int, list *[]syntax.
 	fl.removeAt(list, i)
 	vd := &syntax.VarDecl{NameList: cd.NameList, Type: cd.Type, Values: r.lit}
 	vd.SetPos(syntax.StartPos(cd))
+	fl.markRodataMoved(vd, r.val)
 	at := end - 1
 	*list = append(*list, nil)
 	copy((*list)[at+1:], (*list)[at:])
@@ -183,12 +185,16 @@ func (fl *fileLower) moveGroupedBlockVar(cd *syntax.ConstDecl, j int, ds *syntax
 // insertVarText inserts a var line before the next sibling's line or at
 // end of file.
 func (fl *fileLower) insertVarText(cd *syntax.ConstDecl, r ctfeResult, indent string, next func() (int, bool)) {
+	line := indent + "var " + declNames(cd) + " = " + r.text + "\n"
+	if rodataStaticValue(r.val) {
+		line = rodataMarker + "\n" + line
+	}
 	off, ok := next()
 	if ok {
-		fl.add(off, off, indent+"var "+declNames(cd)+" = "+r.text+"\n")
+		fl.add(off, off, line)
 		return
 	}
-	fl.add(off, off, "\n"+indent+"var "+declNames(cd)+" = "+r.text+"\n")
+	fl.add(off, off, "\n"+line)
 }
 
 // lineStart returns the start offset of the line containing the

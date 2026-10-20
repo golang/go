@@ -1,0 +1,123 @@
+// run
+
+package main
+
+// M5-S3 read-only placement (SPEC Sec 2.1, T-201): the backing data of
+// a pointer-free const slice and const array must live in a read-only
+// section (nm type R), while an ordinary mutable var stays in writable
+// data (type D). The program inspects its own binary with the go tool
+// from its own GOROOT. Static slice backing temps (..stmp_N) never reach
+// the exe symtab, so nm asserts the global symbols here (slice header
+// main.roSlice, whole array main.roArray); test/logos/run/rodata_write.lgo
+// proves the temp backing itself faults on write. reflect.DeepEqual and
+// fmt.Println must accept const composites (#50, #98).
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"runtime"
+	"strings"
+)
+
+const roSlice = []int{2, 3, 5, 7, 11}
+const roArray = [4]string{"a", "b", "c", "d"}
+
+var roMutable = []int{1, 2, 3}
+
+const probeSrc = `package main
+
+import "fmt"
+
+const roSlice = []int{2, 3, 5, 7, 11}
+const roArray = [4]string{"a", "b", "c", "d"}
+
+const (
+	roGrouped = []int{9, 8, 7}
+	roGlen = len(roGrouped)
+)
+
+var roMutable = []int{1, 2, 3}
+
+func main() {
+	fmt.Println(roSlice, roArray, roMutable, roGlen, roGrouped)
+}
+`
+
+func nmType(goBin, dir, sym string) string {
+	out, err := exec.Command(goBin, "tool", "nm", filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL nm: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		f := strings.Fields(line)
+		if len(f) >= 3 && f[len(f)-1] == sym {
+			return f[1]
+		}
+	}
+	fmt.Printf("FAIL symbol %s not found\n%s", sym, out)
+	os.Exit(1)
+	return ""
+}
+
+func buildProbe(logosBin string) string {
+	dir, err := os.MkdirTemp("", "rodatanm")
+	if err != nil {
+		fmt.Printf("FAIL tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		fmt.Printf("FAIL gomode: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc), 0644); err != nil {
+		fmt.Printf("FAIL source: %v\n", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("FAIL probe build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	return dir
+}
+
+func main() {
+	if !reflect.DeepEqual(roSlice, []int{2, 3, 5, 7, 11}) {
+		fmt.Println("FAIL DeepEqual slice")
+		os.Exit(1)
+	}
+	if !reflect.DeepEqual(roArray, [4]string{"a", "b", "c", "d"}) {
+		fmt.Println("FAIL DeepEqual array")
+		os.Exit(1)
+	}
+	fmt.Println(roSlice)
+	fmt.Println(roArray[0], roArray[3], len(roSlice))
+
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	goBin := filepath.Join(binDir, "go")
+	logosBin := filepath.Join(binDir, "logos")
+	if runtime.GOOS == "windows" {
+		goBin += ".exe"
+		logosBin += ".exe"
+	}
+	dir := buildProbe(logosBin)
+	st := nmType(goBin, dir, "main.roSlice.logos_backing0")
+	at := nmType(goBin, dir, "main.roArray")
+	gt := nmType(goBin, dir, "main.roGrouped.logos_backing0")
+	mt := nmType(goBin, dir, "main.roMutable")
+	fmt.Printf("roSlice.backing=%s roArray=%s roGrouped.backing=%s roMutable=%s\n", st, at, gt, mt)
+	if st != "R" || at != "R" || gt != "R" || mt != "D" {
+		fmt.Println("FAIL const composite not in rodata")
+		os.Exit(1)
+	}
+	if mt == "R" || mt == "r" {
+		fmt.Println("FAIL mutable var in rodata")
+		os.Exit(1)
+	}
+	fmt.Println("rodata OK")
+}

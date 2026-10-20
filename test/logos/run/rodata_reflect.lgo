@@ -1,0 +1,25 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+// M5 const composites in read-only data (SPEC T-201, #50, #98):
+// reflect.DeepEqual and fmt.Println accept them like any other value.
+
+type Point struct {
+	X, Y int
+}
+
+const primes = []int{2, 3, 5, 7}
+
+const origin = Point{X: 1, Y: 2}
+
+func main() {
+	fmt.Println(reflect.DeepEqual(primes, []int{2, 3, 5, 7}))
+	fmt.Println(reflect.DeepEqual(origin, Point{X: 1, Y: 2}))
+	fmt.Println(primes, origin)
+}

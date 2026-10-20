@@ -1,0 +1,22 @@
+// errorcheck
+
+package main
+
+// M5-S3 read-only placement (SPEC Sec 2.1, T-201): a package-level
+// slice composite hand-marked //logos:rodata whose elements need
+// dynamic code stops the compiler with the slice's internal-error
+// text. Lowering-created vars never reach this path: slice, array, and
+// struct composites of constants always initialize statically (maps
+// stay dynamic and are excluded from marking until M5-S4).
+
+//logos:rodata
+var dyn = []int{fresh(), 1} // ERROR "logos: const composite dyn needs dynamic initialization"
+
+//go:noinline
+func fresh() int {
+	return 1
+}
+
+func main() {
+	println(dyn[0], dyn[1])
+}

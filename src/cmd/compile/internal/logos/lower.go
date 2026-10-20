@@ -27,6 +27,7 @@ import (
 // AssertedStruct, OptionType, CoalesceExpr, OptSelectExpr, ConstType,
 // YieldStmt, ScopeDeferStmt, or InterpExpr) is an internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
+	clearRodataPackage(pkg.Path()) // M5-S3: fresh read-only marks per compile.
 	if f := EmitOptionFacts(pkg, info); f != nil {
 		facts.SetCurrent(f)
 	}
@@ -94,6 +95,7 @@ type fileLower struct {
 	// boundary-insert drains, wrapSeq mints wrapper IDs, and
 	// retResults maps each return to its function results.
 	spreadSeq  int
+	rodataVars []rodataVar
 	optMemo    map[*syntax.OptionType]syntax.Expr
 	narrowDone map[*syntax.Name]bool
 	wrapSpan   map[syntax.Expr]span
@@ -164,6 +166,7 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
 	fl.collectInterpKinds() // M6-S1 hook: interpolation operand kinds before any rewrite.
+	fl.scanRodataMarkers()  // M5-S3 hook: hand-written //logos:rodata lines.
 	fl.lowerZeroCopy()      // M5-S5 hook: zero-copy string/bytes conversions.
 	fl.lowerCTFE()          // M5-S2 hook: const composite literals and const func erasure.
 	fl.eraseConstViews()    // M5-S1 hook: erase const views and bound recorded slices.
@@ -190,6 +193,7 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerProperties()     // M4-S2 hook: property accessors, selector lowering, prop facts.
 	fl.lowerStructDefaults() // M6-S3 hook: strip `= const`, fill composite literals.
 	fl.lowerAddrFresh()      // M6-S2 hook: `&expr` to new(expr).
+	fl.emitRodata()          // M5-S3 hook: read-only vars, after every pass that creates them.
 	fl.lowerInterp()         // M6-S1 hook: interpolated strings (last: whole-span text drains inner splices).
 }
 

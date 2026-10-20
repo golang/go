@@ -1,0 +1,49 @@
+// run
+
+package main
+
+// M5-S3 read-only placement (SPEC Sec 2.1, T-201): a write to a const
+// composite through unsafe must fault. The parent re-executes itself
+// as "child"; the child stores through the backing array and must die
+// with a fault (nonzero exit, "fault" in stderr). If the store ever
+// succeeds the test fails red.
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"os/exec"
+	"strings"
+	"unsafe"
+)
+
+const faultSlice = []int{11, 22, 33}
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "child" {
+		p := unsafe.SliceData(faultSlice)
+		*p = 0xDEAD
+		fmt.Println("STORE-SUCCEEDED")
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Printf("FAIL self=%v\n", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command(self, "child")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	runErr := cmd.Run()
+	code := -1
+	if ee, ok := runErr.(*exec.ExitError); ok {
+		code = ee.ExitCode()
+	}
+	out := buf.String()
+	if runErr == nil || code == 0 || !strings.Contains(out, "fault") || strings.Contains(out, "STORE-SUCCEEDED") {
+		fmt.Printf("FAIL code=%d out=%q\n", code, out)
+		os.Exit(1)
+	}
+	fmt.Printf("fault OK code=%d\n", code)
+}

@@ -1,0 +1,27 @@
+// run
+
+package main
+
+import "fmt"
+
+// M5-S3 regression (SPEC Sec 2.1, T-201, Table T row T-Sec9): a named map
+// type reached through a const, directly and nested inside a struct, must
+// keep dynamic initialization. It must not trip the read-only backend's
+// internal error. The map index keeps Go's comma-ok meaning (T-104.3).
+
+type M map[string]int
+
+const m = M{"a": 1}
+
+type S struct {
+	X int
+	Y M
+}
+
+const s = S{X: 1, Y: M{"b": 2}}
+
+func main() {
+	v, ok := m["a"]
+	w, ok2 := s.Y["b"]
+	fmt.Println(v, ok, w, ok2, s.X)
+}

@@ -55,7 +55,7 @@ func (s *Schedule) append(n ir.Node) {
 
 // StaticInit adds an initialization statement n to the schedule.
 func (s *Schedule) StaticInit(n ir.Node) {
-	if !s.tryStaticInit(n) {
+	if !logosStaticInit(s, n) {
 		if base.Flag.Percent != 0 {
 			ir.Dump("StaticInit failed", n)
 		}
@@ -361,6 +361,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
 			// Init pointer.
 			a := StaticName(r.X.Type())
+			logosMarkTemp(a, l)
 
 			s.Temps[r] = a
 			staticdata.InitAddr(l, loff, a.Linksym())
@@ -391,7 +392,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		// Init slice.
 		ta := types.NewArray(r.Type().Elem(), r.Len)
 		ta.SetNoalg(true)
-		a := StaticName(ta)
+		a := logosBackingArray(l, loff, ta)
 		s.Temps[r] = a
 		staticdata.InitSlice(l, loff, a.Linksym(), r.Len)
 		// Fall through to init underlying array.
@@ -491,6 +492,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
 		} else {
 			// Construct temp to hold val, write pointer to temp into n.
 			a := StaticName(val.Type())
+			logosMarkTemp(a, l)
 			s.Temps[val] = a
 			assign(base.Pos, a, 0, val)
 			staticdata.InitAddr(l, loff+int64(types.PtrSize), a.Linksym())

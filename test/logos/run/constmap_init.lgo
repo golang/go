@@ -1,0 +1,101 @@
+// run
+
+package main
+
+// M5-S3 read-only placement, const-composite half (SPEC Sec 2.1, T-201;
+// T-PERF PLAN:687): touching const composites must add no heap bytes at
+// init. The const-map half of this file (1,000-key table, symbol type R)
+// belongs to M5-S4 and lands with test/logos/run/const_map.lgo; until
+// then this file pins the composite behavior the map tables reuse.
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+const initSlice = []int{2, 3, 5, 7, 11, 13, 17, 19}
+const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
+
+const probeSrc = `package main
+
+import "fmt"
+
+const initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}
+
+func main() {
+	fmt.Println(initArray)
+}
+`
+
+func main() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	runtime.ReadMemStats(&m)
+	before := m.HeapAlloc
+	sum := 0
+	for _, v := range initSlice {
+		sum += v
+	}
+	for _, v := range initArray {
+		sum += v
+	}
+	if sum != 113 {
+		fmt.Printf("FAIL sum=%d\n", sum)
+		os.Exit(1)
+	}
+	runtime.ReadMemStats(&m)
+	after := m.HeapAlloc
+	fmt.Printf("heap delta=%d\n", after-before)
+	if after != before {
+		fmt.Println("FAIL heap grew at init")
+		os.Exit(1)
+	}
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	goBin := filepath.Join(binDir, "go")
+	logosBin := filepath.Join(binDir, "logos")
+	if runtime.GOOS == "windows" {
+		goBin += ".exe"
+		logosBin += ".exe"
+	}
+	dir, err := os.MkdirTemp("", "initnm")
+	if err != nil {
+		fmt.Printf("FAIL tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		fmt.Printf("FAIL gomode: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc), 0644); err != nil {
+		fmt.Printf("FAIL source: %v\n", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("FAIL probe build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	nmOut, err := exec.Command(goBin, "tool", "nm", filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL nm: %v\n%s", err, nmOut)
+		os.Exit(1)
+	}
+	arrayType := ""
+	for _, line := range strings.Split(string(nmOut), "\n") {
+		f := strings.Fields(line)
+		if len(f) >= 3 && f[len(f)-1] == "main.initArray" {
+			arrayType = f[1]
+		}
+	}
+	fmt.Printf("initArray=%s\n", arrayType)
+	if arrayType != "R" {
+		fmt.Println("FAIL const array not in rodata")
+		os.Exit(1)
+	}
+	fmt.Println("init OK")
+}

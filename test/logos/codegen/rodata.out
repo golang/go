@@ -1,0 +1,4 @@
+[2 3 5 7 11]
+a d 5
+roSlice.backing=R roArray=R roGrouped.backing=R roMutable=D
+rodata OK
