@@ -20,7 +20,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #14 | M3 | src/internal/types/testdata/logos/narrowing.lgo | tested |
 | #15 | M13 |  | planned |
 | #16 | M5 | src/internal/types/testdata/logos/const_views.lgo (cvPlainReslice, cvPlainReuseLoop); test/logos/run/reslice_reuse.lgo | tested |
-| #17 | M6 |  | planned |
+| #17 | M6 | test/logos/run/tuples.lgo (direct) | tested |
 | #18 |M1| test/logos/redteam/attack_018_shadowed_named_return | tested |
 | #19 | M7 | src/internal/types/testdata/logos/viewas.lgo; test/logos/run/viewas.lgo | tested |
 | #20 | M18 |  | planned |
@@ -34,14 +34,14 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #28 | M13 |  | planned |
 | #29 | M19 |  | planned |
 | #30 | M13 |  | planned |
-| #31 | M6 |  | planned |
+| #31 | M6 | src/internal/types/testdata/logos/chains.lgo; test/logos/run/sort_side_effect.lgo | tested |
 | #32 |M1| test/logos/redteam/attack_032_defer_lifo_order | tested |
 | #33 | M17, M18 |  | planned |
-| #34 | M6 |  | planned |
+| #34 | M6 | test/logos/run/interp.lgo (bigBox AllocsPerRun) | tested |
 | #35 | M18 |  | planned |
 | #36 |M2| test/logos/redteam/attack_036_open_union_value | tested |
 | #37 | M7 |  | planned |
-| #38 | M6 |  | planned |
+| #38 | M6 | src/cmd/compile/internal/syntax/parser_paren_logos_test.go | tested |
 | #39 | M6 |  | planned |
 | #40 |M2| test/logos/redteam/attack_040_union_equality | tested |
 | #41 | M5, M6 |  | planned |
@@ -55,11 +55,11 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #49 | M3 | test/logos/run/option_union.lgo | tested |
 | #50 | M5 | test/logos/run/rodata_reflect.lgo | tested |
 | #51 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
-| #52 | M6 |  | planned |
+| #52 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestScopeDeferOpenCoded) | tested |
 | #53 | M18 |  | planned |
 | #54 | M5 | test/logos/run/relro_write.lgo | tested |
 | #55 |M1| test/logos/redteam/attack_055_errtrace_reset_cap | tested |
-| #56 | M6 |  | planned |
+| #56 | M6 | test/logos/run/scope_defer.lgo (funcVarDefer, recvDefer) | tested |
 | #57 |M2, M7| test/logos/redteam/attack_057_case_first_match | tested |
 | #58 | M13 |  | planned |
 | #59 | M18 |  | planned |
@@ -70,7 +70,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #64 | M6 |  | planned |
 | #65 | M7 |  | planned |
 | #66 |M1| test/logos/redteam/attack_066_errdefer_unnamed_results | tested |
-| #67 | M6, M13 |  | planned |
+| #67 | M6, M13 | M6 half: src/cmd/compile/internal/logos/m6gaps_test.go (TestChainSumPairwise); test/logos/run/chains.lgo (sum order). M13: arm64 leg open | planned |
 | #68 | M8 |  | planned |
 | #69 | M10 |  | planned |
 | #70 | M5 | test/logos/codegen/rodata.lgo | tested |
@@ -87,7 +87,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #81 | M18 |  | planned |
 | #82 |M2| test/logos/redteam/attack_082_union_gc_shape | tested |
 | #83 | M5 | test/logos/run/zerocopy.lgo | tested |
-| #84 | M6 |  | planned |
+| #84 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestChainFuseOneLoop) | tested |
 | #85 |M1| test/logos/redteam/attack_085_typed_nil_errdefer | tested |
 | #86 | M7 |  | planned |
 | #87 |M1| test/logos/redteam/attack_087_errdefer_panic_goexit | tested |
@@ -116,7 +116,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #110 | M5 | test/logos/run/freeze.lgo | tested |
 | #111 | M15 |  | planned |
 | #112 | M1 |  | planned |
-| #113 | M6 |  | planned |
+| #113 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestScopeDeferOpenCoded) | tested |
 | #114 | M7 |  | planned |
 | #115 | M3 | src/internal/types/testdata/logos/union_exhaustive.lgo | tested |
 | #116 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
@@ -129,7 +129,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #123 | M6, M11 |  | planned |
 | #124 | M13 |  | planned |
 | #125 |M1| test/logos/redteam/attack_125_errdefer_join | tested |
-| #126 | M6 |  | planned |
+| #126 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestInterpBindBeforeSizing) | tested |
 | #127 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #128 | M7 |  | planned |
 | #129 | M7 |  | planned |
@@ -145,7 +145,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #139 | M11 |  | planned |
 | #140 | M5 | src/cmd/compile/internal/logos/constmap_test.go (TestConstmapBudgetIsOneMillion, TestConstmapProbeIsSingleProbe); src/logos/rt/constmap_proof_test.go (TestConstTableGetSingleProbe) | tested |
 | #141 | M4 | test/logos/run/properties.lgo | tested |
-| #142 | M6 |  | planned |
+| #142 | M6 | test/logos/run/chains.lgo (at-return closes) | tested |
 | #143 | M8 |  | planned |
 | #144 | M17, M20 |  | planned |
 | #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
@@ -180,7 +180,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #174 | M7 |  | planned |
 | #175 | M19 |  | planned |
 | #176 | M8 | src/logos/sync/sync_test.go (TestLockedWithLockUnlocksAfterPanic) | tested |
-| #177 | M6 |  | planned |
+| #177 | M6 | test/logos/run/interp.lgo (format verbs printed literally) | tested |
 | #178 | M8 |  | planned |
 | #179 | M6 |  | planned |
 | #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |

@@ -22,6 +22,8 @@ import (
 
 const logosChainMutation = "[correctness::const_view_mutation]"
 
+const logosSideEffectBeforeSort = "[suspicious::side_effect_before_sort]"
+
 // logosChainMethods is the set of chain method names.
 var logosChainMethods = map[string]bool{
 	"filter": true,
@@ -151,6 +153,7 @@ func (check *Checker) logosChainMethod(x *operand, call *syntax.CallExpr, sel *s
 			fail()
 			return
 		}
+		check.logosWarnSideEffectBeforeSort(sel, sel.X)
 		done(NewSlice(elem))
 	case "first", "last":
 		if !check.logosChainArity(call, args, 0) {
@@ -573,6 +576,100 @@ func (check *Checker) logosChainFuncArg(arg syntax.Expr, elem, want Type, method
 	fn := NewSignatureType(nil, nil, nil, NewTuple(NewParam(nopos, check.pkg, "", elem)), NewTuple(NewParam(nopos, check.pkg, "", want)), false)
 	check.assignment(&op, fn, "chain "+method)
 	return want, false, true
+}
+
+// logosWarnSideEffectBeforeSort warns against a chain lambda with a
+// call of unknown purity before `.sortBy()` (SPEC Sec 1.4, T-102): the
+// fused prefix may run its effects an unexpected number of times once
+// sorting materializes the run. Only the lambdas of the chain prefix
+// (the sortBy receiver, transitively) are scanned; the sortBy key
+// lambda itself and the receiver base expression are out of scope. The
+// diagnostic is warn-severity like unapplied_struct_default: it reports
+// through softErrorf and LogosWarnOnly keeps it out of firstErr.
+func (check *Checker) logosWarnSideEffectBeforeSort(sel *syntax.SelectorExpr, recv syntax.Expr) {
+	for _, lam := range logosPrefixLambdas(recv) {
+		if logosLambdaHasImpureCall(check, lam) {
+			check.softErrorf(sel.Sel, IncompatibleAssign, "%s chain lambda with a call of unknown purity before sortBy", logosSideEffectBeforeSort)
+			return
+		}
+	}
+}
+
+// logosPrefixLambdas collects the lambda arguments of the chain calls
+// forming the receiver prefix, outermost first. The walk follows
+// selector calls over known chain methods; anything else ends it.
+func logosPrefixLambdas(recv syntax.Expr) []*syntax.LambdaExpr {
+	var lams []*syntax.LambdaExpr
+	for {
+		call, ok := syntax.Unparen(recv).(*syntax.CallExpr)
+		if !ok {
+			return lams
+		}
+		sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+		if !ok || sel.Sel == nil || !logosChainMethods[sel.Sel.Value] {
+			return lams
+		}
+		for _, arg := range call.ArgList {
+			if lam, ok := syntax.Unparen(arg).(*syntax.LambdaExpr); ok {
+				lams = append(lams, lam)
+			}
+		}
+		recv = sel.X
+	}
+}
+
+// logosLambdaHasImpureCall reports whether a chain lambda body holds a
+// call of unknown purity. Known-pure calls are conversions (the callee
+// names a type) and builtins without observable effects; every other
+// call, including method and package-qualified calls, counts as unknown.
+// Nested function literals are pruned: their calls run only when the
+// literal is invoked, not per element.
+func logosLambdaHasImpureCall(check *Checker, lam *syntax.LambdaExpr) bool {
+	found := false
+	syntax.Inspect(lam.Body, func(n syntax.Node) bool {
+		if found {
+			return false
+		}
+		if _, ok := n.(*syntax.FuncLit); ok {
+			return false
+		}
+		call, ok := n.(*syntax.CallExpr)
+		if !ok {
+			return true
+		}
+		if !logosKnownPureCall(check, call) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// logosKnownPureCall reports whether a call is known pure: a conversion
+// or an effect-free builtin. Copy, clear, delete, and append mutate
+// their arguments; panic, recover, print, and println have observable
+// effects; all of those count as unknown.
+func logosKnownPureCall(check *Checker, call *syntax.CallExpr) bool {
+	name, ok := syntax.Unparen(call.Fun).(*syntax.Name)
+	if !ok {
+		return false
+	}
+	obj := check.lookup(name.Value)
+	if obj == nil {
+		return false
+	}
+	if _, ok := obj.(*TypeName); ok {
+		return true
+	}
+	if b, ok := obj.(*Builtin); ok {
+		switch b.Name() {
+		case "copy", "clear", "delete", "append", "panic", "recover", "print", "println":
+			return false
+		}
+		return true
+	}
+	return false
 }
 
 // logosChainFuncInfer checks a non-lambda mapper, inferring the element

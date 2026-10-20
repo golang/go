@@ -120,12 +120,22 @@ func main() {
 	fmt.Println(items.sortBy(x => x.k))
 	gs := getXS().map(x => float64(x) / 3)
 	fmt.Println(gs.sum())
+	// Fixed pairwise order (#67): left-to-right would give 1, the
+	// pairwise split gives 0. No multiply appears, so no FMA can contract.
+	fmt.Println([]float64{1e16, -1e16, 1.0}.sum())
 	fitems := []fitem{{1, "a"}, {math.NaN(), "n1"}, {1, "b"}, {math.NaN(), "n2"}, {0, "c"}}
 	fmt.Println(fitems.sortBy(x => x.k))
 	closedOrder = nil
 	_, err := load([]int{0, 1, 2, 3, 4})
 	fmt.Println(err)
 	fmt.Println(closedOrder)
+	// Rollback runs before the ? failure returns (#142): a deferred
+	// observer in the caller already sees every produced Closer closed.
+	closedOrder = nil
+	func() {
+		defer func() { fmt.Println("at-return closes:", closedOrder) }()
+		_, _ = load([]int{0, 1, 2, 3, 4})
+	}()
 	fmt.Println(nestCount([]int{1, 2, 3}, []int{2, 3, 4}))
 	fmt.Println(dblBlock([]int{1, 2, 3}))
 }

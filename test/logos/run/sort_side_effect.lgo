@@ -1,0 +1,25 @@
+// run
+
+package main
+
+import "fmt"
+
+// A chain lambda with a call of unknown purity before sortBy warns
+// suspicious::side_effect_before_sort (#31) but still runs: the warning
+// is soft, so the build succeeds and the program output follows it.
+
+var effCalls int
+
+func eff(x int) int {
+	effCalls++
+	return x
+}
+
+func main() {
+	effCalls = 0
+	r := []int{3, 1, 2}.map(x => eff(x)).sortBy(x => x)
+	fmt.Println(r)
+	fmt.Println(effCalls)
+	p := []int{3, 1, 2}.map(x => x * 2).sortBy(x => x)
+	fmt.Println(p)
+}

@@ -10,4 +10,8 @@ id=1
 1
 outer inner 3 end
 v=1 w=-1
+%d %s %!v (x)
+v=%s-%d
 allocs: 1
+allocs: 1
+302

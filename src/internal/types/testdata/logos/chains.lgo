@@ -126,3 +126,20 @@ func pairge(x, y int) (bool, error) { return x+y > 0, nil }
 func chainNestedFlat(xs []int, ys []int) []int {
 	return xs.map(x => ys.count(y => y > x))
 }
+
+func bumpEffect(x int) int { return 2 * x }
+
+func chainSideEffectBeforeSort(xs []int) {
+	_ = xs.map(x => bumpEffect(x)).sortBy /* ERROR "[suspicious::side_effect_before_sort] chain lambda with a call of unknown purity before sortBy" */ (x => x)
+	_ = xs.filter(x => x > 0).map(x => bumpEffect(x) + 1).sortBy /* ERROR "[suspicious::side_effect_before_sort] chain lambda with a call of unknown purity before sortBy" */ (x => x)
+	_ = xs.map(x => x * 2).sortBy(x => x)
+	_ = xs.map(x => float64(x)).sortBy(x => x)
+	_ = xs.map(x => len("ab") + x).sortBy(x => x)
+}
+
+func chainSideEffectBuiltin(xs []int, m map[string]int) {
+	_ = xs.map(x => {
+		delete(m, "k")
+		return x
+	}).sortBy /* ERROR "[suspicious::side_effect_before_sort] chain lambda with a call of unknown purity before sortBy" */ (x => x)
+}

@@ -1,0 +1,5 @@
+# logostest
+./sort_side_effect.lgo:20:39: [suspicious::side_effect_before_sort] chain lambda with a call of unknown purity before sortBy
+[1 2 3]
+3
+[2 4 6]

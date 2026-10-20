@@ -202,6 +202,34 @@ func tryInTail() (int, error) {
 	return 0, nil
 }
 
+// The deferred function value is bound at the statement (#56): the
+// reassignment below never takes effect for the pending cleanup.
+func funcVarDefer() {
+	f := func(s string) { note("f1:" + s) }
+	{
+		scope defer f("done")
+		f = func(s string) { note("f2:" + s) }
+		note("body")
+	}
+	show("funcvar:")
+}
+
+type rec struct{ id int }
+
+func (r *rec) mark(s string) { note(fmt.Sprintf("r%d:%s", r.id, s)) }
+
+// The receiver is bound at the statement too: the pending call sees
+// id 1, not the replacement.
+func recvDefer() {
+	r := &rec{id: 1}
+	{
+		scope defer r.mark("done")
+		r = &rec{id: 2}
+		note("body")
+	}
+	show("recv:")
+}
+
 func nested() {
 	{
 		scope defer note("outer")
@@ -248,4 +276,6 @@ func main() {
 	loopIter()
 	namedResult()
 	show("named:")
+	funcVarDefer()
+	recvDefer()
 }

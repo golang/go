@@ -37,4 +37,17 @@ func main() {
 	mp, mq := mv
 	fmt.Println(mp, mq)
 	fmt.Println(show((42, nil)))
+	direct()
+}
+
+// direct multi-assignment unpacks a tuple-returning call (#17): the
+// call stays a native multi-value assignment, never a packed tuple.
+func direct() {
+	x, y := pair()
+	fmt.Println(x, y)
+	p, q := nres()
+	fmt.Println(p, q)
+	m1, m2 := pair()
+	m1, m2 = pair()
+	fmt.Println(m1, m2)
 }

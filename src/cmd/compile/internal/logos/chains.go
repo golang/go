@@ -437,7 +437,23 @@ func (cg *chainGen) sub(e syntax.Expr) string {
 	for _, n := range cg.nestedChains(e) {
 		cg.lowerNested(n)
 	}
-	return cg.fl.textOf(cg.exprSpan(e))
+	sp := cg.exprSpan(e)
+	if _, ok := syntax.Unparen(e).(*syntax.CallExpr); !ok {
+		sp.end = extendPastClosers(cg.fl.src, sp.end)
+	}
+	return cg.fl.textOf(sp)
+}
+
+// extendPastClosers extends a chain base span past its closing
+// delimiters. EndPos stops at the last inner token for composite
+// literals (`}`), indexes and slices (`]`), and assertions and parens
+// (`)`). The base is always followed by `.method`, so the first
+// non-closer ends the scan before any outer construct.
+func extendPastClosers(src []byte, end int) int {
+	for end < len(src) && (src[end] == ')' || src[end] == ']' || src[end] == '}') {
+		end++
+	}
+	return end
 }
 
 // lowerNested lowers one nested chain through a child generator with
@@ -674,8 +690,26 @@ func (cg *chainGen) closure(name string, op chainOp, result string) string {
 	if !ok {
 		return ""
 	}
-	bodyText := fl.textOf(cg.exprSpan(body))
+	bodyText := fl.textOf(cg.delimSpan(body, cg.exprSpan(body)))
 	return fmt.Sprintf("%s := func(%s %s) %s { return %s }", name, pname, elem, result, bodyText)
+}
+
+// delimSpan extends a lambda-body or index-arg span past its closing
+// delimiter. EndPos stops at the last inner token for composite
+// literals (`}`), indexes and slices (`]`), and assertions (`)`),
+// while calls already scan past their paren. Only those shapes
+// advance: every other body is followed by the arg-list `)`, which
+// must never be consumed.
+func (cg *chainGen) delimSpan(e syntax.Expr, sp span) span {
+	switch syntax.Unparen(e).(type) {
+	case *syntax.CompositeLit, *syntax.IndexExpr, *syntax.SliceExpr, *syntax.AssertExpr:
+		if sp.end < len(cg.fl.src) {
+			if c := cg.fl.src[sp.end]; c == '}' || c == ']' || c == ')' {
+				sp.end++
+			}
+		}
+	}
+	return sp
 }
 
 // inferType resolves the checked type behind a result spelling.
@@ -831,7 +865,7 @@ func (ce *chainEmit) argText(op chainOp) string {
 	if op.arg == nil {
 		return "0"
 	}
-	return cg.fl.textOf(cg.exprSpan(op.arg))
+	return cg.fl.textOf(cg.delimSpan(op.arg, cg.exprSpan(op.arg)))
 }
 
 // filterLines emits a filter check, pure or `?`.

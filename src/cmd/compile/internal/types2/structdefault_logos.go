@@ -211,11 +211,13 @@ func (check *Checker) logosWarnOnly(e Error) bool {
 }
 
 // LogosWarnOnly reports whether err is a warn-severity loGo/s
-// diagnostic: soft with the unapplied-default rule code. Lowering
-// oracles skip those; every other diagnostic still fails them.
+// diagnostic: soft with a warn-rule code (unapplied-default or
+// side-effect-before-sort). Lowering oracles skip those; every other
+// diagnostic still fails them.
 func LogosWarnOnly(err error) bool {
 	e, ok := err.(Error)
-	return ok && e.Soft && strings.HasPrefix(e.Msg, logosUnappliedDefault)
+	return ok && e.Soft && (strings.HasPrefix(e.Msg, logosUnappliedDefault) ||
+		strings.HasPrefix(e.Msg, logosSideEffectBeforeSort))
 }
 
 // LogosImportedDefault is one cross-package field default: the field
