@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"os"
 	"slices"
 	"strings"
 
@@ -30,52 +29,6 @@ func (p *Package) IsLogos() bool {
 		}
 	}
 	return false
-}
-
-// logosIsCanonicalLgo reports whether name is a canonical .lgo file, after
-// stripping trailing variation selectors the same way the shared filename
-// predicate does.
-func logosIsCanonicalLgo(name string) bool {
-	return strings.HasSuffix(strings.TrimRight(name, "\uFE0E\uFE0F"), ".lgo")
-}
-
-// checkLogosAliases emits the alias-extension warnings for one package
-// after its imports have resolved. The generated test main is exempt.
-func checkLogosAliases(p *Package) {
-	if !cfg.Logos || p.Internal.TestmainGo != nil {
-		return
-	}
-	emitLogosAliasWarnings(p)
-}
-
-// emitLogosAliasWarnings prints one warning per accepted alias-extension
-// source file, including the test lists. Canonical .lgo files never warn.
-// Only packages in a main module whose path starts with a dotted element
-// warn: those are the modules that could be published, where the module
-// zip rules reject alias extensions. Each package is checked once when it
-// finishes loading, so no warning state is kept beyond the load.
-func emitLogosAliasWarnings(p *Package) {
-	mod := p.Module
-	if mod == nil || !mod.Main {
-		return
-	}
-	elem, _, _ := strings.Cut(mod.Path, "/")
-	if !strings.Contains(elem, ".") {
-		return
-	}
-	for _, files := range [][]string{p.GoFiles, p.CgoFiles, p.TestGoFiles, p.XTestGoFiles} {
-		for _, name := range files {
-			warnLogosAliasFile(name)
-		}
-	}
-}
-
-// warnLogosAliasFile warns once for an alias-extension source file.
-func warnLogosAliasFile(name string) {
-	if !cfg.IsLogosFile(name) || logosIsCanonicalLgo(name) {
-		return
-	}
-	fmt.Fprintf(os.Stderr, "go: warning: [portability::alias_extension] %s: loGo/s alias extension file; rename to .lgo before publishing\n", name)
 }
 
 // moduleKinds groups one module's loaded packages by kind, keyed by import

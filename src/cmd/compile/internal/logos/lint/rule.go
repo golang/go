@@ -88,6 +88,10 @@ type Input struct {
 	Kind Kind
 	// Policy is the resolved logos.toml [lints] table; nil means defaults.
 	Policy *Policy
+	// Reported holds the findings of the rules that a phase before Run
+	// enforces, such as the warnings of types2; Run resolves them with the
+	// findings of the rules.
+	Reported []Reported
 }
 
 // Pass is the view of one package a rule's Check receives.

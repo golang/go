@@ -34,7 +34,7 @@ var logosEscape *escapeLint
 // continues to escape analysis so every finding of the package prints
 // together.
 func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *types2.Info) {
-	if base.LogosCfg == "" || (!base.Logos && !base.LogosLintOnly) {
+	if !logosLintActive() {
 		return
 	}
 	policy := logosLintPolicy()
@@ -44,12 +44,13 @@ func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *t
 	}
 	lintable, sources := logosLintInputs(files)
 	in := &lint.Input{
-		Pkg:     pkg,
-		Info:    info,
-		Files:   lintable,
-		Sources: sources,
-		Kind:    kind,
-		Policy:  policy,
+		Pkg:      pkg,
+		Info:     info,
+		Files:    lintable,
+		Sources:  sources,
+		Kind:     kind,
+		Policy:   policy,
+		Reported: logosTakeSoft(),
 	}
 	for _, r := range lint.Run(in) {
 		base.LogosReport(logosDiag(m, r))
@@ -61,6 +62,12 @@ func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *t
 		logosEscape = &escapeLint{in: in, m: m}
 		escape.LogosPinning = true
 	}
+}
+
+// logosLintActive reports whether the compile runs the lints: a policy is
+// named, and the package is loGo/s or logos lint asks for a lint compile.
+func logosLintActive() bool {
+	return base.LogosCfg != "" && (base.Logos || base.LogosLintOnly)
 }
 
 // LogosLintEscape runs the lints that read escape analysis, once it has run

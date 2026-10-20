@@ -1,7 +1,7 @@
 # logostest
 ./struct_default.lgo:8:2: warning: [portability::serialized_unsized_int] field Port has type int, which is 4 bytes on a 32-bit target but 8 bytes in the binary layout; use int32, int64, uint32, or uint64
-./struct_default.lgo:19:8: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults
-./struct_default.lgo:21:7: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults
+./struct_default.lgo:19:8: warning: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults
+./struct_default.lgo:21:7: warning: [suspicious::unapplied_struct_default] zero declaration of Cfg with field defaults
 8080 localhost
 8080 localhost
 8080 x

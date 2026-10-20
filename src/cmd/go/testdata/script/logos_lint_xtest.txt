@@ -1,0 +1,124 @@
+# M9: the external test package of a loGo/s package (package foo_test) gets
+# the lint policy of its module, like the package itself and its internal
+# tests: logos test fails on a deny or forbid finding in it, and
+# //logos:allow silences a deny finding there.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Control: an internal test file is linted by logos test.
+cd internal
+! logos test ./...
+stderr 'in_test\.lgo:5:6: \[correctness::infinite_recursion\]'
+cd ..
+
+# A forbid finding in an external test file fails logos test.
+cd xtest
+! logos test ./forbid
+stderr 'x_test\.lgo:5:6: \[correctness::infinite_recursion\]'
+! stdout '^ok'
+
+# A deny finding in an external test file fails logos test.
+! logos test ./deny
+stderr 'x_test\.lgo:9:2: \[slop::discarded_error\]'
+! stdout '^ok'
+
+# The directive silences the deny finding in an external test file, and the
+# test runs.
+logos test ./allowed
+stdout '^ok'
+! stderr 'slop::discarded_error'
+
+# logos.toml slop = "allow" is silent in an external test file, and the
+# severity of the table reaches it.
+cp logos-allow.toml logos.toml
+logos test ./deny
+stdout '^ok'
+! stderr 'slop::discarded_error'
+cd ..
+
+-- internal/go.mod --
+module example.com/internal
+
+go 1.27
+
+-- internal/foo.lgo --
+package foo
+
+func Name() string { return "foo" }
+
+-- internal/in_test.lgo --
+package foo
+
+import "testing"
+
+func loop(n int) int {
+	return loop(n)
+}
+
+func TestName(t *testing.T) {
+	if Name() != "foo" {
+		t.Fatal("bad name")
+	}
+}
+
+-- xtest/go.mod --
+module example.com/xtest
+
+go 1.27
+
+-- xtest/logos-allow.toml --
+[lints]
+slop = "allow"
+
+-- xtest/forbid/foo.lgo --
+package foo
+
+func Name() string { return "foo" }
+
+-- xtest/forbid/x_test.lgo --
+package foo_test
+
+import "testing"
+
+func loop(n int) int {
+	return loop(n)
+}
+
+func TestName(t *testing.T) {
+	t.Log("ran")
+}
+
+-- xtest/deny/foo.lgo --
+package foo
+
+func Name() string { return "foo" }
+
+-- xtest/deny/x_test.lgo --
+package foo_test
+
+import (
+	"os"
+	"testing"
+)
+
+func TestName(t *testing.T) {
+	os.Remove("missing")
+}
+
+-- xtest/allowed/foo.lgo --
+package foo
+
+func Name() string { return "foo" }
+
+-- xtest/allowed/x_test.lgo --
+package foo_test
+
+import (
+	"os"
+	"testing"
+)
+
+func TestName(t *testing.T) {
+	//logos:allow(slop::discarded_error)
+	os.Remove("missing")
+}

@@ -226,7 +226,8 @@ func (m *lintImporter) ImportFrom(path, srcDir string, mode types2.ImportMode) (
 }
 
 // check parses and type-checks one source file named name and returns the
-// Input for Run. Type errors fail the test.
+// Input for Run. Type errors fail the test; a warn-severity diagnostic of
+// types2 becomes a Reported finding, as in the compiler.
 func check(t testing.TB, kind Kind, name, src string) *Input {
 	t.Helper()
 	mode := syntax.CheckBranches
@@ -250,9 +251,16 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 		Instances:          make(map[*syntax.Name]types2.Instance),
 	}
 	var errs []error
+	var reported []Reported
 	conf := &types2.Config{
-		Importer:    &lintImporter{pkgs: make(map[string]*types2.Package)},
-		Error:       func(err error) { errs = append(errs, err) },
+		Importer: &lintImporter{pkgs: make(map[string]*types2.Package)},
+		Error: func(err error) {
+			if r, ok := ReportedOf(err); ok {
+				reported = append(reported, r)
+				return
+			}
+			errs = append(errs, err)
+		},
 		Logos:       kind == KindLgo,
 		LogosUnions: kind == KindLgo,
 	}
@@ -261,11 +269,12 @@ func check(t testing.TB, kind Kind, name, src string) *Input {
 		t.Fatalf("check %s: %v", name, errs)
 	}
 	return &Input{
-		Pkg:     pkg,
-		Info:    info,
-		Files:   []*syntax.File{file},
-		Sources: map[*syntax.File][]byte{file: []byte(src)},
-		Kind:    kind,
+		Pkg:      pkg,
+		Info:     info,
+		Files:    []*syntax.File{file},
+		Sources:  map[*syntax.File][]byte{file: []byte(src)},
+		Kind:     kind,
+		Reported: reported,
 	}
 }
 

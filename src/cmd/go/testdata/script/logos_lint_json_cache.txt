@@ -1,0 +1,43 @@
+# M9: -logos.json reaches every compile, so the diagnostic format is part of
+# the action ID of every package, Go packages included. Compile output that
+# the build cache replays must never answer a build in the other format.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# A Go package with an escape diagnostic: -gcflags=-m prints one line.
+cd gomod
+logos build -gcflags=-m .
+stderr 'main\.go:4:2: moved to heap: x'
+! stderr '^\{'
+
+# --json-diagnostics prints JSON records, not the cached text.
+logos build -gcflags=-m --json-diagnostics .
+stderr -count=1 '^\{.*"file":".*main\.go".*"message":"moved to heap: x"'
+! stderr 'main\.go:4:2: moved to heap: x'
+
+# Back to text: the JSON output cached by the second build is not replayed.
+logos build -gcflags=-m .
+stderr 'main\.go:4:2: moved to heap: x'
+! stderr '^\{'
+
+# A repeat of the JSON build replays JSON.
+logos build -gcflags=-m --json-diagnostics .
+stderr -count=1 '^\{.*"message":"moved to heap: x"'
+cd ..
+
+-- gomod/go.mod --
+module example.com/gomod
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+func escape() *int {
+	x := 1
+	return &x
+}
+
+func main() {
+	println(*escape())
+}

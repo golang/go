@@ -1,0 +1,265 @@
+# M9: the warnings that types2 and the go command report resolve through the
+# same policy as the lints of the compiler. The group severity of logos.toml
+# [lints] decides whether suspicious::unapplied_struct_default,
+# suspicious::side_effect_before_sort, and portability::alias_extension warn,
+# fail the build, or stay silent; //logos:allow(<rule>) silences each of them
+# under warn and under deny; forbid cannot be silenced, and the directive on
+# a forbid rule is itself an error.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# The checker rules: the group default is warn.
+cd suspicious
+logos build -o $WORK/bin/sd0$GOEXE ./sd
+stderr -count=1 'main\.lgo:8:8: warning: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
+stderr -count=1 'main\.lgo:9:7: warning: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
+exists $WORK/bin/sd0$GOEXE
+logos build -o $WORK/bin/se0$GOEXE ./se
+stderr -count=1 'main\.lgo:6:40: warning: \[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy'
+exists $WORK/bin/se0$GOEXE
+
+# A directive on the line above the statement silences each rule under warn.
+logos build -o $WORK/bin/sdok0$GOEXE ./sdok
+! stderr .
+exists $WORK/bin/sdok0$GOEXE
+logos build -o $WORK/bin/seok0$GOEXE ./seok
+! stderr .
+exists $WORK/bin/seok0$GOEXE
+
+# logos lint resolves the same findings under the same policy.
+logos lint ./sd ./se ./sdok ./seok
+stderr -count=2 'warning: \[suspicious::unapplied_struct_default\]'
+stderr -count=1 'warning: \[suspicious::side_effect_before_sort\]'
+
+# suspicious = "deny" makes each finding an error with no warning prefix, and
+# no binary is written.
+cp logos-deny.toml logos.toml
+! logos build -o $WORK/bin/sd1$GOEXE ./sd
+stderr -count=1 'main\.lgo:8:8: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
+stderr -count=1 'main\.lgo:9:7: \[suspicious::unapplied_struct_default\] zero declaration of Cfg with field defaults'
+! stderr 'warning:'
+! exists $WORK/bin/sd1$GOEXE
+! logos build -o $WORK/bin/se1$GOEXE ./se
+stderr -count=1 'main\.lgo:6:40: \[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy'
+! stderr 'warning:'
+! exists $WORK/bin/se1$GOEXE
+
+# The directive silences a deny rule.
+logos build -o $WORK/bin/sdok1$GOEXE ./sdok
+! stderr .
+exists $WORK/bin/sdok1$GOEXE
+logos build -o $WORK/bin/seok1$GOEXE ./seok
+! stderr .
+exists $WORK/bin/seok1$GOEXE
+
+# logos lint fails on the deny findings and reports them together.
+! logos lint ./sd ./se ./sdok ./seok
+stderr -count=2 'main\.lgo:[89]:[78]: \[suspicious::unapplied_struct_default\]'
+stderr -count=1 'main\.lgo:6:40: \[suspicious::side_effect_before_sort\]'
+! stderr 'warning:'
+
+# suspicious = "allow" is silent.
+cp logos-allow.toml logos.toml
+logos build -o $WORK/bin/sd2$GOEXE ./sd
+! stderr .
+exists $WORK/bin/sd2$GOEXE
+logos build -o $WORK/bin/se2$GOEXE ./se
+! stderr .
+exists $WORK/bin/se2$GOEXE
+
+# suspicious = "forbid" ignores the directive, which is an error of its own.
+cp logos-forbid.toml logos.toml
+! logos build -o $WORK/bin/sd3$GOEXE ./sd
+stderr 'main\.lgo:8:8: \[suspicious::unapplied_struct_default\]'
+! logos build -o $WORK/bin/sdok3$GOEXE ./sdok
+stderr 'main\.lgo:8:2: \[correctness::allow_forbidden_rule\] //logos:allow\(suspicious::unapplied_struct_default\)'
+stderr 'main\.lgo:9:8: \[suspicious::unapplied_struct_default\]'
+! exists $WORK/bin/sdok3$GOEXE
+! logos build -o $WORK/bin/seok3$GOEXE ./seok
+stderr 'main\.lgo:6:2: \[correctness::allow_forbidden_rule\] //logos:allow\(suspicious::side_effect_before_sort\)'
+stderr 'main\.lgo:7:\d+: \[suspicious::side_effect_before_sort\]'
+! exists $WORK/bin/seok3$GOEXE
+
+# The same policy with an explicit warn prints the warning again.
+cp logos-warn.toml logos.toml
+logos build -o $WORK/bin/sd4$GOEXE ./sd
+stderr -count=2 'warning: \[suspicious::unapplied_struct_default\]'
+cd ..
+
+# The go command rule: the group default is warn.
+cd alias
+logos build ./plain
+stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
+logos build ./ok
+! stderr .
+logos build ./detached
+stderr -count=1 'go: warning: \[portability::alias_extension\] d\.📜: loGo/s alias extension file'
+
+# portability = "deny" fails the load of the package, and the directive above
+# the package clause silences it.
+cp logos-deny.toml logos.toml
+! logos build ./plain
+stderr -count=1 '^\[portability::alias_extension\] main\.📜: loGo/s alias extension file'
+! stderr 'warning:'
+logos build ./ok
+! stderr .
+! logos build ./detached
+stderr '\[portability::alias_extension\] d\.📜'
+
+# Every alias file of a package is an error, test files included.
+! logos build ./pair
+stderr -count=1 '\[portability::alias_extension\] a\.📜'
+stderr -count=1 '\[portability::alias_extension\] b\.⚡'
+
+# portability = "allow" is silent.
+cp logos-allow.toml logos.toml
+logos build ./plain
+! stderr .
+logos build ./detached
+! stderr .
+
+# portability = "forbid" ignores the directive, which is an error of its own.
+cp logos-forbid.toml logos.toml
+! logos build ./plain
+stderr '\[portability::alias_extension\] main\.📜'
+! logos build ./ok
+stderr '\[correctness::allow_forbidden_rule\] ok\.📜:1:1: //logos:allow\(portability::alias_extension\)'
+stderr '\[portability::alias_extension\] ok\.📜'
+cd ..
+
+# A canonical .lgo file stays silent under deny in a dotted module.
+cd canonical
+logos build ./...
+! stderr .
+cd ..
+
+-- suspicious/go.mod --
+module example.com/suspicious
+
+go 1.27
+
+-- suspicious/logos-deny.toml --
+[lints]
+suspicious = "deny"
+
+-- suspicious/logos-allow.toml --
+[lints]
+suspicious = "allow"
+
+-- suspicious/logos-forbid.toml --
+[lints]
+suspicious = "forbid"
+
+-- suspicious/logos-warn.toml --
+[lints]
+suspicious = "warn"
+
+-- suspicious/sd/main.lgo --
+package main
+
+type Cfg struct {
+	Port int32 = 8080
+}
+
+func main() {
+	var c Cfg
+	p := new(Cfg)
+	println(c.Port, p.Port)
+}
+
+-- suspicious/sdok/main.lgo --
+package main
+
+type Cfg struct {
+	Port int32 = 8080
+}
+
+func main() {
+	//logos:allow(suspicious::unapplied_struct_default)
+	var c Cfg
+	println(c.Port)
+}
+
+-- suspicious/se/main.lgo --
+package main
+
+func bump(x int) int { return 2 * x }
+
+func main() {
+	r := []int{3, 1, 2}.map(x => bump(x)).sortBy(x => x)
+	println(len(r))
+}
+
+-- suspicious/seok/main.lgo --
+package main
+
+func bump(x int) int { return 2 * x }
+
+func main() {
+	//logos:allow(suspicious::side_effect_before_sort)
+	r := []int{3, 1, 2}.map(x => bump(x)).sortBy(x => x)
+	println(len(r))
+}
+
+-- alias/go.mod --
+module example.com/alias
+
+go 1.27
+
+-- alias/logos-deny.toml --
+[lints]
+portability = "deny"
+
+-- alias/logos-allow.toml --
+[lints]
+portability = "allow"
+
+-- alias/logos-forbid.toml --
+[lints]
+portability = "forbid"
+
+-- alias/plain/main.📜 --
+package plain
+
+func Name() string { return "plain" }
+
+-- alias/ok/ok.📜 --
+//logos:allow(portability::alias_extension)
+package ok
+
+func Name() string { return "ok" }
+
+-- alias/detached/d.📜 --
+//logos:allow(portability::alias_extension)
+
+package detached
+
+func Name() string { return "detached" }
+
+-- alias/pair/a.📜 --
+package pair
+
+func A() string { return "a" }
+
+-- alias/pair/b.⚡ --
+package pair
+
+func B() string { return "b" }
+
+-- canonical/go.mod --
+module example.com/canonical
+
+go 1.27
+
+-- canonical/logos.toml --
+[lints]
+portability = "deny"
+
+-- canonical/main.lgo --
+package main
+
+func main() {
+	println("canonical")
+}

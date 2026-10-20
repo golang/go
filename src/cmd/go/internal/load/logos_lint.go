@@ -38,6 +38,17 @@ func logosLintMark(ld *modload.Loader, p *Package) {
 	p.Internal.LogosLint = policy
 }
 
+// logosLintXTest gives the external test package of p the lint policy of p.
+// TestPackagesFor builds that package by hand and copies only the flag
+// lists, so without this copy a finding in package foo_test would never
+// reach the compiler. A nil pxtest has no external test files and is left
+// alone.
+func logosLintXTest(p, pxtest *Package) {
+	if pxtest != nil {
+		pxtest.Internal.LogosLint = p.Internal.LogosLint
+	}
+}
+
 // logosPedanticMode returns the state of the --pedantic flag.
 func logosPedanticMode() config.PedanticMode {
 	switch {

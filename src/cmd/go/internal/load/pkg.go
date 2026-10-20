@@ -2118,8 +2118,8 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 	}
 	p.Internal.Imports = imports
 	addLogosRTForGoImporter(ld, ctx, opts, p)
-	checkLogosAliases(p)
 	checkLogosConfig(ld, p)
+	checkLogosAliases(ld, p)
 	checkLogosCgo(ld, p)
 	if p.Error == nil && p.Name == "main" && !p.Internal.ForceLibrary && !p.Incomplete && !opts.SuppressBuildInfo {
 		// TODO(bcmills): loading VCS metadata can be fairly slow.

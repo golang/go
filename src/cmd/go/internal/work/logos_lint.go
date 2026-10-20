@@ -161,14 +161,15 @@ func logosLintFlags(sh *Shell, a *Action) ([]string, error) {
 // logosLintActionID adds the lint policy and the diagnostic format of a
 // build action to its action ID. A change of logos.toml or of --pedantic
 // recompiles a loGo/s package, and so does a switch to or from
-// --json-diagnostics: the go command caches the compile output of a package
-// and replays it on a cache hit, so text cached by one format must not
-// answer a build in the other. It is the hook line in buildActionID.
+// --json-diagnostics for a package of either kind, because -logos.json
+// reaches every compile: the go command caches the compile output of a
+// package and replays it on a cache hit, so text cached by one format must
+// not answer a build in the other. It is the hook line in buildActionID.
 func logosLintActionID(h io.Writer, a *Action) {
 	if policy := logosCompilePolicy(a); policy != nil {
 		fmt.Fprintf(h, "logos lint %x\n", sha256.Sum256(policy))
 	}
-	if cfg.LogosJSON && a.Package != nil && a.Package.IsLogos() {
+	if cfg.LogosJSON {
 		fmt.Fprintf(h, "logos json\n")
 	}
 }

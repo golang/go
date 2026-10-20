@@ -84,7 +84,7 @@ recheck:
 	}
 	conf.Error = func(err error) {
 		terr := err.(types2.Error)
-		if logosReportSoftWarn(&m, terr) { // logos M6-S3 hook: warn-severity rules print, never fail.
+		if logosDeferSoftWarn(terr) { // logos M6-S3 hook: warn-severity rules never fail, and the lint pass resolves them.
 			return
 		}
 		if logosReportNilDeref(&m, files, info, terr) { // logos M9-S2 hook: nil_deref_unproven carries autofix candidates.
@@ -109,6 +109,7 @@ recheck:
 	}
 
 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+	logosFlushSoftWarns(&m, files, err)
 	base.ExitIfErrors()
 	if err != nil {
 		base.FatalfAt(src.NoXPos, "conf.Check error: %v", err)

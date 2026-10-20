@@ -38,9 +38,12 @@
 // Nothing else changes: severities, directives, JSON output, and the Go
 // scope all come from this package. TestRuleScopes already lists the 21
 // SPEC rules and checks each registered rule against its scope. A rule that
-// an earlier phase already
-// enforces under the same ID (types2 reports nil_deref_unproven and
-// unsupervised_goroutine) registers with a nil Check.
+// an earlier phase already enforces under the same ID registers with a nil
+// Check: types2 reports nil_deref_unproven and unsupervised_goroutine as
+// errors, and hands suspicious::unapplied_struct_default and
+// suspicious::side_effect_before_sort to Run in Input.Reported, which
+// resolves them like the findings of a Check (see Resolve for the compile
+// that fails before Run).
 package lint
 
 import (
@@ -65,12 +68,10 @@ func Lookup(id string) (Rule, bool) {
 
 // Run applies the registered rules to one checked package and returns the
 // findings that survive severity resolution and directives, ordered by
-// position. A nil in.Policy means DefaultPolicy.
+// position. The findings in in.Reported resolve with those of the rules. A
+// nil in.Policy means DefaultPolicy.
 func Run(in *Input) []Result {
-	policy := in.Policy
-	if policy == nil {
-		policy = DefaultPolicy()
-	}
+	policy := policyOf(in)
 	dirs := collectDirectives(in)
 	var out []Result
 	for _, r := range registry {
@@ -81,16 +82,21 @@ func Run(in *Input) []Result {
 	return out
 }
 
-// runRule runs one rule and resolves the severity of each finding.
+// runRule runs one rule and resolves the severity of each finding, those of
+// its Check and those an earlier phase reported under its ID.
 func runRule(in *Input, policy *Policy, dirs *directives, r Rule) []Result {
 	level := policy.Level(r.ID, in.Kind)
-	if r.Check == nil || level == Allow || (in.Kind == KindGo && !r.Go) {
+	if level == Allow || (in.Kind == KindGo && !r.Go) {
 		return nil
 	}
-	pass := &Pass{Pkg: in.Pkg, Info: in.Info, Files: in.Files, Kind: in.Kind, Policy: policy, in: in}
-	r.Check(pass)
+	diags := in.reportedBy(r.ID)
+	if r.Check != nil {
+		pass := &Pass{Pkg: in.Pkg, Info: in.Info, Files: in.Files, Kind: in.Kind, Policy: policy, in: in}
+		r.Check(pass)
+		diags = append(diags, pass.diags...)
+	}
 	var out []Result
-	for _, d := range pass.diags {
+	for _, d := range diags {
 		if level != Forbid && dirs.silences(r.ID, d.Pos) {
 			continue
 		}
