@@ -1,0 +1,37 @@
+// run
+
+package main
+
+import "fmt"
+
+type S struct{ t (int, int) }
+
+func pass(t (int, int)) (int, int) {
+	return ((t))
+}
+
+func field(s S) (int, int) {
+	return ((s.t))
+}
+
+func main() {
+	t := (1, 2)
+	u, v := (t)
+	fmt.Println(u, v)
+	p, q := ((t))
+	fmt.Println(p, q)
+	var m, n int
+	m, n = (t)
+	fmt.Println(m, n)
+	m, n = ((t))
+	fmt.Println(m, n)
+	fmt.Println(pass(t))
+	s := S{t: (3, 4)}
+	a, b := (s.t)
+	fmt.Println(a, b)
+	c, d := ((s.t))
+	fmt.Println(c, d)
+	m, n = ((s.t))
+	fmt.Println(m, n)
+	fmt.Println(field(s))
+}

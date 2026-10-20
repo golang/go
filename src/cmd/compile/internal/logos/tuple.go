@@ -411,9 +411,22 @@ func extendPastComma(src []byte, end int) int {
 	return end
 }
 
-// extendParenPair extends [start, end) past one level of directly
+// extendParens extends [start, end) past every level of directly
 // adjacent redundant parentheses left behind by dropped groupings.
-func extendParenPair(src []byte, start, end int) (int, int) {
+func extendParens(src []byte, start, end int) (int, int) {
+	for {
+		s, e, ok := wrapParenPair(src, start, end)
+		if !ok {
+			return start, end
+		}
+		start, end = s, e
+	}
+}
+
+// wrapParenPair widens [start, end) by one directly adjacent `(` ... `)`
+// pair, blanks allowed between each paren and the span, and reports
+// whether such a pair exists.
+func wrapParenPair(src []byte, start, end int) (int, int, bool) {
 	i := start
 	for i > 0 {
 		c := src[i-1]
@@ -424,7 +437,7 @@ func extendParenPair(src []byte, start, end int) (int, int) {
 		break
 	}
 	if i <= 0 || src[i-1] != '(' {
-		return start, end
+		return start, end, false
 	}
 	j := end
 	for j < len(src) {
@@ -436,9 +449,9 @@ func extendParenPair(src []byte, start, end int) (int, int) {
 		break
 	}
 	if j >= len(src) || src[j] != ')' {
-		return start, end
+		return start, end, false
 	}
-	return i - 1, j + 1
+	return i - 1, j + 1, true
 }
 
 // skipComment skips a comment at i, or reports -1.
@@ -642,7 +655,8 @@ func (fl *fileLower) lowerTuplePackStmt(s *syntax.AssignStmt, lhs []syntax.Expr,
 		text.WriteString(" = ")
 	}
 	text.WriteString(compText)
-	fl.add(fl.off(syntax.StartPos(s)), callSpan.end, text.String())
+	_, callEnd := extendParens(fl.src, callSpan.start, callSpan.end)
+	fl.add(fl.off(syntax.StartPos(s)), callEnd, text.String())
 	hoist := defineOf(pos, temps, []syntax.Expr{call})
 	s.Rhs = comp
 	return []syntax.Stmt{hoist, s}
@@ -723,7 +737,7 @@ func (fl *fileLower) lowerTupleUnpackStmt(s *syntax.AssignStmt, lhs []syntax.Exp
 			texts = append(texts, baseText+"."+elems[i])
 		}
 		s.Rhs = listOf(pos, reads)
-		start, end := extendParenPair(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
+		start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
 		fl.add(start, end, strings.Join(texts, ", "))
 		return nil
 	}
@@ -748,7 +762,8 @@ func (fl *fileLower) lowerTupleUnpackStmt(s *syntax.AssignStmt, lhs []syntax.Exp
 		text.WriteString(" = ")
 	}
 	text.WriteString(strings.Join(texts, ", "))
-	fl.add(fl.off(syntax.StartPos(s)), rSpan.end, text.String())
+	_, rEnd := extendParens(fl.src, rSpan.start, rSpan.end)
+	fl.add(fl.off(syntax.StartPos(s)), rEnd, text.String())
 	hoist := defineOf(pos, []syntax.Expr{nameOf(pos, tn)}, []syntax.Expr{r})
 	s.Rhs = listOf(pos, reads)
 	return []syntax.Stmt{hoist, s}
@@ -791,7 +806,7 @@ func (fl *fileLower) lowerTupleReturnStmt(s *syntax.ReturnStmt) []syntax.Stmt {
 			texts = append(texts, baseText+"."+elems[i])
 		}
 		s.Results = listOf(pos, reads)
-		start, end := extendParenPair(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
+		start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
 		fl.add(start, end, strings.Join(texts, ", "))
 		return nil
 	}
@@ -806,7 +821,8 @@ func (fl *fileLower) lowerTupleReturnStmt(s *syntax.ReturnStmt) []syntax.Stmt {
 		texts = append(texts, tn+"."+elems[i])
 	}
 	s.Results = listOf(pos, reads)
-	fl.add(fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)), strings.Join(texts, ", "))
+	start, end := extendParens(fl.src, fl.off(syntax.StartPos(r)), fl.off(syntax.EndPos(r)))
+	fl.add(start, end, strings.Join(texts, ", "))
 	return []syntax.Stmt{hoist, s}
 }
 

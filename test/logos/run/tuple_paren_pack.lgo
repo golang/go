@@ -1,0 +1,19 @@
+// run
+
+package main
+
+import "fmt"
+
+func pair() (int, error) { return 3, nil }
+
+func main() {
+	t := (pair())
+	fmt.Println(t)
+	u := ((pair()))
+	fmt.Println(u)
+	var w (int, error)
+	w = (pair())
+	fmt.Println(w)
+	w = ((pair()))
+	fmt.Println(w)
+}
