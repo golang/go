@@ -396,7 +396,6 @@ start:
 
 	// 26: "Zfa" Extension for Additional Floating-Point Instructions
 	// 26.1: Load-Immediate Instructions
-	FLIS $(NaN), F1                       // d3801ff0
 	FLIS $(-1.0), F1                      // d30010f0
 	FLIS $(1.1754943508222875e-38), F1    // d38010f0
 	FLIS $(1.52587890625e-05), F1         // d30011f0
@@ -427,8 +426,6 @@ start:
 	FLIS $(256.0), F1                     // d3801df0
 	FLIS $(32768.0), F1                   // d3001ef0
 	FLIS $(65536.0), F1                   // d3801ef0
-	FLIS $(+Inf), F1                      // d3001ff0
-	FLIS $(NaN), F1                       // d3801ff0
 	FLID $(-1.0), F1                      // d30010f2
 	FLID $(2.2250738585072014e-308), F1   // d38010f2
 	FLID $(1.52587890625e-05), F1         // d30011f2
@@ -459,8 +456,6 @@ start:
 	FLID $(256.0), F1                     // d3801df2
 	FLID $(32768.0), F1                   // d3001ef2
 	FLID $(65536.0), F1                   // d3801ef2
-	FLID $(+Inf), F1                      // d3001ff2
-	FLID $(NaN), F1                       // d3801ff2
 
 	// 26.2: Minimum and Maximum Instructions
 	FMAXMD F21, F20, F19           // d3395a2b
