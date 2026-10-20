@@ -36,20 +36,19 @@ func (check *Checker) logosSwitchExpr(x *operand, e *syntax.SwitchExpr) exprKind
 	check.openScope(e, "switch")
 	defer check.closeScope()
 
-	// A `?` in the init would be accepted by the assignment hooks below,
-	// but lowering moves the init inside the `func() T` literal, which has
-	// no error result to propagate to. Type the operand silently (as for
-	// any misplaced `?`, so genuine inner errors still surface and uses
-	// are marked), mark an assigned-to variable used, and reject it.
-	if t := logosInitTry(e.Init); t != nil {
+	// A `?` as the init's direct operand would be accepted by the
+	// assignment hooks below, but lowering moves the init inside the
+	// `func() T` literal, which has no error result to propagate to.
+	// Report it and handle the init without the hooks (so the `?` is
+	// claimed exactly once), then check tag and arms normally so their
+	// references resolve and are marked used. A nested `?` is left to
+	// the expression fallback, which reports it exactly once.
+	if t := logosInitTryDirect(e.Init); t != nil {
 		check.logosTryMisplaced(t)
-		if s, ok := e.Init.(*syntax.AssignStmt); ok && s.Op != syntax.Def {
-			check.useLHS(syntax.UnpackListExpr(s.Lhs)...)
-		}
-		return statement
+		check.logosInitVarsInvalid(e.Init)
+	} else {
+		check.simpleStmt(e.Init)
 	}
-
-	check.simpleStmt(e.Init)
 	check.logosMultipleArmDefaults(e.Arms)
 
 	var results []*operand
@@ -76,30 +75,56 @@ func (check *Checker) logosSwitchExpr(x *operand, e *syntax.SwitchExpr) exprKind
 	return expression
 }
 
-// logosInitTry returns the first `?` in the switch-expression init itself,
-// if any. The init is a simple statement, so `x := f()?` would otherwise
-// flow through the assignment hooks and check cleanly. A `?` inside a
-// nested function literal belongs to that literal and moves with it into
-// the lowered body, so the scan does not descend into one.
-func logosInitTry(init syntax.SimpleStmt) *syntax.TryExpr {
-	if init == nil {
-		return nil
+// logosInitTryDirect returns the `?` when the switch-expression init is a
+// statement shape whose hooks would claim it: x := f()?, x = f()?, or
+// f()?, with the `?` as the single outermost right-hand side or the
+// statement itself. A nested `?` such as g(f()?) is left to the
+// expression fallback, which reports it exactly once.
+func logosInitTryDirect(init syntax.SimpleStmt) *syntax.TryExpr {
+	switch s := init.(type) {
+	case *syntax.AssignStmt:
+		if s.Op != 0 && s.Op != syntax.Def {
+			return nil
+		}
+		rhs := syntax.UnpackListExpr(s.Rhs)
+		if len(rhs) != 1 {
+			return nil
+		}
+		t, _ := syntax.Unparen(rhs[0]).(*syntax.TryExpr)
+		return t
+	case *syntax.ExprStmt:
+		t, _ := syntax.Unparen(s.X).(*syntax.TryExpr)
+		return t
 	}
-	var found *syntax.TryExpr
-	syntax.Inspect(init, func(n syntax.Node) bool {
-		if found != nil {
-			return false
+	return nil
+}
+
+// logosInitVarsInvalid handles the left-hand side of a rejected
+// switch-expression init without the assignment hooks: `:=` names are
+// declared with invalid type and marked used, so tag and arm references
+// to them resolve silently; `=` targets are marked used. Anything else is
+// broken beyond the reported misplaced `?` and needs nothing.
+func (check *Checker) logosInitVarsInvalid(init syntax.SimpleStmt) {
+	s, ok := init.(*syntax.AssignStmt)
+	if !ok {
+		return
+	}
+	lhs := syntax.UnpackListExpr(s.Lhs)
+	if s.Op == syntax.Def {
+		for _, e := range lhs {
+			name, ok := syntax.Unparen(e).(*syntax.Name)
+			if !ok || name.Value == "_" {
+				continue
+			}
+			obj := newVar(LocalVar, name.Pos(), check.pkg, name.Value, Typ[Invalid])
+			check.declare(check.scope, name, obj, name.Pos())
+			check.usedVars[obj] = true
 		}
-		switch n := n.(type) {
-		case *syntax.FuncLit:
-			return false
-		case *syntax.TryExpr:
-			found = n
-			return false
-		}
-		return true
-	})
-	return found
+		return
+	}
+	if s.Op == 0 {
+		check.useLHS(lhs...)
+	}
 }
 
 // logosHasDefault reports whether one of arms is a default arm.
@@ -354,10 +379,11 @@ func (check *Checker) logosArmType(e *syntax.SwitchExpr, arms []*operand) Type {
 	return common
 }
 
-// logosArmAssignable reports whether the arm v converts to the typed
-// common type: an untyped constant by representability, nil iff the type
-// is nilable. On failure it reports switch_arm_mismatch and the caller
-// skips the assignment, so each arm yields at most the one tagged error.
+// logosArmAssignable reports whether the arm v converts to the common
+// type (a typed arm's type, or the defaulted type when every arm is
+// untyped): an untyped constant by representability, nil iff the type is
+// nilable. On failure it reports switch_arm_mismatch and the caller skips
+// the assignment, so each arm yields at most the one tagged error.
 func (check *Checker) logosArmAssignable(v *operand, common Type) bool {
 	if ok, _ := v.assignableTo(check, common, nil); !ok {
 		check.errorf(v, MismatchedTypes, "%s arms have types %s and %s", logosArmMismatch, common, v.typ())
