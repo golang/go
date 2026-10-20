@@ -12,7 +12,6 @@ import (
 	"go/ast"
 	"go/build"
 	"go/doc"
-	"go/parser"
 	"go/token"
 	"internal/lazytemplate"
 	"maps"
@@ -738,7 +737,7 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
 		return err
 	}
 	defer src.Close()
-	f, err := parser.ParseFile(testFileSet, filename, src, parser.ParseComments|parser.SkipObjectResolution)
+	f, err := parseTestFile(testFileSet, filename, src) // loGos hook: loGo/s syntax is not go/parser syntax.
 	if err != nil {
 		return err
 	}

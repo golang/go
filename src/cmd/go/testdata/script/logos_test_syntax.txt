@@ -1,0 +1,79 @@
+# M11-S3: `logos test` finds the test functions of a _test.lgo file that holds
+# loGo/s-only syntax (`T?`, `??`), which go/parser rejects.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos test -v ./ok
+stdout '--- PASS: TestOptional'
+stdout '--- PASS: TestGeneric'
+stdout '--- PASS: FuzzSeed'
+stdout '^ok'
+! stdout 'no tests to run'
+
+# A wrong test signature in a _test.lgo file still reports the position.
+! logos test ./badsig
+stderr 'wrong signature for TestBad'
+
+-- go.mod --
+module example.com/t
+
+go 1.27
+
+-- ok/p.lgo --
+package ok
+
+type Box struct {
+	N int32?
+}
+
+-- ok/p_test.lgo --
+package ok
+
+import "testing"
+
+type helper func(x int) int
+
+var handler = func(t *testing.T) {}
+
+func (b Box) unused() {}
+
+func identity[T any](x T) T { return x }
+
+func TestOptional(t *testing.T) {
+	var b Box
+	if (b.N ?? 7) != 7 {
+		t.Fatal("none must fall back")
+	}
+	b.N = 3
+	if (b.N ?? 7) != 3 {
+		t.Fatal("some must win")
+	}
+}
+
+func TestGeneric(t *testing.T) {
+	if identity(5) != 5 {
+		t.Fatal("identity")
+	}
+}
+
+func FuzzSeed(f *testing.F) {
+	f.Add(1)
+	f.Fuzz(func(t *testing.T, x int) {})
+}
+
+-- badsig/p.lgo --
+package badsig
+
+type Box struct {
+	N int32?
+}
+
+-- badsig/p_test.lgo --
+package badsig
+
+import "testing"
+
+func TestBad(t *testing.B) {
+	var b Box
+	_ = b.N ?? 1
+}

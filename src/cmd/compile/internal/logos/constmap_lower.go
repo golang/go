@@ -291,11 +291,29 @@ func parseConstMapDecls(text string, pos syntax.Pos) []syntax.Decl {
 		syntax.Inspect(d, func(n syntax.Node) bool {
 			if n != nil {
 				n.SetPos(pos)
+				setRbrace(n, pos)
 			}
 			return true
 		})
 	}
 	return file.DeclList
+}
+
+// setRbrace moves the closing brace position of a block, switch, select,
+// or composite literal to pos, so every scope boundary of generated code
+// stays at the generated declaration (the scope marker of dwarfgen
+// requires non-decreasing positions inside one function).
+func setRbrace(n syntax.Node, pos syntax.Pos) {
+	switch n := n.(type) {
+	case *syntax.BlockStmt:
+		n.Rbrace = pos
+	case *syntax.SwitchStmt:
+		n.Rbrace = pos
+	case *syntax.SelectStmt:
+		n.Rbrace = pos
+	case *syntax.CompositeLit:
+		n.Rbrace = pos
+	}
 }
 
 // lowerConstMapRanges rewrites `range m` over a const map to the sorted
