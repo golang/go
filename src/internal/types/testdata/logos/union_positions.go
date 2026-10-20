@@ -14,7 +14,7 @@ type U interface {
 	int | string
 }
 
-var u U /* ERROR "interface contains type constraints" */ = 7
+var u U /* ERROR "interface contains type constraints" */
 
 type Open interface {
 	~int | ~string
@@ -22,6 +22,10 @@ type Open interface {
 
 var _ Open // ERROR "interface contains type constraints"
 
-var _ interface /* ERROR "interface contains type constraints" */ { int | string }
+var _ interface /* ERROR "interface contains type constraints" */ {
+	int | string
+}
 
-var v interface /* ERROR "interface contains type constraints" */ { ~int | ~string }
+var v interface /* ERROR "interface contains type constraints" */ {
+	~int | ~string
+}
