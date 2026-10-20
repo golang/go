@@ -39,6 +39,7 @@ var pairableLoads = map[Op]pairableLoadInfo{
 	// if we knew the upper bits of one of them weren't being used.
 	OpARM64FMOVDload: {8, OpARM64FLDPD},
 	OpARM64FMOVSload: {4, OpARM64FLDPS},
+	OpARM64FMOVQload: {16, OpARM64FLDPQ},
 }
 
 type pairableStoreInfo struct {
@@ -54,6 +55,25 @@ var pairableStores = map[Op]pairableStoreInfo{
 	OpARM64MOVWstore:  {4, OpARM64STPW},
 	OpARM64FMOVDstore: {8, OpARM64FSTPD},
 	OpARM64FMOVSstore: {4, OpARM64FSTPS},
+	OpARM64FMOVQstore: {16, OpARM64FSTPQ},
+}
+
+func encodable16(off int64) bool {
+	return off >= -1024 && off <= 1008 && off%16 == 0
+}
+
+func loadOffsetOk(aux Aux, off, width int64) bool {
+	if width == 16 {
+		return encodable16(off) || encodable16(off-16)
+	}
+	return offsetOk(aux, off, width)
+}
+
+func storeOffsetOk(aux Aux, off, width int64) bool {
+	if width == 16 {
+		return encodable16(off)
+	}
+	return offsetOk(aux, off, width)
 }
 
 // offsetOk returns true if a pair instruction should be used
@@ -142,7 +162,7 @@ func pairLoads(f *Func) {
 			if info.width == 0 {
 				continue // not pairable
 			}
-			if !offsetOk(v.Aux, v.AuxInt, info.width) {
+			if !loadOffsetOk(v.Aux, v.AuxInt, info.width) {
 				continue // not advisable
 			}
 			loads = append(loads, v)
@@ -248,7 +268,7 @@ func pairLoads(f *Func) {
 				if info.width == 0 {
 					continue
 				}
-				if !offsetOk(v.Aux, v.AuxInt, info.width) {
+				if !loadOffsetOk(v.Aux, v.AuxInt, info.width) {
 					continue // not advisable
 				}
 				nextBlock[nextBlockKey{op: v.Op, ptr: v.Args[0].ID, mem: v.Args[1].ID, auxInt: v.AuxInt, aux: v.Aux}] = v
@@ -266,7 +286,7 @@ func pairLoads(f *Func) {
 			if info.width == 0 {
 				continue
 			}
-			if !offsetOk(x.Aux, x.AuxInt, info.width) {
+			if !loadOffsetOk(x.Aux, x.AuxInt, info.width) {
 				continue // not advisable
 			}
 			key := nextBlockKey{op: x.Op, ptr: x.Args[0].ID, mem: x.Args[1].ID, auxInt: x.AuxInt + info.width, aux: x.Aux}
@@ -362,7 +382,7 @@ func pairStores(f *Func) {
 			pos := v.Pos
 			wmem := w.MemoryArg()
 
-			if w.Op == v.Op && w.AuxInt == off+info.width {
+			if w.Op == v.Op && w.AuxInt == off+info.width && storeOffsetOk(aux, off, info.width) {
 				// Arguments for the merged store: ptr, val1, val2, mem.
 				args := []*Value{v.Args[0], v.Args[1], w.Args[1], mem}
 
@@ -406,6 +426,8 @@ func pairStores(f *Func) {
 			width = 8
 		case OpARM64MOVWstore, OpARM64FMOVSstore:
 			width = 4
+		case OpARM64FMOVQstore:
+			width = 16
 		case OpARM64MOVHstore:
 			width = 2
 		case OpARM64MOVBstore:

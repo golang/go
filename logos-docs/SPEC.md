@@ -1493,6 +1493,10 @@ The loader carries target: 1.4 KB, excluding wasm_exec.js, measured by Benchmark
 - A pair MUST NOT read or write its own base register. [T-303]
 - The two destinations of a pair MUST differ. [T-303]
 - Offsets outside the encodable range MUST stay separate loads or stores. [T-303]
+- The 4-byte and 8-byte pairing above is upstream behavior. [T-303]
+- Adjacent 16-byte vector loads MUST pair into FLDPQ when they meet the safety predicates with an encodable pair offset. [T-303]
+- Adjacent 16-byte vector stores MUST pair into FSTPQ under the same conditions. [T-303]
+- A 16-byte pair offset outside -1024..1008 or not a multiple of 16 MUST stay separate loads or stores. [T-303]
 - With the default target_cpu the ARM64 target MUST use GOARM64=v8.2, so LSE atomics stay available. [T-303][T-105]
 
 ### 15.2 Amd64 masked tails, rotates, and checked lengths

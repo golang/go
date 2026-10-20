@@ -114,7 +114,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #108 | M7 |  | planned |
 | #109 | M10 |  | planned |
 | #110 | M5 | test/logos/run/freeze.lgo | tested |
-| #111 | M15 |  | planned |
+| #111 | M15 | test/logos/codegen/arm64_pair.lgo; test/logos/codegen/arm64_pair.go; src/cmd/compile/internal/ssa/pair_logos_test.go (TestLogosPairARM64) | tested |
 | #112 | M1 | src/cmd/go/testdata/script/logos_eject.txt | tested |
 | #113 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestScopeDeferOpenCoded) | tested |
 | #114 | M7 |  | planned |
