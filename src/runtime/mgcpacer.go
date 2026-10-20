@@ -348,6 +348,9 @@ type gcControllerState struct {
 	// If this is zero, no fractional workers are needed.
 	fractionalUtilizationGoal float64
 
+	// logosElastic is the elastic background marking state (logos_pacer.go).
+	logosElastic logosElasticState
+
 	// These memory stats are effectively duplicates of fields from
 	// memstats.heapStats but are updated atomically or with the world
 	// stopped and don't provide the same consistency guarantees.
@@ -423,6 +426,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 		dedicatedMarkWorkersNeeded = int64(procs)
 		c.fractionalUtilizationGoal = 0
 	}
+	dedicatedMarkWorkersNeeded = c.logosElasticStart(procs, dedicatedMarkWorkersNeeded)
 
 	// Clear per-P state
 	for _, p := range allp {
@@ -503,6 +507,7 @@ func (c *gcControllerState) revise() {
 	// Assume we're under the soft goal. Pace GC to complete at
 	// heapGoal assuming the heap is in steady-state.
 	heapGoal := int64(c.heapGoal())
+	c.logosElasticRevise(live, uint64(heapGoal))
 
 	// The expected scan work is computed as the amount of bytes scanned last
 	// GC cycle (both heap and stack), plus our estimate of globals work for this cycle.
