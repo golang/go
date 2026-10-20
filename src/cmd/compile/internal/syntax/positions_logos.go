@@ -66,6 +66,9 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *ConstIfStmt:
+		if els, ok := n.Else.(*ConstIfStmt); ok {
+			return EndPos(els), true
+		}
 		end := EndPos(n.Then)
 		if n.Else != nil {
 			end = EndPos(n.Else)

@@ -248,7 +248,16 @@ func (fc *funcLower) lowerCompound(s syntax.Stmt) []syntax.Stmt {
 func (fc *funcLower) lowerLeaf(s syntax.Stmt) []syntax.Stmt {
 	switch s := s.(type) {
 	case *syntax.LabeledStmt:
+		pos := s.Stmt.Pos()
 		inner := fc.lowerStmt(s.Stmt)
+		if len(inner) == 0 {
+			empty := &syntax.EmptyStmt{}
+			empty.SetPos(pos)
+			s.Stmt = empty
+			off := fc.fl.off(pos)
+			fc.fl.add(off, off, ";")
+			return []syntax.Stmt{s}
+		}
 		s.Stmt = inner[0]
 		return append([]syntax.Stmt{s}, inner[1:]...)
 	case *syntax.DeclStmt:

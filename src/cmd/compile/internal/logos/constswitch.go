@@ -6,6 +6,7 @@ package logos
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 	"strings"
 
@@ -109,7 +110,7 @@ func newCswLower(fc *funcLower, s *syntax.ConstSwitchStmt) *cswLower {
 			syn:   syn,
 			kind:  cswExact,
 			typ:   typ,
-			spell: c.spell(syn.Type),
+			spell: c.spell(fl.off(syn.Case), fl.off(syn.Colon)),
 			lo:    fl.off(syn.Colon) + 1,
 			hi:    fl.off(s.Rbrace),
 			sub:   fl.pkg.info.LogosConstCases[syn],
@@ -146,11 +147,11 @@ func checkedTypeOf(info *types2.Info, e syntax.Expr) types2.Type {
 			return tn.Type()
 		}
 	}
-	tv, ok := info.Types[e]
-	if !ok || tv.Type == nil {
-		base.Fatalf("logos: const switch type at %s has no checked type", e.Pos().String())
+	if typ := info.TypeOf(e); typ != nil {
+		return typ
 	}
-	return tv.Type
+	base.Fatalf("logos: const switch type at %s has no checked type", e.Pos().String())
+	return nil
 }
 
 // isIfaceLower reports whether typ is an interface type.
@@ -159,10 +160,62 @@ func isIfaceLower(typ types2.Type) bool {
 	return ok
 }
 
-// spell returns the source text of the type expression e, with any splices
-// already recorded inside it applied.
-func (c *cswLower) spell(e syntax.Expr) string {
-	return c.fl.textOf(span{c.fl.off(leftmostOf(e)), c.fl.off(syntax.EndPos(e))})
+// spell returns the source text of the switched type between the header at
+// from and bound, with any splices already recorded inside it applied.
+// from is the header keyword (the case, or the const of the switch) and
+// bound is the token that ends the type (the case colon, or the switch
+// brace for the tag), because EndPos stops early on composite types. The
+// type starts at the first token after the header keywords and ends at the
+// last token before bound.
+func (c *cswLower) spell(from, bound int) string {
+	start := typeStart(c.fl.src, from, bound)
+	return c.fl.textOf(span{start, typeEnd(c.fl.src, start, bound)})
+}
+
+// typeStart returns the offset of the first token of the switched type
+// after its header: it skips the case, const, switch, and ~ keywords,
+// plus comments and whitespace. A function type starts at func, which a
+// node position cannot supply, so the start comes from the header.
+func typeStart(src []byte, from, bound int) int {
+	start := bound
+	scanSegment(src, from, bound, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		switch t.kind {
+		case token.CASE, token.CONST, token.SWITCH, token.TILDE:
+			return true
+		}
+		start = t.start
+		return false
+	})
+	return start
+}
+
+// typeEnd returns the end of the type starting at start: the last token
+// before bound, stopping at a bracket that closes before start. A closer
+// at depth zero matches a parenthesis around the type, not the type
+// itself, so the spelling ends before it.
+func typeEnd(src []byte, start, bound int) int {
+	end := start
+	depth := 0
+	scanSegment(src, start, bound, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		switch t.kind {
+		case token.LPAREN, token.LBRACK, token.LBRACE:
+			depth++
+		case token.RPAREN, token.RBRACK, token.RBRACE:
+			if depth == 0 {
+				return false
+			}
+			depth--
+		}
+		end = t.end
+		return true
+	})
+	return end
 }
 
 // matches reports whether the concrete tag selects cs.
@@ -196,7 +249,8 @@ func (c *cswLower) lowerFold() []syntax.Stmt {
 	}
 	stmts, text := c.caseBody(match, "")
 	block := closeAt(c.stmt.Pos(), stmts, c.stmt.Rbrace)
-	c.fl.add(c.start, c.end, "{"+text+"}")
+	kept := span{match.lo, match.hi}
+	c.fl.add(c.start, c.end, leftoverComments(c.fl, span{c.start, c.end}, []span{kept})+"{"+text+"}")
 	return []syntax.Stmt{block}
 }
 
@@ -271,7 +325,7 @@ func (c *cswLower) typeSwitch(exacts, rest []*cswCase, done string) (syntax.Stmt
 	} else if len(rest) > 0 {
 		pos = rest[0].syn.Case
 	}
-	tag := c.spell(c.stmt.Targ)
+	tag := c.spell(c.fl.off(c.stmt.Pos()), c.fl.off(c.stmt.Lbrace))
 	guard, ok := parseExprAt("any((*"+tag+")(nil))", pos)
 	if !ok {
 		base.Fatalf("logos: const switch tag %s at %s cannot be respelled", tag, pos.String())
@@ -333,7 +387,7 @@ func closeAt(pos syntax.Pos, list []syntax.Stmt, close syntax.Pos) *syntax.Block
 // syntax and as eject text. Both use the support helpers of logos/rt.
 func (c *cswLower) cond(cs *cswCase) (syntax.Expr, string) {
 	c.fl.needRT = true
-	tag := c.spell(c.stmt.Targ)
+	tag := c.spell(c.fl.off(c.stmt.Pos()), c.fl.off(c.stmt.Lbrace))
 	helper := "Implements"
 	if cs.kind == cswTilde {
 		helper = "TildeIs"
@@ -566,7 +620,12 @@ func (c *cswLower) wrapSelectors(body []syntax.Stmt, cs *cswCase) {
 			if !ok {
 				base.Fatalf("logos: const switch interface %s at %s cannot be respelled", cs.spell, xpos.String())
 			}
-			xspan := span{c.fl.off(xpos), c.fl.off(syntax.EndPos(sel.X))}
+			xstart := c.fl.off(xpos)
+			xend := typeEnd(c.fl.src, xstart, c.fl.off(sel.Sel.Pos()))
+			if xend > xstart && c.fl.src[xend-1] == '.' {
+				xend--
+			}
+			xspan := span{xstart, xend}
 			xtext := c.fl.textOf(xspan)
 			sel.X = at(&syntax.AssertExpr{
 				X: at(&syntax.CallExpr{

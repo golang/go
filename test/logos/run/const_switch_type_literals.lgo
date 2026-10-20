@@ -1,0 +1,35 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S4 const switch with literal case types (SPEC Sec 2.5, T-205):
+// empty-interface, func, and struct spellings keep their closers.
+
+func kind[T any]() string {
+	const switch T {
+	case func():
+		return "func"
+	case interface{}:
+		return "any"
+	}
+	return "other"
+}
+
+func shape[T any]() string {
+	const switch T {
+	case struct{ X int }:
+		return "struct"
+	case interface{}:
+		return "any"
+	}
+	return "other"
+}
+
+func main() {
+	fmt.Println(kind[func()]())
+	fmt.Println(kind[int]())
+	fmt.Println(shape[struct{ X int }]())
+	fmt.Println(shape[int]())
+}

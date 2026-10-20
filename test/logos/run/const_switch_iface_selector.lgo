@@ -1,0 +1,26 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S4 const switch interface case over an indexed receiver
+// (SPEC Sec 2.5, T-205): the assertion splice covers the full receiver.
+
+type Word struct{ S string }
+
+func (w Word) M() string { return "m:" + w.S }
+
+func pick[T any](items []T, i int) string {
+	const switch T {
+	case interface{ M() string }:
+		return items[i].M()
+	}
+	return "after"
+}
+
+func main() {
+	ws := []Word{{S: "a"}, {S: "b"}}
+	fmt.Println(pick(ws, 1))
+	fmt.Println(pick([]int{1, 2}, 0))
+}

@@ -161,10 +161,11 @@ func (fc *funcLower) liveBranch(s *syntax.ConstIfStmt) *syntax.BlockStmt {
 // that text first, and any splice already recorded inside the statement
 // is discarded, because the text already carries its effect.
 func (fc *funcLower) replaceConstSpan(start, end int, live syntax.Stmt) {
-	text := fc.fl.textOf(span{fc.fl.off(live.Pos()), fc.fl.off(syntax.EndPos(live)) + 1})
+	keptSpan := span{fc.fl.off(live.Pos()), fc.fl.off(syntax.EndPos(live)) + 1}
+	text := fc.fl.textOf(keptSpan)
 	kept, _ := fc.fl.splitSplices(span{start, end})
 	fc.fl.splices = kept
-	fc.fl.add(start, end, text)
+	fc.fl.add(start, end, leftoverComments(fc.fl, span{start, end}, []span{keptSpan})+text)
 }
 
 // deleteConstSpan discards the splices strictly inside [start, end) and

@@ -1,0 +1,19 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S1 else-const-if chain (SPEC Sec 2.5, T-205): eject keeps the
+// newline after the chain's closing brace.
+
+func main() {
+	const if 1 == 2 {
+		fmt.Println("first")
+	} else const if 1 == 2 {
+		fmt.Println("second")
+	} else {
+		fmt.Println("other")
+	}
+	fmt.Println("after")
+}

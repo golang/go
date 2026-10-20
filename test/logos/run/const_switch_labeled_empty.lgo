@@ -1,0 +1,20 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S4 labeled const switch with no live case (SPEC Sec 2.5, T-205):
+// no case matches, so the switch folds away and control reaches the
+// code after the label.
+
+func main() {
+	goto L
+	fmt.Println("skipped")
+L:
+	const switch int {
+	case interface{ M() }:
+		fmt.Println("unreachable")
+	}
+	fmt.Println("done")
+}

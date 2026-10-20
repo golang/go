@@ -1,0 +1,30 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S1/M7-S4 comment preservation (SPEC Sec 2.5, T-205; A7): comments
+// inside a folded span survive in the ejected text.
+
+func choose() int {
+	const if 1 == 1 /*keep-then*/ {
+		return 1 // live
+	} /*between*/ else {
+		return 2 // dead
+	}
+}
+
+func kind() string {
+	const switch int /*keep-tag*/ {
+	// before cases
+	case int /*match*/:
+		return "int" // live
+	}
+	return "after"
+}
+
+func main() {
+	fmt.Println(choose())
+	fmt.Println(kind())
+}

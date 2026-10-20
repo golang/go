@@ -281,12 +281,12 @@ func (check *Checker) logosConstCaseBody(ctxt stmtContext, c *syntax.ConstSwitch
 // terminates: only a concrete tag with a terminating match, since any
 // other tag may miss every case and fall through.
 func (check *Checker) logosTerminatingConstSwitch(s *syntax.ConstSwitchStmt) bool {
-	tag, ok := check.Info.Types[s.Targ]
-	if !ok || tag.Type == nil || isTypeParam(tag.Type) {
+	tag := check.Info.TypeOf(s.Targ)
+	if tag == nil || isTypeParam(tag) {
 		return false
 	}
 	for _, c := range s.Cases {
-		if !check.logosConcreteCaseMatches(c, tag.Type) {
+		if !check.logosConcreteCaseMatches(c, tag) {
 			continue
 		}
 		return check.isTerminatingList(c.Body, "")
@@ -298,19 +298,19 @@ func (check *Checker) logosTerminatingConstSwitch(s *syntax.ConstSwitchStmt) boo
 // source case: identical exact types, tilde bases equal to the tag
 // underlying, or implemented interfaces.
 func (check *Checker) logosConcreteCaseMatches(c *syntax.ConstSwitchCase, tag Type) bool {
-	ctv, ok := check.Info.Types[c.Type]
-	if !ok || ctv.Type == nil {
+	ctv := check.Info.TypeOf(c.Type)
+	if ctv == nil {
 		return false
 	}
 	if c.Tilde {
 		ub, ok := Unalias(tag).Underlying().(*Basic)
-		return ok && Identical(ub, ctv.Type)
+		return ok && Identical(ub, ctv)
 	}
-	if isIfaceCase(ctv.Type) {
-		iface, _ := Unalias(ctv.Type).Underlying().(*Interface)
+	if isIfaceCase(ctv) {
+		iface, _ := Unalias(ctv).Underlying().(*Interface)
 		return iface != nil && Implements(tag, iface)
 	}
-	return Identical(ctv.Type, tag)
+	return Identical(ctv, tag)
 }
 
 // logosHasBreakConstSwitch reports whether any case body holds a break
