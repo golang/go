@@ -159,6 +159,7 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
+	fl.lowerZeroCopy()   // M5-S5 hook: zero-copy string/bytes conversions.
 	fl.eraseConstViews() // M5-S1 hook: erase const views and bound recorded slices.
 	fl.lowerPlatform()   // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
 	fl.lowerUnions()     // M2 hook: switch expressions and struct assertions.

@@ -1,0 +1,51 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"testing"
+)
+
+// M5-S5 zero-copy conversions (SPEC T-201): string to const []byte and
+// back allocate nothing when provenance is a string or a const
+// composite; any other provenance copies. A plain []byte conversion
+// stays a copy even when its source is a string.
+
+var zbSinkB const []byte
+var zbSinkS string
+var zbSinkC string
+
+func zbComposite() string {
+	var c const []byte = []byte{7, 8, 9}
+	return string(c)
+}
+
+func main() {
+	s := "hello world, zero copy me"
+	var b const []byte = const []byte(s)
+	zbSinkS = string(b)
+	fmt.Println(zbSinkS == s)
+	fmt.Println(testing.AllocsPerRun(100, func() {
+		zbSinkB = const []byte(s)
+	}))
+	fmt.Println(testing.AllocsPerRun(100, func() {
+		zbSinkS = string(b)
+	}))
+	fmt.Println(zbSinkS == s)
+	var c const []byte = []byte{7, 8, 9}
+	fmt.Println(testing.AllocsPerRun(100, func() {
+		zbSinkS = string(c)
+	}))
+	zbSinkC = zbComposite()
+	fmt.Println(zbSinkC == string([]byte{7, 8, 9}))
+	mut := []byte("hello world, zero copy me")
+	var v const []byte = mut
+	t := string(v)
+	mut[0] = 'X'
+	fmt.Println(t)
+	p := []byte(s)
+	p[0] = 'X'
+	_ = p
+	fmt.Println(s)
+}

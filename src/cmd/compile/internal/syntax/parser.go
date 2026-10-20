@@ -1085,6 +1085,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 	case _Lbrack, _Chan, _Map, _Struct, _Interface:
 		return p.type_() // othertype
 
+	case _Const:
+		return p.logosConstOperand() // M5-S5 hook: `const T(x)` conversions (SPEC T-201).
+
 	default:
 		if x := p.logosOperand(); x != nil { // M2-S5 hook: switch expressions.
 			return x

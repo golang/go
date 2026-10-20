@@ -391,6 +391,8 @@ A `for _, v := range` loop over a constant slice MUST yield constant elements. [
 
 Converting `string` to `const []byte` MUST be zero-copy. [T-201]
 
+A conversion to a constant view MUST spell its target `const T`, as in `const []byte(s)`. [T-201]
+
 Converting `const []byte` to `string` MUST be zero-copy when provenance is a string or a constant composite. [T-201]
 
 The same conversion MUST copy for any other provenance. [T-201]

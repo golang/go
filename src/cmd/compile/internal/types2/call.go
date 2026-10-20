@@ -223,6 +223,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 				if check.logosUnionConversion(x, T) { // logos M2-S1 hook.
 					break
 				}
+				if check.logosZeroCopyConvert(x, T) { // logos M5-S5 hook: conversions to const views (SPEC T-201).
+					break
+				}
 				if check.logosConstConvert(x, T) { // logos M5-S1 hook: conversions out of const views.
 					break
 				}
