@@ -1,0 +1,205 @@
+# M13-S2: synthetic PGO (SPEC T-105). Standard emits Cold into ? blocks
+# and before os.Exit; aggressive adds explicit panics; off emits nothing.
+# Assembly probes scope -S to the fixture package and disable inlining
+# and intrinsics so an emitted Cold call survives to the dump.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# O2 defaults to standard: the ? block emits Cold.
+cd std
+logos build -gcflags='example.com/synthstd=-l -d=ssa/intrinsics/off -S=2' .
+stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+logos run .
+stdout '^0 boom$'
+stdout '^3$'
+stdout '^3$'
+
+# off at O3: no Cold emission anywhere.
+cd ../off
+logos build -gcflags='example.com/synthoff=-l -d=ssa/intrinsics/off -S=2' -O=3 .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+logos run -O=3 .
+stdout '^0 boom$'
+
+# aggressive at O2: the ? block still emits; the panic path is marked
+# with no call.
+cd ../aggr
+logos build -gcflags='example.com/synthaggr=-l -d=ssa/intrinsics/off -S=2' -O=2 .
+stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+logos run -O=2 .
+stdout '^0 boom$'
+
+# An explicit -gcflags level overrides the default.
+cd ../std
+logos build -gcflags='example.com/synthstd=-l -d=ssa/intrinsics/off -S=2 -d=logossynthpgo=off' .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+
+# Without the key, O3 selects aggressive and still emits.
+logos build -gcflags='example.com/synthstd=-l -d=ssa/intrinsics/off -S=2' -O=3 .
+stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+
+# O0, O1, Os, and Oz emit nothing, even with an explicit key.
+logos build -gcflags='example.com/synthstd=-l -d=ssa/intrinsics/off -S=2' -O=0 .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+logos build -gcflags='example.com/synthstd=-l -d=ssa/intrinsics/off -S=2' -O=1 .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+cd ../aggr
+logos build -gcflags='example.com/synthaggr=-l -d=ssa/intrinsics/off -S=2' -O=1 .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+logos build -gcflags='example.com/synthaggr=-l -d=ssa/intrinsics/off -S=2' -O=s .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+logos build -gcflags='example.com/synthaggr=-l -d=ssa/intrinsics/off -S=2' -O=z .
+! stderr 'CALL\s+logos/rt\.Cold\(SB\)'
+stderr 'main\.divide\S* STEXT'
+
+-- std/go.mod --
+module example.com/synthstd
+
+go 1.27
+
+-- std/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+func fail() (int, error) {
+	return 0, errors.New("boom")
+}
+
+func divide() (int, error) {
+	v := fail()?
+	return v, nil
+}
+
+func check(n int) int {
+	if n < 0 {
+		os.Exit(1)
+	}
+	return n
+}
+
+func mustBePositive(n int) int {
+	if n < 0 {
+		panic("negative")
+	}
+	return n
+}
+
+func main() {
+	v, err := divide()
+	fmt.Println(v, err)
+	fmt.Println(check(3))
+	fmt.Println(mustBePositive(3))
+}
+
+-- off/go.mod --
+module example.com/synthoff
+
+go 1.27
+
+-- off/logos.toml --
+[project]
+name = "synthoff"
+
+[build]
+synthetic_pgo = "off"
+
+-- off/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+func fail() (int, error) {
+	return 0, errors.New("boom")
+}
+
+func divide() (int, error) {
+	v := fail()?
+	return v, nil
+}
+
+func check(n int) int {
+	if n < 0 {
+		os.Exit(1)
+	}
+	return n
+}
+
+func mustBePositive(n int) int {
+	if n < 0 {
+		panic("negative")
+	}
+	return n
+}
+
+func main() {
+	v, err := divide()
+	fmt.Println(v, err)
+	fmt.Println(check(3))
+	fmt.Println(mustBePositive(3))
+}
+
+-- aggr/go.mod --
+module example.com/synthaggr
+
+go 1.27
+
+-- aggr/logos.toml --
+[project]
+name = "synthaggr"
+
+[build]
+synthetic_pgo = "aggressive"
+
+-- aggr/main.lgo --
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+func fail() (int, error) {
+	return 0, errors.New("boom")
+}
+
+func divide() (int, error) {
+	v := fail()?
+	return v, nil
+}
+
+func check(n int) int {
+	if n < 0 {
+		os.Exit(1)
+	}
+	return n
+}
+
+func mustBePositive(n int) int {
+	if n < 0 {
+		panic("negative")
+	}
+	return n
+}
+
+func main() {
+	v, err := divide()
+	fmt.Println(v, err)
+	fmt.Println(check(3))
+	fmt.Println(mustBePositive(3))
+}

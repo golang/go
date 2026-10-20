@@ -13,6 +13,7 @@ import (
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/escape"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/reflectdata"
 	"cmd/compile/internal/typecheck"
@@ -482,7 +483,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 		// } else {
 		//     slice = makeslice(elemType, len, cap)
 		// }
-		maxStackSize := int64(base.Debug.VariableMakeThreshold)
+		maxStackSize := inline.LogosVariableMakeThreshold(ir.CurFunc)
 		K := maxStackSize / t.Elem().Size() // rounds down
 		if K > 0 {                          // skip if elem size is too big.
 			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(cap, types.Types[types.TUINT64]), ir.NewInt(base.Pos, K)), nil, nil)

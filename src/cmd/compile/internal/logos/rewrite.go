@@ -134,6 +134,9 @@ func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) 
 		site:  nameOf(pos, siteSpelling),
 		zeros: fc.zerosAt(pos),
 	})
+	if emitColdExit() {
+		native = append([]syntax.Stmt{coldStmtOf(pos)}, native...)
+	}
 	text = buildExit(exitSpec{
 		pos:   pos,
 		err:   nameOf(pos, errSpelling),
@@ -148,10 +151,15 @@ func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) 
 	return native, text, subs
 }
 
-// lowerList lowers a statement list.
+// lowerList lowers a statement list. A synthetic-PGO cold terminator
+// gains a Cold mark first; the eject twin never carries it.
 func (fc *funcLower) lowerList(list []syntax.Stmt) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
+		if fc.coldTerminator(s) {
+			out = append(out, coldStmtOf(s.Pos()))
+			fc.fl.needRT = true
+		}
 		out = append(out, fc.lowerStmt(s)...)
 	}
 	return out

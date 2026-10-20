@@ -317,6 +317,7 @@ O0 MUST pass debug flags for no inline and no debug-info loss protection [T-105]
 O1 MUST be the upstream baseline [T-105].
 O2 MUST set inline budget 120 and variable-make stack buffer 256 bytes with standard synthetic PGO [T-105].
 O3 MUST set inline budget 400 with 80 inside recursive cycles, clone specialization, variable-make buffer 4096 bytes, and aggressive synthetic PGO [T-105].
+A function in a recursive call-graph cycle MUST keep the upstream variable-make buffer of 32 bytes at every level, inlined bodies included [T-105][T-302].
 Os and Oz MUST set inline budget 15 with linker identical code folding [T-105].
 Synthetic PGO MUST mark `?` error blocks, panics, and `os.Exit` paths unlikely through the intrinsic `logos/rt.cold()` [T-105].
 A Go package MUST get the same marks for `os.Exit` paths, and for panic paths where the aggressive level marks them, with no source change and no new import [T-105][R-U1].
@@ -1716,7 +1717,7 @@ Each entry from #1 to #182 states the tailored resolution of its original attack
 - #131 Embedding read-only and read-write same property: Read-only and read-write declarations of one name MUST merge into read-write. The package MUST generate both getter and setter for it. See Sec 6.3. [T-203.2]
 - #132 Compound property update evaluating receiver twice: A compound update through an interface MUST evaluate the receiver once and write the value back. See Sec 6.3. [T-203.2]
 - #133 Non-ASCII module paths rejected by proxy: When the main module path's first element contains a dot, each alias-extension file MUST produce warning `portability::alias_extension`. Module zips reject alias extensions, so such files cannot publish. See Sec 1.1. [T-101.1][T-102]
-- #134 O3 inlining inflating recursive stack frames: O3 MUST set inline budget 400 with budget 80 inside recursive cycles. Recursive functions MUST NOT inline above that budget. See Sec 1.5. [T-105]
+- #134 O3 inlining inflating recursive stack frames: O3 MUST set inline budget 400 with budget 80 inside recursive cycles. Recursive functions MUST NOT inline above that budget. A function in a recursive cycle MUST keep the upstream 32-byte variable-make buffer, so a helper inlined into it adds no tier buffer to its frame. See Sec 1.5. [T-105][T-302]
 - #135 defer Close violating LIFO order: Deferred calls MUST run in LIFO order across `defer`, `defer?`, and `errdefer`. `defer f()?` MUST run in place on the standard LIFO stack. See Sec 1.4. [T-104.2]
 - #136 go group sibling hanging on channel receive: Plain channel operations in a child MUST lower to a `select` with `<-gctx.Done()`. Cancellation MUST reach blocked siblings. See Sec 2.6. [T-206]
 - #137 Call-free loop starving scheduler blocking GC: Back-edge checks MUST fire every 4096 iterations where async preemption is absent. A call-free loop MUST NOT starve its peers. See Sec 15.3. [T-303]

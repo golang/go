@@ -2155,12 +2155,21 @@ func rewriteFixedLoad(v *Value, sym Sym, sb *Value, off int64) *Value {
 	if (v.Type.IsPtrShaped() || v.Type.IsUintptr()) && lsym.Type == objabi.SRODATA {
 		for _, r := range lsym.R {
 			if (r.Type == objabi.R_ADDR || r.Type == objabi.R_WEAKADDR) && int64(r.Off) == off && r.Add == 0 {
-				if strings.HasPrefix(r.Sym.Name, "type:") {
+				if r.Sym.TypeInfo() != nil {
 					// In case we're loading a type out of a dictionary, we need to record
 					// that the containing function might put that type in an interface.
 					// That information is currently recorded in relocations in the dictionary,
 					// but if we perform this load at compile time then the dictionary
 					// might be dead.
+					//
+					// We check for TypeInfo (rather than a "type:" name prefix) because
+					// not every symbol whose name starts with "type:" is a runtime._type:
+					// compiler-generated algorithm helpers such as the hash function
+					// closures (type:.hashfunc.*) and equality closures (type:.eqfunc.*)
+					// live in the same fake "type" package but must never be marked as
+					// types used in interfaces. Folding a load of, e.g., a map type's
+					// Hasher field out of a dictionary used to emit R_USEIFACE against
+					// the hashfunc closure, which the linker rejects.
 					reflectdata.MarkTypeSymUsedInInterface(r.Sym, f.fe.Func().Linksym())
 				} else if strings.HasPrefix(r.Sym.Name, "go:itab") {
 					// Same, but if we're using an itab we need to record that the

@@ -1,0 +1,29 @@
+// asmcheck -O=0
+
+package main
+
+import "fmt"
+
+// M13-S1 control for property_inline.lgo: at -O=0 (-N -l) the same body
+// keeps a CALL to the generated accessor, so the -O=2 absence of a CALL
+// there is the inliner's work and not a lowering that never calls.
+
+type Creature interface {
+	const Name string
+	HP int
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func loadHP(m *Monster) int {
+	var c Creature = m
+	return c.HP // amd64:"CALL.*Logos_GetHP" arm64:"CALL.*Logos_GetHP"
+}
+
+func main() {
+	m := &Monster{Name: "gorg", HP: 7}
+	fmt.Println(loadHP(m))
+}

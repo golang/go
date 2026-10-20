@@ -1,0 +1,260 @@
+# M13-S1: -O levels and CPU targets (SPEC T-105). Levels apply to Go and
+# loGo/s packages under logos and plain go; go help build stays upstream.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# O0 passes -N -l to the compiler.
+logos build -a -x -O=0 .
+stderr '\-N \-l'
+
+# No flag means O2 under logos: inline budget 120, make threshold 256,
+# standard synthetic PGO.
+logos build -a -x .
+stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+
+# O2 is explicit too.
+logos build -a -x -O=2 .
+stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+
+# O3 raises the inline budget, adds the recursive-cycle budget and the
+# variable-make threshold, turns on specialization and aggressive PGO.
+logos build -a -x -O=3 .
+stderr '\-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096,logosspecialize=1,logossynthpgo=aggressive'
+
+# The same flags apply to a Go module under logos build and go build.
+cd gomod
+logos build -a -x -O=2 .
+stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+go build -a -x -O=2 .
+stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+
+# Plain go without -O keeps the upstream default O1: none of the logos
+# debug flags appear.
+go build -a -x .
+! stderr 'inlbudget'
+! stderr 'variablemakethreshold'
+! stderr 'logossynthpgo'
+! stderr 'logosspecialize'
+
+# An invalid level fails under go with the accepted set.
+! go build -O=4 .
+stderr 'go build: invalid -O level "4" \(want 0, 1, 2, 3, s, z\)'
+cd ..
+
+# An invalid level fails under logos with the accepted set.
+! logos build -O=4 .
+stderr 'logos build: invalid -O level "4" \(want 0, 1, 2, 3, s, z\)'
+
+# go help build carries no -O text.
+go help build
+! stdout ' -O[= ]'
+
+# Os and Oz lower the inline budget and fold identical code in the
+# linker: the compile line carries -d=inlbudget=15, the link line carries
+# -logos.icf, and the folded program still runs.
+logos build -a -x -O=s .
+stderr '\-d=inlbudget=15'
+stderr 'link .*-logos\.icf'
+! stderr 'logossynthpgo'
+logos run -O=s .
+stdout '^hello$'
+logos build -a -x -O=z .
+stderr '\-d=inlbudget=15'
+stderr 'link .*-logos\.icf'
+logos run -O=z .
+stdout '^hello$'
+
+# Only Os and Oz fold: O2 leaves the link line alone.
+logos build -a -x -O=2 .
+! stderr '\-logos\.icf'
+
+# Os and Oz fold the same way for a Go module under go build.
+cd gomod
+go build -a -x -O=s .
+stderr '\-d=inlbudget=15'
+stderr 'link .*-logos\.icf'
+cd ..
+
+# The default level comes from logos.toml [build] opt_level.
+cd o3
+logos build -a -x .
+stderr '\-d=inlbudget=400,inlrecursivebudget=80,variablemakethreshold=4096,logosspecialize=1,logossynthpgo=aggressive'
+# An explicit -O overrides the file.
+logos build -a -x -O=1 .
+! stderr 'inlbudget'
+cd ..
+
+# Bare and unknown opt_level spellings fail with file and position.
+cd bad3
+! logos build .
+stderr 'logos\.toml:5:13: opt_level must be one of O0, O1, O2, O3, Os, Oz'
+cd ../badO4
+! logos build .
+stderr 'logos\.toml:5:13: opt_level must be one of O0, O1, O2, O3, Os, Oz'
+cd ..
+
+# File arguments ignore logos.toml: the invalid opt_level is never read
+# and the logos default level applies.
+cd bad3
+logos build -a -x main.lgo
+stderr '\-d=inlbudget=120,variablemakethreshold=256,logossynthpgo=standard'
+cd ..
+
+# target_cpu deterministic (the default) selects v3 unless set.
+logos build -a -x .
+stderr 'GOAMD64=.v3.'
+env GOAMD64=v2
+logos build -a -x .
+stderr 'GOAMD64=.v2.'
+env GOAMD64=
+
+# The arm64 lane follows the same rule under cross-compilation.
+env GOARCH=arm64
+logos build -a -x .
+stderr 'GOARM64=.v8\.2.'
+env GOARM64=v8.1
+logos build -a -x .
+stderr 'GOARM64=.v8\.1.'
+env GOARM64=
+env GOARCH=
+
+# baseline pins the oldest CPUs; native picks the host level.
+cd baseline
+logos build -a -x .
+stderr 'GOAMD64=.v1.'
+cd ../native
+logos build -a -x .
+stderr 'GOAMD64=.v[134].'
+
+-- go.mod --
+module example.com/optlevels
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- gomod/go.mod --
+module example.com/optlevels/go
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- o3/go.mod --
+module example.com/optlevels/o3
+
+go 1.27
+
+-- o3/logos.toml --
+[project]
+name = "o3"
+
+[build]
+opt_level = "O3"
+
+-- o3/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- bad3/go.mod --
+module example.com/optlevels/bad3
+
+go 1.27
+
+-- bad3/logos.toml --
+[project]
+name = "bad3"
+
+[build]
+opt_level = "3"
+
+-- bad3/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- badO4/go.mod --
+module example.com/optlevels/badO4
+
+go 1.27
+
+-- badO4/logos.toml --
+[project]
+name = "badO4"
+
+[build]
+opt_level = "O4"
+
+-- badO4/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- baseline/go.mod --
+module example.com/optlevels/baseline
+
+go 1.27
+
+-- baseline/logos.toml --
+[project]
+name = "baseline"
+
+[build]
+target_cpu = "baseline"
+
+-- baseline/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}
+
+-- native/go.mod --
+module example.com/optlevels/native
+
+go 1.27
+
+-- native/logos.toml --
+[project]
+name = "native"
+
+[build]
+target_cpu = "native"
+
+-- native/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("hello")
+}

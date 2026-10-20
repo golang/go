@@ -21,6 +21,7 @@ import (
 
 	"cmd/compile/internal/abi"
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/inline"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/liveness"
 	"cmd/compile/internal/objw"
@@ -1686,6 +1687,7 @@ func (s *state) stmt(n ir.Node) {
 			s.intrinsicCall(n)
 			return
 		}
+		logosSynthMark(s, n)
 		fallthrough
 
 	case ir.OCALLINTER:
@@ -3785,7 +3787,7 @@ func (s *state) getBackingStoreInfoForAppend(n *ir.CallExpr) *backingStoreInfo {
 func (s *state) getBackingStoreInfo(n ir.Node) *backingStoreInfo {
 	t := n.Type()
 	et := t.Elem()
-	maxStackSize := int64(base.Debug.VariableMakeThreshold)
+	maxStackSize := inline.LogosVariableMakeThreshold(s.curfn)
 	if et.Size() == 0 || et.Size() > maxStackSize {
 		return nil
 	}

@@ -225,6 +225,13 @@ func logosRootCgo(root string) (bool, bool) {
 	return false, true
 }
 
+// LogosCWDModuleRoot reports the module root above the working directory
+// by walking up to the nearest go.mod, or "" when there is none. The -O
+// level reader uses it to find logos.toml.
+func LogosCWDModuleRoot() string {
+	return cwdModuleRoot()
+}
+
 // cwdModuleRoot returns the module root above the working directory by
 // walking up to the nearest go.mod, or "" when there is none. It runs
 // after the -C chdir, so -C targets resolve to the target module.

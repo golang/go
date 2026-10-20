@@ -139,6 +139,24 @@ type logosCase struct {
 	tim       int
 }
 
+// pinTargetFlags moves a -goamd64=<level> directive flag into the process
+// environment of every command of the case. The logos default target is
+// GOAMD64=v3 (M13-S1), so a fixture that needs another level, such as the
+// GODEBUG cpu.avx knobs that exist only below v3, pins it here; the
+// environment wins over the logos default.
+func pinTargetFlags(c logosCase) logosCase {
+	var flags []string
+	for _, f := range c.flags {
+		if level, ok := strings.CutPrefix(f, "-goamd64="); ok {
+			c.runenv = append(c.runenv, "GOAMD64="+level)
+			continue
+		}
+		flags = append(flags, f)
+	}
+	c.flags = flags
+	return c
+}
+
 // splitOptFlags splits -O=<level> out of directive flags: -O is a
 // go-build-only flag for the .go twins (M13-S1 owns cmd/go acceptance).
 // It is never passed to logos, and never reaches `go run` or
@@ -238,6 +256,7 @@ func logosGoBuildCmd(gcflags, file string, buildFlags, optFlags []string) []stri
 // twins drive go, and test/logos/lint/*.go files drive `logos lint`
 // (M9-S2).
 func (t test) runLogos(c logosCase) error {
+	c = pinTargetFlags(c)
 	base := path.Base(t.goFile)
 	isLgo := strings.HasSuffix(base, ".lgo")
 	tempDir := t.TempDir()
@@ -287,7 +306,7 @@ func (t test) runLogos(c logosCase) error {
 		return t.runLogosLint(c, base, tempDir, runcmd)
 	}
 	if !isLgo {
-		if len(optFlags) > 0 {
+		if len(optFlags) > 0 && c.action == "run" {
 			cmd := logosGoBuildCmd(t.goGcflags(), filepath.Join(tempDir, base), buildFlags, optFlags)
 			if _, err := runcmd(cmd...); err != nil {
 				return err
@@ -333,11 +352,12 @@ func (t test) runLogosLint(c logosCase, base, tempDir string, runcmd runCmd) err
 // runLogosLgo runs one staged .lgo case through the logos binary.
 // Unsupported actions return logosUnsupportedActionErr.
 func (t test) runLogosLgo(c logosCase, base, tempDir string, runcmd runCmd) error {
-	buildFlags, _ := splitOptFlags(c.flags)
+	buildFlags, optFlags := splitOptFlags(c.flags)
 	switch c.action {
 	case "run":
 		cmd := []string{logosToolPath(t.T), "run", t.goGcflags()}
 		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, optFlags...)
 		cmd = append(cmd, ".")
 		cmd = append(cmd, c.args...)
 		out, err := runcmd(cmd...)
@@ -347,6 +367,7 @@ func (t test) runLogosLgo(c logosCase, base, tempDir string, runcmd runCmd) erro
 		return t.checkExpectedOutput(out)
 	case "compile":
 		cmd := []string{logosToolPath(t.T), "build"}
+		cmd = append(cmd, optFlags...)
 		cmd = append(cmd, logosGCFlagsArgs(buildFlags)...)
 		cmd = append(cmd, ".")
 		_, err := runcmd(cmd...)
@@ -354,6 +375,7 @@ func (t test) runLogosLgo(c logosCase, base, tempDir string, runcmd runCmd) erro
 	case "build":
 		cmd := []string{logosToolPath(t.T), "build"}
 		cmd = append(cmd, buildFlags...)
+		cmd = append(cmd, optFlags...)
 		cmd = append(cmd, "-o", "a.exe", ".")
 		_, err := runcmd(cmd...)
 		return err
@@ -374,7 +396,7 @@ func (t test) runLogosLgo(c logosCase, base, tempDir string, runcmd runCmd) erro
 // and the assembly comes from `logos build -gcflags=-S=2` of the staged
 // module, because `go tool compile` bypasses logos file recognition.
 func (t test) runLogosLgoAsmcheck(c logosCase, base, tempDir string) error {
-	buildFlags, _ := splitOptFlags(c.flags)
+	buildFlags, optFlags := splitOptFlags(c.flags)
 	long := filepath.Join(tempDir, base)
 	ops := t.wantedAsmOpcodes(long)
 	self := runtime.GOOS + "/" + runtime.GOARCH
@@ -392,7 +414,9 @@ func (t test) runLogosLgoAsmcheck(c logosCase, base, tempDir string) error {
 		for _, f := range buildFlags {
 			second += " " + f
 		}
-		cmdline := []string{logosToolPath(t.T), "build", "-gcflags=all=" + raw, second, "."}
+		cmdline := []string{logosToolPath(t.T), "build"}
+		cmdline = append(cmdline, optFlags...)
+		cmdline = append(cmdline, "-gcflags=all="+raw, second, ".")
 		cmd := exec.Command(cmdline[0], cmdline[1:]...)
 		cmd.Dir = tempDir
 		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "PWD="+tempDir, "STDLIB_IMPORTCFG="+stdlibImportcfgFile())
@@ -418,7 +442,7 @@ func (t test) runLogosLgoAsmcheck(c logosCase, base, tempDir string) error {
 // runLogosLgoErrorcheck runs one staged .lgo errorcheck case. It mirrors
 // the upstream wantError and timeout handling.
 func (t test) runLogosLgoErrorcheck(c logosCase, base, tempDir string, runcmd runCmd) error {
-	buildFlags, _ := splitOptFlags(c.flags)
+	buildFlags, optFlags := splitOptFlags(c.flags)
 	flags := withSSACheckOn(buildFlags)
 	hasPanic := false
 	for _, f := range flags {
@@ -431,6 +455,7 @@ func (t test) runLogosLgoErrorcheck(c logosCase, base, tempDir string, runcmd ru
 		flags = append([]string{"-d=panic"}, flags...)
 	}
 	cmd := []string{logosToolPath(t.T), "build"}
+	cmd = append(cmd, optFlags...)
 	cmd = append(cmd, logosGCFlagsArgs(flags)...)
 	cmd = append(cmd, ".")
 	out, err := runcmd(cmd...)
@@ -532,9 +557,12 @@ func (t test) runLogosGoRun(c logosCase, base, tempDir string, runcmd runCmd) er
 // runLogosGoErrorcheck runs one staged .go twin errorcheck case. It
 // mirrors the upstream wantError and timeout handling.
 func (t test) runLogosGoErrorcheck(c logosCase, base, tempDir string, runcmd runCmd) error {
-	buildFlags, _ := splitOptFlags(c.flags)
+	buildFlags, optFlags := splitOptFlags(c.flags)
 	full := filepath.Join(tempDir, base)
 	flags := withSSACheckOn(buildFlags)
+	if len(optFlags) > 0 {
+		return t.runLogosGoErrorcheckOpt(c, base, tempDir, runcmd, flags, optFlags)
+	}
 	cmdline := []string{goTool, "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-importcfg=" + stdlibImportcfgFile(), "-o", "a.o"}
 	cmdline = append(cmdline, flags...)
 	cmdline = append(cmdline, full)
@@ -555,6 +583,34 @@ func (t test) runLogosGoErrorcheck(c logosCase, base, tempDir string, runcmd run
 		t.updateErrors(string(out), full)
 	}
 	return t.errorCheck(string(out), c.auto, full, base)
+}
+
+// runLogosGoErrorcheckOpt runs one staged .go twin errorcheck case that
+// carries -O=<level>. The tier belongs to cmd/go, so the check builds
+// through go build with the level intact instead of go tool compile.
+func (t test) runLogosGoErrorcheckOpt(c logosCase, base, tempDir string, runcmd runCmd, flags, optFlags []string) error {
+	full := filepath.Join(tempDir, base)
+	cmdline := []string{goTool, "build"}
+	cmdline = append(cmdline, optFlags...)
+	cmdline = append(cmdline, "-gcflags="+strings.Join(flags, " "))
+	cmdline = append(cmdline, "-o", "a.exe", full)
+	out, err := runcmd(cmdline...)
+	if c.wantError {
+		if err == nil {
+			return fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+		}
+		if err == errTimeout {
+			return fmt.Errorf("compilation timed out")
+		}
+	} else {
+		if err != nil {
+			return err
+		}
+	}
+	if *updateErrors {
+		t.updateErrors(string(out), full)
+	}
+	return t.errorCheck(string(out), c.auto, full, base, "./"+base, base)
 }
 
 // runLogosGoRunoutput runs one staged .go twin runoutput case.
@@ -590,13 +646,20 @@ func (t test) runLogosGoRunoutput(c logosCase, base, tempDir string, runcmd runC
 // semantics, reading expectations from the source tree file and building
 // it with -S=2.
 func (t test) runLogosGoAsmcheck(c logosCase) error {
-	buildFlags, _ := splitOptFlags(c.flags)
+	buildFlags, optFlags := splitOptFlags(c.flags)
 	long := filepath.Join(t.gorootTestDir, t.goFileName())
 	ops := t.wantedAsmOpcodes(long)
 	self := runtime.GOOS + "/" + runtime.GOARCH
 	var lastErr error
 	for _, env := range ops.Envs() {
 		if string(env) != self && !strings.HasPrefix(string(env), self+"/") && !*allCodegen {
+			continue
+		}
+		if len(optFlags) > 0 {
+			if err := t.runLogosGoAsmcheckOpt(c, long, env, buildFlags, optFlags, ops[env]); err != nil {
+				lastErr = err
+				t.Log(err)
+			}
 			continue
 		}
 		cmdline := []string{"build", "-gcflags", "-S=2"}
@@ -636,6 +699,29 @@ func (t test) runLogosGoAsmcheck(c logosCase) error {
 		return errors.New("One or more asmcheck tests failed. Check log for failure details.")
 	}
 	return nil
+}
+
+// runLogosGoAsmcheckOpt runs one .go twin asmcheck case that carries
+// -O=<level>. The tier belongs to cmd/go, so the check builds through go
+// build with the level intact instead of go tool compile.
+func (t test) runLogosGoAsmcheckOpt(c logosCase, long string, env buildEnv, buildFlags, optFlags []string, ops map[string][]wantedAsmOpcode) error {
+	gcflags := "-S=2"
+	for _, f := range buildFlags {
+		gcflags += " " + f
+	}
+	out := filepath.Join(t.TempDir(), "a.exe")
+	cmdline := []string{goTool, "build"}
+	cmdline = append(cmdline, optFlags...)
+	cmdline = append(cmdline, "-gcflags="+gcflags, "-o", out, long)
+	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+	cmd.Env = append(os.Environ(), env.Environ()...)
+	cmd.Env = append(cmd.Env, c.runenv...)
+	var buf bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &buf, &buf
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return t.asmCheck(buf.String(), long, env, ops)
 }
 
 // runLogosGoBuildrun builds one staged .go twin and runs the result,
@@ -936,6 +1022,21 @@ func TestRouteLogosHarnessScopesToLogos(t *testing.T) {
 	}
 	if !routeLogosHarness("logos", "run/x.lgo", "compile", nil) {
 		t.Fatal("routeLogosHarness did not route a .lgo compile action")
+	}
+}
+
+// TestPinTargetFlagsMovesGOAMD64 pins the -goamd64 directive: it leaves
+// the build flags and becomes a GOAMD64 entry of the case environment.
+func TestPinTargetFlagsMovesGOAMD64(t *testing.T) {
+	c := pinTargetFlags(logosCase{
+		flags:  []string{"-O=2", "-goamd64=v1", "-d=x"},
+		runenv: []string{"GODEBUG=a=b"},
+	})
+	if got, want := strings.Join(c.flags, " "), "-O=2 -d=x"; got != want {
+		t.Errorf("flags = %q, want %q", got, want)
+	}
+	if got, want := strings.Join(c.runenv, " "), "GODEBUG=a=b GOAMD64=v1"; got != want {
+		t.Errorf("runenv = %q, want %q", got, want)
 	}
 }
 

@@ -6,6 +6,7 @@ package ld
 
 import (
 	"bytes"
+	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
 	"cmp"
 	"encoding/binary"
@@ -283,10 +284,25 @@ func (f *logosIcfFolder) rewriteSym(s loader.Sym) {
 		}
 		if su == nil {
 			su = f.ldr.MakeSymbolUpdater(s)
+			logosIcfKeepWeak(su, relocs)
 		}
 		su.SetRelocSym(i, k)
 		if off != 0 {
 			su.SetRelocAdd(i, r.Add()+off)
+		}
+	}
+}
+
+// logosIcfKeepWeak restores the weak bit on every relocation of su. The loader
+// clones an object symbol into a payload with that bit masked off, and
+// an itab's references to methods that dead-code elimination left
+// unreachable must stay weak so they resolve to the unreachable-method
+// stub instead of failing the link.
+func logosIcfKeepWeak(su *loader.SymbolBuilder, relocs loader.Relocs) {
+	for i := range relocs.Count() {
+		r := relocs.At(i)
+		if r.Weak() {
+			su.SetRelocType(i, r.Type()|objabi.R_WEAK)
 		}
 	}
 }

@@ -63,6 +63,7 @@ func BuildInit(ld *modload.Loader) {
 	buildModeInit()
 	initCompilerConcurrencyPool()
 	cfgChangedEnv = makeCfgChangedEnv()
+	logosApplyOpt()
 
 	if err := fsys.Init(); err != nil {
 		base.Fatal(err)

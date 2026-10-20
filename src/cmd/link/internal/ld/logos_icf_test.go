@@ -83,6 +83,43 @@ func main() {
 }
 `
 
+// logosIcfItabMain converts two pointer types with identical method
+// bodies to one interface and calls only M, so each itab keeps a weak
+// reference to its unreachable N method next to a foldable M method.
+const logosIcfItabMain = `package main
+
+import "fmt"
+
+type I interface {
+	M() int
+	N() int
+}
+
+type A struct{ x int }
+type B struct{ x int }
+
+//go:noinline
+func (a *A) M() int { return a.x*3 + 7 }
+
+//go:noinline
+func (a *A) N() int { return a.x*5 + 9 }
+
+//go:noinline
+func (b *B) M() int { return b.x*3 + 7 }
+
+//go:noinline
+func (b *B) N() int { return b.x*5 + 9 }
+
+func main() {
+	items := []I{&A{1}, &B{2}}
+	s := 0
+	for _, it := range items {
+		s += it.M()
+	}
+	fmt.Println(s)
+}
+`
+
 // logosIcfAsmMain declares two assembly functions with identical bodies.
 const logosIcfAsmMain = `package main
 
@@ -147,6 +184,24 @@ func TestLogosIcfFoldsIdentical(t *testing.T) {
 	}
 	if logosIcfCount(nmFolded, "runtime.") < 50 {
 		t.Errorf("folded nm holds %d runtime symbols, want at least 50", logosIcfCount(nmFolded, "runtime."))
+	}
+}
+
+// TestLogosIcfKeepsWeakItabRelocs folds identical methods referenced from
+// itabs and requires the link to succeed: rewriting an itab clones it,
+// and the clone must keep the weak bit of its references to methods that
+// dead-code elimination left unreachable.
+func TestLogosIcfKeepsWeakItabRelocs(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	logosIcfWriteFiles(t, dir, map[string]string{
+		"go.mod":  logosIcfMod,
+		"main.go": logosIcfItabMain,
+	})
+	exe := filepath.Join(dir, "folded.exe")
+	logosIcfBuild(t, dir, exe, "-logos.icf")
+	if got := logosIcfRun(t, exe); got != "23\n" {
+		t.Errorf("folded output = %q, want %q", got, "23\n")
 	}
 }
 

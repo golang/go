@@ -238,7 +238,7 @@ func keyOwner(table, key string) (string, bool) {
 	switch key {
 	case "name", "edition", "strict_files":
 		owner = "project"
-	case "cgo", "cgo_allowlist":
+	case "cgo", "cgo_allowlist", "opt_level", "synthetic_pgo", "target_cpu":
 		owner = "build"
 	case "direct_reflect", "transitive_reflect", "transitive_exec", "transitive_net", "transitive_unsafe",
 		"reflect_allowlist", "transitive_exec_allowlist", "transitive_net_allowlist", "transitive_unsafe_allowlist":
@@ -463,10 +463,37 @@ func (p *parser) assignString(key, s string, valStart int) error {
 			return p.errorf(valStart, "invalid %s value %q (want deny, warn, or allow)", key, s)
 		}
 		assignSeverity(&p.file.Capabilities, key, s)
+	case "opt_level", "synthetic_pgo", "target_cpu":
+		return p.assignBuildEnum(key, s, valStart)
 	default:
 		if isLintGroup(key) {
 			return p.assignLintGroup(key, s, valStart)
 		}
+	}
+	return nil
+}
+
+// buildEnums lists the accepted spellings of the enumerated [build] keys.
+var buildEnums = map[string][]string{
+	"opt_level":     {"O0", "O1", "O2", "O3", "Os", "Oz"},
+	"synthetic_pgo": {"off", "standard", "aggressive"},
+	"target_cpu":    {"deterministic", "baseline", "native"},
+}
+
+// assignBuildEnum validates one enumerated [build] value against its
+// accepted spellings and stores it.
+func (p *parser) assignBuildEnum(key, s string, valStart int) error {
+	if !slices.Contains(buildEnums[key], s) {
+		return p.errorf(valStart, "%s must be one of %s", key, strings.Join(buildEnums[key], ", "))
+	}
+	switch key {
+	case "opt_level":
+		p.file.Build.OptLevel = s
+	case "synthetic_pgo":
+		p.file.Build.SyntheticPGO = s
+		p.file.Build.SynthPGOSet = true
+	case "target_cpu":
+		p.file.Build.TargetCPU = s
 	}
 	return nil
 }

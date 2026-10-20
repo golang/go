@@ -282,8 +282,9 @@ var reflectLookupSyms = []string{
 func (a *logosCapAuditor) callsReflectLookup(s loader.Sym) bool {
 	relocs := a.ldr.Relocs(s)
 	for i := range relocs.Count() {
-		t := relocs.At(i).Sym()
-		if t == 0 {
+		r := relocs.At(i)
+		t := r.Sym()
+		if t == 0 || r.Type() == objabi.R_METHODOFF {
 			continue
 		}
 		if slices.Contains(reflectLookupSyms, a.ldr.SymName(t)) {

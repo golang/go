@@ -1,0 +1,37 @@
+// asmcheck -O=2
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+)
+
+// M13-S2 synthetic PGO (SPEC T-105): at O2 the standard level emits
+// logos/rt.Cold() as the first statement of every ? error block and
+// before os.Exit, and the Cold intrinsic removes the call while marking
+// the branch into the block BranchUnlikely. No CALL to logos/rt.Cold
+// survives in the final code. The Go twin cold.go pins the Go side.
+
+func fail() (int, error) {
+	return 0, errors.New("boom")
+}
+
+func divide() (int, error) {
+	v := fail()? // amd64:-"CALL.*Cold" arm64:-"CALL.*Cold"
+	return v, nil
+}
+
+func check(n int) int {
+	if n < 0 {
+		os.Exit(1) // amd64:-"CALL.*Cold" arm64:-"CALL.*Cold"
+	}
+	return n
+}
+
+func main() {
+	v, err := divide()
+	fmt.Println(v, err)
+	fmt.Println(check(3))
+}

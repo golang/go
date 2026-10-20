@@ -1,4 +1,4 @@
-// run -goexperiment simd -godebug cpu.avx=off,cpu.avx2=off,cpu.avx512f=off
+// run -goexperiment simd -godebug cpu.avx=off,cpu.avx2=off,cpu.avx512f=off -goamd64=v1
 
 package main
 
@@ -13,7 +13,8 @@ import (
 // disabled via GODEBUG takes the scalar branch and every operator and
 // reduction still matches the scalar oracle. The guard is elided only
 // when the build's GOAMD64 level guarantees the feature (v3: AVX and
-// AVX2; v4: AVX512), so the default v1 build runs the checks. The
+// AVX2; v4: AVX512), so the directive pins GOAMD64=v1, because the logos
+// default target is v3 (M13-S1, SPEC #107). The
 // directive above turns all three features off; checkSeam proves it
 // reached this process, and simd_cpu_seam.go proves the runtime then
 // reports each feature as absent, so the vector branch cannot run

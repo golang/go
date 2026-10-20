@@ -1,17 +1,18 @@
-// skip
+// asmcheck -O=2
 
 package main
 
 import "fmt"
 
-// M4-S2 codegen check (SPEC T-203.2; T-PERF rejects the 0ns claim):
-// a direct Logos_GetHP call on a concrete *Monster must inline to a
-// field load, so no call remains. The call below is spelled against the
-// generated accessor, which exists only after lowering; executing this
-// check needs -O=2, which M13-S1 ships. Until M13 proves the assertion
-// this file stays skipped so the gate stays green.
-
-// amd64:-"CALL"
+// M4-S2 codegen check (SPEC T-203.2; T-PERF rejects the 0ns claim): the
+// generated Logos_GetHP accessor on a concrete *Monster must inline to a
+// field load, so no call remains. A direct m.Logos_GetHP() spelling cannot
+// type-check, because accessors are emitted after the first check, and
+// m.HP on the concrete type is a plain field load. The read below goes
+// through the Creature interface with a statically known concrete value,
+// which lowers to the generated accessor call, devirtualizes, and inlines.
+// Without inlining the same body keeps a CALL to main.Monster.Logos_GetHP.
+// M13-S1 executes this check at -O=2.
 
 type Creature interface {
 	const Name string
@@ -24,7 +25,8 @@ type Monster struct : Creature {
 }
 
 func loadHP(m *Monster) int {
-	return m.Logos_GetHP()
+	var c Creature = m
+	return c.HP // amd64:-"CALL" arm64:-"CALL"
 }
 
 func main() {

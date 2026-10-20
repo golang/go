@@ -131,6 +131,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias := func(pkg, fn, pkg2, fn2 string, archs ...*sys.Arch) {
 		intrinsics.alias(pkg, fn, pkg2, fn2, archs...)
 	}
+	logosRegisterCold(add)
 
 	/******** runtime ********/
 	if !cfg.instrumenting {

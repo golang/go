@@ -1,0 +1,20 @@
+// asmcheck -O=3
+
+package main
+
+import "fmt"
+
+// M13-S2 synthetic PGO (SPEC T-105): at O3 the aggressive level also
+// marks the explicit-panic path BranchUnlikely, with no CALL to
+// logos/rt.Cold anywhere. The Go twin cold_aggressive.go pins the Go side.
+
+func main() {
+	fmt.Println(mustBePositive(3))
+}
+
+func mustBePositive(n int) int {
+	if n < 0 {
+		panic("negative") // amd64:-"CALL.*Cold" arm64:-"CALL.*Cold"
+	}
+	return n
+}

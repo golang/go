@@ -49,7 +49,8 @@ type Project struct {
 	StrictFiles []string
 }
 
-// Build holds the [build] table: the cgo policy and its allowlist.
+// Build holds the [build] table: the cgo policy and its allowlist, the
+// optimization level, the synthetic PGO level, and the CPU target.
 type Build struct {
 	// Cgo is one of "forbid", "restricted", or "allow". It defaults to "forbid".
 	Cgo string
@@ -57,6 +58,14 @@ type Build struct {
 	CgoSet bool
 	// CgoAllowlist holds path globs enabled under the "restricted" policy.
 	CgoAllowlist []string
+	// OptLevel is one of "O0", "O1", "O2", "O3", "Os", or "Oz". It defaults to "O2".
+	OptLevel string
+	// SyntheticPGO is one of "off", "standard", or "aggressive".
+	SyntheticPGO string
+	// SynthPGOSet reports whether the synthetic_pgo key was present in the file.
+	SynthPGOSet bool
+	// TargetCPU is one of "deterministic", "baseline", or "native". It defaults to "deterministic".
+	TargetCPU string
 }
 
 // Capabilities holds the [capabilities] table (M12): severity keys, each one
@@ -91,11 +100,12 @@ var strictFileExts = []string{".lgo", ".📜", ".⚡", ".ʕ◔ϖ◔ʔ"}
 
 // defaultFile returns the File used when logos.toml (or a table or key) is
 // absent: edition "2026", all four extensions enabled, cgo "forbid" with the
-// key marked absent.
+// key marked absent, opt_level "O2", no synthetic_pgo key, and target_cpu
+// "deterministic".
 func defaultFile() *File {
 	return &File{
 		Project: Project{Edition: "2026", StrictFiles: slices.Clone(strictFileExts)},
-		Build:   Build{Cgo: "forbid"},
+		Build:   Build{Cgo: "forbid", OptLevel: "O2", TargetCPU: "deterministic"},
 		Capabilities: Capabilities{
 			DirectReflect:     "deny",
 			TransitiveReflect: "warn",
@@ -166,6 +176,21 @@ func (f *File) Format() []byte {
 			appendQuoted(&b, s)
 		}
 		b.WriteString("]\n")
+	}
+	if f.Build.OptLevel != "" && f.Build.OptLevel != "O2" {
+		b.WriteString("opt_level = ")
+		appendQuoted(&b, f.Build.OptLevel)
+		b.WriteByte('\n')
+	}
+	if f.Build.SynthPGOSet {
+		b.WriteString("synthetic_pgo = ")
+		appendQuoted(&b, f.Build.SyntheticPGO)
+		b.WriteByte('\n')
+	}
+	if f.Build.TargetCPU != "" && f.Build.TargetCPU != "deterministic" {
+		b.WriteString("target_cpu = ")
+		appendQuoted(&b, f.Build.TargetCPU)
+		b.WriteByte('\n')
 	}
 	writeCapabilities(&b, f.Capabilities)
 	return []byte(b.String())

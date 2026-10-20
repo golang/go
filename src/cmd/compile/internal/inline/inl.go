@@ -170,6 +170,9 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
 	}
 
 	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
+		if recursive {
+			logosNoteSCC(funcs)
+		}
 		for _, fn := range funcs {
 			CanInline(fn, profile)
 			if inlheur.Enabled() {
@@ -209,7 +212,7 @@ func simdCreditMultiplier(fn *ir.Func) int32 {
 // happen; changes here merely make inlines possible.
 func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose bool) int32 {
 	// Update the budget for profile-guided inlining.
-	budget := int32(inlineMaxBudget)
+	budget := logosBudgetFor(fn, int32(inlineMaxBudget))
 
 	budget *= simdCreditMultiplier(fn)
 
@@ -973,7 +976,7 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
 //   - the score assigned to this specific callsite
 //   - whether the inlined function is "hot" according to PGO.
 func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
-	maxCost := int32(inlineMaxBudget)
+	maxCost := logosBudgetFor(callee, int32(inlineMaxBudget))
 
 	if bigCaller {
 		// We use this to restrict inlining into very big functions.

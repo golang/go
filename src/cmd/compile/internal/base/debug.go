@@ -31,6 +31,10 @@ type DebugFlags struct {
 	DumpInlCallSiteScores int    `help:"dump scored callsites during inlining"`
 	InlScoreAdj           string `help:"set inliner score adjustments (ex: -d=inlscoreadj=panicPathAdj:10/passConstToNestedIfAdj:-90)" concurrent:"ok"`
 	InlBudgetSlack        int    `help:"amount to expand the initial inline budget when new inliner enabled. Defaults to 80 if option not set." concurrent:"ok"`
+	InlBudget             int    `help:"max inline cost set by -O tiers (0 keeps the upstream budget)" concurrent:"ok"`
+	InlRecursiveBudget    int    `help:"max inline cost inside recursive call-graph cycles at -O tiers (0 keeps the tier budget)" concurrent:"ok"`
+	LogosSynthPGO         string `help:"synthetic PGO level set by -O tiers: off, standard, or aggressive (empty disables emission)" concurrent:"ok"`
+	LogosSpecialize       int    `help:"enable clone specialization, set by -O tiers" concurrent:"ok"`
 	DumpPtrs              int    `help:"show Node pointers values in dump output"`
 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
