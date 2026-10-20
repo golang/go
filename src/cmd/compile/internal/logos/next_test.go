@@ -157,6 +157,11 @@ func errNew() error { return nil }
 			body:  "func d2(x, i int) int { return x + i }\nfunc g(xs []int) []int {\n\tvar out []int\n\tfor i := 0; i < len(xs); i++ {\n\t\tout = append(out, d2(xs[i], i))\n\t}\n\treturn out\n}",
 			tasks: 1,
 		},
+		{
+			name: "loopParamCollision",
+			body: "func g(xs []int, x, v, e, elem int) []int {\n\tvar ys []int\n\tfor i := 0; i < len(xs); i++ {\n\t\tys = append(ys, xs[i]+x+v+e+elem)\n\t}\n\treturn ys\n}",
+			edit: "ys := xs.map(elem1 => elem1+x+v+e+elem)",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -217,6 +222,11 @@ func TestNextSprintf(t *testing.T) {
 			name: "bytesS",
 			body: "func g(b []byte) string {\n\treturn fmt.Sprintf(\"v=%s\", b)\n}",
 			edit: `$"v={b}"`,
+		},
+		{
+			name: "compositeIndex",
+			body: "func g() string {\n\treturn fmt.Sprintf(\"%d\", []int{1}[0])\n}",
+			edit: `$"{[]int{1}[0]}"`,
 		},
 	}
 	for _, tc := range cases {

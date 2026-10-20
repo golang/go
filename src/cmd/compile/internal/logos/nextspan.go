@@ -265,6 +265,10 @@ func (s *nextScan) startOf(e syntax.Expr) (int, bool) {
 		return s.startOf(n.X)
 	case *syntax.AssertExpr:
 		return s.startOf(n.X)
+	case *syntax.CompositeLit:
+		if n.Type != nil {
+			return s.startOf(n.Type)
+		}
 	case *syntax.Operation:
 		if n.Y != nil {
 			return s.startOf(n.X)

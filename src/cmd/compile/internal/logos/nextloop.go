@@ -5,6 +5,7 @@
 package logos
 
 import (
+	"strconv"
 	"strings"
 
 	"cmd/compile/internal/syntax"
@@ -542,7 +543,12 @@ func chainParam(elem syntax.Expr, xs, iv string) string {
 			return cand
 		}
 	}
-	return "elem"
+	for i := 1; ; i++ {
+		cand := "elem" + strconv.Itoa(i)
+		if !used[cand] {
+			return cand
+		}
+	}
 }
 
 // substitute splices the element source with the parameter.
