@@ -535,11 +535,20 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if check.logosTryCallStmt(s) { // logos M1-S3 hook.
 			return
 		}
+		if check.logosGroupGo(s) { // logos M8-S2 hook: go children and unsupervised goroutines.
+			return
+		}
 		kind := "go"
 		if s.Tok == syntax.Defer {
 			kind = "defer"
 		}
 		check.suspendedCall(kind, s.Call)
+
+	case *syntax.GroupStmt: // logos M8-S2 hook: go group bodies check inline.
+		check.logosGroupStmt(ctxt, s)
+
+	case *syntax.GroupChild: // logos M8-S2 hook: go child blocks check as error closures.
+		check.logosGroupChild(s)
 
 	case *syntax.ErrdeferStmt:
 		check.logosErrdefer(s) // logos M1-S3 hook.
@@ -557,6 +566,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		check.logosConstSwitch(inner, s) // logos M7-S4 hook.
 
 	case *syntax.ReturnStmt:
+		if check.logosGroupReturn(s) { // logos M8-S2 hook: returns cannot leave a group child.
+			return
+		}
 		res := check.sig.results
 		// Return with implicit results allowed for function with named results.
 		// (If one is named, all are named.)

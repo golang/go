@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -98,7 +99,9 @@ func run() error {
 	_ = lifo()
 	_ = argEval()
 	done := make(chan string, 1)
-	go goexitWorker(done)
+	go group (context.Background()) {
+		go goexitWorker(done)
+	}
 	select {
 	case msg := <-done:
 		fmt.Println("goexit:", msg)

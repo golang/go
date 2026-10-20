@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"time"
@@ -30,6 +31,13 @@ func goexitWorker(done chan string) (err error) {
 	return nil
 }
 
+func spawnGoexit(done chan string) error {
+	go group (context.Background()) {
+		go goexitWorker(done)
+	}
+	return nil
+}
+
 func main() {
 	func() {
 		defer func() { _ = recover() }()
@@ -40,7 +48,7 @@ func main() {
 		_, _ = returnEvalPanics()
 	}()
 	done := make(chan string, 1)
-	go goexitWorker(done)
+	_ = spawnGoexit(done)
 	select {
 	case msg := <-done:
 		order = append(order, msg)

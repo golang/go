@@ -159,6 +159,9 @@ func (fc *funcLower) lowerList(list []syntax.Stmt) []syntax.Stmt {
 
 // lowerStmt lowers one statement, splaying multi-statement results.
 func (fc *funcLower) lowerStmt(s syntax.Stmt) []syntax.Stmt {
+	if out, ok := fc.lowerGroupHook(s); ok { // M8 hook: group statements and child channel operations.
+		return out
+	}
 	switch s := s.(type) {
 	case *syntax.AssignStmt,
 		*syntax.ExprStmt,
@@ -224,6 +227,7 @@ func (fc *funcLower) lowerCompound(s syntax.Stmt) []syntax.Stmt {
 			scanForLiterals(fc.fl, clause.Comm)
 			clause.Body = fc.lowerList(clause.Body)
 		}
+		fc.groupAugmentSelect(s) // M8-S3 hook: a user select without default gains the cancel arm.
 		return []syntax.Stmt{s}
 	case *syntax.ConstSwitchStmt:
 		return fc.lowerConstSwitchStmt(s) // M7-S4 hook: expand `const switch` in place.
@@ -513,7 +517,7 @@ func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call
 			errDefineOf(stmtPos, []syntax.Expr{lhsMark}, callMark, nameOf(tpos, errSpelling)),
 			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
 		}, tw.subs)
-		return native, text, spanStart, spanEnd
+		return fc.groupPrependJoin(tpos, spanStart, native), text, spanStart, spanEnd
 	}
 	errDecl := nameOf(tpos, errSpelling)
 	errUse := nameOf(tpos, errSpelling)
@@ -530,7 +534,7 @@ func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call
 		assignOf(stmtPos, withErrT, []syntax.Expr{callMark}),
 		errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
 	})}, tw.subs)
-	return native, text, spanStart, spanEnd
+	return fc.groupPrependJoin(tpos, spanStart, native), text, spanStart, spanEnd
 }
 
 // lowerTryExpr lowers f()? as an expression statement.
@@ -573,7 +577,7 @@ func (fc *funcLower) tryExprCore(s *syntax.ExprStmt, t *syntax.TryExpr, call *sy
 			errCheckOf(stmtPos, nameOf(tpos, errSpelling), exitText),
 		}, tw.subs)
 	}
-	return native, text, spanStart, spanEnd
+	return fc.groupPrependJoin(tpos, spanStart, native), text, spanStart, spanEnd
 }
 
 // trimSpanBytes trims ASCII white space around src.

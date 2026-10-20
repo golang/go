@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -79,6 +80,13 @@ func goexitGuarded(done chan string) (err error) {
 	return nil
 }
 
+func spawnGoexit(done chan string) error {
+	go group (context.Background()) {
+		go goexitGuarded(done)
+	}
+	return nil
+}
+
 func main() {
 	v, err := shadowed(false)
 	fmt.Println("shadowed ok:", v, err)
@@ -99,7 +107,7 @@ func main() {
 		_ = guarded("panic")
 	}()
 	done := make(chan string, 1)
-	go goexitGuarded(done)
+	_ = spawnGoexit(done)
 	select {
 	case msg := <-done:
 		fmt.Println("goexit:", msg)

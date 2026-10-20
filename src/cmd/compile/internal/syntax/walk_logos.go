@@ -44,6 +44,14 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Value)
 	case *ScopeDeferStmt:
 		w.node(n.Call)
+	case *GroupStmt: // M8-S2: group context, limit, then body.
+		w.node(n.Ctx)
+		if n.Limit != nil {
+			w.node(n.Limit)
+		}
+		w.node(n.Body)
+	case *GroupChild: // M8-S2: child body.
+		w.node(n.Body)
 	case *SwitchExpr:
 		if n.Init != nil {
 			w.node(n.Init)

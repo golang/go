@@ -594,6 +594,9 @@ type g struct {
 	// built with the "valgrind" build tag, otherwise it is unused.
 	valgrindStackID uintptr
 
+	// logosGroup holds the loGo/s group ID of this goroutine (M8-S1):
+	// logos/rt.Group.Go tags its children, 0 outside a group.
+	logosGroup uint64
 	// logosErrSite holds the per-goroutine loGo/s error-trace ring: site
 	// pointers for the latest error, oldest first. Lowered code uses
 	// package-level sites, so retention is free.

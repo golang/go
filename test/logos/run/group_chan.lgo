@@ -1,0 +1,101 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync/atomic"
+	"time"
+)
+
+// M8-S3: a sibling fails while peers block on `<-ch`, `ch <- v`, and
+// `for v := range ch`. Cancellation reaches every blocked peer, the
+// group returns the first error, and every child exits (#136). A user
+// `select` gains a `<-gctx.Done()` case only when it has no `default`.
+// A select with `default` never blocks, so its child always runs.
+
+var errSib = errors.New("sibling failed")
+
+var defaultRan, defaultLoops atomic.Int32
+
+func failSibling() error { return errSib }
+
+func runGroup(ctx context.Context, ch1, ch2, ch3 chan int) error {
+	go group (ctx) {
+		go {
+			v := <-ch1
+			_ = v
+		}
+		go {
+			v, ok := <-ch1
+			_, _ = v, ok
+		}
+		go {
+			v := 0
+			v = <-ch1
+			_ = v
+		}
+		go {
+			var v = <-ch1
+			_ = v
+		}
+		go {
+			var v int = <-ch1
+			_ = v
+		}
+		go {
+			var v, ok = <-ch1
+			_, _ = v, ok
+		}
+		go {
+			ch2 <- 1
+		}
+		go {
+			for v := range ch3 {
+				_ = v
+			}
+		}
+		go {
+			select {
+			case v := <-ch1:
+				_ = v
+			}
+		}
+		go {
+			select {
+			case v := <-ch1:
+				_ = v
+			default:
+				defaultRan.Add(1)
+			}
+		}
+		go {
+			for range 40 {
+				select {
+				case v := <-ch1:
+					_ = v
+				default:
+					defaultLoops.Add(1)
+					time.Sleep(time.Millisecond)
+				}
+			}
+		}
+		go {
+			failSibling()?
+		}
+	}
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	ch1 := make(chan int)
+	ch2 := make(chan int)
+	ch3 := make(chan int)
+	err := runGroup(ctx, ch1, ch2, ch3)
+	fmt.Println("err:", err)
+	fmt.Println("default-ran:", defaultRan.Load())
+	fmt.Println("default-loops:", defaultLoops.Load())
+}

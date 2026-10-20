@@ -71,7 +71,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #65 | M7 |  | planned |
 | #66 |M1| test/logos/redteam/attack_066_errdefer_unnamed_results | tested |
 | #67 | M6, M13 | M6 half: src/cmd/compile/internal/logos/m6gaps_test.go (TestChainSumPairwise); test/logos/run/chains.lgo (sum order). M13: arm64 leg open | planned |
-| #68 | M8 |  | planned |
+| #68 | M8 | src/logos/rt/group_test.go (FirstErrorWins, CancelReachesSibling); test/logos/run/group_exit.lgo | tested |
 | #69 | M10 | src/cmd/go/testdata/script/logos_next.txt; src/cmd/compile/internal/logos/next_test.go | tested |
 | #70 | M5 | test/logos/codegen/rodata.lgo | tested |
 | #71 | M18 |  | planned |
@@ -139,7 +139,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #133 | M0 |  | planned |
 | #134 | M13 |  | planned |
 | #135 |M1| test/logos/redteam/attack_135_lifo_order | tested |
-| #136 | M8 |  | planned |
+| #136 | M8 | test/logos/run/group_chan.lgo | tested |
 | #137 | M15 |  | planned |
 | #138 | M18 |  | planned |
 | #139 | M11 |  | planned |
@@ -150,11 +150,11 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #144 | M17, M20 |  | planned |
 | #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
-| #147 | M8 |  | planned |
+| #147 | M8 | src/logos/rt/group_test.go; test/logos/run/group_panic.lgo | tested |
 | #148 | M8, M9 |  | planned |
 | #149 | M15 | test/logos/codegen/clear_kept.lgo | satisfied upstream |
 | #150 | M7 |  | planned |
-| #151 | M8 |  | planned |
+| #151 | M8 | test/logos/run/group_netpoll.lgo; src/runtime/logos_group_netpoll_test.go | tested |
 | #152 | M5 | test/logos/run/zerocopy.lgo (other-provenance AllocsPerRun, survival) | tested |
 | #153 | M8 | src/logos/sync/sync_test.go (TestHotNoMemoryGrowth) | tested |
 | #154 | M8 | src/logos/sync/sync_test.go (TestHotLayout) | tested |
@@ -181,7 +181,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #175 | M19 |  | planned |
 | #176 | M8 | src/logos/sync/sync_test.go (TestLockedWithLockUnlocksAfterPanic) | tested |
 | #177 | M6 | test/logos/run/interp.lgo (format verbs printed literally) | tested |
-| #178 | M8 |  | planned |
+| #178 | M8 | src/logos/rt/group_test.go; test/logos/run/group.lgo; src/internal/types/testdata/logos/group.lgo | tested |
 | #179 | M6 | test/logos/run/chains.lgo (64-item stability, NaN order) | tested |
 | #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |
 | #181 | M18 |  | planned |

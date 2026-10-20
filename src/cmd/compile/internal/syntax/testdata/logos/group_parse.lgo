@@ -1,0 +1,59 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M8-S2 parser attacks: `go group` forms and `go { }` children.
+// Every form without an ERROR comment must parse cleanly in LogosMode;
+// each ERROR comment pins the exact syntax error text.
+
+package p
+
+func group(x int) {}
+
+func okGroup(ctx int) {
+	go group (ctx) {
+		go {
+		}
+	}
+}
+
+func okLimit(ctx int) {
+	go group (ctx, limit = 8) {
+	}
+}
+
+func okCall(x int) {
+	go group(x)
+}
+
+func okChild(ctx int) {
+	go group (ctx) {
+		go {
+		}
+		go group(x)
+	}
+}
+
+func dupLimit(ctx int) {
+	go group (ctx, limit = 1, limit = 2) { // ERROR go group accepts only one limit
+	}
+}
+
+func noCtx() {
+	go group () { // ERROR go group requires a context
+	}
+}
+
+func limitNoCtx() {
+	go group (limit = 2) { // ERROR go group requires a context
+	}
+}
+
+func twoCtx(a, b int) {
+	go group (a, b) { // ERROR go group accepts one context and one limit
+	}
+}
+
+func limitNoBlock() {
+	go group (limit = 3) // ERROR go group limit requires a block
+}

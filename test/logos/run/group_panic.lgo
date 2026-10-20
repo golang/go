@@ -1,0 +1,40 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"logos/rt"
+)
+
+// M8-S1/S2: a child panic becomes *rt.PanicError with the value and a
+// stack, cancels the siblings, and the group error propagates like `?`
+// (#147). The peer blocked on a channel exits through the cancel arm, so
+// the group joins instead of hanging.
+
+func run(ctx context.Context, ch chan int) error {
+	go group (ctx) {
+		go {
+			<-ch
+		}
+		go {
+			panic("boom")
+		}
+	}
+	return nil
+}
+
+func main() {
+	err := run(context.Background(), make(chan int))
+	pe, ok := errors.AsType[*rt.PanicError](err)
+	if !ok {
+		fmt.Println("not a PanicError:", err)
+		return
+	}
+	fmt.Println("value:", pe.Value)
+	fmt.Println("stack:", len(pe.Stack) > 0)
+	fmt.Println("text:", pe.Error())
+}

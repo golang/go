@@ -42,6 +42,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return n.Pos(), true
 	case *ScopeDeferStmt:
 		return n.Pos(), true
+	case *GroupStmt, *GroupChild: // M8-S2: groups and children start at `go`.
+		return n.Pos(), true
 	}
 	return Pos{}, false
 }
@@ -104,6 +106,10 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return EndPos(n.Value), true
 	case *ScopeDeferStmt:
 		return EndPos(n.Call), true
+	case *GroupStmt: // M8-S2: a group ends with its body.
+		return EndPos(n.Body), true
+	case *GroupChild: // M8-S2: a child ends with its body.
+		return EndPos(n.Body), true
 	case *SwitchExpr:
 		return n.Rbrace, true
 	case *ArmClause:

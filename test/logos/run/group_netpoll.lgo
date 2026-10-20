@@ -1,0 +1,71 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"sync/atomic"
+	"time"
+)
+
+// M8-S4: a child blocked in conn.Read with no data returns within 100 ms
+// after a sibling fails, with an error satisfying os.IsTimeout (#151).
+// The group error propagates like `?`.
+
+var errBoom = errors.New("boom")
+
+var failedAt atomic.Int64
+
+func readChild(conn net.Conn) error {
+	_, err := conn.Read(make([]byte, 1))
+	took := time.Duration(time.Now().UnixNano() - failedAt.Load())
+	switch {
+	case !os.IsTimeout(err):
+		fmt.Println("child: not a timeout:", err)
+	case took > 100*time.Millisecond:
+		fmt.Println("child: late:", took)
+	default:
+		fmt.Println("child: timeout")
+	}
+	return nil
+}
+
+func sibling() error {
+	time.Sleep(20 * time.Millisecond)
+	failedAt.Store(time.Now().UnixNano())
+	return errBoom
+}
+
+func run(conn net.Conn) error {
+	go group (context.Background()) {
+		go readChild(conn)
+		go sibling()
+	}
+	return nil
+}
+
+func main() {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		fmt.Println("listen:", err)
+		return
+	}
+	defer ln.Close()
+	cli, err := net.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		fmt.Println("dial:", err)
+		return
+	}
+	defer cli.Close()
+	srv, err := ln.Accept()
+	if err != nil {
+		fmt.Println("accept:", err)
+		return
+	}
+	defer srv.Close()
+	fmt.Println("group:", run(srv))
+}

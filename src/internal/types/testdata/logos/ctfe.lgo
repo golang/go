@@ -199,7 +199,7 @@ const func BadVarWrite() int {
 func helper() {}
 
 const func BadGo() int {
-	go /* ERROR "correctness::const_func_impure" */ helper()
+	go /* ERROR "correctness::const_func_impure" */ /* ERROR "concurrency::unsupervised_goroutine" */ helper()
 	return 1
 }
 

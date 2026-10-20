@@ -168,6 +168,7 @@ type Checker struct {
 	logosGenericCall []logosGenericScope           // logos M3-S5 hook: generic-callee argument scope stack.
 	logosGoStore     []bool                        // logos M3-S5 hook: assignment-LHS Go-location suppression stack.
 	logosCSwitch     []logosIfaceCase              // logos M7-S4 hook: active interface-case stack for `const switch`.
+	logosGroup       []logosGroupFrame             // logos M8-S2 hook: lexical go-group nesting per function.
 	methods          map[*TypeName][]*Func         // maps package scope type names to associated non-blank (non-interface) methods
 	untyped          map[syntax.Expr]exprInfo      // map of expressions without final type
 	delayed          []action                      // stack of delayed action segments; segments are processed in FIFO order

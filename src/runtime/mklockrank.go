@@ -63,7 +63,11 @@ NONE < vgetrandom;
 NONE < timerSend;
 
 # Scheduler, timers, netpoll
-NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
+NONE < allocmW, execW, cpuprof, pollCache, wakeableSleep;
+# loGo/s group netpoll registry (logos_group_netpoll.go): it is taken
+# before pollDesc, since cancel locks descriptors while holding it, and
+# pollDesc leads to the scheduler and to MALLOC, which registering needs.
+NONE < logosWaiters < pollDesc;
 scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
 assistQueue,
   cleanupQueue,

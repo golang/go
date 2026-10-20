@@ -426,6 +426,8 @@ func (fc *funcLower) scopeStmt(s syntax.Stmt, active []*scopeDeferCtx, stack []s
 		}
 		s.Stmt = blockOf(s.Pos(), res)
 		return []syntax.Stmt{s}
+	case *syntax.GroupStmt:
+		return fc.scopeGroupStmt(s, active, stack) // M8-S2 hook: scope defers bind inline in group bodies.
 	default:
 		return []syntax.Stmt{s}
 	}

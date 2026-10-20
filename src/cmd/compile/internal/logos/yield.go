@@ -194,6 +194,8 @@ func (fc *funcLower) rewriteYieldStmt(s syntax.Stmt) syntax.Stmt {
 	case *syntax.LabeledStmt:
 		s.Stmt = fc.rewriteYieldStmt(s.Stmt)
 		return s
+	case *syntax.GroupStmt:
+		return fc.yieldGroupStmt(s) // M8-S2 hook: yields stay synchronous in group bodies.
 	default:
 		return s
 	}

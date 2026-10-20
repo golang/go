@@ -49,6 +49,14 @@ func printLogos(p *printer, n Node) {
 		p.print(_Name, "yield", blank, n.Value)
 	case *ScopeDeferStmt:
 		p.print(_Name, "scope", blank, _Defer, blank, n.Call)
+	case *GroupStmt: // M8-S2: `go group (ctx)` prints its source form.
+		p.print(_Go, blank, _Name, "group", blank, _Lparen, n.Ctx)
+		if n.Limit != nil {
+			p.print(_Comma, blank, _Name, "limit", blank, _Assign, blank, n.Limit)
+		}
+		p.print(_Rparen, blank, n.Body)
+	case *GroupChild: // M8-S2: `go { }` prints its source form.
+		p.print(_Go, blank, n.Body)
 	case *SwitchExpr:
 		p.print(_Switch, blank)
 		if n.Init != nil {

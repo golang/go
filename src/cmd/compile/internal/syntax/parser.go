@@ -2762,6 +2762,9 @@ func (p *parser) stmtOrNil() Stmt {
 		return s
 
 	case _Go, _Defer:
+		if s := p.logosGoStmt(); s != nil { // M8-S2 hook: go group and child blocks.
+			return s
+		}
 		return p.callStmt()
 
 	case _Goto:

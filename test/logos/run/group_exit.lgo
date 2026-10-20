@@ -1,0 +1,109 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+)
+
+// M8-S2 supplement: every exit from a group body joins the children
+// first (SPEC Sec 2.6). A slow child signals on done; after the
+// function returns, done must already hold the signal (a non-blocking
+// receive tells joined from leaked, with no timing assertion).
+
+var errQFail = errors.New("q-fail")
+
+func slowChild(done chan string) error {
+	time.Sleep(50 * time.Millisecond)
+	done <- "child-done"
+	return nil
+}
+
+func earlyReturn(ctx context.Context, done chan string) error {
+	go group (ctx) {
+		go slowChild(done)
+		return nil
+	}
+	return nil
+}
+
+func failQ(ctx context.Context) error {
+	return errQFail
+}
+
+func earlyQ(ctx context.Context, done chan string) error {
+	go group (ctx) {
+		go slowChild(done)
+		failQ(ctx)?
+	}
+	return nil
+}
+
+func earlyBreak(ctx context.Context, done chan string) error {
+	for i := 0; i < 3; i++ {
+		go group (ctx) {
+			go slowChild(done)
+			break
+		}
+	}
+	return nil
+}
+
+func bodyPanic(ctx context.Context, done chan string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panic:", r)
+		}
+	}()
+	go group (ctx) {
+		go slowChild(done)
+		panic("body-boom")
+	}
+	return nil
+}
+
+var errChildFailed = errors.New("child-failed")
+
+func failSoon() error {
+	time.Sleep(20 * time.Millisecond)
+	return errChildFailed
+}
+
+func returnAfterFailure(ctx context.Context) error {
+	go group (ctx) {
+		go failSoon()
+		return nil
+	}
+	return nil
+}
+
+func check(tag string, done chan string) {
+	select {
+	case m := <-done:
+		fmt.Println(tag, m)
+	default:
+		fmt.Println(tag, "leaked")
+	}
+}
+
+func main() {
+	ctx := context.Background()
+	done := make(chan string, 1)
+	_ = earlyReturn(ctx, done)
+	check("joined-return", done)
+	done = make(chan string, 1)
+	if err := earlyQ(ctx, done); err != nil {
+		fmt.Println("q-err:", err)
+	}
+	check("joined-q", done)
+	done = make(chan string, 1)
+	_ = earlyBreak(ctx, done)
+	check("joined-break", done)
+	done = make(chan string, 1)
+	_ = bodyPanic(ctx, done)
+	check("joined-panic", done)
+	fmt.Println("return-err:", returnAfterFailure(ctx))
+}

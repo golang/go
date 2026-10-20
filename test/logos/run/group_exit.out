@@ -1,0 +1,7 @@
+joined-return child-done
+q-err: q-fail
+joined-q child-done
+joined-break child-done
+panic: body-boom
+joined-panic child-done
+return-err: child-failed

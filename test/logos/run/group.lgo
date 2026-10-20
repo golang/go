@@ -1,0 +1,108 @@
+// run
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync/atomic"
+	"time"
+)
+
+// M8-S2: the PLAN Sec 11 batch loop runs with 8-way concurrency. A group
+// with limit = 8 squares every item; the peak concurrency never exceeds
+// the limit. A failing item fails the group with the first error.
+
+var live, peak atomic.Int32
+
+func notePeak() {
+	for {
+		n := live.Load()
+		p := peak.Load()
+		if n <= p || peak.CompareAndSwap(p, n) {
+			return
+		}
+	}
+}
+
+func store(ctx context.Context, out []int, i, v int) error {
+	n := live.Add(1)
+	notePeak()
+	defer live.Add(-1)
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+		out[i] = v * v
+		_ = n
+		return nil
+	}
+}
+
+func batch(ctx context.Context, items []int) ([]int, error) {
+	out := make([]int, len(items))
+	go group (ctx, limit = 8) {
+		for i, v := range items {
+			go store(ctx, out, i, v)
+		}
+	}
+	return out, nil
+}
+
+func checkOne(ctx context.Context, v int) error {
+	if v == 3 {
+		return fmt.Errorf("bad item %d", v)
+	}
+	return nil
+}
+
+func batchErr(ctx context.Context, items []int) error {
+	go group (ctx, limit = 8) {
+		for _, v := range items {
+			go checkOne(ctx, v)
+		}
+		go {
+			work()?
+		}
+	}
+	return nil
+}
+
+func work() error { return nil }
+
+var liveHeld, peakHeld atomic.Int32
+
+func hold(ctx context.Context) error {
+	n := liveHeld.Add(1)
+	for {
+		p := peakHeld.Load()
+		if n <= p || peakHeld.CompareAndSwap(p, n) {
+			break
+		}
+	}
+	time.Sleep(20 * time.Millisecond)
+	liveHeld.Add(-1)
+	return nil
+}
+
+func limited(ctx context.Context) error {
+	go group (ctx, limit = 2) {
+		for range 6 {
+			go hold(ctx)
+		}
+	}
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	items := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+	out, _ := batch(ctx, items)
+	fmt.Println(out)
+	fmt.Println(peak.Load() <= 8)
+	if err := batchErr(ctx, items); err != nil {
+		fmt.Println("batch-err")
+	}
+	_ = limited(ctx)
+	fmt.Println("limit-2 peak:", peakHeld.Load())
+}

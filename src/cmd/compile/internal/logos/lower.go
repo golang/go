@@ -116,6 +116,7 @@ type fileLower struct {
 	// function's results.
 	loweredChains map[*syntax.CallExpr]bool
 	transparent   map[*syntax.FuncLit]bool
+	groupDone     map[*syntax.FuncLit]bool // M8-S2 hook: finished group closures, pruned by the literal scan.
 }
 
 // off converts a valid file position to a byte offset.
@@ -300,6 +301,9 @@ func scanForLiterals(fl *fileLower, root syntax.Node) {
 		if !ok {
 			return true
 		}
+		if fl.groupDone[lit] { // M8-S2 hook: group closures lower eagerly.
+			return false
+		}
 		newFuncLower(fl, lit.Type, lit.Body).run()
 		return false
 	})
@@ -330,6 +334,8 @@ type funcLower struct {
 	argSeq           int
 	tmpSeq           int
 	scopeSeq         int
+	groupSeq         int          // M8-S2 hook: group temporary counter.
+	groupStack       []groupFrame // M8-S2 hook: group frames under lowering.
 	scopeParents     map[syntax.Node]syntax.Node
 	scopeLabels      map[string]*syntax.LabeledStmt
 	scopeDeferLabels map[string]int
@@ -478,7 +484,8 @@ func rejectSurvivors(file *syntax.File) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
 			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr,
-			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr, *syntax.ConstIfStmt, *syntax.ConstSwitchStmt:
+			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr, *syntax.ConstIfStmt, *syntax.ConstSwitchStmt,
+			*syntax.GroupStmt, *syntax.GroupChild:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true
