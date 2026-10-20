@@ -123,3 +123,20 @@ type Generic[T int | int64] struct {
 	V T   `json:"v"`
 	N int `json:"n"` // ERROR "\[portability::serialized_unsized_int\] field N has type int"
 }
+
+// An embedded int is a field of type int and is flagged with the rest;
+// an embedded string is not an unsized integer and passes.
+type Embedded struct {
+	int `json:"n"` // ERROR "\[portability::serialized_unsized_int\] field int has type int"
+	S string `json:"s"`
+}
+
+type EmbeddedText struct {
+	string `json:"s"`
+	N int32 `json:"n"`
+}
+
+type EmbeddedUntagged struct {
+	int
+	S string
+}

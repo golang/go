@@ -1,0 +1,69 @@
+// errorcheck --pedantic -0
+
+// pedantic::exhaustive_union_switch (SPEC Sec 1.2, #10): a default clause
+// in a switch over a closed union. The group defaults to allow, so this
+// case runs under --pedantic, where the rule warns. It covers the switch
+// statement and the loGo/s switch expression alike. An exhaustive switch
+// and a value switch pass.
+
+package p
+
+type Shape interface {
+	Circle | Square
+}
+
+type Circle struct{ r int }
+
+type Square struct{ s int }
+
+func area(sh Shape) int {
+	switch v := sh.(type) {
+	case Circle:
+		return v.r
+	default: // ERROR "exhaustive_union_switch"
+		return 0
+	}
+}
+
+func exact(sh Shape) int {
+	switch v := sh.(type) {
+	case Circle:
+		return v.r
+	case Square:
+		return v.s
+	case nil:
+		return 0
+	}
+	return -1
+}
+
+func areaExpr(sh Shape) int {
+	return switch v := sh.(type) {
+	case Circle => v.r
+	default => 0 // ERROR "exhaustive_union_switch"
+	}
+}
+
+func exactExpr(sh Shape) int {
+	return switch v := sh.(type) {
+	case Circle => v.r
+	case Square => v.s
+	case nil => 0
+	}
+}
+
+func valueSwitch(n int) int {
+	switch n {
+	case 1:
+		return 1
+	default:
+		return 0
+	}
+}
+
+func valueSwitchExpr(n int) int {
+	return switch n {
+	case 1 => 1
+	default => 0
+	}
+}

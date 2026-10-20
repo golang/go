@@ -36,6 +36,10 @@ type Holder struct {
 	N int
 }
 
+type TwoBytes struct {
+	A, B byte
+}
+
 func stringWrittenByParent() {
 	s := "a"
 	go func() { // ERROR "concurrent_multiword_race"
@@ -229,6 +233,24 @@ func boundaryEmptyArray() {
 		a = [0]string{}
 	}()
 	println(len(a))
+}
+
+func passTwoByteStruct() {
+	var s TwoBytes
+	go func() {
+		s.A = 1
+	}()
+	s.B = 2
+	println(s.A)
+}
+
+func passTwoByteArray() {
+	var a [2]byte
+	go func() {
+		a[0] = 1
+	}()
+	a[1] = 2
+	println(a[0])
 }
 
 func passIntWritten() {

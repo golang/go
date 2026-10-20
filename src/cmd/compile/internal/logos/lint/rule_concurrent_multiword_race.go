@@ -262,8 +262,10 @@ func isLogosSyncType(t types2.Type) bool {
 	return pkg != nil && pkg.Path() == logosSyncPath
 }
 
-// wordsOf returns the machine words a value of type t spans. A pointer, a
-// map, a channel, a function, a const view, and a type parameter count one.
+// wordsOf returns the machine words a value of type t spans: the words its
+// parts hold in all, so a struct or array of narrow parts stays one word.
+// A pointer, a map, a channel, a function, a const view, and a type
+// parameter count one.
 func wordsOf(t types2.Type) int {
 	if _, ok := types2.Unalias(t).(*types2.TypeParam); ok {
 		return 1
@@ -284,10 +286,18 @@ func wordsOf(t types2.Type) int {
 }
 
 // basicWords returns the words of a basic type: two for a string or a
-// complex number, one for every other type.
+// complex number, one for a type that fills a whole word, and zero for a
+// narrower type, which shares its word with its neighbors.
 func basicWords(b *types2.Basic) int {
 	if b.Info()&(types2.IsString|types2.IsComplex) != 0 {
 		return 2
+	}
+	switch b.Kind() {
+	case types2.Bool,
+		types2.Int8, types2.Int16, types2.Int32,
+		types2.Uint8, types2.Uint16, types2.Uint32,
+		types2.Float32:
+		return 0
 	}
 	return 1
 }

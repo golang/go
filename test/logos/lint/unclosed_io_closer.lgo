@@ -101,6 +101,19 @@ func compareOnly() {
 	}
 }
 
+func blankDiscards() {
+	f := mustOpen() // ERROR "unclosed_io_closer"
+	_ = f
+}
+
+func blankDiscardsPair() {
+	f, err := os.Open("x") // ERROR "unclosed_io_closer"
+	if err != nil {
+		panic(err)
+	}
+	_, _ = err, f
+}
+
 func shadow() {
 	f := mustOpen()
 	defer f.Close()

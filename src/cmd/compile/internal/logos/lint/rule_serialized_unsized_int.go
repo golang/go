@@ -38,35 +38,51 @@ func checkSerializedUnsizedInt(pass *Pass) {
 	}
 }
 
-// reportUnsizedFields reports each named int or uint field of s when any field
-// of s carries a json tag.
+// reportUnsizedFields reports each int or uint field of s, named or
+// embedded, when any field of s carries a json tag.
 func reportUnsizedFields(pass *Pass, s *syntax.StructType) {
 	tagged := slices.ContainsFunc(s.TagList, hasJSONTag)
 	for _, f := range s.FieldList {
 		name := unsizedFieldName(pass, f)
 		if tagged && name != "" {
-			pass.Reportf(f.Name, "field %s has type %s, which is 4 bytes on a 32-bit target but 8 bytes in the binary layout; use int32, int64, uint32, or uint64", f.Name.Value, name)
+			pos := syntax.Node(f.Type)
+			display := name
+			if f.Name != nil {
+				pos = f.Name
+				display = f.Name.Value
+			}
+			pass.Reportf(pos, "field %s has type %s, which is 4 bytes on a 32-bit target but 8 bytes in the binary layout; use int32, int64, uint32, or uint64", display, name)
 		}
 	}
 }
 
 // unsizedFieldName returns the name of the type of f, "int" or "uint", when f
-// is a named field of that type, and "" for any other field. The type comes
-// from the field object the checker recorded, because a loGo/s field default
-// wraps the type expression of the field in the syntax tree.
+// is a field of that type, and "" for any other field. The type of a named
+// field comes from the field object the checker recorded, because a loGo/s
+// field default wraps the type expression of the field in the syntax tree;
+// an embedded field has no name, so its type comes from its type expression.
 func unsizedFieldName(pass *Pass, f *syntax.Field) string {
-	if f.Name == nil {
+	t := fieldType(pass, f)
+	if t == nil {
 		return ""
 	}
-	field, ok := pass.Info.Defs[f.Name].(*types2.Var)
-	if !ok {
-		return ""
-	}
-	basic, ok := types2.Unalias(field.Type()).(*types2.Basic)
+	basic, ok := types2.Unalias(t).(*types2.Basic)
 	if !ok || (basic.Kind() != types2.Int && basic.Kind() != types2.Uint) {
 		return ""
 	}
 	return basic.Name()
+}
+
+// fieldType returns the type of f.
+func fieldType(pass *Pass, f *syntax.Field) types2.Type {
+	if f.Name == nil {
+		return TypeOf(f.Type)
+	}
+	field, ok := pass.Info.Defs[f.Name].(*types2.Var)
+	if !ok {
+		return nil
+	}
+	return field.Type()
 }
 
 // hasJSONTag reports whether the struct tag literal tag, which may be nil,

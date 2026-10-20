@@ -108,6 +108,7 @@ func (c *closerScan) run() {
 		return
 	}
 	syntax.Inspect(c.body, c.mark)
+	syntax.Inspect(c.body, c.discard)
 	syntax.Inspect(c.body, c.transfer)
 	for _, v := range c.order {
 		if c.closed[v] || c.moved[v] {
@@ -240,6 +241,29 @@ func (c *closerScan) mark(n syntax.Node) bool {
 		}
 	case *syntax.ScopeDeferStmt:
 		c.deferred(n.Call)
+	}
+	return true
+}
+
+// discard marks the values a blank assignment drops: `_ = r` hands r to
+// no owner, so the occurrence is not a transfer. A name nested in a call
+// still transfers: `_ = f(r)` passes r on.
+func (c *closerScan) discard(n syntax.Node) bool {
+	a, ok := n.(*syntax.AssignStmt)
+	if !ok {
+		return true
+	}
+	lhs, rhs, ok := assignPairs(a)
+	if !ok {
+		return true
+	}
+	for _, l := range lhs {
+		if !isBlank(bareExpr(l)) {
+			return true
+		}
+	}
+	for _, r := range rhs {
+		c.markName(r)
 	}
 	return true
 }

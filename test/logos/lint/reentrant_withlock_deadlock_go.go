@@ -43,6 +43,10 @@ func lockParam(l *sync.Locked[int]) {
 	l.WithLock(func(n *int) { *n++ })
 }
 
+func lockByValue(l sync.Locked[int]) {
+	l.WithLock(func(n *int) { *n++ })
+}
+
 func lockParamTwoDeep(l *sync.Locked[int]) {
 	lockParam(l)
 }
@@ -220,6 +224,13 @@ func passDifferentParameter() {
 	var a, b sync.Locked[int]
 	a.WithLock(func(n *int) {
 		lockParam(&b)
+	})
+}
+
+func passByValueCopy() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		lockByValue(l)
 	})
 }
 

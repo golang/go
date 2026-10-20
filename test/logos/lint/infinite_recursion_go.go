@@ -95,3 +95,41 @@ func reassigned(n int) int {
 
 //logos:allow(correctness::infinite_recursion)
 func allowedDirect(n int) int { return allowedDirect(n) }
+
+// Cases pinned by the M9-S2 callee-rule slice.
+
+func loop(n int) int { return loop(n) } // ERROR "infinite_recursion"
+
+func tick() { tick() } // ERROR "infinite_recursion"
+
+type counter struct{ n int }
+
+func (c counter) next(n int) int { return c.next(n) } // ERROR "infinite_recursion"
+
+func guardedDecrement(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	return guardedDecrement(n - 1)
+}
+
+func countdown(n int) int {
+	if n == 0 {
+		return 0
+	}
+	return countdown(n - 1)
+}
+
+func bump(n int) int {
+	n++
+	return bump(n)
+}
+
+func ping(n int) int { return pong(n) }
+
+func pong(n int) int { return ping(n) }
+
+func read(n int) int {
+	println(n)
+	return n
+}

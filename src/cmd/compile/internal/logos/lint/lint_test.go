@@ -53,8 +53,8 @@ var lgoRules = []string{
 // language-neutral rules, that every registered rule declares a scope
 // (appears in exactly one of the two SPEC lists), that each rule's Group
 // matches its ID, and that the registry has no duplicate. A SPEC rule that
-// is not registered yet is listed: the full run fails on it, and a -short
-// run only logs it, so the 21 rules of M9-S2 can land one at a time.
+// is not registered yet fails the test in both full and -short runs, so a
+// missing rule can never hide behind the short flag.
 func TestRuleScopes(t *testing.T) {
 	registered := registeredRules(t)
 	var missing []string
@@ -77,10 +77,6 @@ func TestRuleScopes(t *testing.T) {
 		return
 	}
 	report := "SPEC Sec 1.2 rules not registered: " + strings.Join(missing, ", ")
-	if testing.Short() {
-		t.Log(report)
-		return
-	}
 	t.Error(report)
 }
 
@@ -352,8 +348,8 @@ func a() {
 	b.WriteByte('x')
 	var sb strings.Builder
 	sb.WriteString("x")
-	fmt.Fprintf(&b, "x")
-	fmt.Fprintf(&sb, "x")
+	fmt.Fprintf(&b, "x") // want
+	fmt.Fprintf(&sb, "x") // want
 	err := f()
 	_ = err
 	defer f()
@@ -913,6 +909,21 @@ func value(n int) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+func areaExpr(sh Shape) int {
+	return switch v := sh.(type) {
+	case Circle => v.r
+	default => 0 // want
+	}
+}
+
+func exactExpr(sh Shape) int {
+	return switch v := sh.(type) {
+	case Circle => v.r
+	case Square => v.s
+	case nil => 0
 	}
 }
 `

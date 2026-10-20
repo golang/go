@@ -10,8 +10,8 @@ import (
 // concurrency::concurrent_multiword_race (SPEC Sec 1.2, #13, #148): a
 // variable of multi-word type that a child captures and either side writes
 // after the spawn. A word counts one machine word: string 2, slice 3,
-// interface and union 2, complex 2, a struct or array the sum of its fields
-// or elements.
+// interface and union 2, complex 2, a struct or array holding more than one
+// word in all.
 
 type Union interface {
 	int | string
@@ -42,6 +42,10 @@ type Named struct {
 type Holder struct {
 	P *Named
 	N int
+}
+
+type TwoBytes struct {
+	A, B byte
 }
 
 func stringWrittenByParent(ctx context.Context) error {
@@ -293,6 +297,30 @@ func boundaryEmptyArray(ctx context.Context) error {
 		}
 	}
 	println(len(a))
+	return nil
+}
+
+func passTwoByteStruct(ctx context.Context) error {
+	var s TwoBytes
+	go group (ctx) {
+		go {
+			s.A = 1
+		}
+		s.B = 2
+	}
+	println(s.A)
+	return nil
+}
+
+func passTwoByteArray(ctx context.Context) error {
+	var a [2]byte
+	go group (ctx) {
+		go {
+			a[0] = 1
+		}
+		a[1] = 2
+	}
+	println(a[0])
 	return nil
 }
 

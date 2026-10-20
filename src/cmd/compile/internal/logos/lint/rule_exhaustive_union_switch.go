@@ -23,28 +23,51 @@ var exhaustiveUnionSwitch = Rule{
 func checkExhaustiveUnionSwitch(pass *Pass) {
 	for _, f := range pass.Files {
 		syntax.Inspect(f, func(n syntax.Node) bool {
-			if s, ok := n.(*syntax.SwitchStmt); ok {
-				reportUnionDefault(pass, s)
+			switch s := n.(type) {
+			case *syntax.SwitchStmt:
+				reportUnionGuard(pass, s.Tag, stmtDefaultPoss(s))
+			case *syntax.SwitchExpr:
+				reportUnionGuard(pass, s.Tag, exprDefaultPoss(s))
 			}
 			return true
 		})
 	}
 }
 
-// reportUnionDefault reports the default clause of s when s switches on the
-// type of a closed union value.
-func reportUnionDefault(pass *Pass, s *syntax.SwitchStmt) {
-	guard, ok := s.Tag.(*syntax.TypeSwitchGuard)
+// stmtDefaultPoss returns the positions of the default clauses of s.
+func stmtDefaultPoss(s *syntax.SwitchStmt) []syntax.Pos {
+	var poss []syntax.Pos
+	for _, c := range s.Body {
+		if c.Cases == nil {
+			poss = append(poss, c.Pos())
+		}
+	}
+	return poss
+}
+
+// exprDefaultPoss returns the positions of the default arms of s.
+func exprDefaultPoss(s *syntax.SwitchExpr) []syntax.Pos {
+	var poss []syntax.Pos
+	for _, a := range s.Arms {
+		if a.Cases == nil {
+			poss = append(poss, a.Pos())
+		}
+	}
+	return poss
+}
+
+// reportUnionGuard reports the default clauses at poss when tag switches on
+// the type of a closed union value.
+func reportUnionGuard(pass *Pass, tag syntax.Expr, poss []syntax.Pos) {
+	guard, ok := tag.(*syntax.TypeSwitchGuard)
 	if !ok || !isClosedUnion(TypeOf(guard.X)) {
 		return
 	}
-	for _, c := range s.Body {
-		if c.Cases == nil {
-			pass.Report(Diagnostic{
-				Pos:     c.Pos(),
-				Message: "default clause in a switch over closed union " + types2.TypeString(TypeOf(guard.X), nil) + "; list every member instead",
-			})
-		}
+	for _, pos := range poss {
+		pass.Report(Diagnostic{
+			Pos:     pos,
+			Message: "default clause in a switch over closed union " + types2.TypeString(TypeOf(guard.X), nil) + "; list every member instead",
+		})
 	}
 }
 

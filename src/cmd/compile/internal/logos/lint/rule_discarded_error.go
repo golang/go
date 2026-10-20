@@ -16,11 +16,10 @@ import (
 // discardedError is slop::discarded_error (SPEC Sec 1.2, #164): an
 // expression statement or a blank assignment that drops an error result.
 // Calls that cannot fail in practice are exempt: callees whose package facts
-// carry AlwaysNilError, fmt.Print* and fmt.Fprint* to os.Stdout, os.Stderr, a
-// *bytes.Buffer, or a *strings.Builder, and the Write* methods of
-// *bytes.Buffer and *strings.Builder. No producer of the AlwaysNilError fact
-// exists yet, so that exemption applies only to facts the importer has
-// recorded.
+// carry AlwaysNilError, fmt.Print*, fmt.Fprint* to os.Stdout or os.Stderr,
+// and the Write* methods of *bytes.Buffer and *strings.Builder. No producer
+// of the AlwaysNilError fact exists yet, so that exemption applies only to
+// facts the importer has recorded.
 var discardedError = Rule{
 	ID:    "slop::discarded_error",
 	Group: Slop,
@@ -177,7 +176,7 @@ func benignCall(pass *Pass, call *syntax.CallExpr) bool {
 	case "fmt.Print", "fmt.Printf", "fmt.Println":
 		return true
 	case "fmt.Fprint", "fmt.Fprintf", "fmt.Fprintln":
-		return len(call.ArgList) > 0 && benignWriter(pass, call.ArgList[0])
+		return len(call.ArgList) > 0 && isStdoutOrStderr(pass, call.ArgList[0])
 	default:
 		return strings.HasPrefix(name, "(*bytes.Buffer).Write") ||
 			strings.HasPrefix(name, "(*strings.Builder).Write") ||
@@ -223,21 +222,14 @@ func factObject(fn *types2.Func) string {
 	return named.Obj().Name() + "." + fn.Name()
 }
 
-// benignWriter reports whether w is os.Stdout, os.Stderr, a *bytes.Buffer,
-// or a *strings.Builder.
-func benignWriter(pass *Pass, w syntax.Expr) bool {
-	if sel, ok := w.(*syntax.SelectorExpr); ok {
-		if v, ok := pass.Info.Uses[sel.Sel].(*types2.Var); ok && v.Pkg() != nil && v.Pkg().Path() == "os" {
-			return v.Name() == "Stdout" || v.Name() == "Stderr"
-		}
-	}
-	t := TypeOf(w)
-	if t == nil {
+// isStdoutOrStderr reports whether w is os.Stdout or os.Stderr.
+func isStdoutOrStderr(pass *Pass, w syntax.Expr) bool {
+	sel, ok := w.(*syntax.SelectorExpr)
+	if !ok {
 		return false
 	}
-	switch types2.TypeString(t, nil) {
-	case "*bytes.Buffer", "*strings.Builder":
-		return true
+	if v, ok := pass.Info.Uses[sel.Sel].(*types2.Var); ok && v.Pkg() != nil && v.Pkg().Path() == "os" {
+		return v.Name() == "Stdout" || v.Name() == "Stderr"
 	}
 	return false
 }

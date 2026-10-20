@@ -201,7 +201,10 @@ func (c *lockCheck) reenters(call *syntax.CallExpr, decl *syntax.FuncDecl, key l
 
 // substitute returns key, a receiver key in the body of decl, as seen from
 // call: a key rooted at the receiver or a parameter of decl takes the key of
-// the matching operand of call. A key that cannot be mapped has no root.
+// the matching operand of call. A key rooted at a parameter whose type is
+// not a pointer cannot map: passing the argument copies the value, so a
+// lock reached through it holds its own mutex. A key that cannot be mapped
+// has no root.
 func (c *lockCheck) substitute(key lockKey, call *syntax.CallExpr, decl *syntax.FuncDecl) lockKey {
 	operand := c.operandFor(key.root, call, decl)
 	if operand == nil {
@@ -209,6 +212,9 @@ func (c *lockCheck) substitute(key lockKey, call *syntax.CallExpr, decl *syntax.
 			return lockKey{}
 		}
 		return key
+	}
+	if c.isValueParam(key.root, decl) {
+		return lockKey{}
 	}
 	outer := c.keyOf(operand)
 	if outer.root == nil {
@@ -222,6 +228,23 @@ func (c *lockCheck) substitute(key lockKey, call *syntax.CallExpr, decl *syntax.
 func (c *lockCheck) isDeclared(obj types2.Object, decl *syntax.FuncDecl) bool {
 	pos := obj.Pos()
 	return pos.IsKnown() && within(pos, syntax.StartPos(decl), syntax.EndPos(decl))
+}
+
+// isValueParam reports whether obj is a parameter of decl, but not its
+// receiver, whose type is not a pointer.
+func (c *lockCheck) isValueParam(obj types2.Object, decl *syntax.FuncDecl) bool {
+	v, ok := obj.(*types2.Var)
+	if !ok || v.Type() == nil || decl.Recv != nil && c.definedBy(decl.Recv) == obj {
+		return false
+	}
+	for _, p := range decl.Type.ParamList {
+		if c.definedBy(p) != obj {
+			continue
+		}
+		_, isPtr := v.Type().Underlying().(*types2.Pointer)
+		return !isPtr
+	}
+	return false
 }
 
 // operandFor returns the operand of call that binds the receiver or the
