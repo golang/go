@@ -23,8 +23,15 @@ var Logos bool
 // context prints one symbol context. Empty compiles normally.
 var LogosMode string
 
+// LogosNextOut is the -logos.nextout sidecar path. After checkFiles
+// succeeds with -logos.mode=next, the compiler appends one JSON line
+// describing the package migration rewrites to this file. Empty means
+// no report.
+var LogosNextOut string
+
 // logosRegisterFlags registers the loGo/s compiler flags.
 func logosRegisterFlags() {
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")
 	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next` or `context`)")
+	flag.StringVar(&LogosNextOut, "logos.nextout", "", "append logos next scan results to `file`")
 }

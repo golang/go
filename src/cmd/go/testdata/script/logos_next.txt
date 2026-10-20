@@ -1,0 +1,702 @@
+# M10-S1: logos next converts a Go module to a loGo/s module with
+# byte-span splicing. Plain next prints a unified diff and changes
+# nothing; next --fix renames every Go file to .lgo, rewrites err-return
+# patterns to ?, Sprintf calls to interpolation, and pure index-range
+# append loops to map chains. Complex refactors stay unchanged and land
+# in next_tasks.json. Comments and build lines survive byte-identical,
+# untouched files survive byte-identical, and the converted module builds
+# and tests green under logos, including the local-replace Go import.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# The fixture is valid Go before conversion.
+logos build ./...
+logos test ./...
+logos run .
+cp stdout $WORK/run-before.txt
+
+# Snapshot every source file; plain next must change nothing.
+cp main.go $WORK/main.go.orig
+cp convert.go $WORK/convert.go.orig
+cp loop.go $WORK/loop.go.orig
+cp plain.go $WORK/plain.go.orig
+cp gap.go $WORK/gap.go.orig
+cp tail.go $WORK/tail.go.orig
+cp convert_test.go $WORK/convert_test.go.orig
+cp go.mod $WORK/go.mod.orig
+
+# Plain next prints a unified diff and changes nothing (#69, #109).
+logos next
+stdout '^--- a/convert\.go$'
+stdout '^\+\+\+ b/convert\.lgo$'
+stdout '^--- a/loop\.go$'
+stdout '^\+\+\+ b/loop\.lgo$'
+stdout '^--- a/main\.go$'
+stdout '^\+\+\+ b/main\.lgo$'
+cmp stdout ../want/next.diff
+! exists next_tasks.json
+! exists main.lgo
+cmp main.go $WORK/main.go.orig
+cmp convert.go $WORK/convert.go.orig
+cmp loop.go $WORK/loop.go.orig
+cmp plain.go $WORK/plain.go.orig
+cmp gap.go $WORK/gap.go.orig
+cmp tail.go $WORK/tail.go.orig
+cmp go.mod $WORK/go.mod.orig
+
+# The AI patch plan lists complex refactors without renaming anything.
+logos next --ai-patch
+exists next_tasks.json
+! exists main.lgo
+stdout 'ai-patch'
+exec rm next_tasks.json
+
+# No logos fmt command exists (#109).
+! logos fmt
+stderr 'logos fmt: unknown command'
+
+# Fix converts the module.
+logos next --fix
+stdout 'tasks in next_tasks.json'
+exists next_tasks.json
+exists main.lgo
+exists convert.lgo
+exists loop.lgo
+exists plain.lgo
+exists gap.lgo
+exists tail.lgo
+exists convert_test.lgo
+! exists main.go
+! exists convert.go
+! exists loop.go
+! exists plain.go
+! exists gap.go
+! exists tail.go
+! exists convert_test.go
+
+# Every comment and build line survives byte-identical (#69, #109).
+grep '^//go:build linux$' main.lgo
+grep 'Command nextdemo exercises logos next migration patterns' main.lgo
+grep 'clean input' convert.lgo
+grep 'fall back handled below' convert.lgo
+grep 'Conversion patterns for index-range append loops' loop.lgo
+grep 'Plain helpers stay untouched by conversion' plain.lgo
+
+# Whole-file goldens pin every byte outside the rewrites (#69, #109).
+cmp main.lgo ../want/main.lgo
+cmp convert.lgo ../want/convert.lgo
+cmp gap.lgo $WORK/gap.go.orig
+cmp loop.lgo ../want/loop.lgo
+cmp tail.lgo ../want/tail.lgo
+
+# The task plan matches the schema, spans, and rules exactly.
+cmp next_tasks.json ../want/next_tasks.json
+
+# Error patterns became ?.
+grep 'v := clean\(s\)\? // clean input' convert.lgo
+grep 'v = clean\(s\)\?' convert.lgo
+grep 'check\(n\)\?' main.lgo
+# main returns no error, so its own check stays as written.
+grep 'if err != nil' main.lgo
+
+# Sprintf with only s d v operands became interpolation.
+grep '\$"hello \{msg\} \{n\} \{true\}"' main.lgo
+! grep 'Sprintf' main.lgo
+
+# The pure index-range append loop became a map chain.
+grep 'ys := xs\.map\(x => double\(x\)\)' loop.lgo
+
+# A pure loop whose declaration is not adjacent stays byte-identical: the
+# statement between them survives (gap.lgo is byte-identical, checked with
+# the goldens above) and nothing is rewritten or listed.
+! grep 'spaced' next_tasks.json
+# A target accumulated before the loop is listed, not rewritten.
+grep -count=1 '^\tys := \[\]int\{\}$' loop.lgo
+grep -count=1 '^\t\tys = append\(ys, double\(xs\[i\]\)\)$' loop.lgo
+
+# Complex refactors stayed unchanged and are listed for AI patching.
+grep 'fetch fallback for' convert.lgo
+grep 'return v, err' convert.lgo
+grep 'hex %x' convert.lgo
+grep 'break' loop.lgo
+grep 'n\+\+' loop.lgo
+grep '"version": "logos-next-1"' next_tasks.json
+grep -count=5 '"category": "ai-patch"' next_tasks.json
+grep 'func fetch\(s string\) \(string, error\)' next_tasks.json
+grep 'func probe\(s string\) \(string, error\)' next_tasks.json
+grep 'func firstBig\(xs \[\]int, limit int\) \[\]int' next_tasks.json
+grep 'func countNeg\(xs \[\]int\) \(int, \[\]int\)' next_tasks.json
+grep 'func seeded\(xs \[\]int\) \[\]int' next_tasks.json
+grep '"rule": "err-return"' next_tasks.json
+grep '"rule": "loop-chain"' next_tasks.json
+grep '"file": "convert.lgo"' next_tasks.json
+grep '"file": "loop.lgo"' next_tasks.json
+grep '"verification_cmd": "logos build \./\.\.\."' next_tasks.json
+
+# The local-replace Go import stays as written (R-U2).
+grep 'example\.com/dep/greet' main.lgo
+
+# Untouched code is byte-identical apart from the rename.
+cmp plain.lgo $WORK/plain.go.orig
+cmp convert_test.lgo $WORK/convert_test.go.orig
+
+# The converted module builds, tests, and runs identically under logos.
+# loop.lgo sorts after the synthetic logos-chain base file, so this build
+# covers the chain lowering positions under DWARF scope checks.
+logos build ./...
+logos test ./...
+logos run .
+cmp stdout $WORK/run-before.txt
+stdout '^hello \[logos\] 3 true$'
+stdout '^hex ff$'
+stdout '^\[2 4 6\]$'
+stdout '^\[1\]$'
+stdout '^2 \[-1 2\]$'
+stdout '^\[2 4\] 2$'
+stdout '^\[0 6\]$'
+
+-- m/go.mod --
+module example.com/next
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep v0.0.0 => ../dep
+
+-- m/main.go --
+//go:build linux
+
+// Command nextdemo exercises logos next migration patterns.
+package main
+
+import (
+	"fmt"
+
+	"example.com/dep/greet"
+)
+
+// check validates the limit.
+func check(n int) error {
+	if n < 0 {
+		return fmt.Errorf("negative limit %d", n)
+	}
+	return nil
+}
+
+// apply checks the limit and greets.
+func apply(name string, n int) (string, error) {
+	if err := check(n); err != nil {
+		return "", err
+	}
+	msg := greet.Tag(name)
+	return fmt.Sprintf("hello %s %d %v", msg, n, true), nil
+}
+
+func main() {
+	msg, err := apply("logos", 3)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(msg)
+	fmt.Println(hex(255))
+	fmt.Println(doubleAll([]int{1, 2, 3}))
+	fmt.Println(firstBig([]int{1, 5, 2}, 3))
+	n, out := countNeg([]int{-1, 2})
+	fmt.Println(n, out)
+	fmt.Println(spaced([]int{1, 2}))
+	fmt.Println(seeded([]int{3}))
+}
+
+-- m/convert.go --
+// Conversion patterns for error returns and formatting.
+package main
+
+import "fmt"
+
+// clean rejects empty input.
+func clean(s string) (string, error) {
+	if s == "" {
+		return "", fmt.Errorf("empty input")
+	}
+	return s, nil
+}
+
+// load cleans the raw input before use.
+func load(s string) (string, error) {
+	v, err := clean(s) // clean input
+	if err != nil {
+		return "", err
+	}
+	return v, nil
+}
+
+// reuse assigns into existing variables.
+func reuse(s string) (string, error) {
+	v := ""
+	v, err := clean(s)
+	if err != nil {
+		return "", err
+	}
+	return v, nil
+}
+
+// fetch loads with a fallback note on failure.
+func fetch(s string) (string, error) {
+	w, err := clean(s)
+	// fall back handled below
+	if err != nil {
+		fmt.Println("fetch fallback for", s)
+		return "", err
+	}
+	return w, nil
+}
+
+// probe keeps the error for reporting.
+func probe(s string) (string, error) {
+	v, err := clean(s)
+	if err != nil {
+		return "", err
+	}
+	return v, err
+}
+
+// hex formats n as hexadecimal for logs.
+func hex(n int) string {
+	return fmt.Sprintf("hex %x", n)
+}
+
+-- m/loop.go --
+// Conversion patterns for index-range append loops.
+package main
+
+// double doubles n.
+func double(n int) int {
+	return n * 2
+}
+
+// doubleAll doubles every element.
+func doubleAll(xs []int) []int {
+	var ys []int
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+// firstBig collects elements up to the limit.
+func firstBig(xs []int, limit int) []int {
+	var out []int
+	for i := 0; i < len(xs); i++ {
+		if xs[i] > limit {
+			break
+		}
+		out = append(out, xs[i])
+	}
+	return out
+}
+
+// countNeg counts and collects negative elements.
+func countNeg(xs []int) (int, []int) {
+	var out []int
+	n := 0
+	for i := 0; i < len(xs); i++ {
+		n++
+		out = append(out, xs[i])
+	}
+	return n, out
+}
+
+// seeded accumulates into the target before the loop.
+func seeded(xs []int) []int {
+	ys := []int{}
+	ys = append(ys, 0)
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+-- m/gap.go --
+// Gap keeps an unrelated statement between a declaration and its loop.
+package main
+
+// spaced keeps an unrelated statement between the declaration and the loop.
+func spaced(xs []int) ([]int, int) {
+	var ys []int
+	size := len(xs)
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys, size
+}
+
+-- m/tail.go --
+// Tail ends its file with a rewrite so the diff context stops at the last line.
+package main
+
+import "strconv"
+
+// parse converts text to a number.
+func parse(s string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+-- m/plain.go --
+// Plain helpers stay untouched by conversion.
+package main
+
+// identity returns n unchanged.
+func identity(n int) int {
+	return n
+}
+
+-- m/convert_test.go --
+package main
+
+import "testing"
+
+// TestDoubleAll pins the converted map chain behavior.
+func TestDoubleAll(t *testing.T) {
+	got := doubleAll([]int{1, 2, 3})
+	want := []int{2, 4, 6}
+	if len(got) != len(want) {
+		t.Fatalf("len = %d, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got[%d] = %d, want %d", i, got[i], want[i])
+		}
+	}
+}
+
+// TestFirstBig pins the loop left for AI patching.
+func TestFirstBig(t *testing.T) {
+	got := firstBig([]int{1, 5, 2}, 3)
+	if len(got) != 1 || got[0] != 1 {
+		t.Fatalf("got %v, want [1]", got)
+	}
+}
+
+// TestCountNeg pins the loop left for AI patching.
+func TestCountNeg(t *testing.T) {
+	n, out := countNeg([]int{-1, 2})
+	if n != 2 || len(out) != 2 || out[0] != -1 || out[1] != 2 {
+		t.Fatalf("got %d %v, want 2 [-1 2]", n, out)
+	}
+}
+
+-- want/main.lgo --
+//go:build linux
+
+// Command nextdemo exercises logos next migration patterns.
+package main
+
+import (
+	"fmt"
+
+	"example.com/dep/greet"
+)
+
+// check validates the limit.
+func check(n int) error {
+	if n < 0 {
+		return fmt.Errorf("negative limit %d", n)
+	}
+	return nil
+}
+
+// apply checks the limit and greets.
+func apply(name string, n int) (string, error) {
+	check(n)?
+	msg := greet.Tag(name)
+	return $"hello {msg} {n} {true}", nil
+}
+
+func main() {
+	msg, err := apply("logos", 3)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(msg)
+	fmt.Println(hex(255))
+	fmt.Println(doubleAll([]int{1, 2, 3}))
+	fmt.Println(firstBig([]int{1, 5, 2}, 3))
+	n, out := countNeg([]int{-1, 2})
+	fmt.Println(n, out)
+	fmt.Println(spaced([]int{1, 2}))
+	fmt.Println(seeded([]int{3}))
+}
+
+-- want/convert.lgo --
+// Conversion patterns for error returns and formatting.
+package main
+
+import "fmt"
+
+// clean rejects empty input.
+func clean(s string) (string, error) {
+	if s == "" {
+		return "", fmt.Errorf("empty input")
+	}
+	return s, nil
+}
+
+// load cleans the raw input before use.
+func load(s string) (string, error) {
+	v := clean(s)? // clean input
+	return v, nil
+}
+
+// reuse assigns into existing variables.
+func reuse(s string) (string, error) {
+	v := ""
+	v = clean(s)?
+	return v, nil
+}
+
+// fetch loads with a fallback note on failure.
+func fetch(s string) (string, error) {
+	w, err := clean(s)
+	// fall back handled below
+	if err != nil {
+		fmt.Println("fetch fallback for", s)
+		return "", err
+	}
+	return w, nil
+}
+
+// probe keeps the error for reporting.
+func probe(s string) (string, error) {
+	v, err := clean(s)
+	if err != nil {
+		return "", err
+	}
+	return v, err
+}
+
+// hex formats n as hexadecimal for logs.
+func hex(n int) string {
+	return fmt.Sprintf("hex %x", n)
+}
+
+-- want/loop.lgo --
+// Conversion patterns for index-range append loops.
+package main
+
+// double doubles n.
+func double(n int) int {
+	return n * 2
+}
+
+// doubleAll doubles every element.
+func doubleAll(xs []int) []int {
+	ys := xs.map(x => double(x))
+	return ys
+}
+
+// firstBig collects elements up to the limit.
+func firstBig(xs []int, limit int) []int {
+	var out []int
+	for i := 0; i < len(xs); i++ {
+		if xs[i] > limit {
+			break
+		}
+		out = append(out, xs[i])
+	}
+	return out
+}
+
+// countNeg counts and collects negative elements.
+func countNeg(xs []int) (int, []int) {
+	var out []int
+	n := 0
+	for i := 0; i < len(xs); i++ {
+		n++
+		out = append(out, xs[i])
+	}
+	return n, out
+}
+
+// seeded accumulates into the target before the loop.
+func seeded(xs []int) []int {
+	ys := []int{}
+	ys = append(ys, 0)
+	for i := 0; i < len(xs); i++ {
+		ys = append(ys, double(xs[i]))
+	}
+	return ys
+}
+
+-- dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- dep/greet/greet.go --
+// Package greet helps the next test with a local Go dependency.
+package greet
+
+// Tag wraps s in brackets.
+func Tag(s string) string {
+	return "[" + s + "]"
+}
+-- want/next.diff --
+--- a/convert.go
++++ b/convert.lgo
+@@ -13,20 +13,14 @@
+ 
+ // load cleans the raw input before use.
+ func load(s string) (string, error) {
+-	v, err := clean(s) // clean input
+-	if err != nil {
+-		return "", err
+-	}
++	v := clean(s)? // clean input
+ 	return v, nil
+ }
+ 
+ // reuse assigns into existing variables.
+ func reuse(s string) (string, error) {
+ 	v := ""
+-	v, err := clean(s)
+-	if err != nil {
+-		return "", err
+-	}
++	v = clean(s)?
+ 	return v, nil
+ }
+ 
+--- a/loop.go
++++ b/loop.lgo
+@@ -8,10 +8,7 @@
+ 
+ // doubleAll doubles every element.
+ func doubleAll(xs []int) []int {
+-	var ys []int
+-	for i := 0; i < len(xs); i++ {
+-		ys = append(ys, double(xs[i]))
+-	}
++	ys := xs.map(x => double(x))
+ 	return ys
+ }
+ 
+--- a/main.go
++++ b/main.lgo
+@@ -19,11 +19,9 @@
+ 
+ // apply checks the limit and greets.
+ func apply(name string, n int) (string, error) {
+-	if err := check(n); err != nil {
+-		return "", err
+-	}
++	check(n)?
+ 	msg := greet.Tag(name)
+-	return fmt.Sprintf("hello %s %d %v", msg, n, true), nil
++	return $"hello {msg} {n} {true}", nil
+ }
+ 
+ func main() {
+--- a/tail.go
++++ b/tail.lgo
+@@ -5,9 +5,6 @@
+ 
+ // parse converts text to a number.
+ func parse(s string) (int, error) {
+-	n, err := strconv.Atoi(s)
+-	if err != nil {
+-		return 0, err
+-	}
++	n := strconv.Atoi(s)?
+ 	return n, nil
+ }
+-- want/tail.lgo --
+// Tail ends its file with a rewrite so the diff context stops at the last line.
+package main
+
+import "strconv"
+
+// parse converts text to a number.
+func parse(s string) (int, error) {
+	n := strconv.Atoi(s)?
+	return n, nil
+}
+-- want/next_tasks.json --
+{
+  "version": "logos-next-1",
+  "tasks": [
+    {
+      "id": "next-001",
+      "category": "ai-patch",
+      "file": "convert.lgo",
+      "span": {
+        "start_line": 31,
+        "end_line": 34
+      },
+      "rule": "err-return",
+      "function_signature": "func fetch(s string) (string, error)",
+      "ai_instruction": "the check body does more than return, so ? cannot replace it",
+      "verification_cmd": "logos build ./..."
+    },
+    {
+      "id": "next-002",
+      "category": "ai-patch",
+      "file": "convert.lgo",
+      "span": {
+        "start_line": 41,
+        "end_line": 43
+      },
+      "rule": "err-return",
+      "function_signature": "func probe(s string) (string, error)",
+      "ai_instruction": "the error variable is read after the check, so ? cannot replace the assignment",
+      "verification_cmd": "logos build ./..."
+    },
+    {
+      "id": "next-003",
+      "category": "ai-patch",
+      "file": "loop.lgo",
+      "span": {
+        "start_line": 18,
+        "end_line": 23
+      },
+      "rule": "loop-chain",
+      "function_signature": "func firstBig(xs []int, limit int) []int",
+      "ai_instruction": "the loop body does more than append one element, so no single chain expresses it",
+      "verification_cmd": "logos build ./..."
+    },
+    {
+      "id": "next-004",
+      "category": "ai-patch",
+      "file": "loop.lgo",
+      "span": {
+        "start_line": 31,
+        "end_line": 34
+      },
+      "rule": "loop-chain",
+      "function_signature": "func countNeg(xs []int) (int, []int)",
+      "ai_instruction": "the loop body does more than append one element, so no single chain expresses it",
+      "verification_cmd": "logos build ./..."
+    },
+    {
+      "id": "next-005",
+      "category": "ai-patch",
+      "file": "loop.lgo",
+      "span": {
+        "start_line": 42,
+        "end_line": 44
+      },
+      "rule": "loop-chain",
+      "function_signature": "func seeded(xs []int) []int",
+      "ai_instruction": "the target accumulates before the loop, so no single chain expresses it",
+      "verification_cmd": "logos build ./..."
+    }
+  ]
+}

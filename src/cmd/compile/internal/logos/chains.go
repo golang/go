@@ -6,7 +6,6 @@ package logos
 
 import (
 	"fmt"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -1216,43 +1215,32 @@ func parseChainExprFrag(fl *fileLower, text string, pos syntax.Pos) syntax.Expr 
 	return e
 }
 
-// normalizeChainPos sets every node under root to pos. It walks by
-// reflection like the tuple field swap, so no node type escapes with
-// fragment coordinates that would poison later span computations.
+// normalizeChainPos sets every node under root to pos, including the
+// raw delimiter positions that never reach dwarfgen as nodes. A single
+// fragment coordinate poisons scope order, so blocks, switches,
+// selects, clauses, and composite literals take pos on their closers.
 func normalizeChainPos(root syntax.Node, pos syntax.Pos) {
-	seen := make(map[syntax.Node]bool)
-	mark := func(n syntax.Node) {
-		if n == nil || seen[n] {
-			return
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		if n == nil {
+			return true
 		}
-		seen[n] = true
 		n.SetPos(pos)
-	}
-	var walk func(v reflect.Value)
-	walk = func(v reflect.Value) {
-		if !v.IsValid() {
-			return
+		switch t := n.(type) {
+		case *syntax.BlockStmt:
+			t.Rbrace = pos
+		case *syntax.SwitchStmt:
+			t.Rbrace = pos
+		case *syntax.SelectStmt:
+			t.Rbrace = pos
+		case *syntax.CaseClause:
+			t.Colon = pos
+		case *syntax.CommClause:
+			t.Colon = pos
+		case *syntax.CompositeLit:
+			t.Rbrace = pos
 		}
-		switch v.Kind() {
-		case reflect.Interface, reflect.Pointer:
-			if v.IsNil() || !v.CanInterface() {
-				return
-			}
-			if n, ok := v.Interface().(syntax.Node); ok {
-				mark(n)
-			}
-			walk(v.Elem())
-		case reflect.Struct:
-			for i := range v.NumField() {
-				walk(v.Field(i))
-			}
-		case reflect.Slice, reflect.Array:
-			for i := range v.Len() {
-				walk(v.Index(i))
-			}
-		}
-	}
-	walk(reflect.ValueOf(root))
+		return true
+	})
 }
 
 // parseChainStmtFrag parses text as statements and normalizes

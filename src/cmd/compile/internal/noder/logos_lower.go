@@ -24,18 +24,21 @@ import (
 // lowered tree is rechecked as ordinary Go.
 
 // logosStore keeps the original bytes of logos files for lowering and
-// eject, plus the pending eject edits of a changed package.
+// eject, plus the compile arguments of stashed files for next reports,
+// plus the pending eject edits of a changed package.
 var logosStore = struct {
 	sync.Mutex
 	src   map[*syntax.File][]byte
+	names map[*syntax.File]string
 	edits map[*syntax.File][]logos.Edit
-}{src: make(map[*syntax.File][]byte)}
+}{src: make(map[*syntax.File][]byte), names: make(map[*syntax.File]string)}
 
 // parseLogosFile parses one source file, remembering the original bytes
-// of logos files for lowering and eject.
+// of logos files for lowering and eject. Go files are remembered too
+// while a next sidecar is armed.
 func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syntax.ErrorHandler, pragh syntax.PragmaHandler) *syntax.File {
 	mode := syntax.CheckBranches | logosMode(filename)
-	if !isLogosFile(filename) {
+	if !isLogosFile(filename) && base.LogosNextOut == "" {
 		file, _ := syntax.Parse(fbase, f, errh, pragh, mode)
 		return file
 	}
@@ -49,6 +52,7 @@ func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syn
 		logosStore.Lock()
 		defer logosStore.Unlock()
 		logosStore.src[file] = data
+		logosStore.names[file] = filename
 	}
 	return file
 }

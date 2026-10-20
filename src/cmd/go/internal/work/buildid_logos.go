@@ -24,3 +24,10 @@ func logosReportsBuildID(f []string) bool {
 func logosEjectNoCache(a *Action) bool {
 	return a != nil && a.Package != nil && a.Package.Internal.LogosEject
 }
+
+// logosNextNoCache reports whether action a compiles a package marked
+// for logos next. Scanned packages skip the build cache like -a builds,
+// so the compiler always runs and appends fresh -logos.nextout output.
+func logosNextNoCache(a *Action) bool {
+	return a != nil && a.Package != nil && a.Package.Internal.LogosNext
+}

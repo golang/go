@@ -245,6 +245,7 @@ type PackageInternal struct {
 	Asmflags   []string // -asmflags for this package
 	Gcflags    []string // -gcflags for this package
 	LogosEject bool     // compile with -logos.eject and skip the build cache
+	LogosNext  bool     // compile with -logos.mode=next and skip the build cache
 	Ldflags    []string // -ldflags for this package
 	Gccgoflags []string // -gccgoflags for this package
 }
@@ -3305,6 +3306,7 @@ func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 		p.Internal.Asmflags = BuildAsmflags.For(ld, p)
 		p.Internal.Gcflags = BuildGcflags.For(ld, p)
 		p.Internal.Gcflags = append(p.Internal.Gcflags, logosEjectGcflags(p)...)
+		p.Internal.Gcflags = append(p.Internal.Gcflags, logosNextGcflags(p)...)
 		p.Internal.Ldflags = BuildLdflags.For(ld, p)
 		p.Internal.Gccgoflags = BuildGccgoflags.For(ld, p)
 	}

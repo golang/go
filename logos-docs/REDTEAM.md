@@ -72,7 +72,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #66 |M1| test/logos/redteam/attack_066_errdefer_unnamed_results | tested |
 | #67 | M6, M13 | M6 half: src/cmd/compile/internal/logos/m6gaps_test.go (TestChainSumPairwise); test/logos/run/chains.lgo (sum order). M13: arm64 leg open | planned |
 | #68 | M8 |  | planned |
-| #69 | M10 |  | planned |
+| #69 | M10 | src/cmd/go/testdata/script/logos_next.txt; src/cmd/compile/internal/logos/next_test.go | tested |
 | #70 | M5 | test/logos/codegen/rodata.lgo | tested |
 | #71 | M18 |  | planned |
 | #72 | M7 | test/logos/run/viewas.lgo (GC keep-alive, need-have panic); src/logos/rt/viewas_test.go | tested |
@@ -112,7 +112,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #106 | M18 |  | planned |
 | #107 | M13 |  | planned |
 | #108 | M7 | src/cmd/go/testdata/script/logos_eject_const_switch.txt; src/cmd/compile/internal/logos (TestEjectMatchesLowering) | tested |
-| #109 | M10 |  | planned |
+| #109 | M10 | src/cmd/go/testdata/script/logos_next.txt (goldens, ! logos fmt) | tested |
 | #110 | M5 | test/logos/run/freeze.lgo | tested |
 | #111 | M15 | test/logos/codegen/arm64_pair.lgo; test/logos/codegen/arm64_pair.go; src/cmd/compile/internal/ssa/pair_logos_test.go (TestLogosPairARM64) | tested |
 | #112 | M1 | src/cmd/go/testdata/script/logos_eject.txt | tested |

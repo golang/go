@@ -233,6 +233,7 @@ recheck:
 	}
 
 	writeLogosEject(files)
+	logosNextHook(pkg, info, files)
 
 	return pkg, info, rangeInfo
 }

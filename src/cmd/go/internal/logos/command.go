@@ -12,18 +12,21 @@ import (
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/logos/contextcmd"
 	"cmd/go/internal/logos/eject"
+	"cmd/go/internal/logos/next"
 )
 
 // ConfigureCommand adjusts the root command for logos mode.
 func ConfigureCommand(cmd *base.Command) {
 	cmd.UsageLine = "logos"
 	cmd.Long = "Logos is a tool for managing loGo/s source code."
+	dropFmt(cmd)
 	for _, sub := range cmd.Commands {
 		rebrandUsageLine(sub)
 	}
 	addPedanticFlag(cmd)
 	contextcmd.Register(cmd)
 	eject.Register(cmd)
+	next.Register(cmd)
 }
 
 // addPedanticFlag registers the logos-only --pedantic build flag on
