@@ -97,7 +97,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #91 | M7 |  | planned |
 | #92 | M13 |  | planned |
 | #93 | M5 | test/logos/run/constview_bound.lgo | tested |
-| #94 | M10 |  | planned |
+| #94 | M10 | src/cmd/go/testdata/script/logos_context.txt; src/cmd/compile/internal/logos/context_test.go (TestContextLineCap); src/cmd/compile/internal/logos/context_bench_test.go (BenchmarkContext) | tested |
 | #95 | M6 | test/logos/run/chains.lgo (take, drop, get clamps) | tested |
 | #96 |M1| test/logos/redteam/attack_096_errdefer_armed_flag | tested |
 | #97 |M2| test/logos/redteam/attack_097_struct_variant_slots | tested |
@@ -152,7 +152,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
 | #147 | M8 |  | planned |
 | #148 | M8, M9 |  | planned |
-| #149 | M15 |  | planned |
+| #149 | M15 | test/logos/codegen/clear_kept.lgo | satisfied upstream |
 | #150 | M7 |  | planned |
 | #151 | M8 |  | planned |
 | #152 | M5 | test/logos/run/zerocopy.lgo (other-provenance AllocsPerRun, survival) | tested |
