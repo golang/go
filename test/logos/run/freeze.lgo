@@ -1,0 +1,83 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"testing"
+
+	"logos/rt"
+)
+
+// M5-S6 logos/rt.Freeze (SPEC T-201, #110): Freeze deep-copies its
+// argument and returns a const view. Later writes to the source, and
+// to a child object it points to, do not change the frozen view, and
+// each call performs one deep copy rather than aliasing.
+
+type Child struct {
+	N    int
+	Note string
+}
+
+type Config struct {
+	Name   string
+	N      int
+	Tags   []string
+	Labels map[string]string
+	Child  *Child
+	Other  *Child
+}
+
+func main() {
+	cfg := Config{
+		Name:   "orig",
+		N:      7,
+		Tags:   []string{"a", "b"},
+		Labels: map[string]string{"k": "v"},
+		Child:  &Child{N: 1, Note: "c1"},
+		Other:  &Child{N: 2, Note: "c2"},
+	}
+	f := rt.Freeze(&cfg)
+
+	var name string = f.Name
+	var n int = f.N
+	var tag0 string = f.Tags[0]
+	var tag1 string = f.Tags[1]
+	var cn int = f.Child.N
+	var note string = f.Child.Note
+	var on int = f.Other.N
+	fmt.Println(name, n, tag0, tag1, cn, note, on)
+	fmt.Println(len(f.Tags), len(f.Labels))
+	for _, v := range f.Labels {
+		fmt.Println(v)
+	}
+
+	cfg.Name = "changed"
+	cfg.N = 99
+	cfg.Tags[0] = "CHANGED"
+	cfg.Tags[1] = "CHANGED"
+	cfg.Labels["k"] = "CHANGED"
+	cfg.Child.N = 100
+	cfg.Child.Note = "CHANGED"
+	cfg.Other.N = 200
+
+	var name2 string = f.Name
+	var n2 int = f.N
+	var tag02 string = f.Tags[0]
+	var tag12 string = f.Tags[1]
+	var cn2 int = f.Child.N
+	var note2 string = f.Child.Note
+	var on2 int = f.Other.N
+	fmt.Println(name2, n2, tag02, tag12, cn2, note2, on2)
+	for _, v := range f.Labels {
+		fmt.Println(v)
+	}
+
+	allocs := testing.AllocsPerRun(100, func() {
+		_ = rt.Freeze(&cfg)
+	})
+	if allocs < 1 {
+		panic("Freeze allocated nothing; expected one deep copy")
+	}
+	fmt.Println("freeze ok")
+}

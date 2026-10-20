@@ -355,6 +355,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		x.invalidate()
 	}
 
+	check.logosFreezeResult(call, x) // logos M5-S6 hook: rt.Freeze returns const *T.
+
 	return statement
 }
 

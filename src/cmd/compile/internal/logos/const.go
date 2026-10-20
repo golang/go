@@ -177,3 +177,41 @@ func (fl *fileLower) constBoundValue(bound syntax.Expr) bool {
 	}
 	return un.GetTypeInfo().Value != nil
 }
+
+// infoHasConstView reports whether the first-check info holds a const
+// view in a declared variable, an expression type, or an instantiation
+// argument (SPEC T-201, M5-S6): the rt.Freeze call result is a const
+// with no ConstType syntax node, so a file that uses only Freeze
+// reports no rewrite and would hand const types to the export writer.
+// A true result forces the plain recheck, which re-derives Go-facing
+// types for the writer and the backend.
+func infoHasConstView(info *types2.Info) bool {
+	if info == nil {
+		return false
+	}
+	for _, obj := range info.Defs {
+		if v, ok := obj.(*types2.Var); ok && constAsView(v.Type()) != nil {
+			return true
+		}
+	}
+	for _, obj := range info.Uses {
+		if v, ok := obj.(*types2.Var); ok && constAsView(v.Type()) != nil {
+			return true
+		}
+	}
+	for _, tv := range info.Types {
+		if constAsView(tv.Type) != nil {
+			return true
+		}
+	}
+	for _, inst := range info.Instances {
+		if targs := inst.TypeArgs; targs != nil {
+			for i := range targs.Len() {
+				if constAsView(targs.At(i)) != nil {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}

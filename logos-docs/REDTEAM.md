@@ -113,7 +113,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #107 | M13 |  | planned |
 | #108 | M7 |  | planned |
 | #109 | M10 |  | planned |
-| #110 | M5 |  | planned |
+| #110 | M5 | test/logos/run/freeze.lgo | tested |
 | #111 | M15 |  | planned |
 | #112 | M1 |  | planned |
 | #113 | M6 |  | planned |

@@ -18,9 +18,13 @@ import (
 // the matching eject edits. pkg and info come from a successful types2
 // check with Config.Logos; src holds the original bytes of the files Lower
 // may rewrite. Files without an entry in src are left alone. Lower mutates
-// the files in place and reports whether anything changed. A surviving
+// the files in place and reports whether anything changed. A true result
+// also covers a semantic-only change: const views that live purely in
+// checker info (M5-S6 rt.Freeze results, with no ConstType node to erase)
+// still need the plain recheck, so the export writer and the backend only
+// ever see Go-facing types. A surviving
 // loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause,
-// AssertedStruct, OptionType, CoalesceExpr, or OptSelectExpr) is an
+// AssertedStruct, OptionType, CoalesceExpr, OptSelectExpr, or ConstType) is an
 // internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
 	if f := EmitOptionFacts(pkg, info); f != nil {
@@ -50,6 +54,9 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 			changed = true
 			edits[file] = editsOf(data, fl.base, fl.splices)
 		}
+	}
+	if !changed {
+		changed = infoHasConstView(info) // M5-S6: pure-info consts (rt.Freeze results) need a plain recheck.
 	}
 	for _, file := range files {
 		rejectSurvivors(file)
