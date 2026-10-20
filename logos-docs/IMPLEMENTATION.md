@@ -1466,6 +1466,7 @@ Contract (T-202, T-Sec6). Representation decisions:
   const <object> <path>
   fn <object> <flag>[,<flag>...]
   prop <interface> <accessor-function-prefix>
+  conforms <struct> <interface-package-path> <interface>
   comptime <object> <byte length>
   <source bytes>
   ```

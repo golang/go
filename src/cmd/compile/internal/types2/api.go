@@ -319,6 +319,7 @@ type Info struct {
 	LogosChecks map[syntax.Expr]LogosCheck // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
 
 	LogosConstSlices map[syntax.Expr]bool // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
+	LogosPropDecls   []*LogosPropDecl     // logos M4-S2 hook: asserted property interfaces per declaring struct.
 }
 
 func (info *Info) recordTypes() bool {

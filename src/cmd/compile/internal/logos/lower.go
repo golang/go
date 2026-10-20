@@ -178,6 +178,7 @@ func (fl *fileLower) lowerFile() {
 	for _, decl := range fl.siteDecls {
 		fl.file.DeclList = append(fl.file.DeclList, decl)
 	}
+	fl.lowerProperties() // M4-S2 hook: property accessors, selector lowering, prop facts.
 }
 
 // addHeaderSplice adds the eject-text edit that spells the rt import and

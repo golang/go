@@ -9,6 +9,7 @@ import (
 	. "internal/types/errors"
 	"slices"
 	"strings"
+	"sync"
 )
 
 // LoGo/s M4-S1 type rules for property interfaces (SPEC Sec 2.3,
@@ -171,16 +172,30 @@ func (check *Checker) logosPropertyMethod(ityp *Interface, f *syntax.Field, pt *
 	return seen
 }
 
+// LogosPropDecl records one struct's asserted property interfaces for
+// the M4-S2 lowering (SPEC T-203.2): the declaring type name and the
+// asserted property-interface types. logosRecordConforms appends one per
+// declaration to Info.LogosPropDecls; Lower reads them to generate the
+// Logos_GetF/Logos_SetF accessors, and the prop facts writer reads them
+// to emit each type's declared conformances. Upstream go/types drops
+// this with the other logos-only declarations, so the mirror stays clean.
+type LogosPropDecl struct {
+	Def    *TypeName
+	Ifaces []Type
+}
+
 // logosRecordConforms remembers every asserted property interface of
 // the struct under declaration. It runs synchronously inside
 // logosAssertedStruct (not in the delayed assert check) so later
 // assignments in the same package, including package-level variable
 // initializers checked before delayed actions run, see the declaration.
+// It also appends to Info.LogosPropDecls for the lowering and facts.
 func (check *Checker) logosRecordConforms(def *TypeName, asserts []Type) {
 	named, _ := def.Type().(*Named)
 	if named == nil {
 		return
 	}
+	var props []Type
 	for _, T := range asserts {
 		if !isValid(T) || logosPropertyInterface(T) == nil {
 			continue
@@ -189,13 +204,19 @@ func (check *Checker) logosRecordConforms(def *TypeName, asserts []Type) {
 			check.logosConforms = make(map[*Named][]Type)
 		}
 		check.logosConforms[named] = append(check.logosConforms[named], T)
+		props = append(props, T)
+	}
+	if len(props) > 0 {
+		check.Info.LogosPropDecls = append(check.Info.LogosPropDecls, &LogosPropDecl{Def: def, Ifaces: props})
 	}
 }
 
 // logosDeclaredConforms reports whether the struct named declares `: I`
 // conformance to the asserted type T (whose underlying is iface).
 // Recorded entries compare by object identity through Identical, with
-// an underlying-pointer fallback for imported spellings.
+// an underlying-pointer fallback for imported spellings. A struct from
+// another package consults the imported conformances last: those come
+// from the imported package's prop facts through LogosNoteImportedConforms.
 func (check *Checker) logosDeclaredConforms(named *Named, T, iface Type) bool {
 	match := func(R Type) bool {
 		if Identical(R, T) {
@@ -215,6 +236,108 @@ func (check *Checker) logosDeclaredConforms(named *Named, T, iface Type) bool {
 			if match(R) {
 				return true
 			}
+		}
+	}
+	return check.logosImportedConforms(named, T)
+}
+
+// LogosProp is one property of a property interface for M4-S2 consumers
+// (SPEC T-203.2): the property name, its value type, and whether only a
+// getter exists (read-only). It mirrors logosProperty without exposing it.
+type LogosProp struct {
+	Name     string
+	Typ      Type
+	ReadOnly bool
+}
+
+// LogosPropsOf returns the property set of t when t is a property
+// interface: each lowered Logos_GetF accessor becomes one property, with
+// read-only decided by the matching Logos_SetF accessor exactly as the
+// checker decides. The set is sorted by name for deterministic lowering.
+// It reports false for non-property types.
+func LogosPropsOf(t Type) ([]LogosProp, bool) {
+	iface := logosPropertyInterface(t)
+	if iface == nil {
+		return nil, false
+	}
+	inner := logosProperties(iface)
+	out := make([]LogosProp, len(inner))
+	for i, pr := range inner {
+		out[i] = LogosProp{Name: pr.name, Typ: pr.typ, ReadOnly: pr.readOnly}
+	}
+	return out, true
+}
+
+// LogosConformsIface names one asserted property interface in package
+// path and name form, so a checker in another package can match it
+// against its own imported spelling without sharing objects.
+type LogosConformsIface struct {
+	PkgPath string
+	Name    string
+}
+
+// logosImportedConforms remembers `: I` declarations of imported
+// packages for .lgo importers (M4-S2, SPEC T-203.2): struct package path
+// to struct name to asserted interfaces. The importer overlay records
+// them from the imported package's prop facts; string keys keep the
+// table valid across package clones (the option overlay rebuilds
+// objects) and avoid pinning imported objects.
+var logosImportedConforms = struct {
+	mu sync.Mutex
+	m  map[string]map[string][]LogosConformsIface
+}{m: make(map[string]map[string][]LogosConformsIface)}
+
+// LogosNoteImportedConforms records that the struct typeName of the
+// package at structPath declares conformance to ifaces. It is called by
+// the importer overlay for .lgo importers from the prop facts of the
+// imported package. Repeat notes append; matching tolerates duplicates.
+func LogosNoteImportedConforms(structPath, typeName string, ifaces []LogosConformsIface) {
+	if structPath == "" || typeName == "" || len(ifaces) == 0 {
+		return
+	}
+	logosImportedConforms.mu.Lock()
+	defer logosImportedConforms.mu.Unlock()
+	byName := logosImportedConforms.m[structPath]
+	if byName == nil {
+		byName = make(map[string][]LogosConformsIface)
+		logosImportedConforms.m[structPath] = byName
+	}
+	byName[typeName] = append(byName[typeName], ifaces...)
+}
+
+// logosNamedKey names the interface T as the package path and type name
+// of its (unaliased, origin) named type. It reports false for types with
+// no such name.
+func logosNamedKey(T Type) (string, string, bool) {
+	named, ok := Unalias(T).(*Named)
+	if !ok {
+		return "", "", false
+	}
+	obj := named.Origin().Obj()
+	if obj == nil || obj.Pkg() == nil || obj.Name() == "" {
+		return "", "", false
+	}
+	return obj.Pkg().Path(), obj.Name(), true
+}
+
+// logosImportedConforms reports whether the struct named declares `: I`
+// conformance to T through the imported conformances of named's own
+// package. Both sides compare by package path and type name, which is
+// what archive facts carry across compilations.
+func (check *Checker) logosImportedConforms(named *Named, T Type) bool {
+	obj := named.Origin().Obj()
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	tp, tn, ok := logosNamedKey(T)
+	if !ok || tp == "" || tn == "" {
+		return false
+	}
+	logosImportedConforms.mu.Lock()
+	defer logosImportedConforms.mu.Unlock()
+	for _, r := range logosImportedConforms.m[obj.Pkg().Path()][obj.Name()] {
+		if r.PkgPath == tp && r.Name == tn {
+			return true
 		}
 	}
 	return false

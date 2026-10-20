@@ -119,23 +119,23 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #113 | M6 |  | planned |
 | #114 | M7 |  | planned |
 | #115 | M3 | src/internal/types/testdata/logos/union_exhaustive.lgo | tested |
-| #116 | M4 |  | planned |
-| #117 | M4 |  | planned |
-| #118 | M4 |  | planned |
+| #116 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
+| #117 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
+| #118 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #119 | M6 |  | planned |
-| #120 | M4 |  | planned |
+| #120 | M4 | test/logos/run/properties.lgo | tested |
 | #121 | M13 |  | planned |
 | #122 | M0 |  | planned |
 | #123 | M6, M11 |  | planned |
 | #124 | M13 |  | planned |
 | #125 |M1| test/logos/redteam/attack_125_errdefer_join | tested |
 | #126 | M6 |  | planned |
-| #127 | M4 |  | planned |
+| #127 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #128 | M7 |  | planned |
 | #129 | M7 |  | planned |
 | #130 | M7 |  | planned |
-| #131 | M4 |  | planned |
-| #132 | M4 |  | planned |
+| #131 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
+| #132 | M4 | test/logos/run/properties.lgo | tested |
 | #133 | M0 |  | planned |
 | #134 | M13 |  | planned |
 | #135 |M1| test/logos/redteam/attack_135_lifo_order | tested |
@@ -144,11 +144,11 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #138 | M18 |  | planned |
 | #139 | M11 |  | planned |
 | #140 | M5 |  | planned |
-| #141 | M4 |  | planned |
+| #141 | M4 | test/logos/run/properties.lgo | tested |
 | #142 | M6 |  | planned |
 | #143 | M8 |  | planned |
 | #144 | M17, M20 |  | planned |
-| #145 | M4 |  | planned |
+| #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #146 | M6 |  | planned |
 | #147 | M8 |  | planned |
 | #148 | M8, M9 |  | planned |

@@ -5,6 +5,7 @@
 package importer
 
 import (
+	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/types2"
 )
 
@@ -20,5 +21,37 @@ var LogosOverlayEnabled bool
 // point without pulling new dependencies here.
 func logosOverlayHook(pkg *types2.Package) *types2.Package {
 	LogosOverlayEnabled = false
+	logosRegisterPropFacts(pkg)
 	return pkg
+}
+
+// logosRegisterPropFacts records the `: I` conformances of an imported
+// loGo/s package for .lgo importers (M4-S2, SPEC T-203.2). The facts
+// registry already holds the package's __.LOGOS member under its import
+// path by the time ReadPackage returns; each conforms record becomes one
+// entry in the checker's imported-conformance table, keyed by struct
+// package path and name with the asserted interface as package path and
+// name. String keys keep the entries valid across package clones (the
+// noder option overlay rebuilds objects after this hook runs) and let a
+// checker in another package match its own spelling of the interface.
+// Packages without facts (plain Go, or types2 tests without archives)
+// leave the table unchanged.
+func logosRegisterPropFacts(pkg *types2.Package) {
+	if pkg == nil {
+		return
+	}
+	f, ok := facts.Lookup(pkg.Path())
+	if !ok || f == nil || len(f.Conforms) == 0 {
+		return
+	}
+	byType := make(map[string][]types2.LogosConformsIface)
+	for _, c := range f.Conforms {
+		if c.Type == "" || c.IfacePath == "" || c.Iface == "" {
+			continue
+		}
+		byType[c.Type] = append(byType[c.Type], types2.LogosConformsIface{PkgPath: c.IfacePath, Name: c.Iface})
+	}
+	for typeName, ifaces := range byType {
+		types2.LogosNoteImportedConforms(pkg.Path(), typeName, ifaces)
+	}
 }

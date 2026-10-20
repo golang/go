@@ -1,0 +1,33 @@
+// skip
+
+package main
+
+import "fmt"
+
+// M4-S2 codegen check (SPEC T-203.2; T-PERF rejects the 0ns claim):
+// a direct Logos_GetHP call on a concrete *Monster must inline to a
+// field load, so no call remains. The call below is spelled against the
+// generated accessor, which exists only after lowering; executing this
+// check needs -O=2, which M13-S1 ships. Until M13 proves the assertion
+// this file stays skipped so the gate stays green.
+
+// amd64:-"CALL"
+
+type Creature interface {
+	const Name string
+	HP int
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func loadHP(m *Monster) int {
+	return m.Logos_GetHP()
+}
+
+func main() {
+	m := &Monster{Name: "gorg", HP: 7}
+	fmt.Println(loadHP(m))
+}

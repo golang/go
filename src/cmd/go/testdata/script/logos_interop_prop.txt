@@ -1,0 +1,200 @@
+# M4-S2: property interfaces lower to Logos_GetF/Logos_SetF accessors (T-203.2).
+# A Go package in another workspace module asserts any(&m).(p.Creature),
+# reads Logos_GetName, writes Logos_SetHP(5), and the struct holds the
+# value. A .lgo package in the same loGo/s module declares
+# Orc : p.Creature; reads and writes through the interface reach the
+# struct. A third .lgo package asserts the imported conformance, which
+# type-checks through the prop facts. The ejected tree keeps the generated
+# accessors, go doc lists them on the interface, and the tree stays vet-
+# and gofmt-clean.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Case 1: everything builds; the Go binary and the .lgo binary print the
+# accessor results; the .lgo tests pass.
+cd w
+logos build ./...
+logos build -o $WORK/bin/prop$GOEXE ./g/cmd
+exec $WORK/bin/prop$GOEXE
+stdout '^name=Trog hp=5$'
+logos run ./l/cmdq
+stdout '^orc=Orc hp=7 r=6$'
+logos test ./...
+stdout '^ok\s+example\.com/l/q\s'
+cd ..
+
+# Case 2: the ejected tree keeps the generated accessors, runs under plain
+# go with identical output, and stays vet- and gofmt-clean; go doc lists
+# the accessors on the interface and on the declaring type. Eject runs
+# with the workspace off: the l module is self-contained, and eject
+# rejects multi-module workspaces.
+env GOWORK=off
+cd w/l
+# Eject takes the non-test tree; case 1 already ran the test.
+mv q/q_test.lgo $WORK/q_test.lgo
+logos eject -o bout
+exists bout/p/p.go
+exists bout/q/q.go
+exists bout/r/r.go
+grep 'Logos_GetName' bout/p/p.go
+grep 'Logos_GetHP' bout/p/p.go
+grep 'Logos_SetHP' bout/p/p.go
+grep 'Logos_GetHP' bout/q/q.go
+grep 'Logos_SetHP' bout/q/q.go
+cd bout
+go run ./cmdq
+stdout '^orc=Orc hp=7 r=6$'
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+go doc example.com/l/p.Creature
+stdout 'Logos_GetHP'
+stdout 'Logos_GetName'
+stdout 'Logos_SetHP'
+cd ..
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/p/p.lgo --
+package p
+
+type Creature interface {
+	const Name string
+	HP int
+	Start() error
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func (m Monster) Start() error { return nil }
+
+-- w/l/q/q.lgo --
+package q
+
+import "example.com/l/p"
+
+type Orc struct : p.Creature {
+	Name string
+	HP   int
+}
+
+func (o Orc) Start() error { return nil }
+
+func Run() string {
+	var o Orc
+	o.Name = "Orc"
+	o.HP = 6
+	var c p.Creature = &o
+	if got := c.Name; got != "Orc" {
+		return "bad-name:" + got
+	}
+	c.HP += 1
+	if o.HP != 7 {
+		return "bad-hp"
+	}
+	return "orc=Orc hp=7"
+}
+
+-- w/l/q/q_test.lgo --
+package q
+
+import (
+	"testing"
+
+	"example.com/l/p"
+)
+
+func TestThroughInterface(t *testing.T) {
+	var o Orc
+	o.HP = 1
+	var c p.Creature = &o
+	c.HP += 6
+	if o.HP != 7 {
+		t.Fatalf("o.HP = %d, want 7", o.HP)
+	}
+	if got := any(&o).(p.Creature).Name; got != "" {
+		t.Fatalf("Name = %q, want empty", got)
+	}
+}
+
+-- w/l/r/r.lgo --
+package r
+
+import (
+	"example.com/l/p"
+	"example.com/l/q"
+)
+
+var _ p.Creature = &q.Orc{}
+
+func HPOf(o *q.Orc) int {
+	var c p.Creature = o
+	return c.HP
+}
+
+-- w/l/cmdq/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/l/q"
+	"example.com/l/r"
+)
+
+func main() {
+	o := &q.Orc{Name: "Orc", HP: 6}
+	fmt.Println(q.Run(), "r="+fmt.Sprint(r.HPOf(o)))
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/qq/qq.go --
+package qq
+
+import "example.com/l/p"
+
+var _ p.Creature = &p.Monster{}
+
+func Run() string {
+	m := p.Monster{Name: "Trog"}
+	var a any = &m
+	c := a.(p.Creature)
+	name := c.Logos_GetName()
+	c.Logos_SetHP(5)
+	if m.HP != 5 {
+		return "bad-hp"
+	}
+	return "name=" + name + " hp=5"
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/qq"
+)
+
+func main() { fmt.Println(qq.Run()) }

@@ -153,6 +153,10 @@ func TestDecodeRejects(t *testing.T) {
 		{"negative comptime length", head + "comptime New -1\n", "line 3"},
 		{"truncated comptime", head + "comptime New 10\na\nb\n", "line 3"},
 		{"bad prop prefix", head + "prop I get-x\n", "line 3"},
+		{"conforms missing iface", head + "conforms Orc example.com/l/p\n", "line 3"},
+		{"conforms extra field", head + "conforms Orc example.com/l/p Creature x\n", "line 3"},
+		{"conforms bad struct", head + "conforms T. example.com/l/p Creature\n", "line 3"},
+		{"conforms bad interface", head + "conforms Orc example.com/l/p 9lives\n", "line 3"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -269,6 +273,51 @@ func writeArchive(t *testing.T, data []byte) *os.File {
 	}
 	t.Cleanup(func() { f.Close() })
 	return f
+}
+
+// TestConformsRoundTrip covers the M4-S2 conforms records: each type's
+// declared conformances encode canonically, decode back, and sort with
+// the other records; vacuous records are skipped like every other kind.
+func TestConformsRoundTrip(t *testing.T) {
+	fp := goobj.FingerprintType{2}
+	in := &facts.Facts{
+		Fingerprint: fp,
+		Props: []facts.PropFact{
+			{Interface: "Creature", Prefix: "Logos_"},
+		},
+		Conforms: []facts.ConformsFact{
+			{Type: "Orc", IfacePath: "example.com/l/p", Iface: "Creature"},
+			{Type: "Monster", IfacePath: "example.com/l/p", Iface: "Creature"},
+			{Type: "", IfacePath: "example.com/l/p", Iface: "Creature"},
+			{Type: "Wisp", IfacePath: "", Iface: "Creature"},
+			{Type: "Wisp", IfacePath: "example.com/l/p", Iface: ""},
+		},
+	}
+	want := "logos-facts 1\n" +
+		"fingerprint 0200000000000000\n" +
+		"conforms Monster example.com/l/p Creature\n" +
+		"conforms Orc example.com/l/p Creature\n" +
+		"prop Creature Logos_\n"
+	if got := string(facts.Encode(fp, in)); got != want {
+		t.Fatalf("Encode mismatch:\n got %q\nwant %q", got, want)
+	}
+	back, err := facts.Decode([]byte(want))
+	if err != nil {
+		t.Fatalf("Decode failed: %v", err)
+	}
+	wantBack := &facts.Facts{
+		Fingerprint: fp,
+		Props: []facts.PropFact{
+			{Interface: "Creature", Prefix: "Logos_"},
+		},
+		Conforms: []facts.ConformsFact{
+			{Type: "Monster", IfacePath: "example.com/l/p", Iface: "Creature"},
+			{Type: "Orc", IfacePath: "example.com/l/p", Iface: "Creature"},
+		},
+	}
+	if !reflect.DeepEqual(back, wantBack) {
+		t.Fatalf("round trip mismatch:\n got %+v\nwant %+v", back, wantBack)
+	}
 }
 
 func TestFindMember(t *testing.T) {

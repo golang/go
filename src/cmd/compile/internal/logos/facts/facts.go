@@ -22,6 +22,7 @@
 //	const <object> <path>
 //	fn <object> <flag>[,<flag>...]
 //	prop <interface> <accessor-function-prefix>
+//	conforms <struct> <interface-package-path> <interface>
 //	comptime <object> <byte length>
 //	<source bytes>
 //
@@ -90,6 +91,16 @@ type PropFact struct {
 	Prefix    string
 }
 
+// ConformsFact is one conforms record: a struct type of this package and
+// one property interface it declares conformance to, named as the
+// interface's package path and type name so an importer in another
+// package can match its own spelling of the same interface.
+type ConformsFact struct {
+	Type      string
+	IfacePath string
+	Iface     string
+}
+
 // ComptimeFact is one comptime record: the source of an exported comptime
 // generic and the declarations it references.
 type ComptimeFact struct {
@@ -104,6 +115,7 @@ type Facts struct {
 	Consts      []PathFact
 	Fns         []FnFact
 	Props       []PropFact
+	Conforms    []ConformsFact
 	Comptimes   []ComptimeFact
 }
 
@@ -138,6 +150,11 @@ func Encode(fp goobj.FingerprintType, f *Facts) []byte {
 		for _, p := range f.Props {
 			if p.Interface != "" && p.Prefix != "" {
 				recs = append(recs, record{line: "prop " + p.Interface + " " + p.Prefix})
+			}
+		}
+		for _, c := range f.Conforms {
+			if c.Type != "" && c.IfacePath != "" && c.Iface != "" {
+				recs = append(recs, record{line: "conforms " + c.Type + " " + c.IfacePath + " " + c.Iface})
 			}
 		}
 		for _, c := range f.Comptimes {
@@ -348,6 +365,20 @@ func Decode(data []byte) (*Facts, error) {
 				return nil, fmt.Errorf("logos facts line %d: bad accessor prefix %q", ln, fields[2])
 			}
 			f.Props = append(f.Props, PropFact{Interface: fields[1], Prefix: fields[2]})
+		case strings.HasPrefix(line, "conforms "):
+			if len(fields) != 4 {
+				return nil, fmt.Errorf(`logos facts line %d: bad conforms record %q (want "conforms <struct> <package> <interface>")`, ln, line)
+			}
+			if !validObject(fields[1]) {
+				return nil, fmt.Errorf("logos facts line %d: bad struct %q", ln, fields[1])
+			}
+			if fields[2] == "" {
+				return nil, fmt.Errorf("logos facts line %d: bad package %q", ln, fields[2])
+			}
+			if !isIdent(fields[3]) {
+				return nil, fmt.Errorf("logos facts line %d: bad interface %q", ln, fields[3])
+			}
+			f.Conforms = append(f.Conforms, ConformsFact{Type: fields[1], IfacePath: fields[2], Iface: fields[3]})
 		case strings.HasPrefix(line, "comptime "):
 			if len(fields) != 3 {
 				return nil, fmt.Errorf(`logos facts line %d: bad comptime record %q (want "comptime <object> <length>")`, ln, line)

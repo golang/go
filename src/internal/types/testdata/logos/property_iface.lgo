@@ -201,3 +201,15 @@ type BadName struct {
 }
 
 func (b BadName) Logos_GetX /* ERROR "correctness::reserved_identifier" */ () int { return 0 }
+
+// A declared Logos_GetHP method on a conforming type still hits the
+// reserved identifier rule: it is never an accessor source.
+
+type Sneaky struct : Creature {
+	Name string
+	HP   int
+}
+
+func (s Sneaky) Start() error { return nil }
+
+func (s Sneaky) Logos_GetHP /* ERROR "correctness::reserved_identifier" */ () int { return 0 }

@@ -1,0 +1,160 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+// M4-S2 interface properties (SPEC Sec 2.3, T-203.2): reads and writes
+// through a property interface reach the struct through the generated
+// Logos_GetF/Logos_SetF accessors; compound updates pin the receiver
+// once; method calls on a struct-typed property write back (#132, #141);
+// only declaring types gain accessors (#120).
+
+type Creature interface {
+	const Name string
+	HP int
+	Start() error
+}
+
+type Monster struct : Creature {
+	Name string
+	HP   int
+}
+
+func (m Monster) Start() error { return nil }
+
+// A struct with no `: I` list gains no accessors (#120).
+
+type Plain struct {
+	X int
+}
+
+func (p Plain) Foo() string { return "foo" }
+
+// A method with no backing field sources a read-only property.
+
+type Named interface {
+	const Title string
+}
+
+type Ghost struct : Named {
+}
+
+func (g Ghost) Title() string { return "boo" }
+
+// Methods source a read-write property: Secret() plus SetSecret.
+
+type Vault interface {
+	Secret int
+}
+
+type Safe struct : Vault {
+	hidden int
+}
+
+func (s Safe) Secret() int { return s.hidden }
+
+func (s *Safe) SetSecret(v int) { s.hidden = v }
+
+// A struct-typed property for method-call write-back (#141).
+
+type Vec struct {
+	X int
+	Y int
+}
+
+func (v *Vec) Normalize() {
+	if v.X < 0 {
+		v.X = -v.X
+	}
+}
+
+func (v Vec) Len() int {
+	if v.X < 0 {
+		return -v.X
+	}
+	return v.X
+}
+
+type Carrier interface {
+	Pos Vec
+}
+
+type Bot struct : Carrier {
+	Pos Vec
+}
+
+// An embedded struct field sources a property by Go selector depth.
+
+type Base struct {
+	HP int
+}
+
+type Child struct : Creature {
+	Base
+	Name string
+}
+
+func (c Child) Start() error { return nil }
+
+var nextCalls int
+
+func next() int {
+	nextCalls++
+	return 0
+}
+
+func two() (int, int) { return 3, 4 }
+
+func main() {
+	var m Monster
+	m.Name = "gorg"
+	m.HP = 100
+	var c Creature = &m
+	fmt.Println(c.Name)
+	c.HP -= 10
+	fmt.Println(m.HP)
+
+	party := []Creature{&m}
+	party[next()].HP += 10
+	fmt.Println(m.HP, nextCalls)
+
+	var b Bot
+	b.Pos = Vec{X: -3, Y: 4}
+	var crr Carrier = &b
+	crr.Pos.Normalize()
+	fmt.Println(b.Pos.X)
+	fmt.Println(crr.Pos.Len())
+
+	var g Ghost
+	var n Named = g
+	fmt.Println(n.Title)
+
+	var s Safe
+	s.hidden = 7
+	var v Vault = &s
+	v.Secret += 5
+	fmt.Println(s.hidden)
+
+	var ch Child
+	ch.Name = "kid"
+	ch.HP = 50
+	var c2 Creature = &ch
+	c2.HP -= 5
+	fmt.Println(ch.HP)
+	c2.HP = 60
+	fmt.Println(ch.HP)
+
+	a := 0
+	a, c.HP = two()
+	fmt.Println(a, m.HP)
+	k := crr.Pos.Len()
+	fmt.Println(k)
+
+	fmt.Println(reflect.TypeOf(Plain{}).NumMethod())
+	fmt.Println(reflect.TypeOf(Monster{}).NumMethod())
+	fmt.Println(reflect.TypeOf(&Monster{}).NumMethod())
+}
