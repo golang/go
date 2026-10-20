@@ -1,0 +1,32 @@
+// run
+
+package main
+
+import "fmt"
+
+func apply(f func(int) int, x int) int {
+	return f(x)
+}
+
+func dbl(x int) int {
+	return 2 * x
+}
+
+func mk(f func(int) []int, x int) []int {
+	return f(x)
+}
+
+func main() {
+	fmt.Println(apply(x => dbl(x), 21))
+	fmt.Println(mk(x => []int{x, x}, 3))
+	var abs func(int) int = x => {
+		if x > 0 {
+			return x
+		}
+		return -x
+	}
+	fmt.Println(abs(-4))
+	fmt.Println(abs(5))
+	var add func(int) func(int) int = x => y => x + y
+	fmt.Println(add(2)(3))
+}

@@ -6,6 +6,7 @@ package logos
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	"cmd/compile/internal/syntax"
@@ -19,7 +20,9 @@ import (
 // already ran, so no TryExpr may remain); a block body carries over.
 // Native tree and eject text come from one function-type spelling.
 
-// lowerLambdas rewrites every lambda of one file.
+// lowerLambdas rewrites every lambda of one file, innermost first: an
+// outer body copies its source through textOf, which folds the splices
+// an inner lambda already recorded instead of overlapping them.
 func (fl *fileLower) lowerLambdas() {
 	var lams []*syntax.LambdaExpr
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
@@ -28,10 +31,43 @@ func (fl *fileLower) lowerLambdas() {
 		}
 		return true
 	})
-	for _, lam := range lams {
-		fl.lowerLambdaExpr(lam)
+	for i := len(lams) - 1; i >= 0; i-- {
+		fl.lowerLambdaExpr(lams[i])
 	}
 	fl.flushTypeImports()
+}
+
+// lambdaBodyEnd returns the end of the expression starting at from: the
+// end of its last token. Brackets nest, and a comma, semicolon, or
+// closing bracket at the body's own depth ends it, as does an automatic
+// semicolon there. The node end cannot serve: EndPos of a call sits at
+// its function and EndPos of a composite literal can miss its closing
+// brace, so the splice end comes from the source tokens instead.
+func lambdaBodyEnd(src []byte, from int) int {
+	end := from
+	depth := 0
+	scanSegment(src, from, len(src), func(t tok) bool {
+		if t.comment {
+			return true
+		}
+		if t.auto {
+			return depth > 0
+		}
+		switch t.kind {
+		case token.LPAREN, token.LBRACK, token.LBRACE:
+			depth++
+		case token.RPAREN, token.RBRACK, token.RBRACE, token.COMMA, token.SEMICOLON:
+			if depth == 0 {
+				return false
+			}
+			if t.kind != token.COMMA && t.kind != token.SEMICOLON {
+				depth--
+			}
+		}
+		end = t.end
+		return true
+	})
+	return end
 }
 
 // lowerLambdaExpr rewrites one lambda to a function literal.
@@ -75,6 +111,8 @@ func (fl *fileLower) lowerLambdaExpr(lam *syntax.LambdaExpr) {
 	end := fl.off(syntax.EndPos(lam))
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
 		end = fl.off(block.Rbrace) + 1
+	} else if expr, ok := lam.Body.(syntax.Expr); ok {
+		end = lambdaBodyEnd(fl.src, fl.off(syntax.StartPos(expr)))
 	}
 	fl.add(fl.off(syntax.StartPos(lam)), end, fullText)
 	replaceTupleExpr(fl.file, lam, lit)
@@ -112,8 +150,8 @@ func (fl *fileLower) lambdaResultSpell(pos syntax.Pos, sig *types2.Signature) ([
 // lambdaBody builds the function body and its text for a lambda.
 func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, pos syntax.Pos) (*syntax.BlockStmt, string) {
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
-		text := fl.textOf(span{fl.off(syntax.StartPos(block)), fl.off(syntax.EndPos(block))})
-		return block, strings.TrimSuffix(strings.TrimPrefix(text, "{"), "}")
+		text := fl.textOf(span{fl.off(syntax.StartPos(block)) + 1, fl.off(block.Rbrace)})
+		return block, text
 	}
 	expr, ok := lam.Body.(syntax.Expr)
 	if !ok {
@@ -122,11 +160,8 @@ func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, p
 	if t, ok := syntax.Unparen(expr).(*syntax.TryExpr); ok {
 		return fl.lambdaTryBody(sig, pos, t)
 	}
-	espan := span{fl.off(syntax.StartPos(expr)), fl.off(syntax.EndPos(expr))}
-	if call, ok := syntax.Unparen(expr).(*syntax.CallExpr); ok {
-		espan = fl.tupleCallSpan(call)
-	}
-	text := fl.textOf(espan)
+	start := fl.off(syntax.StartPos(expr))
+	text := fl.textOf(span{start, lambdaBodyEnd(fl.src, start)})
 	return blockOf(pos, []syntax.Stmt{returnOf(pos, []syntax.Expr{expr})}), "return " + text
 }
 
