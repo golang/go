@@ -6,9 +6,11 @@ package regexp
 
 import (
 	"bytes"
+	"internal/race"
 	"reflect"
 	"regexp/syntax"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
@@ -626,6 +628,60 @@ func BenchmarkFind(b *testing.B) {
 		if string(subs) != wantSubs {
 			b.Fatalf("Find(%q) = %q; want %q", s, subs, wantSubs)
 		}
+	}
+}
+
+func TestFindAllCapturesAllocs(t *testing.T) {
+	if race.Enabled {
+		t.Skip("The race detector randomly drops pooled objects.")
+	}
+	text := strings.Repeat("ab", 10)
+	data := []byte(text)
+	withoutCaptures := MustCompile("a")
+	withCaptures := MustCompile(strings.Repeat("(", 10) + "a" + strings.Repeat(")", 10))
+	for _, test := range []struct {
+		name string
+		find func(*Regexp)
+	}{
+		{"FindAll", func(re *Regexp) { re.FindAll(data, -1) }},
+		{"FindAllString", func(re *Regexp) { re.FindAllString(text, -1) }},
+		{"FindAllIndex", func(re *Regexp) { re.FindAllIndex(data, -1) }},
+		{"FindAllStringIndex", func(re *Regexp) { re.FindAllStringIndex(text, -1) }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			// Captures must not add allocations when only whole matches are requested.
+			without := testing.AllocsPerRun(100, func() { test.find(withoutCaptures) })
+			with := testing.AllocsPerRun(100, func() { test.find(withCaptures) })
+			if with > without {
+				t.Errorf("with captures: %v allocations; without captures: %v", with, without)
+			}
+		})
+	}
+}
+
+func BenchmarkFindAllCaptures(b *testing.B) {
+	text := strings.Repeat("ab", 10)
+	data := []byte(text)
+	for _, captures := range []int{0, 1, 10, 100} {
+		re := MustCompile(strings.Repeat("(", captures) + "a" + strings.Repeat(")", captures))
+		b.Run(strconv.Itoa(captures), func(b *testing.B) {
+			for _, test := range []struct {
+				name string
+				find func()
+			}{
+				{"FindAll", func() { re.FindAll(data, -1) }},
+				{"FindAllString", func() { re.FindAllString(text, -1) }},
+				{"FindAllIndex", func() { re.FindAllIndex(data, -1) }},
+				{"FindAllStringIndex", func() { re.FindAllStringIndex(text, -1) }},
+			} {
+				b.Run(test.name, func(b *testing.B) {
+					b.ReportAllocs()
+					for b.Loop() {
+						test.find()
+					}
+				})
+			}
+		})
 	}
 }
 
