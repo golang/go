@@ -116,6 +116,8 @@ func (fl *fileLower) lowerChainList(list []syntax.Stmt, enc []chainResult) []syn
 		for _, child := range tupleChildLists(s) {
 			*child = fl.lowerChainList(*child, enc)
 		}
+		fl.lowerChainElseIf(s, enc)
+		fl.lowerChainConstBodies(s, enc)
 		syntax.Inspect(s, func(n syntax.Node) bool {
 			if lit, ok := n.(*syntax.FuncLit); ok {
 				if fl.transparent[lit] {
@@ -138,7 +140,7 @@ func (fl *fileLower) lowerChainPkgDecl(decl *syntax.VarDecl) {
 		return
 	}
 	for _, call := range fl.chainsInDecl(decl) {
-		for _, h := range fl.lowerChainTopLevel(call, nil, 0) {
+		for _, h := range fl.lowerChainTopLevel(call, nil) {
 			_ = h
 			base.Fatalf("logos: ?-chain outside function at %s", call.Pos().String())
 		}
@@ -201,12 +203,100 @@ func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.S
 	stmtStart := fl.stmtStartOf(s)
 	var hoists []syntax.Stmt
 	for _, call := range calls {
-		for _, h := range fl.lowerChainTopLevel(call, enc, stmtStart) {
+		for _, h := range fl.lowerChainTopLevel(call, enc) {
 			hoists = append(hoists, h.stmts...)
 			fl.add(stmtStart, stmtStart, h.text+"; ")
 		}
 	}
 	return hoists
+}
+
+// lowerChainElseIf lowers an else-if chain with guarded hoists: every
+// else-if header evaluates only when its branch is reached, so a
+// `?`-chain in a header wraps its branch in a block holding the hoist
+// ahead of the narrowed header. Longer chains wrap recursively, and
+// every branch body lowers at its own statement.
+func (fl *fileLower) lowerChainElseIf(s syntax.Stmt, enc []chainResult) {
+	if lab, ok := s.(*syntax.LabeledStmt); ok {
+		fl.lowerChainElseIf(lab.Stmt, enc)
+		return
+	}
+	ifs, ok := s.(*syntax.IfStmt)
+	if !ok {
+		return
+	}
+	els, ok := ifs.Else.(*syntax.IfStmt)
+	if !ok {
+		return
+	}
+	fl.lowerChainElseIfHead(ifs, els, enc)
+	for _, child := range tupleChildLists(els) {
+		*child = fl.lowerChainList(*child, enc)
+	}
+	fl.lowerChainElseIf(els, enc)
+}
+
+// lowerChainElseIfHead lowers the header chains of one else-if, wrapping
+// the branch in a block when a `?`-chain hoists so the computation runs
+// only when the outer condition fails. Plain chains lower in place and
+// need no guard.
+func (fl *fileLower) lowerChainElseIfHead(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []chainResult) {
+	calls := fl.chainsInStmt(els)
+	var hoists []syntax.Stmt
+	var text strings.Builder
+	text.WriteString("{ ")
+	for _, call := range calls {
+		for _, h := range fl.lowerChainTopLevel(call, enc) {
+			hoists = append(hoists, h.stmts...)
+			text.WriteString(h.text + "; ")
+		}
+	}
+	if len(hoists) == 0 {
+		return
+	}
+	elsPos := fl.off(syntax.StartPos(els))
+	fl.add(elsPos, elsPos, text.String())
+	fl.add(fl.off(syntax.EndPos(els)), fl.off(syntax.EndPos(els)), " }")
+	ifs.Else = &syntax.BlockStmt{List: append(hoists, els)}
+}
+
+// lowerChainConstBodies lowers chains in const-if, const-switch, and
+// group bodies, which hold statement lists outside tupleChildLists.
+// Chain lowering runs before those statements desugar, so the child
+// walk alone would leave their chains unlowered.
+func (fl *fileLower) lowerChainConstBodies(s syntax.Stmt, enc []chainResult) {
+	if lab, ok := s.(*syntax.LabeledStmt); ok {
+		fl.lowerChainConstBodies(lab.Stmt, enc)
+		return
+	}
+	switch s := s.(type) {
+	case *syntax.ConstIfStmt:
+		s.Then.List = fl.lowerChainList(s.Then.List, enc)
+		switch els := s.Else.(type) {
+		case *syntax.BlockStmt:
+			els.List = fl.lowerChainList(els.List, enc)
+		case *syntax.ConstIfStmt:
+			fl.lowerChainConstBodies(els, enc)
+		}
+	case *syntax.ConstSwitchStmt:
+		for _, c := range s.Cases {
+			c.Body = fl.lowerChainList(c.Body, enc)
+		}
+	case *syntax.GroupStmt:
+		fl.lowerChainGroupBody(s, enc)
+	}
+}
+
+// lowerChainGroupBody lowers the synchronous statements of a group body,
+// then every group child body in place. Hoists keep the enclosing
+// results, matching the previous placement before the group statement.
+func (fl *fileLower) lowerChainGroupBody(s *syntax.GroupStmt, enc []chainResult) {
+	s.Body.List = fl.lowerChainList(s.Body.List, enc)
+	for _, st := range s.Body.List {
+		if gc, ok := st.(*syntax.GroupChild); ok {
+			gc.Body.List = fl.lowerChainList(gc.Body.List, enc)
+		}
+	}
 }
 
 // stmtStartOf reports the offset of the first token of s, where hoisted
@@ -227,8 +317,8 @@ func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
 }
 
 // lowerChainTopLevel lowers one outermost chain, returning hoists.
-func (fl *fileLower) lowerChainTopLevel(call *syntax.CallExpr, enc []chainResult, stmtStart int) []chainHoist {
-	cg := &chainGen{fl: fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: enc, stmtStart: stmtStart}
+func (fl *fileLower) lowerChainTopLevel(call *syntax.CallExpr, enc []chainResult) []chainHoist {
+	cg := &chainGen{fl: fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: enc}
 	cg.run(call)
 	return cg.hoists
 }
@@ -238,13 +328,21 @@ func chainPrefix(pos syntax.Pos) string {
 	return fmt.Sprintf("_logos_ch%d_%d", pos.Line(), pos.Col())
 }
 
-// chainsInStmt collects the outermost chain calls of s in inner-first
-// order, skipping nested function literals other than transparent
-// option wrappers, whose chains belong to the enclosing function.
+// chainsInStmt collects the outermost chain calls evaluated with s in
+// inner-first order, skipping nested statements, whose chains the child
+// list walk lowers at their own statements, and nested function
+// literals other than transparent option wrappers, whose chains belong
+// to the enclosing function. Only source statements lowered elsewhere
+// are skipped, so generated wrappers stay visible.
 func (fl *fileLower) chainsInStmt(s syntax.Stmt) []*syntax.CallExpr {
+	skip := make(map[syntax.Stmt]bool)
+	nestedChainStmts(s, skip)
 	var all []*syntax.CallExpr
 	syntax.Inspect(s, func(n syntax.Node) bool {
 		if lit, ok := n.(*syntax.FuncLit); ok && !fl.transparent[lit] {
+			return false
+		}
+		if st, ok := n.(syntax.Stmt); ok && st != s && skip[st] {
 			return false
 		}
 		if call, ok := n.(*syntax.CallExpr); ok && fl.isChainCall(call) {
@@ -253,6 +351,61 @@ func (fl *fileLower) chainsInStmt(s syntax.Stmt) []*syntax.CallExpr {
 		return true
 	})
 	return fl.outermostChains(all)
+}
+
+// nestedChainStmts marks the statements under s whose chains lower at
+// their own statements: nested list members and else-if links, whose
+// headers lower with guarded hoists.
+func nestedChainStmts(s syntax.Stmt, skip map[syntax.Stmt]bool) {
+	if lab, ok := s.(*syntax.LabeledStmt); ok {
+		nestedChainStmts(lab.Stmt, skip)
+	}
+	for _, child := range tupleChildLists(s) {
+		for _, st := range *child {
+			skip[st] = true
+		}
+	}
+	if ifs, ok := s.(*syntax.IfStmt); ok {
+		for els, ok := ifs.Else.(*syntax.IfStmt); ok; els, ok = els.Else.(*syntax.IfStmt) {
+			skip[els] = true
+			nestedChainStmts(els, skip)
+		}
+	}
+	markConstGroupLists(s, skip)
+	if gc, ok := s.(*syntax.GroupChild); ok {
+		for _, st := range gc.Body.List {
+			skip[st] = true
+		}
+	}
+}
+
+// markConstGroupLists marks const-if, const-switch, and group bodies,
+// whose lists live outside tupleChildLists.
+func markConstGroupLists(s syntax.Stmt, skip map[syntax.Stmt]bool) {
+	switch s := s.(type) {
+	case *syntax.ConstIfStmt:
+		for _, st := range s.Then.List {
+			skip[st] = true
+		}
+		switch els := s.Else.(type) {
+		case *syntax.BlockStmt:
+			for _, st := range els.List {
+				skip[st] = true
+			}
+		case *syntax.ConstIfStmt:
+			markConstGroupLists(els, skip)
+		}
+	case *syntax.ConstSwitchStmt:
+		for _, c := range s.Cases {
+			for _, st := range c.Body {
+				skip[st] = true
+			}
+		}
+	case *syntax.GroupStmt:
+		for _, st := range s.Body.List {
+			skip[st] = true
+		}
+	}
 }
 
 // chainSpan reports the full source span of a chain call.
@@ -469,15 +622,14 @@ func (fl *fileLower) chainOpOf(cur *syntax.CallExpr, method string) chainOp {
 
 // chainGen carries one chain emission.
 type chainGen struct {
-	fl        *fileLower
-	pos       syntax.Pos
-	prefix    string
-	enc       []chainResult
-	stmtStart int
-	whole     span
-	kept      []span
-	hoists    []chainHoist
-	elemT     types2.Type
+	fl     *fileLower
+	pos    syntax.Pos
+	prefix string
+	enc    []chainResult
+	whole  span
+	kept   []span
+	hoists []chainHoist
+	elemT  types2.Type
 }
 
 // run lowers a chain call, appending hoists for nested `?`-chains.
@@ -691,7 +843,7 @@ func (cg *chainGen) sub(e syntax.Expr, recv span) string {
 // its own prefix, merging its hoists ahead of this run's. Its splices
 // stay recorded for the enclosing saved spans to compose.
 func (cg *chainGen) lowerNested(call *syntax.CallExpr) {
-	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc, stmtStart: cg.stmtStart}
+	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc}
 	sub.run(call)
 	cg.hoists = append(cg.hoists, sub.hoists...)
 }

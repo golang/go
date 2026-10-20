@@ -1,0 +1,151 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var calls int
+var errNeg = errors.New("neg")
+
+func parse(x int) (int, error) {
+	calls++
+	if x < 0 {
+		return 0, errNeg
+	}
+	return 2 * x, nil
+}
+
+func ifFalse(xs []int) (string, error) {
+	calls = 0
+	out := "none"
+	ok := false
+	if ok {
+		ys := xs.map(x => parse(x)?)
+		out = fmt.Sprint(ys)
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+func switchCase(tag int, xs []int) (string, error) {
+	calls = 0
+	switch tag {
+	case 1:
+		ys := xs.map(x => parse(x)?)
+		return fmt.Sprintf("%v calls=%d", ys, calls), nil
+	default:
+		return fmt.Sprintf("default calls=%d", calls), nil
+	}
+}
+
+func condBlock(flag bool, xs []int) (string, error) {
+	calls = 0
+	out := "outer"
+	if flag {
+		{
+			ys := xs.map(x => parse(x)?)
+			out = fmt.Sprint(ys)
+		}
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+func flatBlock(xs []int) (string, error) {
+	calls = 0
+	out := "outer"
+	{
+		ys := xs.map(x => parse(x)?)
+		out = fmt.Sprint(ys)
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+func loopCount(xs []int, n int) (int, int, error) {
+	calls = 0
+	total := 0
+	for i := 0; i < n; i++ {
+		ys := xs.map(x => parse(x)?)
+		total += len(ys)
+	}
+	return total, calls, nil
+}
+
+func rangeGroups(groups [][]int) (int, error) {
+	total := 0
+	for _, xs := range groups {
+		ys := xs.map(x => parse(x)?)
+		total += len(ys)
+	}
+	return total, nil
+}
+
+func elseIfHeader(flag bool, xs []int) (string, error) {
+	calls = 0
+	if flag {
+		return fmt.Sprintf("first calls=%d", calls), nil
+	} else if ys := xs.map(x => parse(x)?); len(ys) > 0 {
+		return fmt.Sprintf("%v calls=%d", ys, calls), nil
+	}
+	return fmt.Sprintf("none calls=%d", calls), nil
+}
+
+func elseIfChain(which int, xs []int) (string, error) {
+	calls = 0
+	if which == 1 {
+		return fmt.Sprintf("one calls=%d", calls), nil
+	} else if ys := xs.map(x => parse(x)?); len(ys) > 0 {
+		return fmt.Sprintf("two calls=%d", calls), nil
+	} else if len(xs) > 1 {
+		return "three", nil
+	}
+	return "none", nil
+}
+
+func constIfChain(xs []int) (string, error) {
+	calls = 0
+	const if 1 == 1 {
+		ys := xs.map(x => parse(x)?)
+		return fmt.Sprintf("%v calls=%d", ys, calls), nil
+	} else {
+		return "dead", nil
+	}
+}
+
+func show(name string, v any, err error) {
+	if err != nil {
+		fmt.Println(name, "err:", err)
+		return
+	}
+	fmt.Println(name, v)
+}
+
+func main() {
+	s, err := ifFalse([]int{-1, 2})
+	show("if", s, err)
+	s, err = switchCase(2, []int{-1})
+	show("switch", s, err)
+	s, err = condBlock(false, []int{-1})
+	show("block", s, err)
+	s, err = flatBlock([]int{1, 2})
+	show("flat", s, err)
+	total, n, err := loopCount([]int{1, 2}, 3)
+	if err != nil {
+		fmt.Println("loop err:", err)
+		return
+	}
+	fmt.Println("loop", total, n)
+	total, err = rangeGroups([][]int{{1, 2}, {3}})
+	show("range", total, err)
+	s, err = elseIfHeader(true, []int{-1})
+	show("elseif", s, err)
+	s, err = elseIfChain(1, []int{-1})
+	show("elseifchain", s, err)
+	s, err = elseIfChain(2, []int{-1})
+	show("elseifreach", s, err)
+	s, err = elseIfChain(2, []int{1, 2})
+	show("elseifok", s, err)
+	s, err = constIfChain([]int{1, 2})
+	show("constif", s, err)
+}

@@ -1,0 +1,11 @@
+if none calls=0
+switch default calls=0
+block outer calls=0
+flat [2 4] calls=2
+loop 6 6
+range 3
+elseif first calls=0
+elseifchain one calls=0
+elseifreach err: neg
+elseifok two calls=2
+constif [2 4] calls=2
