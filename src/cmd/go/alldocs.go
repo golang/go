@@ -1705,9 +1705,12 @@
 // test caching explicitly is to use -count=1. Tests that open files within
 // the package's module or that consult environment variables only
 // match future runs in which the files and environment variables are
-// unchanged. A cached test result is treated as executing in no time
-// at all, so a successful package test result will be cached and
-// reused regardless of -timeout setting.
+// unchanged. For files, the cache checks file metadata such as
+// modification time and size, not content. A cached
+// test result is treated as executing in no time at all, so a successful
+// package test result will be cached and reused regardless of -timeout
+// setting. See 'go help cache' for more information about debugging
+// cache decisions.
 //
 // In addition to the build flags, the flags handled by 'go test' itself are:
 //
