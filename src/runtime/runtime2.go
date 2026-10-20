@@ -665,6 +665,7 @@ type m struct {
 	newSigstack     bool // minit on C thread called sigaltstack
 	printlock       int8
 	incgo           bool          // m is executing a cgo call
+	inFastCall      bool          // m is executing a logos fast cgo call (M20-S1)
 	isextra         bool          // m is an extra m
 	isExtraInC      bool          // m is an extra m that does not have any Go frames
 	isExtraInSig    bool          // m is an extra m in a signal handler
@@ -849,6 +850,11 @@ type p struct {
 	// Cache of a single pinner object to reduce allocations from repeated
 	// pinner creation.
 	pinnerCache *pinner
+
+	// Fast-cgo call state (M20-S1): pinned argument frames and the call
+	// start timestamp. Zero outside a fast call.
+	cgoPinnedPtrs     [4]uintptr // pinned fast-cgo argument frames
+	fastCallEnterNano int64      // fast-cgo call start timestamp
 
 	trace pTraceState
 

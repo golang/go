@@ -435,6 +435,7 @@ func main() {
 			f.Edit = edit.NewBuffer(b)
 			f.ParseGo(input, b)
 			f.ProcessCgoDirectives()
+			logosMapFastcallDirectives(f, input)
 			gccIsClang := f.loadDefines(p.GccOptions)
 			once.Do(func() {
 				p.GccIsClang = gccIsClang

@@ -1,0 +1,24 @@
+// Nocallback fixture (M20-S1): the .lgo spelling of a nocallback C
+// function that calls back into Go. `logos run` must panic with the
+// documented message instead of hanging or succeeding.
+package main
+
+/*
+extern int GoCallback(int v);
+
+//logos:cgo_fastcall cb_fire
+int cb_fire(void) { return GoCallback(41); }
+*/
+import "C"
+
+import "fmt"
+
+func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("panicked:", r)
+		}
+	}()
+	fmt.Println(int(C.cb_fire()))
+	fmt.Println("survived")
+}

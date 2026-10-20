@@ -1,0 +1,54 @@
+// Fast-call fixture (M20-S1): Go-syntax .lgo cgo file using the
+// //logos:cgo_fastcall spelling. Built, run, and inspected by the
+// testlogos battery.
+package main
+
+/*
+#include <stdint.h>
+
+//logos:cgo_fastcall caddf
+//logos:cgo_fastcall cbusyf
+int caddf(int a, int b) { return a + b; }
+static unsigned long long do_spin(unsigned long long iters) {
+	unsigned long long x = 0;
+	for (unsigned long long i = 0; i < iters; i++) {
+		x += i * 6364136223846793005ULL + 1442695040888963407ULL;
+	}
+	return x;
+}
+unsigned long long cbusyf(unsigned long long iters) { return do_spin(iters); }
+*/
+import "C"
+
+import (
+	"fmt"
+	"os"
+	"runtime/pprof"
+	"strconv"
+)
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "busy" {
+		f, err := os.Create(os.Args[2])
+		if err != nil {
+			fmt.Println("profile:", err)
+			os.Exit(1)
+		}
+		n, err := strconv.Atoi(os.Args[3])
+		if err != nil {
+			fmt.Println("iters:", err)
+			os.Exit(1)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fmt.Println("prof:", err)
+			os.Exit(1)
+		}
+		C.cbusyf(20000000)
+		x := C.cbusyf(C.ulonglong(n))
+		pprof.StopCPUProfile()
+		f.Close()
+		fmt.Println(uint64(x))
+		return
+	}
+	fmt.Println(int(C.caddf(40, 2)))
+}

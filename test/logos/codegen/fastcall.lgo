@@ -1,0 +1,19 @@
+// build
+
+// M20-S1 attack: the .lgo toolchain references the single fast-call
+// trampoline runtime.logosCgocallFast. Before the slice lands the
+// symbol does not exist, so linking fails. After, the build succeeds.
+// The call is never executed (build action only links); the package
+// sink keeps the reference without producing output.
+package main
+
+import "unsafe"
+
+//go:linkname fastcall runtime.logosCgocallFast
+func fastcall(fn, arg unsafe.Pointer) int32
+
+var sink int32
+
+func main() {
+	sink = fastcall(nil, nil)
+}

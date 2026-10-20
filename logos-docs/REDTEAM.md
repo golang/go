@@ -91,7 +91,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #85 |M1| test/logos/redteam/attack_085_typed_nil_errdefer | tested |
 | #86 | M7 |  | planned |
 | #87 |M1| test/logos/redteam/attack_087_errdefer_panic_goexit | tested |
-| #88 | M20 |  | planned |
+| #88 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #89 |M2| test/logos/redteam/attack_089_scalar_roundtrip | tested |
 | #90 |M1| test/logos/redteam/attack_090_errdefer_recover_success_skip | tested |
 | #91 | M7 |  | planned |
@@ -168,7 +168,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #162 | M9 |  | planned |
 | #163 | M9 |  | planned |
 | #164 | M9 |  | planned |
-| #165 | M20 |  | planned |
+| #165 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #166 | M19 |  | planned |
 | #167 | M8, M9 |  | planned |
 | #168 | M19 |  | planned |
@@ -176,7 +176,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #170 | M9 |  | planned |
 | #171 | M19 |  | planned |
 | #172 | M9 |  | planned |
-| #173 | M20 |  | planned |
+| #173 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #174 | M7 |  | planned |
 | #175 | M19 |  | planned |
 | #176 | M8 |  | planned |
@@ -191,5 +191,5 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #185 | M2 | test/logos/redteam/attack_185_dual_use_union | planned |
 | #186 | M3 |  | planned |
 | #187 | M16 |  | planned |
-| #188 | M20 |  | planned |
-| #189 | M20 |  | planned |
+| #188 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
+| #189 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |

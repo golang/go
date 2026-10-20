@@ -86,6 +86,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		GreenTeaGC:            true,
 		JSONv2:                true,
 		SizeSpecializedMalloc: true,
+		LogosFastCgo:          false, // M20-S1: stays off until the M20 gate passes.
 	}
 	flags := &ExperimentFlags{
 		Flags:    baseline,
