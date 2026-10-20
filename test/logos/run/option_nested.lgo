@@ -1,0 +1,64 @@
+// run
+
+package main
+
+import "fmt"
+
+// M3 wrapped options (SPEC Sec 2.2, T-202): payloads that admit nil as
+// a valid value (slices, funcs, chans, interfaces) use
+// presence-bearing `rt.Option[T]`, so present-nil stays distinct from
+// absent. `(T?)?` nests. Nil tests narrow wrapped options.
+
+func presentNil() []int? {
+	var s []int = nil
+	var o []int? = s
+	return o
+}
+
+func absentSlice() []int? {
+	var o []int?
+	return o
+}
+
+func useNested(w (int?)?, d int?) int? { return w ?? d }
+
+func main() {
+	p := presentNil()
+	fmt.Println(p == nil)
+	fmt.Println(p ?? []int{9})
+	a := absentSlice()
+	fmt.Println(a == nil)
+	fmt.Println(a ?? []int{9})
+	var w (int?)? = 3
+	fmt.Println(w == nil)
+	var e int?
+	inner := w ?? e
+	fmt.Println(inner ?? 43)
+	fmt.Println(useNested(w, e) ?? 43)
+	var nn (int?)?
+	fmt.Println(nn == nil)
+	fmt.Println(useNested(nn, e) ?? 43)
+	var m map[string]int = map[string]int{"k": 5}
+	fmt.Println(m["k"] ?? -1)
+	fmt.Println(m["zzz"] ?? -1)
+	var f func() int? = nil
+	fmt.Println(f == nil)
+	f = func() int? { return 8 }
+	fmt.Println(f() ?? -1)
+	var c chan int? = nil
+	fmt.Println(c == nil)
+	var v any? = nil
+	fmt.Println(v == nil)
+	v = 6
+	fmt.Println(v ?? -1)
+	var n int?
+	if n != nil {
+		fmt.Println("some")
+	} else {
+		fmt.Println("none")
+	}
+	n = 5
+	if n != nil {
+		fmt.Println(n ?? -1)
+	}
+}

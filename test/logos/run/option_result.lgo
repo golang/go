@@ -1,0 +1,32 @@
+// run
+
+package main
+
+// M3 nested option results (SPEC T-202): `(T?)?` parses as a result
+// type, `(T)?` equals `T?`, and a `T?` value wraps into `(T?)?`, so a
+// present-but-none inner option stays distinct from an absent outer one.
+
+func none() (int?)? {
+	return nil
+}
+
+func someNone() (int?)? {
+	var inner int? = nil
+	return inner
+}
+
+func some(n int) (int?)? {
+	var inner int? = n
+	return inner
+}
+
+func grouped(n int) (int)? {
+	return n
+}
+
+func main() {
+	println(none() == nil)
+	println(someNone() == nil)
+	println(some(7) == nil)
+	println(grouped(3) ?? 0)
+}

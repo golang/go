@@ -18,8 +18,9 @@ import (
 // check with Config.Logos; src holds the original bytes of the files Lower
 // may rewrite. Files without an entry in src are left alone. Lower mutates
 // the files in place and reports whether anything changed. A surviving
-// loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause, or
-// AssertedStruct) is an internal error.
+// loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause,
+// AssertedStruct, OptionType, CoalesceExpr, or OptSelectExpr) is an
+// internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
 	shared := &packageLower{info: info, tpkg: pkg}
 	edits := make(map[*syntax.File][]Edit)
@@ -69,6 +70,18 @@ type fileLower struct {
 	needRT    bool
 	siteDecls []*syntax.VarDecl
 	names     map[*types2.Package]string
+	// Option lowering state (M3): optMemo pins one lowering per shared
+	// `T?` type node, narrowDone pins rewritten narrowed reads,
+	// wrapSpan remembers original spans of synthetic wrapper tops for
+	// wraps, wrapOwner maps a wrapped node to its wrapper ID for
+	// boundary-insert drains, wrapSeq mints wrapper IDs, and
+	// retResults maps each return to its function results.
+	optMemo    map[*syntax.OptionType]syntax.Expr
+	narrowDone map[*syntax.Name]bool
+	wrapSpan   map[syntax.Expr]span
+	wrapOwner  map[syntax.Expr]int
+	wrapSeq    int
+	retResults map[*syntax.ReturnStmt][]types2.Type
 }
 
 // off converts a valid file position to a byte offset.
@@ -82,6 +95,14 @@ func (fl *fileLower) add(start, end int, text string) {
 	fl.changed = true
 }
 
+// addOwned records one splice owned by one wrapper (a wrap ID from
+// nextWrapID): a later wrap of the same wrapper drains its boundary
+// inserts into fused text instead of leaving them to interleave.
+func (fl *fileLower) addOwned(id, start, end int, text string) {
+	fl.splices = append(fl.splices, splice{start: start, end: end, text: text, owner: id})
+	fl.changed = true
+}
+
 // textOf returns the source of s with nested splices substituted.
 func (fl *fileLower) textOf(s span) string {
 	kept, inner := fl.splitSplices(s)
@@ -89,7 +110,7 @@ func (fl *fileLower) textOf(s span) string {
 	sub := fl.src[s.start:s.end]
 	adj := make([]splice, len(inner))
 	for i, sp := range inner {
-		adj[i] = splice{start: sp.start - s.start, end: sp.end - s.start, text: sp.text}
+		adj[i] = splice{start: sp.start - s.start, end: sp.end - s.start, text: sp.text, owner: sp.owner}
 	}
 	out, err := applySplices(sub, adj)
 	if err != nil {
@@ -371,7 +392,8 @@ func (fc *funcLower) armOkFlag() {
 func rejectSurvivors(file *syntax.File) {
 	syntax.Inspect(file, func(n syntax.Node) bool {
 		switch n.(type) {
-		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct:
+		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
+			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

@@ -1,0 +1,37 @@
+// run
+
+package main
+
+import "fmt"
+
+// M3 option basics (SPEC Sec 2.2, T-202; Sec 1.4, T-104.3): explicit
+// `T?` declarations, `??` over non-map options, and `nil` handling.
+// A none `int?` falls back to the default; a some yields its value.
+
+func firstOr(x int?, d int) int { return x ?? d }
+
+func optResult(x int?) int? { return x }
+
+func optNil() int? { return nil }
+
+func optConst() int? { return 42 }
+
+func main() {
+	var a int?
+	fmt.Println(firstOr(a, 7))
+	a = 42
+	fmt.Println(firstOr(a, 7))
+	var b int? = nil
+	fmt.Println(firstOr(b, 7))
+	b = 1
+	fmt.Println(firstOr(b, 7))
+	fmt.Println(optResult(a) ?? -1)
+	fmt.Println(optNil() ?? -1)
+	fmt.Println(optConst() ?? -1)
+	var s string? = "hi"
+	fmt.Println(s ?? "fallback")
+	var t string?
+	fmt.Println(t ?? "fallback")
+	t = s ?? "fallback"
+	fmt.Println(t ?? "fallback")
+}

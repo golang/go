@@ -1,0 +1,31 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+// M3 pointer-option size (SPEC T-202, PLAN:127): `*T?` stays the bare
+// pointer with nil as none, so its size equals the pointer size.
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	var p *User = &User{}
+	var q *User?
+	fmt.Println(unsafe.Sizeof(p) == unsafe.Sizeof(q))
+	fmt.Println(unsafe.Sizeof(q))
+	var r *int?
+	fmt.Println(unsafe.Sizeof(r) == unsafe.Sizeof(p))
+	var s *User? = nil
+	fmt.Println(s == nil)
+	s = &User{Name: "ann"}
+	if s != nil {
+		fmt.Println(s.Name)
+	}
+}

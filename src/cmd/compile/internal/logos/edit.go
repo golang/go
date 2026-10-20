@@ -25,6 +25,10 @@ type Edit struct {
 type splice struct {
 	start, end int
 	text       string
+	// owner is the wrapper ID of boundary inserts (heads, tails)
+	// that a later wrap of the same wrapper drains into fused text;
+	// zero for ordinary splices.
+	owner int
 }
 
 // lineStarts returns the byte offset at which each line of src begins.
@@ -76,7 +80,7 @@ func resolve(src []byte, starts []int, base *syntax.PosBase, e Edit) (splice, er
 	if end < start {
 		return splice{}, fmt.Errorf("edit at %v ends before it starts", e.Start)
 	}
-	return splice{start, end, e.Text}, nil
+	return splice{start: start, end: end, text: e.Text}, nil
 }
 
 // ApplyEdits applies edits to src and returns the new text. base is the

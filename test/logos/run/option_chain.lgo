@@ -1,0 +1,45 @@
+// run
+
+package main
+
+import "fmt"
+
+// M3 `?.` chains (SPEC Sec 1.4, T-104.3): none propagates, some
+// selects, and `??` supplies the default. Includes the probe shapes
+// `firstOr(x int?, d int)` and `u?.Name ?? "anon"`.
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func (u User) Greet() string { return "hi " + u.Name }
+
+func (u *User) SetAge(a int) { u.Age = a }
+
+func firstOr(x int?, d int) int { return x ?? d }
+
+func greet(u *User?) string { return u?.Name ?? "anon" }
+
+func main() {
+	var u *User?
+	fmt.Println(greet(u))
+	u = &User{Name: "ann", Age: 3}
+	fmt.Println(greet(u))
+	fmt.Println(u?.Name ?? "anon")
+	fmt.Println(u?.Age ?? -1)
+	var v *User?
+	fmt.Println(v?.Name ?? "anon")
+	fmt.Println(v?.Age ?? -1)
+	fmt.Println(u?.Greet() ?? "nogreet")
+	fmt.Println(v?.Greet() ?? "nogreet")
+	u?.SetAge(5)
+	fmt.Println(u?.Age ?? -1)
+	v?.SetAge(5)
+	fmt.Println(v?.Age ?? -1)
+	var n int?
+	fmt.Println(firstOr(n, 7))
+	n = 41
+	fmt.Println(firstOr(n, 7))
+	fmt.Println(n ?? 0)
+}
