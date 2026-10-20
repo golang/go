@@ -22,7 +22,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #16 | M5 | src/internal/types/testdata/logos/const_views.lgo (cvPlainReslice, cvPlainReuseLoop); test/logos/run/reslice_reuse.lgo | tested |
 | #17 | M6 |  | planned |
 | #18 |M1| test/logos/redteam/attack_018_shadowed_named_return | tested |
-| #19 | M7 |  | planned |
+| #19 | M7 | src/internal/types/testdata/logos/viewas.lgo; test/logos/run/viewas.lgo | tested |
 | #20 | M18 |  | planned |
 | #21 | M8 |  | planned |
 | #22 | M15 |  | planned |
@@ -75,7 +75,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #69 | M10 |  | planned |
 | #70 | M5 | test/logos/codegen/rodata.lgo | tested |
 | #71 | M18 |  | planned |
-| #72 | M7 |  | planned |
+| #72 | M7 | test/logos/run/viewas.lgo (GC keep-alive, need-have panic); src/logos/rt/viewas_test.go | tested |
 | #73 | M5 | test/logos/run/const_map.lgo; src/cmd/compile/internal/logos/constmap_test.go | tested |
 | #74 | M13 |  | planned |
 | #75 |M2| test/logos/redteam/attack_075_nil_arm_common_type | tested |

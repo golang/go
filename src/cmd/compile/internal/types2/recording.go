@@ -130,6 +130,7 @@ func (check *Checker) recordInstance(expr syntax.Expr, targs []Type, typ Type) {
 	ident := instantiatedIdent(expr)
 	assert(ident != nil)
 	assert(typ != nil)
+	check.logosViewAsInstCheck(expr, targs) // logos M7-S5 hook: comptime.ViewAs needs a POD struct.
 	if m := check.Instances; m != nil {
 		// If this is an instance of a method value/expression, replace the
 		// receiver for the Signature stored in Instances (go.dev/issue/79657).

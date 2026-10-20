@@ -135,6 +135,9 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	}
 
 	// no package yet => import it
+	if path == "comptime" && check.conf.Logos {
+		return check.logosServeComptimeViewAs(dir) // logos M7-S5 hook: virtual comptime package.
+	}
 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
 		if check.conf.FakeImportC && check.conf.go115UsesCgo {
 			check.error(pos, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")

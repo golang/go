@@ -1,0 +1,146 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "comptime"
+
+// Valid POD structs pass: no padding, no bool, no references.
+
+type Header struct {
+	Tag [3]byte
+	N   uint32
+}
+
+func viewPadded(b []byte) {
+	_ = comptime.ViewAs[Header /* ERROR "[comptime::viewas_not_pod] Header has padding at offset 3" */](b)
+}
+
+type Aligned struct {
+	Magic   uint32
+	Version uint32
+}
+
+type Color struct {
+	R uint16
+	G uint16
+	B uint16
+	A uint16
+}
+
+func viewOK(b []byte) {
+	h := comptime.ViewAs[Aligned](b)
+	_ = h
+	c := comptime.ViewAs[Color](b)
+	_ = c
+}
+
+// A const byte view passes directly.
+
+func viewConst(b const []byte) {
+	h := comptime.ViewAs[Aligned](b)
+	_ = h
+}
+
+// A bool field fails, naming its offset.
+
+type WithBool struct {
+	A uint32
+	B bool
+	C [3]byte
+}
+
+func viewBool(b []byte) {
+	_ = comptime.ViewAs[WithBool /* ERROR "[comptime::viewas_not_pod] WithBool has bool field at offset 4" */](b)
+}
+
+// A pointer field fails, naming its offset.
+
+type WithPtr struct {
+	P *uint32
+	A uint64
+}
+
+func viewPtr(b []byte) {
+	_ = comptime.ViewAs[WithPtr /* ERROR "[comptime::viewas_not_pod] WithPtr has pointer field at offset 0" */](b)
+}
+
+// Slice, map, string, and interface fields fail, naming each offset.
+
+type WithSlice struct {
+	A uint64
+	B []byte
+}
+
+func viewSlice(b []byte) {
+	_ = comptime.ViewAs[WithSlice /* ERROR "[comptime::viewas_not_pod] WithSlice has slice field at offset 8" */](b)
+}
+
+type WithMap struct {
+	A uint64
+	M map[string]int
+}
+
+func viewMap(b []byte) {
+	_ = comptime.ViewAs[WithMap /* ERROR "[comptime::viewas_not_pod] WithMap has map field at offset 8" */](b)
+}
+
+type WithString struct {
+	A uint64
+	S string
+}
+
+func viewString(b []byte) {
+	_ = comptime.ViewAs[WithString /* ERROR "[comptime::viewas_not_pod] WithString has string field at offset 8" */](b)
+}
+
+type WithIface struct {
+	A uint64
+	I any
+}
+
+func viewIface(b []byte) {
+	_ = comptime.ViewAs[WithIface /* ERROR "[comptime::viewas_not_pod] WithIface has interface field at offset 8" */](b)
+}
+
+// Padding nested inside a field fails at the absolute offset.
+
+type Inner struct {
+	A byte
+	B uint32
+}
+
+type Outer struct {
+	I Inner
+	C uint32
+}
+
+func viewNested(b []byte) {
+	_ = comptime.ViewAs[Outer /* ERROR "[comptime::viewas_not_pod] Outer has padding at offset 1" */](b)
+}
+
+// Trailing size padding fails at the end of the last field.
+
+type Trailing struct {
+	A uint32
+	B uint16
+}
+
+func viewTrailing(b []byte) {
+	_ = comptime.ViewAs[Trailing /* ERROR "[comptime::viewas_not_pod] Trailing has padding at offset 6" */](b)
+}
+
+// A non-struct type argument fails.
+
+func viewInt(b []byte) {
+	_ = comptime.ViewAs[int /* ERROR "[comptime::viewas_not_pod] int is not a struct" */](b)
+}
+
+// A bare instantiation without a call validates too.
+
+func viewValue(b []byte) {
+	f := comptime.ViewAs[Header /* ERROR "[comptime::viewas_not_pod] Header has padding at offset 3" */]
+	_ = f
+	_ = b
+}

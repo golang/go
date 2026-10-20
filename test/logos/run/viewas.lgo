@@ -1,0 +1,69 @@
+// run
+
+// M7-S5 comptime.ViewAs (SPEC T-205, #19, #72): a view over bytes reads
+// struct fields, an odd offset reads correctly, a short input panics
+// with need/have sizes, and the view keeps its backing alive across GC.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"runtime"
+)
+
+type Header struct {
+	Magic   uint32
+	Version uint32
+	Size    uint64
+}
+
+func showBasic() {
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	h := comptime.ViewAs[Header](b)
+	fmt.Println(h.Magic, h.Version, h.Size)
+}
+
+func showOdd() {
+	b := make([]byte, 17)
+	for i := range b {
+		b[i] = byte(i + 1)
+	}
+	h := comptime.ViewAs[Header](b[1:])
+	fmt.Println(h.Magic, h.Version, h.Size)
+}
+
+func showShort() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	_ = comptime.ViewAs[Header](b)
+	return "no panic"
+}
+
+func freshView() const *Header {
+	b := []byte{17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
+	return comptime.ViewAs[Header](b)
+}
+
+func showGC() {
+	v := freshView()
+	runtime.GC()
+	g := make([]byte, 1<<20)
+	for i := range g {
+		g[i] = 0xFF
+	}
+	runtime.GC()
+	runtime.KeepAlive(g)
+	fmt.Println(v.Magic, v.Version, v.Size)
+}
+
+func main() {
+	showBasic()
+	showOdd()
+	fmt.Println(showShort())
+	showGC()
+}

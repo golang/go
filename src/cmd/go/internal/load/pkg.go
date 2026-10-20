@@ -2087,6 +2087,9 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		if path == "C" {
 			continue
 		}
+		if logosSkipVirtualImport(path) { // logos M7-S5 hook: virtual comptime package has no files.
+			continue
+		}
 		p1, err := loadImport(ld, ctx, opts, nil, path, p.Dir, p, stk, p.Internal.Build.ImportPos[path], ResolveImport|allowInternalSimdImport)
 		if err != nil && p.Error == nil {
 			p.Error = err

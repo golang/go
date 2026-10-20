@@ -187,6 +187,7 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerPlatform()       // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
 	fl.lowerUnions()         // M2 hook: switch expressions and struct assertions.
 	fl.lowerOptions()        // M3-S6 hook: single-value map reads and ?? over them.
+	fl.lowerViewAs()         // M7-S5 hook: comptime.ViewAs calls to the rt helper.
 	fl.lowerChains()         // M6-S7 hook: collection chains fused into loops.
 	fl.lowerSpreads()        // M6-S4 hook: `..src` spread elements.
 	fl.flushTypeImports()    // M6-S4 hook: imports for spelled elided spread literal types.
