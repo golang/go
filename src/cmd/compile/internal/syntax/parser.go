@@ -1031,6 +1031,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.name()
 
 	case _Literal:
+		if x := p.logosInterpOperand(); x != nil { // M6-S1 hook: `$"..."`.
+			return x
+		}
 		return p.oliteral()
 
 	case _Lparen:

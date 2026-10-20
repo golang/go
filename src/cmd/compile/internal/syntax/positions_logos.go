@@ -4,6 +4,8 @@
 
 package syntax
 
+import "strings"
+
 // This file holds the loGo/s position logic for M1-S2 (G3: hook lines
 // only in positions.go; the logic lives here).
 
@@ -12,13 +14,13 @@ package syntax
 // starts at its operand (so StartPos covers `g` in `g()?`), an
 // OptionType starts at its element, a CoalesceExpr starts at its left
 // operand, an OptSelectExpr starts at its receiver, a ConstType starts
-// at `const`, and an ErrdeferStmt starts at `errdefer`. ok is false for
-// any other node.
+// at `const`, an ErrdeferStmt starts at `errdefer`, and an InterpLit
+// starts at `$`. ok is false for any other node.
 func startPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
 		return StartPos(n.X), true
-	case *SpreadExpr:
+	case *SpreadExpr, *InterpExpr:
 		return n.Pos(), true
 	case *OptionType:
 		return StartPos(n.Elem), true
@@ -49,9 +51,11 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 // CoalesceExpr, the end of the name for an OptSelectExpr, the end of
 // the element for a ConstType, the end of the call for an ErrdeferStmt,
 // the closing brace of a SwitchExpr, the end of an arm's result for an
-// ArmClause, the end of the value type for a PropertyType, and the
-// opening brace of an AssertedStruct (the struct's closing brace is not
-// recorded). ok is false otherwise.
+// ArmClause, the end of the value type for a PropertyType, the opening
+// brace of an AssertedStruct (the struct's closing brace is not
+// recorded), and one past the closing quote of an InterpLit (from its
+// Raw spelling, so multiline literals land on the right line). ok is
+// false otherwise.
 func endPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -59,6 +63,13 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *SpreadExpr:
 		return EndPos(n.X), true
+	case *InterpExpr:
+		p := n.Pos()
+		if nl := strings.Count(n.Raw, "\n"); nl > 0 {
+			last := n.Raw[strings.LastIndexByte(n.Raw, '\n')+1:]
+			return MakePos(p.Base(), p.Line()+uint(nl), uint(len(last))+1), true
+		}
+		return MakePos(p.Base(), p.Line(), p.Col()+uint(len(n.Raw))), true
 	case *OptionType:
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true

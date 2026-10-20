@@ -21,6 +21,10 @@ func printLogos(p *printer, n Node) {
 		p.print(n.X, _Question)
 	case *SpreadExpr:
 		p.print(_Dot, _Dot, n.X)
+	case *InterpExpr:
+		// The raw spelling reparse to the same tree, so printing
+		// stays idempotent (like BasicLit, which prints its Value).
+		p.print(_Name, n.Raw)
 	case *OptionType:
 		// A nested option needs parentheses (`(T?)?`), because the
 		// joined spelling `T??` is a syntax error (SPEC T-202).

@@ -14,13 +14,18 @@ package syntax
 // CoalesceExpr before its operands, OptSelectExpr before its receiver
 // and name, ConstType before its element, SwitchExpr before its init,
 // tag, and arms, ArmClause before its cases and body, AssertedStruct
-// before its assertions and struct, PropertyType before its value type.
+// before its assertions and struct, PropertyType before its value type,
+// InterpExpr before its operands.
 func (w walker) walkLogos(n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
 		w.node(n.X)
 	case *SpreadExpr:
 		w.node(n.X)
+	case *InterpExpr:
+		for _, e := range n.Exprs {
+			w.node(e)
+		}
 	case *OptionType:
 		w.node(n.Elem)
 	case *CoalesceExpr:

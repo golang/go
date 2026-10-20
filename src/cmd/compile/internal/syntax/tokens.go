@@ -107,6 +107,7 @@ const (
 	ImagLit
 	RuneLit
 	StringLit
+	InterpLit // M6-S1: `$"..."` interpolated string (LogosMode only).
 )
 
 type Operator uint

@@ -1,0 +1,72 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M6-S1 parser attacks: `$"..."` interpolated strings (SPEC T-104.4).
+// Every form without an ERROR comment must parse cleanly in LogosMode;
+// each ERROR comment pins the exact syntax error text.
+
+package p
+
+import "fmt"
+
+func basic(name string, n int) string {
+	return $"User {name} has {n} items"
+}
+
+func escapes() string {
+	return $"{{literal}}"
+}
+
+func escapePair(left string, right int) string {
+	return $"{{left}}={left},{{{right}}}"
+}
+
+func nested(f func(string) string) string {
+	return $"{f("q")}"
+}
+
+func nestedBrace(m map[string]int) string {
+	return $"v={m["k"]}"
+}
+
+func empty() string {
+	return $""
+}
+
+func litOnly() string {
+	return $"hello"
+}
+
+func adjacent(a, b string) string {
+	return $"a{a}" + $"b{b}"
+}
+
+func multilineField(u struct{ Name string }) string {
+	return $"n={u.Name}"
+}
+
+func callMethod() string {
+	return $"pi={fmt.Sprint(3.14)}"
+}
+
+func unconsumedDollar() int {
+	x := 1
+	_ = x
+	return 0
+}
+
+func badGap() string {
+	_ = $ "x" // ERROR invalid character U\+0024
+	return ""
+}
+
+func badDollar() int {
+	_ = 1
+	$ // ERROR invalid character U\+0024
+	return 0
+}
+
+func badUnescapedBrace(x int) string {
+	return $"a } b {x}" // ERROR unescaped '\}' in interpolated string
+}

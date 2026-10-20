@@ -1,0 +1,93 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "fmt"
+
+// M6-S1 types2 attacks: `$"..."` operand kinds (SPEC T-104.4).
+// Every allowed kind checks cleanly; each disallowed kind pins
+// [correctness::interp_type].
+
+type point struct{ X, Y int }
+
+type shout string
+
+func (s shout) String() string { return string(s) + "!" }
+
+func okString(name string) string {
+	return $"hi {name}"
+}
+
+func okNamedString(s shout) string {
+	return $"hi {s}"
+}
+
+func okInts(a int, b int8, c int16, d int32, e int64) string {
+	return $"{a} {b} {c} {d} {e}"
+}
+
+func okUints(a uint, b uint8, c uint16, d uint32, e uint64, f uintptr) string {
+	return $"{a} {b} {c} {d} {e} {f}"
+}
+
+func okBool(b bool) string {
+	return $"flag={b}"
+}
+
+func okFloats(f32 float32, f64 float64) string {
+	return $"{f32} {f64}"
+}
+
+func okBytes(b []byte) string {
+	return $"raw={b}"
+}
+
+func okError(err error) string {
+	return $"err={err}"
+}
+
+func okStringer(s fmt.Stringer) string {
+	return $"s={s}"
+}
+
+func okNamedStringer(s shout) string {
+	return $"s={s}"
+}
+
+func okConst() string {
+	return $"n={42} t={"lit"} f={1.5} b={true}"
+}
+
+func badStruct(p point) string {
+	return $"p={p}" /* ERROR "[correctness::interp_type] cannot interpolate value of type point" */
+}
+
+func badStructLit() string {
+	return $"p={struct{}{}}" /* ERROR "[correctness::interp_type] cannot interpolate value of type struct{}" */
+}
+
+func badSlice(xs []int) string {
+	return $"xs={xs}" /* ERROR "cannot interpolate value of type []int" */
+}
+
+func badMap(m map[string]int) string {
+	return $"m={m}" /* ERROR "cannot interpolate value of type map[string]int" */
+}
+
+func badNil() string {
+	return $"n={nil}" /* ERROR "cannot interpolate value of type untyped nil" */
+}
+
+func badComplex(c complex128) string {
+	return $"c={c}" /* ERROR "cannot interpolate value of type complex128" */
+}
+
+func badPtr(p *int) string {
+	return $"p={p}" /* ERROR "cannot interpolate value of type *int" */
+}
+
+func badFunc(f func()) string {
+	return $"f={f}" /* ERROR "cannot interpolate value of type func()" */
+}

@@ -240,6 +240,14 @@ func needsLogosRT(p *Package) bool {
 // imported by every logos package.
 const LogosRTPkg = "logos/rt"
 
+// needsLogosInterp reports whether p needs the implicit strconv and
+// unsafe imports: every logos package gets them, so lowered
+// interpolations can append without naming them (M6-S1). Plain Go
+// packages never get them.
+func needsLogosInterp(p *Package) bool {
+	return p.IsLogos()
+}
+
 // addLogosRTXTestImport loads the implicit LogosRTPkg import for the
 // external test package of a logos package. The base package gains the
 // import in load and the internal test package inherits it, but the
@@ -265,4 +273,37 @@ func addLogosRTXTestImport(ld *modload.Loader, ctx context.Context, opts Package
 	}
 	pxtest.Internal.Imports = append(pxtest.Internal.Imports, p1)
 	pxtest.Internal.CompiledImports = append(pxtest.Internal.CompiledImports, p1.ImportPath)
+	addLogosInterpXTestImport(ld, ctx, opts, pre, pxtest)
+}
+
+// addLogosInterpXTestImport loads the implicit strconv and unsafe
+// imports for the external test package of a logos package (M6-S1),
+// mirroring addLogosRTXTestImport: lowered interpolations in external
+// test files need the same archives.
+func addLogosInterpXTestImport(ld *modload.Loader, ctx context.Context, opts PackageOpts, pre *preload, pxtest *Package) {
+	if pxtest == nil || !needsLogosInterp(pxtest) {
+		return
+	}
+	for _, path := range []string{"strconv", "unsafe"} {
+		present := false
+		for _, q := range pxtest.Internal.Imports {
+			if q.ImportPath == path {
+				present = true
+				break
+			}
+		}
+		if present {
+			continue
+		}
+		stk := ImportStack{{Pkg: pxtest.ImportPath}}
+		p1, err := loadImport(ld, ctx, opts, pre, path, pxtest.Dir, pxtest, &stk, nil, ResolveImport)
+		if err != nil && pxtest.Error == nil {
+			pxtest.Error = err
+		}
+		if err != nil || p1.Incomplete {
+			pxtest.Incomplete = true
+		}
+		pxtest.Internal.Imports = append(pxtest.Internal.Imports, p1)
+		pxtest.Internal.CompiledImports = append(pxtest.Internal.CompiledImports, p1.ImportPath)
+	}
 }

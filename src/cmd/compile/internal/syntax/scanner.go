@@ -137,6 +137,13 @@ redo:
 	case '"':
 		s.stdString()
 
+	case '$':
+		if !s.logosInterp() { // M6-S1 hook: `$"..."` in LogosMode.
+			s.errorf("invalid character %#U", s.ch)
+			s.nextch()
+			goto redo
+		}
+
 	case '`':
 		s.rawString()
 

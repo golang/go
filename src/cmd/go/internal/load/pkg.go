@@ -1973,6 +1973,14 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 			addImport("logos/rt", true)
 		}
 
+		// Interpolated strings lower to strconv appends and unsafe
+		// conversions, so every logos package carries both imports
+		// even when no source file names them (M6-S1).
+		if needsLogosInterp(p) {
+			addImport("strconv", true)
+			addImport("unsafe", true)
+		}
+
 		// SWIG adds imports of some standard packages.
 		if p.UsesSwig() {
 			addImport("unsafe", true)

@@ -1,0 +1,13 @@
+User ada has 3 items
+{secret}
+shown
+n=42 t=lit f=1.5 b=true
+u=7 u8=8 i8=-8 f32=1.25
+raw=ab err=boom s=hey!
+a=1 b=2
+[first second]
+id=1
+1
+outer inner 3 end
+v=1 w=-1
+allocs: 1

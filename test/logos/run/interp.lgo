@@ -1,0 +1,66 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"testing"
+)
+
+type shout string
+
+func (s shout) String() string { return string(s) + "!" }
+
+var evalOrder []string
+
+var sink string
+
+var boomErr = errors.New("boom")
+
+var heyShout = shout("hey")
+
+func tag(s string, v int) int {
+	evalOrder = append(evalOrder, s)
+	return v
+}
+
+var nextIDCalls int
+
+func nextID() int {
+	nextIDCalls++
+	return nextIDCalls
+}
+
+func main() {
+	name := "ada"
+	n := 3
+	fmt.Println($"User {name} has {n} items")
+	fmt.Println($"{{secret}}")
+	fmt.Println($"{"shown"}")
+	fmt.Println($"n={42} t={"lit"} f={1.5} b={true}")
+	fmt.Println($"u={uint(7)} u8={uint8(8)} i8={int8(-8)} f32={float32(1.25)}")
+	fmt.Println($"raw={[]byte("ab")} err={errors.New("boom")} s={shout("hey")}")
+
+	evalOrder = nil
+	fmt.Println($"a={tag("first", 1)} b={tag("second", 2)}")
+	fmt.Println(evalOrder)
+
+	nextIDCalls = 0
+	fmt.Println($"id={nextID()}")
+	fmt.Println(nextIDCalls)
+
+	fmt.Println($"outer {$"inner {n}"} end")
+	m := map[string]int{"a": 1}
+	fmt.Println($"v={m["a"] ?? -1} w={m["zz"] ?? -1}")
+
+	// Exactly one allocation per interpolation (the buffer; Error on a
+	// package-level error value allocates nothing).
+	if allocs := testing.AllocsPerRun(100, func() {
+		sink = $"User {name} has {n} items err={boomErr}"
+	}); allocs != 1 {
+		fmt.Println("allocs:", allocs)
+	} else {
+		fmt.Println("allocs: 1")
+	}
+}
