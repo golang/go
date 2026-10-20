@@ -314,7 +314,10 @@ func ReverseBytes16(n uint16) uint16 {
 // --------------------- //
 
 func RotateLeft64(n uint64) uint64 {
-	// amd64:"ROLQ"
+	// amd64/v1:"ROLQ"
+	// amd64/v2:"ROLQ"
+	// amd64/v3:"RORXQ [$]27"
+	// amd64/v4:"RORXQ [$]27"
 	// arm64:"ROR"
 	// loong64:"ROTRV"
 	// ppc64x:"ROTL"
@@ -325,7 +328,11 @@ func RotateLeft64(n uint64) uint64 {
 }
 
 func RotateLeft32(n uint32) uint32 {
-	// amd64:"ROLL" 386:"ROLL"
+	// 386:"ROLL"
+	// amd64/v1:"ROLL"
+	// amd64/v2:"ROLL"
+	// amd64/v3:"RORXL [$]23"
+	// amd64/v4:"RORXL [$]23"
 	// arm:`MOVW R[0-9]+@>23`
 	// arm64:"RORW"
 	// loong64:"ROTR "

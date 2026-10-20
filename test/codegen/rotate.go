@@ -15,13 +15,19 @@ import "math/bits"
 func rot64(x uint64) uint64 {
 	var a uint64
 
-	// amd64:"ROLQ [$]7"
+	// amd64/v1:"ROLQ [$]7"
+	// amd64/v2:"ROLQ [$]7"
+	// amd64/v3:"RORXQ [$]57"
+	// amd64/v4:"RORXQ [$]57"
 	// ppc64x:"ROTL [$]7"
 	// loong64: "ROTRV [$]57"
 	// riscv64: "RORI [$]57"
 	a += x<<7 | x>>57
 
-	// amd64:"ROLQ [$]8"
+	// amd64/v1:"ROLQ [$]8"
+	// amd64/v2:"ROLQ [$]8"
+	// amd64/v3:"RORXQ [$]56"
+	// amd64/v4:"RORXQ [$]56"
 	// arm64:"ROR [$]56"
 	// s390x:"RISBGZ [$]0, [$]63, [$]8, "
 	// ppc64x:"ROTL [$]8"
@@ -29,7 +35,10 @@ func rot64(x uint64) uint64 {
 	// riscv64: "RORI [$]56"
 	a += x<<8 + x>>56
 
-	// amd64:"ROLQ [$]9"
+	// amd64/v1:"ROLQ [$]9"
+	// amd64/v2:"ROLQ [$]9"
+	// amd64/v3:"RORXQ [$]55"
+	// amd64/v4:"RORXQ [$]55"
 	// arm64:"ROR [$]55"
 	// s390x:"RISBGZ [$]0, [$]63, [$]9, "
 	// ppc64x:"ROTL [$]9"
@@ -37,7 +46,10 @@ func rot64(x uint64) uint64 {
 	// riscv64: "RORI [$]55"
 	a += x<<9 ^ x>>55
 
-	// amd64:"ROLQ [$]10"
+	// amd64/v1:"ROLQ [$]10"
+	// amd64/v2:"ROLQ [$]10"
+	// amd64/v3:"RORXQ [$]54"
+	// amd64/v4:"RORXQ [$]54"
 	// arm64:"ROR [$]54"
 	// s390x:"RISBGZ [$]0, [$]63, [$]10, "
 	// ppc64x:"ROTL [$]10"
@@ -53,14 +65,20 @@ func rot64(x uint64) uint64 {
 func rot32(x uint32) uint32 {
 	var a uint32
 
-	// amd64:"ROLL [$]7"
+	// amd64/v1:"ROLL [$]7"
+	// amd64/v2:"ROLL [$]7"
+	// amd64/v3:"RORXL [$]25"
+	// amd64/v4:"RORXL [$]25"
 	// arm:"MOVW R\\d+@>25"
 	// ppc64x:"ROTLW [$]7"
 	// loong64: "ROTR [$]25"
 	// riscv64: "RORIW [$]25"
 	a += x<<7 | x>>25
 
-	// amd64:`ROLL [$]8`
+	// amd64/v1:`ROLL [$]8`
+	// amd64/v2:`ROLL [$]8`
+	// amd64/v3:`RORXL [$]24`
+	// amd64/v4:`RORXL [$]24`
 	// arm:"MOVW R\\d+@>24"
 	// arm64:"RORW [$]24"
 	// s390x:"RLL [$]8"
@@ -69,7 +87,10 @@ func rot32(x uint32) uint32 {
 	// riscv64: "RORIW [$]24"
 	a += x<<8 + x>>24
 
-	// amd64:"ROLL [$]9"
+	// amd64/v1:"ROLL [$]9"
+	// amd64/v2:"ROLL [$]9"
+	// amd64/v3:"RORXL [$]23"
+	// amd64/v4:"RORXL [$]23"
 	// arm:"MOVW R\\d+@>23"
 	// arm64:"RORW [$]23"
 	// s390x:"RLL [$]9"
@@ -78,7 +99,10 @@ func rot32(x uint32) uint32 {
 	// riscv64: "RORIW [$]23"
 	a += x<<9 ^ x>>23
 
-	// amd64:"ROLL [$]10"
+	// amd64/v1:"ROLL [$]10"
+	// amd64/v2:"ROLL [$]10"
+	// amd64/v3:"RORXL [$]22"
+	// amd64/v4:"RORXL [$]22"
 	// arm:"MOVW R\\d+@>22"
 	// arm64:"RORW [$]22"
 	// s390x:"RLL [$]10"
@@ -210,13 +234,19 @@ func rot8nc(x uint8, z uint) uint8 {
 
 // Issue 18254: rotate after inlining
 func f32(x uint32) uint32 {
-	// amd64:"ROLL [$]7"
+	// amd64/v1:"ROLL [$]7"
+	// amd64/v2:"ROLL [$]7"
+	// amd64/v3:"RORXL [$]25"
+	// amd64/v4:"RORXL [$]25"
 	return rot32nc(x, 7)
 }
 
 func doubleRotate(x uint64) uint64 {
 	x = (x << 5) | (x >> 59)
-	// amd64:"ROLQ [$]15"
+	// amd64/v1:"ROLQ [$]15"
+	// amd64/v2:"ROLQ [$]15"
+	// amd64/v3:"RORXQ [$]49"
+	// amd64/v4:"RORXQ [$]49"
 	// arm64:"ROR [$]49"
 	x = (x << 10) | (x >> 54)
 	return x

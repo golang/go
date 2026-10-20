@@ -1264,6 +1264,8 @@ func init() {
 
 		// CPUID feature: BMI2.
 		{name: "SARXQ", argLength: 2, reg: gp21, asm: "SARXQ"}, // signed arg0 >> arg1, shift amount is mod 64
+		{name: "RORXQ", argLength: 1, reg: gp11, asm: "RORXQ", aux: "Int8"}, // arg0 rotated right by auxint, BMI2, immediate count only
+		{name: "RORXL", argLength: 1, reg: gp11, asm: "RORXL", aux: "Int8"}, // uint32(arg0) rotated right by auxint, BMI2, immediate count only
 		{name: "SARXL", argLength: 2, reg: gp21, asm: "SARXL"}, // signed int32(arg0) >> arg1, shift amount is mod 32
 		{name: "SHLXQ", argLength: 2, reg: gp21, asm: "SHLXQ"}, // arg0 << arg1, shift amount is mod 64
 		{name: "SHLXL", argLength: 2, reg: gp21, asm: "SHLXL"}, // arg0 << arg1, shift amount is mod 32

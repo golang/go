@@ -1508,6 +1508,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		}
 	case ssa.OpAMD64LoweredRound32F, ssa.OpAMD64LoweredRound64F:
 		// input is already rounded
+	case ssa.OpAMD64RORXQ, ssa.OpAMD64RORXL:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssa.OpAMD64ROUNDSD, ssa.OpAMD64ROUNDSS:
 		p := s.Prog(v.Op.Asm())
 		val := v.AuxInt

@@ -6,6 +6,9 @@
 (SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
 (SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
 (SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
+// Constant rotates use the BMI2 immediate rotate, which leaves flags alone. Variable counts stay on ROL/ROR.
+(ROLQconst [c] x) && buildcfg.GOAMD64 >= 3 => (RORXQ [int8((-c)&63)] x)
+(ROLLconst [c] x) && buildcfg.GOAMD64 >= 3 => (RORXL [int8((-c)&31)] x)
 
 // See comments in ARM64latelower.rules for why these are here.
 (MOVLQZX x) && ZeroUpper32Bits(x,3) => x

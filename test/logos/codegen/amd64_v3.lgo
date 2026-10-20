@@ -1,0 +1,50 @@
+// asmcheck
+
+package main
+
+// M15-S2 amd64 codegen (SPEC Sec 15.2, T-303): at GOAMD64=v3 variable
+// shifts use BMI2 SHLX/SHRX, an immediate rotate uses RORXQ, a
+// variable-count rotate keeps the existing RORQ path (the RORX encoding
+// at src/cmd/internal/obj/x86/avx_optabs.go accepts immediate counts
+// only), and a ternary-shaped branch uses CMOV through branchelim.
+// Masked tails (#22) are deferred to M14-S1 integration and are not
+// covered here.
+
+import (
+	"fmt"
+	"math/bits"
+)
+
+func shlVar(x uint64, n uint) uint64 {
+	// amd64/v3:"SHLXQ"
+	return x << n
+}
+
+func shrVar(x uint64, n uint) uint64 {
+	// amd64/v3:"SHRXQ"
+	return x >> n
+}
+
+func rorImm(x uint64) uint64 {
+	// amd64/v3:"RORXQ [$]7" -"ROLQ"
+	return bits.RotateLeft64(x, 57)
+}
+
+func rorVar(x uint64, n uint) uint64 {
+	n &= 63
+	// amd64/v3:"RORQ" -"RORXQ"
+	return x>>n | x<<(64-n)
+}
+
+func cmovShape(c int) int {
+	x := c + 4
+	if x < 0 {
+		x = 182
+	}
+	// amd64/v3:"CMOVQLT"
+	return x
+}
+
+func main() {
+	fmt.Println(shlVar(1, 2), shrVar(8, 2), rorImm(3), rorVar(5, 6), cmovShape(7))
+}
