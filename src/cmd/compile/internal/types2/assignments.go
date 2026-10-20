@@ -55,6 +55,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 
 	check.logosPlatformStore(x, T) // logos M3-S5 hook.
 
+	check.logosPlatformReturn(x, T, context) // logos M9-S2 hook: platform pointers returned as interfaces.
+
 	if isUntyped(x.typ()) {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface

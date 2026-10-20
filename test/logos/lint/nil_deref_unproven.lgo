@@ -1,0 +1,255 @@
+// errorcheck -gcflags=-e
+
+// correctness::nil_deref_unproven (SPEC Sec 1.2, #99, T-202): a selection
+// on an option, `x.f` or `x.m()` with x of type T?, before a nil test proves
+// x present. The M3 checker reports these under this ID, and the rule keeps
+// that label, forbid severity, and the JSON autofix candidates (optional
+// chaining with a ?? default, early-return guard). The rule applies to
+// loGo/s packages only: a Go package has no options.
+
+package p
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func (u User) Greet() string { return u.Name }
+func (u User) Bump()         {}
+
+type Holder struct {
+	P *User?
+}
+
+type Node struct {
+	Next *Node?
+	Val  int
+}
+
+// ---- reported: no proof ----
+
+func methodCall(u *User?) string {
+	return u.Greet() // ERROR "\[correctness::nil_deref_unproven\] cannot call method on \*User\? without proving != nil"
+}
+
+func fieldAccess(u *User?) string {
+	return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+}
+
+func methodStatement(u *User?) {
+	u.Bump() // ERROR "\[correctness::nil_deref_unproven\] cannot call method on \*User\? without proving != nil"
+}
+
+func methodValue(u *User?) {
+	f := u.Greet // ERROR "\[correctness::nil_deref_unproven\] cannot call method on \*User\? without proving != nil"
+	_ = f
+}
+
+func fieldOfField(h Holder) string {
+	return h.P.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+}
+
+func chainThroughOption(n *Node?) int {
+	return n.Next.Val // ERROR "\[correctness::nil_deref_unproven\] cannot access field Next of \*Node\? without proving != nil"
+}
+
+func valueOption(u User?) string {
+	return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of User\? without proving != nil"
+}
+
+func closureCapture(u *User?) func() string {
+	return func() string {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+}
+
+// ---- reported: the proof does not reach the use ----
+
+func checkedOtherVariable(u, w *User?) string {
+	if w != nil {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+func elseBranch(u *User?) string {
+	if u != nil {
+		return u.Name
+	} else {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+}
+
+func afterIf(u *User?) string {
+	if u != nil {
+		return u.Name
+	}
+	return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+}
+
+func assignEndsProof(u, w *User?) string {
+	if u == nil {
+		return ""
+	}
+	u = w
+	return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+}
+
+func addressTaken(u *User?) string {
+	p := &u
+	_ = p
+	if u != nil {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+func assignedInClosure(u *User?) string {
+	clear := func() { u = nil }
+	_ = clear
+	if u != nil {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+func assignedInLoop(u *User?, n int) string {
+	for i := 0; i < n; i++ {
+		u = nil
+	}
+	if u != nil {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+func fieldTestDoesNotNarrow(h Holder) string {
+	if h.P != nil {
+		return h.P.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+func orChainDoesNotProve(u *User?, ok bool) string {
+	if u != nil || ok {
+		return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+	}
+	return ""
+}
+
+// ---- not reported: proof reaches the use ----
+
+func guarded(u *User?) string {
+	if u != nil {
+		return u.Name
+	}
+	return ""
+}
+
+func guardedMethod(u *User?) string {
+	if u != nil {
+		return u.Greet()
+	}
+	return ""
+}
+
+func earlyReturn(u *User?) string {
+	if u == nil {
+		return ""
+	}
+	return u.Name
+}
+
+func earlyPanic(u *User?) string {
+	if u == nil {
+		panic("none")
+	}
+	return u.Name
+}
+
+func earlyContinue(us [](*User?)) int {
+	total := 0
+	for _, u := range us {
+		if u == nil {
+			continue
+		}
+		total += u.Age
+	}
+	return total
+}
+
+func andChain(u *User?) bool {
+	return u != nil && u.Age > 0
+}
+
+func elseOfNilTest(u *User?) string {
+	if u == nil {
+		return ""
+	} else {
+		return u.Name
+	}
+}
+
+func copiedField(h Holder) string {
+	loc := h.P
+	if loc != nil {
+		return loc.Name
+	}
+	return ""
+}
+
+func renarrowed(u, w *User?) string {
+	if u != nil {
+		u = w
+		if u != nil {
+			return u.Name
+		}
+	}
+	return ""
+}
+
+// ---- not reported: other ways to read an option ----
+
+func optionalChain(u *User?) string {
+	return u?.Name ?? "anon"
+}
+
+func optionalCall(u *User?) string {
+	return u?.Greet() ?? "anon"
+}
+
+func coalesceFirst(u *User?) *User {
+	return u ?? &User{Name: "d"}
+}
+
+func plainPointer(u *User) string {
+	return u.Name
+}
+
+func platformPointer(u *User) string {
+	var w *User = u
+	return w.Name
+}
+
+func valueSelection(u User) string {
+	return u.Name
+}
+
+func optionAssigned(u *User?) *User? {
+	return u
+}
+
+func compareToNil(u *User?) bool {
+	return u == nil
+}
+
+// ---- forbid ----
+
+// types2 reports the rule while it checks the package, so the finding stops
+// the compile before the lint pass would report the directive itself as
+// correctness::allow_forbidden_rule. The directive silences nothing.
+
+//logos:allow(correctness::nil_deref_unproven)
+func allowIgnored(u *User?) string {
+	return u.Name // ERROR "\[correctness::nil_deref_unproven\] cannot access field Name of \*User\? without proving != nil"
+}

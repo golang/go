@@ -1,0 +1,309 @@
+// errorcheck
+
+// correctness::defer_erases_errdefer_state (SPEC Sec 1.2, #77, T-102): in a
+// function with errdefer, a plain deferred function literal assigns nil to the
+// error result. The plain defer runs before the errdefer cleanup, clears the
+// result, and the errdefer then sees a success and skips its rollback. The
+// rule is forbid and applies to loGo/s packages only.
+
+package p
+
+import "errors"
+
+var failure = errors.New("failed")
+
+func rollback() {}
+func rollbackE() error { return nil }
+
+// ---- reported ----
+
+func eraseAfterErrdefer() (err error) {
+	errdefer rollback()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseBeforeErrdefer() (err error) {
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	errdefer rollback()
+	return failure
+}
+
+func eraseTryErrdefer() (err error) {
+	errdefer rollbackE()?
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseErrdeferLiteral() (err error) {
+	errdefer func() { rollback() }()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseErrdeferInBranch(ok bool) (err error) {
+	if ok {
+		errdefer rollback()
+	}
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseWithOtherResults() (n int, err error) {
+	errdefer rollback()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return 1, failure
+}
+
+func eraseInsideBranch() (err error) {
+	errdefer rollback()
+	defer func() {
+		if recover() != nil {
+			err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+		}
+	}()
+	return failure
+}
+
+func eraseInsideLoop() (err error) {
+	errdefer rollback()
+	defer func() {
+		for i := 0; i < 2; i++ {
+			err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+		}
+	}()
+	return failure
+}
+
+func eraseInTupleAssign() (n int, err error) {
+	errdefer rollback()
+	defer func() {
+		n, err = 7, nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return 1, failure
+}
+
+func eraseParenAssign() (err error) {
+	errdefer rollback()
+	defer func() {
+		(err) = (nil) // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseTwice() (err error) {
+	errdefer rollback()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseTwoErrdefers() (err error) {
+	errdefer rollback()
+	errdefer rollback()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}
+
+func eraseWithArgument() (err error) {
+	errdefer rollback()
+	defer func(code int) {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}(3)
+	return failure
+}
+
+func eraseOwnResultName() (failed error) {
+	errdefer rollback()
+	defer func() {
+		failed = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result failed"
+	}()
+	return failure
+}
+
+func eraseInClosure() func() error {
+	return func() (err error) {
+		errdefer rollback()
+		defer func() {
+			err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+		}()
+		return failure
+	}
+}
+
+func eraseInnerOuterIndependent() (err error) {
+	errdefer rollback()
+	run := func() (inner error) {
+		defer func() {
+			inner = nil
+		}()
+		return failure
+	}
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return run()
+}
+
+// ---- not reported ----
+
+func noErrdefer() (err error) {
+	defer func() {
+		err = nil
+	}()
+	return failure
+}
+
+func errdeferOnlyInClosure() (err error) {
+	cleanup := func() (inner error) {
+		errdefer rollback()
+		return failure
+	}
+	defer func() {
+		err = nil
+	}()
+	return cleanup()
+}
+
+func assignsError() (err error) {
+	errdefer rollback()
+	defer func() {
+		err = errors.New("wrapped")
+	}()
+	return failure
+}
+
+func assignsOtherResult() (n int, err error) {
+	errdefer rollback()
+	defer func() {
+		n = 0
+	}()
+	return 1, failure
+}
+
+func assignsOtherVariable() (err error) {
+	errdefer rollback()
+	var other error
+	defer func() {
+		other = nil
+		_ = other
+	}()
+	return failure
+}
+
+func shadowedName() (err error) {
+	errdefer rollback()
+	defer func() {
+		var err error
+		err = nil
+		_ = err
+	}()
+	return failure
+}
+
+func shadowedByDefine() (err error) {
+	errdefer rollback()
+	defer func() {
+		err := error(nil)
+		_ = err
+	}()
+	return failure
+}
+
+func shadowedByParameter() (err error) {
+	errdefer rollback()
+	defer func(err error) {
+		err = nil
+		_ = err
+	}(nil)
+	return failure
+}
+
+func comparesToNil() (err error) {
+	errdefer rollback()
+	defer func() {
+		if err == nil {
+			rollback()
+		}
+	}()
+	return failure
+}
+
+func nestedLiteralIsNotSearched() (err error) {
+	errdefer rollback()
+	defer func() {
+		forget := func() {
+			err = nil
+		}
+		_ = forget
+	}()
+	return failure
+}
+
+func namedFunctionNotLiteral() (err error) {
+	errdefer rollback()
+	defer rollback()
+	return failure
+}
+
+func unnamedResult() error {
+	errdefer rollback()
+	defer func() {
+		_ = failure
+	}()
+	return failure
+}
+
+func tryDefer() (err error) {
+	errdefer rollback()
+	defer rollbackE()?
+	return failure
+}
+
+func scopeDefer() (err error) {
+	errdefer rollback()
+	{
+		scope defer func() {
+			err = nil
+		}()
+	}
+	return failure
+}
+
+func plainClosureNoDefer() (err error) {
+	errdefer rollback()
+	clear := func() {
+		err = nil
+	}
+	_ = clear
+	return failure
+}
+
+// ---- forbid ----
+
+//logos:allow(correctness::defer_erases_errdefer_state) // ERROR "\[correctness::allow_forbidden_rule\]"
+func allowIgnored() (err error) {
+	errdefer rollback()
+	defer func() {
+		err = nil // ERROR "\[correctness::defer_erases_errdefer_state\] deferred function literal assigns nil to result err"
+	}()
+	return failure
+}

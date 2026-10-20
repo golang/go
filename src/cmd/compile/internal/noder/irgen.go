@@ -87,6 +87,9 @@ recheck:
 		if logosReportSoftWarn(&m, terr) { // logos M6-S3 hook: warn-severity rules print, never fail.
 			return
 		}
+		if logosReportNilDeref(&m, files, info, terr) { // logos M9-S2 hook: nil_deref_unproven carries autofix candidates.
+			return
+		}
 		msg := terr.Msg
 		if versionErrorRx.MatchString(msg) {
 			fileBase := terr.Pos.FileBase()

@@ -1,0 +1,25 @@
+// errorcheck
+
+// correctness::nil_deref_unproven is forbid (SPEC Sec 1.2, T-102), so a
+// //logos:allow directive that names it is reported as
+// correctness::allow_forbidden_rule. The checker reports the rule while it
+// checks the package and the finding stops the compile before the lint pass
+// runs, so the directive is reported only in a package with no unproven
+// selection, like this one (nil_deref_unproven.lgo holds the findings).
+
+package p
+
+type User struct{ Name string }
+
+//logos:allow(correctness::nil_deref_unproven) // ERROR "\[correctness::allow_forbidden_rule\]"
+func proven(u *User?) string {
+	if u == nil {
+		return ""
+	}
+	return u.Name
+}
+
+func chained(u *User?) string {
+	//logos:allow(correctness::nil_deref_unproven) // ERROR "\[correctness::allow_forbidden_rule\]"
+	return u?.Name ?? ""
+}

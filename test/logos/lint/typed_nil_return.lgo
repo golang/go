@@ -1,0 +1,317 @@
+// errorcheck
+
+// correctness::typed_nil_return (SPEC Sec 1.2, T-102): a function returns a
+// possibly nil pointer as an interface or error result without a dominating
+// nil check. The interface that holds a nil pointer is itself not nil, so the
+// caller's `err != nil` is true. Three forms are active in loGo/s: the
+// conversion (*T)(nil), an option value, and a platform pointer (a pointer
+// from a Go declaration). The rule is forbid, so no //logos:allow silences it.
+// Only the (*T)(nil) form is active in Go (typed_nil_return_go.go).
+
+package p
+
+import (
+	"io"
+	"os"
+)
+
+var touched bool
+
+type Err struct{ msg string }
+
+func (e *Err) Error() string { return e.msg }
+
+// ---- (*T)(nil) ----
+
+func explicitError() error {
+	return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+}
+
+func explicitParen() error {
+	return ((*Err)(nil)) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+}
+
+func explicitAny() any {
+	return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as any result is a typed nil"
+}
+
+func explicitSecond() (int, error) {
+	return 1, (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+}
+
+func explicitClosure() func() error {
+	return func() error {
+		return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+	}
+}
+
+func explicitSurvivesGuard(e *Err?) error {
+	if e == nil {
+		return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+	}
+	return nil
+}
+
+func nilIsFine() error {
+	return nil
+}
+
+func freshPointerIsFine() error {
+	return &Err{msg: "x"}
+}
+
+func notAnInterface() *Err? {
+	return (*Err)(nil)
+}
+
+func notTheInterfaceSlot() (*Err?, error) {
+	return (*Err)(nil), nil
+}
+
+// ---- option ----
+
+func optionAny(p *Err?) any {
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionScalar(n int?) any {
+	return n // ERROR "\[correctness::typed_nil_return\] option n \(int\?\) returned as any result without a dominating nil check"
+}
+
+func optionField(h *Holder) any {
+	return h.P // ERROR "\[correctness::typed_nil_return\] option h.P \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionCall() any {
+	return find() // ERROR "\[correctness::typed_nil_return\] option find\(\) \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+type Holder struct {
+	P *Err?
+}
+
+func find() *Err? { return nil }
+
+func optionGuarded(p *Err?) any {
+	if p != nil {
+		return p
+	}
+	return nil
+}
+
+func optionEarlyExit(p *Err?) any {
+	if p == nil {
+		return nil
+	}
+	return p
+}
+
+func optionElseBranch(p *Err?) any {
+	if p == nil {
+		return nil
+	} else {
+		return p
+	}
+}
+
+func optionAndChain(p *Err?, ok bool) any {
+	if ok && p != nil {
+		return p
+	}
+	return nil
+}
+
+func optionOrChain(p *Err?, bad bool) any {
+	if p == nil || bad {
+		return nil
+	}
+	return p
+}
+
+func optionNegated(p *Err?) any {
+	if !(p == nil) {
+		return p
+	}
+	return nil
+}
+
+func optionFieldGuarded(h *Holder) any {
+	if h.P != nil {
+		return h.P
+	}
+	return nil
+}
+
+func optionCheckAfter(p *Err?) any {
+	if p == nil {
+		touched = true
+	}
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionWrongBranch(p *Err?) any {
+	if p == nil {
+		return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+	}
+	return nil
+}
+
+func optionOtherVariable(p, q *Err?) any {
+	if q != nil {
+		return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+	}
+	return nil
+}
+
+func optionOrWeakGuard(p *Err?, ok bool) any {
+	if p != nil || ok {
+		return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+	}
+	return nil
+}
+
+func optionAndWeakExit(p *Err?, ok bool) any {
+	if p == nil && ok {
+		return nil
+	}
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionReassigned(p *Err?, q *Err?) any {
+	if p == nil {
+		return nil
+	}
+	p = q
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionLoopReassigned(p *Err?, next [](*Err?)) any {
+	if p == nil {
+		return nil
+	}
+	for _, n := range next {
+		p = n
+	}
+	return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionClosureUnguarded(p *Err?) func() any {
+	return func() any {
+		return p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+	}
+}
+
+func optionClosureCapturesProof(p *Err?) func() any {
+	if p == nil {
+		return nil
+	}
+	return func() any {
+		return p
+	}
+}
+
+func optionTupleSecond(p *Err?) (int, any) {
+	return 0, p // ERROR "\[correctness::typed_nil_return\] option p \(\*Err\?\) returned as any result without a dominating nil check"
+}
+
+func optionToOption(p *Err?) *Err? {
+	return p
+}
+
+func optionNotBoxed(p *Err?) (*Err?, any) {
+	return p, nil
+}
+
+// ---- platform pointer ----
+
+func platformLocal() io.Closer {
+	f := os.Stdout
+	return f // ERROR "\[correctness::typed_nil_return\] platform pointer f \(\*os.File\) returned as io.Closer result without a dominating nil check"
+}
+
+func platformGlobal() io.Writer {
+	return os.Stdout // ERROR "\[correctness::typed_nil_return\] platform pointer os.Stdout \(\*os.File\) returned as io.Writer result without a dominating nil check"
+}
+
+func platformCall(name string) (io.ReadCloser, error) {
+	return os.Open(name) // ERROR "\[correctness::typed_nil_return\] platform pointer os.Open\(name\) \(\*os.File\) returned as io.ReadCloser result without a dominating nil check"
+}
+
+func platformTupleBoxedSlot() (*os.File, io.Writer, error) {
+	return os.Pipe() // ERROR "\[correctness::typed_nil_return\] platform pointer os.Pipe\(\) \(\*os.File\) returned as io.Writer result without a dominating nil check"
+}
+
+func platformTupleConcreteSlots(name string) (*os.File, any) {
+	return os.Open(name)
+}
+
+func platformTupleErrorBoxed() (*os.File, *os.File, any) {
+	return os.Pipe()
+}
+
+func platformClosure() func() io.Closer {
+	f := os.Stdout
+	return func() io.Closer {
+		return f // ERROR "\[correctness::typed_nil_return\] platform pointer f \(\*os.File\) returned as io.Closer result without a dominating nil check"
+	}
+}
+
+func platformNewIsNotPlatform() error {
+	return new(os.PathError)
+}
+
+func platformGuarded() io.Closer {
+	f := os.Stdout
+	if f != nil {
+		return f
+	}
+	return nil
+}
+
+func platformEarlyExit() io.Closer {
+	f := os.Stdout
+	if f == nil {
+		return nil
+	}
+	return f
+}
+
+func platformGlobalGuarded() io.Writer {
+	if os.Stdout == nil {
+		return nil
+	}
+	return os.Stdout
+}
+
+func platformConcrete() *os.File {
+	return os.Stdout
+}
+
+func platformNotBoxed() (*os.File, io.Closer) {
+	return os.Stdout, nil
+}
+
+func platformLgoPointer() io.Writer {
+	e := &Err{}
+	return nopWriter{e}
+}
+
+type nopWriter struct{ e *Err }
+
+func (nopWriter) Write(b []byte) (int, error) { return len(b), nil }
+
+func nonNilPointerIsFine() error {
+	e := &Err{msg: "boom"}
+	return e
+}
+
+func nonNilParamIsFine(e *Err) error {
+	return e
+}
+
+// ---- forbid ----
+
+//logos:allow(correctness::typed_nil_return) // ERROR "\[correctness::allow_forbidden_rule\]"
+func allowIgnored() error {
+	return (*Err)(nil) // ERROR "\[correctness::typed_nil_return\] \(\*Err\)\(nil\) returned as error result is a typed nil"
+}
