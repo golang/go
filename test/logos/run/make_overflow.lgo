@@ -1,0 +1,44 @@
+// run
+
+package main
+
+// M15-S2 (SPEC Sec 15.2, T-303; #169): `*` inside a make length or
+// capacity lowers to _logos_rt.MulLen, which panics with
+// `logos: make length overflow: w * h` on overflow instead of
+// allocating a wrapped small buffer. Small products keep their length,
+// and a zero factor stays zero without panicking.
+
+import "fmt"
+
+type Pixel struct {
+	R, G, B, A uint8
+}
+
+func tryLen(w, h int) (out string) {
+	defer func() {
+		if r := recover(); r != nil {
+			out = fmt.Sprint(r)
+		}
+	}()
+	buf := make([]Pixel, w*h)
+	out = fmt.Sprintf("len=%d", len(buf))
+	return out
+}
+
+func tryCap(w, h int) (out string) {
+	defer func() {
+		if r := recover(); r != nil {
+			out = fmt.Sprint(r)
+		}
+	}()
+	buf := make([]Pixel, 1, w*h)
+	out = fmt.Sprintf("len=%d cap=%d", len(buf), cap(buf))
+	return out
+}
+
+func main() {
+	fmt.Println(tryLen(1<<32, 1<<32))
+	fmt.Println(tryLen(3, 4))
+	fmt.Println(tryCap(1<<32, 1<<32))
+	fmt.Println(tryLen(0, 1<<32))
+}

@@ -201,6 +201,7 @@ func (fl *fileLower) lowerFile() {
 	}
 	fl.lowerTuples()  // M6-S5 hook: tuples to structs, pack/unpack.
 	fl.lowerLambdas() // M6-S6 hook: lambdas to function literals.
+	fl.lowerMakeLen() // M15-S2 hook: products in make lengths to MulLen; sets needRT before the import.
 	if fl.needRT {
 		fl.file.DeclList = append([]syntax.Decl{rtImport(fl.file.Pos())}, fl.file.DeclList...)
 		fl.addHeaderSplice()

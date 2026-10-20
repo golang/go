@@ -1,0 +1,30 @@
+// run
+
+package main
+
+// M15-S2 (SPEC Sec 15.2, T-303; #169): a make length that is a constant
+// product stays a compile-time constant. Its lowering must not call
+// _logos_rt.MulLen, because untyped float constants such as 2.0 and 3.0
+// infer float64, which the integer constraint rejects. A product that
+// mixes a constant with a variable still lowers to MulLen, including when
+// an operand is parenthesized, an index, or a call, on either side, and a
+// comment between the operator and its right operand survives eject.
+
+import "fmt"
+
+const K = 3
+
+func main() {
+	a := make([]int, 2.0*3.0)
+	b := make([]int, K*K)
+	n := 4
+	c := make([]int, 2.0*n)
+	d := make([]int, (2.0*3.0)*n)
+	xs := []int{1, 2, 3}
+	e := make([]int, len(xs)*n)
+	f := make([]int, n*(n*2))
+	g := make([]int, n*xs[1])
+	h := make([]int, (n)*len(xs))
+	i := make([]int, n* /* gap */ n)
+	fmt.Println(len(a), len(b), len(c), len(d), len(e), len(f), len(g), len(h), len(i))
+}

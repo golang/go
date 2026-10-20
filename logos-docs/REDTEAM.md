@@ -172,7 +172,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #166 | M19 |  | planned |
 | #167 | M8, M9 |  | planned |
 | #168 | M19 |  | planned |
-| #169 | M15 |  | planned |
+| #169 | M15 | test/logos/run/make_overflow.lgo (length and capacity); test/logos/run/make_overflow_go.go; test/logos/run/make_const.lgo; src/logos/rt/mullen_test.go | tested |
 | #170 | M9 |  | planned |
 | #171 | M19 |  | planned |
 | #172 | M9 |  | planned |
