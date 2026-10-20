@@ -89,6 +89,7 @@ func check(tag string, done chan string) {
 	}
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	ctx := context.Background()
 	done := make(chan string, 1)

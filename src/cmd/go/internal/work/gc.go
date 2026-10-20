@@ -134,7 +134,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
 		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
 	}
 
-	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+	lintFlags, err := logosLintFlags(sh, a) // loGos hook: lint policy and JSON flags.
+	if err != nil {
+		return "", nil, err
+	}
+	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags, lintFlags}
 	if p.Internal.LocalPrefix == "" {
 		args = append(args, "-nolocalimports")
 	} else {

@@ -29,6 +29,7 @@ func fail() (err error) {
 	return errRec
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	_ = ok()
 	_ = fail()

@@ -9,12 +9,13 @@
 // plain go reads no logos.toml. When the file is absent every key takes its
 // default.
 //
-// The parser accepts a minimal TOML subset: the [project] and [build]
-// tables, bare keys, basic and literal strings, string arrays (including
-// multi-line arrays with trailing commas), and hash comments. It rejects
-// everything outside the schema. Every error reports file, line, and column
-// as name:line:col: message, where name is the name argument passed to
-// Parse.
+// The parser accepts a minimal TOML subset: the [project], [build],
+// [capabilities], [lints], and [lints.thresholds] tables, bare keys, basic
+// and literal strings, decimal integers (thresholds only), string arrays
+// (including multi-line arrays with trailing commas), and hash comments. It
+// rejects everything outside the schema. Every error reports file, line, and
+// column as name:line:col: message, where name is the name argument passed
+// to Parse.
 package config
 
 import (
@@ -33,6 +34,8 @@ type File struct {
 	Build Build
 	// Capabilities holds the [capabilities] table.
 	Capabilities Capabilities
+	// Lints holds the [lints] and [lints.thresholds] tables.
+	Lints Lints
 }
 
 // Project holds the [project] table: the module name (informational only),

@@ -410,6 +410,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 	}
 
+	logosLintActionID(h, a) // loGos hook: lint policy of loGo/s packages.
+
 	// Input files.
 	inputFiles := str.StringList(
 		p.GoFiles,

@@ -19,9 +19,10 @@ import (
 
 // An errorMsg is a queued error message, waiting to be printed.
 type errorMsg struct {
-	pos  src.XPos
-	msg  string
-	code errors.Code
+	pos   src.XPos
+	msg   string
+	code  errors.Code
+	logos logosMsg // loGo/s sink state (logos_diag.go)
 }
 
 // Pos is the current source position being processed,
@@ -47,15 +48,17 @@ func SyntaxErrors() int {
 // addErrorMsg adds a new errorMsg (which may be a warning) to errorMsgs.
 func addErrorMsg(pos src.XPos, code errors.Code, format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
+	raw := msg
 	// Only add the position if know the position.
 	// See issue golang.org/issue/11361.
 	if pos.IsKnown() {
 		msg = fmt.Sprintf("%v: %s", FmtPos(pos), msg)
 	}
 	errorMsgs = append(errorMsgs, errorMsg{
-		pos:  pos,
-		msg:  msg + "\n",
-		code: code,
+		pos:   pos,
+		msg:   msg + "\n",
+		code:  code,
+		logos: logosMsg{raw: raw},
 	})
 }
 
@@ -88,7 +91,7 @@ func FlushErrors() {
 	}
 	for i, err := range errorMsgs {
 		if i == 0 || err.msg != errorMsgs[i-1].msg {
-			fmt.Print(err.msg)
+			fmt.Print(logosText(err))
 		}
 	}
 	errorMsgs = errorMsgs[:0]
@@ -144,7 +147,7 @@ func ErrorfAt(pos src.XPos, code errors.Code, format string, args ...any) {
 	hcrash()
 	if numErrors >= 10 && Flag.LowerE == 0 {
 		FlushErrors()
-		fmt.Printf("%v: too many errors\n", FmtPos(pos))
+		printTooManyErrors(pos)
 		ErrorExit()
 	}
 }
@@ -176,6 +179,7 @@ func Warn(format string, args ...any) {
 // to additional output by setting a particular flag.
 func WarnfAt(pos src.XPos, format string, args ...any) {
 	addErrorMsg(pos, 0, format, args...)
+	logosMarkWarn()
 	if Flag.LowerM != 0 {
 		FlushErrors()
 	}

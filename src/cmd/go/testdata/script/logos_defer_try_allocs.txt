@@ -26,6 +26,7 @@ package deferalloc
 
 import "testing"
 
+//logos:allow(slop::discarded_error)
 func TestDeferTryNilAllocs(t *testing.T) {
 	if n := testing.AllocsPerRun(200, func() { _ = ReturnNil() }); n != 0 {
 		t.Fatalf("defer f()? with nil result allocated %d times, want 0", n)

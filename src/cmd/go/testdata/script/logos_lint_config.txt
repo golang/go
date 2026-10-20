@@ -1,0 +1,380 @@
+# M9-S1: lint severities, the //logos:allow directive, [lints] in logos.toml,
+# logos lint, and --json-diagnostics on loGo/s packages.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# A deny violation fails logos build and names the rule at file:line:col.
+cd deny
+! logos build -o $WORK/bin/deny$GOEXE .
+stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
+! exists $WORK/bin/deny$GOEXE
+cd ..
+
+# //logos:allow(<rule>) before the statement silences a deny rule.
+cd allow
+logos build -o $WORK/bin/allow$GOEXE .
+! stderr .
+exists $WORK/bin/allow$GOEXE
+cd ..
+
+# The same directive on a forbid rule is itself an error, and forbid
+# ignores it: the rule is reported as well.
+cd forbid
+! logos build -o $WORK/bin/forbid$GOEXE .
+stderr 'main\.lgo:3:1: \[correctness::allow_forbidden_rule\]'
+stderr 'main\.lgo:4:6: \[correctness::infinite_recursion\]'
+! exists $WORK/bin/forbid$GOEXE
+cd ..
+
+# logos.toml slop = "warn" turns the deny rule into a warning: the build
+# passes and still prints the rule.
+cd warn
+logos build -o $WORK/bin/warn$GOEXE .
+stderr 'main\.lgo:6:2: warning: \[slop::discarded_error\]'
+exists $WORK/bin/warn$GOEXE
+
+# A cached rebuild replays the warning.
+logos build -o $WORK/bin/warn$GOEXE .
+stderr 'main\.lgo:6:2: warning: \[slop::discarded_error\]'
+
+# A JSON build after the text builds prints JSON, not the replayed text:
+# the output format is part of the action ID.
+logos build --json-diagnostics -o $WORK/bin/warn$GOEXE .
+! stderr '^#'
+! stderr 'warning:'
+stderr -count=1 '^\{.*"rule_id":"slop::discarded_error".*\}$'
+cd ..
+
+# slop = "allow" is silent.
+cd quiet
+logos build -o $WORK/bin/quiet$GOEXE .
+! stderr .
+exists $WORK/bin/quiet$GOEXE
+cd ..
+
+# A forbid group cannot be lowered by configuration.
+cd lowered
+! logos build .
+stderr 'logos\.toml:2:15: \[configuration::forbid_lowered\] correctness cannot be lowered below forbid'
+cd ..
+
+# logos lint ./... reports without building binaries and fails on deny.
+cd lintcmd
+! logos lint ./...
+stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
+! exists lintcmd
+! exists lintcmd$GOEXE
+cd ..
+
+# logos lint of a clean module is silent and writes nothing.
+cd clean
+logos lint ./...
+! stderr .
+! stdout .
+! exists clean
+! exists clean$GOEXE
+cd ..
+
+# logos build --json-diagnostics prints one JSON object per line with the
+# schema fields, each line validated with jaq.
+cd jsonbuild
+! logos build --json-diagnostics -o $WORK/bin/jsonbuild$GOEXE .
+! stderr '^#'
+stderr -count=1 '^\{.*\}$'
+cp stderr $WORK/jsonbuild.jsonl
+exec jaq -e -s 'length == 1 and all(.[]; .schema_version == "1.0" and .severity == "deny" and .rule_id == "slop::discarded_error" and (.file | endswith("main.lgo")) and (.span | keys == ["byte_len","byte_offset","end_col","end_line","start_col","start_line"]) and .span.start_line == 6 and .span.start_col == 2 and .span.byte_offset > 0 and .span.byte_len == (.provenance.origin_expr | length) and .span.end_col == .span.start_col + .span.byte_len and (.message | type == "string" and length > 0) and (.provenance | keys == ["inferred_type","origin_expr","origin_line"]) and (.autofix_candidates | type == "array"))' $WORK/jsonbuild.jsonl
+cd ..
+
+# logos lint --json-diagnostics reports the same records, and the forbid
+# directive error carries severity forbid.
+cd jsonlint
+! logos lint --json-diagnostics ./...
+cp stderr $WORK/jsonlint.jsonl
+exec jaq -e -s 'length == 2 and all(.[]; .schema_version == "1.0" and (.rule_id | type == "string") and (.file | endswith("main.lgo")))' $WORK/jsonlint.jsonl
+exec jaq -e -s 'any(.[]; .rule_id == "correctness::allow_forbidden_rule" and .severity == "forbid") and any(.[]; .rule_id == "correctness::infinite_recursion" and .severity == "forbid")' $WORK/jsonlint.jsonl
+cd ..
+
+# A warn rule has severity warn in the JSON output and does not fail.
+cd jsonwarn
+logos lint --json-diagnostics ./...
+cp stderr $WORK/jsonwarn.jsonl
+exec jaq -e -s 'length == 1 and .[0].severity == "warn" and .[0].rule_id == "slop::discarded_error"' $WORK/jsonwarn.jsonl
+cd ..
+
+# A Go type error under logos build --json-diagnostics is one valid record
+# for the .go file with an empty rule_id.
+cd gotypeerr
+! logos build --json-diagnostics ./...
+! stderr '^#'
+stderr -count=1 '^\{.*\}$'
+cp stderr $WORK/gotypeerr.jsonl
+exec jaq -e -s 'length == 1 and all(.[]; .schema_version == "1.0" and .rule_id == "" and .severity == "deny" and (.file | endswith(".go")) and (.message | contains("undefined")))' $WORK/gotypeerr.jsonl
+cd ..
+
+# A logos.toml change recompiles: the policy is part of the action ID, so
+# the build cache cannot hide a stricter severity.
+cd reconfig
+logos build -o $WORK/bin/reconfig$GOEXE .
+! stderr .
+cp logos-deny.toml logos.toml
+! logos build -o $WORK/bin/reconfig$GOEXE .
+stderr 'main\.lgo:6:2: \[slop::discarded_error\]'
+cd ..
+
+# A loGo/s dependency module, not the main module, gets no lint diagnostic.
+cd lgoapp
+logos build -o $WORK/bin/lgoapp$GOEXE .
+! stderr .
+logos lint ./...
+! stderr .
+cd ..
+
+# Plain go has neither the lint command nor the JSON flag.
+cd clean
+! go lint ./...
+stderr 'go lint: unknown command'
+! go build --json-diagnostics ./...
+stderr 'flag provided but not defined: -json-diagnostics'
+go help build
+! stdout 'json-diagnostics'
+cd ..
+
+-- deny/go.mod --
+module example.com/deny
+
+go 1.27
+
+-- deny/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- allow/go.mod --
+module example.com/allow
+
+go 1.27
+
+-- allow/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	//logos:allow(slop::discarded_error)
+	os.Remove("missing")
+}
+
+-- forbid/go.mod --
+module example.com/forbid
+
+go 1.27
+
+-- forbid/main.lgo --
+package main
+
+//logos:allow(correctness::infinite_recursion)
+func loop(n int) int {
+	return loop(n)
+}
+
+func main() {
+	println(loop(1))
+}
+
+-- warn/go.mod --
+module example.com/warn
+
+go 1.27
+
+-- warn/logos.toml --
+[lints]
+slop = "warn"
+
+-- warn/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- quiet/go.mod --
+module example.com/quiet
+
+go 1.27
+
+-- quiet/logos.toml --
+[lints]
+slop = "allow"
+
+-- quiet/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- reconfig/go.mod --
+module example.com/reconfig
+
+go 1.27
+
+-- reconfig/logos.toml --
+[lints]
+slop = "allow"
+
+-- reconfig/logos-deny.toml --
+[lints]
+slop = "deny"
+
+-- reconfig/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- lgoapp/go.mod --
+module example.com/lgoapp
+
+go 1.27
+
+require example.com/lgodep v0.0.0
+
+replace example.com/lgodep => ../lgodep
+
+-- lgoapp/main.lgo --
+package main
+
+import "example.com/lgodep"
+
+func main() {
+	println(lgodep.Name())
+}
+
+-- lgodep/go.mod --
+module example.com/lgodep
+
+go 1.27
+
+-- lgodep/dep.lgo --
+package lgodep
+
+import "os"
+
+func Name() string {
+	os.Remove("missing")
+	return "dep"
+}
+
+-- lowered/go.mod --
+module example.com/lowered
+
+go 1.27
+
+-- lowered/logos.toml --
+[lints]
+correctness = "warn"
+
+-- lowered/main.lgo --
+package main
+
+func main() {}
+
+-- lintcmd/go.mod --
+module example.com/lintcmd
+
+go 1.27
+
+-- lintcmd/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- clean/go.mod --
+module example.com/clean
+
+go 1.27
+
+-- clean/main.lgo --
+package main
+
+func main() {
+	println("clean")
+}
+
+-- jsonbuild/go.mod --
+module example.com/jsonbuild
+
+go 1.27
+
+-- jsonbuild/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- jsonlint/go.mod --
+module example.com/jsonlint
+
+go 1.27
+
+-- jsonlint/main.lgo --
+package main
+
+//logos:allow(correctness::infinite_recursion)
+func loop(n int) int {
+	return loop(n)
+}
+
+func main() {
+	println(loop(1))
+}
+
+-- jsonwarn/go.mod --
+module example.com/jsonwarn
+
+go 1.27
+
+-- jsonwarn/logos.toml --
+[lints]
+slop = "warn"
+
+-- jsonwarn/main.lgo --
+package main
+
+import "os"
+
+func main() {
+	os.Remove("missing")
+}
+
+-- gotypeerr/go.mod --
+module example.com/gotypeerr
+
+go 1.27
+
+-- gotypeerr/main.go --
+package main
+
+func main() {
+	undefinedFn()
+}

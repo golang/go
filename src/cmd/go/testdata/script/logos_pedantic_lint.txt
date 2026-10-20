@@ -1,0 +1,191 @@
+# M9-S1 lint leg of --pedantic (flag wiring: M0-S7): logos lint accepts the
+# flag, a default build stays silent for the pedantic group, and --pedantic
+# enables it. The rule itself is proved in M9-S2.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# Default logos lint and logos build are silent for the pedantic group.
+cd union
+logos lint ./...
+! stderr .
+logos build -o $WORK/bin/union$GOEXE .
+! stderr .
+exists $WORK/bin/union$GOEXE
+cd ..
+
+# logos lint --pedantic accepts the flag and reports the default clause of
+# the switch over the closed union as a warning.
+cd union
+logos lint --pedantic ./...
+stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
+cd ..
+
+# logos build --pedantic enables the group too, without failing the build.
+cd union
+logos build --pedantic -o $WORK/bin/unionped$GOEXE .
+stderr 'main\.lgo:15:2: warning: \[pedantic::exhaustive_union_switch\]'
+exists $WORK/bin/unionped$GOEXE
+cd ..
+
+# --pedantic=false stays silent and a bad value fails at the flag layer.
+cd union
+logos lint --pedantic=false ./...
+! stderr .
+! logos lint --pedantic=maybe ./...
+stderr '^invalid boolean value "maybe" for -pedantic'
+cd ..
+
+# The warning is a lint diagnostic in the JSON output, validated with jaq.
+cd union
+logos lint --pedantic --json-diagnostics ./...
+cp stderr $WORK/ped.jsonl
+exec jaq -e -s 'length == 1 and .[0].rule_id == "pedantic::exhaustive_union_switch" and .[0].severity == "warn" and (.[0].file | endswith("main.lgo")) and .[0].span.start_line == 15' $WORK/ped.jsonl
+cd ..
+
+# A switch without default stays silent under --pedantic.
+cd exhaustive
+logos lint --pedantic ./...
+! stderr .
+cd ..
+
+# logos.toml pedantic = "deny" makes the group an error without the flag,
+# and --pedantic=false overrides the key.
+cd strict
+! logos lint ./...
+stderr 'main\.lgo:15:2: \[pedantic::exhaustive_union_switch\]'
+logos lint --pedantic=false ./...
+! stderr .
+! logos lint --pedantic ./...
+stderr 'main\.lgo:15:2: \[pedantic::exhaustive_union_switch\]'
+cd ..
+
+# The pedantic rule never applies to Go packages.
+cd gopkg
+logos lint --pedantic ./...
+! stderr .
+cd ..
+
+# Plain go keeps the unknown-flag error for the logos-only flags.
+cd union
+! go build --pedantic .
+stderr '^flag provided but not defined: -pedantic'
+cd ..
+
+-- union/go.mod --
+module example.com/union
+
+go 1.27
+
+-- union/main.lgo --
+package main
+
+type Shape interface {
+	Circle | Square
+}
+
+type Circle struct{ r int }
+
+type Square struct{ s int }
+
+func area(sh Shape) int {
+	switch v := sh.(type) {
+	case Circle:
+		return v.r
+	default:
+		return 0
+	}
+}
+
+func main() {
+	println(area(Circle{1}))
+}
+
+-- exhaustive/go.mod --
+module example.com/exhaustive
+
+go 1.27
+
+-- exhaustive/main.lgo --
+package main
+
+type Shape interface {
+	Circle | Square
+}
+
+type Circle struct{ r int }
+
+type Square struct{ s int }
+
+func area(sh Shape) int {
+	switch v := sh.(type) {
+	case Circle:
+		return v.r
+	case Square:
+		return v.s
+	case nil:
+		return 0
+	}
+	return -1
+}
+
+func main() {
+	println(area(Circle{1}))
+}
+
+-- strict/go.mod --
+module example.com/strict
+
+go 1.27
+
+-- strict/logos.toml --
+[lints]
+pedantic = "deny"
+
+-- strict/main.lgo --
+package main
+
+type Shape interface {
+	Circle | Square
+}
+
+type Circle struct{ r int }
+
+type Square struct{ s int }
+
+func area(sh Shape) int {
+	switch v := sh.(type) {
+	case Circle:
+		return v.r
+	default:
+		return 0
+	}
+}
+
+func main() {
+	println(area(Circle{1}))
+}
+
+-- gopkg/go.mod --
+module example.com/gopkg
+
+go 1.27
+
+-- gopkg/main.go --
+package main
+
+import "fmt"
+
+func kind(v any) string {
+	switch v.(type) {
+	case int:
+		return "int"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	fmt.Println(kind(1))
+}

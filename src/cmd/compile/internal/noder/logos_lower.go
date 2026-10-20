@@ -35,10 +35,10 @@ var logosStore = struct {
 
 // parseLogosFile parses one source file, remembering the original bytes
 // of logos files for lowering and eject. Go files are remembered too
-// while a next sidecar is armed.
+// while a next sidecar is armed or logos lint reads their comments.
 func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syntax.ErrorHandler, pragh syntax.PragmaHandler) *syntax.File {
 	mode := syntax.CheckBranches | logosMode(filename)
-	if !isLogosFile(filename) && base.LogosNextOut == "" {
+	if !isLogosFile(filename) && base.LogosNextOut == "" && !base.LogosLintOnly {
 		file, _ := syntax.Parse(fbase, f, errh, pragh, mode)
 		return file
 	}

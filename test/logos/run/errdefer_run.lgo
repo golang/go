@@ -34,6 +34,7 @@ func onPanic() (err error) {
 	panic("boom")
 }
 
+//logos:allow(slop::discarded_error)
 func recoverIt() (s string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -89,6 +90,7 @@ func goexitWorker(done chan string) (err error) {
 	return nil
 }
 
+//logos:allow(slop::discarded_error)
 func run() error {
 	_ = onError()
 	_ = onSuccess()

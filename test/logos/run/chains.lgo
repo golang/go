@@ -87,6 +87,7 @@ type fitem struct {
 	v string
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	mapCalls = 0
 	recvCalls = 0

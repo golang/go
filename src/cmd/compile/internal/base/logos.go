@@ -29,8 +29,26 @@ var LogosMode string
 // no report.
 var LogosNextOut string
 
+// LogosCfg is the -logos.cfg file: the logos.toml [lints] policy as JSON,
+// written by the go command. A loGo/s package runs its lints on every
+// compile when it is set; a Go package runs them only with LogosLintOnly.
+// Empty means no lints.
+var LogosCfg string
+
+// LogosJSON is the -logos.json flag: every compiler diagnostic prints as
+// one JSON object per line (SPEC Sec 16) instead of text.
+var LogosJSON bool
+
+// LogosLintOnly is the -logos.lintonly flag, passed only by logos lint:
+// run the lints of a Go or loGo/s package, run escape analysis for the
+// escape rules, and stop before SSA and the backend.
+var LogosLintOnly bool
+
 // logosRegisterFlags registers the loGo/s compiler flags.
 func logosRegisterFlags() {
+	flag.StringVar(&LogosCfg, "logos.cfg", "", "read the lint policy from `file`")
+	flag.BoolVar(&LogosJSON, "logos.json", false, "print diagnostics as JSON lines")
+	flag.BoolVar(&LogosLintOnly, "logos.lintonly", false, "lint the package and stop after escape analysis")
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")
 	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next` or `context`)")
 	flag.StringVar(&LogosNextOut, "logos.nextout", "", "append logos next scan results to `file`")

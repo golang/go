@@ -222,7 +222,7 @@ func (p *parser) parseTable() error {
 	}
 	p.tables[name] = true
 	switch name {
-	case "project", "build", "capabilities":
+	case "project", "build", "capabilities", "lints", "lints.thresholds":
 		p.table = name
 	default:
 		return p.errorf(start, "unknown table %q", name)
@@ -244,6 +244,9 @@ func keyOwner(table, key string) (string, bool) {
 		"reflect_allowlist", "transitive_exec_allowlist", "transitive_net_allowlist", "transitive_unsafe_allowlist":
 		owner = "capabilities"
 	default:
+		owner = lintsOwner(key)
+	}
+	if owner == "" {
 		return "", false
 	}
 	if table != owner {
@@ -286,9 +289,12 @@ func (p *parser) parseKeyVal() error {
 	}
 	p.keys[id] = true
 	var err error
-	if isArrayKey(key) {
+	switch {
+	case isArrayKey(key):
 		err = p.parseArrayValue(key)
-	} else {
+	case isLintThreshold(key):
+		err = p.parseIntValue(key, valStart)
+	default:
 		err = p.parseStringValue(key, valStart)
 	}
 	if err != nil {
@@ -457,6 +463,10 @@ func (p *parser) assignString(key, s string, valStart int) error {
 			return p.errorf(valStart, "invalid %s value %q (want deny, warn, or allow)", key, s)
 		}
 		assignSeverity(&p.file.Capabilities, key, s)
+	default:
+		if isLintGroup(key) {
+			return p.assignLintGroup(key, s, valStart)
+		}
 	}
 	return nil
 }

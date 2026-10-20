@@ -33,6 +33,7 @@ func mixedFail() (err error) {
 	return errClose
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	_ = mixedOK()
 	fmt.Println("ok:", strings.Join(order, ","))

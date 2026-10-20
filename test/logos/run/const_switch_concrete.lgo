@@ -65,6 +65,7 @@ func noMatch() string {
 	return "after"
 }
 
+//logos:allow(slop::discarded_error)
 func ifaceBody(w Word) string {
 	const switch Word {
 	case io.WriterTo:

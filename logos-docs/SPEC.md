@@ -141,7 +141,9 @@ The `logos.toml [lints.thresholds]` defaults MUST be 3 for nesting depth, 15 for
 Configuration MAY raise `max_comptime_ast_nodes` and `max_ctfe_steps` above their defaults [T-102].
 Validation and boundary tests MUST use the selected limits [T-102].
 `logos build` and `logos lint` MUST accept `--pedantic` with default false [T-102].
-The `--pedantic` flag MUST override `logos.toml` [T-102].
+The `--pedantic` flag MUST override `logos.toml` [T-102]. `--pedantic` MUST raise the pedantic group from `allow` to `warn` and MUST keep a stricter configured severity, and `--pedantic=false` MUST set the pedantic group to `allow` [T-102].
+A `logos.toml` value that lowers a `forbid` group MUST fail with `configuration::forbid_lowered` [T-102].
+A Go package MUST NOT run any rule at `forbid`: a group configured `forbid` runs at `deny` there [T-102][R-U1].
 A default build MUST stay silent for the pedantic group [T-102].
 `logos lint ./...` MUST report findings without building binaries [T-102].
 `--json-diagnostics` MUST print one JSON object per line on stderr for each compiler and lint diagnostic in `.lgo` files and in Go files with schema version `1.0` [T-102][R-U1].

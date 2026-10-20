@@ -38,6 +38,7 @@ func spawnGoexit(done chan string) error {
 	return nil
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	func() {
 		defer func() { _ = recover() }()

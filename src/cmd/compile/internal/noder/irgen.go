@@ -191,6 +191,7 @@ recheck:
 
 	if !didLogos {
 		didLogos = true
+		logosLintHook(&m, files, pkg, info) // logos M9 hook: lints see the unlowered tree.
 		if logosRecheckHook(&conf, pkg, info, files) {
 			goto recheck
 		}

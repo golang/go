@@ -32,6 +32,20 @@ var Logos = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe") == "logos"
 // upstream text.
 var Pedantic bool
 
+// PedanticSet reports whether --pedantic appeared on the command line, so
+// --pedantic=false can override a pedantic key of logos.toml.
+var PedanticSet bool
+
+// LogosJSON is set by the logos-only --json-diagnostics flag of logos build
+// and logos lint: compile diagnostics print as one JSON object per line
+// (SPEC Sec 16). Plain go never sets it.
+var LogosJSON bool
+
+// LogosLintCmd is set while logos lint runs: every main-module package is
+// linted by its own lint action, so an ordinary compile in the same run
+// passes no lint policy to the compiler.
+var LogosLintCmd bool
+
 // logosInitCC snapshots the user CC at process startup, covering both the
 // process environment and the GOENV file. main.invoke later injects every
 // MkEnv value (including a CC default) into the process environment, so a

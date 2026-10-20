@@ -88,6 +88,7 @@ func c10() (int, error) {
 	return n + 1, nil
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	_, _ = topAlpha(true)
 	fmt.Println("trace-alpha:", len(rt.ErrorTrace()))

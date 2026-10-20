@@ -6,12 +6,14 @@
 package logos
 
 import (
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/logos/contextcmd"
 	"cmd/go/internal/logos/eject"
+	"cmd/go/internal/logos/lintcmd"
 	"cmd/go/internal/logos/next"
 )
 
@@ -23,34 +25,76 @@ func ConfigureCommand(cmd *base.Command) {
 	for _, sub := range cmd.Commands {
 		rebrandUsageLine(sub)
 	}
-	addPedanticFlag(cmd)
 	contextcmd.Register(cmd)
 	eject.Register(cmd)
+	lintcmd.Register(cmd)
 	next.Register(cmd)
+	addPedanticFlag(cmd.Lookup("build"))
+	addPedanticFlag(cmd.Lookup("lint"))
+	addJSONDiagnosticsFlag(cmd.Lookup("build"))
+	addJSONDiagnosticsFlag(cmd.Lookup("lint"))
 }
 
-// addPedanticFlag registers the logos-only --pedantic build flag on
-// "logos build" and documents it in "logos help build". It runs only
-// from ConfigureCommand, so plain "go build" keeps the upstream
+// pedanticFlag is the --pedantic flag value: a boolean that also records
+// that it was given, so --pedantic=false overrides a logos.toml pedantic
+// key and an absent flag does not.
+type pedanticFlag struct{}
+
+// IsBoolFlag lets --pedantic stand without a value.
+func (pedanticFlag) IsBoolFlag() bool { return true }
+
+// String returns the current value.
+func (pedanticFlag) String() string { return strconv.FormatBool(cfg.Pedantic) }
+
+// Set parses a boolean and records that the flag was set.
+func (pedanticFlag) Set(s string) error {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return err
+	}
+	cfg.Pedantic, cfg.PedanticSet = v, true
+	return nil
+}
+
+// addPedanticFlag registers the logos-only --pedantic flag on cmd, a
+// logos build or logos lint command, and documents it in its help. It runs
+// only from ConfigureCommand, so plain "go build" keeps the upstream
 // unknown-flag error and "go help build" keeps the upstream text.
 func addPedanticFlag(cmd *base.Command) {
-	build := cmd.Lookup("build")
-	if build == nil {
+	if cmd == nil {
 		return
 	}
-	if build.Flag.Lookup("pedantic") == nil {
-		build.Flag.BoolVar(&cfg.Pedantic, "pedantic", false, "")
+	if cmd.Flag.Lookup("pedantic") == nil {
+		cmd.Flag.Var(pedanticFlag{}, "pedantic", "")
 	}
-	if strings.Contains(build.Long, "-pedantic") {
+	addHelp(cmd, "-pedantic", "\n\t-pedantic\n\t\tenable pedantic diagnostics (logos builds only).\n")
+}
+
+// addJSONDiagnosticsFlag registers the logos-only --json-diagnostics flag
+// on cmd and documents it in its help. Like --pedantic it exists only in
+// logos mode.
+func addJSONDiagnosticsFlag(cmd *base.Command) {
+	if cmd == nil {
 		return
 	}
-	const help = "\n\t-pedantic\n\t\tenable pedantic diagnostics (logos builds only).\n"
-	before, after, found := strings.Cut(build.Long, "\nSee also:")
+	if cmd.Flag.Lookup("json-diagnostics") == nil {
+		cmd.Flag.BoolVar(&cfg.LogosJSON, "json-diagnostics", false, "")
+	}
+	addHelp(cmd, "-json-diagnostics", "\n\t-json-diagnostics\n\t\tprint each compiler and lint diagnostic as one JSON object\n\t\tper line on stderr (logos builds only).\n")
+}
+
+// addHelp appends a flag description to the long help of cmd before its
+// "See also:" line, unless the help already names flag.
+func addHelp(cmd *base.Command, flag, help string) {
+	if strings.Contains(cmd.Long, flag) {
+		return
+	}
+	before, after, found := strings.Cut(cmd.Long, "\nSee also:")
 	if found {
-		build.Long = before + help + "\nSee also:" + after
+		cmd.Long = before + help + "\nSee also:" + after
 		return
 	}
-	build.Long += help
+	cmd.Long += help
 }
 
 // rebrandUsageLine swaps the leading go verb for logos in one command's

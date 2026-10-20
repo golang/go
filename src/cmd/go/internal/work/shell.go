@@ -555,6 +555,9 @@ type cmdError struct {
 }
 
 func (e *cmdError) Error() string {
+	if logosJSONLines(e.text) { // loGos hook: JSON diagnostics carry no header line.
+		return e.text
+	}
 	var msg string
 	if e.needsPath {
 		// Ensure the import path is part of the message.

@@ -246,6 +246,7 @@ type PackageInternal struct {
 	Gcflags    []string // -gcflags for this package
 	LogosEject bool     // compile with -logos.eject and skip the build cache
 	LogosNext  bool     // compile with -logos.mode=next and skip the build cache
+	LogosLint  []byte   // -logos.cfg lint policy JSON; nil means no lints
 	Ldflags    []string // -ldflags for this package
 	Gccgoflags []string // -gccgoflags for this package
 }
@@ -3307,6 +3308,7 @@ func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 		p.Internal.Gcflags = BuildGcflags.For(ld, p)
 		p.Internal.Gcflags = append(p.Internal.Gcflags, logosEjectGcflags(p)...)
 		p.Internal.Gcflags = append(p.Internal.Gcflags, logosNextGcflags(p)...)
+		logosLintMark(ld, p)
 		p.Internal.Ldflags = BuildLdflags.For(ld, p)
 		p.Internal.Gccgoflags = BuildGccgoflags.For(ld, p)
 	}

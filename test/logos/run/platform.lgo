@@ -55,6 +55,7 @@ func tryGenericStore() (msg string) {
 	return "no-panic"
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	flag.String("have", "HAVE", "")
 	flag.Parse()

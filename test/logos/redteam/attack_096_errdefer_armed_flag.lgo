@@ -28,6 +28,7 @@ func returnEval() (v int, err error) {
 	return evalBoom()
 }
 
+//logos:allow(slop::discarded_error)
 func main() {
 	_ = early(false)
 	_ = early(true)
