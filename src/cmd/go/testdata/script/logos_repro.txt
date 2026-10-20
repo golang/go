@@ -1,0 +1,246 @@
+# M22-S5: .lgo builds are reproducible (SPEC Sec 22.5).
+# The example module builds twice from clean caches for linux/amd64,
+# linux/arm64, and js/wasm; each pair must have identical SHA-256 digests.
+# A throwaway copy of the embedded .lgo sources under a fresh go.mod must
+# build byte-identical output, proving the M22-S6 integration pattern
+# (copied .lgo files plus a fresh go.mod) without touching
+# test/logos/example. The stripped wasm size is gated against
+# test/logos/size/wasm_size.txt: growth above 1% fails. Second-host
+# comparison reuses the printed digests.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=0
+
+# Parameter: the example module directory this gate verifies. It defaults
+# to the embedded multi-package .lgo fixture below, named as an archive
+# directory. It also accepts an absolute directory: to verify the M22-S6
+# example instead, copy its .lgo files into a scratch directory preserving
+# package layout, write a go.mod with module example.com/order and go 1.27
+# beside them, and set this variable to that directory. Every transition
+# below anchors at $GOPATH/src first, so relative and absolute values work.
+env LOGOS_EXAMPLE=repro
+
+# The fixture runs before the matrix, proving it is a working program.
+# It uses ? propagation, so the gate also pins lowering stability.
+cd $GOPATH/src
+cd $LOGOS_EXAMPLE
+logos run .
+stdout '^42$'
+
+# linux/amd64: two clean-cache builds must agree.
+cd $GOPATH/src
+cd $LOGOS_EXAMPLE
+env GOOS=linux
+env GOARCH=amd64
+env GOCACHE=$WORK/cache-amd64-a
+logos build -trimpath -buildvcs=false -o $WORK/exe-amd64-a$GOEXE .
+env GOCACHE=$WORK/cache-amd64-b
+logos build -trimpath -buildvcs=false -o $WORK/exe-amd64-b$GOEXE .
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+go run . equal $WORK/exe-amd64-a$GOEXE $WORK/exe-amd64-b$GOEXE
+stdout '^identical$'
+
+# linux/arm64: two clean-cache cross builds must agree.
+cd $GOPATH/src
+cd $LOGOS_EXAMPLE
+env GOOS=linux
+env GOARCH=arm64
+env GOCACHE=$WORK/cache-arm64-a
+logos build -trimpath -buildvcs=false -o $WORK/exe-arm64-a .
+env GOCACHE=$WORK/cache-arm64-b
+logos build -trimpath -buildvcs=false -o $WORK/exe-arm64-b .
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+go run . equal $WORK/exe-arm64-a $WORK/exe-arm64-b
+stdout '^identical$'
+
+# js/wasm: two clean-cache cross builds must agree.
+cd $GOPATH/src
+cd $LOGOS_EXAMPLE
+env GOOS=js
+env GOARCH=wasm
+env GOCACHE=$WORK/cache-wasm-a
+logos build -trimpath -buildvcs=false -o $WORK/wasm-a.wasm .
+env GOCACHE=$WORK/cache-wasm-b
+logos build -trimpath -buildvcs=false -o $WORK/wasm-b.wasm .
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+go run . equal $WORK/wasm-a.wasm $WORK/wasm-b.wasm
+stdout '^identical$'
+
+# Throwaway staging: the embedded .lgo sources under a fresh go.mod build
+# byte-identical output to the embedded module build.
+cd $GOPATH/src
+mkdir staged
+mkdir staged/calc
+cp repro/go.mod staged/go.mod
+cp repro/main.lgo staged/main.lgo
+cp repro/calc/calc.lgo staged/calc/calc.lgo
+cd staged
+env GOOS=linux
+env GOARCH=amd64
+env GOCACHE=$WORK/cache-staged
+logos build -trimpath -buildvcs=false -o $WORK/exe-staged$GOEXE .
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+go run . equal $WORK/exe-staged$GOEXE $WORK/exe-amd64-a$GOEXE
+stdout '^identical$'
+
+# Stripped wasm size gate: growth above 1% against the recorded value fails.
+cd $GOPATH/src
+cd $LOGOS_EXAMPLE
+env GOOS=js
+env GOARCH=wasm
+env GOCACHE=$WORK/cache-wasm-strip
+logos build -trimpath -buildvcs=false -ldflags='-s -w' -o $WORK/example.wasm .
+cd $GOPATH/src
+cd tools
+env GOOS=
+env GOARCH=
+go run . sizegate $WORK/example.wasm $GOROOT/test/logos/size/wasm_size.txt
+stdout '^wasm size ok: '
+
+-- repro/go.mod --
+module example.com/repro
+
+go 1.27
+-- repro/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/repro/calc"
+)
+
+func run() error {
+	n := calc.Parse("20")?
+	fmt.Println(calc.Add(n, 22))
+	return nil
+}
+
+func main() {
+	if err := run(); err != nil {
+		panic(err)
+	}
+}
+-- repro/calc/calc.lgo --
+package calc
+
+import "strconv"
+
+func Add(a, b int) int {
+	return a + b
+}
+
+func Parse(s string) (int, error) {
+	return strconv.Atoi(s)
+}
+-- tools/go.mod --
+module example.com/reprocheck
+
+go 1.27
+-- tools/reprocheck.go --
+// Command reprocheck verifies M22-S5 reproducibility artifacts.
+package main
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+var errUsage = errors.New("usage: reprocheck equal <a> <b> | sizegate <wasm> <sizefile>")
+
+func main() {
+	if err := run(os.Args[1:]); err != nil {
+		fmt.Fprintln(os.Stderr, "reprocheck:", err)
+		os.Exit(1)
+	}
+}
+
+// run dispatches one named operation over its file arguments.
+func run(args []string) error {
+	if len(args) == 0 {
+		return errUsage
+	}
+	switch args[0] {
+	case "equal":
+		return equal(args[1:])
+	case "sizegate":
+		return sizegate(args[1:])
+	default:
+		return errUsage
+	}
+}
+
+// digest returns the hex SHA-256 of the named file.
+func digest(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// equal fails unless two files share one SHA-256 digest.
+func equal(args []string) error {
+	if len(args) != 2 {
+		return errUsage
+	}
+	a, err := digest(args[0])
+	if err != nil {
+		return err
+	}
+	b, err := digest(args[1])
+	if err != nil {
+		return err
+	}
+	fmt.Println("sha256:", a)
+	fmt.Println("sha256:", b)
+	if a != b {
+		return errors.New("digests differ")
+	}
+	fmt.Println("identical")
+	return nil
+}
+
+// sizegate fails when wasm grew over 1% past the recorded size.
+func sizegate(args []string) error {
+	if len(args) != 2 {
+		return errUsage
+	}
+	raw, err := os.ReadFile(args[1])
+	if err != nil {
+		return err
+	}
+	recorded, err := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64)
+	if err != nil || recorded <= 0 {
+		return errors.New("recorded size is not a positive integer")
+	}
+	info, err := os.Stat(args[0])
+	if err != nil {
+		return err
+	}
+	actual := info.Size()
+	fmt.Printf("wasm size ok: %d bytes (recorded %d)\n", actual, recorded)
+	if actual*100 > recorded*101 {
+		return fmt.Errorf("wasm size %d exceeds recorded %d by over 1%%", actual, recorded)
+	}
+	return nil
+}
