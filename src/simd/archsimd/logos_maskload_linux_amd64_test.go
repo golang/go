@@ -138,6 +138,119 @@ func TestLoadSliceMaskedPageEnd(t *testing.T) {
 	})
 }
 
+// checkSliceMaskedAllOnes is the SPEC Sec 15.2 attack at the archsimd
+// layer: load reads a slice that ends at the last byte of a page whose
+// successor is PROT_NONE, with an all-ones mask. Lanes at or past len(s)
+// must read no memory, so the load must not fault, and disabled lanes
+// must produce zero. A loader that trusts the caller mask over-reads
+// into the guard page and faults the process.
+func checkSliceMaskedAllOnes[T comparable](t *testing.T, lanes int, load func(s []T) []T, fill func(i int) T) {
+	t.Helper()
+	var zero T
+	for n := 0; n <= lanes; n++ {
+		s, release := pageEndSlice[T](t, n)
+		for i := range s {
+			s[i] = fill(i)
+		}
+		got := load(s)
+		if len(got) != lanes {
+			t.Fatalf("n=%d: vector holds %d lanes, want %d", n, len(got), lanes)
+		}
+		for i, v := range got {
+			want := zero
+			if i < n {
+				want = s[i]
+			}
+			if v != want {
+				t.Errorf("n=%d: lane %d is %v, want %v", n, i, v, want)
+			}
+		}
+		release()
+	}
+}
+
+func TestLoadSliceMaskedAllOnesPageEnd(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("AVX2 is not available")
+	}
+	t.Run("Float32x8", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 8, func(s []float32) []float32 {
+			var out [8]float32
+			archsimd.LoadFloat32x8SliceMasked(s, mask32x8(8)).StoreArray(&out)
+			return out[:]
+		}, floatFill[float32])
+	})
+	t.Run("Int32x8", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 8, func(s []int32) []int32 {
+			var out [8]int32
+			archsimd.LoadInt32x8SliceMasked(s, mask32x8(8)).StoreArray(&out)
+			return out[:]
+		}, intFill[int32])
+	})
+	t.Run("Uint32x8", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 8, func(s []uint32) []uint32 {
+			var out [8]uint32
+			archsimd.LoadUint32x8SliceMasked(s, mask32x8(8)).StoreArray(&out)
+			return out[:]
+		}, intFill[uint32])
+	})
+	t.Run("Float64x4", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 4, func(s []float64) []float64 {
+			var out [4]float64
+			archsimd.LoadFloat64x4SliceMasked(s, mask64x4(4)).StoreArray(&out)
+			return out[:]
+		}, floatFill[float64])
+	})
+	t.Run("Int64x4", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 4, func(s []int64) []int64 {
+			var out [4]int64
+			archsimd.LoadInt64x4SliceMasked(s, mask64x4(4)).StoreArray(&out)
+			return out[:]
+		}, intFill[int64])
+	})
+	t.Run("Uint64x4", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 4, func(s []uint64) []uint64 {
+			var out [4]uint64
+			archsimd.LoadUint64x4SliceMasked(s, mask64x4(4)).StoreArray(&out)
+			return out[:]
+		}, intFill[uint64])
+	})
+}
+
+func TestLoadSliceMaskedAllOnesPageEnd512(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("AVX512 is not available")
+	}
+	t.Run("Int16x32", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 32, func(s []int16) []int16 {
+			var out [32]int16
+			archsimd.LoadInt16x32SliceMasked(s, archsimd.Mask16x32FromBits(^uint32(0))).StoreArray(&out)
+			return out[:]
+		}, intFill[int16])
+	})
+	t.Run("Uint16x32", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 32, func(s []uint16) []uint16 {
+			var out [32]uint16
+			archsimd.LoadUint16x32SliceMasked(s, archsimd.Mask16x32FromBits(^uint32(0))).StoreArray(&out)
+			return out[:]
+		}, intFill[uint16])
+	})
+	t.Run("Int8x64", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 64, func(s []int8) []int8 {
+			var out [64]int8
+			archsimd.LoadInt8x64SliceMasked(s, archsimd.Mask8x64FromBits(^uint64(0))).StoreArray(&out)
+			return out[:]
+		}, intFill[int8])
+	})
+	t.Run("Uint8x64", func(t *testing.T) {
+		checkSliceMaskedAllOnes(t, 64, func(s []uint8) []uint8 {
+			var out [64]uint8
+			archsimd.LoadUint8x64SliceMasked(s, archsimd.Mask8x64FromBits(^uint64(0))).StoreArray(&out)
+			return out[:]
+		}, intFill[uint8])
+	})
+}
+
 func TestLoadSliceMaskedPageEnd512(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("AVX512 is not available")

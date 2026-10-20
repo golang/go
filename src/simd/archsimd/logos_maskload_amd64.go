@@ -15,8 +15,9 @@ package archsimd
 // loaders below issue the masked load directly (VPMASKMOVD and
 // VPMASKMOVQ for 32 and 64-bit lanes, the zeroing K-masked VMOVDQU8 and
 // VMOVDQU16 for 8 and 16-bit lanes): a masked-off lane never touches
-// memory and never faults, so a caller whose mask enables only the
-// elements of the slice reads no byte past s[len(s)-1].
+// memory and never faults. The intrinsic ANDs the caller mask with the
+// lanes below len(s), so no mask enables a read past s[len(s)-1]. The
+// clamp costs a length splat, an iota compare, and one AND per call.
 //
 // Each loader has no Go body. The compiler replaces every call with the
 // generic LoadMasked32, LoadMasked64, LoadMasked16, or LoadMasked8 SSA
@@ -25,8 +26,8 @@ package archsimd
 
 // LoadFloat32x8SliceMasked loads a Float32x8 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVD, CPU Feature: AVX2
 //
@@ -35,8 +36,8 @@ func LoadFloat32x8SliceMasked(s []float32, mask Mask32x8) Float32x8
 
 // LoadInt32x8SliceMasked loads a Int32x8 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVD, CPU Feature: AVX2
 //
@@ -45,8 +46,8 @@ func LoadInt32x8SliceMasked(s []int32, mask Mask32x8) Int32x8
 
 // LoadUint32x8SliceMasked loads a Uint32x8 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVD, CPU Feature: AVX2
 //
@@ -55,8 +56,8 @@ func LoadUint32x8SliceMasked(s []uint32, mask Mask32x8) Uint32x8
 
 // LoadFloat64x4SliceMasked loads a Float64x4 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVQ, CPU Feature: AVX2
 //
@@ -65,8 +66,8 @@ func LoadFloat64x4SliceMasked(s []float64, mask Mask64x4) Float64x4
 
 // LoadInt64x4SliceMasked loads a Int64x4 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVQ, CPU Feature: AVX2
 //
@@ -75,8 +76,8 @@ func LoadInt64x4SliceMasked(s []int64, mask Mask64x4) Int64x4
 
 // LoadUint64x4SliceMasked loads a Uint64x4 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VPMASKMOVQ, CPU Feature: AVX2
 //
@@ -85,8 +86,8 @@ func LoadUint64x4SliceMasked(s []uint64, mask Mask64x4) Uint64x4
 
 // LoadInt16x32SliceMasked loads a Int16x32 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VMOVDQU16, CPU Feature: AVX512
 //
@@ -95,8 +96,8 @@ func LoadInt16x32SliceMasked(s []int16, mask Mask16x32) Int16x32
 
 // LoadUint16x32SliceMasked loads a Uint16x32 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VMOVDQU16, CPU Feature: AVX512
 //
@@ -105,8 +106,8 @@ func LoadUint16x32SliceMasked(s []uint16, mask Mask16x32) Uint16x32
 
 // LoadInt8x64SliceMasked loads a Int8x64 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VMOVDQU8, CPU Feature: AVX512
 //
@@ -115,8 +116,8 @@ func LoadInt8x64SliceMasked(s []int8, mask Mask8x64) Int8x64
 
 // LoadUint8x64SliceMasked loads a Uint8x64 from the slice s at the lanes
 // enabled by mask and zeroes the others. A disabled lane reads no
-// memory. Every enabled lane must index an element of s: an enabled lane
-// at or past len(s) reads past the slice.
+// memory. Lanes at or past len(s) are disabled even when the mask
+// enables them: they read no memory and produce zero.
 //
 // Asm: VMOVDQU8, CPU Feature: AVX512
 //
