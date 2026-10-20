@@ -1,0 +1,73 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M2-S3 statement-switch exhaustiveness (SPEC Sec 2.3, T-203.1): a type
+// switch without default over the closed union U must cover every member
+// and nil; a default clause or full coverage satisfies; a sub-union case
+// covers its members; duplicate cases still fail via the upstream check.
+
+type A int
+type B string
+
+type U interface {
+	A | B
+}
+
+type Sub interface {
+	A
+}
+
+// Missing member B.
+func missMember(x U) {
+	switch /* ERRORx "nonexhaustive_switch.*misses: .*B" */ x.(type) {
+	case A:
+	case nil:
+	}
+}
+
+// All members covered but nil missing.
+func missNil(x U) {
+	switch /* ERRORx "nonexhaustive_switch.*misses: nil" */ x.(type) {
+	case A:
+	case B:
+	}
+}
+
+// Default satisfies despite missing members and nil.
+func withDefault(x U) {
+	switch x.(type) {
+	case A:
+	default:
+	}
+}
+
+// A sub-union case covers its members.
+func subUnion(x U) {
+	switch x.(type) {
+	case Sub:
+	case B:
+	case nil:
+	}
+}
+
+// Full coverage without default compiles.
+func exhaustive(x U) {
+	switch x.(type) {
+	case A:
+	case B:
+	case nil:
+	}
+}
+
+// Duplicate cases still fail via the upstream check.
+func dupCase(x U) {
+	switch x.(type) {
+	case A:
+	case A /* ERRORx "duplicate case .*A in type switch" */ :
+	case B:
+	case nil:
+	}
+}

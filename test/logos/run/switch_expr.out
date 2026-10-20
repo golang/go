@@ -1,0 +1,9 @@
+operand
+result: seven
+calls: 1
+arm2
+chosen: two
+7
+0
+s
+recovered: logos: switch expression at switch_expr.lgo:50 matched no arm

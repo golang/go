@@ -1,0 +1,82 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M2 switch-expression result types (SPEC Sec 2.3, T-203.1): a typed arm
+// fixes the common type and every other arm must be assignable to it;
+// all-untyped arms fold by default type; mismatches fail with
+// [correctness::switch_arm_mismatch] and a value switch without default
+// fails with [correctness::switch_expr_needs_default].
+
+type U interface {
+	int | string
+}
+
+// Value switch without default.
+func noDefault(n int) int {
+	return switch /* ERROR "correctness::switch_expr_needs_default" */ n {
+	case 1 => 1
+	}
+}
+
+// Typed arm against an incompatible untyped arm.
+func typedVsUntyped(n int) int {
+	return switch n {
+	case 1 => n
+	default => "s" // ERROR "correctness::switch_arm_mismatch"
+	}
+}
+
+// All-untyped incompatible arms.
+func allUntyped(n int) int {
+	return switch n {
+	case 1 => 1
+	default => "s" // ERROR "correctness::switch_arm_mismatch"
+	}
+}
+
+// nil against a non-nilable common type, fixed by the typed arm: the
+// nil arm goes through the assignability check and reports the tagged
+// mismatch (without a typed arm it would fail with an untagged
+// conversion error instead).
+func nilToInt(n int) int {
+	return switch n {
+	case 1 => n
+	case 2 => nil // ERROR "correctness::switch_arm_mismatch"
+	default => 1
+	}
+}
+
+// A single untyped arm alone compiles.
+func singleUntyped(n int) int {
+	return switch n {
+	default => 1
+	}
+}
+
+// A lone nil arm still misses every member, as today.
+func nilAlone(x U) int {
+	return switch /* ERROR "correctness::nonexhaustive_switch" */ x.(type) {
+	case nil => 0
+	}
+}
+
+// Positive: a typed union arm fixes the common type at U, and the
+// untyped member arms are assignable to it.
+func unionCommon(n int, x U) U {
+	return switch n {
+	case 1 => x
+	case 2 => 0
+	default => "s"
+	}
+}
+
+// Positive: a nil arm beside a nilable typed arm.
+func nilWithUnion(n int, x U) U {
+	return switch n {
+	case 1 => x
+	default => nil
+	}
+}

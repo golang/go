@@ -1,0 +1,78 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+// Closed union under test (SPEC Sec 2.3, T-203.1): the operand evaluates
+// once, only the chosen arm evaluates, the common type flows to the use
+// site, and an exhaustive switch with no default panics when a smuggled
+// non-member matches no case.
+
+type U interface {
+	int | string
+}
+
+var calls int
+
+func next() U {
+	calls++
+	fmt.Println("operand")
+	return 7
+}
+
+func arm1() string {
+	fmt.Println("arm1")
+	return "one"
+}
+
+func arm2() string {
+	fmt.Println("arm2")
+	return "two"
+}
+
+// Common type U from a typed union arm plus untyped member arms.
+func pick(n int, u U) U {
+	return switch n {
+	case 1 => u
+	case 2 => 0
+	default => "s"
+	}
+}
+
+func provoke() (rec any) {
+	defer func() { rec = recover() }()
+	var u U = 1
+	*(*any)(unsafe.Pointer(&u)) = 1.5
+	_ = switch u.(type) {
+	case int => "int"
+	case string => "str"
+	case nil => "nil"
+	}
+	return nil
+}
+
+func main() {
+	r := switch next() {
+	case 7 => "seven"
+	default => "other"
+	}
+	fmt.Println("result:", r)
+	fmt.Println("calls:", calls)
+
+	s := switch 2 {
+	case 1 => arm1()
+	case 2 => arm2()
+	default => "other"
+	}
+	fmt.Println("chosen:", s)
+
+	fmt.Println(pick(1, 7))
+	fmt.Println(pick(2, 7))
+	fmt.Println(pick(9, 7))
+
+	fmt.Println("recovered:", provoke())
+}

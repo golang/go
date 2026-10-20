@@ -1,0 +1,74 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M2 closed-union membership (SPEC Sec 2.3, T-203.1): conversions,
+// assertions, and case types outside the member set fail with
+// [correctness::union_nonmember]; member forms compile.
+
+type U interface {
+	int | string
+}
+
+var u U = 7
+
+// Conversion to the union from a non-member fails.
+func convToUnion(f float64) {
+	_ = U(f /* ERROR "correctness::union_nonmember" */)
+}
+
+// Assertion of a non-member type on the union fails with union_nonmember
+// (a from-union conversion takes the untagged upstream path, so the plan
+// pins membership failure on the assertion form).
+func assertNonMember() {
+	_ = u /* ERROR "correctness::union_nonmember" */.(float64)
+}
+
+// A non-member case type in a switch on the union fails.
+func caseNonMember(x U) int {
+	return switch x.(type) {
+	case float64 /* ERROR "correctness::union_nonmember" */ => 1
+	default => 0
+	}
+}
+
+// A superset interface case is not a member: float64 is outside U.
+func caseSuperset(x U) int {
+	return switch x.(type) {
+	case interface /* ERROR "correctness::union_nonmember" */ { int | float64 } => 1
+	default => 0
+	}
+}
+
+// A subset interface case covers its members and passes.
+func caseSubset(x U) int {
+	return switch x.(type) {
+	case interface{ int } => 1
+	case string => 2
+	case nil => 0
+	}
+}
+
+// An open union in value position fails.
+var v interface /* ERROR "correctness::open_union_value" */ { ~int | ~string }
+
+// Member assertion out of the union compiles.
+func memberAssert(x U) int {
+	return x.(int)
+}
+
+// Member conversion into the union compiles.
+func memberConvIn() U {
+	return U(7)
+}
+
+// Member and nil cases over every member compile with no default.
+func memberCases(x U) int {
+	return switch x.(type) {
+	case int => 1
+	case string => 2
+	case nil => 0
+	}
+}

@@ -1,0 +1,68 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M2-S5 parser coverage: switch expressions with `=>` arms
+// (SPEC Sec 2.3, T-203.1). Every form below parses cleanly in LogosMode;
+// the semantic rules (exhaustiveness, arm types, defaults) are pinned by
+// the types2 and run fixtures instead of here.
+
+package p
+
+type NumOrStr interface {
+	int | string
+}
+
+func kindOf(u NumOrStr) int {
+	return switch u.(type) {
+	case int => 1
+	case string => 2
+	case nil => 0
+	default => -1
+	}
+}
+
+func word(n int) string {
+	return switch n {
+	case 1 => "one"
+	default => "many"
+	}
+}
+
+func singleLine(v int) int {
+	x := switch v { case 1 => 1; default => 2 }
+	return x
+}
+
+func withInit(items []int) int {
+	return switch n := len(items); n {
+	case 0 => -1
+	default => n
+	}
+}
+
+func bound(u NumOrStr) int {
+	return switch v := u.(type) {
+	case int => v + 1
+	default => 0
+	}
+}
+
+func nested(n, m int) int {
+	return switch n {
+	case 1 => switch m {
+	case 2 => 20
+	default => 10
+	}
+	default => 0
+	}
+}
+
+func asArg(n int) int {
+	return add(switch n {
+	case 1 => 10
+	default => 20
+	})
+}
+
+func add(x int) int { return x }
