@@ -37,11 +37,10 @@ logos lint --pedantic=false ./...
 stderr '^invalid boolean value "maybe" for -pedantic'
 cd ..
 
-# The warning is a lint diagnostic in the JSON output, validated with jaq.
+# The warning is a lint diagnostic in the JSON output;
+# TestLogosJSONDiagnostics checks the record as JSON.
 cd union
 logos lint --pedantic --json-diagnostics ./...
-cp stderr $WORK/ped.jsonl
-exec jaq -e -s 'length == 1 and .[0].rule_id == "pedantic::exhaustive_union_switch" and .[0].severity == "warn" and (.[0].file | endswith("main.lgo")) and .[0].span.start_line == 15' $WORK/ped.jsonl
 cd ..
 
 # A switch without default stays silent under --pedantic.

@@ -54,19 +54,17 @@ cd recursive_lgo
 stderr 'main\.lgo:3:1: \[correctness::allow_forbidden_rule\]'
 cd ..
 
-# logos lint --json-diagnostics prints one record whose file ends in .go,
-# severity deny (the Go cap), validated with jaq.
+# logos lint --json-diagnostics prints one record whose file ends in .go
+# with severity deny (the Go cap);
+# TestLogosJSONDiagnostics checks the record as JSON.
 cd dropped
 ! logos lint --json-diagnostics ./...
-cp stderr $WORK/gojson.jsonl
-exec jaq -e -s 'length == 1 and all(.[]; .schema_version == "1.0" and .severity == "deny" and .rule_id == "slop::discarded_error" and (.file | endswith("main.go")) and .span.start_line == 10 and .span.byte_len == (.provenance.origin_expr | length))' $WORK/gojson.jsonl
 cd ..
 
-# The capped severity of a forbid-default rule is deny in the JSON output.
+# The capped severity of a forbid-default rule is deny in the JSON output;
+# TestLogosJSONDiagnostics checks the record as JSON.
 cd recursive
 ! logos lint --json-diagnostics ./...
-cp stderr $WORK/gorec.jsonl
-exec jaq -e -s 'length == 1 and .[0].severity == "deny" and .[0].rule_id == "correctness::infinite_recursion" and (.[0].file | endswith("main.go"))' $WORK/gorec.jsonl
 cd ..
 
 # A group configured forbid still runs at deny in a Go package, so the

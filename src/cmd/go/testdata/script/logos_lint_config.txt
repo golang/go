@@ -78,39 +78,33 @@ logos lint ./...
 cd ..
 
 # logos build --json-diagnostics prints one JSON object per line with the
-# schema fields, each line validated with jaq.
+# schema fields; TestLogosJSONDiagnostics checks each line as JSON.
 cd jsonbuild
 ! logos build --json-diagnostics -o $WORK/bin/jsonbuild$GOEXE .
 ! stderr '^#'
 stderr -count=1 '^\{.*\}$'
-cp stderr $WORK/jsonbuild.jsonl
-exec jaq -e -s 'length == 1 and all(.[]; .schema_version == "1.0" and .severity == "deny" and .rule_id == "slop::discarded_error" and (.file | endswith("main.lgo")) and (.span | keys == ["byte_len","byte_offset","end_col","end_line","start_col","start_line"]) and .span.start_line == 6 and .span.start_col == 2 and .span.byte_offset > 0 and .span.byte_len == (.provenance.origin_expr | length) and .span.end_col == .span.start_col + .span.byte_len and (.message | type == "string" and length > 0) and (.provenance | keys == ["inferred_type","origin_expr","origin_line"]) and (.autofix_candidates | type == "array"))' $WORK/jsonbuild.jsonl
 cd ..
 
 # logos lint --json-diagnostics reports the same records, and the forbid
-# directive error carries severity forbid.
+# directive error carries severity forbid;
+# TestLogosJSONDiagnostics checks the records as JSON.
 cd jsonlint
 ! logos lint --json-diagnostics ./...
-cp stderr $WORK/jsonlint.jsonl
-exec jaq -e -s 'length == 2 and all(.[]; .schema_version == "1.0" and (.rule_id | type == "string") and (.file | endswith("main.lgo")))' $WORK/jsonlint.jsonl
-exec jaq -e -s 'any(.[]; .rule_id == "correctness::allow_forbidden_rule" and .severity == "forbid") and any(.[]; .rule_id == "correctness::infinite_recursion" and .severity == "forbid")' $WORK/jsonlint.jsonl
 cd ..
 
-# A warn rule has severity warn in the JSON output and does not fail.
+# A warn rule has severity warn in the JSON output and does not fail;
+# TestLogosJSONDiagnostics checks the record as JSON.
 cd jsonwarn
 logos lint --json-diagnostics ./...
-cp stderr $WORK/jsonwarn.jsonl
-exec jaq -e -s 'length == 1 and .[0].severity == "warn" and .[0].rule_id == "slop::discarded_error"' $WORK/jsonwarn.jsonl
 cd ..
 
 # A Go type error under logos build --json-diagnostics is one valid record
-# for the .go file with an empty rule_id.
+# for the .go file with an empty rule_id;
+# TestLogosJSONDiagnostics checks the record as JSON.
 cd gotypeerr
 ! logos build --json-diagnostics ./...
 ! stderr '^#'
 stderr -count=1 '^\{.*\}$'
-cp stderr $WORK/gotypeerr.jsonl
-exec jaq -e -s 'length == 1 and all(.[]; .schema_version == "1.0" and .rule_id == "" and .severity == "deny" and (.file | endswith(".go")) and (.message | contains("undefined")))' $WORK/gotypeerr.jsonl
 cd ..
 
 # A logos.toml change recompiles: the policy is part of the action ID, so
