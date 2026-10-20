@@ -334,6 +334,7 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
 		}
 	}
 
+	check.logosZeroLiteral(e, typ, base) // logos M3-S3 hook.
 	x.mode_ = value
 	x.typ_ = typ
 }

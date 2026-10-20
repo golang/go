@@ -375,6 +375,8 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 		if typ == nil {
 			// error reported before by arityMatch
 			obj.typ = Typ[Invalid]
+		} else {
+			check.logosZeroDecl(obj) // logos M3-S3 hook.
 		}
 		return
 	}

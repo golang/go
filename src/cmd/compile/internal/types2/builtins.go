@@ -577,6 +577,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		if check.recordTypes() {
 			check.recordBuiltinType(call.Fun, makeSig(x.typ(), types...))
 		}
+		check.logosZeroMake(call, T) // logos M3-S3 hook.
 
 	case _Max, _Min:
 		// max(x, ...)
@@ -655,6 +656,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		case typexpr:
 			// new(T)
 			check.validVarType(arg, x.typ())
+			check.logosZeroNew(arg, x.typ()) // logos M3-S3 hook.
 		default:
 			// new(expr)
 			if isUntyped(x.typ()) {

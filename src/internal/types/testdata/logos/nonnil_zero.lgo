@@ -1,0 +1,114 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M3 non-nil zero-value rules (SPEC Sec 2.2, T-202): in .lgo code *T is
+// non-nil, so zero values of non-nil pointers fail with
+// [correctness::nonnil_uninitialized] and stores of nil fail with
+// [correctness::nil_to_nonnil].
+
+type User struct {
+	Name   string
+	Friend *User
+}
+
+type Inner struct {
+	X int
+}
+
+type Holder struct {
+	Name string
+	P    *Inner
+}
+
+var p /* ERROR "[correctness::nonnil_uninitialized] var p *User needs a value" */ *User
+
+var arr /* ERROR "[correctness::nonnil_uninitialized] var arr [3]*User needs initializers" */ [3]*User
+
+var h /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */ Holder
+
+func makeNonConst(n int) {
+	_ = make([]*User, n /* ERROR "[correctness::nonnil_uninitialized] make of []*User with non-constant length" */)
+}
+
+func makeConst() {
+	_ = make([]*User, 2 /* ERROR "[correctness::nonnil_uninitialized] make of []*User with length 2" */)
+}
+
+func makeMixedLen(n int) {
+	_ = make([]*User, n /* ERROR "[correctness::nonnil_uninitialized] make of []*User with non-constant length" */, 8)
+}
+
+func newHolder() {
+	_ = new(Holder /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */)
+}
+
+func newPtr() {
+	_ = new(* /* ERROR "[correctness::nonnil_uninitialized] new(*User) would leave a non-nil pointer without a value" */User)
+}
+
+func newArr() {
+	_ = new([ /* ERROR "[correctness::nonnil_uninitialized] new([3]*User) would leave non-nil elements without values" */3]*User)
+}
+
+func litEmpty() {
+	_ = Holder /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */{}
+}
+
+func litPartial() {
+	_ = Holder /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */{Name: "x"}
+}
+
+func zeroClear(ph *Holder) {
+	*ph = Holder /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */{}
+}
+
+func nilAssign(q *User) {
+	q = nil /* ERROR "[correctness::nil_to_nonnil] cannot assign nil to non-nil *User" */
+}
+
+func nilInit(q *User) {
+	var r *User = nil /* ERROR "[correctness::nil_to_nonnil] cannot assign nil to non-nil *User" */
+	_ = r
+	_ = q
+}
+
+func nilReturn() *User {
+	return nil /* ERROR "[correctness::nil_to_nonnil] cannot assign nil to non-nil *User" */
+}
+
+func nilElem() {
+	_ = []*User{nil /* ERROR "[correctness::nil_to_nonnil] cannot assign nil to non-nil *User" */}
+}
+
+func nilField() {
+	_ = Holder{Name: "x", P: nil /* ERROR "[correctness::nil_to_nonnil] cannot assign nil to non-nil *Inner" */}
+}
+
+// Allowed cases: none of these may report an error.
+
+func makeZeroLen(n int) {
+	_ = make([]*User, 0, n)
+	_ = make([]*User, 0, 8)
+}
+
+func typeParamZero[T any]() {
+	var t T
+	_ = t
+}
+
+func fullLiteral() {
+	_ = Holder{Name: "x", P: &Inner{X: 1}}
+}
+
+func initFromParam(q *User) {
+	var r *User = q
+	_ = r
+}
+
+func plainZero() {
+	var i Inner
+	_ = i
+}

@@ -37,6 +37,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
+	if check.logosNilToNonNil(x, T) { // logos M3-S3 hook.
+		return
+	}
+
 	if isUntyped(x.typ()) {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface
