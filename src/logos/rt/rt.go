@@ -8,9 +8,11 @@
 package rt
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"strconv"
 )
 
@@ -60,6 +62,19 @@ func MustNonNil[T any](p T, site *Site) T {
 type Option[T any] struct {
 	Value   T
 	Present bool
+}
+
+// SliceStableFunc sorts s in place, stably, by cmpFn. Collection chains
+// lower sortBy through it so lowered files import only logos/rt.
+func SliceStableFunc[S ~[]E, E any](s S, cmpFn func(a, b E) int) {
+	slices.SortStableFunc(s, cmpFn)
+}
+
+// Compare orders x and y like cmp.Compare: ordered values compare by
+// <, with NaN before every non-NaN float. Collection chain sortBy keys
+// compare through it (SPEC T-104.6).
+func Compare[T cmp.Ordered](x, y T) int {
+	return cmp.Compare(x, y)
 }
 
 // Lookup reads key k from map m with explicit presence (SPEC T-104.3): an

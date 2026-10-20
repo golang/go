@@ -169,6 +169,9 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
 }
 
 func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+	if check.logosChainCall(x, call) { // logos M6-S7 hook: slice chain methods.
+		return statement
+	}
 	var inst *syntax.IndexExpr // function instantiation, if any
 	if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
 		if check.indexExpr(x, iexpr) {
@@ -320,6 +323,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	}
 
 	// evaluate arguments
+	check.logosLambdaCallArgs(call, sig) // logos M6-S6 hook: lambdas against parameter types.
 	args, atargs := check.genericExprList(call.ArgList)
 	sig = check.arguments(call, sig, targs, xlist, args, atargs)
 
@@ -431,8 +435,10 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 			resList = []*operand{&x}
 		} else {
 			// x is not a function instantiation (it may still be a generic function).
-			check.rawExpr(nil, &x, e, nil, true)
-			check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+			if !check.logosLambdaPrechecked(&x, e) { // logos M6-S6 hook.
+				check.rawExpr(nil, &x, e, nil, true)
+				check.exclude(&x, 1<<novalue|1<<builtin|1<<typexpr)
+			}
 			if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 				// x is a function call returning multiple values; it cannot be generic.
 				resList = make([]*operand, t.Len())
@@ -463,7 +469,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand, 
 					// use the usual expression evaluators.
 					check.record(&x)
 				}
-			} else {
+			} else if !check.logosLambdaPrechecked(&x, e) { // logos M6-S6 hook.
 				// x is exactly one value (possibly invalid or uninstantiated generic function).
 				check.genericExpr(&x, e, nil)
 			}
@@ -856,6 +862,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		return
 	}
 
+	if check.logosTupleSelect(x, e) { // logos M6-S5 hook: `t.x` on tuple values.
+		return
+	}
+
 	if check.logosConstSelect(x, e, sel) { // logos M5-S1 hook: selections through const views.
 		return
 	}
@@ -888,6 +898,9 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		} else {
 			alt, _, _ := lookupFieldOrMethod(x.typ(), x.mode() == variable, check.pkg, sel, true)
 			why = check.lookupError(x.typ(), sel, alt, false)
+		}
+		if check.logosImportedTupleSelect(x, e) { // logos M6-S5 hook: `T_` fallback on imported tuples.
+			return
 		}
 		check.errorf(e.Sel, MissingFieldOrMethod, "%s.%s undefined (%s)", x.expr, sel, why)
 		goto Error

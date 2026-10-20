@@ -82,7 +82,9 @@ func (p *parser) armClause() *ArmClause {
 	switch p.tok {
 	case _Case:
 		p.next()
+		p.lambdaBan++
 		c.Cases = p.exprList()
+		p.lambdaBan--
 
 	case _Default:
 		p.next()

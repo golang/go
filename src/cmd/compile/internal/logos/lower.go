@@ -46,11 +46,12 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 			continue
 		}
 		fl := &fileLower{
-			pkg:   shared,
-			file:  file,
-			src:   data,
-			base:  file.Pos().FileBase(),
-			start: lineStarts(data),
+			pkg:           shared,
+			file:          file,
+			src:           data,
+			base:          file.Pos().FileBase(),
+			start:         lineStarts(data),
+			loweredChains: make(map[*syntax.CallExpr]bool),
 		}
 		fl.baseName = filepath.Base(fl.base.Filename())
 		fl.lowerFile()
@@ -107,6 +108,13 @@ type fileLower struct {
 	wrapOwner  map[syntax.Expr]int
 	wrapSeq    int
 	retResults map[*syntax.ReturnStmt][]types2.Type
+	// Chain lowering state (M6-S7): loweredChains pins one lowering per
+	// chain call, so traversals over replaced trees never reprocess a
+	// finished call with stale spans. transparent marks generated
+	// option-wrapper literals, whose chains lower with the enclosing
+	// function's results.
+	loweredChains map[*syntax.CallExpr]bool
+	transparent   map[*syntax.FuncLit]bool
 }
 
 // off converts a valid file position to a byte offset.
@@ -179,6 +187,7 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerPlatform()       // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
 	fl.lowerUnions()         // M2 hook: switch expressions and struct assertions.
 	fl.lowerOptions()        // M3-S6 hook: single-value map reads and ?? over them.
+	fl.lowerChains()         // M6-S7 hook: collection chains fused into loops.
 	fl.lowerSpreads()        // M6-S4 hook: `..src` spread elements.
 	fl.flushTypeImports()    // M6-S4 hook: imports for spelled elided spread literal types.
 	for _, decl := range fl.file.DeclList {
@@ -189,6 +198,8 @@ func (fl *fileLower) lowerFile() {
 		}
 		scanForLiterals(fl, decl)
 	}
+	fl.lowerTuples()  // M6-S5 hook: tuples to structs, pack/unpack.
+	fl.lowerLambdas() // M6-S6 hook: lambdas to function literals.
 	if fl.needRT {
 		fl.file.DeclList = append([]syntax.Decl{rtImport(fl.file.Pos())}, fl.file.DeclList...)
 		fl.addHeaderSplice()
@@ -449,7 +460,8 @@ func rejectSurvivors(file *syntax.File) {
 		switch n.(type) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
-			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr:
+			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr,
+			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

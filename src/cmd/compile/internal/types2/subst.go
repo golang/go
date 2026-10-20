@@ -317,6 +317,17 @@ func (subst *subster) typ(typ Type) Type {
 			return &Option{Elem: elem}
 		}
 
+	case *LogosTuple: // logos M6-S5 hook: substitute inside the element types.
+		changed := false
+		elems := make([]Type, t.Len())
+		for i := range elems {
+			elems[i] = subst.typ(t.Elem(i))
+			changed = changed || elems[i] != t.Elem(i)
+		}
+		if changed {
+			return NewLogosTuple(nopos, t.pkg, t.names, elems)
+		}
+
 	case *ConstView: // logos M5-S1 hook: substitute inside the element type.
 		if elem := subst.typ(t.Elem); elem != t.Elem {
 			return &ConstView{Elem: elem}

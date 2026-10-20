@@ -1,0 +1,40 @@
+// run
+
+package main
+
+import "fmt"
+
+func pair() (int, error) { return 3, nil }
+
+func nres() (x int, y string) { return 7, "seven" }
+
+func show(t (id int64, err error)) string {
+	a, b := t
+	return fmt.Sprint(a, b)
+}
+
+func main() {
+	var t (int, error)
+	t = pair()
+	a, b := t
+	fmt.Println(a, b)
+	c := pair()
+	fmt.Println(c)
+	n := nres()
+	fmt.Println(n.x, n.y)
+	u := (10, "ten")
+	p, q := u
+	fmt.Println(p, q)
+	fmt.Println(pair())
+	ch := make(chan (int, error), 1)
+	ch <- c
+	v := <-ch
+	p1, q1 := v
+	fmt.Println(p1, q1)
+	m := map[string](int, error){"k": (1, nil)}
+	mv, ok := m["k"]
+	fmt.Println(ok)
+	mp, mq := mv
+	fmt.Println(mp, mq)
+	fmt.Println(show((42, nil)))
+}

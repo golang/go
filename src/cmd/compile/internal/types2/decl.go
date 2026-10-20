@@ -387,6 +387,9 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init syntax.Expr) {
 
 	if lhs == nil || len(lhs) == 1 {
 		assert(lhs == nil || lhs[0] == obj)
+		if check.logosTupleVarSpec(obj, init) { // logos M6-S5 hook: pack multi-value calls into tuples.
+			return
+		}
 		var x operand
 		check.expr(newTarget(obj.typ, obj.name), &x, init)
 		check.initVar(obj, &x, "variable declaration")

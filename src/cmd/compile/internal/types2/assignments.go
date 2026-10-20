@@ -49,6 +49,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
+	if check.logosTupleAssign(x, T, context) { // logos M6-S5 hook: element-wise tuple assignment.
+		return
+	}
+
 	check.logosPlatformStore(x, T) // logos M3-S5 hook.
 
 	if isUntyped(x.typ()) {
@@ -169,6 +173,10 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			lhs.typ = Typ[Invalid]
 		}
 		x.invalidate()
+		return
+	}
+
+	if check.logosTupleNilCheck(lhs, x, context) { // logos M6-S5 hook: nil in inferred tuples.
 		return
 	}
 
@@ -468,6 +476,9 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
 
 	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2 && returnStmt == nil)
 	r = len(rhs)
+	if check.logosTupleInitVars(lhs, orig_rhs, rhs, context) { // logos M6-S5 hook: pack/unpack.
+		return
+	}
 	if l == r {
 		for i, lhs := range lhs {
 			check.initVar(lhs, rhs[i], context)
@@ -537,6 +548,9 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 
 	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2)
 	r = len(rhs)
+	if check.logosTupleAssignStmt(lhs, orig_rhs, rhs, context) { // logos M6-S5 hook: pack/unpack.
+		return
+	}
 	if l == r {
 		for i, lhs := range lhs {
 			check.assignVar(lhs, nil, rhs[i], context)

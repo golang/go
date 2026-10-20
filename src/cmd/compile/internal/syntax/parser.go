@@ -33,6 +33,8 @@ type parser struct {
 	fnest  int    // function nesting level (for error handling)
 	xnest  int    // expression nesting level (for complit ambiguity resolution)
 	indent []byte // tracing support
+
+	lambdaBan int // M6-S6: `=>` suppression depth for switch-expression arm cases.
 }
 
 func (p *parser) init(file *PosBase, r io.Reader, errh ErrorHandler, pragh PragmaHandler, mode Mode) {
@@ -869,7 +871,7 @@ func (p *parser) expr() Expr {
 		defer p.trace("expr")()
 	}
 
-	return p.binaryExpr(nil, 0)
+	return p.logosLambdaOrExpr(p.binaryExpr(nil, 0)) // M6-S6 hook: lone `x => ...` lambdas.
 }
 
 // Expression = UnaryExpr | Expression binary_op Expression .
@@ -1037,6 +1039,9 @@ func (p *parser) operand(keep_parens bool) Expr {
 		return p.oliteral()
 
 	case _Lparen:
+		if e, ok := p.logosParenOperand(keep_parens); ok { // M6-S5 hook: shared `(` rule.
+			return e
+		}
 		pos := p.pos()
 		p.next()
 		p.xnest++
@@ -1166,6 +1171,14 @@ loop:
 				p.want(_Rparen)
 
 			default:
+				if sel := p.logosDotMap(); sel != nil { // M6-S7 hook: `.map` chains.
+					t := new(SelectorExpr)
+					t.pos = pos
+					t.X = x
+					t.Sel = sel
+					x = t
+					break
+				}
 				p.syntaxError("expected name or (")
 				p.logosAdvanceSelector() // M2 hook: loGo/s recovery keeps `}`.
 			}
@@ -1458,6 +1471,9 @@ func (p *parser) typeOrNil() Expr {
 		return p.qualifiedName(nil)
 
 	case _Lparen:
+		if e, ok := p.logosParenType(); ok { // M6-S5 hook: shared `(` rule.
+			return e
+		}
 		p.next()
 		t := p.type_()
 		p.want(_Rparen)

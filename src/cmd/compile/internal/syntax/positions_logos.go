@@ -34,6 +34,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return n.Pos(), true
 	case *FieldDefault:
 		return StartPos(n.Type), true
+	case *TupleType, *TupleLit, *LambdaExpr:
+		return n.Pos(), true
 	case *ErrdeferStmt:
 		return n.Pos(), true
 	case *YieldStmt:
@@ -75,6 +77,12 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *CoalesceExpr:
 		return EndPos(n.Y), true
+	case *TupleType:
+		return EndPos(n.Fields[len(n.Fields)-1].Type), true
+	case *TupleLit:
+		return EndPos(n.Elems[len(n.Elems)-1]), true
+	case *LambdaExpr:
+		return EndPos(n.Body), true
 	case *OptSelectExpr:
 		return EndPos(n.Sel), true
 	case *ConstType:

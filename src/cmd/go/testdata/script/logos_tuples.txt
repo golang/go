@@ -1,0 +1,54 @@
+# M6-S5: tuples lower to structs; cross-package identity of (id int64, err error).
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+logos run .
+stdout '^1 <nil>$'
+stdout '^\{2 <nil>\}$'
+stdout '^7 <nil>$'
+stdout '^42 <nil>$'
+
+-- go.mod --
+module example.com/tuples
+
+go 1.27
+
+-- main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/tuples/pair"
+)
+
+func main() {
+	a, b := pair.V
+	fmt.Println(a, b)
+	t := pair.Make(2)
+	fmt.Println(t)
+	n := pair.Named(7)
+	fmt.Println(n.id, n.err)
+	fmt.Println(pair.Show((42, nil)))
+	fmt.Println(pair.Show(t))
+}
+
+-- pair/pair.lgo --
+package pair
+
+import "fmt"
+
+var V (id int64, err error) = (1, nil)
+
+func Make(v int64) (id int64, err error) {
+	return v, nil
+}
+
+func Named(x int) (id int64, err error) {
+	return int64(x), nil
+}
+
+func Show(t (id int64, err error)) string {
+	a, b := t
+	return fmt.Sprint(a, b)
+}

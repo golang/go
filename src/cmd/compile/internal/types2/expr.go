@@ -1172,6 +1172,10 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 	case *syntax.SpreadExpr:
 		check.logosSpreadMisplaced(x, e) // logos M6-S4 hook: `..src` outside a struct literal.
 		goto Error
+	case *syntax.TupleLit:
+		return check.logosTupleLit(x, e) // logos M6-S5 hook.
+	case *syntax.LambdaExpr:
+		return check.logosLambda(x, T, e) // logos M6-S6 hook.
 	case *syntax.CallExpr:
 		return check.callExpr(x, e)
 

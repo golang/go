@@ -1,0 +1,128 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S7 collection chains (SPEC Sec 1.4, T-104.6): method typing over
+// slices, `?` in expression lambdas, const-view parameters, and the
+// mutation and block-form errors.
+
+func chainShapes(xs []int, strs []string) {
+	_ = xs.filter(x => x > 0)
+	_ = xs.map(x => x * 2)
+	_ = xs.map(x => "s")
+	var ss []string = xs.map(x => "s")
+	_ = ss
+	var fs []float64 = xs.map(x => float64(x))
+	_ = fs
+	var fs2 []float64 = xs.map(x => float64(x) / 3)
+	_ = fs2
+	var ks []int = strs.sortBy(s => s).map(s => len(s))
+	_ = ks
+	_ = xs.find(x => x > 0)
+	_ = xs.any(x => x > 0)
+	_ = xs.all(x => x > 0)
+	_ = xs.sortBy(x => x)
+	_ = strs.sortBy(s => s)
+	_ = xs.first()
+	_ = xs.last()
+	_ = xs.get(0)
+	_ = xs.take(2)
+	_ = xs.drop(2)
+	_ = xs.sum()
+	_ = xs.count()
+	_ = xs.count(x => x > 0)
+	_ = xs.filter(x => x > 0).map(x => x).take(3).drop(1)
+	_ = xs.find(x => x > 0) ?? -1
+	_ = xs.first() ?? 0
+	_ = xs.get(0) ?? 0
+}
+
+func chainFloats(xs []float64) {
+	_ = xs.sum()
+	_ = xs.sortBy(x => x)
+}
+
+func chainTryLambda(paths []string) ([]string, error) {
+	ys := paths.map(p => p + "!")
+	_ = ys
+	return nil, nil
+}
+
+func chainMutateRecv(xs []int) {
+	_ = xs.filter(x => {
+		xs /* ERROR "const_view_mutation" */ [0] = 1
+		return true
+	})
+}
+
+func chainMutateParam(xs []int) {
+	_ = xs.map(x => {
+		x /* ERROR "const_view_mutation" */ = 1
+		return x
+	})
+}
+
+func chainTryBody(xs []int) (int, error) {
+	v := xs.find(x => pair(x)?) ?? -1
+	return v, nil
+}
+
+func pair(x int) (bool, error) { return x > 0, nil }
+
+func chainTryFallback(xs []int) (int, error) {
+	v := xs.first() ?? xs.count(x => pair(x)? /* ERROR "[correctness::nested_try_capture] ? cannot propagate from a nested chain" */)
+	return v, nil
+}
+
+type chainOptUser struct {
+	Age int
+}
+
+func (u *chainOptUser) SetAge(a int) { u.Age = a }
+
+func chainOptCallArg(up *chainOptUser?, xs []int) error {
+	up?.SetAge(xs.count(x => pair(x)? /* ERROR "[correctness::nested_try_capture] ? cannot propagate from a nested chain" */))
+	return nil
+}
+
+func chainTryMap(paths []string) ([]string, error) {
+	ys := paths.map(p => bang(p)?)
+	return ys, nil
+}
+
+func bang(p string) (string, error) { return p + "!", nil }
+
+func chainBlockTry(xs []int) (int, error) {
+	_ = xs.map(x => {
+		v := pairi(x)? /* ERROR "[correctness::misplaced_try] ? must end an assignment, expression statement, defer, or errdefer" */
+		return v
+	})
+	return 0, nil
+}
+
+func pairi(x int) (int, error) { return x, nil }
+
+func chainBlockNestedTry(xs []int) (int, error) {
+	_ = xs.map(x => {
+		f := func() (int, error) {
+			v := pairi(x)?
+			return v, nil
+		}
+		v, _ := f()
+		return v
+	})
+	return 0, nil
+}
+
+func chainNestedTry(xs []int, ys []int) (int, error) {
+	v := xs.map(x => ys.count(y => pairge(x, y)? /* ERROR "[correctness::nested_try_capture] ? cannot propagate from a nested chain" */)).sum()
+	return v, nil
+}
+
+func pairge(x, y int) (bool, error) { return x+y > 0, nil }
+
+func chainNestedFlat(xs []int, ys []int) []int {
+	return xs.map(x => ys.count(y => y > x))
+}

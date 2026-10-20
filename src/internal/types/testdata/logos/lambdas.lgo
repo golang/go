@@ -1,0 +1,82 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S6 lambdas (SPEC Sec 1.4, T-104.6): target typing from the
+// expected function type, parameter count checks, block bodies checked
+// against the target results, and closure capture.
+
+func apply(f func(int) int, v int) int { return f(v) }
+
+func needTarget() {
+	f := x => /* ERROR "lambda_needs_target" */ x + 1
+	_ = f
+}
+
+func needTargetParen() {
+	g := (a, b) => /* ERROR "lambda_needs_target" */ a
+	_ = g
+}
+
+func countMismatch() {
+	var f func(int) int = (a, b) => /* ERROR "mismatch" */ a
+	_ = f
+}
+
+func countMismatchLone() {
+	var f func(int, int) int = x => /* ERROR "mismatch" */ x
+	_ = f
+}
+
+func validAssign() {
+	var f func(int) int = x => x + 1
+	_ = f(1)
+}
+
+func validEmpty() {
+	var f func() int = () => 3
+	_ = f()
+}
+
+func validCall() {
+	_ = apply(x => x*2, 21)
+}
+
+func blockLambda() {
+	var f func(int) int = x => {
+		y := x * 2
+		return y + 1
+	}
+	_ = f(1)
+}
+
+func blockMismatch() {
+	var f func(int) string = x => {
+		return x /* ERROR "as string value in" */
+	}
+	_ = f
+}
+
+func blockNoReturn() {
+	var f func(int) int = x => {
+		y := x
+		_ = y
+	} /* ERROR "missing return" */
+	_ = f
+}
+
+func closure() {
+	n := 0
+	var f func() int = () => n
+	_ = f
+	n = 1
+	_ = n
+}
+
+func closureParam() {
+	m := map[string]int{"k": 1}
+	var f func(string) int = k => m[k] ?? -1
+	_ = f
+}

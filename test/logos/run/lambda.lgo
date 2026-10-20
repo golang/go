@@ -1,0 +1,24 @@
+// run
+
+package main
+
+import "fmt"
+
+func adder(n int) func(int) int {
+	return x => x + n
+}
+
+func main() {
+	add3 := adder(3)
+	fmt.Println(add3(4))
+	f := 10
+	var g func() int = () => f
+	fmt.Println(g())
+	f = 20
+	fmt.Println(g())
+	var h func(int) int = x => {
+		y := x * 2
+		return y + 1
+	}
+	fmt.Println(h(5))
+}

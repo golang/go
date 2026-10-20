@@ -719,8 +719,9 @@ func isLogosType(e ast.Expr) bool {
 
 // logosTypes is the set of types2 types with no go/ast counterpart.
 var logosTypes = map[string]bool{
-	"Option":    true,
-	"ConstView": true,
+	"Option":     true,
+	"ConstView":  true,
+	"LogosTuple": true,
 }
 
 // asIdent returns x as *ast.Ident if it is an identifier with the given name.

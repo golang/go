@@ -84,6 +84,38 @@ func printLogos(p *printer, n Node) {
 		p.printNode(n.Type)
 	case *FieldDefault:
 		p.print(n.Type, blank, _Assign, blank, n.Default)
+	case *TupleType:
+		p.print(_Lparen)
+		for i, f := range n.Fields {
+			if i > 0 {
+				p.print(_Comma, blank)
+			}
+			if f.Name != nil {
+				p.printNode(f.Name)
+				p.print(blank)
+			}
+			p.printNode(f.Type)
+		}
+		p.print(_Rparen)
+	case *TupleLit:
+		p.print(_Lparen)
+		p.printExprList(n.Elems)
+		p.print(_Rparen)
+	case *LambdaExpr:
+		if len(n.Params) == 1 {
+			p.printNode(n.Params[0])
+		} else {
+			p.print(_Lparen)
+			for i, name := range n.Params {
+				if i > 0 {
+					p.print(_Comma, blank)
+				}
+				p.printNode(name)
+			}
+			p.print(_Rparen)
+		}
+		p.print(blank, _FatArrow, blank)
+		p.printNode(n.Body)
 	case *AssertedStruct:
 		p.print(_Struct, blank, _Colon, blank)
 		p.printExprList(n.Asserts)

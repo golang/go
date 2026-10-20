@@ -284,6 +284,7 @@ func (check *Checker) logosOptSelect(x *operand, e *syntax.OptSelectExpr) exprKi
 // option `T?`, else not_an_option; y must be assignable to T; the result
 // is T. `m[k] ?? d` types as V through the option-wrapped map read.
 func (check *Checker) logosCoalesce(x *operand, e *syntax.CoalesceExpr) exprKind {
+	check.logosRejectTryChainUnder(e.Y)
 	var lx operand
 	check.expr(nil, &lx, e.X)
 	var rx operand
@@ -331,6 +332,9 @@ func (check *Checker) logosOptionalCall(x *operand, call *syntax.CallExpr) bool 
 		// A non-function field or a generic method under `?.`:
 		// leave the upstream "cannot call" diagnostic.
 		return false
+	}
+	for _, arg := range call.ArgList {
+		check.logosRejectTryChainUnder(arg)
 	}
 	args, atargs := check.genericExprList(call.ArgList)
 	rsig := check.arguments(call, sig, nil, nil, args, atargs)

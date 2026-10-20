@@ -1,0 +1,131 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+	"math"
+)
+
+var mapCalls int
+var recvCalls int
+
+func bump(x int) int {
+	mapCalls++
+	return 2 * x
+}
+
+func getXS() []int {
+	recvCalls++
+	return []int{3, 1, 4, 1, 5, 9, 2, 6}
+}
+
+func pos(x int) (bool, error) {
+	if x < 0 {
+		return false, errors.New("neg")
+	}
+	return x > 4, nil
+}
+
+func countPos(xs []int) (int, error) {
+	return xs.count(x => pos(x)?), nil
+}
+
+func findPos() (int, error) {
+	v := getXS().find(x => pos(x)?) ?? -1
+	return v, nil
+}
+
+func showPos() error {
+	fmt.Println(getXS().find(x => pos(x)?))
+	return nil
+}
+
+var errFail = errors.New("fail")
+
+var closedOrder []int
+
+type tc struct{ id int }
+
+func (c *tc) Close() error {
+	closedOrder = append(closedOrder, c.id)
+	return nil
+}
+
+func openTC(id int) (*tc, error) {
+	if id == 3 {
+		return &tc{id: id}, errFail
+	}
+	return &tc{id: id}, nil
+}
+
+func load(paths []int) ([]*tc, error) {
+	files := paths.map(p => openTC(p)?)
+	return files, nil
+}
+
+func nestCount(xs []int, ys []int) []int {
+	return xs.map(x => ys.count(y => y > x))
+}
+
+func dblBlock(xs []int) []int {
+	return xs.map(x => {
+		return x * 2
+	})
+}
+
+type item struct {
+	k int
+	v string
+}
+
+type fitem struct {
+	k float64
+	v string
+}
+
+func main() {
+	mapCalls = 0
+	recvCalls = 0
+	r := getXS().filter(x => x > 2).map(x => bump(x)).take(5)
+	fmt.Println(r)
+	fmt.Println(mapCalls)
+	fmt.Println(recvCalls)
+	fmt.Println(getXS().take(-5))
+	fmt.Println(getXS().drop(99999))
+	fmt.Println(getXS().get(-1) ?? -1)
+	fmt.Println(getXS().get(2) ?? -1)
+	fmt.Println(getXS().take(3))
+	fmt.Println(getXS().drop(2))
+	fmt.Println(getXS().find(x => x > 4) ?? -1)
+	if err := showPos(); err != nil {
+		fmt.Println(err)
+	}
+	if v, err := findPos(); err != nil {
+		fmt.Println(err)
+	} else {
+		fmt.Println(v)
+	}
+	fmt.Println(countPos(getXS()))
+	fmt.Println(getXS().any(x => x > 8))
+	fmt.Println(getXS().all(x => x > 0))
+	fmt.Println(getXS().all(x => x > 2))
+	fmt.Println(getXS().first() ?? -1)
+	fmt.Println(getXS().last() ?? -1)
+	fmt.Println(getXS().sum())
+	fmt.Println(getXS().count())
+	fmt.Println(getXS().count(x => x > 2))
+	items := []item{{3, "c"}, {1, "a"}, {3, "b"}, {2, "d"}}
+	fmt.Println(items.sortBy(x => x.k))
+	gs := getXS().map(x => float64(x) / 3)
+	fmt.Println(gs.sum())
+	fitems := []fitem{{1, "a"}, {math.NaN(), "n1"}, {1, "b"}, {math.NaN(), "n2"}, {0, "c"}}
+	fmt.Println(fitems.sortBy(x => x.k))
+	closedOrder = nil
+	_, err := load([]int{0, 1, 2, 3, 4})
+	fmt.Println(err)
+	fmt.Println(closedOrder)
+	fmt.Println(nestCount([]int{1, 2, 3}, []int{2, 3, 4}))
+	fmt.Println(dblBlock([]int{1, 2, 3}))
+}

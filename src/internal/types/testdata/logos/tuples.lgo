@@ -1,0 +1,102 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M6-S5 tuple types and literals (SPEC Sec 2.4, T-204.1): declarations
+// in non-result positions, named access, destructuring, packing of
+// single-variable bindings, unpacking of multi-value calls, and the
+// comparability rule (#40).
+
+func pair() (int, error) { return 0, nil }
+
+func namedResults() (x int, y string) { return 0, "" }
+
+func tupleDecls() {
+	var t (int, error)
+	_ = t
+	var n (x int, y string)
+	_ = n.x
+	var c chan (int, error)
+	_ = c
+	var s [](x int, y int)
+	_ = s
+	var m map[string](id int64, err error)
+	_ = m
+}
+
+func tupleLiteral() {
+	u := (1, "s")
+	a, b := u
+	_, _ = a, b
+}
+
+func tupleNamedAccess(n (x int, y string)) {
+	var i int = n.x
+	var s string = n.y
+	_, _ = i, s
+}
+
+func tupleDestructure(n (x int, y string)) {
+	a, b := n
+	var ai int = a
+	var bs string = b
+	_, _ = ai, bs
+}
+
+func tuplePack() {
+	t := pair()
+	a, b := t
+	_, _ = a, b
+	n := namedResults()
+	var x int = n.x
+	_ = x
+}
+
+func tupleVarPack() {
+	var t (int, error) = pair()
+	_ = t
+	var n (x int, y string) = namedResults()
+	_ = n
+}
+
+func tupleAssign() {
+	var t (int, error)
+	t = pair()
+	_ = t
+	var n (x int, y string)
+	n = (1, "s")
+	_ = n
+}
+
+func tupleReturn() (int, error) {
+	var t (int, error)
+	t = pair()
+	a, b := t
+	return a, b
+}
+
+func tupleCompareOK(a, b (int, string)) {
+	_ = a == b
+	_ = a != b
+}
+
+func tupleCompareBad(a, b ([]int, string)) {
+	_ = a /* ERROR "cannot be compared" */ == b
+}
+
+func tupleArityBad(n (x int, y string)) {
+	a, b, c := n /* ERROR "assignment mismatch" */
+	_, _, _ = a, b, c
+}
+
+func tupleAssignMismatch() {
+	var n (x int, y string)
+	n = (1, 2 /* ERROR "as string value in" */)
+	_ = n
+}
+
+func tupleFieldBad(n (x int, y string)) {
+	_ = n.z /* ERROR "undefined tuple field" */
+}

@@ -163,6 +163,7 @@ type Checker struct {
 	logosCurStmt     syntax.Stmt                   // logos M3-S4 hook: innermost enclosing statement for joint-use scan
 	logosDerivedVar  map[*Var]bool                 // logos M3-S5 hook: inferred vars holding Go-derived values.
 	logosDerivedExpr map[syntax.Expr]bool          // logos M3-S5 hook: synthetic tuple dummies from Go/generic calls.
+	logosLambdaDone  map[syntax.Expr]Type          // logos M6-S6 hook: call arguments checked as lambdas, with types.
 	logosGoCall      []bool                        // logos M3-S5 hook: Go-callee argument scope stack.
 	logosGenericCall []logosGenericScope           // logos M3-S5 hook: generic-callee argument scope stack.
 	logosGoStore     []bool                        // logos M3-S5 hook: assignment-LHS Go-location suppression stack.

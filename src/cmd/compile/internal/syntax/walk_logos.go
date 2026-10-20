@@ -67,5 +67,19 @@ func (w walker) walkLogos(n Node) {
 	case *FieldDefault:
 		w.node(n.Type)
 		w.node(n.Default)
+	case *TupleType:
+		for _, f := range n.Fields {
+			if f.Name != nil {
+				w.node(f.Name)
+			}
+			w.node(f.Type)
+		}
+	case *TupleLit:
+		w.exprList(n.Elems)
+	case *LambdaExpr:
+		for _, name := range n.Params {
+			w.node(name)
+		}
+		w.node(n.Body)
 	}
 }

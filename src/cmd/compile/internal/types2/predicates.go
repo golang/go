@@ -316,6 +316,22 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 			return c.identical(x.Elem, y.Elem, p)
 		}
 
+	case *LogosTuple: // logos M6-S5 hook: tuple identity is structural over names and elements.
+		if y, ok := y.(*LogosTuple); ok {
+			if x.Len() != y.Len() {
+				return false
+			}
+			for i := range x.Len() {
+				if x.Name(i) != y.Name(i) || !c.identical(x.Elem(i), y.Elem(i), p) {
+					return false
+				}
+			}
+			return true
+		}
+		if checkTupleStructIdentical(x, y) {
+			return true
+		}
+
 	case *ConstView: // logos M5-S1 hook: const view identity is structural over elements.
 		// Two const views are identical if they have identical element types.
 		if y, ok := y.(*ConstView); ok {
