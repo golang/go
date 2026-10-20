@@ -1449,7 +1449,11 @@ func (fl *fileLower) callTargets(e *syntax.CallExpr, sig *types2.Signature) []ty
 	targets := make([]types2.Type, n)
 	shift := 0
 	if fun, ok := syntax.Unparen(e.Fun).(*syntax.SelectorExpr); ok {
-		if tv, ok := fl.pkg.info.Types[fun.X]; ok && tv.IsType() {
+		isType := fun.X.GetTypeInfo().IsType()
+		if tv, ok := fl.pkg.info.Types[fun.X]; ok {
+			isType = tv.IsType()
+		}
+		if isType {
 			if recv := sig.Recv(); recv != nil && n > 0 {
 				targets[0] = recv.Type()
 				shift = 1

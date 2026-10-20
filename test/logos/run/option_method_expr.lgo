@@ -1,0 +1,20 @@
+// run
+
+package main
+
+import "fmt"
+
+// M3-S6 method expression with option arguments (SPEC Sec 2.2, T-202):
+// the receiver counts as the first parameter target, so each argument
+// wraps to its own parameter type.
+
+type Box struct{ V int }
+
+func (b Box) Add(o int?, d int) int { return b.V + (o ?? d) }
+
+func main() {
+	var o int?
+	fmt.Println(Box.Add(Box{V: 10}, o, 5))
+	o = 3
+	fmt.Println(Box.Add(Box{V: 10}, o, 5))
+}

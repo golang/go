@@ -197,7 +197,10 @@ func (p *parser) constIfStmt() Stmt {
 	s.pos = p.pos()
 	p.next()
 	p.next()
+	outer := p.xnest
+	p.xnest = -1
 	s.Cond = p.expr()
+	p.xnest = outer
 	s.Then = p.blockStmt("const if clause")
 	if p.got(_Else) {
 		s.Else = p.constElse()

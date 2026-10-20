@@ -184,10 +184,25 @@ func (fl *fileLower) constBoundValue(bound syntax.Expr) bool {
 // with no ConstType syntax node, so a file that uses only Freeze
 // reports no rewrite and would hand const types to the export writer.
 // A true result forces the plain recheck, which re-derives Go-facing
-// types for the writer and the backend.
-func infoHasConstView(info *types2.Info) bool {
+// types for the writer and the backend. files covers the production
+// check, which stores types in the syntax tree and leaves info.Types
+// nil, so an inline-only Freeze is visible only there.
+func infoHasConstView(info *types2.Info, files []*syntax.File) bool {
 	if info == nil {
 		return false
+	}
+	for _, f := range files {
+		found := false
+		syntax.Inspect(f, func(n syntax.Node) bool {
+			if e, ok := n.(syntax.Expr); ok && constAsView(info.TypeOf(e)) != nil {
+				found = true
+				return false
+			}
+			return true
+		})
+		if found {
+			return true
+		}
 	}
 	for _, obj := range info.Defs {
 		if v, ok := obj.(*types2.Var); ok && constAsView(v.Type()) != nil {

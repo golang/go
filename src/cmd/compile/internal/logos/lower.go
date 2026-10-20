@@ -61,7 +61,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 		}
 	}
 	if !changed {
-		changed = infoHasConstView(info) // M5-S6: pure-info consts (rt.Freeze results) need a plain recheck.
+		changed = infoHasConstView(info, files) // M5-S6: pure-info consts (rt.Freeze results) need a plain recheck.
 	}
 	for _, file := range files {
 		rejectSurvivors(file)
