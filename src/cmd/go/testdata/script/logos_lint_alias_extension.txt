@@ -1,0 +1,121 @@
+# M9-S2: portability::alias_extension is a warning of the portability group
+# and applies to loGo/s packages only. It fires once per alias-extension
+# file, test files included, only in a main module whose path starts with a
+# dotted element (a module that could be published); a canonical .lgo file
+# and a Go package never warn. The warning never fails the build.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# A dotted module path warns once per alias file, test files included.
+cd dotted
+logos build -o $WORK/bin/dotted$GOEXE ./cmd
+stderr -count=1 'go: warning: \[portability::alias_extension\] main\.📜: loGo/s alias extension file'
+! stderr 'error'
+exists $WORK/bin/dotted$GOEXE
+logos build ./lib
+stderr -count=2 'portability::alias_extension'
+stderr -count=1 'lib\.⚡:'
+stderr -count=1 'lib_test\.⚡:'
+cd ..
+
+# The same sources in a module whose first path element has no dot are silent:
+# the module zip rules that reject alias names apply to published modules.
+cd plain
+logos build -o $WORK/bin/plain$GOEXE ./cmd
+! stderr .
+exists $WORK/bin/plain$GOEXE
+logos build ./lib
+! stderr .
+cd ..
+
+# A canonical .lgo file never warns, even in a dotted module.
+cd canonical
+logos build -o $WORK/bin/canonical$GOEXE .
+! stderr .
+exists $WORK/bin/canonical$GOEXE
+cd ..
+
+# A Go module never warns: plain Go sources carry no alias extension.
+cd gomod
+logos build -o $WORK/bin/gomod$GOEXE .
+! stderr .
+cd ..
+
+-- dotted/go.mod --
+module example.com/dotted
+
+go 1.27
+-- dotted/cmd/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("dotted ok")
+}
+-- dotted/lib/lib.⚡ --
+package lib
+
+func Name() string { return "lib" }
+-- dotted/lib/lib_test.⚡ --
+package lib
+
+import "testing"
+
+func TestName(t *testing.T) {
+	if Name() != "lib" {
+		t.Fatal("bad name")
+	}
+}
+-- plain/go.mod --
+module plain
+
+go 1.27
+-- plain/cmd/main.📜 --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("plain ok")
+}
+-- plain/lib/lib.⚡ --
+package lib
+
+func Name() string { return "lib" }
+-- plain/lib/lib_test.⚡ --
+package lib
+
+import "testing"
+
+func TestName(t *testing.T) {
+	if Name() != "lib" {
+		t.Fatal("bad name")
+	}
+}
+-- canonical/go.mod --
+module example.com/canonical
+
+go 1.27
+-- canonical/main.lgo --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("canonical ok")
+}
+-- gomod/go.mod --
+module example.com/gomod
+
+go 1.27
+-- gomod/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("go ok")
+}

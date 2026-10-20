@@ -1,0 +1,74 @@
+// errorcheck -0
+
+// suspicious::unapplied_struct_default (SPEC Sec 1.2, T-104.5): var x T or
+// new(T) for a type with field defaults leaves every default unapplied. The
+// rule is a warning, so the build succeeds, and it applies to loGo/s
+// packages only. The checker reports it under this ID; the lint registry
+// carries the entry so its group and scope are enforced.
+
+package p
+
+// Boundary on the number of defaulted fields: none, one, two.
+
+type NoDefaults struct {
+	Port int
+	Host string
+}
+
+type OneDefault struct {
+	Port int = 8080
+	Host string
+}
+
+type TwoDefaults struct {
+	Port int    = 8080
+	Host string = "localhost"
+}
+
+type Wrapper struct {
+	Inner OneDefault
+}
+
+type Alias = OneDefault
+
+func zeroDeclarations() {
+	var a NoDefaults
+	var b OneDefault // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of OneDefault with field defaults"
+	var c TwoDefaults // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of TwoDefaults with field defaults"
+	_, _, _ = a, b, c
+}
+
+func newCalls() {
+	_ = new(NoDefaults)
+	_ = new(OneDefault) // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of OneDefault with field defaults"
+	_ = new(TwoDefaults) // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of TwoDefaults with field defaults"
+}
+
+func throughAlias() {
+	var a Alias // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of OneDefault with field defaults"
+	_ = a
+	_ = new(Alias) // ERROR "\[suspicious::unapplied_struct_default\] zero declaration of OneDefault with field defaults"
+}
+
+func appliedDefaults() {
+	a := OneDefault{}
+	b := TwoDefaults{Host: "x"}
+	c := &OneDefault{Port: 1}
+	var d OneDefault = OneDefault{}
+	var e *OneDefault?
+	var f []OneDefault
+	var g map[string]OneDefault
+	_, _, _, _, _, _, _ = a, b, c, d, e, f, g
+}
+
+func nested() {
+	var w Wrapper
+	_ = w
+}
+
+func untouchedTypes() {
+	var n int
+	var s string
+	var p *TwoDefaults?
+	_, _, _ = n, s, p
+}

@@ -1,0 +1,106 @@
+// errorcheck -0
+
+// suspicious::side_effect_before_sort (SPEC Sec 1.2, #31): a chain lambda
+// with a call that is not known pure before .sortBy(). The warning sits on
+// the sortBy selector. Conversions and effect-free builtins are pure; every
+// other call counts as unknown. The rule is a warning, so the build
+// succeeds, and it applies to loGo/s packages only. The checker reports it
+// under this ID; the lint registry carries the entry so its group and scope
+// are enforced.
+
+package p
+
+import "strings"
+
+func bump(x int) int { return 2 * x }
+
+func keyOf(x int) int { return -x }
+
+func upper(s string) string { return strings.ToUpper(s) }
+
+// Boundary on the distance between the impure lambda and sortBy: the lambda
+// is the receiver of sortBy, one chain call before it, two before it.
+
+func nearest(xs []int) {
+	_ = xs.map(x => bump(x)).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func oneBefore(xs []int) {
+	_ = xs.map(x => bump(x)).filter(x => x > 0).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func twoBefore(xs []int) {
+	_ = xs.map(x => bump(x)).filter(x => x > 0).take(3).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func inFilter(xs []int) {
+	_ = xs.filter(x => bump(x) > 0).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func blockLambda(xs []int, m map[string]int) {
+	_ = xs.map(x => {
+		delete(m, "k")
+		return x
+	}).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func methodCall(ws []string) {
+	_ = ws.map(w => strings.ToUpper(w)).sortBy(w => w) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+	_ = ws.map(w => upper(w)).sortBy(w => w) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+func onePerSortBy(xs []int) {
+	_ = xs.map(x => bump(x)).filter(x => bump(x) > 0).sortBy(x => x) // ERROR "\[suspicious::side_effect_before_sort\] chain lambda with a call of unknown purity before sortBy"
+}
+
+// Pure prefixes stay silent.
+
+func pureArithmetic(xs []int) {
+	_ = xs.map(x => x * 2).sortBy(x => x)
+	_ = xs.filter(x => x > 0).sortBy(x => x)
+	_ = xs.sortBy(x => x)
+}
+
+func pureConversion(xs []int) {
+	_ = xs.map(x => int(float64(x))).sortBy(x => x)
+	_ = xs.map(x => int(int64(x) + 1)).sortBy(x => x)
+}
+
+func pureBuiltin(xs []int) {
+	_ = xs.map(x => len("ab") + x).sortBy(x => x)
+	_ = xs.map(x => min(x, 3)).sortBy(x => x)
+	_ = xs.filter(x => cap(xs) > x).sortBy(x => x)
+}
+
+// A call in the sortBy key lambda itself, in the receiver base, or after the
+// sort is out of scope.
+
+func keyLambdaCall(xs []int) {
+	_ = xs.sortBy(x => keyOf(x))
+	_ = xs.map(x => x + 1).sortBy(x => keyOf(x))
+}
+
+func receiverBase(xs func() []int) {
+	_ = xs().map(x => x + 1).sortBy(x => x)
+}
+
+func afterSort(xs []int) {
+	_ = xs.map(x => x + 1).sortBy(x => x).map(x => bump(x))
+}
+
+// A call inside a nested function literal runs only when the literal is
+// invoked, not once per element.
+
+func nestedLiteral(xs []int) {
+	_ = xs.map(x => {
+		later := func() int { return bump(x) }
+		_ = later
+		return x
+	}).sortBy(x => x)
+}
+
+// Without sortBy nothing is flagged, whatever the lambdas call.
+
+func noSort(xs []int) {
+	_ = xs.map(x => bump(x)).filter(x => bump(x) > 0)
+}

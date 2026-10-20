@@ -12,4 +12,8 @@ var registry = []Rule{
 	exhaustiveUnionSwitch,
 	concurrentMultiwordRace,
 	reentrantWithLockDeadlock,
+	unappliedStructDefault,
+	sideEffectBeforeSort,
+	serializedUnsizedInt,
+	aliasExtension,
 }

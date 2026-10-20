@@ -1,0 +1,15 @@
+// errorcheck -0
+
+// portability::alias_extension (SPEC Sec 1.2, T-101.1) is raised by the go
+// command, not by the compiler: it warns once per alias-extension source
+// file of a main module whose path starts with a dotted element. The testdir
+// harness stages a canonical .lgo file in module logostest, so this case is
+// the passing negative: a canonical extension produces no finding, and the
+// package builds. The positive case and the module-path boundary are in
+// cmd/go script test logos_lint_alias_extension.txt, which stages alias
+// names; the rule's group, scope, and severity are pinned in the lint
+// package tests.
+
+package p
+
+func canonical() int { return 1 }
