@@ -1,0 +1,10 @@
+index-right [4 6]
+index-left [6 8]
+composite-right [11 22]
+composite-left [11 22]
+recv 7
+dotarg 110
+paren-left [9 12]
+paren-right [9 12]
+assert [4 6]
+simd shapes ok

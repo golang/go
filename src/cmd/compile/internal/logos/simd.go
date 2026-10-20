@@ -6,6 +6,7 @@ package logos
 
 import (
 	"fmt"
+	"go/token"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -319,31 +320,277 @@ func simdScalarBody(sh *simdShape, op syntax.Operator) string {
 	return "return " + sh.spell + "{" + strings.Join(lanes, ", ") + "}"
 }
 
+// simdSite is one collected array operator or reduction with its source
+// spans: the whole replacement span and one span per operand. Spans are
+// recorded before any lowering replaces nodes with normalized fragments,
+// so an outer operand's text composes the inner replacement through
+// textOf.
+type simdSite struct {
+	expr  syntax.Expr
+	whole span
+	ops   []span
+}
+
 // lowerSimd rewrites every array operator and reduction of one file,
 // innermost first.
 func (fl *fileLower) lowerSimd() {
-	var sites []syntax.Expr
+	var sites []simdSite
+	kept := fl.simdKeptParens()
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		switch n := n.(type) {
 		case *syntax.Operation:
 			if fl.isSimdBinary(n) {
-				sites = append(sites, n)
+				sites = append(sites, simdSite{n, fl.simdWhole(n, kept), []span{fl.simdSpan(n.X), fl.simdSpan(n.Y)}})
 			}
 		case *syntax.CallExpr:
 			if fl.isSimdCall(n) {
-				sites = append(sites, n)
+				sites = append(sites, fl.simdCallSite(n, kept))
 			}
 		}
 		return true
 	})
+	var done []span
 	for i := len(sites) - 1; i >= 0; i-- {
-		switch n := sites[i].(type) {
+		s := &sites[i]
+		for j := range s.ops {
+			s.ops[j] = simdHull(s.ops[j], done)
+		}
+		s.whole = simdHull(s.whole, done)
+		switch n := s.expr.(type) {
 		case *syntax.Operation:
-			fl.lowerSimdBinary(n)
+			fl.lowerSimdBinary(n, *s)
 		case *syntax.CallExpr:
-			fl.lowerSimdCall(n)
+			fl.lowerSimdCall(n, *s)
+		}
+		done = append(done, s.whole)
+	}
+}
+
+// simdHull expands s to cover every completed whole span overlapping
+// it, so an outer operand's text composes inner replacements through
+// textOf. Completed spans run innermost first, so only descendants fuse;
+// disjoint siblings never overlap.
+func simdHull(s span, done []span) span {
+	for _, w := range done {
+		if w.start < s.end && w.end > s.start {
+			if w.start < s.start {
+				s.start = w.start
+			}
+			if w.end > s.end {
+				s.end = w.end
+			}
 		}
 	}
+	return s
+}
+
+// simdCallSite collects one array reduction with its operand spans: the
+// receiver, plus the argument of dot.
+func (fl *fileLower) simdCallSite(c *syntax.CallExpr, kept map[int]bool) simdSite {
+	sel := syntax.Unparen(c.Fun).(*syntax.SelectorExpr)
+	ops := []span{fl.simdSpan(sel.X)}
+	if sel.Sel.Value == "dot" && len(c.ArgList) == 1 {
+		ops = append(ops, fl.simdSpan(c.ArgList[0]))
+	}
+	return simdSite{c, fl.simdWhole(c, kept), ops}
+}
+
+// simdKeptParens records the offsets of parentheses the parser kept as
+// ParenExpr nodes: conditions, go and defer calls, and composite literal
+// types keep theirs, so spans must leave them in place to agree with the
+// native tree.
+func (fl *fileLower) simdKeptParens() map[int]bool {
+	kept := make(map[int]bool)
+	syntax.Inspect(fl.file, func(n syntax.Node) bool {
+		if p, ok := n.(*syntax.ParenExpr); ok {
+			kept[fl.off(p.Pos())] = true
+		}
+		return true
+	})
+	return kept
+}
+
+// simdSpan reports the exact source span of a simd operand: the node
+// span closed by delimiter scan, with no wrapper extension. Dropped
+// wrappers stay in the enclosing whole span; hulling the operand with
+// completed inner wholes at lowering time keeps nested replacements
+// composable through textOf.
+func (fl *fileLower) simdSpan(e syntax.Expr) span {
+	return span{fl.off(syntax.StartPos(syntax.Unparen(e))), fl.simdExprEnd(e)}
+}
+
+// simdWhole reports the balanced replacement span of a simd site: the
+// exact node span extended over grouping parentheses the parser
+// dropped, so the eject splice stays balanced. Kept parentheses stay
+// out: the native tree carries them, so the text must too. A call's own
+// parentheses never join the span: the start stops at call openers, and
+// only closers whose opener sits inside join the end.
+func (fl *fileLower) simdWhole(e syntax.Expr, kept map[int]bool) span {
+	start := simdBackStart(fl.src, fl.off(syntax.StartPos(e)), kept)
+	return span{start, simdFwdEnd(fl.src, start, fl.simdExprEnd(e))}
+}
+
+// simdBackStart extends start backward over grouping parentheses the
+// parser dropped: a `(` following a value opens a call, conversion, or
+// index, never a dropped wrapper, so the walk stops there, as it does
+// at every parenthesis the parser kept.
+func simdBackStart(src []byte, start int, kept map[int]bool) int {
+	for {
+		prev, ok := simdPrevTok(src, start)
+		if !ok || prev.kind != token.LPAREN || kept[prev.start] || simdCallOpen(src, prev.start) {
+			return start
+		}
+		start = prev.start
+	}
+}
+
+// simdCallOpen reports whether the `(` at open opens a call or
+// conversion: it follows a value, so it cannot be a dropped wrapper.
+func simdCallOpen(src []byte, open int) bool {
+	prev, ok := simdPrevTok(src, open)
+	if !ok {
+		return false
+	}
+	switch prev.kind {
+	case token.IDENT, token.RPAREN, token.RBRACK, token.RBRACE,
+		token.INT, token.FLOAT, token.IMAG, token.CHAR, token.STRING:
+		return true
+	}
+	return false
+}
+
+// simdFwdEnd extends end forward over the `)` closers of wrappers
+// simdBackStart consumed: a closer belongs to the span exactly when its
+// opener sits at or after start.
+func simdFwdEnd(src []byte, start, end int) int {
+	for {
+		next, ok := simdNextTok(src, end)
+		if !ok || next.kind != token.RPAREN || simdMatchParen(src, next.end) < start {
+			return end
+		}
+		end = next.end
+	}
+}
+
+// simdMatchParen returns the offset of the `(` matching the closer
+// ending at closeEnd: the last unmatched opener before it.
+func simdMatchParen(src []byte, closeEnd int) int {
+	var opens []int
+	match := -1
+	scanSegment(src, 0, closeEnd, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		switch t.kind {
+		case token.LPAREN:
+			opens = append(opens, t.start)
+		case token.RPAREN:
+			if len(opens) > 0 {
+				last := opens[len(opens)-1]
+				opens = opens[:len(opens)-1]
+				if t.end == closeEnd {
+					match = last
+				}
+			}
+		}
+		return true
+	})
+	if match < 0 {
+		base.Fatalf("logos: parenthesis closing at offset %d has no (", closeEnd)
+	}
+	return match
+}
+
+// simdPrevTok returns the last code token before off.
+func simdPrevTok(src []byte, off int) (tok, bool) {
+	var prev tok
+	found := false
+	scanSegment(src, 0, off, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		prev, found = t, true
+		return true
+	})
+	return prev, found
+}
+
+// simdNextTok returns the first code token at or after off.
+func simdNextTok(src []byte, off int) (tok, bool) {
+	var next tok
+	found := false
+	scanSegment(src, off, len(src), func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		next, found = t, true
+		return false
+	})
+	return next, found
+}
+
+// simdExprEnd reports the offset just past e: a binary operation ends at
+// its right operand, a call at its closing parenthesis, a composite
+// literal past its closing brace, an index past its closing bracket, and
+// an assertion past the closing parenthesis of its type.
+func (fl *fileLower) simdExprEnd(e syntax.Expr) int {
+	switch n := syntax.Unparen(e).(type) {
+	case *syntax.Operation:
+		if n.Y != nil {
+			return fl.simdExprEnd(n.Y)
+		}
+	case *syntax.CallExpr:
+		return fl.chainCallEnd(e)
+	case *syntax.CompositeLit:
+		return fl.off(n.Rbrace) + 1
+	case *syntax.IndexExpr:
+		return fl.findRbrack(fl.off(syntax.StartPos(n.Index))) + 1
+	case *syntax.AssertExpr:
+		return fl.simdAssertEnd(n)
+	}
+	return fl.off(syntax.EndPos(e))
+}
+
+// simdAssertEnd reports the offset just past a type assertion: the exact
+// end of its asserted expression, then `.`, `(`, the asserted type, and
+// its closing parenthesis.
+func (fl *fileLower) simdAssertEnd(a *syntax.AssertExpr) int {
+	end := fl.simdExprEnd(a.X)
+	seen := 0
+	depth := 0
+	scanSegment(fl.src, end, len(fl.src), func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		switch seen {
+		case 0:
+			if t.kind != token.PERIOD {
+				base.Fatalf("logos: assertion at offset %d has no .", end)
+			}
+			seen = 1
+		case 1:
+			if t.kind != token.LPAREN {
+				base.Fatalf("logos: assertion at offset %d has no (", end)
+			}
+			seen = 2
+			depth = 1
+		default:
+			switch t.kind {
+			case token.LPAREN, token.LBRACK, token.LBRACE:
+				depth++
+			case token.RPAREN, token.RBRACK, token.RBRACE:
+				depth--
+				if depth == 0 {
+					end = t.end
+					return false
+				}
+			case token.SEMICOLON, token.EOF:
+				base.Fatalf("logos: assertion at offset %d has no )", end)
+			}
+		}
+		return true
+	})
+	return end
 }
 
 // isSimdBinary reports whether e is a checker-accepted array operator.
@@ -474,7 +721,7 @@ func simdMinMaxBody(v string, n int64, method string) string {
 }
 
 // lowerSimdBinary rewrites one array operator to an IIFE.
-func (fl *fileLower) lowerSimdBinary(e *syntax.Operation) {
+func (fl *fileLower) lowerSimdBinary(e *syntax.Operation, s simdSite) {
 	t := fl.pkg.info.TypeOf(e)
 	if t == nil {
 		return
@@ -487,14 +734,14 @@ func (fl *fileLower) lowerSimdBinary(e *syntax.Operation) {
 	if sh == nil {
 		return
 	}
-	aText := fl.textOf(span{fl.off(syntax.StartPos(e.X)), fl.off(syntax.EndPos(e.X))})
-	bText := fl.textOf(span{fl.off(syntax.StartPos(e.Y)), fl.off(syntax.EndPos(e.Y))})
+	aText := fl.textOf(s.ops[0])
+	bText := fl.textOf(s.ops[1])
 	text := fl.simdElemwiseText(sh, e.Op, aText, bText)
-	fl.replaceSimd(e, text)
+	fl.replaceSimd(e, s.whole, text)
 }
 
 // lowerSimdCall rewrites one array reduction to an IIFE.
-func (fl *fileLower) lowerSimdCall(c *syntax.CallExpr) {
+func (fl *fileLower) lowerSimdCall(c *syntax.CallExpr, s simdSite) {
 	sel := syntax.Unparen(c.Fun).(*syntax.SelectorExpr)
 	t := fl.pkg.info.TypeOf(sel.X)
 	if t == nil {
@@ -509,7 +756,7 @@ func (fl *fileLower) lowerSimdCall(c *syntax.CallExpr) {
 		return
 	}
 	method := sel.Sel.Value
-	recvText := fl.textOf(span{fl.off(syntax.StartPos(sel.X)), fl.off(syntax.EndPos(sel.X))})
+	recvText := fl.textOf(s.ops[0])
 	var text string
 	switch method {
 	case "sum":
@@ -520,26 +767,21 @@ func (fl *fileLower) lowerSimdCall(c *syntax.CallExpr) {
 		if len(c.ArgList) != 1 {
 			return
 		}
-		argText := fl.textOf(span{fl.off(syntax.StartPos(c.ArgList[0])), fl.off(syntax.EndPos(c.ArgList[0]))})
+		argText := fl.textOf(s.ops[1])
 		inner := fl.simdElemwiseText(sh, syntax.Mul, recvText, argText)
 		text = "func(_logos_p " + sh.spell + ") " + sh.elemSpell + " { " + simdSumBody("_logos_p", sh.len) + " }(" + inner + ")"
 	default:
 		return
 	}
-	fl.replaceSimd(c, text)
+	fl.replaceSimd(c, s.whole, text)
 }
 
 // replaceSimd parses text as the replacement expression and swaps it
-// for old, recording the matching eject splice. A call's EndPos stops
-// before its closing parenthesis, so calls end at chainCallEnd.
-func (fl *fileLower) replaceSimd(old syntax.Expr, text string) {
+// for old, recording the matching eject splice over whole.
+func (fl *fileLower) replaceSimd(old syntax.Expr, whole span, text string) {
 	frag := parseSimdExprFrag(text, old.Pos())
 	replaceTupleExpr(fl.file, old, frag)
-	end := fl.off(syntax.EndPos(old))
-	if _, ok := syntax.Unparen(old).(*syntax.CallExpr); ok {
-		end = fl.chainCallEnd(old)
-	}
-	fl.add(fl.off(syntax.StartPos(old)), end, text)
+	fl.add(whole.start, whole.end, text)
 }
 
 // parseSimdExprFrag parses text as one expression and normalizes every
@@ -564,11 +806,6 @@ func parseSimdExprFrag(text string, pos syntax.Pos) syntax.Expr {
 	e := vals[0]
 	normalizeChainPos(e, pos)
 	return e
-}
-
-// replaceSimdExpr swaps old for repl under root.
-func replaceSimdExpr(root syntax.Node, old, repl syntax.Expr) {
-	replaceTupleExpr(root, old, repl)
 }
 
 // simdImport builds the implicit simd/archsimd import of lowered files.

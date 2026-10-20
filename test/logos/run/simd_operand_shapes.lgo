@@ -1,0 +1,90 @@
+// run
+
+package main
+
+import "fmt"
+
+// M14-S1 shapes (SPEC Sec 2.4, T-204.2): every simd operand span keeps
+// its closing delimiters: index brackets, composite-literal braces,
+// call parentheses, and the parentheses around a nested operator.
+
+func shapeIndex() {
+	a := [2]int{1, 2}
+	m := [2][2]int{{3, 4}, {5, 6}}
+	right := a + m[0]
+	if right != [2]int{4, 6} {
+		panic(fmt.Sprintf("index-right: got %v want %v", right, [2]int{4, 6}))
+	}
+	left := m[1] + a
+	if left != [2]int{6, 8} {
+		panic(fmt.Sprintf("index-left: got %v want %v", left, [2]int{6, 8}))
+	}
+	fmt.Println("index-right", right)
+	fmt.Println("index-left", left)
+}
+
+func shapeComposite() {
+	a := [2]int{10, 20}
+	right := a + [2]int{1, 2}
+	if right != [2]int{11, 22} {
+		panic(fmt.Sprintf("composite-right: got %v", right))
+	}
+	left := [2]int{1, 2} + a
+	if left != [2]int{11, 22} {
+		panic(fmt.Sprintf("composite-left: got %v", left))
+	}
+	fmt.Println("composite-right", right)
+	fmt.Println("composite-left", left)
+}
+
+func shapePair() [2]int {
+	return [2]int{3, 4}
+}
+
+func shapeCall() {
+	if shapePair().sum() != 7 {
+		panic("recv sum mismatch")
+	}
+	b := [2]int{10, 20}
+	if b.dot(shapePair()) != 110 {
+		panic("dotarg mismatch")
+	}
+	fmt.Println("recv", shapePair().sum())
+	fmt.Println("dotarg", b.dot(shapePair()))
+}
+
+func shapeParen() {
+	a := [2]int{1, 2}
+	b := [2]int{3, 4}
+	c := [2]int{5, 6}
+	want := [2]int{9, 12}
+	left := (a + b) + c
+	if left != want {
+		panic(fmt.Sprintf("paren-left: got %v want %v", left, want))
+	}
+	right := c + (a + b)
+	if right != want {
+		panic(fmt.Sprintf("paren-right: got %v want %v", right, want))
+	}
+	fmt.Println("paren-left", left)
+	fmt.Println("paren-right", right)
+}
+
+func shapeAssert() {
+	var v any = [2]int{1, 2}
+	b := [2]int{3, 4}
+	got := v.([2]int) + b
+	if got != [2]int{4, 6} {
+		panic(fmt.Sprintf("assert: got %v", got))
+	}
+	fmt.Println("assert", got)
+}
+
+func main() {
+	shapeIndex()
+	shapeComposite()
+	shapeCall()
+	shapeParen()
+	shapeAssert()
+	fmt.Println("simd shapes ok")
+}
