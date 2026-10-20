@@ -50,7 +50,8 @@ type Project struct {
 }
 
 // Build holds the [build] table: the cgo policy and its allowlist, the
-// optimization level, the synthetic PGO level, and the CPU target.
+// optimization level, the synthetic PGO level, the CPU target, and the
+// arena experiment.
 type Build struct {
 	// Cgo is one of "forbid", "restricted", or "allow". It defaults to "forbid".
 	Cgo string
@@ -66,6 +67,9 @@ type Build struct {
 	SynthPGOSet bool
 	// TargetCPU is one of "deterministic", "baseline", or "native". It defaults to "deterministic".
 	TargetCPU string
+	// Arena enables the tier-0 arena experiment (GOEXPERIMENT=logosarena)
+	// for the build. It defaults to false.
+	Arena bool
 }
 
 // Capabilities holds the [capabilities] table (M12): severity keys, each one
@@ -191,6 +195,9 @@ func (f *File) Format() []byte {
 		b.WriteString("target_cpu = ")
 		appendQuoted(&b, f.Build.TargetCPU)
 		b.WriteByte('\n')
+	}
+	if f.Build.Arena {
+		b.WriteString("arena = true\n")
 	}
 	writeCapabilities(&b, f.Capabilities)
 	return []byte(b.String())

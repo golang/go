@@ -58,7 +58,7 @@ func BuildInit(ld *modload.Loader) {
 	base.AtExit(closeBuilders)
 
 	modload.Init(ld)
-	refreshLogosCgoPolicy(ld)
+	refreshLogosPolicy(ld)
 	instrumentInit()
 	buildModeInit()
 	initCompilerConcurrencyPool()

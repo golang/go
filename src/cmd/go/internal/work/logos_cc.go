@@ -15,16 +15,23 @@ import (
 	"cmd/go/internal/modload"
 )
 
-// refreshLogosCgoPolicy recomputes the global cgo switch from every main
-// module root once flags are parsed and modload has located the workspace
-// or module. ld.MainModules is still unpopulated this early (it is built
-// lazily during package loading), so in workspace mode the member list
-// comes from the go.work use directives instead; with no workspace the
-// module above the working directory decides via cfg. It runs in BuildInit,
-// before package loading decides cgo file visibility, so -C targets and
-// mixed-policy workspaces apply the owning modules' policies instead of
-// the startup directory's.
-func refreshLogosCgoPolicy(ld *modload.Loader) {
+// refreshLogosPolicy recomputes the global cgo switch and the arena
+// experiment from every main module root once flags are parsed and modload
+// has located the workspace or module. ld.MainModules is still unpopulated
+// this early (it is built lazily during package loading), so in workspace
+// mode the member list comes from the go.work use directives instead; with
+// no workspace the module above the working directory decides via cfg. It
+// runs in BuildInit, before package loading decides cgo file visibility and
+// the experiment tags, so -C targets and mixed-policy workspaces apply the
+// owning modules' policies instead of the startup directory's.
+func refreshLogosPolicy(ld *modload.Loader) {
+	roots := logosMainRoots(ld)
+	cfg.RefreshLogosCgoPolicy(roots)
+	cfg.RefreshLogosArena(roots)
+}
+
+// logosMainRoots lists the main module roots known at BuildInit.
+func logosMainRoots(ld *modload.Loader) []string {
 	var roots []string
 	if ld != nil {
 		if ld.MainModules != nil {
@@ -38,7 +45,7 @@ func refreshLogosCgoPolicy(ld *modload.Loader) {
 			roots = workspaceMemberRoots(modload.WorkFilePath(ld))
 		}
 	}
-	cfg.RefreshLogosCgoPolicy(roots)
+	return roots
 }
 
 // workspaceMemberRoots lists the member directories of the workspace file

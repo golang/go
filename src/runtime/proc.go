@@ -464,6 +464,7 @@ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason w
 	if status != _Grunning && status != _Gscanrunning {
 		throw("gopark: bad g status")
 	}
+	logosArenaPark(gp)
 	mp.waitlock = lock
 	mp.waitunlockf = unlockf
 	gp.waitreason = reason
@@ -4539,6 +4540,7 @@ func gdestroy(gp *g) {
 	gp.labels = nil
 	gp.timer = nil
 	logosClearErrTrace(gp)
+	logosArenaExit(gp)
 	gp.bubble = nil
 	gp.fipsOnlyBypass = false
 	gp.secret = 0
@@ -6026,6 +6028,7 @@ func (pp *p) destroy() {
 	}
 	// We should free the queues though.
 	pp.gcw.spanq.destroy()
+	logosArenaFlushP(pp)
 
 	clear(pp.sudogbuf[:])
 	pp.sudogcache = pp.sudogbuf[:0]

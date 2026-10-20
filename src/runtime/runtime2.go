@@ -606,6 +606,10 @@ type g struct {
 	// logosErrLast is the data word of the error that filled the ring:
 	// identity only, not a reference, so the trace keeps no error alive.
 	logosErrLast uintptr
+	// logosArena is the newest chunk of the loGo/s arena chain leased to
+	// this goroutine (M18-S1); older chunks hang off sideStackChunk.next.
+	// Nil when the goroutine holds no arena chunk.
+	logosArena *sideStackChunk
 }
 
 // gTrackingPeriod is the number of transitions out of _Grunning between
@@ -858,6 +862,11 @@ type p struct {
 	// start timestamp. Zero outside a fast call.
 	cgoPinnedPtrs     [4]uintptr // pinned fast-cgo argument frames
 	fastCallEnterNano int64      // fast-cgo call start timestamp
+
+	// loGo/s arena chunk cache (M18-S1): chunks whose regions are at base,
+	// owned by this P and linked through sideStackChunk.next.
+	logosArenaPool  *sideStackChunk
+	logosArenaPoolN int32
 
 	trace pTraceState
 

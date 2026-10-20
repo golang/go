@@ -101,6 +101,7 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
 		// Arena-allocated objects are not eligible for cleanup.
 		panic("runtime.AddCleanup: ptr is arena-allocated")
 	}
+	logosArenaReject(unsafe.Pointer(ptr), "AddCleanup")
 	if debug.sbrk != 0 {
 		// debug.sbrk never frees memory, so no cleanup will ever run
 		// (and we don't have the data structures to record them).

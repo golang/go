@@ -238,7 +238,7 @@ func keyOwner(table, key string) (string, bool) {
 	switch key {
 	case "name", "edition", "strict_files":
 		owner = "project"
-	case "cgo", "cgo_allowlist", "opt_level", "synthetic_pgo", "target_cpu":
+	case "cgo", "cgo_allowlist", "opt_level", "synthetic_pgo", "target_cpu", "arena":
 		owner = "build"
 	case "direct_reflect", "transitive_reflect", "transitive_exec", "transitive_net", "transitive_unsafe",
 		"reflect_allowlist", "transitive_exec_allowlist", "transitive_net_allowlist", "transitive_unsafe_allowlist":
@@ -292,6 +292,8 @@ func (p *parser) parseKeyVal() error {
 	switch {
 	case isArrayKey(key):
 		err = p.parseArrayValue(key)
+	case isBoolKey(key):
+		err = p.parseBoolValue(key, valStart)
 	case isLintThreshold(key):
 		err = p.parseIntValue(key, valStart)
 	default:

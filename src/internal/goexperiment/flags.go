@@ -139,4 +139,8 @@ type Flags struct {
 	// stack size: the moving average of the final stack sizes of the
 	// goroutines it created (M17-S2).
 	LogosStack bool
+
+	// LogosArena enables the tier-0 arena: per-goroutine 64 KB side
+	// chunks that hold frame-local allocations (M18).
+	LogosArena bool
 }

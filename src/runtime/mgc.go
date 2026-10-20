@@ -1571,6 +1571,7 @@ func gcMarkTermination(stw worldStop) {
 			pp.gcw.flushScanStats(&memstats.lastScanStats)
 		}
 		pp.pinnerCache = nil
+		logosArenaFlushP(pp)
 	})
 	if sl.valid {
 		// Now that we've swept stale spans in mcaches, they don't

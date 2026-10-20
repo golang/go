@@ -77,7 +77,7 @@ var (
 )
 
 func MkEnv() []cfg.EnvVar {
-	refreshLogosCgoPolicy()
+	refreshLogosPolicy()
 	envFile, envFileChanged, _ := cfg.EnvFile()
 	env := []cfg.EnvVar{
 		// NOTE: Keep this list (and in general, all lists in source code) sorted by name.
