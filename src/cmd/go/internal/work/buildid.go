@@ -173,7 +173,7 @@ func (b *Builder) toolID(name string) string {
 		if len(f) < 3 || f[0] != name && path != VetTool || f[1] != "version" || strings.Contains(f[2], "devel") && !strings.HasPrefix(f[len(f)-1], "buildID=") {
 			base.Fatalf("go: parsing buildID from %s -V=full: unexpected output:\n\t%s", desc, line)
 		}
-		if strings.Contains(f[2], "devel") {
+		if strings.Contains(f[2], "devel") || logosReportsBuildID(f) { // loGos hook: fork tools report a build ID under a release version.
 			// On the development branch, use the content ID part of the build ID.
 			return contentID(f[len(f)-1])
 		}

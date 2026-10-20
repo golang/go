@@ -4,6 +4,18 @@
 
 package work
 
+import "strings"
+
+// logosReportsBuildID reports whether the -V=full fields f end with a
+// build ID. The loGos tools print one under the release version go1.27.2
+// (cmd/internal/objabi forkReportsBuildID), so the go command keys them
+// on the content ID, as it keys development builds. The whole line would
+// also carry the action ID, which differs between toolchain stages that
+// build byte-identical tools, so dist would report false stale targets.
+func logosReportsBuildID(f []string) bool {
+	return strings.HasPrefix(f[len(f)-1], "buildID=")
+}
+
 // logosEjectNoCache reports whether action a compiles a package marked
 // for logos eject. Ejected packages skip the build cache like -a builds,
 // so the compiler always runs and writes fresh -logos.eject output.
