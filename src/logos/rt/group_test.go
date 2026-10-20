@@ -64,6 +64,37 @@ func TestGroupCancelReachesSibling(t *testing.T) {
 	})
 }
 
+// M18-S4 attack: group cancellation flows through the group context
+// alone, with no g.cancelChan field. The first child fails at once;
+// the second blocks in the lowered channel form (a select on the child
+// context) and must observe the cancellation. Wait reports the first
+// error, never the sibling's context error.
+func TestGroupCancelThroughGroupContext(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 0)
+		ch := make(chan int)
+		cancelled := make(chan struct{})
+		g.Go(func(ctx context.Context) error { return errGroupFirst })
+		g.Go(func(ctx context.Context) error {
+			select {
+			case <-ch:
+				return nil
+			case <-ctx.Done():
+				close(cancelled)
+				return ctx.Err()
+			}
+		})
+		if err := g.Wait(); !errors.Is(err, errGroupFirst) {
+			t.Fatalf("Wait = %v, want %v", err, errGroupFirst)
+		}
+		select {
+		case <-cancelled:
+		default:
+			t.Fatal("sibling blocked on channel did not observe group cancellation")
+		}
+	})
+}
+
 // M8-S1 attack: limit = 2 never runs 3 children at once. Five children
 // record the peak concurrency; the peak must stay at or below 2.
 func TestGroupLimitBoundsConcurrency(t *testing.T) {
