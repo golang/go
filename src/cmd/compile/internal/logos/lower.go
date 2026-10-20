@@ -37,7 +37,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	if f := EmitDefaultFacts(pkg, info, facts.Current()); f != nil { // M6-S3: struct field defaults.
 		facts.SetCurrent(f)
 	}
-	shared := &packageLower{info: info, tpkg: pkg, constMaps: collectConstMaps(files, info), userMethods: collectUserMethods(files)}
+	shared := &packageLower{info: info, tpkg: pkg, constMaps: collectConstMaps(files, info)}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
 	for _, file := range files {
@@ -75,9 +75,6 @@ type packageLower struct {
 	tpkg      *types2.Package
 	siteSeq   int
 	constMaps map[*types2.Const]*constMapGen // M5-S4: every const map of the package.
-	// userMethods holds the methods the package declares itself, so
-	// the M11 generators never emit one the program wrote.
-	userMethods userMethodSet
 }
 
 // fileLower carries the state of lowering one file.
@@ -195,7 +192,6 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerViewAs()         // M7-S5 hook: comptime.ViewAs calls to the rt helper.
 	fl.lowerChains()         // M6-S7 hook: collection chains fused into loops.
 	fl.lowerSpreads()        // M6-S4 hook: `..src` spread elements.
-	fl.lowerStaticBinary()   // M11-S3 hook: MarshalBinary, AppendBinary, UnmarshalBinary.
 	fl.flushTypeImports()    // M6-S4 hook: imports for spelled elided spread literal types.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)

@@ -1432,11 +1432,6 @@ A field of type int or uint warns portability::serialized_unsized_int. [T-Sec12.
 Sized kinds are preferred. [T-Sec12.1]
 Tag options change nothing in binary output. [T-Sec12.1]
 UnmarshalBinary rejects truncation, bad presence bytes, version mismatch, and trailing bytes with errors naming field and offset. [T-Sec12.1]
-UnmarshalBinary also rejects a bool byte other than 0x00 and 0x01, an array count that differs from the array length, and an integer that its sized kind cannot hold, each with an error naming field and offset. [T-Sec12.1]
-A failed UnmarshalBinary leaves the target unchanged. [T-Sec12.1]
-Binary encoding includes every field in declaration order, including fields tagged `json:"-"` and unexported fields. [T-Sec12.1]
-A struct with a field type that has no binary layout (complex numbers, unsafe.Pointer, a struct of another package without its own MarshalBinary and UnmarshalBinary, or a type that contains itself) gets no binary methods, and its JSON methods stay. [T-Sec12.1]
-A method that the program declares itself replaces the generated method of the same name. [T-Sec12.1]
 A count header MUST pre-allocate at most min(len(rest)/2, 1 MB / sizeof(elem)) elements and MUST grow past that only as input bytes arrive. [T-Sec12.1]
 
 ## 13. Capabilities auditor
