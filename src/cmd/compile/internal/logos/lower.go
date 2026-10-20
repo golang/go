@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/logos/facts"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 )
@@ -22,6 +23,9 @@ import (
 // AssertedStruct, OptionType, CoalesceExpr, or OptSelectExpr) is an
 // internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
+	if f := EmitOptionFacts(pkg, info); f != nil {
+		facts.SetCurrent(f)
+	}
 	shared := &packageLower{info: info, tpkg: pkg}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false

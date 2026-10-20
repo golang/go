@@ -186,9 +186,9 @@ recheck:
 		dumpSyntax(pkg, info, files, "checked")
 	}
 
-	if conf.Logos && !didLogos {
+	if !didLogos {
 		didLogos = true
-		if lowerLogosHook(pkg, info, files) {
+		if logosRecheckHook(&conf, pkg, info, files) {
 			goto recheck
 		}
 	}

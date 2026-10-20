@@ -1,0 +1,70 @@
+# M3-S7: eject keeps option behavior with Go-facing signatures (T-Sec6).
+# The ejected module builds with plain go and prints the same output;
+# ejected signatures use plain pointers and rt.Option[T].
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^eject ok: gadget$'
+cp stdout $WORK/eject-stdout.txt
+
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+grep '_logos_rt\.Option' out/main.go
+! grep '\*User\?' out/main.go
+! grep '\[\]int\?' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+cd out
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+cd ..
+
+-- m/go.mod --
+module example.com/ejectopt
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type User struct {
+	Name string
+}
+
+type T struct {
+	X int
+}
+
+func F() *User? {
+	return &User{Name: "alice"}
+}
+
+type Box struct {
+	P *T?
+}
+
+func (b *Box) Get() *T? {
+	return b.P
+}
+
+func H() []int? {
+	return nil
+}
+
+func G(u *User) string {
+	return u.Name
+}
+
+func main() {
+	fmt.Println("eject ok: " + G(&User{Name: "gadget"}))
+}

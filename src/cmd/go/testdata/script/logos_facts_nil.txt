@@ -1,0 +1,100 @@
+# M3-S7: cross-package option facts for .lgo importers (T-Sec6).
+# Package a exports option positions; package b sees them as options
+# (narrowing required) and sees plain pointers as non-nil.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd lgo
+logos build ./...
+logos build -o $WORK/bin/factsnil$GOEXE ./cmd
+exec $WORK/bin/factsnil$GOEXE
+stdout '^facts ok: gadget$'
+cd ..
+
+# Direct use of an option without narrowing fails.
+cd neg
+! logos build ./...
+stderr 'nil_deref_unproven'
+stderr 'nonnil_uninitialized'
+cd ..
+
+-- lgo/go.mod --
+module example.com/factsnil
+
+go 1.27
+
+-- lgo/a/a.lgo --
+package a
+
+type User struct {
+	Name string
+}
+
+type T struct {
+	X int
+}
+
+func F() *User? {
+	return &User{Name: "alice"}
+}
+
+type Box struct {
+	P *T?
+}
+
+func (b *Box) Get() *T? {
+	return b.P
+}
+
+func G(u *User) string {
+	return u.Name
+}
+
+func H() []int? {
+	return nil
+}
+
+-- lgo/b/b.lgo --
+package b
+
+import "example.com/factsnil/a"
+
+func CallG(u *a.User) string {
+	return a.G(u)
+}
+
+-- lgo/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/factsnil/a"
+	"example.com/factsnil/b"
+)
+
+func main() {
+	fmt.Println("facts ok: " + b.CallG(&a.User{Name: "gadget"}))
+}
+
+-- neg/go.mod --
+module example.com/factsneg
+
+go 1.27
+
+require example.com/factsnil v0.0.0
+
+replace example.com/factsnil => ../lgo
+
+-- neg/main.lgo --
+package main
+
+import "example.com/factsnil/a"
+
+var p *a.User
+
+func main() {
+	println(a.F().Name)
+	println(p.Name)
+}

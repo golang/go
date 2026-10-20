@@ -261,6 +261,9 @@ func readImportFileImpl(path string, target *ir.Package, env *types2.Context, pa
 	// Read package descriptors for both types2 and compiler backend.
 	readPackage(newPkgReader(pr), pkg1, false)
 	pkg2 = importer.ReadPackage(env, packages, pr)
+	if pkg2 != nil && logos {
+		pkg2 = applyLogosOverlayForLgoImporter(path, pkg2, packages) // logos M3-S7 hook: .lgo importers see Option types.
+	}
 	if pkg2 != nil && checkLogosUnion {
 		checkLogosGoImport(pkg2)
 	}

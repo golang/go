@@ -110,6 +110,47 @@ func checkLogosModules(all []*Package) {
 	}
 }
 
+// addLogosRTForGoImporter loads the implicit logos/rt import for a Go
+// package directly importing a loGo/s package (M3-S7, beside the M1-S4
+// needsLogosRT hook in pkg.go). It runs during load after the package's
+// own imports resolve, so the rt archive joins the importcfg; plain Go
+// packages without loGo/s imports keep no new dependency.
+func addLogosRTForGoImporter(ld *modload.Loader, ctx context.Context, opts PackageOpts, p *Package) {
+	if p == nil || p.IsLogos() || !cfg.Logos {
+		return
+	}
+	hasLogosDep := false
+	for _, q := range p.Internal.Imports {
+		if q != nil && q.IsLogos() {
+			hasLogosDep = true
+			break
+		}
+	}
+	if !hasLogosDep {
+		return
+	}
+	for _, dep := range p.Internal.CompiledImports {
+		if dep == LogosRTPkg {
+			return
+		}
+	}
+	for _, q := range p.Internal.Imports {
+		if q != nil && q.ImportPath == LogosRTPkg {
+			return
+		}
+	}
+	nstk := ImportStack{{Pkg: p.ImportPath}}
+	p1, err := loadImport(ld, ctx, opts, nil, LogosRTPkg, p.Dir, p, &nstk, nil, ResolveImport)
+	if err != nil && p.Error == nil {
+		p.Error = err
+	}
+	if err != nil || p1.Incomplete {
+		p.Incomplete = true
+	}
+	p.Internal.Imports = append(p.Internal.Imports, p1)
+	p.Internal.CompiledImports = append(p.Internal.CompiledImports, p1.ImportPath)
+}
+
 // hasSourceFiles reports whether any source list of p holds a file.
 // Packages with no files carry no kind and stay out of the census, so a
 // stray empty package cannot report a false mixed module.

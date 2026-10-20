@@ -2097,6 +2097,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		}
 	}
 	p.Internal.Imports = imports
+	addLogosRTForGoImporter(ld, ctx, opts, p)
 	checkLogosAliases(p)
 	checkLogosConfig(ld, p)
 	checkLogosCgo(ld, p)

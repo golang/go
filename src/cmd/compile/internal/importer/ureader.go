@@ -62,6 +62,7 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 	r.Sync(pkgbits.SyncEOF)
 
 	pkg.MarkComplete()
+	pkg = logosOverlayHook(pkg) // logos M3-S7 hook: .lgo importers rebuild Option types from opt facts.
 	return pkg
 }
 

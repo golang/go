@@ -1,0 +1,252 @@
+# M3-S7: Go importers of loGo/s option and non-nil signatures (R-U2, T-Sec6).
+# Package a exports F, Box, G, H; a Go package in another workspace module
+# sees plain pointers and rt.Option, builds under logos, and gets
+# MustNonNil panics on direct, go, defer, and method calls with nil.
+# Calls through func values stay unchecked; eject plus upstream go stays
+# unchecked too.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/interopnil$GOEXE ./g/cmd
+exec $WORK/bin/interopnil$GOEXE
+stdout '^F-nil H-none G-ok: gadget defer-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ method-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+ func-value-ok$'
+stdout '^direct-ok: logos: nil from Go value stored into non-nil \*a\.User at q\.go:[0-9]+$'
+cd ..
+
+# go statements evaluate MustNonNil immediately and crash with the call position.
+cd w
+logos build -o $WORK/bin/interopnil-go$GOEXE ./g/cmdgo
+! exec $WORK/bin/interopnil-go$GOEXE
+stderr 'logos: nil from Go value stored into non-nil \*a\.User at main\.go:[0-9]+'
+cd ..
+
+# Eject a Go main over a loGo/s dep via replace; upstream go has no checks.
+cd e/gapp
+logos run .
+stdout '^dep-ok$'
+stdout '^eject-check: logos$'
+logos eject -o bout
+exists bout/main.go
+exists bout/_logos_deps/example.com/lp@v1.2.3/p/p.go
+cd bout
+go build ./...
+go run .
+stdout '^dep-ok$'
+stdout '^eject-check: no-logos$'
+cd ..
+cd ..
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/a/a.lgo --
+package a
+
+type User struct {
+	Name string
+}
+
+type T struct {
+	X int
+}
+
+func F() *User? {
+	return nil
+}
+
+type Box struct {
+	P *T?
+}
+
+func (b *Box) Set(u *User) string {
+	return u.Name
+}
+
+func G(u *User) string {
+	return u.Name
+}
+
+func H() []int? {
+	return nil
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/q/q.go --
+package q
+
+import (
+	"fmt"
+	"strings"
+
+	"example.com/l/a"
+	"logos/rt"
+)
+
+var _ func() *a.User = a.F
+var _ func(*a.User) string = a.G
+var _ func() rt.Option[[]int] = a.H
+var _ *a.T = a.Box{}.P
+
+func Run() string {
+	if a.F() != nil {
+		return "F-non-nil"
+	}
+	h := a.H()
+	if h.Present {
+		return "H-present"
+	}
+	got := a.G(&a.User{Name: "gadget"})
+	out := "F-nil H-none G-ok: " + got
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				out += " defer-ok: " + fmt.Sprint(r)
+			}
+		}()
+		defer a.G(nil)
+	}()
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				out += " method-ok: " + fmt.Sprint(r)
+			}
+		}()
+		b := &a.Box{}
+		_ = b.Set(nil)
+	}()
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg := fmt.Sprint(r)
+				if strings.Contains(msg, "logos: nil from Go value") {
+					out += " func-value-CHECKED"
+				} else {
+					out += " func-value-ok"
+				}
+			}
+		}()
+		f := a.G
+		_ = f(nil)
+		out += " func-value-no-panic"
+	}()
+
+	return out
+}
+
+func DirectMsg() string {
+	var msg string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				msg = fmt.Sprint(r)
+			}
+		}()
+		_ = a.G(nil)
+	}()
+	return msg
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/q"
+)
+
+func main() {
+	fmt.Println(q.Run())
+	fmt.Println("direct-ok: " + q.DirectMsg())
+}
+
+-- w/g/cmdgo/main.go --
+package main
+
+import (
+	"time"
+
+	"example.com/l/a"
+)
+
+func main() {
+	go a.G(nil)
+	time.Sleep(time.Second)
+}
+
+-- e/lp/go.mod --
+module example.com/lp
+
+go 1.27
+
+-- e/lp/p/p.lgo --
+package p
+
+type User struct {
+	Name string
+}
+
+func G(u *User) string {
+	return u.Name
+}
+
+func Msg() string {
+	return "dep-ok"
+}
+
+-- e/gapp/go.mod --
+module example.com/gapp
+
+go 1.27
+
+require example.com/lp v1.2.3
+
+replace example.com/lp v1.2.3 => ../lp
+
+-- e/gapp/main.go --
+package main
+
+import (
+	"fmt"
+	"strings"
+
+	"example.com/lp/p"
+)
+
+func main() {
+	fmt.Println(p.Msg())
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if strings.Contains(fmt.Sprint(r), "logos: nil from Go value") {
+					fmt.Println("eject-check: logos")
+				} else {
+					fmt.Println("eject-check: no-logos")
+				}
+			}
+		}()
+		_ = p.G(nil)
+		fmt.Println("eject-check: no-panic")
+	}()
+}

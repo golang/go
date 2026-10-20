@@ -67,6 +67,17 @@ func logosSources(files []*syntax.File) map[*syntax.File][]byte {
 	return src
 }
 
+// logosRecheckHook runs the post-check loGo/s rewrite for the package that
+// conf checked: lowering for a loGo/s package, MustNonNil wraps for a Go
+// package that calls loGo/s code (M3-S7). It reports whether the caller
+// must recheck.
+func logosRecheckHook(conf *types2.Config, pkg *types2.Package, info *types2.Info, files []*syntax.File) bool {
+	if conf.Logos {
+		return lowerLogosHook(pkg, info, files)
+	}
+	return logosGoCallerHook(pkg, info, files)
+}
+
 // lowerLogosHook lowers logos nodes after the first check and resets type
 // checking for the recheck. It reports whether the caller must recheck.
 // Sources are stashed for eject even when nothing changed, so unchanged
