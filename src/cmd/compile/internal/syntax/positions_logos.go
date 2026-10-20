@@ -25,6 +25,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return StartPos(n.X), true
 	case *ConstType:
 		return n.Pos(), true
+	case *ConstFuncDecl: // M5-S2: a const func starts at `const`.
+		return n.Pos(), true
 	case *ErrdeferStmt:
 		return n.Pos(), true
 	}
@@ -64,6 +66,8 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return n.Lbrace, true
 	case *PropertyType:
 		return EndPos(n.Type), true
+	case *ConstFuncDecl: // M5-S2: a const func ends where its function ends.
+		return EndPos(n.Func), true
 	}
 	return Pos{}, false
 }

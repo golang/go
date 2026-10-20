@@ -28,6 +28,8 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Sel)
 	case *ConstType:
 		w.node(n.Elem)
+	case *ConstFuncDecl: // M5-S2: walk the inner function.
+		w.node(n.Func)
 	case *ErrdeferStmt:
 		w.node(n.Call)
 	case *SwitchExpr:

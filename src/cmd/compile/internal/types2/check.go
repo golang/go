@@ -117,10 +117,13 @@ type Checker struct {
 	ctxt *Context // context for de-duplicating instances
 	pkg  *Package
 	*Info
-	nextID  uint64                 // unique Id for type parameters (first valid Id is 1)
-	objMap  map[Object]*declInfo   // maps package-level objects and (non-interface) methods to declaration info
-	objList []Object               // source-ordered keys of objMap
-	impMap  map[importKey]*Package // maps (import path, source directory) to (complete or fake) package
+	nextID           uint64                      // unique Id for type parameters (first valid Id is 1)
+	objMap           map[Object]*declInfo        // maps package-level objects and (non-interface) methods to declaration info
+	objList          []Object                    // source-ordered keys of objMap
+	logosBodies      map[string]*syntax.FuncDecl // logos M5-S2: plain function bodies by name for transitive const evaluation
+	logosConstSyntax map[*syntax.FuncDecl]bool   // logos M5-S2: inner FuncDecls declared through `const func`
+	logosMemoized    map[syntax.Expr]ctfeMemo    // logos M5-S2: one const evaluation per initializer
+	impMap           map[importKey]*Package      // maps (import path, source directory) to (complete or fake) package
 	// see TODO in validtype.go
 	// valids  instanceLookup      // valid *Named (incl. instantiated) types per the validType check
 

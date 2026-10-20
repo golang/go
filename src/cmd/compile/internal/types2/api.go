@@ -24,6 +24,7 @@
 package types2
 
 import (
+	"cmd/compile/internal/logos/ctfe"
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"go/constant"
@@ -177,6 +178,11 @@ type Config struct {
 	// including the recheck of lowered code, where Logos is off.
 	LogosUnions bool
 
+	// LogosCTFEMaxSteps bounds M5-S2 const evaluation (SPEC T-201,
+	// T-102). Zero selects the default of 100,000 steps; configuration
+	// MAY raise it through max_ctfe_steps.
+	LogosCTFEMaxSteps int
+
 	// If a non-empty ErrorURL format string is provided, it is used
 	// to format an error URL link that is appended to the first line
 	// of an error message. ErrorURL must be a format string containing
@@ -318,8 +324,9 @@ type Info struct {
 
 	LogosChecks map[syntax.Expr]LogosCheck // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
 
-	LogosConstSlices map[syntax.Expr]bool // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
-	LogosPropDecls   []*LogosPropDecl     // logos M4-S2 hook: asserted property interfaces per declaring struct.
+	LogosConstSlices map[syntax.Expr]bool  // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
+	LogosPropDecls   []*LogosPropDecl      // logos M4-S2 hook: asserted property interfaces per declaring struct.
+	LogosCTFE        map[*Const]ctfe.Value // logos M5-S2 hook: evaluated const values (scalars and composites) for lowering.
 }
 
 func (info *Info) recordTypes() bool {

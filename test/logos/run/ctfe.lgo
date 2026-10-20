@@ -1,0 +1,59 @@
+// run
+
+package main
+
+// M5-S2 const composites and const func (SPEC T-201): values computed
+// at compile time are usable at run time.
+
+const func Fib(n int) int {
+	a, b := 0, 1
+	for i := 0; i < n; i++ {
+		a, b = b, a+b
+	}
+	return a
+}
+
+const fib20 = Fib(20)
+
+const primes = []int{2, 3, 5}
+
+const func Sum(xs []int) int {
+	total := 0
+	for _, v := range xs {
+		total += v
+	}
+	return total
+}
+
+const total = Sum(primes)
+
+type Point struct{ X, Y int }
+
+const origin = Point{X: 3, Y: 4}
+
+const func Norm(p Point) int {
+	return p.X*p.X + p.Y*p.Y
+}
+
+const norm25 = Norm(origin)
+
+const scores = map[string]int{"a": 1, "b": 2}
+
+const dims = [2]string{"x", "y"}
+
+const (
+	grouped = []int{9, 8}
+	glen = len(grouped)
+)
+
+var afterGrouped = grouped[0]
+
+func main() {
+	println(fib20)
+	println(primes[0], primes[1], primes[2], len(primes))
+	println(total)
+	println(norm25)
+	println(scores["a"] ?? -1)
+	println(dims[0], dims[1])
+	println(afterGrouped, glen, len(scores))
+}

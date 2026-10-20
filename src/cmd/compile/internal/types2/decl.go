@@ -351,6 +351,9 @@ func (check *Checker) constDecl(obj *Const, typ, init syntax.Expr, inherited boo
 		}
 		check.expr(nil, &x, init)
 	}
+	if check.logosConstEval(obj, init, &x) { // M5-S2 hook: const composites and const func calls (SPEC T-201).
+		return
+	}
 	check.initConst(obj, &x)
 }
 
@@ -707,6 +710,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
 		check.later(func() {
 			check.funcBody(decl, obj.name, sig, fdecl.Body, nil)
 		}).describef(obj, "func %s", obj.name)
+		check.logosSchedulePurity(obj, fdecl) // M5-S2 hook: const func purity runs after its body check (SPEC T-201).
 	}
 }
 

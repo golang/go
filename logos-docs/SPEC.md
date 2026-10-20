@@ -343,6 +343,8 @@ A constant value above 1 MB MUST fail with `[comptime::const_too_large]`. [T-201
 
 A `const func` that breaks a purity rule MUST fail with `[correctness::const_func_impure]` naming the reason. [T-201]
 
+A compile-time evaluation that overflows the target width, inserts a NaN or duplicate map key, executes a panic, or reaches a form the interpreter does not support MUST fail with `[correctness::const_eval]` naming the cause. [T-201]
+
 Pointer-free constant data MUST live in read-only memory. [T-201]
 
 Constant data with pointers MUST live in read-only-after-relocation memory. [T-201]

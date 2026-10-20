@@ -720,7 +720,7 @@ func (p *printer) printRawNode(n Node) {
 			p.printDeclList(n.DeclList)
 		}
 
-	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct, *PropertyType, *OptionType, *CoalesceExpr, *OptSelectExpr, *ConstType: // M1-S2, M2, M3-S2, M4-S1, M5-S1 hook: loGo/s nodes.
+	case *TryExpr, *ErrdeferStmt, *SwitchExpr, *ArmClause, *AssertedStruct, *PropertyType, *OptionType, *CoalesceExpr, *OptSelectExpr, *ConstType, *ConstFuncDecl: // M1-S2, M2, M3-S2, M4-S1, M5-S1, M5-S2 hook: loGo/s nodes.
 		printLogos(p, n)
 	default:
 		panic(fmt.Sprintf("syntax.Iterate: unexpected node type %T", n))
@@ -820,6 +820,8 @@ func groupFor(d Decl) (token, *Group) {
 	case *VarDecl:
 		return _Var, d.Group
 	case *FuncDecl:
+		return _Func, nil
+	case *ConstFuncDecl: // M5-S2: a const func prints as a standalone func.
 		return _Func, nil
 	default:
 		panic("unreachable")

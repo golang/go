@@ -1,0 +1,312 @@
+// M5-S2 const composites and const func (SPEC Sec 2.1, T-201):
+// const declarations accept composite literals and calls to const func;
+// scalar results are real constants; const func purity violations report
+// [correctness::const_func_impure]; the step limit (default 100,000) and
+// the 1 MB value cap are enforced; -0.0 map keys canonicalize and NaN
+// keys fail.
+
+package p
+
+import "fmt"
+
+// Composite literal consts are allowed.
+const primes = []int{2, 3, 5}
+
+const dims = [3]int{1, 2, 3}
+
+const point = struct{ X, Y int }{X: 3, Y: 4}
+
+const scores = map[string]int{"a": 1, "b": 2}
+
+// A const func with a loop evaluates at compile time; a scalar result
+// is a real constant usable in further const expressions.
+const func Fib(n int) int {
+	a, b := 0, 1
+	for i := 0; i < n; i++ {
+		a, b = b, a+b
+	}
+	return a
+}
+
+const fib20 = Fib(20)
+
+const fib21 = fib20 + 1
+
+var fibArr [fib20]byte
+
+// Recursion works; the value is exact (120/120 == 1).
+const func Fact(n int) int {
+	if n <= 1 {
+		return 1
+	}
+	return n * Fact(n-1)
+}
+
+const fact5 = Fact(5)
+
+const factCheck = fact5 / 120
+
+// A const func returning a composite; an alias copies the value.
+const func First3() []int {
+	out := []int{}
+	for i := 1; i <= 3; i++ {
+		out = append(out, i)
+	}
+	return out
+}
+
+const first3 = First3()
+
+const first3alias = first3
+
+const aliasLen = len(first3alias)
+
+// Builtins over const composites in const declarations.
+const nprimes = len(primes)
+
+const plusone = append(primes, 7)
+
+const plusoneLen = len(plusone)
+
+// Const chaining: a const feeds another const func call.
+const nested = Fib(nprimes)
+
+// Selectors and indexes into const composites evaluate.
+const px = point.X
+
+const px2 = px + 1
+
+const p0 = primes[0]
+
+const p0check = p0 + p0
+
+// Target integer widths (#102): 1 << 32 is exact on every target.
+const big32 = 1 << 32
+
+const big32check = big32 / (1 << 32)
+
+// A string built at compile time is a real constant.
+const func Greet(n int) string {
+	s := ""
+	for i := 0; i < n; i++ {
+		s += "ab"
+	}
+	return s
+}
+
+const greeting = Greet(3)
+
+const greetLen = len(greeting)
+
+// Step-limit boundary (default 100,000 steps; one step per statement,
+// loop iteration, and call, so Burn costs 6+3n steps).
+const func Burn(n int) int {
+	total := 0
+	for i := 0; i < n; i++ {
+		total++
+	}
+	return total
+}
+
+// BurnP and BurnP2 cost one and two steps more than Burn, pinning the
+// exact N-1, N, N+1 boundary at 99999, 100000, and 100001 steps.
+const func BurnP(n int) int {
+	total := 0
+	for i := 0; i < n; i++ {
+		total++
+	}
+	total++
+	return total
+}
+
+const func BurnP2(n int) int {
+	total := 0
+	for i := 0; i < n; i++ {
+		total++
+	}
+	total++
+	total++
+	return total
+}
+
+const burnJustUnder = Burn(33331)
+
+const burnAtLimit = BurnP(33331)
+
+const burnOver /* ERROR "comptime::ctfe_step_limit" */ = BurnP2(33331)
+
+// Value-size boundary: exactly 1 MB passes, one byte more fails.
+const megaOK = [1048576]byte{}
+
+const megaBig /* ERROR "comptime::const_too_large" */ = [1048577]byte{}
+
+// Float map keys (#103): -0.0 canonicalizes to +0.0, NaN fails.
+const func NegZero(x float64) float64 {
+	z := x - x
+	return -z
+}
+
+const fmapOK = map[float64]string{NegZero(1.0): "neg"}
+
+const fmapDup /* ERROR "duplicate" */ = map[float64]string{0.0: "a", NegZero(1.0): "b"}
+
+const func Frac(x float64) float64 {
+	z := x - x
+	return z / z
+}
+
+const fmapNaN /* ERROR "NaN" */ = map[float64]string{Frac(1.0): "nan"}
+
+// Compile-time map lookups through a const func (comma-ok), and
+// inline `??` over const maps.
+const func Get(m map[string]int, k string) int {
+	v, ok := m[k]
+	if ok {
+		return v
+	}
+	return -1
+}
+
+const getA = Get(scores, "a")
+
+const getA2 = getA + 1
+
+const getZ = Get(scores, "zzz")
+
+const getZ9 = getZ + 10
+
+const qA = scores["a"] ?? -1
+
+const qZ = scores["zzz"] ?? -1
+
+// Purity violations: one [correctness::const_func_impure] each.
+const func BadIO() int {
+	fmt /* ERROR "correctness::const_func_impure" */ .Println("x")
+	return 1
+}
+
+var counter int
+
+const func BadVarRead() int {
+	return counter /* ERROR "correctness::const_func_impure" */
+}
+
+const func BadVarWrite() int {
+	counter /* ERROR "correctness::const_func_impure" */ = 1
+	return 1
+}
+
+func helper() {}
+
+const func BadGo() int {
+	go /* ERROR "correctness::const_func_impure" */ helper()
+	return 1
+}
+
+const func BadRecover() int {
+	_ = recover /* ERROR "correctness::const_func_impure" */ ()
+	return 1
+}
+
+const func BadUintptr(x int) uintptr /* ERROR "correctness::const_func_impure" */ {
+	return uintptr(x)
+}
+
+const func BadUintptrParam(x uintptr /* ERROR "correctness::const_func_impure" */) int {
+	return 1
+}
+
+const func BadMapRange(m map[string]int) int {
+	total := 0
+	for k := range m /* ERROR "correctness::const_func_impure" */ {
+		total += len(k)
+	}
+	return total
+}
+
+const func BadPointer(x int) int {
+	p := & /* ERROR "correctness::const_func_impure" */ x
+	return *p
+}
+
+const func BadDefer() int {
+	defer /* ERROR "correctness::const_func_impure" */ helper()
+	return 1
+}
+
+const func BadGoto(x int) int {
+	goto /* ERROR "correctness::const_func_impure" */ done
+done:
+	return x
+}
+
+const func BadFunLit() int {
+	f := func /* ERROR "correctness::const_func_impure" */ () int { return 1 }
+	return f()
+}
+
+type Box struct{ V int }
+
+func (b Box) Get() int { return b.V }
+
+const func BadMethod(b Box) int {
+	return b /* ERROR "correctness::const_func_impure" */ .Get()
+}
+
+const func BadSig(x uintptr /* ERROR "correctness::const_func_impure" */, e error, ch chan int) int {
+	return 1
+}
+
+const func BadSigIface(e error /* ERROR "correctness::const_func_impure" */) int {
+	return 1
+}
+
+const func BadSigChan(ch chan /* ERROR "correctness::const_func_impure" */ int) int {
+	return 1
+}
+
+const func Gen[T any](x T) T { return x }
+
+const gen /* ERROR "const_eval" */ = Gen[int](1)
+
+// A multi-valued const func call cannot fill one const.
+const func Pair() (int, int) { return 1, 2 }
+
+const pm = Pair /* ERROR "multiple-value" */ ()
+
+var (
+	_ = primes
+	_ = dims
+	_ = point
+	_ = scores
+	_ = fib20
+	_ = fib21
+	_ = fibArr
+	_ = fact5
+	_ = factCheck
+	_ = first3
+	_ = first3alias
+	_ = aliasLen
+	_ = nprimes
+	_ = plusone
+	_ = plusoneLen
+	_ = nested
+	_ = px
+	_ = px2
+	_ = p0
+	_ = p0check
+	_ = big32
+	_ = big32check
+	_ = greeting
+	_ = greetLen
+	_ = burnJustUnder
+	_ = burnAtLimit
+	_ = fmapOK
+	_ = megaOK
+	_ = getA
+	_ = getA2
+	_ = getZ
+	_ = getZ9
+	_ = qA
+	_ = qZ
+)

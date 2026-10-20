@@ -34,6 +34,8 @@ func printLogos(p *printer, n Node) {
 		p.print(n.X, _QuestionDot, n.Sel)
 	case *ConstType:
 		p.print(_Const, blank, n.Elem)
+	case *ConstFuncDecl: // M5-S2: `const func` reparses through the parser hook.
+		p.print(_Const, blank, n.Func)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
 	case *SwitchExpr:

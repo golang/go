@@ -446,8 +446,7 @@ func (p *parser) fileOrNil() *File {
 			f.DeclList = p.appendGroup(f.DeclList, p.importDecl)
 
 		case _Const:
-			p.next()
-			f.DeclList = p.appendGroup(f.DeclList, p.constDecl)
+			f.DeclList = p.logosConstDecl(f.DeclList) // M5-S2 hook: `const func` decls (SPEC T-201).
 
 		case _Type:
 			p.next()

@@ -95,6 +95,10 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 				return
 			}
 			x.val = check.iota
+		} else if check.logosConstUse(obj, x) { // M5-S2 hook: recorded const composites read as values (SPEC T-201).
+			x.mode_ = value
+			x.typ_ = typ
+			return
 		} else {
 			x.val = obj.val
 		}

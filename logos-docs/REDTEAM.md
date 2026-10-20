@@ -50,11 +50,11 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #44 | M3 | src/cmd/go/testdata/script/logos_facts.txt | tested |
 | #45 | M7 |  | planned |
 | #46 | M18 |  | planned |
-| #47 | M5 |  | planned |
+| #47 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #48 | M13 |  | planned |
 | #49 | M3 | test/logos/run/option_union.lgo | tested |
 | #50 | M5 |  | planned |
-| #51 | M5 |  | planned |
+| #51 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #52 | M6 |  | planned |
 | #53 | M18 |  | planned |
 | #54 | M5 |  | planned |
@@ -105,8 +105,8 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #99 | M3 | src/internal/types/testdata/logos/map_index.lgo | tested |
 | #100 | M15 |  | planned |
 | #101 | M18 |  | planned |
-| #102 | M5 |  | planned |
-| #103 | M5 |  | planned |
+| #102 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
+| #103 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #104 | M13 |  | planned |
 | #105 | M13 |  | planned |
 | #106 | M18 |  | planned |

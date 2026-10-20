@@ -240,6 +240,7 @@ func (check *Checker) collectObjects() {
 		first := -1                // index of first ConstDecl in the current group, or -1
 		var last *syntax.ConstDecl // last ConstDecl with init expressions, or nil
 		for index, decl := range file.DeclList {
+			decl = check.logosUnwrapConstFunc(decl) // M5-S2 hook: `const func` decls check as funcs (SPEC T-201).
 			if _, ok := decl.(*syntax.ConstDecl); !ok {
 				first = -1 // we're not in a constant declaration
 			}
