@@ -4511,6 +4511,7 @@ func goexit0(gp *g) {
 		// Since this is running on g0, our registers are already zeroed from going through
 		// mcall in secret mode.
 	}
+	logosStackNoteExit(gp)
 	gdestroy(gp)
 	schedule()
 }
@@ -5366,6 +5367,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
 	if newg.stack.hi == 0 {
 		throw("newproc1: newg missing stack")
 	}
+	logosStackFit(newg, callerpc)
 
 	if readgstatus(newg) != _Gdead {
 		throw("newproc1: new g is not Gdead")

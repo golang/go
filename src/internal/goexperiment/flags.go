@@ -134,4 +134,9 @@ type Flags struct {
 	// LogosFastCgo enables the fast-cgo entry for C functions carrying
 	// the #cgo noescape plus #cgo nocallback pair (M20-S1).
 	LogosFastCgo bool
+
+	// LogosStack gives each go statement its own initial goroutine
+	// stack size: the moving average of the final stack sizes of the
+	// goroutines it created (M17-S2).
+	LogosStack bool
 }
