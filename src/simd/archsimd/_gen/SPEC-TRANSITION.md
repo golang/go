@@ -342,8 +342,8 @@ decay.
   tolerated-miss list converge: all three `ops_internal_*.go` files (amd64,
   arm64, sve) contain zero exported declarations, so every compiler-only
   operation falls outside `specfill`'s view without needing a category. The
-  permanent residue is small and enumerable: the `String`, `Len`, `ToArch`
-  methods and `xFromArch` functions.
+  permanent residue is small and enumerable: the `ToArch` methods and
+  `xFromArch` functions.
 
 ## 1.8 Named results
 

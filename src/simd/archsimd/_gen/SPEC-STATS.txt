@@ -13,49 +13,49 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)          1823 / 2929   62%  [spec-common, spec-all]
-docs sourced from spec (§3)                      2958 / 3206   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          1919 / 3025   63%  [spec-common, spec-all]
+docs sourced from spec (§3)                      3126 / 3398   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
 type mismatches with spec (§2)                      0 -> 0       [fill-enforce]
 type divergence across targets (§2)                 0 -> 0       [fill-enforce]
 spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, convert-lo, mask-bits]
-hand-written doc conflicts with spec (§3)         164 -> 0       [doc-triage]
-simd mirror drift (§3)                              0 -> 0       [comments-yaml]
+hand-written doc conflicts with spec (§3)         188 -> 0       [doc-triage]
+simd mirror drift (§3)                             24 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      229 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers (§4)       2 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      3934 / 5204   76%
-by (receiver, name)                              1823 / 2929   62%
-by name                                           276 / 462    60%
+by (target, receiver, name)                      4174 / 5444   77%
+by (receiver, name)                              1919 / 3025   63%
+by name                                           278 / 464    60%
 
 By build configuration:
 
-  amd64                                          1737 / 2692   65%
-  arm64                                          1099 / 1311   84%
-  wasm                                            750 / 829    90%
-  portable                                        348 / 372    94%
+  amd64                                          1833 / 2788   66%
+  arm64                                          1171 / 1383   85%
+  wasm                                            798 / 877    91%
+  portable                                        372 / 396    94%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    502 / 561    89%
-  midway                                          348 / 348   100%
-  simdgen                                        1293 / 2272   57%
-  tmplgen                                         373 / 421    89%
-  wasmgen                                         337 / 392    86%
+  hand-written                                    526 / 585    90%
+  midway                                          372 / 372   100%
+  simdgen                                        1347 / 2326   58%
+  tmplgen                                         415 / 463    90%
+  wasmgen                                         361 / 416    87%
 
 High-drift-risk names (emitted by >1 generator):
 
-  covered                                         135 / 143    94%  [spec-all]
-  portable core (comments.yaml .common_methods)    65 / 65    100%  [spec-common]
+  covered                                         137 / 145    94%  [spec-all]
+  portable core (comments.yaml .common_methods)    67 / 67    100%  [spec-common]
 
-spec operations written so far                     81
-  expanding to distinct names                     287
-  expanding to (receiver, name) pairs            2672
+spec operations written so far                     84
+  expanding to distinct names                     289
+  expanding to (receiver, name) pairs            2784
 
 
 ## 2. Signatures and names   [named-results, fill-enforce]
@@ -87,11 +87,11 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   2958 / 3206   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   3126 / 3398   92%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
-simd ∩ archsimd methods with matching docs        270 / 270   100%  [gen-docs, comments-yaml]
+simd ∩ archsimd methods with matching docs        294 / 294   100%  [gen-docs, comments-yaml]
 
-hand-written doc conflicts with spec              164 -> 0       [doc-triage]
+hand-written doc conflicts with spec              188 -> 0       [doc-triage]
     archsimd/clmul_arm64.go                         4 -> 0       [doc-triage]
     archsimd/extra_amd64.go                         6 -> 0       [doc-triage]
     archsimd/maskrange_128.go                       4 -> 0       [doc-triage]
@@ -104,8 +104,8 @@ hand-written doc conflicts with spec              164 -> 0       [doc-triage]
     archsimd/slicepart_amd64.go                     4 -> 0       [doc-triage]
     archsimd/slicepart_arm64.go                    12 -> 0       [doc-triage]
     archsimd/slicepart_wasm.go                     12 -> 0       [doc-triage]
-    simd_emulated.go                               12 -> 0       [doc-triage]
-drifted docs in simd mirror (stubs vs emulated)     0 -> 0       [comments-yaml]
+    simd_emulated.go                               36 -> 0       [doc-triage]
+drifted docs in simd mirror (stubs vs emulated)    24 -> 0       [comments-yaml]
   mirrored declarations                           372
 
 
@@ -132,7 +132,7 @@ compiler-only categories.yaml entries              42 -> 0       [compiler-ops-i
     regexpTag                                      25 -> 0       [cat-rehome]
     signed                                          6 -> 0       [cat-rehome]
 
-midway/comments.yaml entries spec covers            0 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers            2 -> 0       [comments-yaml, spec-all]
 
 commutativity disagreements, spec vs categories.yaml     7 -> 0       [spec-all]
 
@@ -153,13 +153,13 @@ Every name either side defines, less the 186 spec has never defined at all
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
-  api = spec         219              0              0
-  api ⊂ spec          51              0            799
+  api = spec         220              0              0
+  api ⊂ spec          52              0            815
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              287              8            849
+  total              289              8            865
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -217,6 +217,7 @@ Names that disagree, with api - spec receivers (the defects):
       api - spec = Uint8x16
   IsNaN                      api ⊂ spec      6      8            0            2
   LeadingZeros               api ⊂ spec     16     32            0           16
+  Len                        api ⊂ spec     40     56            0           16
   Less                       api ⊂ spec     39     40            0            1
   LessEqual                  api ⊂ spec     39     40            0            1
   MulAdd                     api ⊂ spec     22     40            0           18

@@ -21,7 +21,7 @@ type assertFn1Tab[X, Want any] struct {
 	want Want
 }
 
-func assertFn1[X, Z comparable](t *testing.T, fn func(X) Z, label string, tab ...assertFn1Tab[X, Z]) {
+func assertFn1[X any, Z comparable](t *testing.T, fn func(X) Z, label string, tab ...assertFn1Tab[X, Z]) {
 	t.Helper()
 	for _, entry := range tab {
 		got := fn(entry.x)

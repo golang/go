@@ -99,11 +99,11 @@ func (f fact) archMethodKey() archMethodKey { return archMethodKey{f.target, f.p
 func (f fact) tool() string { t, _, _ := strings.Cut(f.gen, "/"); return t }
 
 // nonSpecOp reports whether name is an operation that will never come from spec:
-// they are Go conventions (String, Len) or architecture bridge operations
-// (ToArch, FromArch). They are excluded from the fact table, and
+// specifically architecture bridge operations ToArch and FromArch.
+// They are excluded from the fact table, and
 // so from every denominator. See SPEC-TRANSITION.md §2.7.
 func nonSpecOp(name string) bool {
-	return name == "String" || name == "Len" || name == "ToArch" || strings.HasSuffix(name, "FromArch")
+	return name == "ToArch" || strings.HasSuffix(name, "FromArch")
 }
 
 // loadOverlay builds a packages.Config.Overlay map from the scratch overlay

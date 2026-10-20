@@ -15,7 +15,7 @@ type Float32x4 struct {
 	vals      [4]float32
 }
 
-// Len returns the number of elements in a Float32x4.
+// Len returns the number of elements in x.
 func (x Float32x4) Len() int { return 4 }
 
 // LoadFloat32x4Array loads an array into a vector.
@@ -34,7 +34,7 @@ type Float64x2 struct {
 	vals      [2]float64
 }
 
-// Len returns the number of elements in a Float64x2.
+// Len returns the number of elements in x.
 func (x Float64x2) Len() int { return 2 }
 
 // LoadFloat64x2Array loads an array into a vector.
@@ -53,7 +53,7 @@ type Int8x16 struct {
 	vals    [16]int8
 }
 
-// Len returns the number of elements in an Int8x16.
+// Len returns the number of elements in x.
 func (x Int8x16) Len() int { return 16 }
 
 // LoadInt8x16Array loads an array into a vector.
@@ -72,7 +72,7 @@ type Int16x8 struct {
 	vals    [8]int16
 }
 
-// Len returns the number of elements in an Int16x8.
+// Len returns the number of elements in x.
 func (x Int16x8) Len() int { return 8 }
 
 // LoadInt16x8Array loads an array into a vector.
@@ -91,7 +91,7 @@ type Int32x4 struct {
 	vals    [4]int32
 }
 
-// Len returns the number of elements in an Int32x4.
+// Len returns the number of elements in x.
 func (x Int32x4) Len() int { return 4 }
 
 // LoadInt32x4Array loads an array into a vector.
@@ -110,7 +110,7 @@ type Int64x2 struct {
 	vals    [2]int64
 }
 
-// Len returns the number of elements in an Int64x2.
+// Len returns the number of elements in x.
 func (x Int64x2) Len() int { return 2 }
 
 // LoadInt64x2Array loads an array into a vector.
@@ -129,7 +129,7 @@ type Uint8x16 struct {
 	vals     [16]uint8
 }
 
-// Len returns the number of elements in a Uint8x16.
+// Len returns the number of elements in x.
 func (x Uint8x16) Len() int { return 16 }
 
 // LoadUint8x16Array loads an array into a vector.
@@ -148,7 +148,7 @@ type Uint16x8 struct {
 	vals     [8]uint16
 }
 
-// Len returns the number of elements in a Uint16x8.
+// Len returns the number of elements in x.
 func (x Uint16x8) Len() int { return 8 }
 
 // LoadUint16x8Array loads an array into a vector.
@@ -167,7 +167,7 @@ type Uint32x4 struct {
 	vals     [4]uint32
 }
 
-// Len returns the number of elements in a Uint32x4.
+// Len returns the number of elements in x.
 func (x Uint32x4) Len() int { return 4 }
 
 // LoadUint32x4Array loads an array into a vector.
@@ -186,7 +186,7 @@ type Uint64x2 struct {
 	vals     [2]uint64
 }
 
-// Len returns the number of elements in a Uint64x2.
+// Len returns the number of elements in x.
 func (x Uint64x2) Len() int { return 2 }
 
 // LoadUint64x2Array loads an array into a vector.

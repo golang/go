@@ -63,6 +63,582 @@ type (
 	Uint8x64   struct{ v []uint8 }
 )
 
+// Len returns the number of elements in x.
+func (x Float32x4) Len() int {
+	return spec.Len[float32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32x8) Len() int {
+	return spec.Len[float32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32x16) Len() int {
+	return spec.Len[float32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32s) Len() int {
+	return spec.Len[float32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x2) Len() int {
+	return spec.Len[float64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x4) Len() int {
+	return spec.Len[float64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x8) Len() int {
+	return spec.Len[float64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64s) Len() int {
+	return spec.Len[float64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x16) Len() int {
+	return spec.Len[int8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x32) Len() int {
+	return spec.Len[int8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x64) Len() int {
+	return spec.Len[int8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8s) Len() int {
+	return spec.Len[int8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x8) Len() int {
+	return spec.Len[int16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x16) Len() int {
+	return spec.Len[int16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x32) Len() int {
+	return spec.Len[int16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16s) Len() int {
+	return spec.Len[int16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x4) Len() int {
+	return spec.Len[int32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x8) Len() int {
+	return spec.Len[int32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x16) Len() int {
+	return spec.Len[int32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32s) Len() int {
+	return spec.Len[int32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x2) Len() int {
+	return spec.Len[int64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x4) Len() int {
+	return spec.Len[int64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x8) Len() int {
+	return spec.Len[int64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64s) Len() int {
+	return spec.Len[int64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x16) Len() int {
+	return spec.Len[uint8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x32) Len() int {
+	return spec.Len[uint8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x64) Len() int {
+	return spec.Len[uint8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8s) Len() int {
+	return spec.Len[uint8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x8) Len() int {
+	return spec.Len[uint16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x16) Len() int {
+	return spec.Len[uint16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x32) Len() int {
+	return spec.Len[uint16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16s) Len() int {
+	return spec.Len[uint16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x4) Len() int {
+	return spec.Len[uint32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x8) Len() int {
+	return spec.Len[uint32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x16) Len() int {
+	return spec.Len[uint32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32s) Len() int {
+	return spec.Len[uint32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x2) Len() int {
+	return spec.Len[uint64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x4) Len() int {
+	return spec.Len[uint64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x8) Len() int {
+	return spec.Len[uint64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64s) Len() int {
+	return spec.Len[uint64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x16) Len() int {
+	return spec.Len[spec.Mask8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x32) Len() int {
+	return spec.Len[spec.Mask8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x64) Len() int {
+	return spec.Len[spec.Mask8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8s) Len() int {
+	return spec.Len[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x8) Len() int {
+	return spec.Len[spec.Mask16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x16) Len() int {
+	return spec.Len[spec.Mask16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x32) Len() int {
+	return spec.Len[spec.Mask16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16s) Len() int {
+	return spec.Len[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x4) Len() int {
+	return spec.Len[spec.Mask32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x8) Len() int {
+	return spec.Len[spec.Mask32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x16) Len() int {
+	return spec.Len[spec.Mask32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32s) Len() int {
+	return spec.Len[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x2) Len() int {
+	return spec.Len[spec.Mask64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x4) Len() int {
+	return spec.Len[spec.Mask64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x8) Len() int {
+	return spec.Len[spec.Mask64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64s) Len() int {
+	return spec.Len[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x4) String() string {
+	return spec.String[float32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x8) String() string {
+	return spec.String[float32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x16) String() string {
+	return spec.String[float32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32s) String() string {
+	return spec.String[float32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x2) String() string {
+	return spec.String[float64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x4) String() string {
+	return spec.String[float64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x8) String() string {
+	return spec.String[float64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64s) String() string {
+	return spec.String[float64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x16) String() string {
+	return spec.String[int8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x32) String() string {
+	return spec.String[int8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x64) String() string {
+	return spec.String[int8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8s) String() string {
+	return spec.String[int8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x8) String() string {
+	return spec.String[int16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x16) String() string {
+	return spec.String[int16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x32) String() string {
+	return spec.String[int16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16s) String() string {
+	return spec.String[int16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x4) String() string {
+	return spec.String[int32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x8) String() string {
+	return spec.String[int32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x16) String() string {
+	return spec.String[int32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32s) String() string {
+	return spec.String[int32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x2) String() string {
+	return spec.String[int64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x4) String() string {
+	return spec.String[int64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x8) String() string {
+	return spec.String[int64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64s) String() string {
+	return spec.String[int64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x16) String() string {
+	return spec.String[uint8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x32) String() string {
+	return spec.String[uint8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x64) String() string {
+	return spec.String[uint8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8s) String() string {
+	return spec.String[uint8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x8) String() string {
+	return spec.String[uint16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x16) String() string {
+	return spec.String[uint16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x32) String() string {
+	return spec.String[uint16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16s) String() string {
+	return spec.String[uint16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x4) String() string {
+	return spec.String[uint32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x8) String() string {
+	return spec.String[uint32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x16) String() string {
+	return spec.String[uint32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32s) String() string {
+	return spec.String[uint32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x2) String() string {
+	return spec.String[uint64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x4) String() string {
+	return spec.String[uint64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x8) String() string {
+	return spec.String[uint64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64s) String() string {
+	return spec.String[uint64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x16) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x32) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x64) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8s) String() string {
+	return spec.StringMask[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x8) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x16) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x32) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16s) String() string {
+	return spec.StringMask[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x4) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x8) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x16) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32s) String() string {
+	return spec.StringMask[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x2) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x4) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x8) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64s) String() string {
+	return spec.StringMask[spec.Mask64, spec.WidthScalable](x.v)
+}
+
 // OnesCount counts the number of one bits ("population count") in
 // each element.
 //

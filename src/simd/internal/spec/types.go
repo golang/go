@@ -157,7 +157,7 @@ func (WidthScalable) bits() int { return ScalableWidth() }
 // This type is known to specgen.
 type Vec[E EltOrMask, W Width] []E
 
-func (v Vec[E, W]) len() int {
+func (x Vec[E, W]) len() int {
 	return lanes[E, W]()
 }
 
