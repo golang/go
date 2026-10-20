@@ -69,13 +69,44 @@ func a(d time.Duration, n int, xs []int) {
 }
 `
 
+// timeAfterResults runs the rules over src and keeps the findings of
+// perf::time_after_in_loop. The fixture also receives from time.After outside
+// a done select, which correctness::unbounded_channel_op reports (SPEC Sec
+// 1.2; test/logos/lint/unbounded_channel_op.lgo flags the same receive). That
+// rule has its own tests, so these tests filter by rule as the other rule
+// tests do.
+func timeAfterResults(t *testing.T, kind Kind, p *Policy, name, src string) []Result {
+	t.Helper()
+	in := check(t, kind, name, src)
+	in.Policy = p
+	var out []Result
+	for _, r := range Run(in) {
+		if r.Rule == "perf::time_after_in_loop" {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+// expectTimeAfter compares the findings of perf::time_after_in_loop over src
+// at severity sev with the "// want" lines of src.
+func expectTimeAfter(t *testing.T, kind Kind, p *Policy, name, src string, sev Severity) {
+	t.Helper()
+	testenv.MustHaveGoBuild(t)
+	got := summarize(timeAfterResults(t, kind, p, name, src))
+	want := wantMarked(src, "perf::time_after_in_loop", sev)
+	if !slices.Equal(got, want) {
+		t.Errorf("%s results:\n got %q\nwant %q", name, got, want)
+	}
+}
+
 // TestTimeAfterInLoop covers the detection, the loop header, closures, the
 // lookalikes that are not time.After, and the directive, in both kinds of
 // package.
 func TestTimeAfterInLoop(t *testing.T) {
 	for name, kind := range map[string]Kind{"x.go": KindGo, "x.lgo": KindLgo} {
 		t.Run(name, func(t *testing.T) {
-			expect(t, kind, nil, testSource{name, timeAfterSrc}, finding{"perf::time_after_in_loop", Warn})
+			expectTimeAfter(t, kind, nil, name, timeAfterSrc, Warn)
 		})
 	}
 }
@@ -88,7 +119,7 @@ func TestTimeAfterInLoopSeverity(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			expect(t, KindGo, p, testSource{"x.go", timeAfterSrc}, finding{"perf::time_after_in_loop", level})
+			expectTimeAfter(t, KindGo, p, "x.go", timeAfterSrc, level)
 		})
 	}
 	t.Run("allow", func(t *testing.T) {
@@ -97,9 +128,7 @@ func TestTimeAfterInLoopSeverity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		in := check(t, KindGo, "x.go", timeAfterSrc)
-		in.Policy = p
-		if got := summarize(Run(in)); len(got) != 0 {
+		if got := summarize(timeAfterResults(t, KindGo, p, "x.go", timeAfterSrc)); len(got) != 0 {
 			t.Errorf("perf = allow reported %q", got)
 		}
 	})
@@ -124,7 +153,7 @@ func a(d time.Duration) {
 `
 	want := []string{"time.After(time.Duration(2) * d)", "time.After(\n\t\t\td,\n\t\t)"}
 	var got []string
-	for _, r := range Run(check(t, KindGo, "x.go", src)) {
+	for _, r := range timeAfterResults(t, KindGo, nil, "x.go", src) {
 		got = append(got, spanText(src, r))
 	}
 	if !slices.Equal(got, want) {

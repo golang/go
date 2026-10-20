@@ -1,4 +1,4 @@
-// run -goexperiment simd -godebug cpu.avx=off,cpu.avx2=off,cpu.avx512f=off
+// run -goexperiment simd -godebug cpu.avx=off,cpu.avx2=off,cpu.avx512f=off -goamd64=v1
 
 package main
 
@@ -13,6 +13,11 @@ import (
 // loop must give the same digest. simd_cpu_seam.go proves the directive
 // takes effect and holds only at GOAMD64 v1 or v2, where the compiler
 // keeps the checks.
+//
+// The directive pins -goamd64=v1 because the logos default target is v3
+// (SPEC #107). internal/cpu offers cpu.avx and cpu.avx2 as GODEBUG options
+// only below GOAMD64 v3 (cpu_x86.go), so at v3 the runtime rejects them with
+// "unknown cpu feature". simd_cpu.lgo pins the same level for the same reason.
 //
 // M15-S2 attack (SPEC Sec 15.2 and 2.4, T-303, T-204.2): `.sum()` on a
 // bare slice matches a scalar oracle for every element kind at every

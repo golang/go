@@ -127,6 +127,7 @@ func passedToLeakingParam() {
 
 func sentOnChannel(ch chan []byte) {
 	var buf [65537]byte
+	//logos:allow(correctness::unbounded_channel_op)
 	ch <- buf[:10] // ERROR "subslice of a 65537-byte backing array escapes"
 }
 
