@@ -307,8 +307,8 @@ func sveShiftAllLeftVar64(x archsimd.Uint64s, s uint64) archsimd.Uint64s {
 
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
-	// arm64:`PPFALSE` -`ZDUP`
 	var m archsimd.Mask8s
+	// arm64:`PPFALSE` -`ZDUP`
 	return m
 }
 
