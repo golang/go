@@ -26,6 +26,23 @@ var (
 	errNoSuchMulticastInterface = errors.New("no such multicast network interface")
 )
 
+// An interfaceAddr is the Addr of an OpError about a network
+// interface: its name, or its index when it was asked for by index,
+// printed in decimal as an IPv6 zone names an interface either way.
+type interfaceAddr struct {
+	name  string
+	index int
+}
+
+func (a interfaceAddr) Network() string { return "ip+net" }
+
+func (a interfaceAddr) String() string {
+	if a.name != "" {
+		return a.name
+	}
+	return strconv.Itoa(a.index)
+}
+
 // Interface represents a mapping between network interface name
 // and index. It also represents network interface facility
 // information.
@@ -81,7 +98,7 @@ func (ifi *Interface) Addrs() ([]Addr, error) {
 	}
 	ifat, err := interfaceAddrTable(ifi)
 	if err != nil {
-		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: ifi.Name}, Err: err}
 	}
 	return ifat, err
 }
@@ -94,7 +111,7 @@ func (ifi *Interface) MulticastAddrs() ([]Addr, error) {
 	}
 	ifat, err := interfaceMulticastAddrTable(ifi)
 	if err != nil {
-		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: ifi.Name}, Err: err}
 	}
 	return ifat, err
 }
@@ -131,15 +148,15 @@ func InterfaceAddrs() ([]Addr, error) {
 // [InterfaceByName].
 func InterfaceByIndex(index int) (*Interface, error) {
 	if index <= 0 {
-		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}
+		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{index: index}, Err: errInvalidInterfaceIndex}
 	}
 	ift, err := interfaceTable(index)
 	if err != nil {
-		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{index: index}, Err: err}
 	}
 	ifi, err := interfaceByIndex(ift, index)
 	if err != nil {
-		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+		err = &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{index: index}, Err: err}
 	}
 	return ifi, err
 }
@@ -160,7 +177,7 @@ func InterfaceByName(name string) (*Interface, error) {
 	}
 	ift, err := interfaceTable(0)
 	if err != nil {
-		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: err}
+		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: name}, Err: err}
 	}
 	if len(ift) != 0 {
 		zoneCache.update(ift, false)
@@ -170,7 +187,7 @@ func InterfaceByName(name string) (*Interface, error) {
 			return &ifi, nil
 		}
 	}
-	return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errNoSuchInterface}
+	return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: interfaceAddr{name: name}, Err: errNoSuchInterface}
 }
 
 // An ipv6ZoneCache represents a cache holding partial network
