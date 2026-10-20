@@ -126,12 +126,16 @@ func checkConfig(m *testImporter) (types2.Config, *[]error) {
 	return conf, errs
 }
 
-// countLogosNodes counts surviving loGo/s nodes under root.
+// countLogosNodes counts surviving loGo/s nodes under root: the same union
+// rejectSurvivors enforces in Lower, so the unit test cannot pass with survivors.
 func countLogosNodes(root syntax.Node) int {
 	n := 0
 	syntax.Inspect(root, func(x syntax.Node) bool {
 		switch x.(type) {
-		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.InterpExpr:
+		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
+			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
+			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr,
+			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr:
 			n++
 		}
 		return true
@@ -140,7 +144,7 @@ func countLogosNodes(root syntax.Node) int {
 }
 
 // TestNoLogosNodesSurvive lowers every test/logos/run file and asserts the
-// lowered files hold no TryExpr or ErrdeferStmt (invariant A1).
+// lowered files hold no loGo/s nodes (invariant A1).
 func TestNoLogosNodesSurvive(t *testing.T) {
 	dir := runLogosDir(t)
 	entries, err := os.ReadDir(dir)
@@ -164,7 +168,7 @@ func TestNoLogosNodesSurvive(t *testing.T) {
 }
 
 // checkLoweredClean parses, checks, and lowers one file, then asserts no
-// TryExpr or ErrdeferStmt survives in the lowered files and that every
+// loGo/s node survives in the lowered files and that every
 // edit applies to the original source.
 func checkLoweredClean(t *testing.T, imp *testImporter, path string) {
 	t.Helper()
