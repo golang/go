@@ -4,13 +4,18 @@
 
 package gc
 
-import "cmd/compile/internal/base"
+import (
+	"cmd/compile/internal/base"
+	"cmd/compile/internal/noder"
+)
 
-// logosLintStop ends a -logos.lintonly compile after escape analysis, the
-// last phase a lint rule reads, and before SSA and the backend: the compile
-// writes no object file. Findings queued so far print here, and any error
-// among them fails the compile.
-func logosLintStop() {
+// logosLintAfterEscape runs the lints that read escape analysis, then ends a
+// -logos.lintonly compile: escape analysis is the last phase a lint rule
+// reads, and the compile stops before SSA and the backend and writes no
+// object file. Findings queued so far print here, and any error among them
+// fails the compile.
+func logosLintAfterEscape() {
+	noder.LogosLintEscape()
 	if !base.LogosLintOnly {
 		return
 	}

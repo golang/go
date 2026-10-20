@@ -303,7 +303,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	loopvar.LogTransformations(transformed)
 
-	logosLintStop() // logos M9 hook: logos lint stops after escape analysis.
+	logosLintAfterEscape() // logos M9 hook: escape lints, then logos lint stops.
 
 	// Collect information for go:nowritebarrierrec
 	// checking. This must happen before transforming closures during Walk

@@ -1,0 +1,286 @@
+# M9-S2: perf::large_backing_array_pin reads escape analysis and
+# perf::time_after_in_loop reads syntax; both are warn rules that apply to
+# loGo/s packages on every build and to Go packages under logos lint only.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+mkdir $WORK/bin
+
+# A loGo/s build prints both warnings and still builds. The escape finding
+# comes from the compile, after escape analysis.
+cd lgo
+logos build -o $WORK/bin/lgo$GOEXE .
+stderr 'main\.lgo:7:\d+: warning: \[perf::large_backing_array_pin\] subslice of a 65537-byte backing array escapes'
+stderr 'main\.lgo:12:5: warning: \[perf::time_after_in_loop\] time\.After in a loop body'
+exists $WORK/bin/lgo$GOEXE
+cd ..
+
+# perf = "deny" turns each into an error that stops the build. A deny finding
+# of the syntax phase ends the compile before escape analysis, so each rule
+# has its own module here.
+cd lgodeny
+! logos build -o $WORK/bin/lgodeny$GOEXE .
+stderr 'main\.lgo:5:\d+: \[perf::large_backing_array_pin\]'
+! stderr 'warning:'
+! exists $WORK/bin/lgodeny$GOEXE
+cd ..
+
+cd lgodenytime
+! logos build -o $WORK/bin/lgodenytime$GOEXE .
+stderr 'main\.lgo:7:5: \[perf::time_after_in_loop\]'
+! stderr 'warning:'
+! exists $WORK/bin/lgodenytime$GOEXE
+cd ..
+
+# perf = "allow" is silent and does not run escape tracking.
+cd lgoallow
+logos build -o $WORK/bin/lgoallow$GOEXE .
+! stderr .
+exists $WORK/bin/lgoallow$GOEXE
+cd ..
+
+# //logos:allow silences the escape finding and the syntax finding at deny.
+cd lgoallowed
+logos build -o $WORK/bin/lgoallowed$GOEXE .
+! stderr .
+exists $WORK/bin/lgoallowed$GOEXE
+cd ..
+
+# A Go package: logos lint prints both warnings, writes no binary, and exits
+# 0; logos build and go build print nothing.
+cd gopkg
+logos lint ./...
+stderr 'main\.go:7:\d+: warning: \[perf::large_backing_array_pin\] subslice of a 65537-byte backing array escapes'
+stderr 'main\.go:12:5: warning: \[perf::time_after_in_loop\]'
+! exists gopkg
+! exists gopkg$GOEXE
+logos build ./...
+! stderr .
+go build ./...
+! stderr .
+cd ..
+
+# logos lint with perf = "deny" fails on a Go package, one module per rule
+# for the same reason as above.
+cd godeny
+! logos lint ./...
+stderr 'main\.go:5:\d+: \[perf::large_backing_array_pin\]'
+! stderr 'warning:'
+cd ..
+
+cd godenytime
+! logos lint ./...
+stderr 'main\.go:7:5: \[perf::time_after_in_loop\]'
+! stderr 'warning:'
+cd ..
+
+# The JSON record of the escape finding names the rule and the file.
+cd gopkg
+logos lint --json-diagnostics ./...
+cp stderr $WORK/pin.jsonl
+exec jaq -e -s 'any(.[]; .rule_id == "perf::large_backing_array_pin" and .severity == "warn" and (.file | endswith("main.go")) and .span.start_line == 7)' $WORK/pin.jsonl
+cd ..
+
+-- lgo/go.mod --
+module example.com/lgo
+
+go 1.27
+
+-- lgo/main.lgo --
+package main
+
+import "time"
+
+func head() []byte {
+	var buf [65537]byte
+	return buf[:10]
+}
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		<-time.After(d)
+	}
+}
+
+func main() {
+	println(len(head()))
+	wait(time.Millisecond)
+}
+
+-- lgodeny/go.mod --
+module example.com/lgodeny
+
+go 1.27
+
+-- lgodeny/logos.toml --
+[lints]
+perf = "deny"
+
+-- lgodeny/main.lgo --
+package main
+
+func head() []byte {
+	var buf [65537]byte
+	return buf[:10]
+}
+
+func main() {
+	println(len(head()))
+}
+
+-- lgodenytime/go.mod --
+module example.com/lgodenytime
+
+go 1.27
+
+-- lgodenytime/logos.toml --
+[lints]
+perf = "deny"
+
+-- lgodenytime/main.lgo --
+package main
+
+import "time"
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		<-time.After(d)
+	}
+}
+
+func main() {
+	wait(time.Millisecond)
+}
+
+-- lgoallow/go.mod --
+module example.com/lgoallow
+
+go 1.27
+
+-- lgoallow/logos.toml --
+[lints]
+perf = "allow"
+
+-- lgoallow/main.lgo --
+package main
+
+import "time"
+
+func head() []byte {
+	var buf [65537]byte
+	return buf[:10]
+}
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		<-time.After(d)
+	}
+}
+
+func main() {
+	println(len(head()))
+	wait(time.Millisecond)
+}
+
+-- lgoallowed/go.mod --
+module example.com/lgoallowed
+
+go 1.27
+
+-- lgoallowed/logos.toml --
+[lints]
+perf = "deny"
+
+-- lgoallowed/main.lgo --
+package main
+
+import "time"
+
+func head() []byte {
+	var buf [65537]byte
+	//logos:allow(perf::large_backing_array_pin)
+	return buf[:10]
+}
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		//logos:allow(perf::time_after_in_loop)
+		<-time.After(d)
+	}
+}
+
+func main() {
+	println(len(head()))
+	wait(time.Millisecond)
+}
+
+-- gopkg/go.mod --
+module example.com/gopkg
+
+go 1.27
+
+-- gopkg/main.go --
+package main
+
+import "time"
+
+func head() []byte {
+	var buf [65537]byte
+	return buf[:10]
+}
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		<-time.After(d)
+	}
+}
+
+func main() {
+	println(len(head()))
+	wait(time.Millisecond)
+}
+
+-- godeny/go.mod --
+module example.com/godeny
+
+go 1.27
+
+-- godeny/logos.toml --
+[lints]
+perf = "deny"
+
+-- godeny/main.go --
+package main
+
+func head() []byte {
+	var buf [65537]byte
+	return buf[:10]
+}
+
+func main() {
+	println(len(head()))
+}
+
+-- godenytime/go.mod --
+module example.com/godenytime
+
+go 1.27
+
+-- godenytime/logos.toml --
+[lints]
+perf = "deny"
+
+-- godenytime/main.go --
+package main
+
+import "time"
+
+func wait(d time.Duration) {
+	for i := 0; i < 2; i++ {
+		<-time.After(d)
+	}
+}
+
+func main() {
+	wait(time.Millisecond)
+}

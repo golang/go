@@ -178,6 +178,7 @@ func Batch(fns []*ir.Func, reassignOracles map[*ir.Func]*ir.ReassignOracle) {
 
 	b.walkAll()
 	b.finish(fns)
+	b.logosCollect() // logos M9: escaping subslices of large backing stores.
 }
 
 func (b *batch) with(fn *ir.Func) *escape {

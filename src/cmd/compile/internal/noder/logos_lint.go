@@ -8,11 +8,22 @@ import (
 	"os"
 
 	"cmd/compile/internal/base"
+	"cmd/compile/internal/escape"
 	"cmd/compile/internal/logos/lint"
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
 	"cmd/internal/src"
 )
+
+// escapeLint is what the lints that read escape analysis need after it ran:
+// the package the first pass checked and the position map of its findings.
+type escapeLint struct {
+	in *lint.Input
+	m  *posMap
+}
+
+// logosEscape is the state logosLintHook keeps for LogosLintEscape.
+var logosEscape *escapeLint
 
 // logosLintHook runs the lints of the checked package (SPEC Sec 1.2, M9). It
 // runs once after the first successful check, before lowering, so the rules
@@ -32,16 +43,49 @@ func logosLintHook(m *posMap, files []*syntax.File, pkg *types2.Package, info *t
 		kind = lint.KindLgo
 	}
 	lintable, sources := logosLintInputs(files)
-	results := lint.Run(&lint.Input{
+	in := &lint.Input{
 		Pkg:     pkg,
 		Info:    info,
 		Files:   lintable,
 		Sources: sources,
 		Kind:    kind,
 		Policy:  policy,
-	})
-	for _, r := range results {
+	}
+	for _, r := range lint.Run(in) {
 		base.LogosReport(logosDiag(m, r))
+	}
+	if !base.LogosLintOnly {
+		base.ExitIfErrors()
+	}
+	if lint.PinActive(in) {
+		logosEscape = &escapeLint{in: in, m: m}
+		escape.LogosPinning = true
+	}
+}
+
+// LogosLintEscape runs the lints that read escape analysis, once it has run
+// over the package (SPEC Sec 1.2, M9): perf::large_backing_array_pin. It
+// reports findings like logosLintHook and stops the compile on an error,
+// except under -logos.lintonly, where the compile ends right after.
+func LogosLintEscape() {
+	st := logosEscape
+	if st == nil {
+		return
+	}
+	pins := escape.LogosPins()
+	found := make([]lint.PinFinding, 0, len(pins))
+	for _, p := range pins {
+		pos := base.Ctxt.InnermostPos(p.Pos)
+		found = append(found, lint.PinFinding{
+			File:      pos.RelFilename(),
+			Line:      pos.Line(),
+			Col:       pos.Col(),
+			Bytes:     p.Bytes,
+			Substring: p.Substring,
+		})
+	}
+	for _, r := range lint.RunPins(st.in, found) {
+		base.LogosReport(logosDiag(st.m, r))
 	}
 	if !base.LogosLintOnly {
 		base.ExitIfErrors()
