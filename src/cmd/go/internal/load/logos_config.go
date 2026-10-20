@@ -19,6 +19,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/capabilities"
 	"cmd/go/internal/logos/config"
 	"cmd/go/internal/modload"
 	"golang.org/x/mod/module"
@@ -203,6 +204,7 @@ func checkLogosCgo(ld *modload.Loader, p *Package) {
 	}
 	allow, msg := cfg.CgoPolicyAllow(cf, cfg.StartupCgoEnabled(), p.ImportPath)
 	if allow {
+		capabilities.NoteCgoAllowed(p.ImportPath)
 		return
 	}
 	logosDenyCgo(p, msg)

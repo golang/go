@@ -1,0 +1,195 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package ld
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+)
+
+func TestLogosCapSinks(t *testing.T) {
+	for _, sink := range []string{
+		"reflect.ValueOf", "reflect.TypeOf", "reflect.New",
+		"syscall.Exec", "syscall.ForkExec",
+		"os.StartProcess", "os.startProcess",
+		"net.sysSocket",
+		"runtime.cgocall", "runtime.logosCgocallFast",
+	} {
+		if _, ok := capabilitySinks[sink]; !ok {
+			t.Errorf("capabilitySinks missing %q", sink)
+		}
+	}
+	if capabilitySinks["os.StartProcess"] != CapExec || capabilitySinks["os.startProcess"] != CapExec {
+		t.Error("exec sinks must map to CapExec")
+	}
+	if capabilitySinks["runtime.cgocall"] != CapCgo {
+		t.Error("runtime.cgocall must map to CapCgo")
+	}
+}
+
+func TestLogosCapPolicyJSON(t *testing.T) {
+	const doc = `{"transitive_reflect":"warn","transitive_exec":"deny","transitive_net":"allow",` +
+		`"reflect_allowlist":["example.com/rt/**"],"transitive_exec_allowlist":[],` +
+		`"transitive_net_allowlist":null,"main_modules":["example.com/main"],` +
+		`"cgo_allowed":["example.com/cdep"]}`
+	var p logosCapPolicy
+	if err := json.Unmarshal([]byte(doc), &p); err != nil {
+		t.Fatalf("Unmarshal policy: %v", err)
+	}
+	if p.TransitiveExec != "deny" || p.TransitiveReflect != "warn" || p.TransitiveNet != "allow" {
+		t.Errorf("severities = %+v", p)
+	}
+	if len(p.ReflectAllowlist) != 1 || len(p.MainModules) != 1 || len(p.CgoAllowed) != 1 {
+		t.Errorf("lists = %+v", p)
+	}
+}
+
+func TestLogosCapPkgOfSym(t *testing.T) {
+	tests := []struct{ sym, want string }{
+		{"main.main", "main"},
+		{"os/exec.Command", "os/exec"},
+		{"os/exec.(*Cmd).Start", "os/exec"},
+		{"example.com/dep.Init", "example.com/dep"},
+		{"reflect.Value.MethodByName", "reflect.Value"},
+		{"example.com/g.Foo[example.com/x.Bar]", "example.com/g"},
+		{"example.com/cdep._Cfunc_fortytwo.abi0", "example.com/cdep"},
+		{"runtime.cgocall.abi0", "runtime"},
+		{"main._Cfunc_answer", "main"},
+		{"main._Cfunc_answer.stkobj", "main"},
+		{"example.com/cdep._Cfunc_f.args_stackmap", "example.com/cdep"},
+		{"example.com/cdep._Cfunc_f.arginfo0", "example.com/cdep"},
+		{"flag.init.0", "flag"},
+		{"unicode.init", "unicode"},
+		{"flag..inittask", "flag"},
+		{"main..inittask", "main"},
+		{"main.init.0", "main"},
+		{"flag.(*FlagSet).defaultUsage-fm", "flag"},
+		{"gopkg.in/yaml.v2.Unmarshal", "gopkg.in/yaml.v2"},
+	}
+	for _, tc := range tests {
+		if got := capPkgOfSym(tc.sym); got != tc.want {
+			t.Errorf("capPkgOfSym(%q) = %q, want %q", tc.sym, got, tc.want)
+		}
+	}
+}
+
+func TestLogosCapTrampoline(t *testing.T) {
+	for _, sym := range []string{
+		"example.com/cdep._Cfunc_fortytwo",
+		"example.com/cdep._Cfunc_fortytwo.abi0",
+		"main._Cfunc_f",
+	} {
+		if !capIsCgoTrampoline(sym) {
+			t.Errorf("capIsCgoTrampoline(%q) = false, want true", sym)
+		}
+	}
+	for _, sym := range []string{
+		"example.com/cdep._Ctype_int",
+		"example.com/cdep._Cvar_x",
+		"example.com/cdep.Ping",
+		"runtime.cgocall",
+	} {
+		if capIsCgoTrampoline(sym) {
+			t.Errorf("capIsCgoTrampoline(%q) = true, want false", sym)
+		}
+	}
+}
+
+func TestLogosCapSinkName(t *testing.T) {
+	tests := []struct{ sym, want string }{
+		{"runtime.cgocall", "runtime.cgocall"},
+		{"runtime.cgocall.abi0", "runtime.cgocall"},
+		{"os.StartProcess", "os.StartProcess"},
+		{"example.com/dep.Init", "example.com/dep.Init"},
+	}
+	for _, tc := range tests {
+		if got := capSinkName(tc.sym); got != tc.want {
+			t.Errorf("capSinkName(%q) = %q, want %q", tc.sym, got, tc.want)
+		}
+	}
+}
+
+func TestLogosCapStdPkg(t *testing.T) {
+	for _, pkg := range []string{"os/exec", "runtime", "main", "command-line-arguments", "reflect"} {
+		if !capIsStdPkg(pkg) {
+			t.Errorf("capIsStdPkg(%q) = false, want true", pkg)
+		}
+	}
+	for _, pkg := range []string{"example.com/dep", "github.com/evil/logger"} {
+		if capIsStdPkg(pkg) {
+			t.Errorf("capIsStdPkg(%q) = true, want false", pkg)
+		}
+	}
+}
+
+func TestLogosCapAllowlisted(t *testing.T) {
+	if !capAllowlisted([]string{"example.com/dep/**"}, "example.com/dep/sub") {
+		t.Error("suffix glob must match child")
+	}
+	if capAllowlisted([]string{"example.com/dep/**"}, "example.com/other") {
+		t.Error("suffix glob must reject other")
+	}
+	if !capAllowlisted([]string{"example.com/**/tail"}, "example.com/a/tail") {
+		t.Error("middle doublestar must span")
+	}
+}
+
+func TestLogosCapRender(t *testing.T) {
+	frames := []capFrame{
+		{name: "main.main", file: "example.com/main/cmd/main.lgo", line: 9},
+		{name: "example.com/dep.Init", file: "example.com/dep/dep.go", line: 7},
+		{name: "os.startProcess", file: "GOROOT/src/os/exec_posix.go", line: 26},
+	}
+	got := renderCapReport("ERROR", "unauthorized_exec", "example.com/dep", "os.startProcess", frames, "help text")
+	for _, want := range []string{
+		"ERROR [capabilities::unauthorized_exec]: Transitive dependency 'example.com/dep' reaches 'os.startProcess'",
+		"1. main.main()",
+		"2.   -> example.com/dep.Init()",
+		"3.   -> os.startProcess()",
+		"example.com/main/cmd/main.lgo:9",
+		"GOROOT/src/os/exec_posix.go:26",
+		"Reachability Call Chain (cmd/link deadcode audit)",
+		" = Help: help text",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("render missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestLogosCapEntryFile(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want int32
+		ok   bool
+	}{
+		{"atext then file 2", []byte{0x00, 0x01, 0x06}, 2, true},
+		{"immediate file 0", []byte{0x02}, 0, true},
+		{"immediate file 1", []byte{0x04}, 1, true},
+		{"empty", nil, 0, false},
+		{"value without pc", []byte{0x00}, 0, false},
+		{"truncated varint", []byte{0xff}, 0, false},
+		{"all negative", []byte{0x00, 0x01, 0x00, 0x01, 0x00}, 0, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := capEntryFile(tc.data)
+			if ok != tc.ok || (ok && got != tc.want) {
+				t.Errorf("capEntryFile(%x) = (%d, %v), want (%d, %v)", tc.data, got, ok, tc.want, tc.ok)
+			}
+		})
+	}
+}
+
+func TestLogosCapSeverityDeny(t *testing.T) {
+	if capSeverityDeny("bogus") != "deny" || capSeverityDeny("") != "deny" {
+		t.Error("unknown severity must fail closed to deny")
+	}
+	if capSeverityDeny("warn") != "warn" || capSeverityDeny("allow") != "allow" {
+		t.Error("known severities must pass through")
+	}
+}

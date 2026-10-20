@@ -473,6 +473,7 @@ func deadcode(ctxt *Link) {
 		}
 		d.flood()
 	}
+	logosCapAudit(ctxt, &d)
 	if *flagPruneWeakMap {
 		d.mapinitcleanup()
 	}

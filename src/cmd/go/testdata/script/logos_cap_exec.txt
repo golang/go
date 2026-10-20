@@ -1,0 +1,440 @@
+# M12-S2: linker reachability sinks fail under logos; dead code passes.
+# Each case uses its own fixture with a replace-based dependency.
+# RED expectation: no linker audit exists yet, so every `! logos build`
+# sees a successful build. Fail-cases build with -o because a bare
+# `./...` build collides with the ./cmd directory name before linking.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# Case A: Go dep reaches os.StartProcess through os/exec -> fail, PLAN 13.2 format.
+cd a/main
+! logos build -o $WORK/bin/s2a$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/xdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/xdep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+stderr 'transitive_exec_allowlist'
+cd ../..
+
+# Case B: dep imports os/exec but never calls it (dead code) -> passes.
+cd b/main
+logos build -o $WORK/bin/s2b$GOEXE ./cmd
+exec $WORK/bin/s2b$GOEXE
+stdout '^dead-ok$'
+cd ../..
+
+# Case C: reflection through reflect.Value.MethodByName counts as reachable -> fail.
+cd c/main
+! logos build -o $WORK/bin/s2c$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/rdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/rdep\.Init\(\)'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+cd ../..
+
+# Case D: interface dispatch is followed through synthetic edges -> fail.
+cd d/main
+! logos build -o $WORK/bin/s2d$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/idep'' reaches ''os\.startProcess'''
+stderr 'example\.com/idep\.Init\(\)'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+cd ../..
+
+# Case E: diamond call graph reports the shortest chain.
+cd e/main
+! logos build -o $WORK/bin/s2e$GOEXE ./cmd
+stderr 'edep\.short\(\)'
+stderr 'edep\.run\(\)'
+! stderr 'edep\.long'
+! stderr 'edep\.mid'
+cd ../..
+
+# Case F: Go dep reached from a Go main reports the same chain format.
+cd f/main
+! logos build -o $WORK/bin/s2f$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/fdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/fdep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+cd ../..
+
+# Case G: cgo reachability reports unauthorized_cgo (Go module: M0 policy silent).
+cd g/main
+! logos build -o $WORK/bin/s2g$GOEXE ./cmd
+stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/cdep'' reaches ''runtime\.cgocall'''
+stderr 'example\.com/cdep\.Ping\(\)'
+cd ../..
+
+# Case H: allowlisted dep passes and runs.
+cd h/main
+logos build -o $WORK/bin/s2h$GOEXE ./cmd
+exec $WORK/bin/s2h$GOEXE
+stdout '^hi$'
+cd ../..
+
+-- a/main/go.mod --
+module example.com/xmain
+
+go 1.27
+
+require example.com/xdep v0.0.0
+
+replace example.com/xdep => ../dep
+
+-- a/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- a/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/xdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- a/dep/go.mod --
+module example.com/xdep
+
+go 1.27
+
+-- a/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	_ = cmd.Run()
+}
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+require example.com/bdep v0.0.0
+
+replace example.com/bdep => ../dep
+
+-- b/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/bdep"
+)
+
+func main() { fmt.Println(dep.Init()) }
+
+-- b/dep/go.mod --
+module example.com/bdep
+
+go 1.27
+
+-- b/dep/dep.go --
+package dep
+
+import "os/exec"
+
+var _ = exec.ErrNotFound
+
+//go:noinline
+func Init() string { return "dead-ok" }
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+require example.com/rdep v0.0.0
+
+replace example.com/rdep => ../dep
+
+-- c/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- c/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/rdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- c/dep/go.mod --
+module example.com/rdep
+
+go 1.27
+
+-- c/dep/dep.go --
+package dep
+
+import (
+	"os/exec"
+	"reflect"
+)
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	m := reflect.ValueOf(cmd).MethodByName("Start")
+	m.Call(nil)
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/idep v0.0.0
+
+replace example.com/idep => ../dep
+
+-- d/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- d/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/idep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- d/dep/go.mod --
+module example.com/idep
+
+go 1.27
+
+-- d/dep/dep.go --
+package dep
+
+import "os/exec"
+
+type starter interface {
+	Start() error
+}
+
+//go:noinline
+func Init() {
+	var s starter = exec.Command("echo", "hi")
+	_ = s.Start()
+}
+
+-- e/main/go.mod --
+module example.com/emain
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- e/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/edep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package dep
+
+import (
+	"os"
+	"os/exec"
+)
+
+//go:noinline
+func Init() {
+	if len(os.Args) > 1 {
+		long()
+	} else {
+		short()
+	}
+}
+
+//go:noinline
+func long() { mid() }
+
+//go:noinline
+func mid() { run() }
+
+//go:noinline
+func short() { run() }
+
+//go:noinline
+func run() {
+	_ = exec.Command("echo", "hi").Run()
+}
+
+-- f/main/go.mod --
+module example.com/fmain
+
+go 1.27
+
+require example.com/fdep v0.0.0
+
+replace example.com/fdep => ../dep
+
+-- f/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+
+-- f/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/fdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- f/dep/go.mod --
+module example.com/fdep
+
+go 1.27
+
+-- f/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	_ = cmd.Run()
+}
+
+-- g/main/go.mod --
+module example.com/gmain
+
+go 1.27
+
+require example.com/cdep v0.0.0
+
+replace example.com/cdep => ../dep
+
+-- g/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_unsafe_allowlist = ["example.com/cdep/**"]
+
+-- g/main/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cdep"
+)
+
+func main() {
+	dep.Ping()
+	fmt.Println("done")
+}
+
+-- g/dep/go.mod --
+module example.com/cdep
+
+go 1.27
+
+-- g/dep/dep.go --
+package dep
+
+/*
+int fortytwo() { return 42; }
+*/
+import "C"
+
+import "fmt"
+
+//go:noinline
+func Ping() { fmt.Println(C.fortytwo()) }
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require example.com/hdep v0.0.0
+
+replace example.com/hdep => ../dep
+
+-- h/main/logos.toml --
+[capabilities]
+transitive_exec = "deny"
+transitive_exec_allowlist = ["example.com/hdep/**"]
+
+-- h/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/hdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("hi")
+}
+
+-- h/dep/go.mod --
+module example.com/hdep
+
+go 1.27
+
+-- h/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	_ = cmd.Run()
+}

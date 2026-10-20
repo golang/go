@@ -1420,6 +1420,7 @@ The report lists the shortest call chain with file and line per frame. [T-Sec13]
 For the allowlist keys that authorize each sink, see Sec 10.4. [T-Sec10][T-Sec13]
 Unsafe violations use capabilities::unauthorized_unsafe with the shortest import chain. [T-Sec13]
 cgo reachability reports capabilities::unauthorized_cgo unless the cgo policy allows the package. [T-Sec13][T-101.2]
+The tailored cgo sink is the per-call-site `pkg._Cfunc_*` wrapper, reported as `runtime.cgocall`, because an external cgo call leaves the loader graph at the host object and `runtime.cgocall` is reachable only from `runtime.cgoContextPCs`. [T-Sec13]
 
 ## 14. Wasm profile
 
