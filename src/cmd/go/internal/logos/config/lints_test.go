@@ -5,7 +5,7 @@
 package config
 
 import (
-	jsonv2 "encoding/json/v2"
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -97,7 +97,7 @@ func TestPolicyJSONPedantic(t *testing.T) {
 			t.Fatal(err)
 		}
 		var got lintPolicy
-		if err := jsonv2.Unmarshal(data, &got); err != nil {
+		if err := json.Unmarshal(data, &got); err != nil {
 			t.Fatal(err)
 		}
 		if got.Groups["pedantic"] != tc.expect {

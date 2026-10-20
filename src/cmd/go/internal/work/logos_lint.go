@@ -8,7 +8,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	jsonv2 "encoding/json/v2"
+	"encoding/json"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -109,7 +109,7 @@ func lintEmbedConfig(p *load.Package) ([]byte, error) {
 	for _, file := range p.EmbedFiles {
 		embed.Files[file] = fsys.Actual(filepath.Join(p.Dir, file))
 	}
-	js, err := jsonv2.Marshal(&embed, jsonv2.Deterministic(true))
+	js, err := json.Marshal(&embed)
 	if err != nil {
 		return nil, fmt.Errorf("marshal embedcfg: %v", err)
 	}

@@ -5,7 +5,7 @@
 package config
 
 import (
-	jsonv2 "encoding/json/v2"
+	"encoding/json"
 	"maps"
 	"slices"
 )
@@ -69,7 +69,7 @@ func (l Lints) PolicyJSON(pedantic PedanticMode) ([]byte, error) {
 	case PedanticOff:
 		p.Groups["pedantic"] = "allow"
 	}
-	return jsonv2.Marshal(p, jsonv2.Deterministic(true))
+	return json.Marshal(p)
 }
 
 // PedanticMode is the state of the --pedantic flag.
