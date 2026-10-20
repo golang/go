@@ -4,13 +4,15 @@ description: Migrate a Go module or package to loGo/s. Use when the user says mi
 license: BSD-3-Clause
 compatibility: Needs the logos command from github.com/gosuda/loGos on PATH, plus the Go toolchain for the baseline.
 metadata:
-  version: "0.1.0"
-  milestone: "M1"
+  version: "0.20.0"
+  milestone: "M20"
 ---
 
 # Migrate Go to loGo/s
 
 Move one Go module to loGo/s in order: inventory, baseline, convert, fix, verify. No converter ships yet; each step below is done by hand. Fall back to eject when migration stalls.
+
+Coverage: the mapping table covers M1 error propagation and M3 nil forms. M2 unions, M4 properties, M5 const views, and M12 capabilities add no mapping rows: those features have no Go equivalent to rewrite. Not shipped: M5 CTFE, read-only placement, and const maps; M6–M11, M13–M21+.
 
 ## Procedure
 
@@ -33,6 +35,17 @@ Move one Go module to loGo/s in order: inventory, baseline, convert, fix, verify
 
 Rules for `?`: the call returns `error` last; the enclosing function returns `error` last; `?` ends an assignment, an expression statement, a `defer`, or an `errdefer`.
 
+## Go to loGo/s mapping (M3)
+
+Proven by `test/logos/run/option_basic.lgo`, `test/logos/run/option_chain.lgo`, `src/internal/types/testdata/logos/option_types.lgo`, `src/internal/types/testdata/logos/narrowing.lgo`, `src/internal/types/testdata/logos/map_index.lgo`.
+
+| Go | loGo/s |
+|---|---|
+| `*T` that may be nil, guarded by `if p != nil` | `T?` with `?.`, `??`, and `!= nil` narrowing |
+| `v, ok := m[k]` | unchanged; single-value `m[k]` reads as `V?`, so unwrap kept uses with `?? d` |
+
+Rules: `nil` and `T` assign into `T?`; `T?` never converts back. After conversion, plain selections on the option fail until a `!= nil` proof narrows them. Results of `.lgo` callees are read only after the error check; results of Go callees keep their Go contracts.
+
 ## Diagnostics
 
 | Rule | Fix |
@@ -42,3 +55,8 @@ Rules for `?`: the call returns `error` last; the enclosing function returns `er
 | `correctness::errdefer_needs_error_result` | Add a final `error` result, or use `defer`. |
 | `correctness::reserved_identifier` | Rename identifiers that start with `_logos_` or `Logos_`. |
 | `correctness::duplicate_stem_filename` | Rename one of the two files that share a stem. |
+| `correctness::not_an_option` | Apply `?.` and `??` to option types only. |
+| `correctness::nil_deref_unproven` | Narrow with `!= nil`, select with `?.`, or unwrap with `??`. |
+| `correctness::nil_to_nonnil` | Use `T?` for a pointer that may be nil. |
+| `correctness::nonnil_uninitialized` | Give the pointer a value at declaration. |
+| `correctness::result_before_error_check` | Read the result only after the error check. |

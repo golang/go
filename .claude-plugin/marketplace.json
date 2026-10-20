@@ -7,7 +7,7 @@
       "name": "logos",
       "source": "./plugins/logos",
       "description": "Write, migrate, build, test, and eject loGo/s (.lgo) code with the logos toolchain.",
-      "version": "0.1.0"
+                "version": "0.20.0"
     }
   ]
 }

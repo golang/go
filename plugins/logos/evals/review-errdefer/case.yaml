@@ -18,6 +18,9 @@ execution:
       return nil, nil
     }
     func removeTemp(path string) {}
+    type Labeled interface { const Label string }
+    type Crate struct { Label string }
+    var _ Labeled = &Crate{}
   max_turns: 15
   timeout_seconds: 300
   allowed_tools: [Bash, Skill]
@@ -29,8 +32,8 @@ graders:
     arm: with-only
     input_match: "logos:logos-review"
     min: 1
-  - name: both-findings-named-and-fixed
+  - name: all-findings-named-and-fixed
     type: llm
-    criteria: The review names correctness::reserved_identifier for _logos_cache and correctness::misplaced_try for string(mustRead(path)?); the fixed module reaches logos build ./... exit 0.
+    criteria: "The review names correctness::reserved_identifier for _logos_cache, correctness::misplaced_try for string(mustRead(path)?), and correctness::property_requires_conformance for the Crate struct missing its `: Labeled` declaration; the fixed module reaches logos build ./... exit 0."
     focus: last_message
-expected_outcome: Both rule IDs named and the module builds.
+expected_outcome: All three rule IDs named and the module builds.

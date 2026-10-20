@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: write-options
+description: Write a small loGo/s module using options and reach green build and test.
+tags: [logos, write]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    In a new subdirectory ./optbox of the working directory, create a loGo/s module example.com/optbox with one package: declare a function that takes an int? and returns it with a default via ?? (as in test/logos/run/option_basic.lgo), a function that reads a map with a single-value m[k] and unwraps the V? with ??, a lookup that reads a *User name through the option with ?. or ?? (as in test/logos/run/map_index.lgo), and a presence check that keeps the v, ok := m[k] form. Add a _test.lgo test that covers the none case and the missing-key case. Then run logos build ./... and logos test ./... . Both commands must exit 0.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: logos-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos:logos"
+    min: 1
+  - name: module-uses-options-and-is-green
+    type: llm
+    criteria: The module holds only .lgo sources with a _test.lgo test; an int? value is unwrapped with ??, a single-value map read is unwrapped with ?? or ?., and a presence check keeps the v, ok := m[k] form; logos build ./... and logos test ./... exit 0.
+    focus: last_message
+expected_outcome: Green loGo/s module using T?, ??, ?., and v, ok := m[k].
