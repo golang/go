@@ -10,6 +10,7 @@ package rt
 import (
 	"context"
 	"errors"
+	"reflect"
 )
 
 // Site records one error-propagation site: the file and line where a ?
@@ -32,3 +33,23 @@ func Join(a, b error) error {
 // Context aliases context.Context so lowered code spells the group
 // context without importing context itself.
 type Context = context.Context
+
+// UnionAssertionError is the panic value of a failed single-value
+// assertion to a closed union: x.(U) panics with
+// &UnionAssertionError{Value: x, Union: "<pkg>.U"} when the dynamic type
+// of x is not a member of U.
+type UnionAssertionError struct {
+	Value any
+	Union string
+}
+
+// Error formats the Go assertion message with the union in place of the
+// asserted type: `interface conversion: <T> is not a member of <pkg>.U`,
+// where <T> is the dynamic type of Value, or `nil` when Value is nil.
+func (e *UnionAssertionError) Error() string {
+	actual := "nil"
+	if e.Value != nil {
+		actual = reflect.TypeOf(e.Value).String()
+	}
+	return "interface conversion: " + actual + " is not a member of " + e.Union
+}

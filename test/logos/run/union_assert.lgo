@@ -1,0 +1,72 @@
+// run
+
+package main
+
+import "fmt"
+
+// Closed union over two members (SPEC Sec 2.3, M2-S4): assertions and
+// case types check membership at run time.
+type U interface {
+	int | string
+}
+
+// Comma-ok assertion: a non-member yields ok == false.
+func show(a any) string {
+	if _, ok := a.(U); ok {
+		return "ok"
+	}
+	return "not ok"
+}
+
+// Single-value assertion: a non-member panics with the membership message.
+func mustPan(a any) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = fmt.Sprint(r)
+		}
+	}()
+	_ = a.(U)
+	return "no panic"
+}
+
+// Union case: taken only for members, binding v to the union type;
+// nil keeps going to case nil.
+func which(a any) string {
+	switch v := a.(type) {
+	case U:
+		var _ U = v
+		return "U"
+	case nil:
+		return "nil"
+	default:
+		return "other"
+	}
+}
+
+// A clause after one that names every member is unreachable. A plain
+// case U: would match 1.5 through the run-time interface, so 1.5 must
+// reach default.
+func shadow(a any) string {
+	switch a.(type) {
+	case int, string:
+		return "m"
+	case U:
+		return "shadowed"
+	default:
+		return "other"
+	}
+}
+
+func main() {
+	var a any = 1.5
+	fmt.Println(show(a))
+	fmt.Println(mustPan(a))
+	fmt.Println(which(a))
+	var b any = 1
+	fmt.Println(show(b))
+	fmt.Println(which(b))
+	var z any
+	fmt.Println(which(z))
+	fmt.Println(shadow(a))
+	fmt.Println(shadow(b))
+}

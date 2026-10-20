@@ -1,0 +1,8 @@
+not ok
+interface conversion: float64 is not a member of main.U
+other
+ok
+U
+nil
+other
+m
