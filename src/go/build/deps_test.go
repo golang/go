@@ -884,7 +884,7 @@ var depsRules = `
 	FMT
 	< math/big/internal/asmgen;
 
-	context, errors, unsafe
+	context, errors, reflect, unsafe
 	< logos/rt;
 `
 
