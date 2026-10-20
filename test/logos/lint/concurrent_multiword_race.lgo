@@ -1,0 +1,518 @@
+// errorcheck
+
+package p
+
+import (
+	"context"
+	"logos/sync"
+)
+
+// concurrency::concurrent_multiword_race (SPEC Sec 1.2, #13, #148): a
+// variable of multi-word type that a child captures and either side writes
+// after the spawn. A word counts one machine word: string 2, slice 3,
+// interface and union 2, complex 2, a struct or array the sum of its fields
+// or elements.
+
+type Union interface {
+	int | string
+}
+
+type Pair struct {
+	A, B int
+}
+
+type Triple struct {
+	A, B, C int
+}
+
+type OneWord struct {
+	N int
+}
+
+type Padded struct {
+	N int
+	Z struct{}
+}
+
+type Named struct {
+	Name string
+	N    int
+}
+
+type Holder struct {
+	P *Named
+	N int
+}
+
+func stringWrittenByParent(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		s = "b"
+	}
+	return nil
+}
+
+func stringWrittenByChild(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			s = "b"
+		}
+	}
+	println(s)
+	return nil
+}
+
+func sliceHeaderWritten(ctx context.Context) error {
+	xs := []int{1}
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			xs = append(xs, 2)
+		}
+	}
+	return nil
+}
+
+func interfaceWritten(ctx context.Context) error {
+	var v any = 1
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(v != nil)
+		}
+		v = "x"
+	}
+	return nil
+}
+
+func unionWritten(ctx context.Context) error {
+	var u Union = 1
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(u != nil)
+		}
+		u = "x"
+	}
+	return nil
+}
+
+func complexWritten(ctx context.Context) error {
+	c := complex(1, 2)
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			c = complex(3, 4)
+		}
+	}
+	println(real(c))
+	return nil
+}
+
+func structFieldWritten(ctx context.Context) error {
+	var n Named
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(n.N)
+		}
+		n.Name = "x"
+	}
+	return nil
+}
+
+func arrayElementWritten(ctx context.Context) error {
+	var a [2]int
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			a[0] = 1
+		}
+	}
+	return nil
+}
+
+func compoundAssignWritten(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		s += "b"
+	}
+	return nil
+}
+
+func rangeAssignWritten(ctx context.Context) error {
+	var s string
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		for _, s = range []string{"a"} {
+		}
+	}
+	return nil
+}
+
+func redeclaredWritten(ctx context.Context) error {
+	go group (ctx) {
+		s := "a"
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		s, n := "b", 1
+		println(n)
+	}
+	return nil
+}
+
+func goCallLiteralWritten(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go func() error { // ERROR "concurrent_multiword_race"
+			s = "b"
+			return nil
+		}()
+	}
+	println(s)
+	return nil
+}
+
+func siblingWrites(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		go { // ERROR "concurrent_multiword_race"
+			s = "b"
+		}
+	}
+	return nil
+}
+
+func nestedFunctionWrites(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			println(s)
+		}
+		func() {
+			s = "b"
+		}()
+	}
+	return nil
+}
+
+func boundaryTwoWordStruct(ctx context.Context) error {
+	var p Pair
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			p.A = 1
+		}
+	}
+	return nil
+}
+
+func boundaryThreeWordStruct(ctx context.Context) error {
+	var t Triple
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			t.C = 1
+		}
+	}
+	return nil
+}
+
+func boundaryTwoWordArray(ctx context.Context) error {
+	var a [2]int
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			a = [2]int{1, 2}
+		}
+	}
+	println(a[0])
+	return nil
+}
+
+func boundaryThreeWordArray(ctx context.Context) error {
+	var a [3]int
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			a = [3]int{1, 2, 3}
+		}
+	}
+	println(a[0])
+	return nil
+}
+
+func boundaryOneElementStringArray(ctx context.Context) error {
+	var a [1]string
+	go group (ctx) {
+		go { // ERROR "concurrent_multiword_race"
+			a[0] = "x"
+		}
+	}
+	return nil
+}
+
+func boundaryOneWordStruct(ctx context.Context) error {
+	var o OneWord
+	go group (ctx) {
+		go {
+			o.N = 1
+		}
+	}
+	return nil
+}
+
+func boundaryPaddedStruct(ctx context.Context) error {
+	var p Padded
+	go group (ctx) {
+		go {
+			p.N = 1
+		}
+	}
+	return nil
+}
+
+func boundaryOneWordArray(ctx context.Context) error {
+	var a [1]int
+	go group (ctx) {
+		go {
+			a[0] = 1
+		}
+	}
+	return nil
+}
+
+func boundaryEmptyArray(ctx context.Context) error {
+	var a [0]string
+	go group (ctx) {
+		go {
+			a = [0]string{}
+		}
+	}
+	println(len(a))
+	return nil
+}
+
+func passIntWritten(ctx context.Context) error {
+	n := 0
+	go group (ctx) {
+		go {
+			n = 1
+		}
+		n = 2
+	}
+	println(n)
+	return nil
+}
+
+func passPointerWritten(ctx context.Context) error {
+	x := 0
+	y := 1
+	p := &x
+	go group (ctx) {
+		go {
+			p = &y
+		}
+		p = &x
+	}
+	println(*p)
+	return nil
+}
+
+func passMapWritten(ctx context.Context) error {
+	m := map[string]int{}
+	go group (ctx) {
+		go {
+			m = map[string]int{"a": 1}
+		}
+		m = map[string]int{}
+	}
+	println(len(m))
+	return nil
+}
+
+func passReadOnlyBothSides(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go {
+			println(s)
+		}
+		println(s)
+	}
+	return nil
+}
+
+func passWrittenBeforeSpawn(ctx context.Context) error {
+	s := "a"
+	s = "b"
+	go group (ctx) {
+		go {
+			println(s)
+		}
+	}
+	return nil
+}
+
+func passWriteThroughPointerField(ctx context.Context) error {
+	h := Holder{P: &Named{}}
+	go group (ctx) {
+		go {
+			h.P.Name = "a"
+		}
+		h.P.Name = "b"
+	}
+	return nil
+}
+
+func passWrittenAfterJoin(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go {
+			println(s)
+		}
+	}
+	s = "b"
+	return nil
+}
+
+func passSliceElementWritten(ctx context.Context) error {
+	xs := []int{1, 2}
+	go group (ctx) {
+		go {
+			xs[0] = 1
+		}
+		xs[1] = 2
+	}
+	return nil
+}
+
+func passDeclaredInChild(ctx context.Context) error {
+	go group (ctx) {
+		go {
+			s := "a"
+			s = "b"
+			println(s)
+		}
+	}
+	return nil
+}
+
+func passShadowedInChild(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go {
+			s := "x"
+			s = "y"
+			println(s)
+		}
+		s = "b"
+	}
+	println(s)
+	return nil
+}
+
+func passParameterOfLiteral(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go func(s string) error {
+			s = "b"
+			return nil
+		}(s)
+		s = "c"
+	}
+	return nil
+}
+
+func use(s string) error {
+	println(s)
+	return nil
+}
+
+func passArgumentCopied(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go use(s)
+		s = "b"
+	}
+	return nil
+}
+
+func passConstView(ctx context.Context, xs []int) error {
+	var v const []int = xs
+	go group (ctx) {
+		go {
+			println(len(v))
+		}
+		v = xs
+	}
+	return nil
+}
+
+func passConstViewChildWrite(ctx context.Context, xs []int) error {
+	var v const []int = xs
+	go group (ctx) {
+		go {
+			v = xs
+		}
+	}
+	println(len(v))
+	return nil
+}
+
+func passLockedValue(ctx context.Context) error {
+	var l sync.Locked[string]
+	go group (ctx) {
+		go {
+			l = sync.Locked[string]{}
+		}
+		l = sync.Locked[string]{}
+	}
+	l.WithLock(func(s *string) { println(*s) })
+	return nil
+}
+
+func passLockedUsedThroughWithLock(ctx context.Context) error {
+	var l sync.Locked[string]
+	go group (ctx) {
+		go {
+			l.WithLock(func(s *string) { *s = "a" })
+		}
+		l.WithLock(func(s *string) { *s = "b" })
+	}
+	return nil
+}
+
+func passHotValue(ctx context.Context) error {
+	var h sync.Hot[string]
+	go group (ctx) {
+		go {
+			h = sync.Hot[string]{}
+		}
+		h = sync.Hot[string]{}
+	}
+	println(h.Load() == nil)
+	return nil
+}
+
+func passPlainFunction(ctx context.Context) error {
+	s := "a"
+	s = "b"
+	println(s)
+	return nil
+}
+
+func passSequentialWrites(ctx context.Context) error {
+	s := "a"
+	go group (ctx) {
+		go {
+			t := "x"
+			println(t)
+		}
+	}
+	s = "b"
+	println(s)
+	return nil
+}

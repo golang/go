@@ -284,11 +284,7 @@ func (t test) runLogos(c logosCase) error {
 	}
 	buildFlags, optFlags := splitOptFlags(c.flags)
 	if strings.HasPrefix(t.goFile, "lint/") {
-		out, err := runcmd(append([]string{logosToolPath(t.T), "lint", base}, buildFlags...)...)
-		if err != nil {
-			return err
-		}
-		return t.checkExpectedOutput(out)
+		return t.runLogosLint(c, base, tempDir, runcmd)
 	}
 	if !isLgo {
 		if len(optFlags) > 0 {
@@ -308,6 +304,30 @@ func (t test) runLogos(c logosCase) error {
 		t.Fatal(err)
 	}
 	return t.runLogosLgo(c, base, tempDir, runcmd)
+}
+
+// runLogosLint runs one test/logos/lint case: the staged file goes into a
+// throwaway module, because logos lint skips a file named on the command
+// line and applies the lint policy only to the packages of a main module,
+// and `logos lint ./...` reports its findings, which errorCheck matches
+// against the ERROR comments of the file. A case that holds a warn-only
+// rule carries `// errorcheck -0`, because a warning does not fail the
+// command.
+func (t test) runLogosLint(c logosCase, base, tempDir string, runcmd runCmd) error {
+	if err := os.WriteFile(filepath.Join(tempDir, "go.mod"), []byte("module logostest\n\ngo 1.27\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	buildFlags, _ := splitOptFlags(c.flags)
+	cmd := append([]string{logosToolPath(t.T), "lint"}, buildFlags...)
+	out, err := runcmd(append(cmd, "./...")...)
+	if c.wantError && err == nil {
+		return fmt.Errorf("logos lint succeeded unexpectedly\n%s", out)
+	}
+	if !c.wantError && err != nil {
+		return err
+	}
+	full := filepath.Join(tempDir, base)
+	return t.errorCheck(string(out), c.auto, full, base, "./"+base, base)
 }
 
 // runLogosLgo runs one staged .lgo case through the logos binary.

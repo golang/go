@@ -10,4 +10,6 @@ var registry = []Rule{
 	unsupervisedGoroutine,
 	discardedError,
 	exhaustiveUnionSwitch,
+	concurrentMultiwordRace,
+	reentrantWithLockDeadlock,
 }
