@@ -29,6 +29,14 @@ func (tw *twin) mark(pos syntax.Pos, text string) *syntax.Name {
 	return markerText(&tw.subs, &tw.seq, pos, text)
 }
 
+// absorb merges foreign marker subs into tw, advancing the sequence past
+// them: every mark owns exactly one sub, so later marks of tw cannot
+// reuse a foreign marker spelling and corrupt the rendered text.
+func (tw *twin) absorb(subs []textSub) {
+	tw.subs = append(tw.subs, subs...)
+	tw.seq += len(subs)
+}
+
 // tryAssignOf matches lhs = f()? and lhs := f()?.
 func tryAssignOf(s *syntax.AssignStmt) (*syntax.TryExpr, *syntax.CallExpr, bool) {
 	if s.Op != syntax.Def && s.Op != 0 {
@@ -116,21 +124,28 @@ func (fc *funcLower) zerosAt(pos syntax.Pos) []syntax.Expr {
 }
 
 // exitPair builds the ? error path twice: once for the native tree and
-// once for the eject twin.
-func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) ([]syntax.Stmt, []syntax.Stmt) {
-	native := buildExit(exitSpec{
+// once for the eject twin. A return generated inside a scope-defer tail
+// runs the tail's stanza first (M6-S10); the stanza's marker subs ride
+// along for the caller to render.
+func (fc *funcLower) exitPair(pos syntax.Pos, errSpelling, siteSpelling string) (native, text []syntax.Stmt, subs []textSub) {
+	native = buildExit(exitSpec{
 		pos:   pos,
 		err:   nameOf(pos, errSpelling),
 		site:  nameOf(pos, siteSpelling),
 		zeros: fc.zerosAt(pos),
 	})
-	text := buildExit(exitSpec{
+	text = buildExit(exitSpec{
 		pos:   pos,
 		err:   nameOf(pos, errSpelling),
 		site:  nameOf(pos, siteSpelling),
 		zeros: fc.zerosAt(pos),
 	})
-	return native, text
+	if sn, st, ssubs := fc.scopeExitStanza(pos); sn != nil {
+		native = append(sn, native...)
+		text = append(st, text...)
+		subs = ssubs
+	}
+	return native, text, subs
 }
 
 // lowerList lowers a statement list.
@@ -481,9 +496,10 @@ func (fc *funcLower) tryAssignCore(s *syntax.AssignStmt, t *syntax.TryExpr, call
 	callText := fl.textOf(span{start: fl.off(leftmostOf(call.Fun)), end: qOff})
 	errSpelling := fc.nextErr()
 	siteSpelling := fl.newSite(tpos, tpos.Line())
-	exitNative, exitText := fc.exitPair(tpos, errSpelling, siteSpelling)
+	exitNative, exitText, exitSubs := fc.exitPair(tpos, errSpelling, siteSpelling)
 	var native []syntax.Stmt
 	tw := &twin{}
+	tw.absorb(exitSubs)
 	lhsMark := tw.mark(stmtPos, lhsText)
 	callMark := tw.mark(tpos, callText)
 	if s.Op == syntax.Def {
@@ -535,8 +551,9 @@ func (fc *funcLower) tryExprCore(s *syntax.ExprStmt, t *syntax.TryExpr, call *sy
 	callText := fl.textOf(span{start: fl.off(stmtPos), end: qOff})
 	errSpelling := fc.nextErr()
 	siteSpelling := fl.newSite(tpos, tpos.Line())
-	exitNative, exitText := fc.exitPair(tpos, errSpelling, siteSpelling)
+	exitNative, exitText, exitSubs := fc.exitPair(tpos, errSpelling, siteSpelling)
 	tw := &twin{}
+	tw.absorb(exitSubs)
 	callMark := tw.mark(tpos, callText)
 	n := fc.callResults(call)
 	var native []syntax.Stmt

@@ -2672,6 +2672,12 @@ func (p *parser) stmtOrNil() Stmt {
 		if s := p.logosErrdefer(lhs); s != nil { // M1-S2 hook: errdefer statement.
 			return s
 		}
+		if s := p.logosYield(lhs); s != nil { // M6-S9 hook: yield statement.
+			return s
+		}
+		if s := p.logosScopeDefer(lhs); s != nil { // M6-S10 hook: scope defer statement.
+			return s
+		}
 		return p.simpleStmt(lhs, 0)
 	}
 

@@ -1,0 +1,251 @@
+// run
+
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+var log []string
+
+var errBoom = errors.New("boom")
+
+func mustFail() (int, error) { return 0, errBoom }
+
+func note(s string) {
+	log = append(log, s)
+}
+
+func reset() {
+	log = nil
+}
+
+func show(tag string) {
+	fmt.Println(tag, log)
+	reset()
+}
+
+func basic() {
+	note("work")
+	{
+		note("lock")
+		scope defer note("unlock")
+		note("body")
+	}
+	note("after")
+	show("basic:")
+}
+
+func lifo() {
+	{
+		scope defer note("first")
+		scope defer note("second")
+		scope defer note("third")
+		note("body")
+	}
+	show("lifo:")
+}
+
+func argEval() {
+	x := 1
+	{
+		scope defer note(fmt.Sprint("arg:", x))
+		x = 2
+		note("body")
+	}
+	show("argeval:")
+}
+
+func earlyReturn(n int) int {
+	{
+		scope defer note("cleanup")
+		if n > 0 {
+			return 1
+		}
+		note("fallthrough")
+	}
+	return 0
+}
+
+func breakOut() {
+	for i := 0; i < 5; i++ {
+		{
+			scope defer note(fmt.Sprint("iter:", i))
+			if i == 2 {
+				break
+			}
+			note(fmt.Sprint("body:", i))
+		}
+	}
+	show("break:")
+}
+
+func continueOut() {
+	for i := 0; i < 3; i++ {
+		{
+			scope defer note(fmt.Sprint("citer:", i))
+			if i == 1 {
+				continue
+			}
+			note(fmt.Sprint("cbody:", i))
+		}
+	}
+	show("continue:")
+}
+
+func labeledBreak() {
+Outer:
+	for i := 0; i < 5; i++ {
+		for j := 0; j < 5; j++ {
+			{
+				scope defer note(fmt.Sprint("lbl:", i, j))
+				if j == 1 {
+					break Outer
+				}
+			}
+		}
+	}
+	show("labeled:")
+}
+
+func labeledContinue() {
+Outer:
+	for i := 0; i < 3; i++ {
+		{
+			scope defer note(fmt.Sprint("lc:", i))
+			if i == 1 {
+				continue Outer
+			}
+			note(fmt.Sprint("lb:", i))
+		}
+	}
+	show("labeled-continue:")
+}
+
+func gotoOut() {
+	{
+		scope defer note("gcleanup")
+		goto Done
+	}
+Done:
+	show("goto:")
+}
+
+func panicOut() {
+	defer func() {
+		_ = recover()
+		show("panic:")
+	}()
+	{
+		scope defer note("pcleanup")
+		panic("boom")
+	}
+}
+
+func loopIter() {
+	for i := 0; i < 3; i++ {
+		scope defer note(fmt.Sprint("loop:", i))
+		note(fmt.Sprint("work:", i))
+	}
+	show("loop:")
+}
+
+func gotoLabel() {
+	{
+		note("start")
+		goto Re
+	Re:
+		scope defer note("relbl")
+		note("after")
+	}
+	show("rellbl:")
+}
+
+func switchOut(x int) {
+	{
+		scope defer note("swcleanup")
+		switch x {
+		case 1:
+			note("one")
+		case 2:
+			note("two")
+			fallthrough
+		case 3:
+			note("three")
+		}
+		note("swafter")
+	}
+	show("switch:")
+}
+
+func switchInner(x int) {
+	switch x {
+	case 1:
+		scope defer note("c1cleanup")
+		note("cone")
+		fallthrough
+	case 2:
+		note("ctwo")
+	}
+	note("innerafter")
+	show("swinner:")
+}
+
+func tryInTail() (int, error) {
+	{
+		scope defer note("trycleanup")
+		v := mustFail()?
+		_ = v
+		note("unreached")
+	}
+	return 0, nil
+}
+
+func nested() {
+	{
+		scope defer note("outer")
+		note("o1")
+		{
+			scope defer note("inner")
+			note("i1")
+		}
+		note("o2")
+	}
+	show("nested:")
+}
+
+func namedResult() (x int) {
+	{
+		scope defer func() { note(fmt.Sprint("saw:", x)) }()
+		x = 41
+		return 42
+	}
+}
+
+func main() {
+	basic()
+	lifo()
+	argEval()
+	fmt.Println("return:", earlyReturn(1), log)
+	reset()
+	fmt.Println("return:", earlyReturn(0), log)
+	reset()
+	breakOut()
+	continueOut()
+	labeledBreak()
+	labeledContinue()
+	gotoOut()
+	gotoLabel()
+	panicOut()
+	nested()
+	switchOut(1)
+	switchOut(2)
+	switchInner(1)
+	_, err := tryInTail()
+	fmt.Println("trytail:", err, log)
+	reset()
+	loopIter()
+	namedResult()
+	show("named:")
+}

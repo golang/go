@@ -285,6 +285,21 @@ func big(xs []int) []int {
 	return xs.filter(x => x > 0).map(x => 2 * x).take(5)
 }
 ```
+A function whose single result is `iter.Seq[T]` or `iter.Seq2[K, V]` MUST be a generator function [T-104.8].
+`yield e` MUST be a statement, allowed only directly inside a generator function [T-104.8][T-0.2].
+A `yield` elsewhere MUST fail with `correctness::yield_outside_generator` [T-104.8].
+A generator MUST supply one value per `yield` for `iter.Seq[T]` and two values per `yield` for `iter.Seq2[K, V]` [T-104.8].
+Each yielded value MUST be assignable to its element type [T-104.8].
+A generator body MUST lower to returning an iterator closure with each `yield e` becoming `if !_logos_yield(e) { return }`, so an early `break` in the consumer stops the generator with no further body running [T-104.8].
+A generator body MUST need no `return`: falling off the end ends the sequence [T-104.8].
+A `return` with values inside a generator MUST act as a bare `return`: the values are discarded [T-104.8].
+```go
+func Count(n int) iter.Seq[int] {
+	for i := range n {
+		yield i
+	}
+}
+```
 
 ### 1.5 RFC-105: Optimization tiers and synthetic PGO
 `logos build` and `go build` MUST accept `-O=0`, `-O=1`, `-O=2`, `-O=3`, `-O=s`, and `-O=z` [T-105][R-U1].

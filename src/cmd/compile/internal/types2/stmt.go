@@ -47,7 +47,11 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 		check.labels(body)
 	}
 
-	if sig.results.Len() > 0 && !check.isTerminating(body, "") {
+	genExempt := false
+	if check.logosGeneratorSig(sig) { // logos M6-S9 hook.
+		genExempt = true
+	}
+	if sig.results.Len() > 0 && !genExempt && !check.isTerminating(body, "") {
 		check.error(body.Rbrace, MissingReturn, "missing return")
 	}
 
@@ -539,6 +543,12 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.ErrdeferStmt:
 		check.logosErrdefer(s) // logos M1-S3 hook.
+
+	case *syntax.YieldStmt:
+		check.logosYield(s) // logos M6-S9 hook.
+
+	case *syntax.ScopeDeferStmt:
+		check.logosScopeDefer(s) // logos M6-S10 hook.
 
 	case *syntax.ReturnStmt:
 		res := check.sig.results

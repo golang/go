@@ -126,7 +126,7 @@ func countLogosNodes(root syntax.Node) int {
 	n := 0
 	syntax.Inspect(root, func(x syntax.Node) bool {
 		switch x.(type) {
-		case *syntax.TryExpr, *syntax.ErrdeferStmt:
+		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.YieldStmt, *syntax.ScopeDeferStmt:
 			n++
 		}
 		return true

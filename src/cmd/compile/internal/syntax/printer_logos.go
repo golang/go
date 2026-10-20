@@ -38,6 +38,10 @@ func printLogos(p *printer, n Node) {
 		p.print(_Const, blank, n.Func)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
+	case *YieldStmt:
+		p.print(_Name, "yield", blank, n.Value)
+	case *ScopeDeferStmt:
+		p.print(_Name, "scope", blank, _Defer, blank, n.Call)
 	case *SwitchExpr:
 		p.print(_Switch, blank)
 		if n.Init != nil {

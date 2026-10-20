@@ -24,8 +24,8 @@ import (
 // still need the plain recheck, so the export writer and the backend only
 // ever see Go-facing types. A surviving
 // loGo/s node (TryExpr, ErrdeferStmt, SwitchExpr, ArmClause,
-// AssertedStruct, OptionType, CoalesceExpr, OptSelectExpr, or ConstType) is an
-// internal error.
+// AssertedStruct, OptionType, CoalesceExpr, OptSelectExpr, ConstType,
+// YieldStmt, or ScopeDeferStmt) is an internal error.
 func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map[*syntax.File][]byte) (bool, map[*syntax.File][]Edit) {
 	if f := EmitOptionFacts(pkg, info); f != nil {
 		facts.SetCurrent(f)
@@ -265,18 +265,24 @@ type resultSpec struct {
 
 // funcLower carries the state of lowering one function body.
 type funcLower struct {
-	fl          *fileLower
-	ft          *syntax.FuncType
-	body        *syntax.BlockStmt
-	specs       []resultSpec
-	errName     string
-	hasDeferTry bool
-	hasErrdefer bool
-	okName      string
-	errSeq      int
-	funSeq      int
-	argSeq      int
-	tmpSeq      int
+	fl               *fileLower
+	ft               *syntax.FuncType
+	body             *syntax.BlockStmt
+	specs            []resultSpec
+	errName          string
+	hasDeferTry      bool
+	hasErrdefer      bool
+	hasScopeDefer    bool
+	okName           string
+	errSeq           int
+	funSeq           int
+	argSeq           int
+	tmpSeq           int
+	scopeSeq         int
+	scopeParents     map[syntax.Node]syntax.Node
+	scopeLabels      map[string]*syntax.LabeledStmt
+	scopeDeferLabels map[string]int
+	scopeCtxs        []*scopeDeferCtx
 }
 
 // newFuncLower builds the lowering state of one function body.
@@ -308,13 +314,15 @@ func namedValue(name *syntax.Name) string {
 
 // run prepares and lowers one function body.
 func (fc *funcLower) run() {
+	fc.lowerYield() // M6-S9 hook: wrap generator bodies first.
 	fc.detectCleanups()
-	if fc.hasDeferTry || fc.hasErrdefer {
+	if fc.hasDeferTry || fc.hasErrdefer || fc.hasScopeDefer {
 		fc.ensureNamed()
 	}
 	if fc.hasErrdefer {
 		fc.armOkFlag()
 	}
+	fc.lowerScopeDefers() // M6-S10 hook: scope-defer exits before statement lowering.
 	fc.body.List = fc.lowerList(fc.body.List)
 }
 
@@ -333,6 +341,8 @@ func (fc *funcLower) detectCleanups() {
 			}
 		case *syntax.ErrdeferStmt:
 			fc.hasErrdefer = true
+		case *syntax.ScopeDeferStmt:
+			fc.hasScopeDefer = true
 		}
 		return true
 	})
@@ -341,6 +351,9 @@ func (fc *funcLower) detectCleanups() {
 // ensureNamed gives every result an assignable name when a defer? or an
 // errdefer must reference the error result.
 func (fc *funcLower) ensureNamed() {
+	if len(fc.specs) == 0 {
+		return
+	}
 	count := 0
 	for i := range fc.specs {
 		sp := &fc.specs[i]
@@ -411,7 +424,8 @@ func rejectSurvivors(file *syntax.File) {
 	syntax.Inspect(file, func(n syntax.Node) bool {
 		switch n.(type) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
-			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl:
+			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
+			*syntax.YieldStmt, *syntax.ScopeDeferStmt:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

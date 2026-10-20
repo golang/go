@@ -1,0 +1,75 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"iter"
+	tm "time"
+)
+
+func Durs() iter.Seq[tm.Duration] {
+	yield tm.Second
+	yield tm.Minute
+}
+
+func Count(n int) iter.Seq[int] {
+	for i := range n {
+		yield i
+	}
+}
+
+func Squares(n int) iter.Seq2[int, int] {
+	for i := range n {
+		yield i, i * i
+	}
+}
+
+var glog []string
+
+func Logged(n int) iter.Seq[int] {
+	glog = append(glog, "start")
+	{
+		scope defer func() { glog = append(glog, "done") }()
+		for i := range n {
+			yield i
+		}
+	}
+}
+
+var steps int
+
+func Tracked(n int) iter.Seq[int] {
+	for i := range n {
+		steps++
+		yield i
+	}
+	steps += 1000
+}
+
+func main() {
+	sum := 0
+	for v := range Count(5) {
+		sum += v
+	}
+	fmt.Println("sum:", sum)
+	for k, v := range Squares(4) {
+		fmt.Println("sq:", k, v)
+	}
+	seen := 0
+	for v := range Tracked(100) {
+		_ = v
+		seen++
+		if seen == 3 {
+			break
+		}
+	}
+	fmt.Println("seen:", seen, "steps:", steps)
+	for v := range Logged(3) {
+		fmt.Println("logged:", v)
+	}
+	fmt.Println("glog:", glog)
+	for d := range Durs() {
+		fmt.Println("dur:", d)
+	}
+}

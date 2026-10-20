@@ -19,7 +19,8 @@ func (check *Checker) isTerminating(s syntax.Stmt, label string) bool {
 		panic("unreachable")
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.SendStmt,
-		*syntax.AssignStmt, *syntax.CallStmt, *syntax.ErrdeferStmt:
+		*syntax.AssignStmt, *syntax.CallStmt, *syntax.ErrdeferStmt,
+		*syntax.YieldStmt, *syntax.ScopeDeferStmt: // logos M6-S9, M6-S10 hook: no chance.
 		// no chance
 
 	case *syntax.LabeledStmt:
@@ -112,7 +113,8 @@ func hasBreak(s syntax.Stmt, label string, implicit bool) bool {
 
 	case *syntax.DeclStmt, *syntax.EmptyStmt, *syntax.ExprStmt,
 		*syntax.SendStmt, *syntax.AssignStmt, *syntax.CallStmt,
-		*syntax.ReturnStmt, *syntax.ErrdeferStmt:
+		*syntax.ReturnStmt, *syntax.ErrdeferStmt,
+		*syntax.YieldStmt, *syntax.ScopeDeferStmt: // logos M6-S9, M6-S10 hook: no chance.
 		// no chance
 
 	case *syntax.LabeledStmt:

@@ -29,6 +29,10 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return n.Pos(), true
 	case *ErrdeferStmt:
 		return n.Pos(), true
+	case *YieldStmt:
+		return n.Pos(), true
+	case *ScopeDeferStmt:
+		return n.Pos(), true
 	}
 	return Pos{}, false
 }
@@ -57,6 +61,10 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 	case *ConstType:
 		return EndPos(n.Elem), true
 	case *ErrdeferStmt:
+		return EndPos(n.Call), true
+	case *YieldStmt:
+		return EndPos(n.Value), true
+	case *ScopeDeferStmt:
 		return EndPos(n.Call), true
 	case *SwitchExpr:
 		return n.Rbrace, true

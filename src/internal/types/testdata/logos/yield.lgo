@@ -1,0 +1,90 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "iter"
+
+// M6-S9 yield attacks: yield is allowed only directly inside a function
+// whose single result is iter.Seq[T] or iter.Seq2[K, V]; every other
+// position reports yield_outside_generator, and values must match.
+
+func seqOK(n int) iter.Seq[int] {
+	for i := range n {
+		yield i
+	}
+	return nil
+}
+
+func seq2OK(n int) iter.Seq2[int, string] {
+	for i := range n {
+		yield i, "s"
+	}
+	return nil
+}
+
+func yieldPlain() int {
+	yield /* ERROR "yield_outside_generator" */ 1
+	return 0
+}
+
+func yieldErrorResult() error {
+	yield /* ERROR "yield_outside_generator" */ 1
+	return nil
+}
+
+func yieldNoResult() {
+	yield /* ERROR "yield_outside_generator" */ 1
+}
+
+func yieldTwoResults() (int, int) {
+	yield /* ERROR "yield_outside_generator" */ 1
+	return 0, 0
+}
+
+func yieldWrongType() iter.Seq[int] {
+	yield "s" /* ERROR "cannot use" */
+	return nil
+}
+
+func yieldSeq2Arity1() iter.Seq2[int, string] {
+	yield /* ERROR "yield requires 2 values" */ 1
+	return nil
+}
+
+func yieldSeq2Arity3() iter.Seq2[int, string] {
+	yield /* ERROR "yield requires 2 values" */ 1, "s", 3
+	return nil
+}
+
+func yieldSeq2WrongSecond() iter.Seq2[int, string] {
+	yield 1, 2 /* ERROR "cannot use" */
+	return nil
+}
+
+func yieldInClosure() iter.Seq[int] {
+	f := func() {
+		yield /* ERROR "yield_outside_generator" */ 1
+	}
+	_ = f
+	return nil
+}
+
+func yieldLast() iter.Seq[int] {
+	yield 1
+}
+
+func yieldForever() iter.Seq[int] {
+	for {
+		yield 1
+	}
+}
+
+func useSeq(s iter.Seq[int]) int {
+	total := 0
+	for v := range s {
+		total += v
+	}
+	return total
+}

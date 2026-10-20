@@ -1,0 +1,91 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M6-S10 parser attacks: contextual `scope` directly before `defer`
+// parses a scope defer statement in LogosMode. The cleanup must be a
+// call; every ordinary Go use of the identifier keeps its meaning.
+
+package p
+
+func okSimple() {
+	mu.Lock()
+	scope defer mu.Unlock()
+	work()
+}
+
+func okArgs(a int, b string) {
+	scope defer cleanup(a, b)
+}
+
+func okFuncLit() {
+	scope defer func() { work() }()
+}
+
+func okNested() {
+	for i := range 3 {
+		scope defer work()
+	}
+}
+
+func badOperand() {
+	scope defer 1 // ERROR syntax error: scope defer requires a function call
+}
+
+func badMissingCall() {
+	scope defer // ERROR syntax error: scope defer requires a function call
+}
+
+func keepDefine() {
+	scope := 1
+	_ = scope
+}
+
+func keepAssign() {
+	scope := 1
+	scope = 2
+	_ = scope
+}
+
+func keepCall() {
+	scope(1)
+}
+
+func keepMethod(scope Tx) {
+	scope.f()
+}
+
+func keepIndex(scope []int) {
+	scope[0] = 1
+}
+
+func keepSelect(scope Tx, ch chan int, v int) {
+	_ = scope
+	ch <- v
+}
+
+func keepLabel() {
+scope:
+	for {
+		break scope
+	}
+}
+
+func keepDeferAlone() {
+	defer work()
+}
+
+func (Tx) f() {}
+
+type Tx struct{}
+
+func work() {}
+
+func cleanup(a int, b string) {}
+
+type Mutex struct{}
+
+func (Mutex) Lock()   {}
+func (Mutex) Unlock() {}
+
+var mu Mutex

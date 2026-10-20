@@ -1,0 +1,96 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M6-S9 parser attacks: contextual `yield` at statement start followed by
+// an operand parses as a yield statement in LogosMode (valid only inside
+// generators; types2 reports yield_outside_generator elsewhere). Every
+// ordinary Go use of the identifier keeps its meaning.
+
+package p
+
+import "iter"
+
+func gen(n int) iter.Seq[int] {
+	for i := range n {
+		yield i
+	}
+}
+
+func genCall(n int) iter.Seq[int] {
+	for i := range n {
+		yield f(i)
+	}
+}
+
+func genTwo(n int) iter.Seq2[int, int] {
+	for i := range n {
+		yield i, i*i
+	}
+}
+
+func genLit() iter.Seq[string] {
+	yield "s"
+}
+
+func f(i int) int { return i }
+
+func keepDefine() {
+	yield := 1
+	_ = yield
+}
+
+func keepAssign() {
+	yield := 1
+	yield = 2
+	_ = yield
+}
+
+func keepCall() {
+	yield(1)
+}
+
+func keepMethod(yield Tx) {
+	yield.f()
+}
+
+func keepIndex(yield []int) {
+	yield[0] = 1
+}
+
+func keepInc(yield int) {
+	yield++
+}
+
+func keepBinary(yield, x int) int {
+	return yield + x
+}
+
+func keepBare(yield int) {
+	yield
+	_ = yield
+}
+
+func keepSend(yield chan int, v int) {
+	yield <- v
+}
+
+func keepLabel() {
+yield:
+	for {
+		break yield
+	}
+}
+
+func keepMulti() {
+	yield, x := 1, 2
+	_, _ = yield, x
+}
+
+func keepArrow(yield int) int {
+	return -yield
+}
+
+type Tx struct{}
+
+func (Tx) f() {}

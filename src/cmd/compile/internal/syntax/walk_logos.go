@@ -32,6 +32,10 @@ func (w walker) walkLogos(n Node) {
 		w.node(n.Func)
 	case *ErrdeferStmt:
 		w.node(n.Call)
+	case *YieldStmt:
+		w.node(n.Value)
+	case *ScopeDeferStmt:
+		w.node(n.Call)
 	case *SwitchExpr:
 		if n.Init != nil {
 			w.node(n.Init)
