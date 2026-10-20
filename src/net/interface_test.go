@@ -48,6 +48,18 @@ func ipv6LinkLocalUnicastAddr(ifi *Interface) string {
 	return ""
 }
 
+// TestInterfaceByNameNotFound checks that looking up a name no
+// interface has fails with errNoSuchInterface wrapped in an OpError,
+// whether the platform scans the interface table or asks for the one
+// interface.
+func TestInterfaceByNameNotFound(t *testing.T) {
+	_, err := InterfaceByName("gotest-no-such-interface")
+	opErr, ok := err.(*OpError)
+	if !ok || opErr.Err != errNoSuchInterface {
+		t.Fatalf("InterfaceByName of a missing interface: got %v, want an OpError wrapping errNoSuchInterface", err)
+	}
+}
+
 func TestInterfaces(t *testing.T) {
 	ift, err := Interfaces()
 	if err != nil {
