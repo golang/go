@@ -93,6 +93,35 @@ func LogosCancelFiltersByGroup() (otherBit, ownBit bool) {
 	return otherBit, ownBit
 }
 
+// LogosReusedSlotStartsClean cancels a slot, returns it, lends the same
+// slot out again, and registers a waiter tagged with it. It reports
+// whether the slot was reused and the fresh registration stayed
+// unarmed: neither the release nor the retake may carry the old
+// cancellation into the next group.
+func LogosReusedSlotStartsClean() bool {
+	pd := pollcache.alloc()
+	defer pollcache.free(pd)
+	slot := logosGroupAcquire()
+	logosCancelGroup(slot)
+	logosGroupRelease(slot)
+	retaken := logosGroupAcquire()
+	defer logosGroupRelease(retaken)
+	if retaken != slot {
+		return false
+	}
+	gp := getg()
+	gp.logosGroup = retaken
+	registered := logosWaitRegister(pd, 'r')
+	gp.logosGroup = 0
+	if !registered {
+		return false
+	}
+	armed := logosCancelled(pd, 'r')
+	logosWaitRelease(pd, 'r')
+	logosPollPurge(pd)
+	return !armed
+}
+
 // LogosReusedSlotCancel holds a waiter of one live group while the slot
 // of a second group is released and lent out again, then cancels the
 // reused slot. It reports the live group's slot, the reused slot, and

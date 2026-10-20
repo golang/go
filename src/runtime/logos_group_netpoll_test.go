@@ -221,3 +221,74 @@ func TestLogosGroupNetpollCancelFiltersByGroup(t *testing.T) {
 		t.Fatal("cancelling the waiter's own group did not set the cancel bit")
 	}
 }
+
+// A child that reaches conn.Read only after the sibling's failure was
+// recorded still wakes: the cancel outlives the registry scan, so a
+// registration after the scan arms the wait instead of parking forever.
+func TestLogosGroupNetpollCancelBeforeRegister(t *testing.T) {
+	_, server := logosConnPair(t)
+	g, _ := rt.NewGroup(t.Context(), 0)
+	var timedOut atomic.Bool
+	g.Go(func(ctx context.Context) error {
+		<-ctx.Done()
+		time.Sleep(200 * time.Millisecond)
+		buf := make([]byte, 1)
+		_, err := server.Read(buf)
+		timedOut.Store(os.IsTimeout(err))
+		return nil
+	})
+	g.Go(func(ctx context.Context) error {
+		return errLogosSibling
+	})
+	if err := logosGroupWait(t, g, 5*time.Second); !errors.Is(err, errLogosSibling) {
+		t.Fatalf("Wait = %v, want %v", err, errLogosSibling)
+	}
+	if !timedOut.Load() {
+		t.Fatal("Read after the sibling's cancel did not return a timeout error")
+	}
+}
+
+// A cancel that lands while data is arriving does not strand the next
+// wait: the first Read takes the ready data, and the following Read of
+// the cancelled group times out instead of blocking forever.
+func TestLogosGroupNetpollCancelRacingDataUnblocksNextRead(t *testing.T) {
+	client, server := logosConnPair(t)
+	g, _ := rt.NewGroup(t.Context(), 0)
+	var firstN atomic.Int32
+	var firstOK atomic.Bool
+	var secondTimedOut atomic.Bool
+	g.Go(func(ctx context.Context) error {
+		<-ctx.Done()
+		time.Sleep(200 * time.Millisecond)
+		buf := make([]byte, 1)
+		n, err := server.Read(buf)
+		firstN.Store(int32(n))
+		firstOK.Store(err == nil)
+		_, err = server.Read(buf)
+		secondTimedOut.Store(os.IsTimeout(err))
+		return nil
+	})
+	g.Go(func(ctx context.Context) error {
+		if _, err := client.Write([]byte("x")); err != nil {
+			return err
+		}
+		return errLogosSibling
+	})
+	if err := logosGroupWait(t, g, 5*time.Second); !errors.Is(err, errLogosSibling) {
+		t.Fatalf("Wait = %v, want %v", err, errLogosSibling)
+	}
+	if !firstOK.Load() || firstN.Load() != 1 {
+		t.Fatalf("first Read = %d bytes, ok = %v; want 1 byte of arriving data", firstN.Load(), firstOK.Load())
+	}
+	if !secondTimedOut.Load() {
+		t.Fatal("second Read after the cancel did not return a timeout error")
+	}
+}
+
+// A slot lent out again after its group's failure starts clean: a child
+// of the new group registers without inheriting the old cancellation.
+func TestLogosGroupNetpollReusedSlotStartsClean(t *testing.T) {
+	if !runtime.LogosReusedSlotStartsClean() {
+		t.Fatal("a cancelled slot was not reused clean: same slot not lent out, or it carried its cancellation")
+	}
+}

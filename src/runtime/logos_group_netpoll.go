@@ -15,7 +15,9 @@ import (
 // poll_runtime_pollWait. logosCancelGroup wakes exactly the registered
 // waiters of one group: it sets the cancel bit of the waiter's mode and
 // unblocks the parked goroutine, and netpollcheckerr then reports a
-// timeout. The waiter clears its bit when it leaves the wait, so the
+// timeout. It also records the failure on the group slot, so a
+// goroutine that registers afterwards arms its wait instead of parking.
+// The waiter clears its bit when it leaves the wait, so the
 // descriptor stays usable.
 //
 // Lock order: logosWaitersLock is taken alone (register, release, slot
@@ -79,14 +81,19 @@ func logosCancelled(pd *pollDesc, mode int32) bool {
 }
 
 // logosWaitRegister registers the calling goroutine as a waiter of pd in
-// mode when it belongs to a group. It reports whether it registered, so
-// the caller pairs it with logosWaitRelease.
+// mode when it belongs to a group. When the group has already failed,
+// it arms the wait first, so the check inside netpollblock reports the
+// cancel without parking. It reports whether it registered, so the
+// caller pairs it with logosWaitRelease.
 func logosWaitRegister(pd *pollDesc, mode int32) bool {
 	gp := getg()
 	if gp.logosGroup == 0 {
 		return false
 	}
 	lock(&logosWaitersLock)
+	if logosSlotCancelGet(gp.logosGroup) {
+		atomic.Or32(&pd.logosCancel, logosCancelBit(mode))
+	}
 	logosWaiters = append(logosWaiters, logosWaiter{pd: pd, gp: gp, mode: mode, group: gp.logosGroup})
 	logosWaitersSync()
 	unlock(&logosWaitersLock)
@@ -152,16 +159,19 @@ func logosPollPurge(pd *pollDesc) {
 	unlock(&logosWaitersLock)
 }
 
-// logosCancelGroup wakes every registered waiter of group slot. For each
-// one it sets the cancel bit of its mode under the descriptor lock and
-// unblocks the goroutine parked there, if any, and readies that goroutine
-// after the registry lock is released.
+// logosCancelGroup records the failure of group slot, then wakes every
+// registered waiter of it. For each one it sets the cancel bit of its
+// mode under the descriptor lock and unblocks the goroutine parked
+// there, if any, and readies that goroutine after the registry lock is
+// released. The record outlives the scan, so a waiter that registers
+// afterwards still arms its wait.
 //
 //go:linkname logosCancelGroup
 func logosCancelGroup(slot uint32) {
 	var toRun gList
 	var delta int32
 	lock(&logosWaitersLock)
+	logosSlotCancelSet(slot)
 	for i := range logosWaiters {
 		w := &logosWaiters[i]
 		if w.group != slot {

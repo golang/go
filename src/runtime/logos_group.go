@@ -42,6 +42,11 @@ var (
 	// logosSlotBits is the slot bitmap: bit i of word w is set while slot
 	// w*64+i+1 is held. Guarded by logosWaitersLock.
 	logosSlotBits []uint64
+	// logosSlotCancel parallels logosSlotBits: bit i of word w is set
+	// once the group of slot w*64+i+1 has failed, until the slot is lent
+	// out again, so a waiter that registers after the cancel still arms
+	// its wait. Guarded by logosWaitersLock.
+	logosSlotCancel []uint64
 	// logosSlotHint is the lowest word of logosSlotBits that can hold a
 	// free bit, so a take skips the full prefix. Guarded by
 	// logosWaitersLock.
@@ -80,6 +85,7 @@ func logosSlotTake() uint32 {
 	for w := logosSlotHint; ; w++ {
 		if w == len(logosSlotBits) {
 			logosSlotBits = append(logosSlotBits, 0)
+			logosSlotCancel = append(logosSlotCancel, 0)
 		}
 		free := ^logosSlotBits[w]
 		if free == 0 {
@@ -91,6 +97,7 @@ func logosSlotTake() uint32 {
 			throw("logos: group slots exhausted")
 		}
 		logosSlotBits[w] |= 1 << bit
+		logosSlotCancel[w] &^= 1 << bit
 		logosSlotHint = w
 		return uint32(slot)
 	}
@@ -106,5 +113,31 @@ func logosSlotFree(slot uint32) {
 		throw("logos: release of a group slot that is not held")
 	}
 	logosSlotBits[w] &^= mask
+	logosSlotCancel[w] &^= mask
 	logosSlotHint = min(logosSlotHint, w)
+}
+
+// logosSlotCancelSet records the failure of slot, so a waiter that
+// registers afterwards arms its wait instead of parking. The caller
+// holds logosWaitersLock and slot is held.
+func logosSlotCancelSet(slot uint32) {
+	if slot == 0 {
+		return
+	}
+	i := uint64(slot) - 1
+	w, mask := int(i/64), uint64(1)<<(i%64)
+	if w < len(logosSlotCancel) {
+		logosSlotCancel[w] |= mask
+	}
+}
+
+// logosSlotCancelGet reports whether the group of slot has failed. The
+// caller holds logosWaitersLock.
+func logosSlotCancelGet(slot uint32) bool {
+	if slot == 0 {
+		return false
+	}
+	i := uint64(slot) - 1
+	w, mask := int(i/64), uint64(1)<<(i%64)
+	return w < len(logosSlotCancel) && logosSlotCancel[w]&mask != 0
 }
