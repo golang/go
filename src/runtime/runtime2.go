@@ -547,6 +547,7 @@ type g struct {
 	ditWanted       bool // set if g wants to be executed with DIT enabled
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
+	logosErrLen     uint8 // loGo/s: valid entries in logosErrSite; fills the padding before sig
 	sig             uint32
 	secret          int32 // current nesting of runtime/secret.Do calls.
 	writebuf        []byte
@@ -594,15 +595,14 @@ type g struct {
 	// built with the "valgrind" build tag, otherwise it is unused.
 	valgrindStackID uintptr
 
-	// logosGroup holds the loGo/s group ID of this goroutine (M8-S1):
-	// logos/rt.Group.Go tags its children, 0 outside a group.
-	logosGroup uint64
 	// logosErrSite holds the per-goroutine loGo/s error-trace ring: site
 	// pointers for the latest error, oldest first. Lowered code uses
 	// package-level sites, so retention is free.
 	logosErrSite [8]unsafe.Pointer
-	// logosErrLen is the number of valid entries in logosErrSite.
-	logosErrLen uint8
+	// logosGroup holds the loGo/s group slot of this goroutine (M8-S1):
+	// logos/rt.Group.Go tags its children with the slot the runtime
+	// allocator lent the group (logos_group.go), 0 outside a group.
+	logosGroup uint32
 	// logosErrLast is the data word of the error that filled the ring:
 	// identity only, not a reference, so the trace keeps no error alive.
 	logosErrLast uintptr

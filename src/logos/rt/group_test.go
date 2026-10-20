@@ -124,6 +124,35 @@ func TestGroupPanicBecomesPanicError(t *testing.T) {
 	})
 }
 
+// A Go after Wait panics instead of starting a child: the group's slot
+// is back with the runtime, and a late child would carry it into the
+// next group that takes it. The panic leaves the join counter balanced,
+// so no child ever runs.
+func TestGroupGoAfterWaitPanics(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		g, _ := NewGroup(t.Context(), 0)
+		if err := g.Wait(); err != nil {
+			t.Fatalf("Wait = %v, want nil", err)
+		}
+		var ran atomic.Bool
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatal("Go after Wait did not panic")
+				}
+			}()
+			g.Go(func(ctx context.Context) error {
+				ran.Store(true)
+				return nil
+			})
+		}()
+		synctest.Wait()
+		if ran.Load() {
+			t.Fatal("child ran after Wait")
+		}
+	})
+}
+
 // M8-S1 attack: Wait returns only after all children exit. Two children
 // block on release; Wait must stay pending until release closes.
 func TestGroupWaitJoinsChildren(t *testing.T) {

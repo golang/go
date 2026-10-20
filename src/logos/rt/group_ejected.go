@@ -6,10 +6,17 @@
 
 package rt
 
+// logosGroupAcquire lends no slot in ejected code: goroutine tags exist
+// only in binaries built by logos with the runtime group field.
+func logosGroupAcquire() uint32 { return 0 }
+
+// logosGroupRelease is a no-op in ejected code: no slot was lent.
+func logosGroupRelease(slot uint32) {}
+
 // logosTagGroup is a no-op in ejected code: goroutine tags exist only in
 // binaries built by logos with the runtime group field.
-func logosTagGroup(id uint64) {}
+func logosTagGroup(slot uint32) {}
 
 // logosCancelGroup is a no-op in ejected code: netpoll waiters are woken
 // by the logos runtime only.
-func logosCancelGroup(id uint64) {}
+func logosCancelGroup(slot uint32) {}

@@ -8,13 +8,19 @@ package rt
 
 import _ "unsafe"
 
-// Pull of the runtime group-tag primitive. The definition lives in
-// src/runtime/logos_group.go and carries a push-style //go:linkname
-// mark, so the linker's linkname check accepts this reference. The
-// signature must match the runtime side exactly.
+// Pull of the runtime group-slot primitives. The definitions live in
+// src/runtime/logos_group.go and logos_group_netpoll.go and carry a
+// push-style //go:linkname mark, so the linker's linkname check accepts
+// these references. The signatures must match the runtime side exactly.
+
+//go:linkname logosGroupAcquire runtime.logosGroupAcquire
+func logosGroupAcquire() uint32
+
+//go:linkname logosGroupRelease runtime.logosGroupRelease
+func logosGroupRelease(slot uint32)
 
 //go:linkname logosTagGroup runtime.logosSetGroup
-func logosTagGroup(id uint64)
+func logosTagGroup(slot uint32)
 
 //go:linkname logosCancelGroup runtime.logosCancelGroup
-func logosCancelGroup(id uint64)
+func logosCancelGroup(slot uint32)

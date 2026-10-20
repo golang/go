@@ -24,12 +24,10 @@ import (
 // always finds a positive counter.
 //
 // A Group is single-use: one body sequence of Go calls, then one Wait.
-// Go after Wait and a second Wait are misuse and panic through the
-// WaitGroup, the same as misusing sync.WaitGroup.
-
-// groupIDs mints group IDs; wraparound reuse is harmless because IDs
-// are compared only among live parked waiters (M8-S4).
-var groupIDs atomic.Uint64
+// Go after Wait panics, because the slot of the group has gone back to
+// the runtime and a late child would carry it into another group. A
+// second Wait is misuse and panics through the WaitGroup, the same as
+// misusing sync.WaitGroup.
 
 // Group is a bound set of goroutines. Build it with NewGroup, spawn
 // children with Go, and join them with Wait.
@@ -40,7 +38,8 @@ type Group struct {
 	wg     sync.WaitGroup
 	mu     sync.Mutex
 	first  error
-	id     uint64
+	slot   uint32
+	joined atomic.Bool
 }
 
 // PanicError is the error of a group child that panicked: Value is the
@@ -62,9 +61,11 @@ func (e *PanicError) Error() string {
 // NewGroup builds a group whose children share a context cancelled on
 // the first child error or panic, and always at join. limit bounds how
 // many children run at once; limit <= 0 leaves concurrency unbounded.
+// The group holds a runtime slot, the tag of its children for netpoll
+// wake, until Wait has joined them all.
 func NewGroup(ctx context.Context, limit int) (*Group, context.Context) {
 	c, cancel := context.WithCancel(ctx)
-	g := &Group{ctx: c, cancel: cancel, id: groupIDs.Add(1)}
+	g := &Group{ctx: c, cancel: cancel, slot: logosGroupAcquire()}
 	if limit > 0 {
 		g.sem = make(chan struct{}, limit)
 	}
@@ -76,9 +77,14 @@ func NewGroup(ctx context.Context, limit int) (*Group, context.Context) {
 // return or a panic fails the group with the first outcome winning and
 // cancels the siblings. A panic becomes *PanicError. The join counter
 // is taken before the semaphore: a spawn blocked on the semaphore
-// still holds it, so Wait cannot return before that child runs.
+// still holds it, so Wait cannot return before that child runs. Go
+// after Wait has returned panics.
 func (g *Group) Go(f func(context.Context) error) {
 	g.wg.Add(1)
+	if g.joined.Load() {
+		g.wg.Done()
+		panic("logos: Group.Go called after Wait")
+	}
 	if g.sem != nil {
 		g.sem <- struct{}{}
 	}
@@ -87,7 +93,7 @@ func (g *Group) Go(f func(context.Context) error) {
 			defer func() { <-g.sem }()
 		}
 		defer g.wg.Done()
-		logosTagGroup(g.id)
+		logosTagGroup(g.slot)
 		defer logosTagGroup(0)
 		defer func() {
 			if r := recover(); r != nil {
@@ -111,15 +117,19 @@ func (g *Group) fail(err error) {
 	if g.first == nil {
 		g.first = err
 		g.cancel()
-		logosCancelGroup(g.id)
+		logosCancelGroup(g.slot)
 	}
 }
 
 // Wait joins every child, cancels the child context, and reports the
 // first child error or panic, or nil when all children returned nil.
+// Every child has cleared its tag when the join completes, so the slot
+// goes back to the runtime only then.
 func (g *Group) Wait() error {
 	g.wg.Done()
 	g.wg.Wait()
+	g.joined.Store(true)
+	logosGroupRelease(g.slot)
 	g.cancel()
 	g.mu.Lock()
 	defer g.mu.Unlock()
