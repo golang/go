@@ -40,16 +40,23 @@ func StringToUTF16(s string) []uint16 {
 // location, it returns (nil, [EINVAL]). Unpaired surrogates
 // are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
-	if bytealg.IndexByteString(s, 0) != -1 {
-		return nil, EINVAL
-	}
 	// Valid UTF-8 characters between 1 and 3 bytes require one uint16.
 	// Valid UTF-8 characters of 4 bytes require two uint16.
 	// Bytes with invalid UTF-8 encoding require maximum one uint16 per byte.
 	// So the number of UTF-8 code units (len(s)) is always greater or
 	// equal than the number of UTF-16 code units.
 	// Also account for the terminating NUL character.
-	buf := make([]uint16, 0, len(s)+1)
+	return utf16FromString(s, make([]uint16, 0, len(s)+1))
+}
+
+// utf16FromString requires buf to have length zero and capacity at least len(s)+1.
+// The exported wrappers allocate buf so it can be stack allocated after inlining.
+//
+//go:noinline
+func utf16FromString(s string, buf []uint16) ([]uint16, error) {
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
+	}
 	buf = encodeWTF16(s, buf)
 	return append(buf, 0), nil
 }
@@ -111,11 +118,8 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 // contains a NUL byte at any location, it returns (nil, EINVAL).
 // Unpaired surrogates are encoded using WTF-8.
 func UTF16PtrFromString(s string) (*uint16, error) {
-	a, err := UTF16FromString(s)
-	if err != nil {
-		return nil, err
-	}
-	return &a[0], nil
+	a, err := utf16FromString(s, make([]uint16, 0, len(s)+1))
+	return unsafe.SliceData(a), err
 }
 
 // Errno is the Windows error number.

@@ -1475,17 +1475,21 @@ func TestIllformedUTF16FileName(t *testing.T) {
 }
 
 func TestUTF16Alloc(t *testing.T) {
-	allowsPerRun := func(want int, f func()) {
+	allocsPerRun := func(want int, f func()) {
 		t.Helper()
 		got := int(testing.AllocsPerRun(5, f))
 		if got != want {
 			t.Errorf("got %d allocs, want %d", got, want)
 		}
 	}
-	allowsPerRun(1, func() {
+	allocsPerRun(1, func() {
 		syscall.UTF16ToString([]uint16{'a', 'b', 'c'})
 	})
-	allowsPerRun(1, func() {
+	want := 0
+	if testenv.OptimizationOff() {
+		want = 1
+	}
+	allocsPerRun(want, func() {
 		syscall.UTF16FromString("abc")
 	})
 }
