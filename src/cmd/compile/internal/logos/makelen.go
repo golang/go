@@ -79,14 +79,30 @@ func (fl *fileLower) makeLenProducts() []*syntax.Operation {
 }
 
 // lenProduct returns n as a multiplication that types2 does not record as
-// a constant. The constant value sits in the node's type information, as
-// everywhere else in this package.
+// a constant and whose type has integer underlying type. The constant
+// value sits in the node's type information, as everywhere else in this
+// package. A product of any other type stays out: MulLen constrains its
+// operands to integers, so wrapping a float product such as f*g under
+// int(f*g) would fail the recheck.
 func lenProduct(n syntax.Node) (*syntax.Operation, bool) {
 	op, ok := n.(*syntax.Operation)
 	if !ok || op.Op != syntax.Mul || op.Y == nil {
 		return nil, false
 	}
-	return op, op.GetTypeInfo().Value == nil
+	tv := op.GetTypeInfo()
+	if tv.Value != nil || !isIntegerType(tv.Type) {
+		return nil, false
+	}
+	return op, true
+}
+
+// isIntegerType reports whether t has integer underlying type.
+func isIntegerType(t types2.Type) bool {
+	if t == nil {
+		return false
+	}
+	b, ok := types2.Unalias(t).Underlying().(*types2.Basic)
+	return ok && b.Info()&types2.IsInteger != 0
 }
 
 // spliceMakeLen records the eject edit that spells one product as a MulLen

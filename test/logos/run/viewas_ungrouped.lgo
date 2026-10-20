@@ -1,0 +1,24 @@
+// run
+
+package main
+
+// M7-S5 comptime.ViewAs (SPEC T-205, #19, #72): an ungrouped
+// `import "comptime"` drops with its import keyword once no
+// comptime-qualified selector remains, so the ejected file has no
+// bare `import` line and the plain recheck never resolves the
+// virtual package.
+
+import "comptime"
+import "fmt"
+
+type Header struct {
+	Magic   uint32
+	Version uint32
+	Size    uint64
+}
+
+func main() {
+	b := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	h := comptime.ViewAs[Header](b)
+	fmt.Println(h.Magic, h.Version, h.Size)
+}

@@ -1,0 +1,21 @@
+// run
+
+package main
+
+// M15-S2 (SPEC Sec 15.2, T-303; #169): a product whose type is not an
+// integer stays out of _logos_rt.MulLen. A float product converted to
+// int for a make length compiles and runs instead of failing the
+// integer-constrained recheck, while a product of a defined integer
+// type keeps the overflow-checked path.
+
+import "fmt"
+
+type Count int
+
+func main() {
+	f, g := 3.0, 4.0
+	a := make([]byte, int(f*g))
+	var w, h Count = 3, 4
+	b := make([]byte, w*h)
+	fmt.Println(len(a), len(b))
+}
