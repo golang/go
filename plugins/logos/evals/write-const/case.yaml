@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: write-const
+description: Write a small loGo/s module using const composites, const func, and const maps, and reach green build and test.
+tags: [logos, write]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    In a new subdirectory ./constbox of the working directory, create a loGo/s module example.com/constbox with one package: a const func that builds a value at compile time (as in test/logos/run/ctfe.lgo), a const slice or struct read at run time, and a const map lookup unwrapped with ?? over a missing key (as in test/logos/run/const_map.lgo). Add a _test.lgo test that covers the lookup hit and miss. Then run logos build ./... and logos test ./... . Both commands must exit 0.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: logos-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos:logos"
+    min: 1
+  - name: module-uses-const-and-is-green
+    type: llm
+    criteria: The module holds only .lgo sources with a _test.lgo test; a const func result and a const composite are used at run time, and a const map lookup is unwrapped with ?? covering hit and miss; logos build ./... and logos test ./... exit 0.
+    focus: last_message
+expected_outcome: Green loGo/s module using const func, const composites, and const maps.

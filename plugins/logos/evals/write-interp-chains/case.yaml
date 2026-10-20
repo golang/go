@@ -1,0 +1,25 @@
+schema_version: "1.1"
+name: write-interp-chains
+description: Write a small loGo/s module using interpolated strings and collection chains, and reach green build and test.
+tags: [logos, write]
+context:
+  add_dirs: []
+execution:
+  prompt: |
+    In a new subdirectory ./chainbox of the working directory, create a loGo/s module example.com/chainbox with one package: format a value with an interpolated string $"..." (as in test/logos/run/interp.lgo) instead of fmt.Sprintf, and transform a slice with a filter/map/take chain whose result is checked in the test (as in test/logos/run/chains.lgo). Add a _test.lgo test that covers the formatted output and the chained result. Then run logos build ./... and logos test ./... . Both commands must exit 0.
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Bash, Skill]
+runs: 3
+graders:
+  - name: logos-skill-fired
+    type: tool_used
+    tool: Skill
+    arm: with-only
+    input_match: "logos:logos"
+    min: 1
+  - name: module-uses-interp-and-chains-and-is-green
+    type: llm
+    criteria: The module holds only .lgo sources with a _test.lgo test; a $"..." interpolation replaces a Sprintf-style format, and a filter/map chain computes the tested slice; logos build ./... and logos test ./... exit 0.
+    focus: last_message
+expected_outcome: Green loGo/s module using $"..." and collection chains.

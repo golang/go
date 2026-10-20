@@ -12,7 +12,7 @@ metadata:
 
 loGo/s is Go with checked error propagation. You write `.lgo` files. The `logos` command checks them, lowers them to plain Go, and builds them with the Go 1.27 backend.
 
-Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const views with zero-copy conversions and `logos/rt.Freeze`, M12 capabilities. Not shipped: M5 CTFE, read-only placement, and const maps; M6–M11, M13–M21+. Do not use those forms.
+Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const composites with CTFE, read-only placement, const views, zero-copy conversions, const maps and `logos/rt.Freeze`, M6 interpolation, address-of, defaults, spread, tuples, lambdas, chains, leading-dot, yield and scope defer, M12 capabilities. Not shipped: M7–M11, M13–M21+. Do not use those forms.
 
 ## Procedure
 
@@ -121,12 +121,14 @@ Rules:
 
 ## Syntax (M5)
 
-Proven by `test/logos/run/const_views.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
-
-Const views only. CTFE (`const func`, `const` composite evaluation), read-only placement, and const maps have not shipped.
+Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test/logos/run/rodata_write.lgo`, `test/logos/run/rodata_reflect.lgo`, `test/logos/run/rodata_named_map.lgo`, `test/logos/run/constmap_init.lgo`, `test/logos/run/const_map.lgo`, `test/logos/run/constmap_switch.lgo`, `test/logos/run/const_views.lgo`, `test/logos/run/constview_bound.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/ctfe.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
 
 | loGo/s | Plain Go |
 |---|---|
+| `const func Fib(n int) int { ... }` then `const fib20 = Fib(20)` | evaluated at compile time; the result is a real constant |
+| `const primes = []int{2, 3, 5}` | package-level `var` with `//logos:rodata`, in read-only data |
+| `const scores = map[string]int{"a": 1}` | generated lookup: `switch` up to 8 keys, perfect-hash table above |
+| `scores["a"] ?? -1` | probing lookup that returns an option; absent keys read as none |
 | `func sum(xs const []int) int` | function over the plain type; the view is erased |
 | `var v const []int = xs` | plain slice assignment; reads stay usable, writes fail |
 | `var b const []byte = const []byte(s)` | zero-copy conversion from a string; allocates nothing |
@@ -135,10 +137,44 @@ Const views only. CTFE (`const func`, `const` composite evaluation), read-only p
 
 Rules:
 
+- `const func` bodies stay pure: no I/O, goroutine, package-variable read or write, `recover`, `uintptr`, map range, pointer, `defer`, `goto`, function literal, or method call. Violations are `[correctness::const_func_impure]`. Evaluation stops at 100,000 steps (`[comptime::ctfe_step_limit]`) and 1 MB values (`[comptime::const_too_large]`); an overflow, a NaN or duplicate map key, an executed panic, or an unsupported form reports `[correctness::const_eval]`. Integers use target widths (`1 << 32` is exact on 64-bit). A single-value map-index read is not constant. The step-limit knob has no `logos.toml` key yet.
+- Read-only placement: package-level const composites land in read-only data (`RODATA`, or relro with pointers); the backing array of a const slice is a named symbol (`go tool nm` type `R`), and a write through `unsafe` faults. `reflect.DeepEqual` and `fmt.Println` accept them. Function-scope const composites stay writable stack values. A named map type reached through a const keeps dynamic initialization.
+- Const maps: up to 8 keys lower to a `switch` (no `_tab` symbol); more keys lower to bucketed perfect-hash tables (`B = ceil(N/8)`) with constant-time metadata reads plus exactly one key/value-slot probe with full-key validation. `range` visits keys in sorted order; `len` is constant; use as a plain map materializes one copy. Keys are strings, numbers, bools, or structs or arrays of those, else `[comptime::constmap_key_type]`; `-0.0` canonicalizes to `+0.0` and `NaN` keys fail. Construction tries 8 salts of 125,000 seed trials (1,000,000 total); exhaustion reports `[comptime::constmap_seed_not_found]`. Lookup cost is report-only and slower than a runtime map: never claim a speedup.
 - `const T` parses in parameter, receiver, result, variable, and field types. Reads through a view stay usable and yield const views (transitive). Reference-free values copy out of a view; `nil` converts into a view only when the element admits nil.
-- Each of these through a view is an error: index or field assignment, `append`, `copy` into the view, `delete`, `clear`, slicing past `len`, calling a method whose receiver lacks `const` (a `const` pointer receiver is allowed), passing to a non-const `.lgo` parameter, and passing to a standard-library parameter without a non-mutating fact. Assigning a reference-carrying view to a plain type is an error.
+- Each of these through a view is an error: index or field assignment, `append`, `copy` into the view, `delete`, `clear`, slicing past `len`, calling a method whose receiver lacks `const` (a `const` pointer receiver is allowed), passing to a non-const `.lgo` parameter, and passing to a standard-library parameter without a non-mutating fact. Assigning a reference-carrying view to a plain type is an error. A non-constant bound past `len` on a `const []byte` view traps at run time.
 - Zero-copy provenance: string to `const []byte` and back allocates nothing, as does a `const []byte` built from constant bytes converted back to a string. A `const []byte` view of a mutable slice converts with a copy: later writes to the source leave the string unchanged.
 - `rt.Freeze` deep-copies its argument and returns a const view. Later writes to the source, including through a child pointer, leave the view unchanged.
+
+## Syntax (M6)
+
+Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logos/run/struct_default.lgo`, `test/logos/run/spread.lgo`, `test/logos/run/tuples.lgo`, `test/logos/run/lambda.lgo`, `test/logos/run/chains.lgo`, `test/logos/run/yield.lgo`, `test/logos/run/scope_defer.lgo`, `src/internal/types/testdata/logos/interp.lgo`, `src/internal/types/testdata/logos/addr_lit.lgo`, `src/internal/types/testdata/logos/struct_default.lgo`, `src/internal/types/testdata/logos/spread.lgo`, `src/internal/types/testdata/logos/tuples.lgo`, `src/internal/types/testdata/logos/lambdas.lgo`, `src/internal/types/testdata/logos/chains.lgo`, `src/internal/types/testdata/logos/yield.lgo`, `src/internal/types/testdata/logos/scope_defer.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/interp_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/tuples.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/spread.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/yield_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/scope_defer_parse.lgo`, `src/cmd/compile/internal/syntax/testdata/logos/addr_default_parse.lgo`, `src/cmd/go/testdata/script/logos_m6_addr_defaults.txt`, `src/cmd/go/testdata/script/logos_tuples.txt`, `src/cmd/compile/internal/syntax/scanner_leadingdot_logos_test.go`.
+
+| loGo/s | Plain Go |
+|---|---|
+| `$"User {name} has {n} items"` | one buffer sized from literal bytes plus operand bounds; exactly one allocation |
+| `$"{{secret}}"` | literal braces; the operand text is never a format string |
+| `p := &100`, `s := &"s"`, `n := &f()` | `new(expr)`; each evaluation yields a fresh variable |
+| `type Cfg struct { Port int = 8080 }` | default before the tag, filled into `.lgo` composite literals |
+| `s := State{A: 10, ..src}` | fields with identical names and types copy; explicit fields win |
+| `var t (int, error)` then `a, b := t` | struct-backed tuple; packed from calls, unpacked by assignment |
+| `f := x => x + 1`, `g := (a, b) => a < b` | function literal typed against its target signature |
+| `xs.filter(x => x > 2).map(x => 2 * x).take(5)` | one fused loop with the receiver evaluated once |
+| `batch` newline `.filter(x => ...)` | leading-dot continuation: no semicolon before `.` plus a letter |
+| `func Count(n int) iter.Seq[int] { yield i }` | `return func(_logos_yield func(int) bool) { ... }` with each yield as an early-exit check |
+| `scope defer note("unlock")` | guarding `defer` plus inline exit stanzas at each block exit |
+
+Rules:
+
+- Interpolation operands are strings, any integer, bools, float32/float64, `[]byte`, `error` (calls `Error()`), or `fmt.Stringer` (calls `String()`); other types report `[correctness::interp_type]`. `{{` and `}}` are literal braces. Operands evaluate once, left to right. An unmatched `{` is `syntax error: unterminated interpolation`; an unescaped `}` is a syntax error. Lowering imports `strconv` and `unsafe` implicitly; the capabilities audit reads declared imports only.
+- `&expr` takes the address of any operand and lowers to `new(expr)`. Each evaluation is fresh (`*p = 1` leaves a second `&100` unchanged).
+- Field defaults are constant expressions (or composite literals of constants) written before the tag; anything else reports `[correctness::default_not_constant]`. `Cfg{}`, `&Cfg{}`, and `Cfg{Host: "x"}` get the defaults, including through other packages via facts `default` records. `var c Cfg` and `new(Cfg)` stay zero and warn `[suspicious::unapplied_struct_default]`, which never fails the build. A struct literal in a Go package gets the zero value (documented hole).
+- Spread copies fields with identical names and identical types; the same name with a different type reports `[correctness::spread_type_mismatch]`, unless an explicit field of that name wins. The source evaluates once (other operands bind to a temporary); a source with no copied fields still evaluates. `s = State{A: s.B, B: s.A, ..s}` swaps through one tuple assignment with no 4 KB `memmove`. The source must be a struct; `..` in an array literal or as a field key is an error.
+- Tuples live in non-result positions: `var t (int, error)`, `chan (int, error)`, `[](x int, y int)`, map values. Named access is `t.x`; `t.0` is a syntax error. Destructuring is `a, b := t`; multi-value calls pack and unpack (`fmt.Println(pair())` prints both). Tuples with slice elements are not comparable. One `(` rule serves tuples, lambdas, and parenthesized expressions with no backtracking; a single element stays parenthesized. A Go importer sees the lowered struct.
+- Lambdas need a typed function target, else `[correctness::lambda_needs_target]`; arity must match. Block bodies check against the target results. Closures capture like function literals. A lone `Name` without `=>` stays an operand; `(e)` without `=>` stays a `ParenExpr`.
+- Chains on slices: `filter map find any all sortBy first last get take drop sum count`. Consecutive `filter`/`map`/`take`/`drop` fuse into one loop; the receiver evaluates once and lambda parameters are const views (rewriting the parameter or the receiver reports `const_view_mutation`). `find`/`first`/`last`/`get` return `T?`; `take`/`drop`/`get` clamp (`take(-5)` is empty, `get(-1)` is none). `sortBy` is stable with `NaN` first, as `cmp.Compare` orders. Float `.sum()` uses fixed pairwise order. `?` in an expression lambda returns from the enclosing function; a `?` nested in a lambda body, in a `??` fallback, or in a `?.` call argument reports `[correctness::nested_try_capture]`; a `?` mid-block in a block lambda reports `misplaced_try`. When produced elements implement `io.Closer`, failures close the produced prefix in reverse order.
+- Leading-dot continuation: in `.lgo`, a newline followed by blanks and then `.` plus a letter or `_` inserts no semicolon. `x` newline `.5` still breaks; plain Go scanning is unchanged.
+- `yield e` is allowed only directly inside a function returning `iter.Seq[T]` (one value) or `iter.Seq2[K, V]` (two values), else `[correctness::yield_outside_generator]`; a closure inside the generator may not yield. Falling off the end finishes the sequence; a valued `return` acts as bare. Early `break` in the consumer stops the body.
+- `scope defer f()` runs when control leaves the enclosing block: last in, first out; arguments evaluated at the statement; every exit (`return`, `break`, `continue`, labeled forms, `goto` out of the block, panic) runs it first; a loop body runs it each iteration. Lowering is a guarding `defer` plus inline exit stanzas (not a wrapper closure, so plain `defer` tails keep firing at function exit).
 
 ## Best practices
 
@@ -150,6 +186,10 @@ Rules:
 - Declare `T?` instead of commenting that a pointer may be nil. Keep `*T` for pointers that are never nil.
 - Give each closed union its members in declaration order; keep exhaustive switches in the same order.
 - Read through const views; copy reference-free values out. Convert to a string at the boundary instead of carrying a mutable slice.
+- Put fixed lookup tables in `const` maps; `range` visits keys sorted. Never claim they are faster than runtime maps.
+- Prefer `$"..."` over `fmt.Sprintf` for inline text, and chains over hand-written filter/map loops.
+- Give struct fields constant defaults instead of constructor comments; remember `var` and `new` stay zero.
+- Keep `yield` bodies straight-line; keep each `scope defer` next to the acquire it undoes.
 - Keep dependencies off protected sinks, or allowlist them in `[capabilities]` with a comment that says why.
 
 ## Diagnostics
@@ -182,6 +222,19 @@ Rules:
 | `correctness::property_address` | Copy the property value instead of taking its address. |
 | `correctness::const_view_mutation` | Read through the view; copy reference-free values out. |
 | `correctness::const_view_escape` | Keep the view; copy reference-free values out. |
+| `correctness::const_func_impure` | Move I/O, goroutines, package variables, `recover`, `uintptr`, map ranges, and pointers out of the `const func`. |
+| `comptime::ctfe_step_limit` | Shrink the computation below 100,000 steps. |
+| `comptime::const_too_large` | Shrink the value below 1 MB. |
+| `correctness::const_eval` | Remove the overflow, NaN or duplicate key, panic, or unsupported form. |
+| `comptime::constmap_key_type` | Use string, number, bool, or struct or array keys. |
+| `comptime::constmap_seed_not_found` | Simplify the key set or split the map. |
+| `correctness::interp_type` | Interpolate only string, integer, bool, float, `[]byte`, `error`, or `fmt.Stringer`. |
+| `correctness::default_not_constant` | Give the field a constant default. |
+| `suspicious::unapplied_struct_default` (warning) | Fill the literal, or accept the zero value. |
+| `correctness::spread_type_mismatch` | Name the field explicitly, or align the types. |
+| `correctness::lambda_needs_target` | Give the lambda a typed function target. |
+| `correctness::nested_try_capture` | Hoist the `?` out of the nested chain, `??` fallback, or `?.` argument. |
+| `correctness::yield_outside_generator` | Yield only directly inside an `iter.Seq`/`iter.Seq2` function. |
 | `capabilities::unauthorized_unsafe` | Allowlist the dependency under `transitive_unsafe_allowlist`, or remove it. |
 | `capabilities::unauthorized_exec` | Allowlist the dependency under `transitive_exec_allowlist`, or remove it. |
 | `capabilities::unauthorized_reflect` | Allowlist the dependency under `reflect_allowlist`, or remove it. |

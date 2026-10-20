@@ -131,6 +131,19 @@ Shipped forms, oldest first. Each row names the fixture that proves it: files un
 | `const []int` parameter | A read-only view of a value. Writes through it fail to compile; the view erases to the plain type. Proven by `test/logos/run/const_views.lgo` and `src/internal/types/testdata/logos/const_views.lgo`. |
 | `const []byte(s)` and `string(b)` | Conversions between strings and read-only bytes with zero allocations. A view of a mutable slice still copies. Proven by `test/logos/run/zerocopy.lgo`. |
 | `rt.Freeze(&cfg)` | A read-only view over a deep copy. Later writes to the source leave the view unchanged. Proven by `test/logos/run/freeze.lgo` and `src/cmd/go/testdata/script/logos_interop_const.txt`. |
+| `const func Fib(n int) int { ... }` | Compile-time evaluation: `const fib20 = Fib(20)` folds at build time, integers at target widths, within 100,000 steps and 1 MB. Proven by `test/logos/run/ctfe.lgo` and `src/internal/types/testdata/logos/ctfe.lgo`. |
+| Package-level `const primes = []int{2, 3, 5}` | Read-only data: the backing symbol is `R` in `go tool nm` and a write through `unsafe` faults; function-scope consts stay writable. Proven by `test/logos/run/rodata_write.lgo`, `test/logos/run/rodata_reflect.lgo`, and `test/logos/run/constmap_init.lgo`. |
+| `const m = map[string]int{...}` | Const maps: up to 8 keys lower to a `switch`, more to a perfect-hash table with one probed slot; `range` is sorted. Lookup cost is report-only and slower than a runtime map. Proven by `test/logos/run/const_map.lgo` and `test/logos/run/constmap_switch.lgo`. |
+| `$"User {name} has {n} items"` | Interpolation over string, integer, bool, float, `[]byte`, `error`, and `fmt.Stringer`, with exactly one allocation; `{{` and `}}` are literal. Proven by `test/logos/run/interp.lgo` and `src/internal/types/testdata/logos/interp.lgo`. |
+| `&100`, `&f()` | Address of any operand: a fresh variable per evaluation, lowered to `new(expr)`. Proven by `test/logos/run/addr_lit.lgo` and `src/internal/types/testdata/logos/addr_lit.lgo`. |
+| `Port int = 8080` before the tag | Field defaults filled into `.lgo` literals; `var` and `new` stay zero with a warning; Go literals get zero. Proven by `test/logos/run/struct_default.lgo`, `src/internal/types/testdata/logos/struct_default.lgo`, and `src/cmd/go/testdata/script/logos_m6_addr_defaults.txt`. |
+| `State{A: 10, ..src}` | Spread: identical names and types copy, explicit fields win, the source runs once, self-update is one assignment. Proven by `test/logos/run/spread.lgo` and `src/internal/types/testdata/logos/spread.lgo`. |
+| `var t (int, error)` then `a, b := t` | Tuples in non-result positions, packed from calls and unpacked by assignment, read as `t.x`. Proven by `test/logos/run/tuples.lgo`, `src/internal/types/testdata/logos/tuples.lgo`, and `src/cmd/go/testdata/script/logos_tuples.txt`. |
+| `x => x + 1` | Lambdas typed against their target signature, including block bodies. Proven by `test/logos/run/lambda.lgo` and `src/internal/types/testdata/logos/lambdas.lgo`. |
+| `xs.filter(...).map(...).take(5)` | Chains fuse into one loop with the receiver read once; `find` and friends give `T?`; `take` and friends clamp; `sortBy` is stable. Proven by `test/logos/run/chains.lgo` and `src/internal/types/testdata/logos/chains.lgo`. A `?` nested where it cannot propagate fails; mutating the receiver fails. |
+| Leading-dot line break | A newline before `.filter(...)` continues the chain; `x` newline `.5` still breaks. Pinned by `src/cmd/compile/internal/syntax/scanner_leadingdot_logos_test.go`. |
+| `yield e` in `func Count(n int) iter.Seq[int]` | Generators lower to a hidden yield function; early `break` stops the body. Proven by `test/logos/run/yield.lgo` and `src/internal/types/testdata/logos/yield.lgo`. |
+| `scope defer note("unlock")` | Runs at block exit on every path: last in first out, args at the statement, once per loop iteration. Proven by `test/logos/run/scope_defer.lgo` and `src/cmd/compile/internal/syntax/testdata/logos/scope_defer_parse.lgo`. |
 | `[capabilities]` in `logos.toml` | Policy over dependencies: `deny`, `warn`, or `allow` per sink group (`transitive_unsafe`, `transitive_exec`, `transitive_net`, `direct_reflect`, `transitive_reflect`), with `*_allowlist` globs. Proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt` and `src/cmd/go/testdata/script/logos_cap_exec.txt`. |
 | `GOEXPERIMENT=logosfastcgo` | Fast calls into C for functions marked `#cgo noescape` plus `#cgo nocallback` in Go, or `//logos:cgo_fastcall` in `.lgo`. Off by default (`src/internal/buildcfg/exp.go`). Proven by `src/cmd/cgo/internal/testlogos/fastcall_test.go`, run with and without the experiment. |
 | `__.LOGOS` facts | Option positions in exported declarations travel with the archive; only `.lgo` importers apply them, and stale facts fail the import with a fingerprint mismatch. Proven by `src/cmd/go/testdata/script/logos_facts.txt` and `src/cmd/go/testdata/script/logos_facts_nil.txt`. |
@@ -237,11 +250,12 @@ func main() {
 
 ## Agent skills
 
-The [plugins/logos/](plugins/logos/) plugin ships three skills:
+The [plugins/logos/](plugins/logos/) plugin ships four skills:
 
 * logos: write, build, test, and eject loGo/s code.
 * logos-review: review `.lgo` code against the compiler rules.
 * logos-from-go: migrate a Go module to loGo/s by hand.
+* logos-performance: route marked C calls through the fast-cgo entry.
 
 Claude (clones the whole Go fork):
 

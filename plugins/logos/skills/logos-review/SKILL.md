@@ -12,7 +12,7 @@ metadata:
 
 Check `.lgo` code against the compiler rules. Each checklist item states the rule it checks. Report each finding with its rule ID, fix it, and end with a green build and test.
 
-Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const views with zero-copy conversions and `logos/rt.Freeze`, M12 capabilities. Not shipped: M5 CTFE, read-only placement, and const maps; M6–M11, M13–M21+. Do not demand those forms.
+Coverage: M1 error propagation, M2 closed unions, M3 options and nil flow, M4 interface properties, M5 const composites with CTFE, read-only placement, const views, zero-copy conversions, const maps and `logos/rt.Freeze`, M6 interpolation, address-of, defaults, spread, tuples, lambdas, chains, leading-dot, yield and scope defer, M12 capabilities. Not shipped: M7–M11, M13–M21+. Do not demand those forms.
 
 ## Procedure
 
@@ -57,16 +57,27 @@ Proven by `test/logos/run/properties.lgo`, `src/internal/types/testdata/logos/pr
 
 ## Checklist (M5)
 
-Proven by `test/logos/run/const_views.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
+Proven by `test/logos/run/ctfe.lgo`, `test/logos/run/const_init_read.lgo`, `test/logos/run/rodata_write.lgo`, `test/logos/run/rodata_reflect.lgo`, `test/logos/run/rodata_named_map.lgo`, `test/logos/run/constmap_init.lgo`, `test/logos/run/const_map.lgo`, `test/logos/run/constmap_switch.lgo`, `test/logos/run/const_views.lgo`, `test/logos/run/constview_bound.lgo`, `test/logos/run/zerocopy.lgo`, `test/logos/run/freeze.lgo`, `src/internal/types/testdata/logos/ctfe.lgo`, `src/internal/types/testdata/logos/const_views.lgo`, `src/cmd/go/testdata/script/logos_interop_const.txt`.
 
 17. Const views: no index or field assignment, `append`, `copy` into the view, `delete`, `clear`, slicing past `len`, non-const method call, or passing to a non-const parameter through a `const T` view; no assignment of a reference-carrying view to a plain type. Findings: `correctness::const_view_mutation`, `correctness::const_view_escape`.
-18. Zero-copy: `const []byte` to string conversions without an allocation need string or const-composite provenance; a view of a mutable slice converts with a copy. `rt.Freeze` results are views over a deep copy, never aliases.
+18. CTFE: `const func` bodies hold no I/O, goroutine, package variable, `recover`, `uintptr`, map range, pointer, `defer`, `goto`, function literal, or method call; step and size limits hold; no overflow, NaN or duplicate map key, executed panic, or unsupported form. Findings: `correctness::const_func_impure`, `comptime::ctfe_step_limit`, `comptime::const_too_large`, `correctness::const_eval`.
+19. Read-only placement and const maps: package-level composites need no dynamic init and are never written; const map keys are strings, numbers, bools, or structs or arrays of those; `range` assumes sorted order and lookups assume one validated probe, never speed. Findings: `comptime::constmap_key_type`, `comptime::constmap_seed_not_found`.
+20. Zero-copy: `const []byte` to string conversions without an allocation need string or const-composite provenance; a view of a mutable slice converts with a copy. `rt.Freeze` results are views over a deep copy, never aliases.
+
+## Checklist (M6)
+
+Proven by `test/logos/run/interp.lgo`, `test/logos/run/addr_lit.lgo`, `test/logos/run/struct_default.lgo`, `test/logos/run/spread.lgo`, `test/logos/run/tuples.lgo`, `test/logos/run/lambda.lgo`, `test/logos/run/chains.lgo`, `test/logos/run/yield.lgo`, `test/logos/run/scope_defer.lgo`, `src/internal/types/testdata/logos/interp.lgo`, `src/internal/types/testdata/logos/addr_lit.lgo`, `src/internal/types/testdata/logos/struct_default.lgo`, `src/internal/types/testdata/logos/spread.lgo`, `src/internal/types/testdata/logos/tuples.lgo`, `src/internal/types/testdata/logos/lambdas.lgo`, `src/internal/types/testdata/logos/chains.lgo`, `src/internal/types/testdata/logos/yield.lgo`, `src/internal/types/testdata/logos/scope_defer.lgo`, `src/cmd/go/testdata/script/logos_m6_addr_defaults.txt`, `src/cmd/go/testdata/script/logos_tuples.txt`.
+
+21. Interpolation and address-of: operands are strings, integers, bools, floats, `[]byte`, `error`, or `fmt.Stringer`; braces are escaped; `&` applies to any operand with a fresh variable per evaluation. Finding: `correctness::interp_type`.
+22. Defaults and spread: defaults are constant and stand before the tag; `var`/`new` zero is intended where it appears; spread copies identical names and types with explicit fields winning; no Go literal is expected to carry defaults. Findings: `correctness::default_not_constant`, `suspicious::unapplied_struct_default` (warning), `correctness::spread_type_mismatch`.
+23. Tuples and lambdas: tuples live in non-result positions with named access and destructuring; every lambda has a typed target with matching arity. Finding: `correctness::lambda_needs_target`.
+24. Chains, yield, scope defer: chain lambdas never mutate the receiver or nest `?` where it cannot propagate; `yield` sits directly in a `Seq`/`Seq2` body with matching arity; `scope defer` cleanups run at block exit on every path. Findings: `correctness::nested_try_capture`, `correctness::misplaced_try`, `correctness::const_view_mutation`, `correctness::yield_outside_generator`.
 
 ## Checklist (M12)
 
 Proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt` and `src/cmd/go/testdata/script/logos_cap_exec.txt`.
 
-19. Capabilities: `logos.toml` `[capabilities]` severities are `deny`, `warn`, or `allow`; every dependency that reaches a protected sink (reflect constructors, process spawn, socket creation, `unsafe`, cgo entry) is allowlisted or removed. Findings: `capabilities::unauthorized_unsafe`, `capabilities::unauthorized_exec`, `capabilities::unauthorized_reflect`, `capabilities::unauthorized_net`, `capabilities::unauthorized_cgo`.
+25. Capabilities: `logos.toml` `[capabilities]` severities are `deny`, `warn`, or `allow`; every dependency that reaches a protected sink (reflect constructors, process spawn, socket creation, `unsafe`, cgo entry) is allowlisted or removed. Findings: `capabilities::unauthorized_unsafe`, `capabilities::unauthorized_exec`, `capabilities::unauthorized_reflect`, `capabilities::unauthorized_net`, `capabilities::unauthorized_cgo`.
 
 ## Diagnostics
 
@@ -98,6 +109,19 @@ Proven by `src/cmd/go/testdata/script/logos_cap_unsafe.txt` and `src/cmd/go/test
 | `correctness::property_address` | Copy the property value instead of taking its address. |
 | `correctness::const_view_mutation` | Read through the view; copy reference-free values out. |
 | `correctness::const_view_escape` | Keep the view; copy reference-free values out. |
+| `correctness::const_func_impure` | Move I/O, goroutines, package variables, `recover`, `uintptr`, map ranges, and pointers out of the `const func`. |
+| `comptime::ctfe_step_limit` | Shrink the computation below 100,000 steps. |
+| `comptime::const_too_large` | Shrink the value below 1 MB. |
+| `correctness::const_eval` | Remove the overflow, NaN or duplicate key, panic, or unsupported form. |
+| `comptime::constmap_key_type` | Use string, number, bool, or struct or array keys. |
+| `comptime::constmap_seed_not_found` | Simplify the key set or split the map. |
+| `correctness::interp_type` | Interpolate only string, integer, bool, float, `[]byte`, `error`, or `fmt.Stringer`. |
+| `correctness::default_not_constant` | Give the field a constant default. |
+| `suspicious::unapplied_struct_default` (warning) | Fill the literal, or accept the zero value. |
+| `correctness::spread_type_mismatch` | Name the field explicitly, or align the types. |
+| `correctness::lambda_needs_target` | Give the lambda a typed function target. |
+| `correctness::nested_try_capture` | Hoist the `?` out of the nested chain, `??` fallback, or `?.` argument. |
+| `correctness::yield_outside_generator` | Yield only directly inside an `iter.Seq`/`iter.Seq2` function. |
 | `capabilities::unauthorized_unsafe` | Allowlist the dependency under `transitive_unsafe_allowlist`, or remove it. |
 | `capabilities::unauthorized_exec` | Allowlist the dependency under `transitive_exec_allowlist`, or remove it. |
 | `capabilities::unauthorized_reflect` | Allowlist the dependency under `reflect_allowlist`, or remove it. |

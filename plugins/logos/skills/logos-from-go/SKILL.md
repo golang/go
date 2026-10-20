@@ -12,7 +12,7 @@ metadata:
 
 Move one Go module to loGo/s in order: inventory, baseline, convert, fix, verify. No converter ships yet; each step below is done by hand. Fall back to eject when migration stalls.
 
-Coverage: the mapping table covers M1 error propagation and M3 nil forms. M2 unions, M4 properties, M5 const views, and M12 capabilities add no mapping rows: those features have no Go equivalent to rewrite. Not shipped: M5 CTFE, read-only placement, and const maps; M6–M11, M13–M21+.
+Coverage: the mapping table covers M1 error propagation, M3 nil forms, and M6 interpolation and chains. M2 unions, M4 properties, M5 const forms, and M12 capabilities add no mapping rows: those features have no Go equivalent to rewrite. Not shipped: M7–M11, M13–M21+.
 
 ## Procedure
 
@@ -45,6 +45,17 @@ Proven by `test/logos/run/option_basic.lgo`, `test/logos/run/option_chain.lgo`, 
 | `v, ok := m[k]` | unchanged; single-value `m[k]` reads as `V?`, so unwrap kept uses with `?? d` |
 
 Rules: `nil` and `T` assign into `T?`; `T?` never converts back. After conversion, plain selections on the option fail until a `!= nil` proof narrows them. Results of `.lgo` callees are read only after the error check; results of Go callees keep their Go contracts.
+
+## Go to loGo/s mapping (M6)
+
+Proven by `test/logos/run/interp.lgo`, `test/logos/run/chains.lgo`, `src/internal/types/testdata/logos/interp.lgo`, `src/internal/types/testdata/logos/chains.lgo`.
+
+| Go | loGo/s |
+|---|---|
+| `fmt.Sprintf("User %s has %d items", name, n)` | `$"User {name} has {n} items"` |
+| filter loop appending matches, then a map loop over the result | `xs.filter(x => cond).map(x => f(x))`, fused into one pass |
+
+Rules: interpolation operands are strings, integers, bools, float32/float64, `[]byte`, `error`, or `fmt.Stringer`; other types stay with `fmt.Sprintf`. Chains fuse consecutive `filter`/`map`/`take`/`drop`; terminal calls (`find`, `first`, `last`, `get`, `sum`, `count`, `any`, `all`, `sortBy`) end the pass. Lambda parameters are const views: rewriting them or the receiver inside the lambda is an error.
 
 ## Diagnostics
 
