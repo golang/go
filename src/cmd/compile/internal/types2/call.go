@@ -669,9 +669,17 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	// check arguments
 	if len(args) > 0 {
 		context := check.sprintf("argument to %s", call.Fun)
+		check.logosPushGoCall(call) // logos M3-S5 hook.
+		if n > 0 {
+			check.logosPushGenericArgs(targs) // logos M3-S5 hook.
+		} else {
+			check.logosPushConcreteArgs() // logos M3-S5 hook.
+		}
 		for i, a := range args {
 			check.assignment(a, sigParams.vars[i].typ, context)
 		}
+		check.logosPopGenericCall() // logos M3-S5 hook.
+		check.logosPopGoCall()      // logos M3-S5 hook.
 	}
 
 	return

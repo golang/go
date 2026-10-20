@@ -1,0 +1,13 @@
+file-open: true
+file-name: true
+global: true
+declared-store: have
+nil-branch
+opt-to-go: true
+opt-nil: true
+elem: have false
+generic: alice false
+generic-store: alice
+panic-declared: logos: nil from Go value stored into non-nil *flag.Flag at platform.lgo:34
+panic-call: logos: nil from Go value stored into non-nil *flag.Flag at platform.lgo:44
+panic-generic: logos: nil from Go value stored into non-nil *flag.Flag at platform.lgo:53

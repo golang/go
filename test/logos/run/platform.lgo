@@ -1,0 +1,99 @@
+// run
+
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"slices"
+)
+
+type User struct {
+	Name string
+}
+
+func First[T any](s []T) T {
+	return s[0]
+}
+
+func Id[T any](v T) T {
+	return v
+}
+
+func useFlag(f *flag.Flag) string {
+	return f.Name
+}
+
+func tryDeclaredStore() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var fl *flag.Flag = flag.Lookup("missing")
+	return "no-panic:" + fl.Name
+}
+
+func tryCallStore() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	return useFlag(flag.Lookup("missing"))
+}
+
+func tryGenericStore() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var qf *flag.Flag = Id(flag.Lookup("missing"))
+	_ = qf
+	return "no-panic"
+}
+
+func main() {
+	flag.String("have", "HAVE", "")
+	flag.Parse()
+
+	f, err := os.Open(os.Args[0])
+	if err != nil {
+		fmt.Println("open-err:", err)
+		return
+	}
+	fmt.Println("file-open:", f != nil)
+	fmt.Println("file-name:", len(f.Name()) > 0)
+	_ = f.Close()
+
+	fmt.Println("global:", flag.CommandLine != nil)
+
+	good := flag.Lookup("have")
+	var fl *flag.Flag = good
+	fmt.Println("declared-store:", fl.Name)
+
+	inferred := flag.Lookup("missing")
+	if inferred == nil {
+		fmt.Println("nil-branch")
+	}
+
+	list := []*flag.Flag{good}
+	lm := map[string]*flag.Flag{"have": good}
+	fmt.Println("opt-to-go:", slices.Contains[[]*flag.Flag, *flag.Flag](list, lm["have"]))
+	fmt.Println("opt-nil:", lm["missing"] == nil)
+
+	cloned := slices.Clone(list)
+	fmt.Println("elem:", cloned[0].Name, cloned[0] == nil)
+
+	alice := &User{Name: "alice"}
+	got := First([]*User{alice})
+	fmt.Println("generic:", got.Name, got == nil)
+	var q *User = got
+	fmt.Println("generic-store:", q.Name)
+
+	fmt.Println("panic-declared:", tryDeclaredStore())
+	fmt.Println("panic-call:", tryCallStore())
+	fmt.Println("panic-generic:", tryGenericStore())
+}

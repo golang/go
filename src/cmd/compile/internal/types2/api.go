@@ -315,6 +315,8 @@ type Info struct {
 	// Version strings begin with “go”, like “go1.21”, and
 	// are suitable for use with the [go/version] package.
 	FileVersions map[*syntax.PosBase]string
+
+	LogosChecks map[syntax.Expr]LogosCheck // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
 }
 
 func (info *Info) recordTypes() bool {

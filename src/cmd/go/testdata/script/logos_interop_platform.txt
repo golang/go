@@ -1,0 +1,121 @@
+# M3-S5: platform pointers from a Go package in another workspace module.
+# A loGo/s package imports Go declarations as platform pointers: call and
+# field results are usable after the error check and comparable to nil,
+# and a nil stored into a non-nil location panics with file:line.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd w
+logos build ./...
+logos build -o $WORK/bin/plat$GOEXE ./l/cmd
+exec $WORK/bin/plat$GOEXE
+stdout '^find-ok: true gadget$'
+stdout '^lookup-nil$'
+stdout '^lookup-store: gadget$'
+stdout '^generic: gadget false$'
+stdout '^panic-store: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
+stdout '^panic-call: logos: nil from Go value stored into non-nil \*item\.Item at main\.lgo:[0-9]+$'
+cd ..
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/item/item.go --
+package item
+
+import "errors"
+
+type Item struct {
+	Name string
+}
+
+var errMissing = errors.New("no such item")
+
+func Find(name string) (*Item, error) {
+	if name == "x" {
+		return &Item{Name: "gadget"}, nil
+	}
+	return nil, errMissing
+}
+
+func Lookup(name string) *Item {
+	if name == "x" {
+		return &Item{Name: "gadget"}
+	}
+	return nil
+}
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/item"
+)
+
+func First[T any](s []T) T {
+	return s[0]
+}
+
+func useItem(it *item.Item) string {
+	return it.Name
+}
+
+func tryStore() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	var it *item.Item = item.Lookup("missing")
+	return "no-panic:" + it.Name
+}
+
+func tryCall() (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	return useItem(item.Lookup("missing"))
+}
+
+func main() {
+	it, err := item.Find("x")
+	if err != nil {
+		fmt.Println("find-err:", err)
+		return
+	}
+	fmt.Println("find-ok:", it != nil, it.Name)
+
+	if item.Lookup("missing") == nil {
+		fmt.Println("lookup-nil")
+	}
+
+	here := item.Lookup("x")
+	var keep *item.Item = here
+	fmt.Println("lookup-store:", keep.Name)
+
+	got := First([]*item.Item{here})
+	fmt.Println("generic:", got.Name, got == nil)
+
+	fmt.Println("panic-store:", tryStore())
+	fmt.Println("panic-call:", tryCall())
+}
