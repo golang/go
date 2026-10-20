@@ -38,6 +38,9 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 	check.indent = 0
 
+	check.logosEnterFunc(body)  // logos M3-S4 hook: pre-pass disqualified vars.
+	defer check.logosExitFunc() // logos M3-S4 hook.
+
 	check.stmtList(0, body.List)
 
 	if check.hasLabel && !check.conf.IgnoreBranchErrors {
@@ -115,14 +118,21 @@ func trimTrailingEmptyStmts(list []syntax.Stmt) []syntax.Stmt {
 func (check *Checker) stmtList(ctxt stmtContext, list []syntax.Stmt) {
 	ok := ctxt&fallthroughOk != 0
 	inner := ctxt &^ fallthroughOk
-	list = trimTrailingEmptyStmts(list) // trailing empty statements are "invisible" to fallthrough analysis
+	list = trimTrailingEmptyStmts(list)   // trailing empty statements are "invisible" to fallthrough analysis
+	narrowBase := check.logosNarrowBase() // logos M3-S4 hook: early-exit narrowing scope.
+	errBase := check.logosErrBase()       // logos M3-S4 hook.
 	for i, s := range list {
 		inner := inner
 		if ok && i+1 == len(list) {
 			inner |= fallthroughOk
 		}
+		outerStmt := check.logosStmtEnter(s) // logos M3-S4 hook: joint-use scan scope.
 		check.stmt(inner, s)
+		check.logosStmtExit(outerStmt) // logos M3-S4 hook.
+		check.logosAfterStmt(s)        // logos M3-S4 hook: early-exit narrowing for the rest of the list.
 	}
+	check.logosPopToNarrow(narrowBase) // logos M3-S4 hook.
+	check.logosPopToErr(errBase)       // logos M3-S4 hook.
 }
 
 func (check *Checker) multipleSwitchDefaults(list []*syntax.CaseClause) {
@@ -608,14 +618,30 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 		if x.isValid() && !allBoolean(x.typ()) {
 			check.error(s.Cond, InvalidCond, "non-boolean condition in if statement")
 		}
+		narrowThen := check.logosPushIfThen(s.Cond)   // logos M3-S4 hook: `x != nil` for the Then block.
+		checkedThen := check.logosPushChecked(s.Cond) // logos M3-S4 hook: err scrutiny for the Then block.
 		check.stmt(inner, s.Then)
+		if checkedThen {
+			check.logosPopChecked() // logos M3-S4 hook.
+		}
+		if narrowThen {
+			check.logosPopNarrow() // logos M3-S4 hook.
+		}
 		// The parser produces a correct AST but if it was modified
 		// elsewhere the else branch may be invalid. Check again.
 		switch s.Else.(type) {
 		case nil:
 			// valid or error already reported
 		case *syntax.IfStmt, *syntax.BlockStmt:
+			narrowElse := check.logosPushIfElse(s.Cond)   // logos M3-S4 hook: `x == nil` else proves `x != nil`.
+			checkedElse := check.logosPushChecked(s.Cond) // logos M3-S4 hook: err scrutiny for the Else block.
 			check.stmt(inner, s.Else)
+			if checkedElse {
+				check.logosPopChecked() // logos M3-S4 hook.
+			}
+			if narrowElse {
+				check.logosPopNarrow() // logos M3-S4 hook.
+			}
 		default:
 			check.error(s.Else, InvalidSyntaxTree, "invalid else branch in if statement")
 		}

@@ -45,6 +45,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
+	check.logosPlatformStore(x, T) // logos M3-S5 hook.
+
 	if isUntyped(x.typ()) {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface
@@ -180,6 +182,9 @@ func (check *Checker) initVar(lhs *Var, x *operand, context string) {
 			typ = Default(typ)
 		}
 		lhs.typ = typ
+		if check.logosInheritPlatform(lhs, x) { // logos M3-S5 hook.
+			return
+		}
 	}
 
 	check.assignment(x, lhs.typ, context)
@@ -217,7 +222,9 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
 	}
 
 	var x operand
+	check.logosLHSPush(lhs) // logos M3-S4 hook: assignment targets are writes, not checked reads.
 	check.expr(nil, &x, lhs)
+	check.logosLHSPop() // logos M3-S4 hook.
 
 	if v != nil {
 		check.usedVars[v] = v_used // restore v.used
@@ -281,7 +288,10 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 	if T == nil && context == "assignment" {
 		context = "assignment to _ identifier"
 	}
+	check.logosPushGoStore(lhs) // logos M3-S5 hook.
 	check.assignment(x, T, context)
+	check.logosPopGoStore()    // logos M3-S5 hook.
+	check.logosKillNarrow(lhs) // logos M3-S4 hook: `x = other` ends narrowing.
 }
 
 // operandTypes returns the list of types for the given operands.
@@ -519,6 +529,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
 		for i, lhs := range lhs {
 			check.assignVar(lhs, nil, rhs[i], context)
 		}
+		check.logosTrackCallAssign(lhs, orig_rhs[0]) // logos M3-S4 hook: `n, err = f()` arms the error-first guard.
 		// Only record comma-ok expression if both assignments succeeded
 		// (go.dev/issue/59371).
 		if commaOk && rhs[0].mode() != invalid && rhs[1].mode() != invalid {
@@ -600,6 +611,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
 	if !check.logosTryInitHook(lhsVars, rhs) { // logos M1-S3 hook.
 		check.initVars(lhsVars, rhs, nil)
 	}
+	check.logosShortDecl(lhs, rhs, lhsVars) // logos M3-S4 hook: kill redeclared targets, track `n, err := f()`.
 
 	// process function literals in rhs expressions before scope changes
 	check.processDelayed(top)

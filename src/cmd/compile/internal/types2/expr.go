@@ -801,8 +801,15 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 	var y operand
 
 	check.expr(nil, x, lhs)
+	anded := check.logosPushAndCond(op, lhs) // logos M3-S4 hook: `x != nil && rest` narrows x for rest.
 	check.expr(nil, &y, rhs)
+	if anded {
+		check.logosPopNarrow() // logos M3-S4 hook.
+	}
 
+	if e == nil {
+		check.logosUnwrapMapIndex(x) // logos M3-S6 hook: `m[k] += v` stores V.
+	}
 	if !x.isValid() {
 		return
 	}
@@ -1363,6 +1370,7 @@ func (check *Checker) multiExpr(e syntax.Expr, allowCommaOk bool) (list []*opera
 			dummy := syntax.NewName(syntax.StartPos(e), nth(i+1, "function result"))
 			list[i] = &operand{mode_: value, expr: dummy, typ_: v.typ}
 		}
+		check.logosMarkTupleDummies(e, list) // logos M3-S5 hook.
 		return
 	}
 

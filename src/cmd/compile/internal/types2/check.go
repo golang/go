@@ -147,15 +147,28 @@ type Checker struct {
 	usedPkgNames  map[*PkgName]bool          // set of used package names
 	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
 
-	firstErr      error                         // first error encountered
-	logosConforms map[*Named][]Type             // logos M4-S1 hook: explicit `: I` property-interface conformances per struct
-	logosPropSel  map[*syntax.SelectorExpr]bool // logos M4-S1 hook: property selectors typed through a property interface
-	methods       map[*TypeName][]*Func         // maps package scope type names to associated non-blank (non-interface) methods
-	untyped       map[syntax.Expr]exprInfo      // map of expressions without final type
-	delayed       []action                      // stack of delayed action segments; segments are processed in FIFO order
-	objPath       []Object                      // path of object dependencies during type-checking (for cycle reporting)
-	objPathIdx    map[Object]int                // map of object to object path index during type-checking (for cycle reporting)
-	cleaners      []cleaner                     // list of types that may need a final cleanup at the end of type-checking
+	firstErr         error                         // first error encountered
+	logosConforms    map[*Named][]Type             // logos M4-S1 hook: explicit `: I` property-interface conformances per struct
+	logosPropSel     map[*syntax.SelectorExpr]bool // logos M4-S1 hook: property selectors typed through a property interface
+	logosNarrow      map[*Var]int                  // logos M3-S4 hook: active non-nil narrowings per variable (refcount)
+	logosNarrowStack [][]*Var                      // logos M3-S4 hook: scoped narrowing push frames
+	logosErrUncheck  map[*Var]*Var                 // logos M3-S4 hook: unchecked `n, err := f()` results (n -> err)
+	logosErrStack    []map[*Var]*Var               // logos M3-S4 hook: err guards discharged per `if err == nil` block
+	logosErrDead     map[*Var]bool                 // logos M3-S4 hook: killed results skipped by err-frame restore
+	logosDisqual     []map[string]bool             // logos M3-S4 hook: per-function disqualified names
+	logosLHS         []*Var                        // logos M3-S4 hook: assignment-target suppression stack
+	logosCurStmt     syntax.Stmt                   // logos M3-S4 hook: innermost enclosing statement for joint-use scan
+	logosDerivedVar  map[*Var]bool                 // logos M3-S5 hook: inferred vars holding Go-derived values.
+	logosDerivedExpr map[syntax.Expr]bool          // logos M3-S5 hook: synthetic tuple dummies from Go/generic calls.
+	logosGoCall      []bool                        // logos M3-S5 hook: Go-callee argument scope stack.
+	logosGenericCall []logosGenericScope           // logos M3-S5 hook: generic-callee argument scope stack.
+	logosGoStore     []bool                        // logos M3-S5 hook: assignment-LHS Go-location suppression stack.
+	methods          map[*TypeName][]*Func         // maps package scope type names to associated non-blank (non-interface) methods
+	untyped          map[syntax.Expr]exprInfo      // map of expressions without final type
+	delayed          []action                      // stack of delayed action segments; segments are processed in FIFO order
+	objPath          []Object                      // path of object dependencies during type-checking (for cycle reporting)
+	objPathIdx       map[Object]int                // map of object to object path index during type-checking (for cycle reporting)
+	cleaners         []cleaner                     // list of types that may need a final cleanup at the end of type-checking
 
 	// environment within which the current object is type-checked (valid only
 	// for the duration of type-checking a specific object)

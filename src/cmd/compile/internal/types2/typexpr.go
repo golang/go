@@ -133,6 +133,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 	}
 
 	x.typ_ = typ
+	check.logosNarrowIdent(x, obj) // logos M3-S4 hook: narrowed reads take the element type.
 }
 
 // typ type-checks the type expression e and returns its type, or Typ[Invalid].

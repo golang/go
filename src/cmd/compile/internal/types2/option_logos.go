@@ -145,6 +145,13 @@ func (check *Checker) logosOptionAssign(x *operand, T Type, context string) bool
 	if Topt != nil && Vopt != nil {
 		return Identical(Vopt.Elem, Topt.Elem)
 	}
+	if Vopt != nil && Topt == nil && check.logosInGoCall() {
+		// A .lgo *T? lowers to the bare pointer, identical to a Go *T
+		// parameter: it compiles with no check (SPEC T-202).
+		if check.logosIsNonNilPointer(Vopt.Elem) && Identical(Vopt.Elem, T) {
+			return true
+		}
+	}
 	return false
 }
 
@@ -216,6 +223,7 @@ func (check *Checker) logosOptSelect(x *operand, e *syntax.OptSelectExpr) exprKi
 		x.expr = e
 		return expression
 	}
+	check.logosUnnarrowOperand(&rx) // logos M3-S4 hook: `?.` on a narrowed var uses its declared option.
 	opt := logosAsOption(rx.typ())
 	if opt == nil {
 		check.errorf(e, MissingFieldOrMethod, "%s ?. on non-option type %s", logosNotAnOption, rx.typ())
@@ -278,6 +286,7 @@ func (check *Checker) logosCoalesce(x *operand, e *syntax.CoalesceExpr) exprKind
 		x.expr = e
 		return expression
 	}
+	check.logosUnnarrowOperand(&lx) // logos M3-S4 hook: `??` on a narrowed var uses its declared option.
 	opt := logosAsOption(lx.typ())
 	if opt == nil {
 		check.errorf(e, UndefinedOp, "%s ?? with non-option left type %s", logosNotAnOption, lx.typ())
