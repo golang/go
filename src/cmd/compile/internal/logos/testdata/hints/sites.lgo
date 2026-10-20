@@ -1,0 +1,78 @@
+package p
+
+type User struct{ Name string }
+
+func (u *User) Greet() string { return "hi " + u.Name }
+
+const primes = []int{2, 3, 5, 7}
+
+var sink *User?
+
+func find(ok bool) *User? {
+	if ok {
+		return &User{Name: "ada"}
+	}
+	return nil
+}
+
+func keep() { sink = &User{Name: "kept"} }
+
+func local() int {
+	t := &User{Name: "tmp"}
+	return len(t.Name)
+}
+
+func narrowed(u *User?) string {
+	if u != nil {
+		return u.Greet()
+	}
+	return ""
+}
+
+func narrowedUnicode(u *User?) string {
+	if u != nil {
+		return "é😀" + u.Greet()
+	}
+	return ""
+}
+
+type Circle struct{ R int }
+
+type Square struct{ S int }
+
+type Shape interface {
+	Circle | Square
+}
+
+func area(s Shape) int {
+	switch s.(type) {
+	case Circle:
+		return 3
+	case Square:
+		return 4
+	case nil:
+		return -1
+	}
+	return 0
+}
+
+func get() (int, error) { return 1, nil }
+
+func run() error {
+	n := get()?
+	_ = n
+	return nil
+}
+
+func label(name string) string {
+	return $"user {name}!"
+}
+
+func kind[T any](v T) string {
+	_ = v
+	const switch T {
+	case int:
+		return "int"
+	}
+	return "other"
+}

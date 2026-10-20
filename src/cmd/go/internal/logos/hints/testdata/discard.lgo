@@ -1,0 +1,8 @@
+package p
+
+func f() error { return nil }
+
+func g() error {
+	f()
+	return nil
+}

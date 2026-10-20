@@ -54,8 +54,10 @@ func (e *escape) logosSlice(k hole, n *ir.SliceExpr) hole {
 }
 
 // logosCollect records the slice expressions that logosSlice gave a location
-// and that escape. It runs after the batch is solved.
+// and that escape, and the decisions that hints mode reports. It runs after
+// the batch is solved.
 func (b *batch) logosCollect() {
+	b.logosCollectHints()
 	if !LogosPinning {
 		return
 	}

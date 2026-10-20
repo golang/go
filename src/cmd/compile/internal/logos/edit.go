@@ -46,7 +46,12 @@ func lineStarts(src []byte) []int {
 // Columns are byte columns of the position's own line; a column past the
 // line end is rejected even when its offset lands inside a later line.
 func offsetOf(starts []int, size int, pos syntax.Pos) (int, error) {
-	line, col := int(pos.Line()), int(pos.Col())
+	return lineColOffset(starts, size, int(pos.Line()), int(pos.Col()))
+}
+
+// lineColOffset converts a 1-based line and byte column to a byte offset
+// into a text of size bytes, with the checks of offsetOf.
+func lineColOffset(starts []int, size, line, col int) (int, error) {
 	if line < 1 || line > len(starts) || col < 1 {
 		return 0, fmt.Errorf("position %d:%d is outside the source", line, col)
 	}

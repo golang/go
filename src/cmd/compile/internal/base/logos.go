@@ -20,8 +20,15 @@ var LogosEject string
 var Logos bool
 
 // LogosMode selects a compiler helper mode: next rewrites Go to loGo/s,
-// context prints one symbol context. Empty compiles normally.
+// context prints one symbol context, hints writes the editor hints of the
+// package. Empty compiles normally.
 var LogosMode string
+
+// LogosHintsOut is the -logos.hintsout file. With -logos.mode=hints the
+// compiler writes one JSON report there after escape analysis and stops
+// before SSA and the backend, so no object file is written. Hints mode
+// requires it.
+var LogosHintsOut string
 
 // LogosNextOut is the -logos.nextout sidecar path. After checkFiles
 // succeeds with -logos.mode=next, the compiler appends one JSON line
@@ -50,6 +57,7 @@ func logosRegisterFlags() {
 	flag.BoolVar(&LogosJSON, "logos.json", false, "print diagnostics as JSON lines")
 	flag.BoolVar(&LogosLintOnly, "logos.lintonly", false, "lint the package and stop after escape analysis")
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")
-	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next` or `context`)")
+	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next`, `context`, or `hints`)")
+	flag.StringVar(&LogosHintsOut, "logos.hintsout", "", "write the logos editor hints of the package to `file`")
 	flag.StringVar(&LogosNextOut, "logos.nextout", "", "append logos next scan results to `file`")
 }

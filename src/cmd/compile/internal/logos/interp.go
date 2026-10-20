@@ -67,6 +67,44 @@ const (
 	interpStr = "_logos_s%d"
 )
 
+// Bytes the buffer bound adds for each operand whose text has a fixed
+// worst-case width: SPEC T-104.4 counts 20 per integer, 24 per float, and 5
+// per bool. Every other operand adds its own len, known only at run time.
+const (
+	interpIntBound   = 20
+	interpFloatBound = 24
+	interpBoolBound  = 5
+)
+
+// InterpFixedBytes returns the part of the buffer bound of an interpolation
+// that no run-time length changes: the literal bytes of parts plus the fixed
+// width of each integer, float, and bool operand in kinds. The editor hover
+// renders it as `Fixed: <n>B + dynamic`.
+func InterpFixedBytes(parts []string, kinds []types2.LogosInterpKind) int {
+	n := 0
+	for _, part := range parts {
+		n += len(part)
+	}
+	for _, k := range kinds {
+		n += interpFixedWidth(k)
+	}
+	return n
+}
+
+// interpFixedWidth returns the fixed width the bound adds for an operand of
+// kind k, and 0 for a kind that adds its run-time length.
+func interpFixedWidth(k types2.LogosInterpKind) int {
+	switch k {
+	case types2.LogosInterpInt, types2.LogosInterpUint:
+		return interpIntBound
+	case types2.LogosInterpFloat32, types2.LogosInterpFloat64:
+		return interpFloatBound
+	case types2.LogosInterpBool:
+		return interpBoolBound
+	}
+	return 0
+}
+
 // interpKinds holds the pre-lowering operand kinds per interpolation,
 // keyed by node. collectInterpKinds fills it at the top of lowerFile
 // while every operand node is still the checked original: later passes
@@ -244,14 +282,14 @@ func (fl *fileLower) lowerInterpExpr(e *syntax.InterpExpr, kinds []types2.LogosI
 			termText = "len(" + ref + ")"
 			term = callOf(pos, nameOf(pos, "len"), []syntax.Expr{nameOf(pos, ref)})
 		case types2.LogosInterpInt, types2.LogosInterpUint:
-			termText = "20"
-			term = litOf(pos, "20", syntax.IntLit)
+			termText = strconv.Itoa(interpIntBound)
+			term = litOf(pos, termText, syntax.IntLit)
 		case types2.LogosInterpFloat32, types2.LogosInterpFloat64:
-			termText = "24"
-			term = litOf(pos, "24", syntax.IntLit)
+			termText = strconv.Itoa(interpFloatBound)
+			term = litOf(pos, termText, syntax.IntLit)
 		case types2.LogosInterpBool:
-			termText = "5"
-			term = litOf(pos, "5", syntax.IntLit)
+			termText = strconv.Itoa(interpBoolBound)
+			term = litOf(pos, termText, syntax.IntLit)
 		}
 		boundText += "+" + termText
 		bound = at(&syntax.Operation{Op: syntax.Add, X: bound, Y: term}, pos)

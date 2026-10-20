@@ -1,0 +1,13 @@
+package p
+
+func render(name string, n int, ratio float64, ok bool, raw []byte) string {
+	return $"user {name}: {n} items, {ratio}, {ok}, {raw}"
+}
+
+func escaped(n int) string {
+	return $"{{id}}={n}"
+}
+
+func plain() string {
+	return $"plain"
+}

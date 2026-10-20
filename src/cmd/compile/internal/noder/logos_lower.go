@@ -33,12 +33,19 @@ var logosStore = struct {
 	edits map[*syntax.File][]logos.Edit
 }{src: make(map[*syntax.File][]byte), names: make(map[*syntax.File]string)}
 
+// logosStashesGo reports whether Go files keep their original bytes: while a
+// next sidecar is armed, while logos lint reads their comments, and in hints
+// mode, which converts positions from the bytes the compiler parsed.
+func logosStashesGo() bool {
+	return base.LogosNextOut != "" || base.LogosLintOnly || base.LogosMode == "hints"
+}
+
 // parseLogosFile parses one source file, remembering the original bytes
 // of logos files for lowering and eject. Go files are remembered too
-// while a next sidecar is armed or logos lint reads their comments.
+// when logosStashesGo reports it.
 func parseLogosFile(fbase *syntax.PosBase, f *os.File, filename string, errh syntax.ErrorHandler, pragh syntax.PragmaHandler) *syntax.File {
 	mode := syntax.CheckBranches | logosMode(filename)
-	if !isLogosFile(filename) && base.LogosNextOut == "" && !base.LogosLintOnly {
+	if !isLogosFile(filename) && !logosStashesGo() {
 		file, _ := syntax.Parse(fbase, f, errh, pragh, mode)
 		return file
 	}
@@ -76,6 +83,7 @@ func logosSources(files []*syntax.File) map[*syntax.File][]byte {
 // package that calls loGo/s code (M3-S7). It reports whether the caller
 // must recheck.
 func logosRecheckHook(conf *types2.Config, pkg *types2.Package, info *types2.Info, files []*syntax.File) bool {
+	logosHintsBegin(pkg, info, files)
 	if conf.Logos {
 		return lowerLogosHook(pkg, info, files)
 	}
@@ -92,6 +100,7 @@ func lowerLogosHook(pkg *types2.Package, info *types2.Info, files []*syntax.File
 		return false
 	}
 	changed, edits := logos.Lower(pkg, info, files, src)
+	logosHintsLowered(files, edits)
 	// M2-S7: rewrite value-used unions to methods-only eject text. The
 	// native tree is untouched, so this never forces a recheck by
 	// itself; it only fails an eject on a dual-use union, with the

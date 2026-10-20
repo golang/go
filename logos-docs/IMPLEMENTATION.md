@@ -99,7 +99,7 @@ Production Go scope: retain upstream cmd/go command registration, compiler APIs,
 | Original spec | `PLAN`: `logos-docs/PLAN.md` at commit 57475ed, archived by section in `logos-docs/archive/` (P0-S3); `PLAN:<n>` cites its line n and `PLAN Sec N` its section N. SPEC.md keeps the section numbers, so the tailored text of a cited section is `SPEC Sec N`, and where the two differ, SPEC wins |
 | Implementation plan | this document, committed as `logos-docs/IMPLEMENTATION.md` (P0-S4) |
 | Cross-package facts | archive member `__.LOGOS` |
-| Compiler flags | `-logos.eject=DIR`, `-logos.json`, `-logos.mode=next|context`, `-logos.cfg=FILE` |
+| Compiler flags | `-logos.eject=DIR`, `-logos.json`, `-logos.mode=next|context|hints`, `-logos.hintsout=FILE` (required by `hints`), `-logos.cfg=FILE` |
 | Experiments | `GOEXPERIMENT=logosarena`, `logosgcmoving`, `logosgen`, `logosstack`, `logosfastcgo` (default on after the M20 gate; opt-out `nologosfastcgo`) |
 | cmd/go build flags | `-O`, `-gc`, `--wasm-features`, `--wasm-loader`: accepted by `logos build` and `go build`; plain `go` registers them without help text; a flag that only changes what cmd/go writes or passes (the loader, the tier, the GC mode) is a flag and never a `GOEXPERIMENT`, because an experiment rebuilds the standard library and changes every cache key |
 

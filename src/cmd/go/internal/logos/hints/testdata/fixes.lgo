@@ -1,0 +1,7 @@
+package p
+
+type User struct{ Name string }
+
+func name(u *User?) string {
+	return u.Name
+}
