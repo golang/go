@@ -2056,7 +2056,18 @@ func (fl *fileLower) lowerOptComposite(e *syntax.CompositeLit) syntax.Expr {
 		}
 		return e
 	}
-	switch c := types2.Unalias(t).(type) {
+	// A literal of a named type (or of a pointer to one, `&P{...}`)
+	// carries the defined type, not the underlying composite: unwrap to
+	// it so elements of named structs, maps, slices, and arrays wrap to
+	// their option field, key, or element types (SPEC T-202).
+	u := types2.Unalias(t)
+	if p, ok := u.(*types2.Pointer); ok {
+		u = types2.Unalias(p.Elem())
+	}
+	if n, ok := u.(*types2.Named); ok {
+		u = n.Underlying()
+	}
+	switch c := u.(type) {
 	case *types2.Struct:
 		for i, x := range e.ElemList {
 			if kv, ok := syntax.Unparen(x).(*syntax.KeyValueExpr); ok {

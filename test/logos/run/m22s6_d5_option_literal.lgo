@@ -1,0 +1,18 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D5 (SPEC T-202): `T` and `nil` MUST be assignable to `T?`,
+// including for an option-typed field of a composite literal.
+
+type P struct {
+	O string?
+}
+
+func main() {
+	q := P{O: "c"}
+	r := P{O: nil}
+	fmt.Println(q.O ?? "none", r.O ?? "none")
+}

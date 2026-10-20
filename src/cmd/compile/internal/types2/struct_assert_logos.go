@@ -24,6 +24,7 @@ import (
 func (check *Checker) logosAssertedStruct(e *syntax.AssertedStruct, def *TypeName) Type {
 	typ := new(Struct)
 	check.structType(typ, e.Struct)
+	check.logosStructDefaults(e.Struct, typ) // logos M6-S3 hook: `F T = const` defaults of asserted structs.
 	check.recordTypeAndValue(e.Struct, typexpr, typ, nil)
 
 	if !check.conf.Logos {

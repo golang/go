@@ -1,0 +1,22 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D6 (SPEC T-104.5, T-203.3): a struct with an assertion
+// list (`struct : I`) keeps its field defaults in composite literals.
+
+type G interface {
+	Hello() string
+}
+
+type Req struct : G {
+	Qty int64 = 1
+}
+
+func (r Req) Hello() string { return "hi" }
+
+func main() {
+	fmt.Println(Req{}.Qty)
+}
