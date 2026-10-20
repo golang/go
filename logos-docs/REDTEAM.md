@@ -29,7 +29,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #23 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
 | #24 | M5 | src/internal/types/testdata/logos/ctfe.lgo (BadMapRange); test/logos/run/const_map.lgo (sorted range) | tested |
 | #25 | M12 | src/cmd/go/testdata/script/logos_cap_unsafe.txt | tested |
-| #26 | M8 |  | planned |
+| #26 | M8 | src/logos/sync/sync_test.go (TestHotUpdateConcurrent, TestHotLayout) | tested |
 | #27 | M16 |  | planned |
 | #28 | M13 |  | planned |
 | #29 | M19 |  | planned |
@@ -156,8 +156,8 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #150 | M7 |  | planned |
 | #151 | M8 |  | planned |
 | #152 | M5 | test/logos/run/zerocopy.lgo (other-provenance AllocsPerRun, survival) | tested |
-| #153 | M8 |  | planned |
-| #154 | M8 |  | planned |
+| #153 | M8 | src/logos/sync/sync_test.go (TestHotNoMemoryGrowth) | tested |
+| #154 | M8 | src/logos/sync/sync_test.go (TestHotLayout) | tested |
 | #155 | M18 |  | planned |
 | #156 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
 | #157 | M7, M9 |  | planned |
@@ -179,7 +179,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #173 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #174 | M7 |  | planned |
 | #175 | M19 |  | planned |
-| #176 | M8 |  | planned |
+| #176 | M8 | src/logos/sync/sync_test.go (TestLockedWithLockUnlocksAfterPanic) | tested |
 | #177 | M6 |  | planned |
 | #178 | M8 |  | planned |
 | #179 | M6 |  | planned |

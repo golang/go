@@ -1,0 +1,28 @@
+// errorcheck
+
+package p
+
+import "logos/sync"
+
+// M8-S5: sync.Hot.Load returns a const view (SPEC T-206). Stores
+// through the loaded pointer fail exactly like stores through a
+// declared const view, which proves the call result type is const *T.
+
+type HSChild struct {
+	N int
+}
+
+type HSConfig struct {
+	Name  string
+	Tags  []string
+	Child *HSChild
+}
+
+func hsHot() {
+	h := sync.Hot[HSConfig]{}
+	h.Store(&HSConfig{Name: "n", Tags: []string{"a"}, Child: &HSChild{N: 1}})
+	p := h.Load()
+	p.Name = "x"    // ERROR "cannot assign field through const view"
+	p.Tags[0] = "x" // ERROR "cannot assign index through const view"
+	_ = p
+}

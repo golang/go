@@ -886,6 +886,9 @@ var depsRules = `
 
 	context, errors, reflect, unsafe
 	< logos/rt;
+
+	sync, sync/atomic
+	< logos/sync;
 `
 
 // listStdPkgs returns the same list of packages as "go list std".

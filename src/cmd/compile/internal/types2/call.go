@@ -363,7 +363,8 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		x.invalidate()
 	}
 
-	check.logosFreezeResult(call, x) // logos M5-S6 hook: rt.Freeze returns const *T.
+	check.logosFreezeResult(call, x)  // logos M5-S6 hook: rt.Freeze returns const *T.
+	check.logosHotLoadResult(call, x) // logos M8-S5 hook: sync.Hot.Load returns const *T.
 
 	return statement
 }
