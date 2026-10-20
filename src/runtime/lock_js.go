@@ -215,7 +215,6 @@ var idleTimeout *timeoutEvent
 //
 //go:yeswritebarrierrec
 func beforeIdle(now, pollUntil int64) (gp *g, otherReady bool) {
-	now, pollUntil = logosWasmWake(now, pollUntil)
 	delay := int64(-1)
 	if pollUntil != 0 {
 		// round up to prevent setTimeout being called early
@@ -279,7 +278,6 @@ func clearTimeoutEvent(id int32)
 // When no other goroutine is awake any more, beforeIdle resumes the handler goroutine. Now that the same goroutine
 // is running as was running when the call came in from JavaScript, execution can be safely passed back to JavaScript.
 func handleEvent() {
-	logosWasmEventTurn()
 	sched.idleTime.Add(nanotime() - idleStart)
 
 	e := &event{

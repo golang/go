@@ -401,7 +401,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
 	// 25%. For small GOMAXPROCS, this would introduce too much
 	// error, so we add fractional workers in that case.
 	totalUtilizationGoal := float64(procs) * gcBackgroundUtilization
-	dedicatedMarkWorkersNeeded := logosWasmDedicatedWorkers(int64(totalUtilizationGoal + 0.5))
+	dedicatedMarkWorkersNeeded := int64(totalUtilizationGoal + 0.5)
 	utilError := float64(dedicatedMarkWorkersNeeded)/totalUtilizationGoal - 1
 	const maxUtilError = 0.3
 	if utilError < -maxUtilError || utilError > maxUtilError {
@@ -866,9 +866,6 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
 	}
 	if gcCPULimiter.needUpdate(now) {
 		gcCPULimiter.update(now)
-	}
-	if !logosWasmWorkersMayRun() {
-		return nil, now
 	}
 
 	// If a worker wasn't already assigned by procresize, assign one now.
