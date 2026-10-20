@@ -8,9 +8,11 @@ import (
 	"bytes"
 	"cmd/internal/objabi"
 	"cmd/link/internal/loader"
+	"cmd/link/internal/sym"
 	"cmp"
 	"encoding/binary"
 	"flag"
+	"hash"
 	"hash/fnv"
 	"slices"
 	"strings"
@@ -25,16 +27,20 @@ var flagLogosICF = flag.Bool("logos.icf", false, "fold text symbols with identic
 // kept symbol that takes its relocations and its layout entry, plus the
 // name-addressed symbols that must keep their own entry.
 type logosIcfFolder struct {
-	ctxt   *Link
-	ldr    *loader.Loader
-	keep   map[loader.Sym]loader.Sym
-	pinned map[loader.Sym]bool
+	ctxt    *Link
+	ldr     *loader.Loader
+	keep    map[loader.Sym]loader.Sym
+	pinned  map[loader.Sym]bool
+	touched map[loader.Sym]bool
 }
 
 // logosIcfFold merges reachable compiler-generated text symbols that
-// carry identical machine code and identical relocations, keeping one
-// copy whose name and line table serve every merged function. The hook
-// line lives in main.go; every other line lives here.
+// carry identical machine code, identical relocations, and identical
+// function metadata, keeping one copy whose name and line table serve
+// every merged function. Passes repeat until no group merges: each
+// pass rewrites callers to kept symbols, so callers of newly folded
+// targets can fold in turn. The hook line lives in main.go; every
+// other line lives here.
 func logosIcfFold(ctxt *Link) {
 	if !*flagLogosICF {
 		return
@@ -72,23 +78,47 @@ func (f *logosIcfFolder) find(s loader.Sym) loader.Sym {
 }
 
 // logosIcfPin records the name-addressed symbols that keep their own
-// entry: dynamic exports and wasm exports resolve by symbol, not by
-// relocation, so folding them would strand their lookup.
+// entry: dynamic exports, cgo exports, and wasm exports resolve by
+// symbol, not by relocation, so folding them would strand their
+// lookup. Static cgo exports stay out of dynexp under internal
+// linking, so every cgo export pins directly, along with the function
+// body its wrapper calls: C reaches the body through the wrapper, so
+// the body keeps its own entry too.
 func (f *logosIcfFolder) pin() {
 	f.keep = make(map[loader.Sym]loader.Sym)
 	f.pinned = make(map[loader.Sym]bool)
+	f.touched = make(map[loader.Sym]bool)
 	for _, s := range f.ctxt.dynexp {
 		f.pinned[s] = true
 	}
 	for _, s := range f.ldr.WasmExports {
 		f.pinned[s] = true
 	}
+	for s := loader.Sym(1); s < loader.Sym(f.ldr.NSym()); s++ {
+		if f.ldr.AttrCgoExport(s) {
+			f.pinned[s] = true
+			f.pinCgoBody(s)
+		}
+	}
+}
+
+// logosIcfPinCgoBody pins the symbols a cgo export wrapper references:
+// the wrapper exists to call the exported body, so the body keeps its
+// own entry instead of folding.
+func (f *logosIcfFolder) pinCgoBody(s loader.Sym) {
+	relocs := f.ldr.Relocs(s)
+	for i := range relocs.Count() {
+		if t, _ := f.target(relocs.At(i)); t != 0 {
+			f.pinned[t] = true
+		}
+	}
 }
 
 // logosIcfPass groups eligible text symbols by content hash, merges the
-// groups whose bytes and relocations match, rewrites every reachable
-// relocation from a duplicate to its kept symbol, and drops duplicates
-// from the text layout. It reports whether it merged anything.
+// groups whose bytes, relocations, and function metadata match,
+// rewrites every reachable relocation from a duplicate to its kept
+// symbol, and drops duplicates from the text layout. It reports whether
+// it merged anything.
 func (f *logosIcfFolder) pass() bool {
 	merged := false
 	for _, group := range f.groups(f.candidates()) {
@@ -117,7 +147,10 @@ func (f *logosIcfFolder) candidates() []loader.Sym {
 }
 
 // logosIcfEligible reports whether s is a live top-level text symbol
-// with machine code to compare.
+// with machine code to compare. Symbols the folder already rewrote
+// stay eligible: the loader clones them to external payloads, and a
+// later pass must still see them so callers of newly folded targets
+// can fold in turn.
 func (f *logosIcfFolder) eligible(s loader.Sym) bool {
 	if !f.ldr.AttrReachable(s) {
 		return false
@@ -128,7 +161,7 @@ func (f *logosIcfFolder) eligible(s loader.Sym) bool {
 	if f.ldr.SymSize(s) == 0 {
 		return false
 	}
-	if f.ldr.IsExternal(s) {
+	if f.ldr.IsExternal(s) && !f.touched[s] {
 		return false
 	}
 	return f.ldr.TopLevelSym(s)
@@ -166,8 +199,10 @@ func (f *logosIcfFolder) groups(cands []loader.Sym) [][]loader.Sym {
 	return out
 }
 
-// logosIcfHash hashes a symbol's machine code bytes and the offset,
-// size, type, addend, and canonical target of every relocation.
+// logosIcfHash hashes a symbol's machine code bytes, the offset,
+// size, type, addend, and canonical target of every relocation, and
+// the function metadata that must match before two functions share
+// one address.
 func (f *logosIcfFolder) hash(s loader.Sym) uint64 {
 	h := fnv.New64a()
 	h.Write(f.ldr.Data(s))
@@ -188,7 +223,60 @@ func (f *logosIcfFolder) hash(s loader.Sym) uint64 {
 		binary.LittleEndian.PutUint32(buf[22:26], uint32(f.ldr.RelocVariant(s, i)))
 		h.Write(buf[:])
 	}
+	f.writeMeta(h, s)
 	return h.Sum64()
+}
+
+// logosIcfWriteMeta folds a text symbol's call ABI version, FuncInfo
+// scalars, and the contents of its pc and funcdata auxiliary symbols
+// into h. Auxiliary symbols hash by content because equal tables can
+// live under different symbol IDs. Line values stay out: pctoline
+// holds absolute lines, and the kept function's line table serves
+// every merged function.
+func (f *logosIcfFolder) writeMeta(h hash.Hash, s loader.Sym) {
+	var buf [21]byte
+	binary.LittleEndian.PutUint32(buf[0:4], uint32(f.ldr.SymVersion(s)))
+	fi := f.ldr.FuncInfo(s)
+	if !fi.Valid() {
+		buf[4] = 0
+		h.Write(buf[:5])
+		return
+	}
+	buf[4] = 1
+	binary.LittleEndian.PutUint32(buf[5:9], uint32(fi.Args()))
+	binary.LittleEndian.PutUint32(buf[9:13], uint32(fi.Locals()))
+	binary.LittleEndian.PutUint32(buf[13:17], uint32(fi.FuncID()))
+	binary.LittleEndian.PutUint32(buf[17:21], uint32(fi.FuncFlag()))
+	h.Write(buf[:])
+	pcsp, pcfile, _, pcinline, pcdata := f.ldr.PcdataAuxs(s, nil)
+	for _, aux := range []loader.Sym{pcsp, pcfile, pcinline} {
+		if f.auxValid(aux) {
+			h.Write(f.ldr.Data(aux))
+		}
+	}
+	var cnt [4]byte
+	binary.LittleEndian.PutUint32(cnt[:], uint32(len(pcdata)))
+	h.Write(cnt[:])
+	for _, aux := range pcdata {
+		if f.auxValid(aux) {
+			h.Write(f.ldr.Data(aux))
+		}
+	}
+	funcdata := f.ldr.Funcdata(s, nil)
+	binary.LittleEndian.PutUint32(cnt[:], uint32(len(funcdata)))
+	h.Write(cnt[:])
+	for _, fd := range funcdata {
+		if f.auxValid(fd) {
+			h.Write(f.ldr.Data(fd))
+		}
+	}
+}
+
+// logosIcfAuxValid reports whether s names a readable loader symbol.
+// Content-hashed generic references can resolve to no symbol, and only
+// readable symbols have bytes to hash or compare.
+func (f *logosIcfFolder) auxValid(s loader.Sym) bool {
+	return s > 0 && int(s) < f.ldr.NSym()
 }
 
 // logosIcfTarget canonicalizes a relocation target through interior
@@ -216,8 +304,11 @@ func (f *logosIcfFolder) merge(group []loader.Sym) bool {
 	return merged
 }
 
-// logosIcfEqual confirms two hash-equal symbols carry identical bytes
-// and relocations before they share one address.
+// logosIcfEqual confirms two hash-equal symbols carry identical bytes,
+// relocations, and function metadata before they share one address.
+// Functions with identical machine code but different pointer maps,
+// frame sizes, or call ABIs never match: the kept FuncInfo would
+// describe the wrong live values.
 func (f *logosIcfFolder) equal(a, b loader.Sym) bool {
 	if !bytes.Equal(f.ldr.Data(a), f.ldr.Data(b)) {
 		return false
@@ -232,6 +323,76 @@ func (f *logosIcfFolder) equal(a, b loader.Sym) bool {
 			return false
 		}
 		if f.ldr.RelocVariant(a, i) != f.ldr.RelocVariant(b, i) {
+			return false
+		}
+	}
+	return f.metaEqual(a, b)
+}
+
+// logosIcfMetaEqual reports whether a and b share one call ABI and
+// identical FuncInfo scalars with byte-identical pc and funcdata
+// tables. Line values stay out: pctoline holds absolute lines, and
+// the kept function's line table serves every merged function.
+func (f *logosIcfFolder) metaEqual(a, b loader.Sym) bool {
+	return f.ldr.SymVersion(a) == f.ldr.SymVersion(b) && f.funcInfoEqual(a, b) && f.tablesEqual(a, b)
+}
+
+// logosIcfFuncInfoEqual reports whether a and b agree on the FuncInfo
+// scalars that change how the runtime reads a frame: argument and
+// local sizes, function identity, and behavioral flags.
+func (f *logosIcfFolder) funcInfoEqual(a, b loader.Sym) bool {
+	fa := f.ldr.FuncInfo(a)
+	fb := f.ldr.FuncInfo(b)
+	if fa.Valid() != fb.Valid() {
+		return false
+	}
+	if !fa.Valid() {
+		return true
+	}
+	return fa.Args() == fb.Args() && fa.Locals() == fb.Locals() && fa.FuncID() == fb.FuncID() && fa.FuncFlag() == fb.FuncFlag()
+}
+
+// logosIcfTablesEqual reports whether a and b carry identical pc and
+// funcdata tables: stack-height deltas, file indexes, inline marks,
+// pcdata values, and every liveness bitmap.
+func (f *logosIcfFolder) tablesEqual(a, b loader.Sym) bool {
+	pcspA, pcfileA, _, pcinlineA, pcdataA := f.ldr.PcdataAuxs(a, nil)
+	pcspB, pcfileB, _, pcinlineB, pcdataB := f.ldr.PcdataAuxs(b, nil)
+	if !f.auxEqual(pcspA, pcspB) || !f.auxEqual(pcfileA, pcfileB) || !f.auxEqual(pcinlineA, pcinlineB) {
+		return false
+	}
+	if len(pcdataA) != len(pcdataB) {
+		return false
+	}
+	for i := range pcdataA {
+		if !f.auxEqual(pcdataA[i], pcdataB[i]) {
+			return false
+		}
+	}
+	return f.funcdataEqual(a, b)
+}
+
+// logosIcfAuxEqual reports whether two auxiliary symbols are both
+// unreadable or carry identical bytes. Unreadable entries match only
+// themselves; readable entries must carry identical contents.
+func (f *logosIcfFolder) auxEqual(a, b loader.Sym) bool {
+	if !f.auxValid(a) || !f.auxValid(b) {
+		return a == b
+	}
+	return bytes.Equal(f.ldr.Data(a), f.ldr.Data(b))
+}
+
+// logosIcfFuncdataEqual reports whether a and b name identical liveness
+// bitmaps. Absent entries match only absent entries; present entries
+// must carry identical contents.
+func (f *logosIcfFolder) funcdataEqual(a, b loader.Sym) bool {
+	fda := f.ldr.Funcdata(a, nil)
+	fdb := f.ldr.Funcdata(b, nil)
+	if len(fda) != len(fdb) {
+		return false
+	}
+	for i := range fda {
+		if !f.auxEqual(fda[i], fdb[i]) {
 			return false
 		}
 	}
@@ -253,13 +414,17 @@ func (f *logosIcfFolder) relocEqual(x, y loader.Reloc) bool {
 }
 
 // logosIcfRewrite redirects every reachable relocation that targets a
-// duplicate, interior offset included, to the kept symbol.
+// duplicate, interior offset included, to the kept symbol. Host
+// objects stay untouched: cgo exports pin instead, so no outside
+// relocation can name a duplicate. Every other symbol rewrites,
+// including payloads the folder or another pass already cloned, so a
+// later pass redirects their new targets too.
 func (f *logosIcfFolder) rewrite() {
 	for s := loader.Sym(1); s < loader.Sym(f.ldr.NSym()); s++ {
 		if !f.ldr.AttrReachable(s) {
 			continue
 		}
-		if f.ldr.IsExternal(s) {
+		if f.ldr.SymType(s) == sym.SHOSTOBJ {
 			continue
 		}
 		f.rewriteSym(s)
@@ -284,6 +449,7 @@ func (f *logosIcfFolder) rewriteSym(s loader.Sym) {
 		}
 		if su == nil {
 			su = f.ldr.MakeSymbolUpdater(s)
+			f.touched[s] = true
 			logosIcfKeepWeak(su, relocs)
 		}
 		su.SetRelocSym(i, k)

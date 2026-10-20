@@ -187,6 +187,74 @@ func TestLogosIcfFoldsIdentical(t *testing.T) {
 	}
 }
 
+// logosIcfGcMain holds two functions with identical machine code but
+// different pointer maps: F threads a pointer across a call while G
+// threads a scalar. Deep recursion with live pointers across growth
+// and collection smokes the maps at runtime.
+const logosIcfGcMain = `package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+type logosIcfBox struct{ v int }
+
+//go:noinline
+func F(p *logosIcfBox) *logosIcfBox {
+	runtime.Gosched()
+	return p
+}
+
+//go:noinline
+func G(x uintptr) uintptr {
+	runtime.Gosched()
+	return x
+}
+
+//go:noinline
+func grow(n int, p *logosIcfBox) *logosIcfBox {
+	if n == 0 {
+		return F(p)
+	}
+	q := F(p)
+	if n%32 == 0 {
+		runtime.GC()
+	}
+	return grow(n-1, q)
+}
+
+func main() {
+	b := &logosIcfBox{v: 41}
+	b = grow(2000, b)
+	fmt.Println(b.v+1, G(1))
+}
+`
+
+// TestLogosIcfKeepsPointerMaps links two functions sharing machine
+// code but not liveness bitmaps and requires both copies with correct
+// output, including under the collector's mark checker.
+func TestLogosIcfKeepsPointerMaps(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	logosIcfWriteFiles(t, dir, map[string]string{
+		"go.mod":  logosIcfMod,
+		"main.go": logosIcfGcMain,
+	})
+	exe := filepath.Join(dir, "folded.exe")
+	logosIcfBuild(t, dir, exe, "-logos.icf")
+	if got := logosIcfRun(t, exe); got != "42 1\n" {
+		t.Errorf("folded output = %q, want %q", got, "42 1\n")
+	}
+	if got := logosIcfRunEnv(t, exe, "GODEBUG=gccheckmark=1"); got != "42 1\n" {
+		t.Errorf("gccheckmark output = %q, want %q", got, "42 1\n")
+	}
+	names := logosIcfNm(t, exe)
+	if logosIcfCount(names, "main.F") != 1 || logosIcfCount(names, "main.G") != 1 {
+		t.Errorf("folded nm lost a pointer-map variant: F=%d G=%d", logosIcfCount(names, "main.F"), logosIcfCount(names, "main.G"))
+	}
+}
+
 // TestLogosIcfKeepsWeakItabRelocs folds identical methods referenced from
 // itabs and requires the link to succeed: rewriting an itab clones it,
 // and the clone must keep the weak bit of its references to methods that
@@ -243,6 +311,111 @@ func TestLogosIcfSkipsAssembly(t *testing.T) {
 	names := logosIcfNm(t, exe)
 	if logosIcfCount(names, "main.AsmA") != 1 || logosIcfCount(names, "main.AsmB") != 1 {
 		t.Errorf("folded nm lost an assembly function: AsmA=%d AsmB=%d", logosIcfCount(names, "main.AsmA"), logosIcfCount(names, "main.AsmB"))
+	}
+}
+
+// logosIcfTransitiveMain holds two callers that differ only in which
+// of two identical callees they call. The callees fold in the first
+// pass; the callers fold in the second, once rewriting canonicalizes
+// their targets.
+const logosIcfTransitiveMain = `package main
+
+import "fmt"
+
+//go:noinline
+func c1() int { return 3 }
+
+//go:noinline
+func c2() int { return 3 }
+
+//go:noinline
+func A() int { return c1() + 1 }
+
+//go:noinline
+func B() int { return c2() + 1 }
+
+func main() {
+	fmt.Println(A(), B())
+}
+`
+
+// TestLogosIcfFoldsTransitiveCallers links callers that become
+// identical only after their callees fold and requires one copy of
+// each pair with correct output.
+func TestLogosIcfFoldsTransitiveCallers(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	logosIcfWriteFiles(t, dir, map[string]string{
+		"go.mod":  logosIcfMod,
+		"main.go": logosIcfTransitiveMain,
+	})
+	exe := filepath.Join(dir, "folded.exe")
+	logosIcfBuild(t, dir, exe, "-logos.icf")
+	if got := logosIcfRun(t, exe); got != "4 4\n" {
+		t.Errorf("folded output = %q, want %q", got, "4 4\n")
+	}
+	names := logosIcfNm(t, exe)
+	if logosIcfCount(names, "main.A")+logosIcfCount(names, "main.B") != 1 {
+		t.Errorf("folded nm keeps %d caller copies, want 1", logosIcfCount(names, "main.A")+logosIcfCount(names, "main.B"))
+	}
+	if logosIcfCount(names, "main.c1")+logosIcfCount(names, "main.c2") != 1 {
+		t.Errorf("folded nm keeps %d callee copies, want 1", logosIcfCount(names, "main.c1")+logosIcfCount(names, "main.c2"))
+	}
+}
+
+// logosIcfCgoMain holds two byte-identical cgo-exported functions.
+// C callers would force external linking, where dynamic exports pin
+// already; the internal link here covers the gap where static exports
+// stay out of dynexp. Exports resolve by symbol, so each keeps its
+// own entry.
+const logosIcfCgoMain = `package main
+
+import "C"
+
+import "fmt"
+
+//go:noinline
+func seriesSum(n int) int {
+	s := 0
+	for i := range n {
+		s += i * (i + 1)
+	}
+	return s
+}
+
+//export GoF
+//go:noinline
+func GoF() C.int { return C.int(seriesSum(7)) }
+
+//export GoG
+//go:noinline
+func GoG() C.int { return C.int(seriesSum(7)) }
+
+func main() {
+	fmt.Println(int(GoF()), int(GoG()))
+}
+`
+
+// TestLogosIcfPinsCgoExports links two identical cgo exports with an
+// internal link and requires both entries with correct output.
+func TestLogosIcfPinsCgoExports(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	dir := t.TempDir()
+	logosIcfWriteFiles(t, dir, map[string]string{
+		"go.mod":  logosIcfMod,
+		"main.go": logosIcfCgoMain,
+	})
+	exe := filepath.Join(dir, "folded.exe")
+	logosIcfBuild(t, dir, exe, "-logos.icf", "-linkmode=internal")
+	if got := logosIcfRun(t, exe); got != "112 112\n" {
+		t.Errorf("folded output = %q, want %q", got, "112 112\n")
+	}
+	if n := logosIcfTextCount(t, exe, "main.GoF"); n != 1 {
+		t.Errorf("folded nm holds %d GoF copies, want 1", n)
+	}
+	if n := logosIcfTextCount(t, exe, "main.GoG"); n != 1 {
+		t.Errorf("folded nm holds %d GoG copies, want 1", n)
 	}
 }
 
@@ -329,7 +502,15 @@ func logosIcfBuild(t *testing.T, dir string, out string, ldflags ...string) {
 // logosIcfRun runs one linked binary and returns its stdout.
 func logosIcfRun(t *testing.T, exe string) string {
 	t.Helper()
+	return logosIcfRunEnv(t, exe)
+}
+
+// logosIcfRunEnv runs one linked binary with extra environment entries
+// and returns its stdout.
+func logosIcfRunEnv(t *testing.T, exe string, env ...string) string {
+	t.Helper()
 	cmd := testenv.Command(t, exe)
+	cmd.Env = append(os.Environ(), env...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("run %s: %v\n%s", exe, err, out)

@@ -321,6 +321,7 @@ O2 MUST set inline budget 120 and variable-make stack buffer 256 bytes with stan
 O3 MUST set inline budget 400 with 80 inside recursive cycles, clone specialization, variable-make buffer 4096 bytes, and aggressive synthetic PGO [T-105].
 A function in a recursive call-graph cycle MUST keep the upstream variable-make buffer of 32 bytes at every level, inlined bodies included [T-105][T-302].
 Os and Oz MUST set inline budget 15 with linker identical code folding [T-105].
+Linker identical code folding MUST fold only functions with identical machine code, relocations, call ABI, and function metadata (frame sizes, function identity and flags, stack-height, file, inline-mark, pcdata, and liveness tables); only the name and line table MAY be shared, with the kept function's name and line table serving every folded function, and cgo-exported functions MUST keep their own entries [T-105].
 Synthetic PGO MUST mark `?` error blocks, panics, and `os.Exit` paths unlikely through the intrinsic `logos/rt.cold()` [T-105].
 A Go package MUST get the same marks for `os.Exit` paths, and for panic paths where the aggressive level marks them, with no source change and no new import [T-105][R-U1].
 A Go package MUST NOT get a mark from a guess about `if err != nil` blocks, because Go has no `?` form to name an error block [T-105][R-U1].
