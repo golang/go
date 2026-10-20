@@ -56,6 +56,7 @@ recheck:
 	importer := gcimports{
 		ctxt:     ctxt,
 		packages: make(map[string]*types2.Package),
+		logos:    allLogos(noders),
 	}
 	conf := types2.Config{
 		Context:            ctxt,

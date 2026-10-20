@@ -1,0 +1,267 @@
+# M2-S7: a Go package imports a loGo/s union package (R-U2).
+# The Go side sees U as the methods-only interface eject writes: it
+# calls functions taking and returning U, holds U in a struct field,
+# and type-switches on a result. A Go caller assigning a non-member
+# still compiles (a documented hole; loGo/s rejects it, and x.(U)
+# checks membership at run time). A union used both as a constraint
+# and as a value type fails at the Go import with the pinned text.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+# A Go workspace module imports the loGo/s union package.
+cd w
+logos build ./...
+logos build -o $WORK/bin/union$GOEXE ./g/cmd
+exec $WORK/bin/union$GOEXE
+stdout '^A:1/A:1/A:1/N/member/non-member$'
+cd ..
+
+# loGo/s still rejects a non-member statically.
+cd neg
+! logos build ./...
+stderr 'cannot use .+ as U value'
+cd ..
+
+# A dual-use union fails at the Go import.
+cd w2
+! logos build ./...
+stderr 'logos build: union D is used as a type constraint and as a value type; Go cannot express both'
+
+-- w/go.work --
+go 1.27
+
+use (
+	./l
+	./g
+)
+
+-- w/l/go.mod --
+module example.com/l
+
+go 1.27
+
+-- w/l/u/u.lgo --
+package u
+
+import "fmt"
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return fmt.Sprintf("A:%d", a.X)
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B:" + b.Y
+}
+
+// U is a closed union used as a value type: a parameter, a result,
+// and a struct field.
+type U interface {
+	A | B
+	M() string
+}
+
+func Who(x U) string {
+	return x.M()
+}
+
+func Pick(n int) U {
+	if n == 0 {
+		return A{X: 1}
+	}
+	return B{Y: "two"}
+}
+
+type Box struct {
+	Item U
+}
+
+func Check(v any) string {
+	if _, ok := v.(U); ok {
+		return "member"
+	}
+	return "non-member"
+}
+
+-- w/g/go.mod --
+module example.com/g
+
+go 1.27
+
+-- w/g/q/q.go --
+package q
+
+import (
+	"fmt"
+
+	"example.com/l/u"
+)
+
+// N implements M without being a member of U. Passing it to Who
+// compiles on the Go side (a documented hole: loGo/s rejects the
+// same assignment) and runs.
+type N struct{}
+
+func (n N) M() string { return "N" }
+
+func Describe(x u.U) string {
+	switch v := x.(type) {
+	case u.A:
+		return fmt.Sprintf("A:%d", v.X)
+	case u.B:
+		return fmt.Sprintf("B:%s", v.Y)
+	default:
+		return "other"
+	}
+}
+
+func Run() string {
+	a := u.Pick(0)
+	out := u.Who(a) + "/" + Describe(a)
+	b := u.Box{Item: a}
+	out += "/" + u.Who(b.Item)
+	out += "/" + u.Who(N{})
+	out += "/" + u.Check(u.A{X: 9})
+	// 42 implements nothing, so the membership check rejects it on
+	// both sides of the boundary.
+	out += "/" + u.Check(42)
+	return out
+}
+
+-- w/g/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g/q"
+)
+
+func main() {
+	fmt.Println(q.Run())
+}
+
+-- neg/go.mod --
+module example.com/neg
+
+go 1.27
+
+-- neg/neg.lgo --
+package neg
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return "A"
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B"
+}
+
+// C implements M but is not a member of U.
+type C struct {
+	Z int
+}
+
+func (c C) M() string {
+	return "C"
+}
+
+type U interface {
+	A | B
+	M() string
+}
+
+var _ U = C{Z: 1}
+
+-- w2/go.work --
+go 1.27
+
+use (
+	./l2
+	./g2
+)
+
+-- w2/l2/go.mod --
+module example.com/l2
+
+go 1.27
+
+-- w2/l2/d/d.lgo --
+package d
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return "A"
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B"
+}
+
+// D is used as a constraint and as a value: it has no Go form, so the
+// package builds but a Go package that imports it fails.
+type D interface {
+	A | B
+	M() string
+}
+
+func First[T D](x T) T {
+	return x
+}
+
+var V D = A{X: 1}
+
+func Msg() string {
+	return First(B{Y: "q"}).M() + V.M()
+}
+
+-- w2/g2/go.mod --
+module example.com/g2
+
+go 1.27
+
+-- w2/g2/q/q.go --
+package q
+
+import "example.com/l2/d"
+
+func Run() string {
+	return d.Msg()
+}
+
+-- w2/g2/cmd/main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/g2/q"
+)
+
+func main() {
+	fmt.Println(q.Run())
+}

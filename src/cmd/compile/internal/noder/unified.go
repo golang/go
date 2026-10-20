@@ -323,6 +323,8 @@ func writePkgStub(m posMap, noders []*noder) string {
 
 	pw := newPkgWriter(m, pkg, info, otherInfo)
 
+	pw.logosClassifyUnionUses(info, noders)
+
 	pw.collectDecls(noders)
 
 	publicRootWriter := pw.newWriter(pkgbits.SectionMeta, pkgbits.SyncPublic)

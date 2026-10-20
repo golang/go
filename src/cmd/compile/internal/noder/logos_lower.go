@@ -77,6 +77,23 @@ func lowerLogosHook(pkg *types2.Package, info *types2.Info, files []*syntax.File
 		return false
 	}
 	changed, edits := logos.Lower(pkg, info, files, src)
+	// M2-S7: rewrite value-used unions to methods-only eject text. The
+	// native tree is untouched, so this never forces a recheck by
+	// itself; it only fails an eject on a dual-use union, with the
+	// command prefix added once here.
+	if base.LogosEject != "" {
+		unionEdits, err := logos.EjectUnionEdits(info, files, src)
+		if err != nil {
+			base.Fatalf("logos eject: %v", err)
+		}
+		for file, list := range unionEdits {
+			edits[file] = append(edits[file], list...)
+		}
+	} else {
+		for file, list := range logos.NativeUnionEdits(info, files, src) {
+			edits[file] = append(edits[file], list...)
+		}
+	}
 	logosStore.Lock()
 	defer logosStore.Unlock()
 	for file, data := range src {

@@ -1,0 +1,179 @@
+# M2-S7: eject rewrites value-used unions to methods-only interfaces.
+# The m module uses union values, an exhaustive type switch, assertions,
+# and a switch expression; the ejected tree builds with plain go and
+# prints the same output. The mdual module uses one union as a
+# constraint and as a value, so logos eject fails with the pinned text
+# while the native run still works.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^A:1$'
+stdout '^got A$'
+stdout '^got B$'
+stdout '^pick A$'
+stdout '^assert A: 1$'
+stdout '^member$'
+stdout '^non-member$'
+cp stdout $WORK/eject-stdout.txt
+
+logos eject -o out
+exists out/main.go
+exists out/go.mod
+grep 'loGo/s union: A \| B' out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+cd out
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+cd ..
+
+# A dual-use union is valid native code but has no Go form.
+cd mdual
+logos run .
+stdout '^B$'
+stdout '^A$'
+! logos eject -o out
+stderr 'logos eject: union D is used as a type constraint and as a value type; Go cannot express both'
+
+-- m/go.mod --
+module example.com/ejectunion
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return fmt.Sprintf("A:%d", a.X)
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B:" + b.Y
+}
+
+// U is a closed union used as a value type.
+type U interface {
+	A | B
+	M() string
+}
+
+func Who(x U) string {
+	return x.M()
+}
+
+func Pick(n int) U {
+	if n == 0 {
+		return A{X: 1}
+	}
+	return B{Y: "two"}
+}
+
+func Describe(u U) string {
+	switch u.(type) {
+	case A:
+		return "got A"
+	case B:
+		return "got B"
+	case nil:
+		return "got nil"
+	}
+	return "unreachable"
+}
+
+func Choose(u U) string {
+	return switch u.(type) {
+	case A => "pick A"
+	case B => "pick B"
+	case nil => "pick nil"
+	}
+}
+
+func Check(v any) string {
+	if _, ok := v.(U); ok {
+		return "member"
+	}
+	return "non-member"
+}
+
+// C sits outside the member set of U. It deliberately implements no
+// methods: a methods-only interface (which is what eject writes for U)
+// would accept any non-member that implements M, so the shared output
+// below only asserts membership behavior that native and ejected code
+// agree on.
+type C struct {
+	Z int
+}
+
+func main() {
+	u := Pick(0)
+	fmt.Println(Who(u))
+	fmt.Println(Describe(u))
+	fmt.Println(Describe(B{Y: "x"}))
+	fmt.Println(Choose(u))
+	if a, ok := u.(A); ok {
+		fmt.Println("assert A:", a.X)
+	}
+	fmt.Println(Check(A{X: 2}))
+	fmt.Println(Check(C{}))
+}
+
+-- mdual/go.mod --
+module example.com/dualunion
+
+go 1.27
+
+-- mdual/main.lgo --
+package main
+
+import "fmt"
+
+type A struct {
+	X int
+}
+
+func (a A) M() string {
+	return "A"
+}
+
+type B struct {
+	Y string
+}
+
+func (b B) M() string {
+	return "B"
+}
+
+// D is used as a constraint and as a value: it has no Go form.
+type D interface {
+	A | B
+	M() string
+}
+
+func First[T D](x T) T {
+	return x
+}
+
+var u D = A{X: 3}
+
+func main() {
+	fmt.Println(First(B{Y: "z"}).M())
+	fmt.Println(u.M())
+}

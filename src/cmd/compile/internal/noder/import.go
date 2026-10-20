@@ -31,6 +31,10 @@ import (
 type gcimports struct {
 	ctxt     *types2.Context
 	packages map[string]*types2.Package
+	// logos reports whether the importing package is loGo/s. A Go
+	// importer rejects a dual-use union at the import (M2-S7); a
+	// loGo/s importer keeps the full union.
+	logos bool
 }
 
 func (m *gcimports) Import(path string) (*types2.Package, error) {
@@ -42,7 +46,13 @@ func (m *gcimports) ImportFrom(path, srcDir string, mode types2.ImportMode) (*ty
 		panic("mode must be 0")
 	}
 
-	_, pkg, err := readImportFile(path, typecheck.Target, m.ctxt, m.packages)
+	var pkg *types2.Package
+	var err error
+	if m.logos {
+		pkg, err = readLogosImportFile(path, typecheck.Target, m.ctxt, m.packages)
+	} else {
+		pkg, err = readGoImportFile(path, typecheck.Target, m.ctxt, m.packages)
+	}
 	return pkg, err
 }
 
@@ -171,6 +181,22 @@ func resolveImportPath(path string) (string, error) {
 // returns its types.Pkg representation. If packages is non-nil, the
 // types2.Package representation is also returned.
 func readImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
+	return readImportFileImpl(path, target, env, packages, false)
+}
+
+// readGoImportFile and readLogosImportFile select the importer's
+// package kind; only readLogosImportFile keeps dual-use unions legal.
+func readGoImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (*types2.Package, error) {
+	_, pkg, err := readImportFileImpl(path, target, env, packages, false)
+	return pkg, err
+}
+
+func readLogosImportFile(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package) (*types2.Package, error) {
+	_, pkg, err := readImportFileImpl(path, target, env, packages, true)
+	return pkg, err
+}
+
+func readImportFileImpl(path string, target *ir.Package, env *types2.Context, packages map[string]*types2.Package, logos bool) (pkg1 *types.Pkg, pkg2 *types2.Package, err error) {
 	path, err = resolveImportPath(path)
 	if err != nil {
 		return
@@ -214,7 +240,8 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 	if err != nil {
 		return
 	}
-	if _, err = readLogosFacts(f, path, data); err != nil {
+	var logosFacts bool
+	if logosFacts, err = readLogosFacts(f, path, data); err != nil {
 		return
 	}
 
@@ -224,9 +251,19 @@ func readImportFile(path string, target *ir.Package, env *types2.Context, packag
 
 	pr := pkgbits.NewPkgDecoder(pkg1.Path, data)
 
+	// The union-import check needs the package scope, but resolving a
+	// foreign lazy scope tripped importer asserts. Gate it on the
+	// export naming a loGo/s source file, which plain-Go archives
+	// never do; the sidecar check additionally requires the transport
+	// to be intact.
+	checkLogosUnion := !logos && logosFacts && logosExportHasLogosFile(&pr)
+
 	// Read package descriptors for both types2 and compiler backend.
 	readPackage(newPkgReader(pr), pkg1, false)
 	pkg2 = importer.ReadPackage(env, packages, pr)
+	if pkg2 != nil && checkLogosUnion {
+		checkLogosGoImport(pkg2)
+	}
 
 	err = addFingerprint(path, data)
 	return
