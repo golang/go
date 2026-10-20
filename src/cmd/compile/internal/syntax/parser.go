@@ -1387,6 +1387,9 @@ func (p *parser) typeOrNil() Expr {
 
 	pos := p.pos()
 	switch p.tok {
+	case _Const:
+		return p.logosConstType() // M5-S1 hook: `const T` const views (SPEC T-201).
+
 	case _Star:
 		// ptrtype
 		p.next()

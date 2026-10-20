@@ -45,6 +45,10 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
+	if check.logosConstAssign(x, T, context) { // logos M5-S1 hook: assignments through const views.
+		return
+	}
+
 	check.logosPlatformStore(x, T) // logos M3-S5 hook.
 
 	if isUntyped(x.typ()) {
@@ -287,6 +291,14 @@ func (check *Checker) assignVar(lhs, rhs syntax.Expr, x *operand, context string
 
 	if T == nil && context == "assignment" {
 		context = "assignment to _ identifier"
+	}
+	if check.logosConstStore(lhs) { // logos M5-S1 hook: stores through const views.
+		if x != nil {
+			x.invalidate()
+		} else {
+			check.use(rhs)
+		}
+		return
 	}
 	check.logosPushGoStore(lhs) // logos M3-S5 hook.
 	check.assignment(x, T, context)

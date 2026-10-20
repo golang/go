@@ -454,6 +454,7 @@ func (check *Checker) declareParams(names []*syntax.Name, params []*Var, scopePo
 // validRecv verifies that the receiver satisfies its respective spec requirements
 // and reports an error otherwise.
 func (check *Checker) validRecv(pos poser, recv *Var) {
+	recv = check.logosConstRecvVar(recv) // logos M5-S1 hook: `const *T` receivers validate as `*T`.
 	// spec: "The receiver type must be of the form T or *T where T is a type name."
 	rtyp, _ := deref(recv.typ)
 	atyp := Unalias(rtyp)

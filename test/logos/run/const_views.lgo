@@ -1,0 +1,38 @@
+// run
+
+package main
+
+// M5-S1 const views (SPEC T-201): a const view reads through, ranges,
+// and passes to const parameters; lowering erases the view, so the
+// program runs with the plain types.
+
+type Point struct {
+	X, Y int
+}
+
+func sum(xs const []int) int {
+	total := 0
+	for _, x := range xs {
+		total += x
+	}
+	return total
+}
+
+func first(xs const []int) int {
+	return xs[0]
+}
+
+func norm(p const *Point) int {
+	return p.X*p.X + p.Y*p.Y
+}
+
+func main() {
+	xs := []int{1, 2, 3, 4}
+	var view const []int = xs
+	println(sum(view), first(view), len(view))
+	p := &Point{X: 3, Y: 4}
+	println(norm(p))
+	var copied Point = *p
+	copied.X = 10
+	println(copied.X, p.X)
+}

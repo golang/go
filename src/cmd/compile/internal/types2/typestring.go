@@ -185,6 +185,10 @@ func (w *typeWriter) typ(typ Type) {
 		w.byte('*')
 		w.typ(t.base)
 
+	case *ConstView: // logos M5-S1 hook: loGo/s const view `const T` prints with the caller's qualifier.
+		w.string("const ")
+		w.typ(t.Elem)
+
 	case *Option: // logos M3-S2 hook: loGo/s option type `T?` prints with the caller's qualifier.
 		// A nested option needs parentheses (`(T?)?`), because the
 		// joined spelling `T??` is not valid source (SPEC T-202).

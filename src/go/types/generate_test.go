@@ -190,6 +190,7 @@ var filemap = map[string]action{
 	"pointer.go":    nil,
 	"predicates.go": stripLogosHooks,
 	"range.go": func(f *ast.File) {
+		stripLogosHooks(f) // must happen before renaming identifiers
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
 		renameSelectorExprs(f, "syntax.Name->ast.Ident", "syntax.ForStmt->ast.RangeStmt", "ident.Value->ident.Name") // must happen before renaming identifiers
 		renameIdents(f, "syntax->ast", "poser->positioner")
@@ -553,8 +554,9 @@ func fixSprintf(f *ast.File) {
 //	case *T, *LogoType:                     // mixed type list: logo type removed
 //
 // Logo types are types2-only types that go/types cannot represent (no
-// go/ast node produces them): Option today; Union and AssertedStruct stay
-// syntax-level, not types2 types, so they never reach these switches.
+// go/ast node produces them): Option and ConstView today; Union and
+// AssertedStruct stay syntax-level, not types2 types, so they never
+// reach these switches.
 // The hooks must follow the gofmt layout, each on lines of its own. Anything
 // else that still calls check.logosXxx afterwards is a new hook shape and
 // causes a panic, rather than generating go/types code that doesn't compile.
@@ -638,7 +640,7 @@ func stripLogosHooks(f *ast.File) {
 	}
 
 	// logosOnlyCase reports whether every expr in a type-switch case list is
-	// a logo type (Option and friends) — the clause drops as a unit.
+	// a logo type (Option, ConstView, and friends) — the clause drops as a unit.
 	logosOnlyCase := func(list []ast.Expr) bool {
 		return len(list) > 0 && !slices.ContainsFunc(list, func(e ast.Expr) bool { return !isLogosType(e) })
 	}
@@ -702,9 +704,9 @@ func isLogosCall(x ast.Node) bool {
 }
 
 // isLogosType reports whether e names a types2-only type that go/types
-// cannot represent (no go/ast node produces it): *Option today. These
-// appear as type-switch case list entries; upstream type switches that
-// handle a loGo/s form get one clause per such type.
+// cannot represent (no go/ast node produces it): *Option and *ConstView
+// today. These appear as type-switch case list entries; upstream type
+// switches that handle a loGo/s form get one clause per such type.
 func isLogosType(e ast.Expr) bool {
 	if star, _ := e.(*ast.StarExpr); star != nil {
 		if id, _ := star.X.(*ast.Ident); id != nil {
@@ -716,7 +718,8 @@ func isLogosType(e ast.Expr) bool {
 
 // logosTypes is the set of types2 types with no go/ast counterpart.
 var logosTypes = map[string]bool{
-	"Option": true,
+	"Option":    true,
+	"ConstView": true,
 }
 
 // asIdent returns x as *ast.Ident if it is an identifier with the given name.

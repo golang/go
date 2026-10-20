@@ -26,6 +26,9 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	if f := EmitOptionFacts(pkg, info); f != nil {
 		facts.SetCurrent(f)
 	}
+	if f := EmitConstFacts(pkg, info, files, facts.Current()); f != nil { // M5-S1: const lines and mutation masks.
+		facts.SetCurrent(f)
+	}
 	shared := &packageLower{info: info, tpkg: pkg}
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
@@ -149,9 +152,10 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
-	fl.lowerPlatform() // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
-	fl.lowerUnions()   // M2 hook: switch expressions and struct assertions.
-	fl.lowerOptions()  // M3-S6 hook: single-value map reads and ?? over them.
+	fl.eraseConstViews() // M5-S1 hook: erase const views and bound recorded slices.
+	fl.lowerPlatform()   // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
+	fl.lowerUnions()     // M2 hook: switch expressions and struct assertions.
+	fl.lowerOptions()    // M3-S6 hook: single-value map reads and ?? over them.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if ok && fn.Body != nil {
@@ -397,7 +401,7 @@ func rejectSurvivors(file *syntax.File) {
 	syntax.Inspect(file, func(n syntax.Node) bool {
 		switch n.(type) {
 		case *syntax.TryExpr, *syntax.ErrdeferStmt, *syntax.SwitchExpr, *syntax.ArmClause, *syntax.AssertedStruct,
-			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr:
+			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

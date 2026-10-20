@@ -1,0 +1,173 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import (
+	"fmt"
+	"sort"
+)
+
+// M5-S1 const views (SPEC Sec 2.1, T-201): `const T` qualifier parsing,
+// transitive const reads, and one [correctness::const_view_mutation]
+// per forbidden operation, plus [correctness::const_view_escape] for
+// reference-carrying escapes. Reference-free copies, plain-to-const
+// assignment, const-to-const assignment, value-receiver and const
+// pointer-receiver calls, len/cap, and in-range slices are valid.
+
+type CVItem struct {
+	Name string
+	Tags []string
+}
+
+func (v CVItem) Label() string { return v.Name }
+
+func (p *CVItem) Rename(n string) { p.Name = n }
+
+func (r const *CVItem) Peek() string { return r.Name }
+
+// Declaration positions accept const views.
+var cvInts const []int = []int{1, 2, 3}
+
+var cvInt const int = 42
+
+var cvMap const map[string]int = map[string]int{"a": 1}
+
+var cvPtr const *CVItem = &CVItem{Name: "n"}
+
+func cvParam(xs const []int) {
+	_ = xs
+}
+
+func cvConstParamCall(xs const []int) {
+	cvParam(xs)
+	_ = xs
+}
+
+func cvResult() const []int {
+	return []int{1}
+}
+
+func cvWrapAround(plain []int, ci const int) {
+	var cv const []int = plain
+	var i int = ci
+	var cv2 const []int = cv
+	_, _, _ = cv, i, cv2
+}
+
+type CVHolder struct {
+	F const []int
+}
+
+// nil converts into a const view with a nil-capable element only.
+func cvNilRestrict() {
+	var cn const []int = nil
+	var ci const int = nil /* ERROR "cannot use nil as const int" */
+	_, _ = cn, ci
+}
+
+func cvBadElem() {
+	var bad const int = "x" /* ERROR "cannot use" */
+	_ = bad
+}
+
+// Index assignment through a const view.
+func cvIndexAssign(xs const []int) {
+	xs /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 1
+}
+
+// Field assignment through const *T.
+func cvFieldAssign(cp const *CVItem) {
+	cp /* ERROR "[correctness::const_view_mutation] cannot assign field through const view" */ .Name = "x"
+}
+
+// append, copy into, delete, clear.
+func cvBuiltins(xs const []int, cm const map[string]int) {
+	_ = append(xs /* ERROR "[correctness::const_view_mutation] cannot append through const view" */, 1)
+	dst := []int{0, 0}
+	_ = copy(xs /* ERROR "[correctness::const_view_mutation] cannot copy through const view" */, dst)
+	_ = dst
+	delete(cm /* ERROR "[correctness::const_view_mutation] cannot delete through const view" */, "a")
+	clear(cm /* ERROR "[correctness::const_view_mutation] cannot clear through const view" */)
+}
+
+// Slice bounds: cap(b) and constant bounds past an array length fail;
+// a non-constant bound is a recorded runtime check; other constants pass.
+func cvSliceExpr(xs const []int, n int) {
+	_ = xs /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:cap(xs)]
+	_ = xs[:n]
+	_ = xs[1:2]
+}
+
+func cvArrayBound(a const [4]int) {
+	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:cap(a)]
+	_ = a /* ERROR "[correctness::const_view_mutation] cannot slice through const view" */ [:8 /* ERROR "out of bounds" */]
+	_ = a[:2]
+}
+
+// Method calls: a pointer receiver lacking const fails; const pointer
+// and value receivers are allowed.
+func cvMethods(cp const *CVItem, v CVItem) {
+	cp.Rename /* ERROR "[correctness::const_view_mutation] cannot call Rename through const view" */ ("x")
+	_ = cp.Peek()
+	_ = v.Label()
+	_ = cp.Label()
+}
+
+// Passing to a non-const .lgo parameter fails.
+func cvTake(xs []int) {
+	_ = xs
+}
+
+func cvPass(xs const []int) {
+	cvTake(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+}
+
+// Passing to a standard-library parameter fails: without a
+// ParamMutated=0 fact the checker refuses the call (a fact-0 parameter
+// will read as a const parameter once the const overlay reader lands).
+// A reference-free copy passes either way.
+func cvPassStd(xs const []int, ci const int) {
+	sort.Ints(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+	_ = fmt.Sprint(xs /* ERROR "[correctness::const_view_mutation] cannot pass argument through const view" */)
+	_ = fmt.Sprint(ci)
+}
+
+// Reference-carrying assignment out of a const view escapes.
+func cvEscape(xs const []int) {
+	var plain []int = xs /* ERROR "[correctness::const_view_escape]" */
+	_ = plain
+}
+
+func cvEscapePtr(ps const []*CVItem) {
+	var plain []*CVItem = ps /* ERROR "[correctness::const_view_escape]" */
+	_ = plain
+}
+
+// Lambda (function literal) parameters declared const are const.
+var cvLambda = func(xs const []int) {
+	xs /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 9
+}
+
+// Range over a const slice yields const elements.
+func cvRange(css const [][]int) {
+	for _, row := range css {
+		row /* ERROR "[correctness::const_view_mutation] cannot assign index through const view" */ [0] = 1
+	}
+}
+
+// Reads through const views stay usable: reference-free elements copy
+// out, len/cap read, and const receivers observe.
+func cvReads(cs const []int, cp const *CVItem) int {
+	total := 0
+	for _, v := range cs {
+		total += v
+	}
+	var s string = cp.Name
+	_ = s
+	_ = len(cs)
+	_ = cap(cs)
+	_ = cp.Peek()
+	return total
+}

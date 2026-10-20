@@ -211,6 +211,8 @@ func hasNil(t Type) bool {
 		return u.kind == UnsafePointer
 	case *Slice, *Pointer, *Signature, *Map, *Chan, *Option: // logos M3-S2 hook: `nil` is assignable to every `T?`.
 		return true
+	case *ConstView: // logos M5-S1 hook: `nil` belongs to a const view with a nil-capable element.
+		return hasNil(u.Elem)
 	case *Interface:
 		return !isTypeParam(t) || underIs(t, func(u Type) bool {
 			return u != nil && hasNil(u)
@@ -311,6 +313,12 @@ func (c *comparer) identical(x, y Type, p *ifacePair) bool {
 	case *Option: // logos M3-S2 hook: option identity is structural over elements.
 		// Two option types are identical if they have identical element types.
 		if y, ok := y.(*Option); ok {
+			return c.identical(x.Elem, y.Elem, p)
+		}
+
+	case *ConstView: // logos M5-S1 hook: const view identity is structural over elements.
+		// Two const views are identical if they have identical element types.
+		if y, ok := y.(*ConstView); ok {
 			return c.identical(x.Elem, y.Elem, p)
 		}
 

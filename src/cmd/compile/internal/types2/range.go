@@ -33,6 +33,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 
 	check.hasCallOrRecv = false
 	check.expr(nil, &x, rangeVar)
+	check.logosConstRange(&x) // logos M5-S1 hook: range over const views.
 
 	if isTypes2 && x.isValid() && sValue == nil && !check.hasCallOrRecv {
 		if t, ok := arrayPtrDeref(x.typ().Underlying()).(*Array); ok {
@@ -78,6 +79,7 @@ func (check *Checker) rangeStmt(inner stmtContext, rangeStmt *syntax.ForStmt, no
 			check.softErrorf(sExtra, InvalidIterVar, "range clause permits at most two iteration variables")
 		}
 		key, val = k, v
+		check.logosConstRangeVal(rangeVar, &val) // logos M5-S1 hook: range over const views yields const elements.
 	}
 
 	// Open the for-statement block scope now, after the range clause.

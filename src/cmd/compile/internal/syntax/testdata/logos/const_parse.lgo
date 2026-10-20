@@ -1,0 +1,38 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M5-S1 const-view type positions (SPEC Sec 2.1, T-201): `const T`
+// parses as a ConstType in parameter, receiver, result, variable, and
+// field types in LogosMode only. Valid positions below carry no ERROR
+// comment; the trailing cases pin the diagnostics.
+
+type CVParseItem struct {
+	Name string
+}
+
+func CVParseParam(xs const []int) {}
+
+func CVParseResult() const []int {
+	return nil
+}
+
+func CVParseVar() {
+	var v const map[string]int
+	_ = v
+}
+
+type CVParseHolder struct {
+	F const []int
+}
+
+func (r const *CVParseItem) Peek() string {
+	return r.Name
+}
+
+func CVParseBad() {
+	var v const; // ERROR expected type
+	_ = v
+}

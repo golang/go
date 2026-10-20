@@ -69,6 +69,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		}
 	}
 
+	check.logosConstUnwrapBase(x) // logos M5-S1 hook: indexing through const views.
 	// ordinary index expression
 	valid := false
 	length := int64(-1) // valid if >= 0
@@ -213,6 +214,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
 		return false
 	}
 
+	check.logosConstWrapBase(x, e.X) // logos M5-S1 hook: index reads through const views.
 	index := check.singleIndex(e)
 	if index == nil {
 		x.invalidate()
@@ -236,6 +238,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
 		check.use(e.Index[:]...)
 		return
 	}
+	check.logosConstUnwrapBase(x) // logos M5-S1 hook: slicing through const views.
 
 	// determine common underlying type cu
 	var ct, cu Type // type and respective common underlying type
@@ -392,6 +395,8 @@ L:
 			}
 		}
 	}
+	check.logosConstSliceBound(x, e) // logos M5-S1 hook: bounds over const views.
+	check.logosConstWrapBase(x, e.X) // logos M5-S1 hook: slice reads through const views.
 }
 
 // singleIndex returns the (single) index from the index expression e.

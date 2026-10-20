@@ -612,6 +612,11 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
 			return u.nify(x.Elem, y.Elem, emode, p)
 		}
 
+	case *ConstView: // logos M5-S1 hook: const views unify if their element types unify.
+		if y, ok := y.(*ConstView); ok {
+			return u.nify(x.Elem, y.Elem, emode, p)
+		}
+
 	case *Struct:
 		// Two struct types unify if they have the same sequence of fields,
 		// and if corresponding fields have the same names, their (field) types unify,

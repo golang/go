@@ -317,6 +317,8 @@ type Info struct {
 	FileVersions map[*syntax.PosBase]string
 
 	LogosChecks map[syntax.Expr]LogosCheck // logos M3-S5 hook: MustNonNil sites for platform-pointer stores.
+
+	LogosConstSlices map[syntax.Expr]bool // logos M5-S1 hook: slice expressions over const views with non-constant bounds, for the lowering-time runtime check.
 }
 
 func (info *Info) recordTypes() bool {

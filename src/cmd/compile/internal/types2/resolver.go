@@ -536,6 +536,7 @@ func (check *Checker) sortObjects() {
 // ptr is true, base is T, and tparams is [A, _] (assuming unpackParams is set).
 // Note that base may not be a *syntax.Name for erroneous programs.
 func (check *Checker) unpackRecv(rtyp syntax.Expr, unpackParams bool) (ptr bool, base syntax.Expr, tparams []*syntax.Name) {
+	rtyp = check.logosUnpackConstRecv(rtyp) // logos M5-S1 hook: `const *T` receivers collect on T.
 	// unpack receiver type
 	base = syntax.Unparen(rtyp)
 	if t, _ := base.(*syntax.Operation); t != nil && t.Op == syntax.Mul && t.Y == nil {

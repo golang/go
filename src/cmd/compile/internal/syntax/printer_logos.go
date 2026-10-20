@@ -9,11 +9,11 @@ package syntax
 
 // printLogos prints loGo/s nodes in source form: `X?` for TryExpr,
 // `T?` for OptionType, `x ?? y` for CoalesceExpr, `x?.Sel` for
-// OptSelectExpr, `errdefer <call>` for ErrdeferStmt,
-// `switch ... { case ... => ... }` for SwitchExpr and ArmClause, and
-// `struct : I, J { ... }` for AssertedStruct. Every form reparses to the
-// same tree, so printing is idempotent. ShortForm elides the arms of a
-// SwitchExpr like the body of a function literal.
+// OptSelectExpr, `const T` for ConstType, `errdefer <call>` for
+// ErrdeferStmt, `switch ... { case ... => ... }` for SwitchExpr and
+// ArmClause, and `struct : I, J { ... }` for AssertedStruct. Every form
+// reparses to the same tree, so printing is idempotent. ShortForm
+// elides the arms of a SwitchExpr like the body of a function literal.
 func printLogos(p *printer, n Node) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -32,6 +32,8 @@ func printLogos(p *printer, n Node) {
 		p.print(n.X, blank, _Coalesce, blank, n.Y)
 	case *OptSelectExpr:
 		p.print(n.X, _QuestionDot, n.Sel)
+	case *ConstType:
+		p.print(_Const, blank, n.Elem)
 	case *ErrdeferStmt:
 		p.print(_Name, "errdefer", blank, n.Call)
 	case *SwitchExpr:

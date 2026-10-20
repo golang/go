@@ -10,8 +10,9 @@ package syntax
 // startPosLogos reports the start position of loGo/s nodes: a TryExpr
 // starts at its operand (so StartPos covers `g` in `g()?`), an
 // OptionType starts at its element, a CoalesceExpr starts at its left
-// operand, an OptSelectExpr starts at its receiver, and an ErrdeferStmt
-// starts at `errdefer`. ok is false for any other node.
+// operand, an OptSelectExpr starts at its receiver, a ConstType starts
+// at `const`, and an ErrdeferStmt starts at `errdefer`. ok is false for
+// any other node.
 func startPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -22,6 +23,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return StartPos(n.X), true
 	case *OptSelectExpr:
 		return StartPos(n.X), true
+	case *ConstType:
+		return n.Pos(), true
 	case *ErrdeferStmt:
 		return n.Pos(), true
 	}
@@ -31,11 +34,12 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 // endPosLogos reports the approximate end position of loGo/s nodes: one
 // past `?` for a TryExpr or an OptionType (mirroring the Name
 // `p.Col()+len` precedent), the end of the right operand for a
-// CoalesceExpr, the end of the name for an OptSelectExpr, the end of the
-// call for an ErrdeferStmt, the closing brace of a SwitchExpr, the end
-// of an arm's result for an ArmClause, the end of the value type for a
-// PropertyType, and the opening brace of an AssertedStruct (the struct's
-// closing brace is not recorded). ok is false otherwise.
+// CoalesceExpr, the end of the name for an OptSelectExpr, the end of
+// the element for a ConstType, the end of the call for an ErrdeferStmt,
+// the closing brace of a SwitchExpr, the end of an arm's result for an
+// ArmClause, the end of the value type for a PropertyType, and the
+// opening brace of an AssertedStruct (the struct's closing brace is not
+// recorded). ok is false otherwise.
 func endPosLogos(n Node) (pos Pos, ok bool) {
 	switch n := n.(type) {
 	case *TryExpr:
@@ -48,6 +52,8 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return EndPos(n.Y), true
 	case *OptSelectExpr:
 		return EndPos(n.Sel), true
+	case *ConstType:
+		return EndPos(n.Elem), true
 	case *ErrdeferStmt:
 		return EndPos(n.Call), true
 	case *SwitchExpr:

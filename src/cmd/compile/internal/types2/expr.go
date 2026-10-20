@@ -819,6 +819,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
 		return
 	}
 
+	check.logosConstBinary(x, &y) // logos M5-S1 hook: const view operands.
 	if isShift(op) {
 		check.shift(x, &y, e, op)
 		return
@@ -1202,6 +1203,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					check.validVarType(e.X, x.typ())
 					x.typ_ = &Pointer{base: x.typ()}
 				default:
+					check.logosConstUnwrapBase(x) // logos M5-S1 hook: dereference through const views.
 					var base Type
 					if !underIs(x.typ(), func(u Type) bool {
 						p, _ := u.(*Pointer)
@@ -1224,6 +1226,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					}
 					x.mode_ = variable
 					x.typ_ = base
+					check.logosConstWrapBase(x, e.X) // logos M5-S1 hook: dereference reads through const views.
 				}
 				break
 			}

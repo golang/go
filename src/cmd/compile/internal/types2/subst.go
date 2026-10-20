@@ -317,6 +317,11 @@ func (subst *subster) typ(typ Type) Type {
 			return &Option{Elem: elem}
 		}
 
+	case *ConstView: // logos M5-S1 hook: substitute inside the element type.
+		if elem := subst.typ(t.Elem); elem != t.Elem {
+			return &ConstView{Elem: elem}
+		}
+
 	case *Named:
 		// subst is called during expansion, so in this function we need to be
 		// careful not to call any methods that would cause t to be expanded: doing

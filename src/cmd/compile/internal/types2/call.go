@@ -223,6 +223,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 				if check.logosUnionConversion(x, T) { // logos M2-S1 hook.
 					break
 				}
+				if check.logosConstConvert(x, T) { // logos M5-S1 hook: conversions out of const views.
+					break
+				}
 				check.conversion(x, T)
 			}
 		default:
@@ -675,6 +678,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 		} else {
 			check.logosPushConcreteArgs() // logos M3-S5 hook.
 		}
+		check.logosConstArgs(call, sigParams, args) // logos M5-S1 hook: const view arguments.
 		for i, a := range args {
 			check.assignment(a, sigParams.vars[i].typ, context)
 		}
@@ -842,6 +846,10 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 	}
 
 	if check.logosPropertySelector(x, e, sel) { // logos M4-S1 hook: `x.F` on a property interface.
+		return
+	}
+
+	if check.logosConstSelect(x, e, sel) { // logos M5-S1 hook: selections through const views.
 		return
 	}
 
