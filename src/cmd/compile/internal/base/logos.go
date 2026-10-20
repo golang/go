@@ -19,7 +19,12 @@ var LogosEject string
 // __.LOGOS sidecar exists only when the package used the language.
 var Logos bool
 
+// LogosMode selects a compiler helper mode: next rewrites Go to loGo/s,
+// context prints one symbol context. Empty compiles normally.
+var LogosMode string
+
 // logosRegisterFlags registers the loGo/s compiler flags.
 func logosRegisterFlags() {
 	flag.StringVar(&LogosEject, "logos.eject", "", "write ejected Go sources to `directory`")
+	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next` or `context`)")
 }

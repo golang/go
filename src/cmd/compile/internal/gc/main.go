@@ -17,6 +17,7 @@ import (
 	"cmd/compile/internal/inline/interleaved"
 	"cmd/compile/internal/ir"
 	"cmd/compile/internal/logopt"
+	"cmd/compile/internal/logos"
 	"cmd/compile/internal/loopvar"
 	"cmd/compile/internal/noder"
 	"cmd/compile/internal/pgoir"
@@ -84,6 +85,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
 
 	base.DebugSSA = ssa.PhaseOption
 	base.ParseFlags()
+
+	if base.LogosMode == "context" {
+		logos.RunContext()
+		return
+	}
 
 	if flagGCStart := base.Debug.GCStart; flagGCStart > 0 || // explicit flags overrides environment variable disable of GC boost
 		os.Getenv("GOGC") == "" && os.Getenv("GOMEMLIMIT") == "" && base.Flag.LowerC != 1 { // explicit GC knobs or no concurrency implies default heap

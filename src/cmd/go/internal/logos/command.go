@@ -10,6 +10,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/contextcmd"
 	"cmd/go/internal/logos/eject"
 )
 
@@ -21,6 +22,7 @@ func ConfigureCommand(cmd *base.Command) {
 		rebrandUsageLine(sub)
 	}
 	addPedanticFlag(cmd)
+	contextcmd.Register(cmd)
 	eject.Register(cmd)
 }
 
