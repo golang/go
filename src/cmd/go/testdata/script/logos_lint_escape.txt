@@ -77,8 +77,7 @@ cd ..
 # The JSON record of the escape finding names the rule and the file.
 cd gopkg
 logos lint --json-diagnostics ./...
-cp stderr $WORK/pin.jsonl
-exec jaq -e -s 'any(.[]; .rule_id == "perf::large_backing_array_pin" and .severity == "warn" and (.file | endswith("main.go")) and .span.start_line == 7)' $WORK/pin.jsonl
+stderr '"severity":"warn","rule_id":"perf::large_backing_array_pin","file":"[^"]*main\.go","span":\{"start_line":7,'
 cd ..
 
 -- lgo/go.mod --

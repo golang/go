@@ -26,10 +26,19 @@ cd ..
 # and both candidates are present.
 cd bad
 ! logos lint --json-diagnostics ./...
-cp stderr $WORK/nilderef.jsonl
-exec jaq -e -s 'length == 2 and all(.[]; .schema_version == "1.0" and .rule_id == "correctness::nil_deref_unproven" and .severity == "forbid" and (.file | endswith("main.lgo")) and .provenance.origin_expr == "u" and .provenance.inferred_type == "*main.User?" and (.autofix_candidates | length == 2))' $WORK/nilderef.jsonl
-exec jaq -e -s '.[0].span.start_line == 10 and .[0].span.start_col == 9 and .[0].span.end_col == 15 and .[0].span.byte_len == 6 and .[0].provenance.origin_line == 9 and .[0].autofix_candidates[0] == {"description": "use optional chaining with a ?? default", "replacement": "(u?.Name ?? \"\")"} and .[0].autofix_candidates[1] == {"description": "return early when u is nil", "replacement": "\tif u == nil {\n\t\treturn \"\"\n\t}\n", "insert_before_line": 10}' $WORK/nilderef.jsonl
-exec jaq -e -s '.[1].span.start_line == 17 and .[1].span.byte_len == 9 and .[1].provenance.origin_line == 13 and .[1].autofix_candidates[0].replacement == "(u?.Greet() ?? \"\")" and .[1].autofix_candidates[1].insert_before_line == 17' $WORK/nilderef.jsonl
+stderr -count=2 '^\{.*\}$'
+stderr -count=2 '"schema_version":"1\.0","severity":"forbid","rule_id":"correctness::nil_deref_unproven","file":"[^"]*main\.lgo"'
+stderr -count=2 '"provenance":\{"origin_expr":"u","origin_line":[0-9]+,"inferred_type":"\*main\.User\?"\}'
+stderr -count=2 '"description":"use optional chaining with a \?\? default"'
+stderr -count=2 '"description":"return early when u is nil"'
+stderr '"span":\{"start_line":10,"start_col":9,"end_line":10,"end_col":15,"byte_offset":[0-9]+,"byte_len":6\}'
+stderr '"provenance":\{"origin_expr":"u","origin_line":9,"inferred_type":"\*main\.User\?"\}'
+stderr '"replacement":"\(u\?\.Name \?\? \\"\\"\)"\}'
+stderr '"replacement":"\\tif u == nil \{\\n\\t\\treturn \\"\\"\\n\\t\}\\n","insert_before_line":10\}'
+stderr '"span":\{"start_line":17,"start_col":9,"end_line":17,"end_col":18,"byte_offset":[0-9]+,"byte_len":9\}'
+stderr '"provenance":\{"origin_expr":"u","origin_line":13,"inferred_type":"\*main\.User\?"\}'
+stderr '"replacement":"\(u\?\.Greet\(\) \?\? \\"\\"\)"\}'
+stderr '"insert_before_line":17'
 cd ..
 
 # The same JSON under logos build.
@@ -37,8 +46,9 @@ cd bad
 ! logos build --json-diagnostics -o $WORK/bin/bad$GOEXE .
 ! stderr '^#'
 stderr -count=2 '^\{.*\}$'
-cp stderr $WORK/nilderefbuild.jsonl
-exec jaq -e -s 'length == 2 and all(.[]; .rule_id == "correctness::nil_deref_unproven" and (.autofix_candidates | length == 2))' $WORK/nilderefbuild.jsonl
+stderr -count=2 '"rule_id":"correctness::nil_deref_unproven"'
+stderr -count=2 '"description":"use optional chaining with a \?\? default"'
+stderr -count=2 '"description":"return early when u is nil"'
 cd ..
 
 # Applying either candidate to the finding yields code that builds.

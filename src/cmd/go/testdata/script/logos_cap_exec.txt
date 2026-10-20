@@ -58,11 +58,11 @@ stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
 cd ../..
 
 # Case G: cgo reachability reports unauthorized_cgo (Go module: M0 policy silent).
-cd g/main
-! logos build -o $WORK/bin/s2g$GOEXE ./cmd
-stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/cdep'' reaches ''runtime\.cgocall'''
-stderr 'example\.com/cdep\.Ping\(\)'
-cd ../..
+[cgo] cd g/main
+[cgo] ! logos build -o $WORK/bin/s2g$GOEXE ./cmd
+[cgo] stderr 'ERROR \[capabilities::unauthorized_cgo\]: Transitive dependency ''example\.com/cdep'' reaches ''runtime\.cgocall'''
+[cgo] stderr 'example\.com/cdep\.Ping\(\)'
+[cgo] cd ../..
 
 # Case H: allowlisted dep passes and runs.
 cd h/main
