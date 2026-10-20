@@ -1,0 +1,22 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D2 (SPEC T-104.3, T-201): an option field read through a
+// const view is typed `const string?` and `??` must recognize it as an
+// option.
+
+type P struct {
+	O string?
+}
+
+func (p const *P) Get() string {
+	return p.O ?? "none"
+}
+
+func main() {
+	p := P{}
+	fmt.Println(p.Get())
+}

@@ -1,0 +1,28 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D1 (SPEC T-104.4, T-201): a scalar read through a const
+// view keeps a const qualifier in the checker, but `$"..."` must accept
+// it: the qualifier is erased before code generation.
+
+type P struct {
+	N int64
+	S string
+}
+
+func (p const *P) Show() string {
+	return $"n={p.N} s={p.S}"
+}
+
+func main() {
+	p := P{N: 3, S: "x"}
+	fmt.Println(p.Show())
+	// A scalar read keeps its const qualifier on the binding (SPEC T-201,
+	// transitive reads) but is usable everywhere a plain value is: the
+	// reference-free rule unwraps it at use.
+	n := p.N
+	fmt.Println(n)
+}

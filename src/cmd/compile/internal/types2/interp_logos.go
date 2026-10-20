@@ -53,6 +53,12 @@ func LogosInterpKindOf(T Type) (LogosInterpKind, bool) {
 	if T == nil || !isValid(T) {
 		return 0, false
 	}
+	// A const view reads as its element (SPEC T-201: the qualifier is
+	// erased before code generation), so a scalar read through a view
+	// interpolates like the plain value.
+	if c, ok := Unalias(T).(*ConstView); ok {
+		return LogosInterpKindOf(c.Elem)
+	}
 	if _, ok := Unalias(T).(*TypeParam); ok {
 		return 0, false
 	}

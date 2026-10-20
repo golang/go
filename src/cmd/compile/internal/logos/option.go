@@ -322,6 +322,18 @@ func (fl *fileLower) optType(e syntax.Expr) types2.Type {
 	return fl.pkg.info.TypeOf(e)
 }
 
+// asOptionThroughConst returns the `*types2.Option` denoted by t, looking
+// through const views as well as aliases and defined types. A `??` or `?.`
+// operand that reads through a const view (SPEC T-201) keeps the
+// view in its recorded type, so coeType must see through it; the
+// qualifier is erased before code generation.
+func (fl *fileLower) asOptionThroughConst(t types2.Type) *types2.Option {
+	if c := constAsView(t); c != nil {
+		return fl.asOptionThroughConst(c.Elem)
+	}
+	return fl.asOption(t)
+}
+
 // asOption returns the `*types2.Option` denoted by t, mirroring the
 // checker's option match through aliases and defined types, or nil.
 func (fl *fileLower) asOption(t types2.Type) *types2.Option {
@@ -810,7 +822,7 @@ func (fl *fileLower) narrowForWrite(e *syntax.Name) syntax.Expr {
 // checker's un-narrow restores the operand, not typed nodes), so a
 // narrowed receiver recovers its declared option.
 func (fl *fileLower) coeType(e syntax.Expr) *types2.Option {
-	if o := fl.asOption(fl.optType(e)); o != nil {
+	if o := fl.asOptionThroughConst(fl.optType(e)); o != nil {
 		return o
 	}
 	if name, ok := syntax.Unparen(e).(*syntax.Name); ok {

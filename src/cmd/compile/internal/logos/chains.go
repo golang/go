@@ -633,9 +633,14 @@ func keptSpans(recv span, ops []chainOp, term chainOp) []span {
 	return kept
 }
 
-// baseElem reports the element type of a run base expression.
+// baseElem reports the element type of a run base expression. A const
+// slice view (SPEC T-201) reads as its element; chains only read the
+// receiver, and the qualifier is erased before code generation.
 func (cg *chainGen) baseElem(base syntax.Expr) types2.Type {
 	t := cg.fl.pkg.info.TypeOf(base)
+	if c := constAsView(t); c != nil {
+		t = c.Elem
+	}
 	if s, ok := types2.Unalias(t).(*types2.Slice); ok {
 		return s.Elem()
 	}

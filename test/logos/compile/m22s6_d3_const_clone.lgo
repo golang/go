@@ -1,0 +1,17 @@
+// errorcheck
+
+package p
+
+import "slices"
+
+// M22-S6 defect D3, Clone aspect (SPEC T-201): a const view does not
+// satisfy a core-type constraint (`~[]E`), so a generic Go helper keeps
+// the fail-closed rejection while read-only chains
+// (test/logos/run/m22s6_d3_const_chain.lgo) are allowed. A `const []int`
+// is not assignable to the reference-carrying plain `[]int`
+// (IMPLEMENTATION.md M5), and no standard-library ParamMutated facts
+// exist for ordinary views, so inference must not bind the view to `S`.
+
+func cloneConst(xs const []int) []int {
+	return slices.Clone(xs) // ERROR "does not satisfy"
+}

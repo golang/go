@@ -63,10 +63,17 @@ func (check *Checker) logosChainCall(x *operand, call *syntax.CallExpr) bool {
 		x.typ_ = Typ[Invalid]
 		return true
 	}
-	if obj, _, _ := lookupFieldOrMethod(rx.typ(), rx.mode() == variable, check.pkg, sel.Sel.Value, false); obj != nil {
+	// A chain only reads its receiver, so a const slice view (SPEC T-201)
+	// chains like the plain slice; the qualifier is erased before code
+	// generation. Mutating uses stay rejected inside the lambdas.
+	rt := rx.typ()
+	if c := logosAsConstView(rt); c != nil {
+		rt = c.Elem
+	}
+	if obj, _, _ := lookupFieldOrMethod(rt, rx.mode() == variable, check.pkg, sel.Sel.Value, false); obj != nil {
 		return false
 	}
-	st, ok := Unalias(rx.typ()).(*Slice)
+	st, ok := Unalias(rt).(*Slice)
 	if !ok {
 		return false
 	}

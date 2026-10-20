@@ -74,6 +74,21 @@ func logosAsOption(T Type) *Option {
 	return nil
 }
 
+// logosAsOptionThroughConst returns the *Option denoted by T, looking
+// through const views as well as aliases and defined types. A field read
+// through a const view (SPEC T-201) types as a const view of the field
+// type, so `const string?` still denotes an option for `?.` and `??`
+// (SPEC T-104.3); the qualifier is erased before code generation. Plain
+// selections, assignments, and narrowing keep using logosAsOption, so
+// const-ness is preserved everywhere except these explicit option
+// operators.
+func logosAsOptionThroughConst(T Type) *Option {
+	if c, ok := Unalias(T).(*ConstView); ok {
+		return logosAsOptionThroughConst(c.Elem)
+	}
+	return logosAsOption(T)
+}
+
 // logosWrapOption builds the option of t. An already-optional t stays
 // nested: `?.` over an option field flattens at the selection, not here.
 func logosWrapOption(t Type) *Option { return &Option{Elem: t} }
@@ -231,7 +246,7 @@ func (check *Checker) logosOptSelect(x *operand, e *syntax.OptSelectExpr) exprKi
 		return expression
 	}
 	check.logosUnnarrowOperand(&rx) // logos M3-S4 hook: `?.` on a narrowed var uses its declared option.
-	opt := logosAsOption(rx.typ())
+	opt := logosAsOptionThroughConst(rx.typ())
 	if opt == nil {
 		check.errorf(e, MissingFieldOrMethod, "%s ?. on non-option type %s", logosNotAnOption, rx.typ())
 		x.invalidate()
@@ -295,7 +310,7 @@ func (check *Checker) logosCoalesce(x *operand, e *syntax.CoalesceExpr) exprKind
 		return expression
 	}
 	check.logosUnnarrowOperand(&lx) // logos M3-S4 hook: `??` on a narrowed var uses its declared option.
-	opt := logosAsOption(lx.typ())
+	opt := logosAsOptionThroughConst(lx.typ())
 	if opt == nil {
 		check.errorf(e, UndefinedOp, "%s ?? with non-option left type %s", logosNotAnOption, lx.typ())
 		x.invalidate()
