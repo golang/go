@@ -1,0 +1,40 @@
+// run
+
+package main
+
+// M5-S1 const views (SPEC Sec 2.1, T-201, #93): a non-constant slice
+// bound above len on a const []byte view traps at run time. The source
+// slice has capacity above its length, so the bound is legal Go on the
+// backing array and only the const-view max bound (len of the view,
+// spliced by the lowering) makes it panic. The test recovers the panic
+// and prints a normalized verdict, so the expected output is stable.
+
+import (
+	"fmt"
+	"strings"
+)
+
+func main() {
+	b := make([]byte, 5, 64)
+	for i := range b {
+		b[i] = byte('a' + i)
+	}
+	var v const []byte = b
+	fmt.Println(len(v[:5]))
+	n := 32
+	func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				fmt.Println("NO-TRAP")
+				return
+			}
+			if strings.Contains(fmt.Sprint(r), "slice bounds out of range") {
+				fmt.Println("trap OK")
+				return
+			}
+			fmt.Printf("WRONG-PANIC %v\n", r)
+		}()
+		_ = v[:n]
+	}()
+}

@@ -1,0 +1,27 @@
+// run
+
+package main
+
+// M5-S2 const composites (SPEC Sec 2.1, T-201, #180): const composites,
+// not just scalars, evaluate at compile time with target widths, and
+// the data is a read-only image symbol present before any init runs.
+// The init function below reads the composites before main (or any
+// later init) executes; a value that needed dynamic initialization
+// could not be observed here. Target-width evaluation of a 1<<32
+// element is pinned per width by TestWidthsComposite in
+// cmd/compile/internal/logos/ctfe, and read-only placement by the
+// codegen rodata tests; this fixture pins the init-time visibility.
+
+import "fmt"
+
+const table = []int{7, 8, 9}
+
+const wide = []int{1 << 32}
+
+func init() {
+	fmt.Println(wide[0], table[1])
+}
+
+func main() {
+	fmt.Println(len(wide), len(table))
+}

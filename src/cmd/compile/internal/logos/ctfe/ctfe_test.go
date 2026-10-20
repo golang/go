@@ -299,6 +299,34 @@ func Wrap(x int) int8 { return int8(x) }`, false, []*Type{BasicType("int", 8)}, 
 	}
 }
 
+// TestWidthsComposite pins target integer widths inside const composites
+// (#180): a composite holding 1<<32 evaluates with the target width, so
+// the 64-bit target keeps the element while the 32-bit target reports a
+// compile-time overflow. The scalar TestWidths above misses an
+// element-width bug that only fires inside literals.
+func TestWidthsComposite(t *testing.T) {
+	for _, word := range []int64{4, 8} {
+		h := newFakeHost(t, word)
+		cfg := Config{MaxSteps: 100000, MaxValueBytes: 1 << 20, WordSize: word}
+		lit := parseExpr(t, `[]int{1 << 32}`)
+		if word == 8 {
+			v, _ := evalOne(t, h, cfg, lit)
+			elems := sliceElems(v)
+			if len(elems) != 1 {
+				t.Fatalf("word %d: %d elements, want 1", word, len(elems))
+			}
+			if elems[0].Int64() != 4294967296 {
+				t.Fatalf("word %d: element = %v, want 4294967296", word, elems[0])
+			}
+			continue
+		}
+		cerr := evalErr(t, h, cfg, lit)
+		if cerr.Code != CodeEval {
+			t.Fatalf("word %d: code = %v, want CodeEval", word, cerr.Code)
+		}
+	}
+}
+
 // TestStepBoundaries checks the step limit at N-1, N, N+1 with a small
 // limit, measuring exact step counts first so the test stays aligned
 // with the step model.

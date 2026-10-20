@@ -1,0 +1,5 @@
+fault OK names code=2
+fault OK recs code=2
+main.names=R sect=.rodata
+main.recs=R sect=.rodata
+relro OK

@@ -5,8 +5,8 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | ID | Milestone | Test | Status |
 | --- | --- | --- | --- |
 | #1 |M2| test/logos/redteam/attack_001_split_union_ptr_scalar | tested |
-| #2 | M5 |  | planned |
-| #3 | M5 |  | planned |
+| #2 | M5 | test/logos/run/zerocopy.lgo | tested |
+| #3 | M5 | test/logos/run/constmap_switch.lgo; src/cmd/compile/internal/logos/constmap_test.go (TestConstmapSwitchMax) | tested |
 | #4 | M18 |  | planned |
 | #5 | M8, M20 |  | planned |
 | #6 | M6 |  | planned |
@@ -19,7 +19,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #13 | M8, M9 |  | planned |
 | #14 | M3 | src/internal/types/testdata/logos/narrowing.lgo | tested |
 | #15 | M13 |  | planned |
-| #16 | M5 |  | planned |
+| #16 | M5 | src/internal/types/testdata/logos/const_views.lgo (cvPlainReslice, cvPlainReuseLoop); test/logos/run/reslice_reuse.lgo | tested |
 | #17 | M6 |  | planned |
 | #18 |M1| test/logos/redteam/attack_018_shadowed_named_return | tested |
 | #19 | M7 |  | planned |
@@ -27,7 +27,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #21 | M8 |  | planned |
 | #22 | M15 |  | planned |
 | #23 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
-| #24 | M5 |  | planned |
+| #24 | M5 | src/internal/types/testdata/logos/ctfe.lgo (BadMapRange); test/logos/run/const_map.lgo (sorted range) | tested |
 | #25 | M12 | src/cmd/go/testdata/script/logos_cap_unsafe.txt | tested |
 | #26 | M8 |  | planned |
 | #27 | M16 |  | planned |
@@ -57,7 +57,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #51 | M5 | src/internal/types/testdata/logos/ctfe.lgo | tested |
 | #52 | M6 |  | planned |
 | #53 | M18 |  | planned |
-| #54 | M5 |  | planned |
+| #54 | M5 | test/logos/run/relro_write.lgo | tested |
 | #55 |M1| test/logos/redteam/attack_055_errtrace_reset_cap | tested |
 | #56 | M6 |  | planned |
 | #57 |M2, M7| test/logos/redteam/attack_057_case_first_match | tested |
@@ -65,7 +65,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #59 | M18 |  | planned |
 | #60 | M3 | src/internal/types/testdata/logos/nonnil_zero.lgo | tested |
 | #61 | M3 | test/logos/run/option_nested.lgo | tested |
-| #62 | M5 |  | planned |
+| #62 | M5 | src/internal/types/testdata/logos/const_views.lgo (Rename, Peek) | tested |
 | #63 | M18 |  | planned |
 | #64 | M6 |  | planned |
 | #65 | M7 |  | planned |
@@ -73,10 +73,10 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #67 | M6, M13 |  | planned |
 | #68 | M8 |  | planned |
 | #69 | M10 |  | planned |
-| #70 | M5 |  | planned |
+| #70 | M5 | test/logos/codegen/rodata.lgo | tested |
 | #71 | M18 |  | planned |
 | #72 | M7 |  | planned |
-| #73 | M5 |  | planned |
+| #73 | M5 | test/logos/run/const_map.lgo; src/cmd/compile/internal/logos/constmap_test.go | tested |
 | #74 | M13 |  | planned |
 | #75 |M2| test/logos/redteam/attack_075_nil_arm_common_type | tested |
 | #76 | M7 |  | planned |
@@ -86,7 +86,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #80 | M22 |  | planned |
 | #81 | M18 |  | planned |
 | #82 |M2| test/logos/redteam/attack_082_union_gc_shape | tested |
-| #83 | M5 |  | planned |
+| #83 | M5 | test/logos/run/zerocopy.lgo | tested |
 | #84 | M6 |  | planned |
 | #85 |M1| test/logos/redteam/attack_085_typed_nil_errdefer | tested |
 | #86 | M7 |  | planned |
@@ -96,7 +96,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #90 |M1| test/logos/redteam/attack_090_errdefer_recover_success_skip | tested |
 | #91 | M7 |  | planned |
 | #92 | M13 |  | planned |
-| #93 | M5 |  | planned |
+| #93 | M5 | test/logos/run/constview_bound.lgo | tested |
 | #94 | M10 |  | planned |
 | #95 | M6 |  | planned |
 | #96 |M1| test/logos/redteam/attack_096_errdefer_armed_flag | tested |
@@ -143,7 +143,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #137 | M15 |  | planned |
 | #138 | M18 |  | planned |
 | #139 | M11 |  | planned |
-| #140 | M5 |  | planned |
+| #140 | M5 | src/cmd/compile/internal/logos/constmap_test.go (TestConstmapBudgetIsOneMillion, TestConstmapProbeIsSingleProbe); src/logos/rt/constmap_proof_test.go (TestConstTableGetSingleProbe) | tested |
 | #141 | M4 | test/logos/run/properties.lgo | tested |
 | #142 | M6 |  | planned |
 | #143 | M8 |  | planned |
@@ -155,7 +155,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #149 | M15 |  | planned |
 | #150 | M7 |  | planned |
 | #151 | M8 |  | planned |
-| #152 | M5 |  | planned |
+| #152 | M5 | test/logos/run/zerocopy.lgo (other-provenance AllocsPerRun, survival) | tested |
 | #153 | M8 |  | planned |
 | #154 | M8 |  | planned |
 | #155 | M18 |  | planned |
@@ -183,7 +183,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #177 | M6 |  | planned |
 | #178 | M8 |  | planned |
 | #179 | M6 |  | planned |
-| #180 | M5 |  | planned |
+| #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |
 | #181 | M18 |  | planned |
 | #182 | M9 |  | planned |
 | #183 | M0 |  | planned |

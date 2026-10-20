@@ -171,3 +171,20 @@ func cvReads(cs const []int, cp const *CVItem) int {
 	_ = cp.Peek()
 	return total
 }
+
+// Ordinary reslicing on plain slices stays allowed (#16): only const
+// views enforce the len bound, so s = s[:0] and b = b[:cap(b)] on
+// non-const slices carry no diagnostic.
+func cvPlainReslice(s []int, b []byte) {
+	s = s[:0]
+	b = b[:cap(b)]
+	_, _ = s, b
+}
+
+func cvPlainReuseLoop() {
+	buf := make([]byte, 0, 64)
+	for i := 0; i < 4; i++ {
+		buf = buf[:0]
+		buf = append(buf, byte(i))
+	}
+}

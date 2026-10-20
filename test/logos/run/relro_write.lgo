@@ -1,0 +1,189 @@
+// run
+
+package main
+
+// M5-S3 read-only-after-relocation placement (SPEC Sec 2.1, T-201,
+// #54): constant data with pointers (a string slice, and structs with
+// string fields) lives in read-only-after-relocation memory. On the
+// default non-PIE internal link the linker keeps such symbols in the
+// .rodata section (UseRelro is false for a default exe, so no
+// promotion happens; under internal-link PIE or shared builds the
+// same symbols go to Go-emitted `.data.rel.ro` sections in the
+// relro segment, while with external linking Go keeps them in the
+// rodata segment and leaves rel.ro formation to the external
+// linker), so `go tool nm` reports type R and the
+// debug/elf section of each backing symbol is .rodata. A write to the
+// data through unsafe must fault. The staged test binary itself is
+// stripped, so the program builds a probe module (like
+// test/logos/codegen/rodata.lgo does) and runs it with inherited
+// output: the probe re-executes itself as "child" for the fault
+// checks, then asserts the nm type and ELF section of both pointer
+// backings.
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+)
+
+const probeSrc = `package main
+
+import (
+	"bytes"
+	"debug/elf"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"unsafe"
+)
+
+const names = []string{"alice", "bob", "carol"}
+
+type Rec struct {
+	Name string
+	Age  int
+}
+
+const recs = []Rec{{Name: "a", Age: 1}, {Name: "b", Age: 2}}
+
+func main() {
+	if len(os.Args) > 2 && os.Args[1] == "child" {
+		switch os.Args[2] {
+		case "names":
+			sp := unsafe.SliceData(names)
+			*sp = "X"
+		case "recs":
+			rp := unsafe.SliceData(recs)
+			rp.Age = 99
+		}
+		fmt.Println("STORE-SUCCEEDED")
+		return
+	}
+	self, err := os.Executable()
+	if err != nil {
+		fmt.Printf("FAIL self=%v\n", err)
+		os.Exit(1)
+	}
+	for _, target := range []string{"names", "recs"} {
+		cmd := exec.Command(self, "child", target)
+		var buf bytes.Buffer
+		cmd.Stdout = &buf
+		cmd.Stderr = &buf
+		runErr := cmd.Run()
+		code := -1
+		if ee, ok := runErr.(*exec.ExitError); ok {
+			code = ee.ExitCode()
+		}
+		out := buf.String()
+		if runErr == nil || code == 0 || !strings.Contains(out, "fault") || strings.Contains(out, "STORE-SUCCEEDED") {
+			fmt.Printf("FAIL %s code=%d out=%q\n", target, code, out)
+			os.Exit(1)
+		}
+		fmt.Printf("fault OK %s code=%d\n", target, code)
+	}
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	goBin := filepath.Join(binDir, "go")
+	if runtime.GOOS == "windows" {
+		goBin += ".exe"
+	}
+	nmOut, err := exec.Command(goBin, "tool", "nm", self).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL nm: %v\n%s", err, nmOut)
+		os.Exit(1)
+	}
+	addrOf := map[string]uint64{}
+	kindOf := map[string]string{}
+	for _, line := range strings.Split(string(nmOut), "\n") {
+		f := strings.Fields(line)
+		if len(f) < 3 {
+			continue
+		}
+		addr, aerr := strconv.ParseUint(f[0], 16, 64)
+		if aerr != nil {
+			continue
+		}
+		name := f[len(f)-1]
+		addrOf[name] = addr
+		kindOf[name] = f[1]
+	}
+	f, err := elf.Open(self)
+	if err != nil {
+		fmt.Printf("FAIL elf: %v\n", err)
+		os.Exit(1)
+	}
+	defer f.Close()
+	sectOf := func(addr uint64) string {
+		for _, s := range f.Sections {
+			if s.Type == elf.SHT_NOBITS {
+				continue
+			}
+			if addr >= s.Addr && addr < s.Addr+s.Size {
+				return s.Name
+			}
+		}
+		return ""
+	}
+	for _, sym := range []string{"main.names", "main.recs"} {
+		backing := ""
+		for name := range addrOf {
+			if name == sym || strings.HasPrefix(name, sym+".logos_backing") {
+				if backing == "" || name > backing {
+					backing = name
+				}
+			}
+		}
+		if backing == "" {
+			fmt.Printf("FAIL symbol %s not found\n", sym)
+			os.Exit(1)
+		}
+		kind := kindOf[backing] ?? ""
+		sect := sectOf(addrOf[backing] ?? 0)
+		fmt.Printf("%s=%s sect=%s\n", sym, kind, sect)
+		if kind != "R" || sect != ".rodata" {
+			fmt.Printf("FAIL %s not in read-only memory\n", sym)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("relro OK")
+}
+`
+
+func main() {
+	dir, err := os.MkdirTemp("", "relronm")
+	if err != nil {
+		fmt.Printf("FAIL tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		fmt.Printf("FAIL gomode: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc), 0644); err != nil {
+		fmt.Printf("FAIL source: %v\n", err)
+		os.Exit(1)
+	}
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	logosBin := filepath.Join(binDir, "logos")
+	if runtime.GOOS == "windows" {
+		logosBin += ".exe"
+	}
+	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("FAIL probe build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	run := exec.Command(filepath.Join(dir, "probe.exe"))
+	run.Stdout = os.Stdout
+	run.Stderr = os.Stderr
+	if err := run.Run(); err != nil {
+		fmt.Printf("FAIL probe run: %v\n", err)
+		os.Exit(1)
+	}
+}

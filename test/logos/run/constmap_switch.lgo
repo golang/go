@@ -1,0 +1,111 @@
+// run
+
+package main
+
+// M5-S4 const maps (SPEC T-Sec9, #3): up to 8 keys lower to a switch
+// lookup (no table symbol), and more keys lower to the static
+// perfect-hash table in read-only data. The program builds a probe
+// module holding an 8-key and a 9-key const map, runs it, then
+// inspects it with `go tool nm`: no symbol for the 8-key map may end
+// in `_tab`, while the 9-key map must own a `_tab` symbol of type R.
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+const probeSrc = `package main
+
+import "fmt"
+
+const eight = map[int]string{1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"}
+
+const nine = map[int]string{1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h", 9: "i"}
+
+func main() {
+	fmt.Println(eight[8] ?? "none", eight[9] ?? "none")
+	fmt.Println(nine[9] ?? "none", nine[10] ?? "none")
+	fmt.Println(len(eight), len(nine))
+}
+`
+
+func buildProbe(logosBin string) string {
+	dir, err := os.MkdirTemp("", "switchtab")
+	if err != nil {
+		fmt.Printf("FAIL tempdir: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module probe\n\ngo 1.27\n"), 0644); err != nil {
+		fmt.Printf("FAIL gomode: %v\n", err)
+		os.Exit(1)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.lgo"), []byte(probeSrc), 0644); err != nil {
+		fmt.Printf("FAIL source: %v\n", err)
+		os.Exit(1)
+	}
+	cmd := exec.Command(logosBin, "build", "-o", "probe.exe", ".")
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Printf("FAIL probe build: %v\n%s", err, out)
+		os.Exit(1)
+	}
+	return dir
+}
+
+func main() {
+	binDir := filepath.Join(runtime.GOROOT(), "bin")
+	goBin := filepath.Join(binDir, "go")
+	logosBin := filepath.Join(binDir, "logos")
+	if runtime.GOOS == "windows" {
+		goBin += ".exe"
+		logosBin += ".exe"
+	}
+	dir := buildProbe(logosBin)
+	runOut, err := exec.Command(filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL probe run: %v\n%s", err, runOut)
+		os.Exit(1)
+	}
+	if string(runOut) != "h none\ni none\n8 9\n" {
+		fmt.Printf("FAIL probe output %q\n", runOut)
+		os.Exit(1)
+	}
+	fmt.Println("probe run OK")
+	nmOut, err := exec.Command(goBin, "tool", "nm", filepath.Join(dir, "probe.exe")).CombinedOutput()
+	if err != nil {
+		fmt.Printf("FAIL nm: %v\n%s", err, nmOut)
+		os.Exit(1)
+	}
+	symType := map[string]string{}
+	for _, line := range strings.Split(string(nmOut), "\n") {
+		if f := strings.Fields(line); len(f) >= 3 {
+			symType[f[len(f)-1]] = f[1]
+		}
+	}
+	for sym := range symType {
+		if strings.Contains(sym, "eight_tab") {
+			fmt.Printf("FAIL 8-key map owns table symbol %s\n", sym)
+			os.Exit(1)
+		}
+	}
+	nineTab := ""
+	for sym, kind := range symType {
+		if strings.Contains(sym, "nine_tab") {
+			nineTab = kind
+		}
+	}
+	if nineTab == "" {
+		fmt.Println("FAIL 9-key map owns no _tab symbol")
+		os.Exit(1)
+	}
+	fmt.Printf("eight=switch nine=table-%s\n", nineTab)
+	if nineTab != "R" {
+		fmt.Println("FAIL 9-key table not in rodata")
+		os.Exit(1)
+	}
+	fmt.Println("switch-table OK")
+}
