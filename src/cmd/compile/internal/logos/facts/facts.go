@@ -208,8 +208,7 @@ func (fn *FnFact) parseFlag(flag string) error {
 		fn.ReceiverMutated = true
 	default:
 		if rest, ok := strings.CutPrefix(flag, "ParamMutated="); ok {
-			raw, err := hex.DecodeString(rest)
-			if err != nil || len(raw) == 0 {
+			if !isHexMask(rest) {
 				return fmt.Errorf("bad ParamMutated flag %q (want hex mask)", flag)
 			}
 			fn.ParamMutated = normHex(rest)
@@ -226,6 +225,12 @@ func (fn *FnFact) parseFlag(flag string) error {
 		return fmt.Errorf("unknown fn flag %q", flag)
 	}
 	return nil
+}
+
+// isHexMask reports whether s is a non-empty run of hex digits. A mask
+// has any digit count: normHex strips leading zeros, so "1" is valid.
+func isHexMask(s string) bool {
+	return s != "" && strings.Trim(s, "0123456789abcdefABCDEF") == ""
 }
 
 // normHex lowercases a hex mask and strips leading zeros.

@@ -192,6 +192,18 @@ func TestFnFlagNormalization(t *testing.T) {
 	}
 }
 
+func TestOddLengthParamMaskRoundTrips(t *testing.T) {
+	fp := goobj.FingerprintType{1, 2, 3, 4, 5, 6, 7, 8}
+	in := &facts.Facts{Fns: []facts.FnFact{{Object: "F", ParamMutated: "1"}}}
+	back, err := facts.Decode(facts.Encode(fp, in))
+	if err != nil {
+		t.Fatalf("Decode of encoded mask 1 failed: %v", err)
+	}
+	if len(back.Fns) != 1 || back.Fns[0].ParamMutated != "1" {
+		t.Fatalf("got %+v, want one fn with ParamMutated 1", back.Fns)
+	}
+}
+
 func TestImportVerifiesFingerprint(t *testing.T) {
 	fpA := goobj.FingerprintType{1, 2, 3, 4, 5, 6, 7, 8}
 	fpB := goobj.FingerprintType{8, 7, 6, 5, 4, 3, 2, 1}
