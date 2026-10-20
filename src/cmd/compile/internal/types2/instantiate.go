@@ -271,10 +271,8 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
 	// values never carry the generated accessors, so the method-set
 	// check below cannot see field sources; interfaces still compare
 	// by method set, where the lowered accessors exist on both sides.
-	if check != nil && !constraint && check.conf.Logos && logosPropertyInterface(Ti) != nil {
-		if _, ok := Vu.(*Interface); !ok {
-			return check.logosImplementsProperty(V, T, Ti, cause)
-		}
+	if check.logosPropGate(Ti, Vu, constraint) {
+		return check.logosImplementsProperty(V, T, Ti, cause)
 	}
 
 	// Every type satisfies the empty interface.

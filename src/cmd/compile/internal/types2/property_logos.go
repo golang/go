@@ -376,6 +376,23 @@ func (check *Checker) logosCheckMergedProp(sname string, V Type, mp logosMergedP
 	return false
 }
 
+// logosPropGate reports whether the property-interface verdict in
+// implements must take over: only when the checker is active, the
+// call is not inside a constraint, the package uses loGo/s, the
+// asserted type is a property interface, and V is not itself an
+// interface (interfaces compare by method set below, where the
+// lowered accessors exist on both sides). A nil *Checker reports
+// false so an implements call outside a checker keeps upstream flow.
+func (check *Checker) logosPropGate(Ti *Interface, Vu Type, constraint bool) bool {
+	if check == nil || constraint || !check.conf.Logos {
+		return false
+	}
+	if _, ok := Vu.(*Interface); ok {
+		return false
+	}
+	return logosPropertyInterface(Ti) != nil
+}
+
 // logosImplementsProperty decides whether V satisfies the property
 // interface Ti (the underlying of the asserted type T) outside a
 // declaration: only a (pointer to a) struct with an explicit `: T`
