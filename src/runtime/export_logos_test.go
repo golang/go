@@ -21,6 +21,14 @@ func LogosEnterFastCallForTest(arg unsafe.Pointer, now int64) (slots [4]uintptr,
 	return pp.cgoPinnedPtrs, pp.fastCallEnterNano, mp.inFastCall, true
 }
 
+// LogosGrowsliceBufForTest calls growsliceBuf for elements of the dynamic
+// type of elem, using buf (bufLen elements, already holding newLen-num
+// elements) as the backing store, and reports the resulting slice header.
+func LogosGrowsliceBufForTest(elem any, buf unsafe.Pointer, bufLen, newLen, num int) (array unsafe.Pointer, length, capacity int) {
+	s := growsliceBuf(buf, newLen, bufLen, num, efaceOf(&elem)._type, buf, bufLen)
+	return s.array, s.len, s.cap
+}
+
 // LogosExitFastCallForTest clears a fast-call entry on the current M
 // and P and reports the observed pin slots, timestamp, and flag.
 func LogosExitFastCallForTest() (slots [4]uintptr, stamp int64, flag, ok bool) {

@@ -528,7 +528,10 @@ func growsliceBuf(oldPtr unsafe.Pointer, newLen, oldCap, num int, et *_type, buf
 	// Instead, we try to just bump up to the next size class.
 	// This will ensure that we don't waste any space when we eventually
 	// call moveSlice with the resulting slice.
-	newCap := int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers()) / et.Size_)
+	// The result must still fit in the buffer: rounding up to a size class
+	// (including the malloc header of a large pointerful buffer) can exceed
+	// bufLen when bufLen*et.Size_ is not a size class itself.
+	newCap := min(int(roundupsize(uintptr(newLen)*et.Size_, !et.Pointers())/et.Size_), bufLen)
 
 	// Zero slice beyond newLen.
 	// The buffer is stack memory, so NoHeapPointers is ok.
