@@ -1,0 +1,40 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func isEven(x int) bool { return x%2 == 0 }
+
+func double(x int) int { return 2 * x }
+
+func over4(x int) bool { return x > 4 }
+
+var predCalls int
+
+func mkPred() func(int) bool {
+	predCalls++
+	return isEven
+}
+
+func main() {
+	xs := []int{1, 2, 3, 4, 5, 6}
+	fmt.Println(xs.filter(func(x int) bool { return x > 4 }))
+	fmt.Println(xs.filter(isEven))
+	fmt.Println(xs.filter(over4))
+	fmt.Println(xs.map(strconv.Itoa))
+	fmt.Println(xs.map(double))
+	fmt.Println(xs.map(double).filter(isEven))
+	fmt.Println(xs.find(isEven) ?? -1)
+	fmt.Println(xs.any(over4))
+	fmt.Println(xs.all(isEven))
+	fmt.Println(xs.count(isEven))
+	fmt.Println(xs.sortBy(double))
+	fmt.Println(xs.filter(mkPred()))
+	fmt.Println(predCalls)
+	ys2 := []int{4, 5, 6}
+	fmt.Println(xs.filter(func(x int) bool { return ys2.any(y => y > x) }))
+}

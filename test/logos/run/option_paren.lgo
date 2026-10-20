@@ -1,0 +1,16 @@
+// run
+
+package main
+
+import "fmt"
+
+func main() {
+	xs := []int{10, 20, 30}
+	fmt.Println((xs[1:]).first() ?? -1)
+	fmt.Println((xs[1:]).last() ?? -1)
+	fmt.Println((xs[:1]).first() ?? -1)
+	fmt.Println((xs[3:]).first() ?? -1)
+	m := map[string]int{"a": 1}
+	fmt.Println((m["a"]) ?? -1)
+	fmt.Println((m["zz"]) ?? -1)
+}

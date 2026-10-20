@@ -702,7 +702,11 @@ func (cg *chainGen) lowerNested(call *syntax.CallExpr) {
 func (cg *chainGen) nestedChains(e syntax.Expr) []*syntax.CallExpr {
 	var all []*syntax.CallExpr
 	syntax.Inspect(e, func(n syntax.Node) bool {
-		if _, ok := n.(*syntax.FuncLit); ok {
+		// A function literal argument lowers with the enclosing run,
+		// so chains inside it compose into the argument text the loop
+		// reuses. Deeper literals still belong to the statement pass,
+		// which lowers them with their own results.
+		if _, ok := n.(*syntax.FuncLit); ok && n != e {
 			return false
 		}
 		if call, ok := n.(*syntax.CallExpr); ok && call != e && cg.fl.isChainCall(call) {
@@ -750,6 +754,10 @@ func (ce *chainEmit) prepare() {
 	for i, op := range ce.ops {
 		if op.lam != nil {
 			ce.closures = append(ce.closures, cg.closure(cg.prefix+fmt.Sprintf("_f%d", i), op, elem, ce.opResult(op)))
+		} else if op.arg != nil && takesFunc(op.method) {
+			// A non-lambda func value evaluates once, like any call
+			// argument; the loop then reuses the bound name.
+			ce.closures = append(ce.closures, cg.prefix+fmt.Sprintf("_f%d := %s", i, cg.fl.textOf(op.argSpan)))
 		}
 		if op.method == "map" {
 			elem = ce.opResult(op)
@@ -757,6 +765,8 @@ func (ce *chainEmit) prepare() {
 	}
 	if ce.term.lam != nil {
 		ce.closures = append(ce.closures, cg.closure(cg.prefix+"_ft", ce.term, elem, ce.opResult(ce.term)))
+	} else if ce.term.arg != nil && takesFunc(ce.term.method) {
+		ce.closures = append(ce.closures, cg.prefix+"_ft := "+cg.fl.textOf(ce.term.argSpan))
 	}
 	ce.outElem = elem
 }
@@ -791,10 +801,56 @@ func (ce *chainEmit) opResult(op chainOp) string {
 	}
 }
 
+// takesFunc reports whether a chain method takes a function value:
+// the fusing filters and mappers plus the func-valued terminals.
+func takesFunc(method string) bool {
+	switch method {
+	case "filter", "map", "find", "any", "all", "sortBy", "count":
+		return true
+	}
+	return false
+}
+
+// funcOf returns the per-element callable for op: the hoisted name that
+// prepare bound once, whether the source was a lambda (built closure) or
+// any other func value (named func, func-valued selector, or func
+// literal). Hoisting evaluates the argument once, matching call
+// semantics; splicing the argument text at every element would repeat
+// its side effects and reallocate a literal per element.
+func (ce *chainEmit) funcOf(op chainOp, closure string) string {
+	if op.lam != nil || (op.arg != nil && takesFunc(op.method)) {
+		return closure
+	}
+	// No callable: take, drop, and friends spell their scalar argument
+	// through argText. Reading the span here would drain its splices
+	// (textOf consumes what it composes) before argText runs, so this
+	// path returns empty; every caller discards it.
+	return ""
+}
+
+// funcResult reports the single result type of a non-lambda chain func
+// value, or nil when it cannot be read. The checker accepted the value
+// against func(elem) want, so the signature has one parameter and one
+// result; a missing type means the fallback in opResult applies.
+func (cg *chainGen) funcResult(op chainOp) types2.Type {
+	if op.arg == nil {
+		return nil
+	}
+	t := cg.fl.pkg.info.TypeOf(op.arg)
+	if t == nil {
+		return nil
+	}
+	sig, ok := types2.Unalias(t).(*types2.Signature)
+	if !ok || sig.Params().Len() != 1 || sig.Results().Len() != 1 {
+		return nil
+	}
+	return sig.Results().At(0).Type()
+}
+
 // prodType reports the produced type of a map or sortBy op.
 func (cg *chainGen) prodType(op chainOp) types2.Type {
 	if op.lam == nil {
-		return nil
+		return cg.funcResult(op)
 	}
 	if block, ok := op.savedBody.(*syntax.BlockStmt); ok {
 		return cg.blockProdType(block)
@@ -921,7 +977,7 @@ func (cg *chainGen) zeroText(t types2.Type) string {
 // cgKeyType reports a sortBy key type for closures.
 func cgKeyType(cg *chainGen, op chainOp) types2.Type {
 	if op.lam == nil {
-		return nil
+		return cg.funcResult(op)
 	}
 	if block, ok := op.savedBody.(*syntax.BlockStmt); ok {
 		return cg.blockProdType(block)
@@ -1003,7 +1059,7 @@ func (ce *chainEmit) loop() (prelude, body, epilogue []string) {
 		}
 	}
 	for i, op := range ce.ops {
-		fname := fmt.Sprintf("%s_f%d", p, i)
+		fname := ce.funcOf(op, fmt.Sprintf("%s_f%d", p, i))
 		switch op.method {
 		case "filter":
 			body = append(body, ce.filterLines(p, fname, cur, i)...)
@@ -1038,7 +1094,7 @@ func (ce *chainEmit) needOut() bool {
 // needElem reports whether the loop body references the element: only
 // a bare count over a takedropped run leaves it unused.
 func (ce *chainEmit) needElem() bool {
-	if ce.term.method != "count" || ce.term.lam != nil {
+	if ce.term.method != "count" || ce.term.arg != nil {
 		return true
 	}
 	for _, op := range ce.ops {
@@ -1172,7 +1228,7 @@ func (ce *chainEmit) terminalLines(p, cur string) []string {
 
 // findLines emits a find step.
 func (ce *chainEmit) findLines(p, cur string) []string {
-	fname := p + "_ft"
+	fname := ce.funcOf(ce.term, p+"_ft")
 	if ce.term.isTry {
 		en := p + "_fte"
 		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { return %[6]s%[7]s }", p, en, fname, cur, ce.failStage(p, en), ce.someText(p, cur), ce.rsuf())}
@@ -1194,7 +1250,7 @@ func (ce *chainEmit) noneText(p string) string {
 
 // anyLines emits an any/all step.
 func (ce *chainEmit) anyLines(p, cur string) []string {
-	fname := p + "_ft"
+	fname := ce.funcOf(ce.term, p+"_ft")
 	if ce.term.method == "all" {
 		if ce.term.isTry {
 			en := p + "_fte"
@@ -1211,13 +1267,13 @@ func (ce *chainEmit) anyLines(p, cur string) []string {
 
 // countLines emits a count step.
 func (ce *chainEmit) countLines(p, cur string) []string {
-	if ce.term.lam == nil {
+	if ce.term.arg == nil {
 		if ce.isTry && ce.hasMap() {
 			return []string{fmt.Sprintf("%s_out = append(%s_out, %s)", p, p, cur), p + "_c++"}
 		}
 		return []string{p + "_c++"}
 	}
-	fname := p + "_ft"
+	fname := ce.funcOf(ce.term, p+"_ft")
 	if ce.term.isTry {
 		en := p + "_fte"
 		return []string{fmt.Sprintf("if %[1]s_fv, %[2]s := %[3]s(%[4]s); %[2]s != nil { %[5]s } else if %[1]s_fv { %[1]s_c++ }", p, en, fname, cur, ce.failStage(p, en))}
@@ -1297,7 +1353,7 @@ func (ce *chainEmit) epilogueIndex(p string) []string {
 func (ce *chainEmit) epilogueSort(p string) []string {
 	ce.cg.fl.needRT = true
 	rt := rtAlias
-	fname := p + "_ft"
+	fname := ce.funcOf(ce.term, p+"_ft")
 	e := ce.outElem
 	if !ce.term.isTry {
 		return []string{

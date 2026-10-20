@@ -481,6 +481,44 @@ func (fl *fileLower) optLeftmost(e syntax.Expr) syntax.Pos {
 	}
 }
 
+// optHeadStart returns the position of the leftmost token of e keeping
+// parentheses whole, for wrapper head placement: a `??` head anchored
+// here starts its generated func literal before an opening paren
+// instead of inside it, where it would split the receiver the chain
+// pass reuses. It matches optLeftmost on paren-free shapes, so nested
+// wrapper heads still fuse at a shared offset there.
+func (fl *fileLower) optHeadStart(e syntax.Expr) syntax.Pos {
+	for {
+		switch n := e.(type) {
+		case *syntax.ParenExpr:
+			return e.Pos()
+		case *syntax.OptSelectExpr:
+			e = n.X
+		case *syntax.CoalesceExpr:
+			e = n.X
+		case *syntax.OptionType:
+			e = n.Elem
+		case *syntax.SelectorExpr:
+			e = n.X
+		case *syntax.IndexExpr:
+			e = n.X
+		case *syntax.SliceExpr:
+			e = n.X
+		case *syntax.AssertExpr:
+			e = n.X
+		case *syntax.CallExpr:
+			e = n.Fun
+		case *syntax.Operation:
+			if n.Y == nil {
+				return e.Pos()
+			}
+			e = n.X
+		default:
+			return e.Pos()
+		}
+	}
+}
+
 // spanStart returns the eject offset where the text of e begins: the
 // recorded span for a synthetic wrapper top, otherwise the leftmost
 // payload position. Builders lower embedded originals eagerly, so a
@@ -1119,7 +1157,13 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 	fl.add(qoff, qoff+2, "")
 	fl.addOwned(id, yEnd, yEnd, " }()")
 	if isIndex {
-		xStart, _, lbrack, rbrack := fl.lookupSpans(ux)
+		mStart, _, lbrack, rbrack := fl.lookupSpans(ux)
+		// The head anchors before any grouping parens around the read,
+		// and the pair is deleted so the fused init stays valid Go.
+		// Without parens both are no-ops: the anchor equals mStart and
+		// no `)` stands right before `??`.
+		fl.deleteGroupingParens(mStart, qoff)
+		xStart := fl.off(fl.optHeadStart(e.X))
 		xEnd := rbrack + 1
 		wy := fl.wrapKnown(fl.lowerOptExpr(e.Y), fl.optType(e.Y), opt.Elem)
 		if keepMapRead(opt.Elem) {
@@ -1162,7 +1206,7 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 		return out
 	}
 	bare := keepMapRead(opt.Elem)
-	xStart := fl.off(fl.optLeftmost(e.X))
+	xStart := fl.off(fl.optHeadStart(e.X))
 	fl.addOwned(id, xStart, xStart, "func() "+etext+" { if "+optTemp+" := ")
 	nx := fl.lowerOptReceiver(e.X)
 	wy := fl.wrapKnown(fl.lowerOptExpr(e.Y), fl.optType(e.Y), opt.Elem)
