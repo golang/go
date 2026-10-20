@@ -165,14 +165,15 @@ func (p *parser) logosParenLambda(pos Pos, elems []parenElem) Expr {
 }
 
 // logosParenValueElem parses one `(` element in an expression position.
-// Type-led heads parse exactly as in operand position and continue
-// through pexpr, so calls, indexes, selections, and composites behave
-// identically; anything else parses as a full expression.
+// Operand-led heads parse exactly as in operand position and continue
+// through pexpr and the binary operators, so calls, indexes, selections,
+// composites, and `a + b` behave identically; anything else, including
+// unary `*x` and `<-x`, parses as a full expression.
 func (p *parser) logosParenValueElem(keepParens bool) parenElem {
 	switch p.tok {
 	case _Lparen:
 		e, _ := p.logosParen(keepParens, false)
-		return p.logosParenValueField(p.pexpr(e, keepParens))
+		return p.logosParenValueTail(e, keepParens)
 
 	case _Func:
 		// Mirror operand: a `{` after the signature makes a
@@ -187,16 +188,16 @@ func (p *parser) logosParenValueElem(keepParens bool) parenElem {
 			f.Type = ftyp
 			f.Body = p.funcBody()
 			p.xnest--
-			return p.logosParenValueField(p.pexpr(f, keepParens))
+			return p.logosParenValueTail(f, keepParens)
 		}
-		return p.logosParenValueField(p.pexpr(Expr(ftyp), keepParens))
+		return p.logosParenValueTail(ftyp, keepParens)
 
 	case _Const:
 		// `const T` views (M5-S1) and `const T(x)` conversions
 		// (M5-S5) start here, exactly as in operand position.
-		return p.logosParenValueField(p.pexpr(p.logosConstOperand(), keepParens))
+		return p.logosParenValueTail(p.logosConstOperand(), keepParens)
 
-	case _Lbrack, _Chan, _Map, _Struct, _Interface, _Arrow, _Star:
+	case _Lbrack, _Chan, _Map, _Struct, _Interface:
 		typ := p.typeOrNil()
 		if typ == nil {
 			typ = p.badExpr()
@@ -204,10 +205,17 @@ func (p *parser) logosParenValueElem(keepParens bool) parenElem {
 			p.advance(_Comma, _Rparen)
 			return parenElem{e: typ}
 		}
-		return p.logosParenValueField(p.pexpr(typ, keepParens))
+		return p.logosParenValueTail(typ, keepParens)
 	}
 
 	return p.logosParenValueField(p.expr())
+}
+
+// logosParenValueTail continues an operand-led element past its head:
+// selectors, calls, and composites through pexpr, then binary operators,
+// exactly the order expr uses for an expression that starts with head.
+func (p *parser) logosParenValueTail(head Expr, keepParens bool) parenElem {
+	return p.logosParenValueField(p.binaryExpr(p.pexpr(head, keepParens), 0))
 }
 
 // logosParenValueField splits a `name Type` element in an expression

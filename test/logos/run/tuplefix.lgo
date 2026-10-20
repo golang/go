@@ -1,0 +1,30 @@
+// run
+
+package main
+
+import "fmt"
+
+func g(m, n int) {
+	fmt.Println(m, n)
+}
+
+func main() {
+	a, b, c, d := 1, 2, 3, 4
+	// A parenthesized expression without a top-level comma stays a
+	// parenthesized expression, exactly as in Go (SPEC Sec 5.2).
+	x := ((a+b) + (c+d))
+	fmt.Println(x)
+	y := ((a+b) * (c+d))
+	fmt.Println(y)
+	z := (a+b)*c + d
+	fmt.Println(z)
+	g((a+b), c)
+	g(10, 5)
+	var inc func(int) int = (a) => a + 1
+	fmt.Println(inc(41))
+	var add func(int, int) int = (a, b) => a + b
+	fmt.Println(add(20, 22))
+	// A tuple literal needs a comma at its top level.
+	p, q := (a+b, c+d)
+	fmt.Println(p, q)
+}
