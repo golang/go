@@ -1,0 +1,36 @@
+// run
+
+package main
+
+import "unsafe"
+
+// M3 union options (SPEC T-202, #49): an option over a declared union
+// with no nil-capable member keeps the bare interface, with nil as none;
+// a union with a nil-capable member uses rt.Option, so a present nil
+// payload stays distinct from none.
+
+type NumOrStr interface {
+	int | string
+}
+
+type Bytes interface {
+	[]byte | string
+}
+
+func opt(present bool) NumOrStr? {
+	if present {
+		var u NumOrStr = 7
+		return u
+	}
+	return nil
+}
+
+func main() {
+	var u NumOrStr = 1
+	var o NumOrStr? = u
+	println(unsafe.Sizeof(o) == unsafe.Sizeof(u))
+	println(opt(true) == nil, opt(false) == nil)
+	var b Bytes = []byte(nil)
+	var ob Bytes? = b
+	println(unsafe.Sizeof(ob) == unsafe.Sizeof(b), ob == nil)
+}

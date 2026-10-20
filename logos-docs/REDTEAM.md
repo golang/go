@@ -52,7 +52,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #46 | M18 |  | planned |
 | #47 | M5 |  | planned |
 | #48 | M13 |  | planned |
-| #49 | M3 |  | planned |
+| #49 | M3 | test/logos/run/option_union.lgo | tested |
 | #50 | M5 |  | planned |
 | #51 | M5 |  | planned |
 | #52 | M6 |  | planned |

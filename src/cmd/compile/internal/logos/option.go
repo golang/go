@@ -306,12 +306,8 @@ func keepMapRead(V types2.Type) bool {
 	if V == nil {
 		return false
 	}
-	u := types2.Unalias(V)
-	if _, ok := u.(*types2.Pointer); ok {
+	if _, ok := V.Underlying().(*types2.Pointer); ok {
 		return true
-	}
-	if _, ok := u.(*types2.Interface); !ok {
-		return false
 	}
 	members, isUnion := unionTerms(V)
 	if !isUnion {
