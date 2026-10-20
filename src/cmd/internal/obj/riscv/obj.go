@@ -162,6 +162,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Reg = REG_ZERO
 				break
 			}
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				if math.IsNaN(f64) {
+					p.As = AFLIS
+					break
+				}
+				if _, ok := flisMapping[f32]; ok {
+					p.As = AFLIS
+					break
+				}
+			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float32Sym(f32)
 			p.From.Name = obj.NAME_EXTERN
@@ -175,6 +185,16 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REG_ZERO
 				break
+			}
+			if buildcfg.GORISCV64 >= 23 && p.To.Type == obj.TYPE_REG {
+				if math.IsNaN(f64) {
+					p.As = AFLID
+					break
+				}
+				if _, ok := flidMapping[f64]; ok {
+					p.As = AFLID
+					break
+				}
 			}
 			p.From.Type = obj.TYPE_MEM
 			p.From.Sym = ctxt.Float64Sym(f64)
