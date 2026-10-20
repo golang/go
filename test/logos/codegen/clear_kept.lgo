@@ -4,11 +4,15 @@ package main
 
 // M15-S2 (SPEC Sec 15.2, T-303; #149): an explicit clear of a slice
 // lowers to a runtime memclr call, and dead-store elimination keeps it.
-// The call survives before the return.
+// The call survives before the return, even though nothing reads the
+// cleared bytes afterward.
 
-func scrub(b []byte) {
+func scrub(key []byte) int {
+	n := len(key)
 	// amd64:"CALL.*memclrNoHeapPointers"
-	clear(b)
+	// arm64:"CALL.*memclrNoHeapPointers"
+	clear(key)
+	return n
 }
 
 func main() {}

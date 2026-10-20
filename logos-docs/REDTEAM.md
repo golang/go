@@ -152,7 +152,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
 | #147 | M8 |  | planned |
 | #148 | M8, M9 |  | planned |
-| #149 | M15 |  | planned |
+| #149 | M15 | test/logos/codegen/clear_kept.lgo | satisfied upstream |
 | #150 | M7 |  | planned |
 | #151 | M8 |  | planned |
 | #152 | M5 | test/logos/run/zerocopy.lgo (other-provenance AllocsPerRun, survival) | tested |
