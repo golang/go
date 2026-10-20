@@ -1,0 +1,80 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M3-S6 single-value map index yields `V?` (SPEC Sec 1.4, T-104.3; Sec
+// 2.2, T-202): an absent key reads as none, so `m[k]` types as `V?`,
+// `m[k] ?? d` types as `V`, and `v, ok := m[k]` keeps Go types. Stores,
+// `++`, compound stores, and `delete` operate on `V` unchanged. A plain
+// selection on a single-value read fails until the value is narrowed or
+// unwrapped with `??` (narrowing itself is M3-S4).
+
+type MapUser struct {
+	Name string
+	Age  int
+}
+
+func (u MapUser) Greet() string { return u.Name }
+
+// A single-value read yields `V?`: it neither converts to `V` nor
+// assigns to it.
+func mapSingle(m map[string]int) {
+	var v int = m /* ERROR "of type int?) as int value in" */ ["k"]
+	_ = v
+	x := m["k"]
+	var i int = x /* ERROR "cannot use x (variable of type int?) as int value in" */
+	_ = i
+}
+
+// `m[k] ?? d` types as `V`; the fallback must match the element.
+func mapCoalesce(m map[string]int, x int?) {
+	var w int = m["k"] ?? 7
+	var w2 int = x ?? m["k"] ?? 7
+	_, _ = w, w2
+	var s string = m["k"] ?? "d" /* ERROR "as int value in ?? right-hand side" */
+	_ = s
+}
+
+// `v, ok := m[k]` keeps Go types.
+func mapCommaOk(m map[string]int) {
+	a, ok := m["k"]
+	var ai int = a
+	var ook bool = ok
+	_, _ = ai, ook
+}
+
+// Stores, `++`, compound stores, and `delete` operate on `V` unchanged.
+func mapStores(m map[string]int) {
+	m["k"] = 3
+	m["k"]++
+	m["k"] += 2
+	delete(m, "k")
+}
+
+// A plain selection on a single-value read fails: narrow first (M3-S4)
+// or unwrap with `??`.
+func mapSelect(m map[string]MapUser) {
+	_ = m["k"].Name /* ERROR "[correctness::nil_deref_unproven] cannot access field Name of MapUser? without proving != nil" */
+	_ = m["k"].Greet /* ERROR "[correctness::nil_deref_unproven] cannot call method on MapUser? without proving != nil" */ ()
+	_ = (m["k"] ?? MapUser{Name: "anon"}).Name
+}
+
+// Pointer elements read as `*T?` and unwrap with `??` to `*T`.
+func mapPtr(mp map[string]*MapUser, dflt *MapUser) {
+	y := mp["u"]
+	var z *MapUser = y /* ERROR "cannot use y (variable of type *MapUser?) as *MapUser value in variable declaration" */
+	_, _ = y, z
+	var w *MapUser = mp["u"] ?? dflt
+	_ = w
+}
+
+// Slice elements read as `[]int?`; `?? nil` types as the element.
+func mapSlice(ms map[string][]int) {
+	s := ms["k"]
+	var t []int = s /* ERROR "cannot use s (variable of type []int?) as []int value in variable declaration" */
+	_, _ = s, t
+	var u []int = ms["k"] ?? nil
+	_ = u
+}

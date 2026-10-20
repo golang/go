@@ -1,0 +1,49 @@
+// run
+
+package main
+
+import "fmt"
+
+// M3-S6 single-value map index yields `V?` (SPEC Sec 1.4, T-104.3; Sec
+// 2.2, T-202): an absent key reads as none, a present zero value reads as
+// some, and a present nil slice payload reads as some with a nil payload,
+// distinct from none. `v, ok := m[k]`, stores, `++`, and `delete` keep Go
+// meaning. Pointer elements keep the plain `m[k]` read with nil as none.
+
+type User struct {
+	Name string
+}
+
+func main() {
+	m := map[string]int{"a": 0, "b": 5}
+	fmt.Println(m["zzz"] ?? -1)
+	fmt.Println(m["a"] ?? -1)
+	fmt.Println(m["b"] ?? -1)
+	fmt.Println(m["a"])
+	fmt.Println(m["zzz"])
+	x := m["a"]
+	fmt.Println(x ?? -1)
+	y := m["zzz"]
+	fmt.Println(y ?? -1)
+	v, ok := m["a"]
+	fmt.Println(v, ok)
+	m["c"] = 42
+	m["c"]++
+	m["c"] += 1
+	fmt.Println(m["c"] ?? -1)
+	delete(m, "c")
+	fmt.Println(m["c"] ?? -1)
+
+	ms := map[string][]int{"n": nil, "e": {1, 2}}
+	dflt := []int{9}
+	fmt.Println(ms["n"] ?? dflt)
+	fmt.Println(ms["zzz"] ?? dflt)
+	fmt.Println(ms["n"])
+	fmt.Println(ms["zzz"])
+	fmt.Println(len(ms["e"] ?? dflt))
+
+	mu := map[string]*User{"u": &User{Name: "ann"}}
+	guest := &User{Name: "guest"}
+	fmt.Println((mu["u"] ?? guest).Name)
+	fmt.Println((mu["zzz"] ?? guest).Name)
+}

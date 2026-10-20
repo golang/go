@@ -124,7 +124,9 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
-	fl.lowerUnions() // M2 hook: switch expressions and struct assertions.
+	fl.lowerPlatform() // M3-S5 hook: MustNonNil wraps for platform-pointer stores.
+	fl.lowerUnions()   // M2 hook: switch expressions and struct assertions.
+	fl.lowerOptions()  // M3-S6 hook: single-value map reads and ?? over them.
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if ok && fn.Body != nil {

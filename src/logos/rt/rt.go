@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strconv"
 )
 
 // Site records one error-propagation site: the file and line where a ?
@@ -33,6 +34,44 @@ func Join(a, b error) error {
 // Context aliases context.Context so lowered code spells the group
 // context without importing context itself.
 type Context = context.Context
+
+// MustNonNil checks a platform pointer stored into a declared non-nil
+// location (SPEC T-202): it returns its argument, and panics with
+// `logos: nil from Go value stored into non-nil *T at <file>:<line>`
+// when the value is nil. Only pointer-shaped values can be nil; every
+// other value passes through untouched.
+func MustNonNil[T any](p T, site *Site) T {
+	v := reflect.ValueOf(p)
+	switch v.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface, reflect.UnsafePointer:
+		if v.IsNil() {
+			panic("logos: nil from Go value stored into non-nil " + reflect.TypeOf(p).String() + " at " + site.File + ":" + strconv.Itoa(site.Line))
+		}
+	}
+	return p
+}
+
+// Option is the lowered form of a loGo/s option `T?` whose payload admits
+// nil as a valid value (SPEC T-202, T-104.3): Present tells an absent key
+// from a present nil payload, so a present nil slice reads as some with a
+// nil payload, distinct from none. Options over a non-nil `*T` lower to
+// the bare pointer instead, and an interface-backed union option with no
+// nil-capable member lowers to the bare interface; neither uses this type.
+type Option[T any] struct {
+	Value   T
+	Present bool
+}
+
+// Lookup reads key k from map m with explicit presence (SPEC T-104.3): an
+// absent key gives none, a present zero value gives some, and a present
+// nil payload gives some with a nil payload. Single-value map reads whose
+// element needs presence lower to this call; non-nil pointer elements and
+// interface-backed union elements with no nil-capable member keep the
+// plain `m[k]` read with nil as none.
+func Lookup[M ~map[K]V, K comparable, V any](m M, k K) Option[V] {
+	v, ok := m[k]
+	return Option[V]{Value: v, Present: ok}
+}
 
 // UnionAssertionError is the panic value of a failed single-value
 // assertion to a closed union: x.(U) panics with
