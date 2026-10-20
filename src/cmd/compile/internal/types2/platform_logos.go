@@ -103,8 +103,8 @@ func (check *Checker) logosZeroDecl(obj *Var) {
 	if !check.conf.Logos || obj.name == "_" || !isValid(obj.typ) {
 		return
 	}
-	if isTypeParam(obj.typ) {
-		return // `var t T` for a type parameter is allowed.
+	if isTypeParam(obj.typ) || check.logosOpaqueType(obj.typ) {
+		return // `var t T` for a type parameter or an imported named type is allowed.
 	}
 	if check.logosIsNonNilPointer(obj.typ) {
 		check.errorf(obj.pos, BadDecl, "%s var %s %s needs a value; non-nil pointers have no zero value", logosNonNilUninit, obj.name, obj.typ)
@@ -133,7 +133,7 @@ func (check *Checker) logosZeroLiteral(e *syntax.CompositeLit, typ, base Type) {
 	}
 	u, _ := commonUnder(base, nil)
 	st, _ := u.(*Struct)
-	if st == nil || !isValid(base) {
+	if st == nil || !isValid(base) || check.logosOpaqueType(base) {
 		return
 	}
 	if len(e.ElemList) > 0 {
@@ -191,7 +191,7 @@ func (check *Checker) logosZeroMake(call *syntax.CallExpr, T Type) {
 // type form is hooked; `new(expr)` initializes from its argument. Errors
 // report at the type argument.
 func (check *Checker) logosZeroNew(arg syntax.Expr, T Type) {
-	if !check.conf.Logos || !isValid(T) || isTypeParam(T) {
+	if !check.conf.Logos || !isValid(T) || isTypeParam(T) || check.logosOpaqueType(T) {
 		return
 	}
 	if check.logosIsNonNilPointer(T) {

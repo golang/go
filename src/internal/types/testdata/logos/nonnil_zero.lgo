@@ -4,6 +4,8 @@
 
 package p
 
+import "strings"
+
 // M3 non-nil zero-value rules (SPEC Sec 2.2, T-202): in .lgo code *T is
 // non-nil, so zero values of non-nil pointers fail with
 // [correctness::nonnil_uninitialized] and stores of nil fail with
@@ -111,6 +113,15 @@ func initFromParam(q *User) {
 func plainZero() {
 	var i Inner
 	_ = i
+}
+
+// A struct declared in a Go package keeps its zero value: its pointer
+// fields are platform pointers (strings.Builder holds addr *Builder).
+func importedZero() {
+	var b strings.Builder
+	_ = b
+	_ = new(strings.Builder)
+	_ = strings.Builder{}
 }
 
 // Zero-clearing through a pointer is a literal that leaves a non-nil
