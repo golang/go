@@ -3,9 +3,11 @@
 package main
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 )
 
 var mapCalls int
@@ -118,6 +120,15 @@ func main() {
 	fmt.Println(getXS().count(x => x > 2))
 	items := []item{{3, "c"}, {1, "a"}, {3, "b"}, {2, "d"}}
 	fmt.Println(items.sortBy(x => x.k))
+	// Stable by cmp.Compare (#179): 64 items pass the insertion-sort
+	// cutoff, so an unstable sort reorders the equal keys.
+	many := make([]item, 64)
+	for i := range many {
+		many[i] = item{k: (64 - i) % 4, v: fmt.Sprint(i)}
+	}
+	want := slices.Clone(many)
+	slices.SortStableFunc(want, func(a, b item) int { return cmp.Compare(a.k, b.k) })
+	fmt.Println(slices.Equal(many.sortBy(x => x.k), want))
 	gs := getXS().map(x => float64(x) / 3)
 	fmt.Println(gs.sum())
 	// Fixed pairwise order (#67): left-to-right would give 1, the

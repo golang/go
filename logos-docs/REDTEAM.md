@@ -9,7 +9,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #3 | M5 | test/logos/run/constmap_switch.lgo; src/cmd/compile/internal/logos/constmap_test.go (TestConstmapSwitchMax) | tested |
 | #4 | M18 |  | planned |
 | #5 | M8, M20 |  | planned |
-| #6 | M6 |  | planned |
+| #6 | M6 | test/logos/run/lambda.lgo; test/logos/run/chains.lgo (dblBlock, count with ?) | tested |
 | #7 | M3, M11 |  | planned |
 | #8 | M3 | test/logos/run/platform.lgo | tested |
 | #9 | M13 |  | planned |
@@ -42,7 +42,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #36 |M2| test/logos/redteam/attack_036_open_union_value | tested |
 | #37 | M7 |  | planned |
 | #38 | M6 | src/cmd/compile/internal/syntax/parser_paren_logos_test.go | tested |
-| #39 | M6 |  | planned |
+| #39 | M6 | test/logos/run/tuples.lgo (pair call unpack, tuple var pack) | tested |
 | #40 |M2| test/logos/redteam/attack_040_union_equality | tested |
 | #41 | M5, M6 |  | planned |
 | #42 |M1| test/logos/redteam/attack_042_defer_close_join | tested |
@@ -67,7 +67,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #61 | M3 | test/logos/run/option_nested.lgo | tested |
 | #62 | M5 | src/internal/types/testdata/logos/const_views.lgo (Rename, Peek) | tested |
 | #63 | M18 |  | planned |
-| #64 | M6 |  | planned |
+| #64 | M6 | test/logos/run/interp.lgo (nextID once, tag order) | tested |
 | #65 | M7 |  | planned |
 | #66 |M1| test/logos/redteam/attack_066_errdefer_unnamed_results | tested |
 | #67 | M6, M13 | M6 half: src/cmd/compile/internal/logos/m6gaps_test.go (TestChainSumPairwise); test/logos/run/chains.lgo (sum order). M13: arm64 leg open | planned |
@@ -98,7 +98,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #92 | M13 |  | planned |
 | #93 | M5 | test/logos/run/constview_bound.lgo | tested |
 | #94 | M10 |  | planned |
-| #95 | M6 |  | planned |
+| #95 | M6 | test/logos/run/chains.lgo (take, drop, get clamps) | tested |
 | #96 |M1| test/logos/redteam/attack_096_errdefer_armed_flag | tested |
 | #97 |M2| test/logos/redteam/attack_097_struct_variant_slots | tested |
 | #98 | M5 | test/logos/run/rodata_reflect.lgo | tested |
@@ -122,7 +122,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #116 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #117 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #118 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
-| #119 | M6 |  | planned |
+| #119 | M6 | test/logos/run/spread.lgo; src/internal/types/testdata/logos/spread.lgo | tested |
 | #120 | M4 | test/logos/run/properties.lgo | tested |
 | #121 | M13 |  | planned |
 | #122 | M0 |  | planned |
@@ -149,7 +149,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #143 | M8 |  | planned |
 | #144 | M17, M20 |  | planned |
 | #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
-| #146 | M6 |  | planned |
+| #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
 | #147 | M8 |  | planned |
 | #148 | M8, M9 |  | planned |
 | #149 | M15 |  | planned |
@@ -182,7 +182,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #176 | M8 | src/logos/sync/sync_test.go (TestLockedWithLockUnlocksAfterPanic) | tested |
 | #177 | M6 | test/logos/run/interp.lgo (format verbs printed literally) | tested |
 | #178 | M8 |  | planned |
-| #179 | M6 |  | planned |
+| #179 | M6 | test/logos/run/chains.lgo (64-item stability, NaN order) | tested |
 | #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |
 | #181 | M18 |  | planned |
 | #182 | M9 |  | planned |
