@@ -112,3 +112,9 @@ func plainZero() {
 	var i Inner
 	_ = i
 }
+
+// Zero-clearing through a pointer is a literal that leaves a non-nil
+// field unset (#60).
+func zeroClearThroughPointer(hp *Holder) {
+	*hp = Holder /* ERROR "[correctness::nonnil_uninitialized] field Holder.P (type *Inner) needs a value" */ {}
+}
