@@ -118,13 +118,12 @@ func (fl *fileLower) lowerLambdaExpr(lam *syntax.LambdaExpr) {
 	end := fl.off(syntax.EndPos(lam))
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
 		end = fl.off(block.Rbrace) + 1
-	} else if stashed, ok := fl.optBodySpan[lam]; ok {
-		// D7: the pre-pass may have replaced the body with a
-		// synthetic node whose EndPos collapses onto one position;
-		// the stashed source span covers the original extent.
-		end = stashed.end
 	} else if expr, ok := lam.Body.(syntax.Expr); ok {
-		end = lambdaBodyEnd(fl.src, fl.off(syntax.StartPos(expr)))
+		// D7: prefer the pre-pass source span, which synthetic
+		// replacements do not carry in their own positions; a body
+		// already replaced by an inner lambda lowering rescans the
+		// source (see lambdaCaptureSpan).
+		end = fl.lambdaCaptureSpan(lam, expr).end
 	}
 	fl.add(fl.off(syntax.StartPos(lam)), end, fullText)
 	replaceTupleExpr(fl.file, lam, lit)
@@ -175,6 +174,27 @@ func (fl *fileLower) callBodySpan(call *syntax.CallExpr) span {
 	return span{start, rparen + 1}
 }
 
+// lambdaCaptureSpan returns the source span of lam's expression body for
+// the capture text and the outer splice. A stashed pre-pass span covers
+// the original extent, except when the body is a nested lambda: a body
+// already replaced by the inner lowering is a synthetic FuncLit whose
+// positions collapse near the inner start, and an unreplaced LambdaExpr
+// body ends at its inner EndPos, which is short for call tails; both are
+// suspect even when positive, so rescan the source tokens instead. Both
+// lowerLambdaExpr and lambdaBody share this path so the splice end and
+// the baked text always agree.
+func (fl *fileLower) lambdaCaptureSpan(lam *syntax.LambdaExpr, body syntax.Expr) span {
+	if stashed, ok := fl.optBodySpan[lam]; ok && stashed.end > stashed.start {
+		switch syntax.Unparen(body).(type) {
+		case *syntax.FuncLit, *syntax.LambdaExpr:
+		default:
+			return stashed
+		}
+	}
+	start := fl.off(syntax.StartPos(body))
+	return span{start, lambdaBodyEnd(fl.src, start)}
+}
+
 // lambdaBody builds the function body and its text for a lambda.
 func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, pos syntax.Pos) (*syntax.BlockStmt, string) {
 	// D7: pre-lower captures in the body (interpolations, property
@@ -194,15 +214,9 @@ func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, p
 		return fl.lambdaTryBody(sig, pos, t)
 	}
 	// D7: prefer the pre-pass source span, which synthetic replacements
-	// do not carry in their own positions; otherwise the body ends at its
-	// last source token.
-	var espan span
-	if stashed, ok := fl.optBodySpan[lam]; ok {
-		espan = stashed
-	} else {
-		start := fl.off(syntax.StartPos(expr))
-		espan = span{start, lambdaBodyEnd(fl.src, start)}
-	}
+	// do not carry in their own positions; a body already replaced by an
+	// inner lambda lowering rescans the source (see lambdaCaptureSpan).
+	espan := fl.lambdaCaptureSpan(lam, expr)
 	// D7: a top-level `??`/`?.` wrapper records its boundary inserts
 	// exactly on the capture edges; drain them here.
 	text := fl.drainBodyWrapper(expr, fl.textOf(espan))
