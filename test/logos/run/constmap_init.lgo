@@ -25,7 +25,7 @@ func probeSrc() string {
 	var b strings.Builder
 	b.WriteString("package main\n\nimport \"fmt\"\n\nconst initArray = [8]int{1, 2, 3, 4, 5, 6, 7, 8}\n\nconst squares = map[int]int{")
 	for k := range 1000 {
-		fmt.Fprintf(&b, "%d: %d, ", k, k*k)
+		b.WriteString(fmt.Sprintf("%d: %d, ", k, k*k))
 	}
 	b.WriteString("}\n\nfunc main() {\n\tn := 0\n\tfor range squares {\n\t\tn++\n\t}\n\tfmt.Println(initArray, squares[31] ?? -1, n)\n}\n")
 	return b.String()
