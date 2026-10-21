@@ -7,6 +7,7 @@
 package runtime_test
 
 import (
+	"internal/goexperiment"
 	"math/rand/v2"
 	"runtime"
 	"slices"
@@ -35,38 +36,12 @@ type spanDeckChild struct {
 
 var spanDeckSink [2]unsafe.Pointer
 
-// withSpanDeck runs f with the deck selected and restores the previous order.
-func withSpanDeck(t *testing.T, on func() (prev, ok bool), f func()) {
-	t.Helper()
-	prev, ok := on()
-	if !ok {
-		t.Skip("the collector was busy; the span queue order cannot change now")
-	}
-	defer func() {
-		if prev {
-			runtime.LogosSpanDeckEnable()
-		} else {
-			runtime.LogosSpanDeckDisable()
-		}
-	}()
-	f()
-}
-
 // A pointer store into span S sets the bit in S's mark bits and marks S dirty
 // without dereferencing the pointer: the child the parent points to stays
-// unmarked until the span is scanned. The test reads the bitmaps only.
+// unmarked until the span is scanned. The test reads the bitmaps only. The
+// marking path is shared, so this runs in both the deck and the FIFO builds.
 func TestLogosSpanDeckMarkSetsBitAndDirtyWithoutScanning(t *testing.T) {
-	for _, order := range []struct {
-		name string
-		on   func() (prev, ok bool)
-	}{
-		{"fifo", runtime.LogosSpanDeckDisable},
-		{"deck", runtime.LogosSpanDeckEnable},
-	} {
-		t.Run(order.name, func(t *testing.T) {
-			withSpanDeck(t, order.on, func() { checkMarkProbe(t) })
-		})
-	}
+	checkMarkProbe(t)
 }
 
 func checkMarkProbe(t *testing.T) {
@@ -132,6 +107,15 @@ func TestLogosSpanDeckPopsInAddressOrder(t *testing.T) {
 	slices.Sort(want)
 
 	bases, sweeps, lost, inversions := runtime.LogosSpanQueueScript(script)
+	if !goexperiment.LogosSpanDeck {
+		if !slices.Equal(bases, script) {
+			t.Fatalf("FIFO pop sequence\n got %#x\nwant %#x", bases, script)
+		}
+		if lost != 0 || inversions != 0 {
+			t.Fatalf("lost=%d inversions=%d", lost, inversions)
+		}
+		return
+	}
 	if !slices.Equal(bases, want) {
 		t.Fatalf("pop sequence\n got %#x\nwant %#x", bases, want)
 	}
@@ -149,6 +133,13 @@ func TestLogosSpanDeckPopsInAddressOrder(t *testing.T) {
 func TestLogosSpanDeckSpanBehindTheCursorWaitsForNextSweep(t *testing.T) {
 	script := []uintptr{span(5), span(3), span(8), 0, span(1), span(6)}
 	bases, sweeps, lost, inversions := runtime.LogosSpanQueueScript(script)
+	if !goexperiment.LogosSpanDeck {
+		wantFIFO := []uintptr{span(5), span(3), span(8), span(1), span(6)}
+		if !slices.Equal(bases, wantFIFO) || lost != 0 || inversions != 0 {
+			t.Fatalf("FIFO bases %#x lost %d inversions %d\nwant %#x", bases, lost, inversions, wantFIFO)
+		}
+		return
+	}
 	wantBases := []uintptr{span(3), span(5), span(6), span(8), span(1)}
 	wantSweeps := []uint32{0, 0, 0, 0, 1}
 	if !slices.Equal(bases, wantBases) || !slices.Equal(sweeps, wantSweeps) || lost != 0 || inversions != 0 {
@@ -177,6 +168,18 @@ func TestLogosSpanDeckSpillAndStealKeepEverySpanOnce(t *testing.T) {
 	}
 
 	bases, sweeps, lost, inversions := runtime.LogosSpanQueueScript(script)
+	if !goexperiment.LogosSpanDeck {
+		if lost != 0 || inversions != 0 {
+			t.Fatalf("lost=%d inversions=%d", lost, inversions)
+		}
+		got := slices.Clone(bases)
+		slices.Sort(got)
+		slices.Sort(puts)
+		if !slices.Equal(got, puts) {
+			t.Fatalf("popped %d spans, put %d: sets differ", len(got), len(puts))
+		}
+		return
+	}
 	checkSweeps(t, bases, sweeps)
 	if lost != 0 || inversions != 0 {
 		t.Fatalf("lost=%d inversions=%d", lost, inversions)
@@ -202,6 +205,19 @@ func TestLogosSpanDeckSpillKeepsTheHighestSpansForThieves(t *testing.T) {
 	bases, sweeps, lost, inversions := runtime.LogosSpanQueueScript(script)
 	if lost != 0 || inversions != 0 {
 		t.Fatalf("lost=%d inversions=%d", lost, inversions)
+	}
+	if !goexperiment.LogosSpanDeck {
+		var wantFIFO []uintptr
+		for k := uintptr(16); k < puts; k++ {
+			wantFIFO = append(wantFIFO, span(k))
+		}
+		for k := uintptr(0); k < 16; k++ {
+			wantFIFO = append(wantFIFO, span(k))
+		}
+		if !slices.Equal(bases, wantFIFO) {
+			t.Fatalf("FIFO spill order\n got %#x\nwant %#x", bases, wantFIFO)
+		}
+		return
 	}
 	checkSweeps(t, bases, sweeps)
 	var first, second []uintptr
@@ -292,87 +308,85 @@ func spanDeckGarbage(n int) []weak.Pointer[spanDeckNode] {
 	return ws
 }
 
-// With the deck selected, whole collections keep every reachable object and
-// free the unreachable ones, and the deck itself reports that it ran and that
-// no pop broke the order inside a sweep.
+// Whole collections keep every reachable object and free the unreachable
+// ones; in the deck build the deck itself reports that it ran and that no
+// pop broke the order inside a sweep.
 func TestLogosSpanDeckCollectsWithTheDeckSelected(t *testing.T) {
-	withSpanDeck(t, runtime.LogosSpanDeckEnable, func() {
-		const live, dead = 40000, 4000
-		liveWeak := make([]weak.Pointer[spanDeckNode], live)
-		var head *spanDeckNode
-		sum := 0
-		for i := range live {
-			n := &spanDeckNode{next: head, v: i}
-			if i > 2 {
-				n.left, n.right = head.next, head.next.next
-			}
-			head = n
-			liveWeak[i] = weak.Make(n)
-			sum += i
+	const live, dead = 40000, 4000
+	liveWeak := make([]weak.Pointer[spanDeckNode], live)
+	var head *spanDeckNode
+	sum := 0
+	for i := range live {
+		n := &spanDeckNode{next: head, v: i}
+		if i > 2 {
+			n.left, n.right = head.next, head.next.next
 		}
-		spanDeckRoot = head
-		deadWeak := spanDeckGarbage(dead)
+		head = n
+		liveWeak[i] = weak.Make(n)
+		sum += i
+	}
+	spanDeckRoot = head
+	deadWeak := spanDeckGarbage(dead)
 
-		popsBefore, _ := runtime.LogosSpanDeckStats()
-		for range 3 {
-			runtime.GC()
-		}
-		pops, inversions := runtime.LogosSpanDeckStats()
+	popsBefore, _ := runtime.LogosSpanDeckStats()
+	for range 3 {
+		runtime.GC()
+	}
+	pops, inversions := runtime.LogosSpanDeckStats()
 
-		got, walked := 0, 0
-		for n := spanDeckRoot; n != nil; n = n.next {
-			got += n.v
-			walked++
+	got, walked := 0, 0
+	for n := spanDeckRoot; n != nil; n = n.next {
+		got += n.v
+		walked++
+	}
+	if walked != live || got != sum {
+		t.Fatalf("list walked %d nodes with sum %d, want %d with %d", walked, got, live, sum)
+	}
+	for i, w := range liveWeak {
+		if w.Value() == nil {
+			t.Fatalf("reachable node %d was freed", i)
 		}
-		if walked != live || got != sum {
-			t.Fatalf("list walked %d nodes with sum %d, want %d with %d", walked, got, live, sum)
+	}
+	left := 0
+	for _, w := range deadWeak {
+		if w.Value() != nil {
+			left++
 		}
-		for i, w := range liveWeak {
-			if w.Value() == nil {
-				t.Fatalf("reachable node %d was freed", i)
-			}
-		}
-		left := 0
-		for _, w := range deadWeak {
-			if w.Value() != nil {
-				left++
-			}
-		}
-		if left*100 > dead*5 {
-			t.Fatalf("%d of %d unreachable nodes survived three collections", left, dead)
-		}
+	}
+	if left*100 > dead*5 {
+		t.Fatalf("%d of %d unreachable nodes survived three collections", left, dead)
+	}
+	if goexperiment.LogosSpanDeck {
 		if pops == popsBefore {
 			t.Fatal("the collections never popped a span from the deck")
 		}
 		if inversions != 0 {
 			t.Fatalf("%d pops broke the address order inside a sweep", inversions)
 		}
-		spanDeckRoot = nil
-	})
+	}
+	spanDeckRoot = nil
 }
 
 // A heap of half a million small records, wired in allocation order with
-// random long edges, survives four collections with the deck selected: every
-// edge is intact and the deck popped spans without breaking its order.
+// random long edges, survives four collections: every edge is intact, and in
+// the deck build the deck popped spans without breaking its order.
 func TestLogosSpanDeckLargeHeapKeepsEveryEdge(t *testing.T) {
-	withSpanDeck(t, runtime.LogosSpanDeckEnable, func() {
-		recs := spanOrderHeap(1 << 19)
-		near, far := spanOrderSnapshot(recs)
-		popsBefore, _ := runtime.LogosSpanDeckStats()
-		for range 4 {
-			runtime.GC()
-		}
-		pops, inversions := runtime.LogosSpanDeckStats()
-		checkSpanOrderHeap(t, recs, near, far)
-		if pops == popsBefore || inversions != 0 {
-			t.Fatalf("pops %d -> %d, inversions %d", popsBefore, pops, inversions)
-		}
-		runtime.KeepAlive(recs)
-	})
+	recs := spanOrderHeap(1 << 19)
+	near, far := spanOrderSnapshot(recs)
+	popsBefore, _ := runtime.LogosSpanDeckStats()
+	for range 4 {
+		runtime.GC()
+	}
+	pops, inversions := runtime.LogosSpanDeckStats()
+	checkSpanOrderHeap(t, recs, near, far)
+	if goexperiment.LogosSpanDeck && (pops == popsBefore || inversions != 0) {
+		t.Fatalf("pops %d -> %d, inversions %d", popsBefore, pops, inversions)
+	}
+	runtime.KeepAlive(recs)
 }
 
 // Pointer-keyed maps hash with the standard memhash: the collector never
-// moves objects, so the address is a stable key under the deck too.
+// moves objects, so the address is a stable key in both builds.
 func TestLogosSpanDeckPointerMapsKeepStandardMemhash(t *testing.T) {
 	hasher := runtime.LogosMapKeyHasher(map[*int]int{})
 	keys := make([]*int, 256)
@@ -391,11 +405,9 @@ func TestLogosSpanDeckPointerMapsKeepStandardMemhash(t *testing.T) {
 			}
 		}
 	}
-	withSpanDeck(t, runtime.LogosSpanDeckEnable, func() {
-		for range 3 {
-			runtime.GC()
-		}
-	})
+	for range 3 {
+		runtime.GC()
+	}
 	for i, k := range keys {
 		if uintptr(unsafe.Pointer(k)) != addrs[i] {
 			t.Fatalf("key %d moved from %#x to %p", i, addrs[i], k)

@@ -27,9 +27,9 @@ import (
 // descending order: spilling takes the highest spans, which are the last ones
 // the owner would reach, and a pop removes the entry just above the cursor.
 //
-// The setting changes only with the world stopped, the collector idle and
-// every queue empty. It is off unless GOEXPERIMENT=logosspandeck is set.
-var logosSpanDeckOn = goexperiment.LogosSpanDeck
+// The setting is a compile-time invariant. It is on only when the build sets
+// GOEXPERIMENT=logosspandeck; there is no runtime toggle.
+const logosSpanDeckOn = goexperiment.LogosSpanDeck
 
 // logosSpanPrefetchDepth is how many pointer targets the scan prefetches
 // ahead of the one it is marking.

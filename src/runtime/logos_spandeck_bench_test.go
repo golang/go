@@ -78,15 +78,6 @@ func BenchmarkLogosSpanOrder(b *testing.B) {
 	runtime.GC()
 	oldPercent := debug.SetGCPercent(-1)
 	defer debug.SetGCPercent(oldPercent)
-	prev, ok := runtime.LogosSpanDeckEnable()
-	if !ok {
-		b.Skip("the collector was busy")
-	}
-	defer func() {
-		if !prev {
-			runtime.LogosSpanDeckDisable()
-		}
-	}()
 	rig := runtime.NewLogosSpanOrderRig(objs)
 	if rig == nil {
 		b.Skip("the records did not land in clean spans with inline mark bits")

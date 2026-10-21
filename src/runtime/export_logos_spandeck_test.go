@@ -18,34 +18,6 @@ import (
 // world stopped with the collector idle and restores the state it touched,
 // or reads memory the collector does not write.
 
-// LogosSpanDeckEnable selects the deck for every P. It reports the previous
-// setting and whether the switch took effect.
-func LogosSpanDeckEnable() (prev, ok bool) {
-	return logosSpanDeckSwitch(true)
-}
-
-// LogosSpanDeckDisable returns every P to the first-in first-out span queue.
-// It reports the previous setting and whether the switch took effect.
-func LogosSpanDeckDisable() (prev, ok bool) {
-	return logosSpanDeckSwitch(false)
-}
-
-// logosSpanDeckSwitch refuses while a mark phase runs or any P still holds
-// spans, because the two orders cannot share a queue.
-func logosSpanDeckSwitch(next bool) (prev, ok bool) {
-	stw := stopTheWorldGC(stwUnknown)
-	prev = logosSpanDeckOn
-	ok = gcphase == _GCoff
-	for _, pp := range allp {
-		ok = ok && pp.gcw.spanq.empty()
-	}
-	if ok {
-		logosSpanDeckOn = next
-	}
-	startTheWorldGC(stw)
-	return prev, ok
-}
-
 // LogosSpanDeckStats sums the pop and order-violation counters of every P.
 func LogosSpanDeckStats() (pops uint64, inversions uint32) {
 	stw := stopTheWorldGC(stwUnknown)
@@ -57,20 +29,19 @@ func LogosSpanDeckStats() (pops uint64, inversions uint32) {
 	return pops, inversions
 }
 
-// LogosSpanQueueScript runs a script against a fresh span queue with the deck
-// selected. A nonzero entry puts the span whose base is that address; a zero
-// entry pops one span (local queue first, then the queue's own spill chain,
-// as tryGetSpan does). The queue is drained after the last entry. It reports
-// each popped span base with the sweep counter at that pop, the number of
-// puts that were never popped, and the queue's order-violation counter.
+// LogosSpanQueueScript runs a script against a fresh span queue in the
+// compiled mode. A nonzero entry puts the span whose base is that address; a
+// zero entry pops one span (local queue first, then the queue's own spill
+// chain, as tryGetSpan does). The queue is drained after the last entry. It
+// reports each popped span base with the sweep counter at that pop, the
+// number of puts that were never popped, and the queue's order-violation
+// counter.
 func LogosSpanQueueScript(script []uintptr) (bases []uintptr, sweeps []uint32, lost int, inversions uint32) {
 	bases = make([]uintptr, 0, len(script))
 	sweeps = make([]uint32, 0, len(script))
 	puts := 0
 	q := new(spanQueue)
 	stw := stopTheWorldGC(stwUnknown)
-	prev := logosSpanDeckOn
-	logosSpanDeckOn = true
 	pop := func() {
 		s := q.tryGetFast()
 		if s == 0 {
@@ -94,7 +65,6 @@ func LogosSpanQueueScript(script []uintptr) (bases []uintptr, sweeps []uint32, l
 	}
 	q.destroy()
 	inversions = q.deck.inversions
-	logosSpanDeckOn = prev
 	startTheWorldGC(stw)
 	return bases, sweeps, puts - len(bases), inversions
 }
