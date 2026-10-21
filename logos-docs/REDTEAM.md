@@ -165,7 +165,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #159 | M19 |  | planned |
 | #160 | M19, M20 |  | planned |
 | #161 | M19 |  | planned |
-| #162 | M9 | src/cmd/go/testdata/script/logos_lint_go.txt | planned |
+| #162 | M9 | src/cmd/go/testdata/script/logos_lint_go.txt | tested |
 | #163 | M9 | test/logos/lint/unbounded_channel_op.lgo; test/logos/lint/unbounded_channel_op_go.go | planned |
 | #164 | M9 | test/logos/lint/discarded_error.lgo; test/logos/lint/discarded_error_go.go | tested |
 | #165 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |

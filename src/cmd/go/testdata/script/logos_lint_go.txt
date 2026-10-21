@@ -85,6 +85,24 @@ logos build ./...
 ! stderr .
 cd ..
 
+# A loGo dependency module, not the main module, gets no lint diagnostic,
+# even when named on the command line. No logos.toml disables any lint.
+cd lgoapp
+logos lint ./...
+! stderr .
+logos lint example.com/lgodep
+! stderr .
+logos build ./...
+! stderr .
+cd ..
+
+# The same dependency linted as its own main module fails, proving the
+# exclusion above is third-party status and not a clean file.
+cd lgodep
+! logos lint ./...
+stderr 'dep\.lgo:6:2: \[slop::discarded_error\]'
+cd ..
+
 # Positive control: the same package of a workspace module, a main module of
 # the build, is linted.
 cd ws/a
@@ -312,6 +330,39 @@ go 1.27
 
 -- dep/dep.go --
 package dep
+
+import "os"
+
+func Name() string {
+	os.Remove("missing")
+	return "dep"
+}
+
+-- lgoapp/go.mod --
+module example.com/lgoapp
+
+go 1.27
+
+require example.com/lgodep v0.0.0
+
+replace example.com/lgodep => ../lgodep
+
+-- lgoapp/main.lgo --
+package main
+
+import "example.com/lgodep"
+
+func main() {
+	println(lgodep.Name())
+}
+
+-- lgodep/go.mod --
+module example.com/lgodep
+
+go 1.27
+
+-- lgodep/dep.lgo --
+package lgodep
 
 import "os"
 
