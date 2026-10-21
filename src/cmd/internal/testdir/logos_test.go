@@ -642,6 +642,21 @@ func (t test) runLogosGoRunoutput(c logosCase, base, tempDir string, runcmd runC
 	return t.checkExpectedOutput(out)
 }
 
+// logosAsmcheckEnv composes the environment for a .go twin asmcheck
+// build: the GOOS/GOARCH (and variant, such as GOARM64=v8.1) requested by
+// the directive triplet first, then the case environment, so directive
+// flags such as -goexperiment reach the compiler the same way they do
+// on the .lgo path. Later entries win, so the case environment takes
+// effect over the ambient process environment.
+func logosAsmcheckEnv(c logosCase, env buildEnv, buildFlags []string) []string {
+	out := append(os.Environ(), env.Environ()...)
+	out = append(out, c.runenv...)
+	if len(buildFlags) > 0 && buildFlags[0] == "-race" {
+		out = append(out, "CGO_ENABLED=1")
+	}
+	return out
+}
+
 // runLogosGoAsmcheck runs one .go twin asmcheck case with upstream
 // semantics, reading expectations from the source tree file and building
 // it with -S=2.
@@ -680,10 +695,7 @@ func (t test) runLogosGoAsmcheck(c logosCase) error {
 		}
 		cmdline = append(cmdline, long)
 		cmd := exec.Command(goTool, cmdline...)
-		cmd.Env = append(os.Environ(), env.Environ()...)
-		if len(buildFlags) > 0 && buildFlags[0] == "-race" {
-			cmd.Env = append(cmd.Env, "CGO_ENABLED=1")
-		}
+		cmd.Env = logosAsmcheckEnv(c, env, buildFlags)
 		var buf bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &buf, &buf
 		if err := cmd.Run(); err != nil {
@@ -1063,5 +1075,30 @@ func TestLogosGCFlagsHasE(t *testing.T) {
 	got := logosGCFlags([]string{"-m"})
 	if !strings.HasPrefix(got, "-gcflags=") || !strings.Contains(got, "-e") || !strings.Contains(got, "-m") {
 		t.Fatalf("logosGCFlags = %q, want -gcflags with -e and -m", got)
+	}
+}
+
+// TestLogosAsmcheckEnvCarriesRunenv pins the experiment closure for .go
+// twin asmcheck builds: the directive triplet comes first and the case
+// runenv after it, so `// asmcheck -goexperiment simd` compiles the twin
+// under the requested experiment instead of the ambient one. Lookup is
+// last-wins, matching how exec resolves duplicate keys.
+func TestLogosAsmcheckEnvCarriesRunenv(t *testing.T) {
+	t.Setenv("GOEXPERIMENT", "regabi")
+	env := logosAsmcheckEnv(logosCase{runenv: []string{"GOEXPERIMENT=simd"}}, "linux/arm64/v8.1", nil)
+	last := map[string]string{}
+	for _, kv := range env {
+		if k, v, ok := strings.Cut(kv, "="); ok {
+			last[k] = v
+		}
+	}
+	for k, want := range map[string]string{"GOOS": "linux", "GOARCH": "arm64", "GOARM64": "v8.1", "GOEXPERIMENT": "simd"} {
+		if last[k] != want {
+			t.Fatalf("logosAsmcheckEnv last %s = %q, want %q (env %q)", k, last[k], want, env)
+		}
+	}
+	race := logosAsmcheckEnv(logosCase{}, "linux/amd64/", []string{"-race"})
+	if !slices.Contains(race, "CGO_ENABLED=1") {
+		t.Fatalf("race build lost CGO_ENABLED=1: %q", race)
 	}
 }

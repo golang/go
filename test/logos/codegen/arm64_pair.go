@@ -1,18 +1,26 @@
-// asmcheck
+// asmcheck -goexperiment simd
 
 package codegen
 
 // Pairing checks for the 64-bit ARM target (SPEC 15.1, row 111).
-// The 8-byte cases below fuse in the SSA pair pass and pin upstream
+// The 8-byte cases fuse in the SSA pair pass and pin upstream
 // behavior, including the call, loop-join, and atomic barriers and the
-// chase that must stay separate. The 16-byte cases pin the observable
-// end of the same pass: the loads exist at the listed offsets but stay
-// separate, because every 16-byte temporary the ABI creates splits the
-// shared memory value fusion needs. Fusion itself, with the 16-byte
-// table entries and the encodable-range checks, is pinned by the SSA
-// unit tests beside the pass.
+// chase that must stay separate.
+//
+// The 16-byte cases reach the same pass through the simd/archsimd
+// Load<T>Array and StoreArray intrinsics, which lower to FMOVQ loads
+// and stores on the caller's own memory chain. Plain [16]byte values
+// cannot serve: an array is not SSA-able, so every copy is a load
+// followed by its own store, and the next load already sees that new
+// memory instead of the one the pass needs it to share.
+// A check sits on the source line of the first load or store of a pair,
+// because the fused instruction takes the position of the lower-offset
+// member and the second member emits no instruction of its own. A pair
+// that must stay split pins both FMOVQ offsets and the absence of
+// FLDPQ and FSTPQ.
 
 import (
+	"simd/archsimd"
 	"sync/atomic"
 	"unsafe"
 )
@@ -95,13 +103,15 @@ func loadLoopBarrier(p *pairLoad08, i int, x int64) (int64, int64) {
 	return a + x, b
 }
 
-var atomicCell int64
+var atomicCell atomic.Int64
 
 // An atomic between two candidate stores keeps two stores.
 func storeAtomicBarrier(p *pairLoad08, x, y int64) {
 	// arm64:-"STP" "MOVD"
+	// arm64/v8.1:-"STP" "MOVD"
 	p.A = x
-	atomic.AddInt64(&atomicCell, 1)
+	// arm64/v8.1:"LDADDAL"
+	atomicCell.Add(1)
 	p.B = y
 }
 
@@ -110,10 +120,17 @@ type pairVec016 struct {
 	B [16]byte
 }
 
-// Adjacent 16-byte loads exist but stay separate end to end.
-func loadVec016(p *pairVec016) ([16]byte, [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ"
-	return p.A, p.B
+// Adjacent 16-byte vector loads fuse into one FLDPQ and the adjacent
+// stores into one FSTPQ, with no FMOVQ left behind.
+func vecPair016(src, dst *pairVec016) {
+	// arm64:"FLDPQ \\(R[0-9]+\\), \\(F[0-9]+, F[0-9]+\\)" -"FMOVQ"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" -"FMOVQ"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:"FSTPQ \\(F[0-9]+, F[0-9]+\\), \\(R[0-9]+\\)" -"FMOVQ"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" -"FMOVQ"
+	b.StoreArray(&dst.B)
 }
 
 type pairVec992 struct {
@@ -122,10 +139,16 @@ type pairVec992 struct {
 	B   [16]byte
 }
 
-// Vector loads below the top of the range keep their offsets.
-func loadVec992(p *pairVec992) ([16]byte, [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ 992\\(" "FMOVQ 1008\\("
-	return p.A, p.B
+// A pair below the top of the 128-bit range keeps its lower offset.
+func vecPair992(src, dst *pairVec992) {
+	// arm64:"FLDPQ 992\\(R[0-9]+\\), \\(F[0-9]+, F[0-9]+\\)" -"FMOVQ"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" -"FMOVQ"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:"FSTPQ \\(F[0-9]+, F[0-9]+\\), 992\\(R[0-9]+\\)" -"FMOVQ"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" -"FMOVQ"
+	b.StoreArray(&dst.B)
 }
 
 type pairVec1008 struct {
@@ -134,10 +157,17 @@ type pairVec1008 struct {
 	B   [16]byte
 }
 
-// Vector loads at the top of the range keep their offsets.
-func loadVec1008(p *pairVec1008) ([16]byte, [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ 1008\\(" "FMOVQ 1024\\("
-	return p.A, p.B
+// The pair at the top of the 128-bit range uses the lower offset; its
+// second member sits at 1024, which only ever follows a base of 1008.
+func vecPair1008(src, dst *pairVec1008) {
+	// arm64:"FLDPQ 1008\\(R[0-9]+\\), \\(F[0-9]+, F[0-9]+\\)" -"FMOVQ"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" -"FMOVQ"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:"FSTPQ \\(F[0-9]+, F[0-9]+\\), 1008\\(R[0-9]+\\)" -"FMOVQ"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" -"FMOVQ"
+	b.StoreArray(&dst.B)
 }
 
 type pairVec1024 struct {
@@ -146,27 +176,112 @@ type pairVec1024 struct {
 	B   [16]byte
 }
 
-// Vector loads past the top of the range keep their offsets.
-func loadVec1024(p *pairVec1024) ([16]byte, [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ 1024\\(" "FMOVQ 1040\\("
-	return p.A, p.B
+// A pair whose base is past the top of the 128-bit range stays two
+// accesses, because the assembler cannot encode FLDPQ or FSTPQ there.
+func vecSplit1024(src, dst *pairVec1024) {
+	// arm64:-"FLDPQ" "FMOVQ 1024\\(R[0-9]+\\), F[0-9]+"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" "FMOVQ 1040\\(R[0-9]+\\), F[0-9]+"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 1024\\(R[0-9]+\\)"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 1040\\(R[0-9]+\\)"
+	b.StoreArray(&dst.B)
 }
 
 type pairVecRaw struct {
 	Buf [32]byte
 }
 
-// Vector loads 8 apart are not 16-byte adjacent.
-func loadVecMisaligned(p *pairVecRaw) ([16]byte, [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ"
-	a := *(*[16]byte)(unsafe.Pointer(&p.Buf[0]))
-	b := *(*[16]byte)(unsafe.Pointer(&p.Buf[8]))
-	return a, b
+// Vector accesses 8 apart overlap and are 8-aligned but not
+// 16-aligned, so neither the load pair nor the store pair forms.
+func vecMisaligned(src, dst *pairVecRaw) {
+	// arm64:-"FLDPQ" "FMOVQ \\(R[0-9]+\\), F[0-9]+"
+	a := archsimd.LoadUint8x16Array((*[16]byte)(unsafe.Pointer(&src.Buf[0])))
+	// arm64:-"FLDPQ" "FMOVQ 8\\(R[0-9]+\\), F[0-9]+"
+	b := archsimd.LoadUint8x16Array((*[16]byte)(unsafe.Pointer(&src.Buf[8])))
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, \\(R[0-9]+\\)"
+	a.StoreArray((*[16]byte)(unsafe.Pointer(&dst.Buf[0])))
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 8\\(R[0-9]+\\)"
+	b.StoreArray((*[16]byte)(unsafe.Pointer(&dst.Buf[8])))
 }
 
-// Adjacent 16-byte stores exist but stay separate end to end.
-func storeVec016(dst *pairVec016, a, b [16]byte) {
-	// arm64:-"FLDPQ" -"FSTPQ" "FMOVQ"
-	dst.A = a
-	dst.B = b
+type pairVecPad8 struct {
+	Pad [8]byte
+	A   [16]byte
+	B   [16]byte
+}
+
+// Adjacent vector accesses at 8 and 24 are 8-aligned but not
+// 16-aligned, so no FLDPQ or FSTPQ offset can encode the base.
+func vecMisaligned24(src, dst *pairVecPad8) {
+	// arm64:-"FLDPQ" "FMOVQ 8\\(R[0-9]+\\), F[0-9]+"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FLDPQ" "FMOVQ 24\\(R[0-9]+\\), F[0-9]+"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 8\\(R[0-9]+\\)"
+	a.StoreArray(&dst.A)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 24\\(R[0-9]+\\)"
+	b.StoreArray(&dst.B)
+}
+
+// A call between two vector loads keeps two loads: the call threads a
+// new memory value, so the loads no longer share one.
+func vecLoadCallBarrier(src *pairVec016, dst *[16]byte) {
+	// arm64:-"FLDPQ" "FMOVQ \\(R[0-9]+\\), F[0-9]+"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	pairSink(0)
+	// arm64:-"FLDPQ" "FMOVQ 16\\(R[0-9]+\\), F[0-9]+"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	a.Add(b).StoreArray(dst)
+}
+
+// A call between two vector stores keeps two stores.
+func vecStoreCallBarrier(src, dst *pairVec016) {
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, \\(R[0-9]+\\)"
+	a.StoreArray(&dst.A)
+	pairSink(0)
+	// arm64:-"FSTPQ" "FMOVQ F[0-9]+, 16\\(R[0-9]+\\)"
+	a.StoreArray(&dst.B)
+}
+
+// Vector loads split across a loop join keep two loads. Nothing in the
+// loop touches memory, so only the block boundary keeps them apart.
+func vecLoadJoinBarrier(src *pairVec016, dst *[16]byte, i, x int) int {
+	// arm64:-"FLDPQ" "FMOVQ \\(R[0-9]+\\), F[0-9]+"
+	a := archsimd.LoadUint8x16Array(&src.A)
+	for i > 0 {
+		x += i
+		i--
+	}
+	// arm64:-"FLDPQ" "FMOVQ 16\\(R[0-9]+\\), F[0-9]+"
+	b := archsimd.LoadUint8x16Array(&src.B)
+	a.Add(b).StoreArray(dst)
+	return x
+}
+
+// An LSE atomic add between two vector stores keeps two stores. Below
+// GOARM64=v8.1 the atomic sits behind a CPU feature branch, which is a
+// block boundary of its own; v8.1 keeps it straight-line, so the atomic
+// is the only barrier and the checks pin that spelling.
+func vecStoreLSEAddBarrier(src, dst *pairVec016) {
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64/v8.1:-"FSTPQ" "FMOVQ F[0-9]+, \\(R[0-9]+\\)"
+	a.StoreArray(&dst.A)
+	// arm64/v8.1:"LDADDAL"
+	atomicCell.Add(1)
+	// arm64/v8.1:-"FSTPQ" "FMOVQ F[0-9]+, 16\\(R[0-9]+\\)"
+	a.StoreArray(&dst.B)
+}
+
+// An LSE compare-and-swap between two vector stores keeps two stores.
+func vecStoreLSECasBarrier(src, dst *pairVec016) {
+	a := archsimd.LoadUint8x16Array(&src.A)
+	// arm64/v8.1:-"FSTPQ" "FMOVQ F[0-9]+, \\(R[0-9]+\\)"
+	a.StoreArray(&dst.A)
+	// arm64/v8.1:"CASAL"
+	atomicCell.CompareAndSwap(0, 1)
+	// arm64/v8.1:-"FSTPQ" "FMOVQ F[0-9]+, 16\\(R[0-9]+\\)"
+	a.StoreArray(&dst.B)
 }
