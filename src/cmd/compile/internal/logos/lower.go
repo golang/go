@@ -7,6 +7,7 @@ package logos
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logos/facts"
@@ -49,7 +50,8 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 		fl := &fileLower{
 			pkg:           shared,
 			file:          file,
-			src:           data,
+			src:           slices.Clone(data),
+			orig:          len(data),
 			base:          file.Pos().FileBase(),
 			start:         lineStarts(data),
 			loweredChains: make(map[*syntax.CallExpr]bool),
@@ -61,6 +63,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 			edits[file] = editsOf(data, fl.base, fl.splices)
 		}
 	}
+	clear(interpKinds) // Kinds of originals a const for replaced are never consumed; drop them with the rest.
 	if !changed {
 		changed = infoHasConstView(info, files) // M5-S6: pure-info consts (rt.Freeze results) need a plain recheck.
 	}
@@ -85,10 +88,13 @@ type fileLower struct {
 	pkg       *packageLower
 	file      *syntax.File
 	src       []byte
+	orig      int
 	start     []int
 	base      *syntax.PosBase
 	baseName  string
 	splices   []splice
+	regions   []*cfRegion
+	hosts     []*cfHost
 	changed   bool
 	needRT    bool
 	needSimd  bool
@@ -144,22 +150,32 @@ func (fl *fileLower) off(pos syntax.Pos) int {
 
 // add records one replacement splice.
 func (fl *fileLower) add(start, end int, text string) {
-	fl.splices = append(fl.splices, splice{start: start, end: end, text: text})
-	fl.changed = true
+	fl.appendSplice(splice{start: start, end: end, text: text})
 }
 
 // addOwned records one splice owned by one wrapper (a wrap ID from
 // nextWrapID): a later wrap of the same wrapper drains its boundary
 // inserts into fused text instead of leaving them to interleave.
 func (fl *fileLower) addOwned(id, start, end int, text string) {
-	fl.splices = append(fl.splices, splice{start: start, end: end, text: text, owner: id})
+	fl.appendSplice(splice{start: start, end: end, text: text, owner: id})
+}
+
+func (fl *fileLower) appendSplice(sp splice) {
 	fl.changed = true
+	r := fl.regionAt(sp.start, sp.end)
+	if r == nil {
+		fl.splices = append(fl.splices, sp)
+		return
+	}
+	if r.host != nil && r.host.retired {
+		base.Fatalf("logos: edit [%d,%d) lands in a finished const for expansion", sp.start, sp.end)
+	}
+	r.splices = append(r.splices, sp)
 }
 
 // textOf returns the source of s with nested splices substituted.
 func (fl *fileLower) textOf(s span) string {
-	kept, inner := fl.splitSplices(s)
-	fl.splices = kept
+	inner := fl.drainInner(s)
 	sub := fl.src[s.start:s.end]
 	adj := make([]splice, len(inner))
 	for i, sp := range inner {
@@ -172,12 +188,13 @@ func (fl *fileLower) textOf(s span) string {
 	return string(out)
 }
 
-// splitSplices divides pending splices into those outside s and those
-// strictly inside it. Zero-width splices on the boundary stay outside.
-func (fl *fileLower) splitSplices(s span) ([]splice, []splice) {
-	var kept, inner []splice
-	for _, sp := range fl.splices {
-		if sp.start >= s.start && sp.end <= s.end && (sp.end > sp.start || (sp.start > s.start && sp.end < s.end)) {
+func spanInside(sp splice, s span) bool {
+	return sp.start >= s.start && sp.end <= s.end && (sp.end > sp.start || (sp.start > s.start && sp.end < s.end))
+}
+
+func partitionSplices(list []splice, s span) (kept, inner []splice) {
+	for _, sp := range list {
+		if spanInside(sp, s) {
 			inner = append(inner, sp)
 		} else {
 			kept = append(kept, sp)
@@ -186,8 +203,65 @@ func (fl *fileLower) splitSplices(s span) ([]splice, []splice) {
 	return kept, inner
 }
 
+func (fl *fileLower) drainInner(s span) []splice {
+	if r := fl.regionAt(s.start, s.end); r != nil {
+		kept, inner := partitionSplices(r.splices, s)
+		r.splices = kept
+		return inner
+	}
+	var kept, inner []splice
+	for _, sp := range fl.splices {
+		switch {
+		case sp.host != nil && spanInside(sp, s):
+			inner = append(inner, splice{start: sp.start, end: sp.end, text: fl.retireHost(sp.host), owner: sp.owner})
+		case sp.host != nil && hostOverlaps(sp, s):
+			cutsHost(sp, s)
+		case sp.host == nil && spanInside(sp, s):
+			inner = append(inner, sp)
+		default:
+			kept = append(kept, sp)
+		}
+	}
+	fl.splices = kept
+	return inner
+}
+
+func hostOverlaps(sp splice, s span) bool {
+	return sp.start < s.end && s.start < sp.end
+}
+
+func cutsHost(sp splice, s span) {
+	base.Fatalf("logos: span [%d,%d) cuts the const for expansion at [%d,%d)", s.start, s.end, sp.start, sp.end)
+}
+
+func (fl *fileLower) dropInner(s span) []splice {
+	if r := fl.regionAt(s.start, s.end); r != nil {
+		kept, inner := partitionSplices(r.splices, s)
+		r.splices = kept
+		return inner
+	}
+	var kept, inner []splice
+	for _, sp := range fl.splices {
+		switch {
+		case sp.host != nil && spanInside(sp, s):
+			sp.host.retired = true
+		case sp.host != nil && hostOverlaps(sp, s):
+			cutsHost(sp, s)
+		case sp.host == nil && spanInside(sp, s):
+			inner = append(inner, sp)
+		default:
+			kept = append(kept, sp)
+		}
+	}
+	fl.splices = kept
+	return inner
+}
+
 // newSite registers one package-level trace site and returns its spelling.
 func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
+	if r := fl.regionFor(pos); r != nil {
+		line = r.owner.Line()
+	}
 	name := fmt.Sprintf("_logos_site%d", fl.pkg.siteSeq)
 	fl.pkg.siteSeq++
 	node := nameOf(pos, name)
@@ -241,13 +315,15 @@ func (fl *fileLower) lowerFile() {
 	}
 	fl.file.DeclList = append(fl.file.DeclList, fl.constDecls...) // M5-S4: generated const map code.
 	if fl.constText != "" {
-		fl.add(len(fl.src), len(fl.src), fl.constText)
+		fl.add(fl.orig, fl.orig, fl.constText)
 	}
 	fl.lowerProperties()     // M4-S2 hook: property accessors, selector lowering, prop facts.
 	fl.lowerStructDefaults() // M6-S3 hook: strip `= const`, fill composite literals.
 	fl.lowerAddrFresh()      // M6-S2 hook: `&expr` to new(expr).
 	fl.emitRodata()          // M5-S3 hook: read-only vars, after every pass that creates them.
 	fl.lowerInterp()         // M6-S1 hook: interpolated strings (last: whole-span text drains inner splices).
+	fl.finalizeConstFor()
+	fl.remapRegions()
 }
 
 // addHeaderSplice adds the eject-text edit that spells the rt import and
@@ -285,7 +361,7 @@ func (fl *fileLower) addHeaderSplice() {
 			}
 			text += "var " + decl.NameList[0].Value + " = " + rtAlias + ".Site{" + siteText(decl) + "}\n"
 		}
-		fl.add(len(fl.src), len(fl.src), text)
+		fl.add(fl.orig, fl.orig, text)
 	}
 }
 

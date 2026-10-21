@@ -1,0 +1,26 @@
+// errorcheck
+
+// M7-S3 invalid copied interpolation (SPEC Sec 2.5, T-205, #128): the
+// generic body checks with every field projection approximated as any,
+// so the assertion inside the interpolation operand is legal there. The
+// copy for Counter checks the instantiated body, finds that its field is
+// not an interface, and reports the checker's diagnostic at the
+// instantiation instead of failing inside lowering.
+
+package p
+
+import "comptime"
+
+type Counter struct {
+	Count int
+}
+
+func Join[T any](v T) string {
+	out := ""
+	const for _, f := range comptime.Fields[T]() {
+		out += $"{v.[f].(string)};"
+	}
+	return out
+}
+
+var _ = Join[Counter](Counter{Count: 1}) // ERROR "is not an interface"

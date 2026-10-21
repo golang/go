@@ -1,0 +1,185 @@
+# M7-S3: comptime expansions that spell a Go-intermediary field type (SPEC
+# Sec 2.5, T-205). Package wire exports the comptime generic Describe,
+# whose const for body converts each field with Convert[f.Type](in)? and
+# interpolates $"{f.Name}={Show(v)};". Package main instantiates
+# Describe over gopkg.Row, an ordinary-Go struct holding a public
+# deep.Level field, and imports neither deep nor anything that spells it.
+# Package direct runs the same conversion over the same Row with a local
+# const for over comptime.Fields[gopkg.Row] and no imported comptime
+# generic at all, so no foreign-record presence gate can mask its need.
+# Both copies spell deep.Level through a synthesized import alias and must
+# type-check under that alias for the `?` and the interpolation to lower.
+# The go command adds every transitive built package in the instantiating
+# package's existing action graph that it does not import directly, sorted
+# by import path, to its import config for build and for lint alike; the
+# same set feeds the action ID. This reaches deep transitively through the
+# ordinary-Go gopkg package. Only loGo/s roots gain these synthesized
+# imports; plain-Go roots add nothing.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+# The instantiating packages never name deep in source.
+logos list -f '{{.Imports}}' ./main
+! stdout 'deep'
+logos list -f '{{.Imports}}' ./direct
+! stdout 'deep'
+
+logos build ./...
+logos run ./main
+stdout '^Name=7;Level=L7;Count=7; <nil>$'
+stdout '^bad: expected integer$'
+logos run ./direct
+stdout '^Name=7;Level=L7;Count=7; <nil>$'
+stdout '^bad: expected integer$'
+
+logos lint ./...
+
+# wire's records name fmt, not deep or gotypes: deep reaches main only
+# through the ordinary-Go field type gopkg.Row -> deep.Level, never
+# through the defining package's imports.
+logos build -o $WORK/wire.a ./wire
+go tool pack p $WORK/wire.a __.LOGOS
+stdout 'comptime Describe'
+! stdout 'deep'
+! stdout 'gotypes'
+
+# A deep change invalidates the cached build: Level's String feeds the
+# asserted output, and the action ID carries the same synthesized import set, so
+# both instantiating packages rebuild through the new deep archive.
+cp patched.txt ../godep/deep/deep.go
+logos build ./...
+logos run ./main
+stdout '^Name=7;Level=D7;Count=7; <nil>$'
+stdout '^bad: expected integer$'
+logos run ./direct
+stdout '^Name=7;Level=D7;Count=7; <nil>$'
+stdout '^bad: expected integer$'
+logos lint ./...
+
+-- w/go.mod --
+module example.com/foreigntest
+
+go 1.27
+
+require example.com/gotypes v0.0.0
+
+replace example.com/gotypes => ../godep
+
+-- w/wire/wire.lgo --
+package wire
+
+import (
+	"comptime"
+	"fmt"
+)
+
+func Convert[V any](s string) (V, error) {
+	var v V
+	_, err := fmt.Sscan(s, &v)
+	return v, err
+}
+
+func Show[V any](v V) string {
+	return fmt.Sprint(v)
+}
+
+func Describe[T any](in string) (string, error) {
+	out := ""
+	const for _, f := range comptime.Fields[T]() {
+		v := Convert[f.Type](in)?
+		out += $"{f.Name}={Show(v)};"
+	}
+	return out, nil
+}
+
+-- w/main/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/gotypes/gopkg"
+	"example.com/foreigntest/wire"
+)
+
+func main() {
+	out, err := wire.Describe[gopkg.Row]("7")
+	fmt.Println(out, err)
+	_, err = wire.Describe[gopkg.Row]("x")
+	fmt.Println("bad:", err)
+}
+
+-- w/direct/direct.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+
+	"example.com/gotypes/gopkg"
+)
+
+func Convert[V any](s string) (V, error) {
+	var v V
+	_, err := fmt.Sscan(s, &v)
+	return v, err
+}
+
+func Show[V any](v V) string {
+	return fmt.Sprint(v)
+}
+
+func DescribeLocal(in string) (string, error) {
+	out := ""
+	const for _, f := range comptime.Fields[gopkg.Row]() {
+		v := Convert[f.Type](in)?
+		out += $"{f.Name}={Show(v)};"
+	}
+	return out, nil
+}
+
+func main() {
+	out, err := DescribeLocal("7")
+	fmt.Println(out, err)
+	_, err = DescribeLocal("x")
+	fmt.Println("bad:", err)
+}
+
+-- w/patched.txt --
+package deep
+
+import "strconv"
+
+type Level int
+
+func (l Level) String() string {
+	return "D" + strconv.Itoa(int(l))
+}
+
+-- godep/go.mod --
+module example.com/gotypes
+
+go 1.27
+
+-- godep/deep/deep.go --
+package deep
+
+import "strconv"
+
+type Level int
+
+func (l Level) String() string {
+	return "L" + strconv.Itoa(int(l))
+}
+
+-- godep/gopkg/gopkg.go --
+package gopkg
+
+import "example.com/gotypes/deep"
+
+type Row struct {
+	Name  string
+	Level deep.Level
+	Count int
+}

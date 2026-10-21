@@ -1013,10 +1013,16 @@ func (fl *fileLower) wrapSpanOf(v syntax.Expr) span {
 
 // drainOwned removes the boundary inserts owned by id at the ends of
 // vs from the pending splices and returns their texts, head then tail.
-// Inserts owned by other wrappers at the same offsets stay pending.
+// Inserts owned by other wrappers at the same offsets stay pending. A
+// span inside a const for copy drains the splices of its region, where
+// appendSplice recorded them.
 func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
+	pending := &fl.splices
+	if r := fl.regionAt(vs.start, vs.end); r != nil {
+		pending = &r.splices
+	}
 	var rest []splice
-	for _, sp := range fl.splices {
+	for _, sp := range *pending {
 		if sp.owner != id || sp.start != sp.end || (sp.start != vs.start && sp.start != vs.end) {
 			rest = append(rest, sp)
 			continue
@@ -1027,7 +1033,7 @@ func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
 			tail += sp.text
 		}
 	}
-	fl.splices = rest
+	*pending = rest
 	return head, tail
 }
 

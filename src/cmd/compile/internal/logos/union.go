@@ -940,7 +940,7 @@ func (ul *unionLower) emitHelpers(u *unionUse) {
 		text.WriteString(buf.String())
 		text.WriteString("\n")
 	}
-	fl.add(len(fl.src), len(fl.src), text.String())
+	fl.add(fl.orig, fl.orig, text.String())
 }
 
 // lowerUnionAsserts rewrites x.(U) and v, ok := x.(U) for closed unions.
@@ -1261,8 +1261,7 @@ type siteResult struct {
 // that is removed, so they are discarded; zero-width splices on the
 // boundary stay, so an insertion beside the span keeps its place.
 func (fl *fileLower) dropSpan(s span) {
-	kept, _ := fl.splitSplices(s)
-	fl.splices = kept
+	_ = fl.dropInner(s)
 	fl.add(s.start, s.end, "")
 }
 

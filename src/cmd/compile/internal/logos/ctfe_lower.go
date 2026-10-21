@@ -173,7 +173,7 @@ func (fl *fileLower) moveGroupedVar(cd *syntax.ConstDecl, i int, list *[]syntax.
 		if at+1 < len(*list) {
 			return fl.lineStart((*list)[at+1]), true
 		}
-		return len(fl.src), false
+		return fl.orig, false
 	})
 	return i - 1
 }

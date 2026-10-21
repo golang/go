@@ -169,8 +169,7 @@ func (fc *funcLower) cutConstSpan(start, end int) {
 	if start >= end {
 		return
 	}
-	kept, _ := fc.fl.splitSplices(span{start, end})
-	fc.fl.splices = kept
+	_ = fc.fl.dropInner(span{start, end})
 	fc.fl.add(start, end, leftoverComments(fc.fl, span{start, end}, nil))
 }
 
@@ -180,7 +179,6 @@ func (fc *funcLower) deleteConstSpan(start, end int) {
 	if start >= end {
 		return
 	}
-	kept, _ := fc.fl.splitSplices(span{start, end})
-	fc.fl.splices = kept
+	_ = fc.fl.dropInner(span{start, end})
 	fc.fl.add(start, end, "")
 }

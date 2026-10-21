@@ -1,0 +1,118 @@
+# M7-S3 eject with inner lowering over an imported comptime generic whose
+# body names strings only inside a `$"..."` interpolation operand and a `?`
+# operand (SPEC Sec 2.5, T-205; T-0.3, T-Sec6). Package wire exports Labels,
+# whose const for body calls strings.TrimSpace in the operand of `?` and
+# strings.ToUpper in the operand of `$"..."`. Package main instantiates
+# Labels over a local type and never imports strings, so the expansion copy
+# in main spells strings through a synthesized import alias. The copy's
+# per-copy type facts (the interpolation operand, the `?` operand) check
+# under that alias. The ejected tree holds the copy as plain Go in main,
+# with no marker and no comptime import left, runs under plain go with the
+# output logos run prints, and stays vet- and gofmt-clean.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+cp ../want.txt $WORK/want.txt
+
+# The instantiating package never imports strings in source.
+logos list -f '{{.Imports}}' .
+! stdout '\bstrings\b'
+
+# logos runs the module before eject and prints the complete expected
+# output, line for line.
+logos run .
+cmp stdout $WORK/want.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp wire/wire.lgo $WORK/orig/wire.lgo
+
+logos eject -o out
+exists out/main.go
+exists out/wire/wire.go
+
+# No ejected file imports comptime, and no expansion marker leaks.
+! grep '"comptime"' out/main.go
+! grep '"comptime"' out/wire/wire.go
+! grep '_logos_ctpkg' out/main.go
+! grep '_logos_ctimp' out/main.go
+! grep '_logos_tparam' out/main.go
+! grep '_logos_ctcomptime' out/main.go
+
+# The copy in main reaches strings through a synthesized import alias.
+grep '_logos_t[0-9]+ "strings"' out/main.go
+
+# The ejected tree runs under plain go with the same complete output.
+cd out
+go run .
+cmp stdout $WORK/want.txt
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The source tree is unchanged after eject (#112).
+cmp main.lgo $WORK/orig/main.lgo
+cmp wire/wire.lgo $WORK/orig/wire.lgo
+
+-- want.txt --
+NAME=2;COUNT=2; <nil>
+ bad bad input
+-- m/go.mod --
+module example.com/ejectimports
+
+go 1.27
+
+-- m/wire/wire.lgo --
+package wire
+
+import (
+	"comptime"
+	"fmt"
+	"strings"
+)
+
+type Row struct {
+	Name  string
+	Count int
+}
+
+func Parse(s string) (int, error) {
+	if strings.Contains(s, "bad") {
+		return 0, fmt.Errorf("bad %s", s)
+	}
+	return len(s), nil
+}
+
+func Labels[T any](in string) (string, error) {
+	out := ""
+	const for _, f := range comptime.Fields[T]() {
+		n := Parse(strings.TrimSpace(in))?
+		out += $"{strings.ToUpper(f.Name)}={n};"
+	}
+	return out, nil
+}
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ejectimports/wire"
+)
+
+type Item struct {
+	Name  string
+	Count int
+}
+
+func main() {
+	out, err := wire.Labels[Item]("  ab  ")
+	fmt.Println(out, err)
+	out, err = wire.Labels[Item]("bad input")
+	fmt.Println(out, err)
+}

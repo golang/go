@@ -288,7 +288,7 @@ func (fl *fileLower) emitAccessors(td *syntax.TypeDecl, obj *types2.TypeName, if
 	for _, d := range added {
 		fl.file.DeclList = append(fl.file.DeclList, d)
 	}
-	fl.add(len(fl.src), len(fl.src), text.String())
+	fl.add(fl.orig, fl.orig, text.String())
 }
 
 // cloneTParams copies a type parameter list by cloning each bound, so

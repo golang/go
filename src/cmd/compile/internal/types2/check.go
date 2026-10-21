@@ -452,6 +452,10 @@ func (check *Checker) checkFiles(files []*syntax.File) {
 		}
 	}
 
+	if check.conf.Logos {
+		check.Info.LogosImporter = check.conf.Importer // logos M7-S3 hook: comptime copies open the packages their text names.
+	}
+
 	print("== initFiles ==")
 	check.initFiles(files)
 

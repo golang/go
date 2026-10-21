@@ -1,0 +1,94 @@
+# M7 eject with inner lowering in const for copies (SPEC Sec 2.5, T-205;
+# T-0.3): a module using `?`, `$"..."`, and a chain inside a const for
+# body ejects to plain Go. The ejected tree runs under plain go with the
+# output logos run prints, and stays vet- and gofmt-clean.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# logos runs the module before eject.
+logos run .
+stdout '^Name=5$'
+stdout '^Count=10$'
+stdout '^Ok=15$'
+stdout '^15 <nil>$'
+stdout '^0 bad z$'
+stdout '^27$'
+cp stdout $WORK/native.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+
+logos eject -o out
+exists out/main.go
+
+# No ejected file imports comptime, and no bare import keyword is left.
+! grep '"comptime"' out/main.go
+! grep '^import$' out/main.go
+
+# The ejected tree runs under plain go with identical output.
+cd out
+go run .
+cmp stdout $WORK/native.txt
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The source tree is unchanged after eject (#112).
+cmp main.lgo $WORK/orig/main.lgo
+
+-- m/go.mod --
+module example.com/ejectcfi
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Row struct {
+	Name  string
+	Count int
+	Ok    bool
+}
+
+func parse(s string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, errors.New("bad " + s)
+	}
+	return n, nil
+}
+
+func total(in string) (int, error) {
+	sum := 0
+	const for _, f := range comptime.Fields[Row]() {
+		n := parse(in)?
+		sum += n
+		fmt.Println($"{f.Name}={sum}")
+	}
+	return sum, nil
+}
+
+func summed() int {
+	s := 0
+	const for _, f := range comptime.Fields[Row]() {
+		s += []int{1, 2, 3}.map(x => x + f.Index).sum()
+	}
+	return s
+}
+
+func main() {
+	fmt.Println(total("5"))
+	fmt.Println(total("z"))
+	fmt.Println(summed())
+}

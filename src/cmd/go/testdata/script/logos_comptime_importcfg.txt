@@ -1,0 +1,84 @@
+# M7-S3: a comptime generic expands in an importing package that does not
+# import the packages the generic's body names (SPEC Sec 2.5, T-205).
+# Package a exports comptime generics whose bodies use strings, sort, and
+# strconv; package main names none of the three in source (strconv reaches
+# every logos package implicitly, so strings and sort carry the failure:
+# without the fix main fails to build with "could not import"). The
+# expansion copies the recorded source text of a into main, and the
+# compiler opens the copy's packages through main's -importcfg, so the go
+# command adds every transitive built package in main's existing action
+# graph that main does not import directly, sorted by import path, to the
+# import config of main, for build and for lint alike; the same set feeds
+# the action ID, so a change in any of those packages rebuilds main. Only
+# loGo/s roots gain these synthesized imports; plain-Go roots add nothing.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos list -f '{{.Imports}}' ./main
+! stdout '\bstrings\b'
+! stdout '\bsort\b'
+logos build ./...
+logos run ./main
+stdout '^upper \[PORT HOST\]$'
+stdout '^ranked \[1:Host 0:Port\]$'
+logos lint ./...
+
+# The records name the packages by import path: the __.LOGOS member of the
+# archive that logos build writes for a carries one import header per
+# package the generic bodies use.
+logos build -o $WORK/a.a ./a
+go tool pack p $WORK/a.a __.LOGOS
+stdout '//logosimp sort sort'
+stdout '//logosimp strconv strconv'
+stdout '//logosimp strings strings'
+
+-- w/go.mod --
+module example.com/importcfgtest
+
+go 1.27
+
+-- w/a/a.lgo --
+package a
+
+import (
+	"comptime"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func Upper[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, strings.ToUpper(f.Name))
+	}
+	return out
+}
+
+func Ranked[T any]() []string {
+	var out []string
+	const for i, f := range comptime.Fields[T]() {
+		out = append(out, strconv.Itoa(i)+":"+f.Name)
+	}
+	sort.Sort(sort.Reverse(sort.StringSlice(out)))
+	return out
+}
+
+-- w/main/main.lgo --
+package main
+
+import (
+	"example.com/importcfgtest/a"
+	"fmt"
+)
+
+type Service struct {
+	Port int
+	Host string
+}
+
+func main() {
+	fmt.Println("upper", a.Upper[Service]())
+	fmt.Println("ranked", a.Ranked[Service]())
+}

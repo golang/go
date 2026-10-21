@@ -109,11 +109,20 @@ func interpFixedWidth(k types2.LogosInterpKind) int {
 // keyed by node. collectInterpKinds fills it at the top of lowerFile
 // while every operand node is still the checked original: later passes
 // (notably lowerOptions) swap wrappers into operand slots whose fresh
-// nodes carry no recorded type.
+// nodes carry no recorded type. It runs a second time when lowerConstFor
+// returns, after every comptime copy exists and before any pass rewrites
+// an operand slot: the generic copies and the unrolled const for
+// iterations are fresh nodes that the copy checks typed.
 var interpKinds = make(map[*syntax.InterpExpr][]types2.LogosInterpKind)
 
 // collectInterpKinds records every interpolation's operand kinds while
-// the tree still holds exactly what the checker saw.
+// the tree still holds exactly what the checker saw. An operand without
+// a recorded type, or of a type no interpolation accepts, is an internal
+// error: the main check rejects both in the source, and the copy checks
+// bind every alias to a complete package, and the function copy checks
+// report their diagnostics before the copy joins the tree. While any
+// diagnostic is pending the fact may be missing by construction, so the
+// interpolation is skipped and Lower exits on the diagnostic.
 func (fl *fileLower) collectInterpKinds() {
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {
 		e, ok := n.(*syntax.InterpExpr)
@@ -128,6 +137,9 @@ func (fl *fileLower) collectInterpKinds() {
 			t := fl.pkg.info.TypeOf(op)
 			k, ok := types2.LogosInterpKindOf(t)
 			if !ok {
+				if base.Errors() > 0 {
+					return true // A reported diagnostic explains the missing fact, and Lower exits on it before survivors are rejected.
+				}
 				base.Fatalf("logos: interpolation operand at %s has unexpected type %s", op.Pos().String(), t)
 			}
 			kinds[i] = k
@@ -160,6 +172,9 @@ func (fl *fileLower) lowerInterp() {
 	for _, e := range lits {
 		kinds := interpKinds[e]
 		delete(interpKinds, e)
+		if kinds == nil && len(e.Exprs) > 0 && base.Errors() > 0 {
+			continue // collectInterpKinds skipped it under a reported diagnostic.
+		}
 		need, _ := fl.lowerInterpExpr(e, kinds)
 		needConv = needConv || need
 		if len(e.Exprs) > 0 {

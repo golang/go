@@ -441,6 +441,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		}
 	}
 
+	logosSynthActionID(h, a) // loGos hook: transitive packages a loGo/s root may synthesize imports of.
+
 	return h.Sum()
 }
 
@@ -888,6 +890,8 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 	}
+
+	logosSynthImportCfg(&icfg, a) // loGos hook: transitive packages a loGo/s root may synthesize imports of.
 
 	// Prepare Go embed config if needed.
 	// Unlike the import config, it's okay for the embed config to be empty.

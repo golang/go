@@ -29,6 +29,7 @@ type splice struct {
 	// that a later wrap of the same wrapper drains into fused text;
 	// zero for ordinary splices.
 	owner int
+	host  *cfHost
 }
 
 // lineStarts returns the byte offset at which each line of src begins.

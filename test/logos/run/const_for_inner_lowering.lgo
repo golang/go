@@ -1,0 +1,53 @@
+// run
+
+// M7-S2 const for with inner lowering (SPEC Sec 2.5, T-205; #76): a `?`
+// call, a `$"..."` interpolation, and a chain call inside a const for
+// body lower once per unrolled copy, and the ejected text matches the
+// native lowering.
+
+package main
+
+import (
+	"comptime"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Row struct {
+	Name  string
+	Count int
+	Ok    bool
+}
+
+func parse(s string) (int, error) {
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, errors.New("bad " + s)
+	}
+	return n, nil
+}
+
+func total(in string) (int, error) {
+	sum := 0
+	const for _, f := range comptime.Fields[Row]() {
+		n := parse(in)?
+		sum += n
+		fmt.Println($"{f.Name}={sum}")
+	}
+	return sum, nil
+}
+
+func summed() int {
+	s := 0
+	const for _, f := range comptime.Fields[Row]() {
+		s += []int{1, 2, 3}.map(x => x + f.Index).sum()
+	}
+	return s
+}
+
+func main() {
+	fmt.Println(total("5"))
+	fmt.Println(total("z"))
+	fmt.Println(summed())
+}

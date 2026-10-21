@@ -335,6 +335,8 @@ type Info struct {
 	LogosConstSel    map[*syntax.SelectorExpr]*syntax.ConstSwitchCase // logos M7-S4 hook: interface-case selectors on the switched value, by their case.
 	LogosConstCases  map[*syntax.ConstSwitchCase]LogosConstCase       // logos M7-S4 hook: the case-scope substitution of each `const switch` case.
 	LogosConstFor    map[syntax.Node]*LogosConstFor                   // logos M7-S2 hook: checked `const for` statements for unrolling.
+	LogosDisqual     map[*syntax.BlockStmt][]map[string]bool          // logos M7-S2 hook: narrowing-disqualified names per function body, for copy checks.
+	LogosImporter    Importer                                         // logos M7-S3 hook: the importer of the check, for comptime copies that name packages the checked files do not import.
 
 	LogosPlatformRets map[syntax.Pos][]LogosPlatformRet // logos M9-S2 hook: start positions of return operands holding platform pointers that convert to an interface result.
 }

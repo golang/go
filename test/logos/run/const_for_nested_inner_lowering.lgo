@@ -1,0 +1,68 @@
+// run
+
+// M7-S2 nested const for with inner lowering (SPEC Sec 2.5, T-205; #76):
+// a `?` call, a `$"..."` interpolation over both loop variables, and a
+// chain call whose lambda reads both loop variables sit in the body of
+// an inner const for. Every (outer, inner) copy lowers on its own: the
+// `?` exit of a copy leaves the function at that copy, and the ejected
+// text matches the native lowering.
+
+package main
+
+import (
+	"comptime"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Outer struct {
+	Alpha int
+	Beta  int
+}
+
+type Inner struct {
+	X int
+	Y int
+	Z int
+}
+
+var calls int
+
+func step(in string) (int, error) {
+	calls++
+	if calls == 4 {
+		return 0, errors.New("stopped at step 4")
+	}
+	return strconv.Atoi(in)
+}
+
+func grid(in string) (int, error) {
+	sum := 0
+	const for _, f := range comptime.Fields[Outer]() {
+		const for _, g := range comptime.Fields[Inner]() {
+			n := step(in)?
+			sum += n
+			fmt.Println($"{f.Name}.{g.Name}={sum}")
+		}
+	}
+	return sum, nil
+}
+
+func weights() int {
+	s := 0
+	const for _, f := range comptime.Fields[Outer]() {
+		const for _, g := range comptime.Fields[Inner]() {
+			s += []int{1, 2, 3}.map(x => x + f.Index*10 + g.Index).sum()
+		}
+	}
+	return s
+}
+
+func main() {
+	calls = 0
+	fmt.Println(grid("2"))
+	calls = 100
+	fmt.Println(grid("2"))
+	fmt.Println(weights())
+}

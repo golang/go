@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
 	"maps"
+	"slices"
 )
 
 // LoGo/s M3-S4 nil narrowing and the error-first guard (SPEC Sec 2.2,
@@ -64,6 +65,12 @@ func (check *Checker) logosEnterFunc(body *syntax.BlockStmt) {
 		set[name] = true
 	}
 	check.logosDisqual = append(check.logosDisqual, set)
+	if body != nil {
+		if check.Info.LogosDisqual == nil {
+			check.Info.LogosDisqual = make(map[*syntax.BlockStmt][]map[string]bool)
+		}
+		check.Info.LogosDisqual[body] = slices.Clone(check.logosDisqual)
+	}
 }
 
 // logosExitFunc pops the disqualified set pushed by logosEnterFunc.

@@ -7,6 +7,7 @@ package types2
 import (
 	"cmd/compile/internal/syntax"
 	. "internal/types/errors"
+	"slices"
 )
 
 // LoGo/s M7-S2 `const for` checking (SPEC Sec 2.5, T-205). stmt.go calls
@@ -22,11 +23,114 @@ import (
 
 // LogosConstFor is the recorded meaning of one checked ConstForStmt.
 type LogosConstFor struct {
-	Target   Type
-	Struct   *Struct
-	FieldVar *Var
-	IndexVar *Var
-	Generic  bool
+	Target    Type
+	Struct    *Struct
+	FieldVar  *Var
+	IndexVar  *Var
+	Generic   bool
+	GoVersion string
+}
+
+// LogosCopyContext carries the enclosing function state one copy check
+// runs under: the scope that holds the copied code, the enclosing
+// signature (statement copies only), the language version, the
+// narrowing-disqualified sets the main check recorded for the enclosing
+// body, so copies narrow exactly like the source body, the
+// comptime-generic copies emitted so far, which later copies may call,
+// and the file's synthesized package aliases (the `_logos_tN` qualifiers
+// that spell a type of a package the file does not import), each bound to
+// the package object it names.
+type LogosCopyContext struct {
+	Scope   *Scope
+	Sig     *Signature
+	Version string
+	Disqual []map[string]bool
+	Funcs   []*Func
+	Aliases map[*Package]string
+}
+
+// logosCopyChecker builds the throwaway checker one copy check runs on.
+// It appends every hard diagnostic to *errs, or drops it when errs is
+// nil. Soft diagnostics (unused variables and labels, warn-only rules)
+// never block a fact, and the recheck of the lowered tree reports them.
+// The parser already checked the copy's branches and labels.
+func (ctx LogosCopyContext) logosCopyChecker(pkg *Package, info *Info, errs *[]Error) *Checker {
+	conf := &Config{
+		Logos:              true,
+		GoVersion:          ctx.Version,
+		Context:            NewContext(),
+		IgnoreBranchErrors: true,
+		Error: func(err error) {
+			if e, ok := err.(Error); ok && !e.Soft && errs != nil {
+				*errs = append(*errs, e)
+			}
+		},
+	}
+	mc := NewChecker(conf, pkg, info)
+	mc.version = asGoVersion(ctx.Version)
+	mc.scope = NewScope(ctx.Scope, nopos, nopos, "logos copies")
+	for _, f := range ctx.Funcs {
+		mc.scope.Insert(f)
+	}
+	for imported, alias := range ctx.Aliases {
+		mc.scope.Insert(NewPkgName(nopos, pkg, alias, imported))
+	}
+	mc.sig = ctx.Sig
+	mc.logosDisqual = slices.Clone(ctx.Disqual)
+	return mc
+}
+
+// logosCopyFinish runs the checker's delayed work and records the
+// untyped expressions of one copy check.
+func (check *Checker) logosCopyFinish() {
+	check.processDelayed(0)
+	check.cleanup()
+	check.recordUntyped()
+}
+
+// LogosCheckCopy checks copied statements under ctx, recording types,
+// uses, definitions, selections, instances, and scopes into info for
+// the lowering of one const for unrolling. It reports no diagnostic: the
+// statements copy the body of a concrete const for, whose body the main
+// check already verified once per field (#76), so a copy cannot hold a
+// new defect. The checker here lacks the enclosing function's flow state
+// (active nil narrowings, unchecked error results), so a diagnostic it
+// raised would be provisional, and the recheck of the lowered tree
+// reports the defects that remain.
+func LogosCheckCopy(pkg *Package, info *Info, ctx LogosCopyContext, blocks []*syntax.BlockStmt) {
+	if ctx.Scope == nil || ctx.Sig == nil {
+		return
+	}
+	mc := ctx.logosCopyChecker(pkg, info, nil)
+	for _, b := range blocks {
+		mc.stmt(0, b)
+	}
+	mc.logosCopyFinish()
+}
+
+// LogosCheckCopyFunc checks one copied function declaration (an
+// instantiation of a comptime generic) under ctx, recording its types
+// into info, and returns the function object so later copies can call
+// it, with the hard diagnostics of the check. The definition checked
+// with its type parameters approximated, so the copy is the first check
+// of the instantiated body, and it checks as a whole function: no state
+// of an enclosing function is missing, so every hard diagnostic is
+// real. It returns nil when the declaration has no body or ctx holds no
+// scope.
+func LogosCheckCopyFunc(pkg *Package, info *Info, ctx LogosCopyContext, fn *syntax.FuncDecl) (*Func, []Error) {
+	if ctx.Scope == nil || fn.Body == nil {
+		return nil, nil
+	}
+	var errs []Error
+	mc := ctx.logosCopyChecker(pkg, info, &errs)
+	sig := new(Signature)
+	mc.funcType(sig, nil, nil, fn.Type)
+	obj := NewFunc(fn.Name.Pos(), pkg, fn.Name.Value, sig)
+	mc.recordDef(fn.Name, obj)
+	mc.scope.Insert(obj)
+	mc.funcBody(nil, fn.Name.Value, sig, fn.Body, nil)
+	mc.logosCopyFinish()
+	return obj, errs
 }
 
 // logosFieldBinding is the per-iteration field meaning installed while
@@ -42,7 +146,7 @@ var logosFieldValueSels = []string{"Name", "Index", "Tag", "Exported"}
 
 // logosConstFor checks a const for statement.
 func (check *Checker) logosConstFor(s *syntax.ConstForStmt, ctxt stmtContext) {
-	info := &LogosConstFor{}
+	info := &LogosConstFor{GoVersion: check.conf.GoVersion}
 	if check.logosConstForRange(s, info) {
 		check.logosConstForBody(s, info, ctxt)
 	}

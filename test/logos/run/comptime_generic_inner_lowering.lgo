@@ -1,0 +1,76 @@
+// run
+
+// M7-S3 comptime generic with inner lowering (SPEC Sec 2.5, T-205; #76,
+// #128): a `?` call, a `$"..."` interpolation, and a chain call sit in
+// the const for body of a comptime generic, singly and nested. Each
+// instantiation expands into its own copy and each unrolled iteration of
+// a copy lowers on its own; the ejected text matches the native
+// lowering.
+
+package main
+
+import (
+	"comptime"
+	"errors"
+	"fmt"
+	"strconv"
+)
+
+type Pair struct {
+	X int
+	Y int
+}
+
+type Triple struct {
+	A int
+	B int
+	C int
+}
+
+var calls int
+
+func step(in string) (int, error) {
+	calls++
+	if calls == 4 {
+		return 0, errors.New("stopped at step 4")
+	}
+	return strconv.Atoi(in)
+}
+
+func Total[T any](in string) (int, error) {
+	sum := 0
+	const for _, f := range comptime.Fields[T]() {
+		n := step(in)?
+		sum += n
+		fmt.Println($"{f.Name}={sum}")
+	}
+	return sum, nil
+}
+
+func Weights[T any]() int {
+	s := 0
+	const for _, f := range comptime.Fields[T]() {
+		s += []int{1, 2, 3}.map(x => x + f.Index).sum()
+	}
+	return s
+}
+
+func Grid[T any](in string) (int, error) {
+	sum := 0
+	const for _, f := range comptime.Fields[T]() {
+		const for _, g := range comptime.Fields[T]() {
+			n := step(in)?
+			sum += n
+			fmt.Println($"{f.Name}.{g.Name}={sum}")
+		}
+	}
+	return sum, nil
+}
+
+func main() {
+	calls = 0
+	fmt.Println(Total[Pair]("4"))
+	fmt.Println(Total[Triple]("4"))
+	fmt.Println(Weights[Triple]())
+	fmt.Println(Grid[Pair]("1"))
+}

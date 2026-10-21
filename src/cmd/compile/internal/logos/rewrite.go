@@ -458,7 +458,7 @@ func blockEndOff(fl *fileLower, host syntax.Stmt) int {
 	case *syntax.SwitchStmt:
 		return fl.off(host.Rbrace) + 1
 	default:
-		return len(fl.src)
+		return fl.orig
 	}
 }
 
@@ -473,7 +473,7 @@ func ifEndOff(fl *fileLower, s *syntax.IfStmt) int {
 		case *syntax.IfStmt:
 			s = els
 		default:
-			return len(fl.src)
+			return fl.orig
 		}
 	}
 }

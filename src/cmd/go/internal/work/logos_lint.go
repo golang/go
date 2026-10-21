@@ -69,12 +69,14 @@ func (lintActor) Act(b *Builder, ctx context.Context, a *Action) error {
 	if err != nil {
 		return err
 	}
-	_, out, err := BuildToolchain.gc(b, a, "", lintImportConfig(a), embed, "", false, "", str.StringList(p.GoFiles))
+	icfg := lintImportConfig(a)
+	_, out, err := BuildToolchain.gc(b, a, "", icfg, embed, "", false, "", str.StringList(p.GoFiles))
 	return sh.reportCmd("", "", out, err)
 }
 
 // lintImportConfig returns the import config of the lint compile: the
-// import maps of p and the export data of every dependency, as build does.
+// import maps of p and the export data of every dependency, as build does,
+// plus the transitive packages a loGo/s package may synthesize imports of.
 func lintImportConfig(a *Action) []byte {
 	p := a.Package
 	var icfg bytes.Buffer
@@ -91,6 +93,7 @@ func lintImportConfig(a *Action) []byte {
 		}
 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, a1.built)
 	}
+	logosSynthImportCfg(&icfg, a)
 	return icfg.Bytes()
 }
 

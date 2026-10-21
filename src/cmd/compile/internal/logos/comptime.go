@@ -5,6 +5,7 @@
 package logos
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strconv"
@@ -149,8 +150,12 @@ type cfExpander struct {
 	foreign map[string]*cfRecord
 	memo    map[string]string
 	stack   []cfFrame
-	fakes   map[string]*types2.Package
+	pkgs    map[string]*types2.Package
+	roots   []*types2.Package
 	seq     int
+	// copyFuncs holds the function object of every copy emitted so far,
+	// for the checks of copies that call them.
+	copyFuncs []*types2.Func
 }
 
 // newCfExpander registers the comptime generics of every file of the
@@ -163,7 +168,7 @@ func newCfExpander(shared *packageLower, files []*syntax.File, src map[*syntax.F
 		byDecl:  make(map[*syntax.FuncDecl]*cfGenericDef),
 		foreign: make(map[string]*cfRecord),
 		memo:    make(map[string]string),
-		fakes:   make(map[string]*types2.Package),
+		pkgs:    make(map[string]*types2.Package),
 	}
 	f := facts.Current()
 	for _, file := range files {
@@ -171,7 +176,7 @@ func newCfExpander(shared *packageLower, files []*syntax.File, src map[*syntax.F
 		if !ok {
 			continue
 		}
-		fl := &fileLower{pkg: shared, file: file, src: data, start: lineStarts(data)}
+		fl := &fileLower{pkg: shared, file: file, src: data, orig: len(data), start: lineStarts(data)}
 		f = fl.registerComptime(exp, f)
 	}
 	if f != nil {
@@ -697,10 +702,11 @@ func (fl *fileLower) cfCopyFor(site *cfSite) string {
 	name := cfCopyName(site.obj, exp.seq)
 	exp.seq++
 	exp.stack = append(exp.stack, cfFrame{key: key, label: label})
+	reported := base.Errors()
 	text, ok := fl.cfBuildCopy(site, rec, name)
 	exp.stack = exp.stack[:len(exp.stack)-1]
 	exp.memo[key] = name
-	if ok {
+	if ok && base.Errors() == reported { // A copy built under a diagnostic names copies that never emitted: checking it would only cascade.
 		fl.cfEmitCopy(text, site)
 	}
 	return name
@@ -796,6 +802,7 @@ func (fl *fileLower) cfCopySites(site *cfSite, rec *cfRecord) (*cfSites, bool) {
 		fl.cfError(site.pos, "[comptime::generic_targ] %s needs %d type arguments, have %d", rec.name, rec.tparams, len(site.targs))
 		return nil, false
 	}
+	fl.pkg.ctExp.roots = append(fl.pkg.ctExp.roots, site.obj.Pkg())
 	sites := &cfSites{
 		comptimeName: cfComptimeMarker,
 		spell:        make(map[string]func() (string, bool)),
@@ -811,13 +818,13 @@ func (fl *fileLower) cfCopySites(site *cfSite, rec *cfRecord) (*cfSites, bool) {
 	}
 	for i, imp := range rec.imports {
 		sites.spell[cfImportMarker+strconv.Itoa(i)] = fl.cfLazySpelling(func() (string, bool) {
-			return fl.cfImportQualifier(imp.path, imp.name), true
+			return fl.cfImportQualifier(imp.path, site.pos)
 		}, nil)
 	}
 	if rec.foreign {
 		pkg := site.obj.Pkg()
 		sites.spell[cfPkgMarker] = fl.cfLazySpelling(func() (string, bool) {
-			return fl.cfImportQualifier(pkg.Path(), pkg.Name()), true
+			return fl.cfImportQualifier(pkg.Path(), site.pos)
 		}, nil)
 	}
 	return sites, true
@@ -844,7 +851,10 @@ func (fl *fileLower) cfLazySpelling(compute func() (string, bool), fail func()) 
 
 // cfImportQualifier spells the package at path in this file: its own
 // import name when the file imports it, a synthesized import otherwise.
-func (fl *fileLower) cfImportQualifier(path, name string) string {
+// The synthesized alias binds the complete package, because the copy
+// check looks members up through it. It reports the diagnostic at pos and
+// false when the package cannot load.
+func (fl *fileLower) cfImportQualifier(path string, pos syntax.Pos) (string, bool) {
 	var own []string
 	for pkg, spelling := range fl.importNames() {
 		if pkg.Path() == path && spelling != "" {
@@ -853,15 +863,56 @@ func (fl *fileLower) cfImportQualifier(path, name string) string {
 	}
 	if len(own) > 0 {
 		slices.Sort(own)
-		return own[0]
+		return own[0], true
 	}
 	exp := fl.pkg.ctExp
-	pkg := exp.fakes[path]
+	pkg := exp.pkgs[path]
 	if pkg == nil {
-		pkg = types2.NewPackage(path, name)
-		exp.fakes[path] = pkg
+		var err error
+		if pkg, err = fl.cfLoadPackage(path); err != nil {
+			fl.cfError(pos, "[comptime::generic_import] cannot import %s for the copy: %v", path, err)
+			return "", false
+		}
+		exp.pkgs[path] = pkg
 	}
-	return fl.synthQualifier(pkg)
+	return fl.synthQualifier(pkg), true
+}
+
+// cfLoadPackage returns the complete package at path. A package the
+// compile already holds is complete once something imported it. The
+// import list of an export-data package only names descriptors whose
+// scopes hold the few objects that export data mentions, and a copy
+// looks any member up through its alias, so a descriptor opens through
+// the importer of the check, which fills the same package object in
+// place.
+func (fl *fileLower) cfLoadPackage(path string) (*types2.Package, error) {
+	if pkg := fl.cfKnownPackage(path); pkg != nil && pkg.Complete() {
+		return pkg, nil
+	}
+	imp := fl.pkg.info.LogosImporter
+	if imp == nil {
+		return nil, errors.New("the check recorded no importer")
+	}
+	return imp.Import(path)
+}
+
+// cfKnownPackage returns the package object at path that the compile
+// already holds: the package under lowering, a package that defines a
+// comptime generic being instantiated, or a package either of them
+// imports. It returns nil when none of them names path.
+func (fl *fileLower) cfKnownPackage(path string) *types2.Package {
+	roots := append([]*types2.Package{fl.pkg.tpkg}, fl.pkg.ctExp.roots...)
+	for _, root := range roots {
+		if root.Path() == path {
+			return root
+		}
+		for _, imp := range root.Imports() {
+			if imp.Path() == path {
+				return imp
+			}
+		}
+	}
+	return nil
 }
 
 // cfCalleeObj resolves a callee expression to its function: through the
@@ -926,20 +977,45 @@ func (fl *fileLower) cfNestedSite(call *syntax.CallExpr, active cfChain, run *cf
 	return offAt(run.ctx.starts, syntax.StartPos(fun)), cfExactEnd(run.ctx, fun), name, true
 }
 
-// cfEmitCopy appends one finished copy to the file: the native tree
-// takes the instantiation position on every node and every scope
-// boundary, the eject text takes the copy at the end of the file.
+// cfEmitCopy appends one finished copy to the file. The copy is checked
+// on its own, so its lowering reads the types of its own nodes, and it
+// lives in a region of its own, so its edits never meet those of another
+// copy. After lowering the native tree takes the instantiation position
+// on every node and every scope boundary, and the eject text takes the
+// finished region at the end of the file. A copy the check rejects
+// reports its diagnostics at the instantiation and never joins the tree:
+// its nodes lack the facts the lowering passes read.
 func (fl *fileLower) cfEmitCopy(text string, site *cfSite) {
 	file, errs := cfParseSource("package cfcopy\n" + text)
 	fn := cfFirstFunc(file)
 	if len(errs) > 0 || fn == nil {
 		base.Fatalf("logos: cannot parse comptime copy at %s: %v", site.pos.String(), errs)
 	}
-	normalizeChainPos(fn, site.pos)
+	if !fl.cfCheckCopyFunc(fn, site.pos) {
+		return
+	}
+	region := fl.adoptRegion(text, site.pos, fn.Pos().FileBase(), 2, []syntax.Node{fn})
 	fl.file.DeclList = append(fl.file.DeclList, fn)
-	end := len(fl.src)
-	fl.add(end, end, "\n\n"+text+"\n")
-	fl.changed = true
+	fl.addHost(fl.orig, fl.orig, &cfHost{regions: []*cfRegion{region}, head: "\n\n", tail: "\n"})
+}
+
+// cfCheckCopyFunc types one copy as a function of the package under the
+// scope of the instantiating file, and remembers its object so copies
+// emitted later can call it, even when the check rejects the copy: a
+// caller then checks against the signature instead of cascading. It
+// reports each hard diagnostic of the check at pos, the instantiation
+// the copy answers for, and returns whether the copy is valid.
+func (fl *fileLower) cfCheckCopyFunc(fn *syntax.FuncDecl, pos syntax.Pos) bool {
+	exp := fl.pkg.ctExp
+	ctx := types2.LogosCopyContext{Scope: fl.pkg.info.Scopes[fl.file], Funcs: exp.copyFuncs, Aliases: fl.cfAliases()}
+	obj, errs := types2.LogosCheckCopyFunc(fl.pkg.tpkg, fl.pkg.info, ctx, fn)
+	if obj != nil {
+		exp.copyFuncs = append(exp.copyFuncs, obj)
+	}
+	for _, err := range errs {
+		fl.cfError(pos, "%s", err.Msg)
+	}
+	return len(errs) == 0
 }
 
 // cfRetireDefs removes the comptime generics of this file from the

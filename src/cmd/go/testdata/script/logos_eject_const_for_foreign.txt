@@ -1,0 +1,126 @@
+# M7-S3 cross-package comptime generic whose field type comes from a
+# package the instantiating source never names (SPEC Sec 2.5, T-205;
+# T-0.3, T-Sec6). Package wire holds Row, whose Level field has the type
+# deep.Level, and an exported comptime generic Describe that converts each
+# field with Convert[f.Type](in)? and interpolates a string built from the
+# result. Package main instantiates Describe[wire.Row] and imports neither
+# deep nor anything that spells it, so the expansion copy in main spells
+# deep.Level through a synthesized import alias. The copy must type-check
+# under that alias for the `?` and the interpolation to lower. The ejected
+# tree holds the copy as plain Go with the synthesized import, runs under
+# plain go with the output logos run prints, and stays vet- and gofmt-clean.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+cp ../want.txt $WORK/want.txt
+
+# logos runs the module before eject and prints the complete output.
+logos run .
+cmp stdout $WORK/want.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp wire/wire.lgo $WORK/orig/wire.lgo
+cp deep/deep.lgo $WORK/orig/deep.lgo
+
+logos eject -o out
+exists out/main.go
+exists out/wire/wire.go
+exists out/deep/deep.go
+
+# No ejected file imports comptime, and no expansion marker leaks.
+! grep '"comptime"' out/main.go
+! grep '"comptime"' out/wire/wire.go
+! grep '_logos_ctpkg' out/main.go
+! grep '_logos_ctimp' out/main.go
+! grep '_logos_tparam' out/main.go
+
+# The copy in main reaches deep through a synthesized import alias.
+grep '_logos_t[0-9]+ "example.com/ejectforeign/deep"' out/main.go
+
+# The ejected tree runs under plain go with the same complete output.
+cd out
+go run .
+cmp stdout $WORK/want.txt
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The source tree is unchanged after eject (#112).
+cmp main.lgo $WORK/orig/main.lgo
+cmp wire/wire.lgo $WORK/orig/wire.lgo
+cmp deep/deep.lgo $WORK/orig/deep.lgo
+
+-- want.txt --
+Name=7;Level=L7;Count=7; <nil>
+bad: expected integer
+-- m/go.mod --
+module example.com/ejectforeign
+
+go 1.27
+
+-- m/deep/deep.lgo --
+package deep
+
+import "strconv"
+
+type Level int
+
+func (l Level) String() string {
+	return "L" + strconv.Itoa(int(l))
+}
+
+-- m/wire/wire.lgo --
+package wire
+
+import (
+	"comptime"
+	"fmt"
+
+	"example.com/ejectforeign/deep"
+)
+
+type Row struct {
+	Name  string
+	Level deep.Level
+	Count int
+}
+
+func Convert[V any](s string) (V, error) {
+	var v V
+	_, err := fmt.Sscan(s, &v)
+	return v, err
+}
+
+func Show[V any](v V) string {
+	return fmt.Sprint(v)
+}
+
+func Describe[T any](in string) (string, error) {
+	out := ""
+	const for _, f := range comptime.Fields[T]() {
+		v := Convert[f.Type](in)?
+		out += $"{f.Name}={Show(v)};"
+	}
+	return out, nil
+}
+
+-- m/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/ejectforeign/wire"
+)
+
+func main() {
+	out, err := wire.Describe[wire.Row]("7")
+	fmt.Println(out, err)
+	_, err = wire.Describe[wire.Row]("x")
+	fmt.Println("bad:", err)
+}

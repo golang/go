@@ -54,6 +54,40 @@ func cfFieldsOf(fl *fileLower, st *types2.Struct) []cfField {
 	return out
 }
 
+// cfRegion is one virtual copy of expansion text. It lives at
+// [start, end) of the working buffer after the original file text, on
+// the virtual lines from line on, so every position inside it names a
+// byte of its own text. Splices recorded inside the region apply to
+// text only; the host composes the finished region texts. owner is the
+// source position every node of the region takes after lowering.
+type cfRegion struct {
+	start   int
+	end     int
+	line    int
+	owner   syntax.Pos
+	text    []byte
+	splices []splice
+	host    *cfHost
+}
+
+// cfHost is the outer splice that stands for the regions of one
+// expansion: its text is head, then each region's finished text followed
+// by sep, then tail. A host is retired once its text is consumed
+// (composed into an enclosing span) or discarded (pruned with its span),
+// and its regions accept no further edit.
+type cfHost struct {
+	regions []*cfRegion
+	head    string
+	sep     string
+	tail    string
+	retired bool
+}
+
+type cfFuncCtx struct {
+	sig  *types2.Signature
+	body *syntax.BlockStmt
+}
+
 // lowerConstFor unrolls every concrete const for of one file. It runs
 // before the other file passes so leaf offsets stay pristine; generic
 // const fors (M7-S3) are left for the expansion phase.
@@ -61,21 +95,45 @@ func (fl *fileLower) lowerConstFor() {
 	for _, decl := range fl.file.DeclList {
 		fn, ok := decl.(*syntax.FuncDecl)
 		if !ok || fn.Body == nil {
-			syntax.Inspect(decl, func(n syntax.Node) bool {
-				if lit, ok := n.(*syntax.FuncLit); ok {
-					fl.lowerConstForBody(lit.Body)
-					return false
-				}
-				return true
-			})
+			fl.lowerConstForLits(decl)
 			continue
 		}
-		fl.lowerConstForBody(fn.Body)
-		for _, lit := range collectFuncLits(fn.Body) {
-			fl.lowerConstForBody(lit.Body)
-		}
+		fl.lowerConstForBody(fn.Body, cfFuncCtx{sig: fl.cfFuncSig(fn), body: fn.Body})
+		fl.lowerConstForLits(fn.Body)
 	}
 	fl.collectInterpKinds()
+}
+
+// lowerConstForLits unrolls the const fors of every function literal
+// under root, each literal under its own signature, outer literals
+// before the literals their copies and bodies hold: a literal's body is
+// expanded first, so the literals found inside it include those of its
+// fresh copies, whose types the copy checks recorded.
+func (fl *fileLower) lowerConstForLits(root syntax.Node) {
+	for _, lit := range collectFuncLits(root) {
+		fl.lowerConstForBody(lit.Body, cfFuncCtx{sig: fl.cfLitSig(lit), body: lit.Body})
+		fl.lowerConstForLits(lit.Body)
+	}
+}
+
+func (fl *fileLower) cfFuncSig(fn *syntax.FuncDecl) *types2.Signature {
+	if obj, ok := fl.pkg.info.Defs[fn.Name]; ok {
+		if fnObj, ok := obj.(*types2.Func); ok {
+			if sig, ok := fnObj.Type().(*types2.Signature); ok {
+				return sig
+			}
+		}
+	}
+	return nil
+}
+
+// cfLitSig returns the signature the checker recorded for a function
+// literal. TypeOf reads the Types map or the syntax node, whichever the
+// check populated: the compiler stores types in the nodes only, and a
+// missing signature skips the check of every copy inside the literal.
+func (fl *fileLower) cfLitSig(lit *syntax.FuncLit) *types2.Signature {
+	sig, _ := fl.pkg.info.TypeOf(lit).(*types2.Signature)
+	return sig
 }
 
 // collectFuncLits returns the function literals under root, outermost
@@ -95,39 +153,41 @@ func collectFuncLits(root syntax.Node) []*syntax.FuncLit {
 // lowerConstForBody expands the ancestorless const fors of one body in
 // place: each is replaced by its unrolled statements with one splice
 // carrying the expansion text.
-func (fl *fileLower) lowerConstForBody(body *syntax.BlockStmt) {
-	fl.lowerConstForList(&body.List)
+func (fl *fileLower) lowerConstForBody(body *syntax.BlockStmt, fctx cfFuncCtx) {
+	fl.lowerConstForList(&body.List, fctx)
 }
 
 // lowerConstForList expands the const fors of one statement list in
 // place, recursing into child lists of the statements it keeps. A
 // statement of a dead `const if` branch is left alone: the pruning of
 // that statement deletes it with its text.
-func (fl *fileLower) lowerConstForList(list *[]syntax.Stmt) {
+func (fl *fileLower) lowerConstForList(list *[]syntax.Stmt, fctx cfFuncCtx) {
 	for i := 0; i < len(*list); i++ {
 		if fl.pkg.info.LogosConstIfDead[(*list)[i]] {
 			continue
 		}
 		cf, ok := (*list)[i].(*syntax.ConstForStmt)
 		if !ok {
-			fl.lowerConstForNested((*list)[i])
+			fl.lowerConstForNested((*list)[i], fctx)
 			continue
 		}
 		info := fl.pkg.info.LogosConstFor[cf]
 		if info == nil || info.Struct == nil {
 			continue
 		}
-		stmts, text := fl.unrollConstFor(cf, info, fl.cfRunFor(cf))
+		stmts, host := fl.unrollConstFor(cf, info, fl.cfRunFor(cf), fctx)
 		*list = append((*list)[:i], append(stmts, (*list)[i+1:]...)...)
-		fl.add(fl.off(syntax.StartPos(cf)), fl.off(syntax.EndPos(cf))+1, text)
+		fl.addHost(fl.off(syntax.StartPos(cf)), fl.off(syntax.EndPos(cf))+1, host)
 		i += len(stmts) - 1
 	}
 }
 
 // lowerConstForNested expands const fors nested inside one statement's
 // child lists (if, for, switch bodies and plain blocks).
-func (fl *fileLower) lowerConstForNested(s syntax.Stmt) {
-	eachStmtList(s, fl.lowerConstForList)
+func (fl *fileLower) lowerConstForNested(s syntax.Stmt, fctx cfFuncCtx) {
+	eachStmtList(s, func(list *[]syntax.Stmt) {
+		fl.lowerConstForList(list, fctx)
+	})
 }
 
 // cfFieldsFunc resolves the fields one const for iterates, given the
@@ -220,10 +280,256 @@ type cfActive struct {
 // unrollConstFor expands one const for over the fields of info with the
 // outer chain applied inside. It returns the replacement statements and
 // their text.
-func (fl *fileLower) unrollConstFor(cf *syntax.ConstForStmt, info *types2.LogosConstFor, run *cfRun) ([]syntax.Stmt, string) {
-	stmts, text := fl.unrollConstForFields(cf, cfFieldsOf(fl, info.Struct), run)
-	fl.cfCountNodes(stmts, cf.Pos())
-	return stmts, text
+func (fl *fileLower) unrollConstFor(cf *syntax.ConstForStmt, info *types2.LogosConstFor, run *cfRun, fctx cfFuncCtx) ([]syntax.Stmt, *cfHost) {
+	return fl.unrollConstForTop(cf, cfFieldsOf(fl, info.Struct), run, fctx)
+}
+
+func (fl *fileLower) unrollConstForTop(cf *syntax.ConstForStmt, fields []cfField, run *cfRun, fctx cfFuncCtx) ([]syntax.Stmt, *cfHost) {
+	bodyOff := offAt(run.ctx.starts, syntax.StartPos(cf.Body))
+	bodyEnd := offAt(run.ctx.starts, syntax.EndPos(cf.Body)) + 1
+	bodySrc := string(run.ctx.src[bodyOff:bodyEnd])
+	var out []syntax.Stmt
+	host := &cfHost{sep: "\n"}
+	for ord, fd := range fields {
+		active := cfChain{{name: cf.Field.Value, field: fd, body: cf.Body}}
+		if cf.Index != nil && cf.Index.Value != "_" {
+			active = append(active, cfActive{name: cf.Index.Value, index: true, idx: ord, body: cf.Body})
+		}
+		text := fl.expandLevel(cf.Body, active, bodySrc, 0, &cfMapper{start: bodyOff}, run)
+		stmts, region := fl.reparseTopCopy(text, cf, fctx)
+		out = append(out, stmts...)
+		host.regions = append(host.regions, region)
+	}
+	fl.cfCountNodes(out, cf.Pos())
+	return out, host
+}
+
+// addHost records the outer splice of one expansion over [start, end).
+func (fl *fileLower) addHost(start, end int, host *cfHost) {
+	for _, r := range host.regions {
+		r.host = host
+	}
+	fl.splices = append(fl.splices, splice{start: start, end: end, host: host})
+	fl.hosts = append(fl.hosts, host)
+	fl.changed = true
+}
+
+// regionAt returns the region holding the span [start, end), boundaries
+// included, or nil for a span of the original text. Every offset past
+// the original text belongs to exactly one region, so an edit never
+// lands in the outer list at a buffer offset the original text lacks.
+func (fl *fileLower) regionAt(start, end int) *cfRegion {
+	for _, r := range fl.regions {
+		if start >= r.start && end <= r.end {
+			return r
+		}
+	}
+	return nil
+}
+
+// reparseTopCopy parses one unrolled iteration as statements, checks
+// them on their own, and moves them into a region of their own. The
+// parse wraps the text so that it begins on line 3.
+func (fl *fileLower) reparseTopCopy(text string, cf *syntax.ConstForStmt, fctx cfFuncCtx) ([]syntax.Stmt, *cfRegion) {
+	fbase := syntax.NewFileBase(fl.baseName + ".cf")
+	var errs []error
+	f, _ := syntax.Parse(fbase, strings.NewReader("package cfreparse\nfunc cfreparse() {\n"+text+"\n}\n"), func(err error) {
+		errs = append(errs, err)
+	}, nil, syntax.CheckBranches|syntax.LogosMode)
+	fn := cfFirstFunc(f)
+	if len(errs) > 0 || fn == nil || fn.Body == nil {
+		base.Fatalf("logos: cannot parse const for expansion at %s: %v", cf.Pos().String(), errs)
+	}
+	var blocks []*syntax.BlockStmt
+	var roots []syntax.Node
+	for _, s := range fn.Body.List {
+		b, ok := s.(*syntax.BlockStmt)
+		if !ok {
+			base.Fatalf("logos: cannot parse const for expansion at %s", cf.Pos().String())
+		}
+		blocks = append(blocks, b)
+		roots = append(roots, s)
+	}
+	fl.miniCheckCopies(blocks, cf, fctx)
+	return fn.Body.List, fl.adoptRegion(text, cf.Pos(), fbase, 3, roots)
+}
+
+// miniCheckCopies types the copies of one const for under the scope and
+// signature the const for sits in, so the lowering of each copy reads
+// the types of its own nodes.
+func (fl *fileLower) miniCheckCopies(blocks []*syntax.BlockStmt, cf *syntax.ConstForStmt, fctx cfFuncCtx) {
+	ctx := types2.LogosCopyContext{
+		Sig:     fctx.sig,
+		Disqual: fl.pkg.info.LogosDisqual[fctx.body],
+		Funcs:   fl.pkg.ctExp.copyFuncs,
+		Aliases: fl.cfAliases(),
+	}
+	if enclosing := fl.pkg.info.Scopes[cf]; enclosing != nil {
+		ctx.Scope = enclosing.Parent()
+	}
+	if recorded := fl.pkg.info.LogosConstFor[cf]; recorded != nil {
+		ctx.Version = recorded.GoVersion
+	}
+	types2.LogosCheckCopy(fl.pkg.tpkg, fl.pkg.info, ctx, blocks)
+}
+
+// cfAliases returns the synthesized package aliases of the file so far,
+// each keyed by the package object it names.
+func (fl *fileLower) cfAliases() map[*types2.Package]string {
+	if set := logosTypeImports[fl.file]; set != nil {
+		return set.qual
+	}
+	return nil
+}
+
+// adoptRegion appends text to the working buffer as a new region and
+// moves every position of roots, parsed from a wrapper in which text
+// starts on line textLine of the parsed file base, onto the region's own
+// virtual lines. owner is the position the region's nodes take back
+// after lowering.
+func (fl *fileLower) adoptRegion(text string, owner syntax.Pos, parsed *syntax.PosBase, textLine int, roots []syntax.Node) *cfRegion {
+	fl.src = append(fl.src, '\n')
+	r := &cfRegion{start: len(fl.src), line: len(lineStarts(fl.src)), owner: owner, text: []byte(text)}
+	fl.src = append(fl.src, text...)
+	r.end = len(fl.src)
+	fl.src = append(fl.src, '\n')
+	fl.start = lineStarts(fl.src)
+	fl.regions = append(fl.regions, r)
+	virtual := func(p syntax.Pos) syntax.Pos {
+		if !p.IsKnown() || p.FileBase() != parsed {
+			return p
+		}
+		return syntax.MakePos(fl.base, uint(r.line)+p.Line()-uint(textLine), p.Col())
+	}
+	for _, root := range roots {
+		cfMapPositions(root, virtual)
+	}
+	return r
+}
+
+var (
+	cfPosType     = reflect.TypeFor[syntax.Pos]()
+	cfPosListType = reflect.TypeFor[[]syntax.Pos]()
+)
+
+// cfMapPositions maps every position held by a node under root through
+// fn: the node position and every exported Pos or []Pos field (block and
+// switch closers, clause colons, interpolation operand braces, lambda
+// arrows, and every other delimiter a node records outside SetPos).
+func cfMapPositions(root syntax.Node, fn func(syntax.Pos) syntax.Pos) {
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		if n == nil {
+			return true
+		}
+		n.SetPos(fn(n.Pos()))
+		v := reflect.ValueOf(n).Elem()
+		for i := range v.NumField() {
+			f := v.Field(i)
+			if !f.CanSet() {
+				continue
+			}
+			switch f.Type() {
+			case cfPosType:
+				f.Set(reflect.ValueOf(fn(f.Interface().(syntax.Pos))))
+			case cfPosListType:
+				for j := range f.Len() {
+					e := f.Index(j)
+					e.Set(reflect.ValueOf(fn(e.Interface().(syntax.Pos))))
+				}
+			}
+		}
+		return true
+	})
+}
+
+// composeHost returns the finished text of a host: its head, each
+// region's text with the region's edits applied followed by sep, and its
+// tail.
+func (fl *fileLower) composeHost(h *cfHost) string {
+	var b strings.Builder
+	b.WriteString(h.head)
+	for _, r := range h.regions {
+		adj := make([]splice, len(r.splices))
+		for i, sp := range r.splices {
+			adj[i] = splice{start: sp.start - r.start, end: sp.end - r.start, text: sp.text, owner: sp.owner}
+		}
+		out, err := applySplices(r.text, adj)
+		if err != nil {
+			base.Fatalf("logos: overlapping edits at %s", r.owner.String())
+		}
+		b.Write(out)
+		b.WriteString(h.sep)
+	}
+	b.WriteString(h.tail)
+	return b.String()
+}
+
+// retireHost composes the text of h for the enclosing span that
+// consumes it and closes its regions to further edits.
+func (fl *fileLower) retireHost(h *cfHost) string {
+	h.retired = true
+	return fl.composeHost(h)
+}
+
+// finalizeConstFor stores the finished text in every host still live.
+func (fl *fileLower) finalizeConstFor() {
+	for _, h := range fl.hosts {
+		if !h.retired {
+			fl.setHostText(h, fl.composeHost(h))
+		}
+	}
+}
+
+// setHostText sets the text of the outer splice that stands for h.
+func (fl *fileLower) setHostText(h *cfHost, text string) {
+	for i := range fl.splices {
+		if fl.splices[i].host == h {
+			fl.splices[i].text = text
+			return
+		}
+	}
+	base.Fatalf("logos: host splice missing at %s", h.regions[0].owner.String())
+}
+
+// remapRegions gives every node that lowering left on a virtual line the
+// position of the source construct its region expands, so the lowered
+// tree, the recheck, and the line tables see the original file.
+func (fl *fileLower) remapRegions() {
+	if len(fl.regions) == 0 {
+		return
+	}
+	cfMapPositions(fl.file, fl.remapPos)
+}
+
+// remapPos returns the owner position of the region p lies in, or p.
+func (fl *fileLower) remapPos(p syntax.Pos) syntax.Pos {
+	if r := fl.regionFor(p); r != nil {
+		return r.owner
+	}
+	return p
+}
+
+// regionFor returns the region that holds the virtual position p, or nil
+// for a position of the original text.
+func (fl *fileLower) regionFor(p syntax.Pos) *cfRegion {
+	if !p.IsKnown() || p.FileBase() != fl.base {
+		return nil
+	}
+	line := int(p.Line())
+	if line > len(fl.start) {
+		base.Fatalf("logos: copy position outside any region at %s", p.String())
+	}
+	off := fl.start[line-1] + int(p.Col()) - 1
+	if off <= fl.orig {
+		return nil
+	}
+	for _, r := range fl.regions {
+		if off >= r.start && off <= r.end {
+			return r
+		}
+	}
+	base.Fatalf("logos: copy position outside any region at %s", p.String())
+	return nil
 }
 
 // cfRun bundles what one expansion carries: the source coordinates, the
@@ -599,10 +905,27 @@ func (fl *fileLower) cfResolveTypeExpr(e syntax.Expr, active cfChain, sites *cfS
 			return types2.NewSlice(t), true
 		}
 	}
-	if tv, ok := fl.pkg.info.Types[e]; ok && tv.IsType() && !cfHasTypeParam(tv.Type) {
-		return tv.Type, true
+	if t := fl.cfRecordedType(e); t != nil && !cfHasTypeParam(t) {
+		return t, true
 	}
 	return nil, false
+}
+
+// cfRecordedType returns the type the checker recorded for the type
+// expression e, from the Types map or, as in the compiler, from the
+// syntax node. It returns nil for an expression that is not a type or
+// that the checker did not visit.
+func (fl *fileLower) cfRecordedType(e syntax.Expr) types2.Type {
+	if m := fl.pkg.info.Types; m != nil {
+		if tv, ok := m[e]; ok && tv.IsType() {
+			return tv.Type
+		}
+		return nil
+	}
+	if tv := e.GetTypeInfo(); tv.IsType() {
+		return tv.Type
+	}
+	return nil
 }
 
 // cfElemType resolves the element expression of a composite type.
@@ -1013,11 +1336,26 @@ func (fl *fileLower) cfCheckError(call *syntax.CallExpr, sites *cfSites) {
 			if u, err := strconv.Unquote(lit.Value); err == nil {
 				msg = u
 			}
-		} else if tv, ok := fl.pkg.info.Types[call.ArgList[0]]; ok && tv.Value != nil {
-			msg = tv.Value.String()
+		} else if text, ok := fl.cfRecordedConst(call.ArgList[0]); ok {
+			msg = text
 		}
 	}
 	fl.cfError(sites.at(call.Pos()), "[comptime::error] %s", msg)
+}
+
+// cfRecordedConst spells the constant value the checker recorded for e,
+// from the Types map or, as in the compiler, from the syntax node.
+func (fl *fileLower) cfRecordedConst(e syntax.Expr) (string, bool) {
+	if m := fl.pkg.info.Types; m != nil {
+		if tv, ok := m[e]; ok && tv.Value != nil {
+			return tv.Value.String(), true
+		}
+		return "", false
+	}
+	if tv := e.GetTypeInfo(); tv.Value != nil {
+		return tv.Value.String(), true
+	}
+	return "", false
 }
 
 // cfBlankAssign deletes `_ = f` blank assignments over field variables.
