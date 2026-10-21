@@ -33,7 +33,8 @@ type chainResult struct {
 	expr syntax.Expr
 }
 
-// chainHoist is one hoisted error-checked computation.
+// chainHoist is one hoisted error-checked computation. The text may carry
+// the mark of a moved region, which resolves before edits are emitted.
 type chainHoist struct {
 	stmts []syntax.Stmt
 	text  string
@@ -110,26 +111,54 @@ func (fl *fileLower) chainFuncResults(ft *syntax.FuncType) []chainResult {
 func (fl *fileLower) lowerChainList(list []syntax.Stmt, enc []chainResult) []syntax.Stmt {
 	var out []syntax.Stmt
 	for _, s := range list {
-		hoists := fl.lowerChainStmt(s, enc)
-		out = append(out, hoists...)
-		out = append(out, s)
-		for _, child := range tupleChildLists(s) {
-			*child = fl.lowerChainList(*child, enc)
+		if repl, ok := fl.lowerChainSpecial(s, enc); ok {
+			out = append(out, repl...)
+			continue
 		}
-		fl.lowerChainElseIf(s, enc)
-		fl.lowerChainConstBodies(s, enc)
-		syntax.Inspect(s, func(n syntax.Node) bool {
-			if lit, ok := n.(*syntax.FuncLit); ok {
-				if fl.transparent[lit] {
-					return true
-				}
-				lit.Body.List = fl.lowerChainList(lit.Body.List, fl.chainFuncResults(lit.Type))
-				return false
-			}
-			return true
-		})
+		out = append(out, fl.lowerChainPlain(s, enc)...)
 	}
 	return out
+}
+
+// lowerChainPlain lowers one statement on the plain path: hoists at the
+// statement start, then the statements nested under it.
+func (fl *fileLower) lowerChainPlain(s syntax.Stmt, enc []chainResult) []syntax.Stmt {
+	out := fl.lowerChainStmt(s, enc)
+	out = append(out, s)
+	fl.lowerChainChildren(s, enc)
+	return out
+}
+
+// lowerChainChildren lowers the statements nested under s with the same
+// enclosing results: child lists, else-if headers, const-if and
+// const-switch bodies, and function literals, which restart group scope
+// with their own results. Group statements and children have their own
+// scope handling, so the literal scan never descends into them.
+func (fl *fileLower) lowerChainChildren(s syntax.Stmt, enc []chainResult) {
+	for _, child := range tupleChildLists(s) {
+		*child = fl.lowerChainList(*child, enc)
+	}
+	fl.lowerChainElseIf(s, enc)
+	fl.lowerChainConstBodies(s, enc)
+	syntax.Inspect(s, func(n syntax.Node) bool {
+		if lit, ok := n.(*syntax.FuncLit); ok {
+			if fl.transparent[lit] {
+				return true
+			}
+			saved := fl.chainGrp
+			fl.chainGrp = chainGroup{}
+			lit.Body.List = fl.lowerChainList(lit.Body.List, fl.chainFuncResults(lit.Type))
+			fl.chainGrp = saved
+			return false
+		}
+		if _, ok := n.(*syntax.GroupStmt); ok {
+			return false
+		}
+		if _, ok := n.(*syntax.GroupChild); ok {
+			return false
+		}
+		return true
+	})
 }
 
 // lowerChainPkgDecl lowers chains in a package-level declaration.
@@ -164,9 +193,10 @@ func (fl *fileLower) chainsInDecl(decl *syntax.VarDecl) []*syntax.CallExpr {
 	return fl.outermostChains(all)
 }
 
-// outermostChains filters calls to those contained in no other,
-// sorted inner-first. Each span is scanned once, before any lowering
-// replaces nodes under the calls.
+// outermostChains filters calls to those contained in no other, in
+// source order: sibling chains hoist in the order the source evaluates
+// them. Each span is scanned once, before any lowering replaces nodes
+// under the calls.
 func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr {
 	spans := make(map[*syntax.CallExpr]span, len(all))
 	for _, c := range all {
@@ -188,7 +218,7 @@ func (fl *fileLower) outermostChains(all []*syntax.CallExpr) []*syntax.CallExpr 
 		}
 	}
 	slices.SortStableFunc(outer, func(a, b *syntax.CallExpr) int {
-		return spans[a].end - spans[a].start - (spans[b].end - spans[b].start)
+		return spans[a].start - spans[b].start
 	})
 	return outer
 }
@@ -202,11 +232,9 @@ func (fl *fileLower) lowerChainStmt(s syntax.Stmt, enc []chainResult) []syntax.S
 	}
 	stmtStart := fl.stmtStartOf(s)
 	var hoists []syntax.Stmt
-	for _, call := range calls {
-		for _, h := range fl.lowerChainTopLevel(call, enc) {
-			hoists = append(hoists, h.stmts...)
-			fl.add(stmtStart, stmtStart, h.text+"; ")
-		}
+	for _, h := range fl.lowerChainUnit(s, calls, enc) {
+		hoists = append(hoists, h.stmts...)
+		fl.add(stmtStart, stmtStart, h.text+"; ")
 	}
 	return hoists
 }
@@ -241,15 +269,17 @@ func (fl *fileLower) lowerChainElseIf(s syntax.Stmt, enc []chainResult) {
 // only when the outer condition fails. Plain chains lower in place and
 // need no guard.
 func (fl *fileLower) lowerChainElseIfHead(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []chainResult) {
+	if els.Init != nil {
+		fl.lowerChainElseIfInit(ifs, els, enc)
+		return
+	}
 	calls := fl.chainsInStmt(els)
 	var hoists []syntax.Stmt
 	var text strings.Builder
 	text.WriteString("{ ")
-	for _, call := range calls {
-		for _, h := range fl.lowerChainTopLevel(call, enc) {
-			hoists = append(hoists, h.stmts...)
-			text.WriteString(h.text + "; ")
-		}
+	for _, h := range fl.lowerChainUnit(els, calls, enc) {
+		hoists = append(hoists, h.stmts...)
+		text.WriteString(h.text + "; ")
 	}
 	if len(hoists) == 0 {
 		return
@@ -287,6 +317,41 @@ func (fl *fileLower) lowerChainConstBodies(s syntax.Stmt, enc []chainResult) {
 	}
 }
 
+// lowerChainElseIfInit lowers the header chains of an else-if with an init
+// statement. Chains of the init statement hoist ahead of it, inside the
+// block that wraps the branch. The condition reads names the init
+// statement declares, so its chains hoist into a closure the header keeps
+// in the condition's place, and the then branch tests the error a failing
+// hoist leaves, as lowerChainIf does for a leading if.
+func (fl *fileLower) lowerChainElseIfInit(ifs *syntax.IfStmt, els *syntax.IfStmt, enc []chainResult) {
+	var pre []syntax.Stmt
+	var text strings.Builder
+	text.WriteString("{ ")
+	for _, h := range fl.lowerChainPiece(els.Init, enc) {
+		pre = append(pre, h.stmts...)
+		text.WriteString(h.text + "; ")
+	}
+	errName := chainErrName(els.Pos())
+	hoists := fl.lowerChainPieceExit(els.Cond, enc, condFail(errName))
+	if len(pre) == 0 && len(hoists) == 0 {
+		return
+	}
+	if len(hoists) > 0 {
+		pre = append(pre, parseChainStmtFrag(fl, "var "+errName+" error", els.Pos())...)
+		text.WriteString("var " + errName + " error; ")
+		cond, check := fl.rewriteIfCond(els, hoists, enc, errName)
+		els.Cond = cond
+		els.Then.List = append(check, els.Then.List...)
+	}
+	elsPos := fl.off(syntax.StartPos(els))
+	fl.add(elsPos, elsPos, text.String())
+	end := fl.off(syntax.EndPos(els))
+	fl.add(end, end, " }")
+	wrapper := blockOf(els.Pos(), append(pre, els))
+	wrapper.Rbrace = hostRbrace(els)
+	ifs.Else = wrapper
+}
+
 // lowerChainGroupBody lowers the synchronous statements of a group body,
 // then every group child body in place. Hoists keep the enclosing
 // results, matching the previous placement before the group statement.
@@ -301,9 +366,12 @@ func (fl *fileLower) lowerChainGroupBody(s *syntax.GroupStmt, enc []chainResult)
 
 // stmtStartOf reports the offset of the first token of s, where hoisted
 // computations go. A call or expression statement sits at its call
-// parenthesis, so its start comes from the expression.
+// parenthesis, so its start comes from the expression, and a labeled
+// statement sits at its colon, so its start is its outermost label.
 func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
 	switch s := s.(type) {
+	case *syntax.LabeledStmt:
+		return fl.off(stmtStartPos(s))
 	case *syntax.CallStmt:
 		if s.Call != nil {
 			return fl.exprStart(s.Call)
@@ -318,7 +386,14 @@ func (fl *fileLower) stmtStartOf(s syntax.Stmt) int {
 
 // lowerChainTopLevel lowers one outermost chain, returning hoists.
 func (fl *fileLower) lowerChainTopLevel(call *syntax.CallExpr, enc []chainResult) []chainHoist {
-	cg := &chainGen{fl: fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: enc}
+	return fl.lowerChainGuarded(call, enc, "")
+}
+
+// lowerChainGuarded lowers one outermost chain whose hoist runs only while
+// guard, a boolean expression over earlier hoisted temporaries, holds. An
+// empty guard hoists unconditionally.
+func (fl *fileLower) lowerChainGuarded(call *syntax.CallExpr, enc []chainResult, guard string) []chainHoist {
+	cg := &chainGen{fl: fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: enc, guard: guard, exit: fl.chainExit}
 	cg.run(call)
 	return cg.hoists
 }
@@ -626,6 +701,10 @@ type chainGen struct {
 	pos    syntax.Pos
 	prefix string
 	enc    []chainResult
+	// guard is the condition a hoist runs under; exit spells how a failing
+	// hoist leaves, or is nil to return from the enclosing function.
+	guard  string
+	exit   func(err string) string
 	whole  span
 	kept   []span
 	hoists []chainHoist
@@ -809,12 +888,17 @@ func (cg *chainGen) runIsTry(ops []chainOp, term chainOp) bool {
 	return term.isTry
 }
 
-// lowerArgChains lowers the chains nested in one op argument: lambda
-// bodies and index expressions. Nested function literals stay for the
-// statement pass, which lowers them with their own results. Nested
-// splices stay recorded so the saved body spans compose them later.
+// lowerArgChains lowers the chains nested in one op argument: a chain
+// call standing as the whole argument, lambda bodies, and index
+// expressions. Nested function literals stay for the statement pass,
+// which lowers them with their own results. Nested splices stay recorded
+// so the saved body spans compose them later.
 func (cg *chainGen) lowerArgChains(arg syntax.Expr) {
 	if arg == nil {
+		return
+	}
+	if call, ok := syntax.Unparen(arg).(*syntax.CallExpr); ok && cg.fl.isChainCall(call) {
+		cg.lowerNested(call)
 		return
 	}
 	for _, n := range cg.nestedChains(arg) {
@@ -843,7 +927,7 @@ func (cg *chainGen) sub(e syntax.Expr, recv span) string {
 // its own prefix, merging its hoists ahead of this run's. Its splices
 // stay recorded for the enclosing saved spans to compose.
 func (cg *chainGen) lowerNested(call *syntax.CallExpr) {
-	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc}
+	sub := &chainGen{fl: cg.fl, pos: call.Pos(), prefix: chainPrefix(call.Pos()), enc: cg.enc, guard: cg.guard, exit: cg.exit}
 	sub.run(call)
 	cg.hoists = append(cg.hoists, sub.hoists...)
 }
@@ -867,6 +951,25 @@ func (cg *chainGen) nestedChains(e syntax.Expr) []*syntax.CallExpr {
 		return true
 	})
 	return cg.fl.outermostChains(all)
+}
+
+// returnText spells the return of err from the enclosing function: the
+// zero values of its other results, then err.
+func (cg *chainGen) returnText(err string) string {
+	if zeros := cg.enclosingZeros(); zeros != "" {
+		return "return " + zeros + ", " + err
+	}
+	return "return " + err
+}
+
+// failText spells the failing branch of a hoist that caught err: the
+// return of the enclosing function unless an enclosing header closure
+// hands the error to its statement instead.
+func (cg *chainGen) failText(err string) string {
+	if cg.exit != nil {
+		return cg.exit(err)
+	}
+	return cg.returnText(err)
 }
 
 // enclosingZeros spells the zero values of the enclosing non-error
@@ -1558,11 +1661,14 @@ func (cg *chainGen) emit(call *syntax.CallExpr, ops []chainOp, baseText string, 
 	text := "func() (" + ce.resultSpelling() + ", error) { " + loopText + " }"
 	temp := cg.prefix + "_t"
 	errName := cg.prefix + "_err"
-	ret := errName
-	if zeros := cg.enclosingZeros(); zeros != "" {
-		ret = zeros + ", " + errName
+	fail := cg.failText(errName)
+	hoistText := temp + ", " + errName + " := " + text + "(); if " + errName + " != nil { " + fail + " }"
+	if cg.guard != "" {
+		// The result outlives the guard block: the statement reads it
+		// only where its own short-circuit operands let it run, which
+		// are exactly the cases the guard admits.
+		hoistText = "var " + temp + " " + ce.resultSpelling() + "; if " + cg.guard + " { var " + errName + " error; " + temp + ", " + errName + " = " + text + "(); if " + errName + " != nil { " + fail + " } }"
 	}
-	hoistText := temp + ", " + errName + " := " + text + "(); if " + errName + " != nil { return " + ret + " }"
 	hoistNative := parseChainStmtFrag(fl, hoistText, call.Pos())
 	cg.hoists = append(cg.hoists, chainHoist{stmts: hoistNative, text: hoistText})
 	native := nameOf(call.Pos(), temp)

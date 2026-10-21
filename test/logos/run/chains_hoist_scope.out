@@ -1,0 +1,13 @@
+cond 2 6
+post 3 3
+caseguard one calls=0
+caseguardok count calls=3
+caseguarddefault default calls=1
+groupchild 0 err: neg 1
+takenested [1 2]
+contpost 20 3
+switchfall hit calls=3
+switchfallthrough def calls=100
+switchfalldefault def calls=3
+groupfilter 0 err: neg 1
+groupfilterok 2 <nil> 1

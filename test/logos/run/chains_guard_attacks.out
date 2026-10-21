@@ -1,0 +1,60 @@
+sibling 3 S1S2R3
+middefault1 one calls=0
+middefault2 count calls=2
+middefault7 dflt calls=2
+midfall1 a calls=0
+midfall7 dc calls=2
+midfall2 c calls=2
+fallstops1 ab calls=0
+fallstops2 b calls=0
+fallstops3 c calls=3
+switchbreak skip z calls=0
+switchbreak run xz calls=0
+switchbreak guard yz calls=2
+tagless empty
+tagless more calls=2
+tagless fewer calls=2
+labeledbreak 0dc calls=4
+condcapture [0 1 2]
+postlabeled <00><02>|<10><20><22>| calls=3
+condfail err: boom
+condpost . calls=3
+condrcv 2 3
+selectorder recv 5 order=S1S2R3
+selectlhs ready 7 calls=0
+selectlhswins won 7 calls=2
+oneline 4 calls=5
+group3 0 "" neg
+group3 2 "ok" <nil>
+shortand false false calls=0
+shortand true true calls=2
+shortand skip false calls=0
+shortand fail err: neg
+shortor skip true calls=0
+shortor run true calls=2
+shortor fail err: neg
+shortorder no-a false A
+shortorder b true ABC
+shortorder chain true ABR1R2R3C
+shortorder short false ABR1
+condshort [0 1] calls=4
+postcapture [0 2 4]
+postboom err: boom
+postboom body runs 2
+postshort stops n=4 flag=false calls=1
+postshort runs n=4 flag=true calls=8
+ifinit else else calls=0
+ifinit then then calls=2
+ifinit fail err: neg
+elseif zero zero
+elseif many many calls=2
+elseif few few calls=1
+elseif fail err: neg
+guardshort one one
+guardshort skip none calls=0
+guardshort run guard calls=2
+guardshort fail err: neg
+taginit two two calls=2
+taginit other other calls=3
+taginit fail err: neg
+loopjumps 12 calls=2

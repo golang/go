@@ -1,0 +1,611 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+)
+
+var calls int
+var order string
+var rcvCalls int
+var errNeg = errors.New("neg")
+var errBoom = errors.New("boom")
+
+func parse(x int) (int, error) {
+	calls++
+	if x < 0 {
+		return 0, errNeg
+	}
+	return 2 * x, nil
+}
+
+func isPos(x int) (bool, error) {
+	calls++
+	if x < 0 {
+		return false, errNeg
+	}
+	return x > 1, nil
+}
+
+func note(tag string, x int) (int, error) {
+	order += fmt.Sprintf("%s%d", tag, x)
+	return x, nil
+}
+
+func failAt(x int) (bool, error) {
+	if x == 2 {
+		return false, errBoom
+	}
+	return true, nil
+}
+
+var bodyRuns int
+
+func step(tag string, v bool) bool {
+	order += tag
+	return v
+}
+
+func rcv(xs []int) []int {
+	rcvCalls++
+	return xs
+}
+
+func pickCh(c chan int, _ []int) chan int {
+	return c
+}
+
+// Two sibling ?-chains of one statement hoist in source order, not by
+// length: the longer chain comes first in the source.
+func siblingOrder(xs, ys []int) (string, error) {
+	order = ""
+	n := len(xs.map(x => note("S", x)?).take(9)) + len(ys.map(y => note("R", y)?))
+	return fmt.Sprintf("%d %s", n, order), nil
+}
+
+// A default clause in the middle never lets a later guard run when an
+// earlier case matches, and runs only when every guard misses.
+func midDefault(k int, ys []int) (string, error) {
+	calls = 0
+	out := ""
+	switch k {
+	case 1:
+		out = "one"
+	default:
+		out = "dflt"
+	case ys.count(x => isPos(x)?):
+		out = "count"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A fallthrough out of a mid default reaches the later guarded clause
+// without evaluating its guard.
+func midFall(k int, ys []int) (string, error) {
+	calls = 0
+	out := ""
+	switch k {
+	case 1:
+		out += "a"
+	default:
+		out += "d"
+		fallthrough
+	case ys.count(x => isPos(x)?):
+		out += "c"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A fallthrough reaches only the next body: the clause after it stays
+// closed.
+func fallStops(k int, ys []int) (string, error) {
+	calls = 0
+	out := ""
+	switch k {
+	case 1:
+		out += "a"
+		fallthrough
+	case 2:
+		out += "b"
+	case ys.count(x => isPos(x)?):
+		out += "c"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A break leaves the switch, not the function.
+func switchBreak(k int, skip bool, ys []int) (string, error) {
+	calls = 0
+	out := ""
+	switch k {
+	case 1:
+		if skip {
+			break
+		}
+		out += "x"
+	case ys.count(x => isPos(x)?):
+		out += "y"
+	}
+	out += "z"
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A tagless switch with an init statement keeps the init variable in
+// every guard.
+func tagless(xs, ys []int) (string, error) {
+	calls = 0
+	switch n := len(xs); {
+	case n == 0:
+		return "empty", nil
+	case n > ys.count(x => isPos(x)?):
+		return fmt.Sprintf("more calls=%d", calls), nil
+	}
+	return fmt.Sprintf("fewer calls=%d", calls), nil
+}
+
+// A labeled break through a lowered switch leaves the loop.
+func labeledBreak(ys []int) (string, error) {
+	calls = 0
+	out := ""
+loop:
+	for i := 0; i < 4; i++ {
+		switch i {
+		case 0:
+			out += "0"
+		case ys.count(x => isPos(x)?):
+			out += "c"
+			break loop
+		default:
+			out += "d"
+		}
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A condition chain keeps the post statement in the header, so every
+// iteration captures its own loop variable.
+func condCapture(xs []int) (string, error) {
+	var fs []func() int
+	for i := 0; i < xs.count(x => isPos(x)?); i++ {
+		fs = append(fs, func() int { return i })
+	}
+	var got []int
+	for _, f := range fs {
+		got = append(got, f())
+	}
+	return fmt.Sprint(got), nil
+}
+
+// A post chain runs behind every pass: a continue naming the loop from a
+// nested loop reaches it, and a continue of the nested loop does not.
+func postLabeled(xs []int) (string, error) {
+	calls = 0
+	out := ""
+outer:
+	for i := 0; i < 3; i += xs.count(x => isPos(x)?) {
+		for j := 0; j < 3; j++ {
+			if j == 1 {
+				continue
+			}
+			if j == 2 && i == 1 {
+				continue outer
+			}
+			out += fmt.Sprintf("<%d%d>", i, j)
+		}
+		out += "|"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// A condition chain reads the loop variable of its own iteration, and
+// its error leaves the function.
+func condFail(xs []int) (string, error) {
+	total := 0
+	for i := 0; i < xs.count(x => failAt(x+i)?)+3; i++ {
+		total++
+	}
+	return fmt.Sprint(total), nil
+}
+
+// Condition and post chains together, with a continue reaching the post.
+func condPost(xs []int) (string, error) {
+	calls = 0
+	out := ""
+	for i := 0; i < len(xs.map(x => parse(x)?)); i += len(xs.map(x => parse(x)?)) {
+		out += "."
+		if i == 0 {
+			continue
+		}
+		out += "!"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+// The receiver of a condition chain evaluates once per evaluation of
+// the condition.
+func condRcv(xs []int) (string, error) {
+	rcvCalls = 0
+	total := 0
+	for i := 0; i < rcv(xs).count(x => isPos(x)?); i++ {
+		total++
+	}
+	return fmt.Sprintf("%d %d", total, rcvCalls), nil
+}
+
+// Channel and send expressions of a select evaluate once, in source
+// order, whatever the length of their chains. The done case never fires
+// for a background context, so the select still waits on the two
+// communications; it gives them the cancellation path the channel lint
+// requires.
+func selectOrder(ctx context.Context, xs, ys []int) (string, error) {
+	order = ""
+	full := make(chan int)
+	ready := make(chan int, 1)
+	ready <- 5
+	select {
+	case full <- len(xs.map(x => note("S", x)?).take(9)):
+		return "sent", nil
+	case v := <-pickCh(ready, ys.map(y => note("R", y)?)):
+		return fmt.Sprintf("recv %d order=%s", v, order), nil
+	case <-ctx.Done():
+		return "done", nil
+	}
+}
+
+// A ?-chain in the target of a receive assignment runs only when its
+// clause wins.
+func selectLhs(xs []int) (string, error) {
+	calls = 0
+	m := map[int]int{}
+	idle := make(chan int)
+	ready := make(chan int, 1)
+	ready <- 7
+	select {
+	case m[xs.count(x => isPos(x)?)] = <-idle:
+		return "idle", nil
+	case m[0] = <-ready:
+		return fmt.Sprintf("ready %d calls=%d", m[0] ?? -1, calls), nil
+	}
+}
+
+func selectLhsWins(xs []int) (string, error) {
+	calls = 0
+	m := map[int]int{}
+	ready := make(chan int, 1)
+	ready <- 7
+	select {
+	case m[xs.count(x => isPos(x)?)] = <-ready:
+		return fmt.Sprintf("won %d calls=%d", m[2] ?? -1, calls), nil
+	}
+}
+
+// One-line bodies of loops whose header chains hoist.
+func oneLine(xs []int) (string, error) {
+	calls = 0
+	total := 0
+	for i := 0; i < 3; i += xs.count(x => isPos(x)?) { total++ }
+	for i := 0; i < xs.count(x => isPos(x)?); i++ {total++}
+	return fmt.Sprintf("%d calls=%d", total, calls), nil
+}
+
+// A ?-chain in a go child returns only from the child, whatever the
+// results of the enclosing function.
+func groupChild3(ctx context.Context, xs []int) (int, string, error) {
+	n := 0
+	go group (ctx) {
+		go {
+			ys := xs.map(x => parse(x)?)
+			n = len(ys)
+		}
+	}
+	return n, "ok", nil
+}
+
+// The right operand of && runs only when the left one holds: a failing
+// chain behind a false guard never runs, never counts, and never returns.
+func shortAnd(ok bool, xs []int) (string, error) {
+	calls = 0
+	got := ok && xs.all(x => isPos(x)?)
+	return fmt.Sprintf("%v calls=%d", got, calls), nil
+}
+
+// The right operand of || runs only when the left one fails.
+func shortOr(ok bool, xs []int) (string, error) {
+	calls = 0
+	got := ok || xs.any(x => isPos(x)?)
+	return fmt.Sprintf("%v calls=%d", got, calls), nil
+}
+
+// Operands evaluate left to right: the chain nested under two operators
+// runs after both operands behind it, and only when the first holds and
+// the second fails; the operand after it runs last.
+func shortOrder(a, b bool, xs []int) (string, error) {
+	order = ""
+	got := step("A", a) && (step("B", b) || len(xs.map(x => note("R", x)?)) > 1) && step("C", true)
+	return fmt.Sprintf("%v %s", got, order), nil
+}
+
+// A short-circuit in a loop condition: the chain behind the bound runs
+// only while the bound holds, and each closure sees the variable of its
+// own iteration.
+func condShort(xs []int) (string, error) {
+	calls = 0
+	var fs []func() int
+	for i := 0; i < 2 && xs.count(x => isPos(x)?) > i; i++ {
+		fs = append(fs, func() int { return i })
+	}
+	var got []int
+	for _, f := range fs {
+		got = append(got, f())
+	}
+	return fmt.Sprintf("%v calls=%d", got, calls), nil
+}
+
+// The post statement stays the loop's post: a closure made in the body
+// keeps the value of its own iteration, which a post moved into the body
+// would overwrite.
+func postCapture(xs []int) (string, error) {
+	var fs []func() int
+	for i := 0; i < 6; i += xs.count(x => isPos(x)?) {
+		fs = append(fs, func() int { return i })
+	}
+	var got []int
+	for _, f := range fs {
+		got = append(got, f())
+	}
+	return fmt.Sprint(got), nil
+}
+
+// A failing post chain leaves the function before the condition or the
+// body runs again.
+func postBoom(xs []int) (string, error) {
+	bodyRuns = 0
+	for i := 0; i < 9; i += xs.count(x => failAt(x+i)?) {
+		bodyRuns++
+	}
+	return fmt.Sprint(bodyRuns), nil
+}
+
+// A short-circuit in a post statement runs inside the post: the chain
+// runs only while the flag holds.
+func postShort(xs []int) (string, error) {
+	calls = 0
+	n := 0
+	i := 0
+	flag := true
+	for ; i < 4; flag = flag && xs.all(x => isPos(x)?) {
+		i++
+		n++
+	}
+	return fmt.Sprintf("n=%d flag=%v calls=%d", n, flag, calls), nil
+}
+
+// The condition of an if reads the name its init statement declares, and
+// its chain runs only when the && lets it; the error leaves before either
+// branch.
+func ifInit(k int, xs []int) (string, error) {
+	calls = 0
+	if v := k * 2; v > 0 && xs.count(x => isPos(x+v)?) > 0 {
+		return fmt.Sprintf("then calls=%d", calls), nil
+	} else {
+		return fmt.Sprintf("else calls=%d", calls), nil
+	}
+}
+
+// The same for an else-if with its own init statement.
+func elseIfInit(k int, xs []int) (string, error) {
+	calls = 0
+	if k == 0 {
+		return "zero", nil
+	} else if v := k + 1; xs.count(x => isPos(x+v)?) > 1 {
+		return fmt.Sprintf("many calls=%d", calls), nil
+	}
+	return fmt.Sprintf("few calls=%d", calls), nil
+}
+
+// A short-circuit in a case guard runs behind the earlier guards and
+// behind its own left operand.
+func guardShort(k int, ok bool, ys []int) (string, error) {
+	calls = 0
+	switch {
+	case k == 1:
+		return "one", nil
+	case ok && ys.count(x => isPos(x)?) > 0:
+		return fmt.Sprintf("guard calls=%d", calls), nil
+	}
+	return fmt.Sprintf("none calls=%d", calls), nil
+}
+
+// A switch tag reads the name its init statement declares, so its chain
+// runs after the init statement.
+func tagInit(xs, ys []int) (string, error) {
+	calls = 0
+	switch n := len(xs); ys.count(x => isPos(x+n)?) {
+	case 2:
+		return fmt.Sprintf("two calls=%d", calls), nil
+	default:
+		return fmt.Sprintf("other calls=%d", calls), nil
+	}
+}
+
+// continue inside a switch reaches the post statement, continue naming
+// the loop does too, and break skips it.
+func loopJumps(xs []int) (string, error) {
+	calls = 0
+	out := ""
+outer:
+	for i := 0; i < 4; i += xs.count(x => isPos(x)?) {
+		switch i {
+		case 0:
+			continue
+		case 1:
+			out += "1"
+			continue outer
+		case 2:
+			out += "2"
+			break outer
+		}
+		out += "x"
+	}
+	return fmt.Sprintf("%s calls=%d", out, calls), nil
+}
+
+func show(name, s string, err error) {
+	if err != nil {
+		fmt.Println(name, "err:", err)
+		return
+	}
+	fmt.Println(name, s)
+}
+
+func main() {
+	runOrder()
+	runLoops()
+	runSelects()
+	runShort()
+	runInit()
+}
+
+// runOrder prints the sibling-order, switch, and fallthrough attacks.
+func runOrder() {
+	s, err := siblingOrder([]int{1, 2}, []int{3})
+	show("sibling", s, err)
+	for _, k := range []int{1, 2, 7} {
+		s, err = midDefault(k, []int{2, 3})
+		show(fmt.Sprintf("middefault%d", k), s, err)
+	}
+	for _, k := range []int{1, 7, 2} {
+		s, err = midFall(k, []int{2, 3})
+		show(fmt.Sprintf("midfall%d", k), s, err)
+	}
+	for _, k := range []int{1, 2, 3} {
+		s, err = fallStops(k, []int{2, 3, 4})
+		show(fmt.Sprintf("fallstops%d", k), s, err)
+	}
+	s, err = switchBreak(1, true, []int{2, 3})
+	show("switchbreak skip", s, err)
+	s, err = switchBreak(1, false, []int{2, 3})
+	show("switchbreak run", s, err)
+	s, err = switchBreak(2, false, []int{2, 3})
+	show("switchbreak guard", s, err)
+	s, err = tagless(nil, []int{2, 3})
+	show("tagless", s, err)
+	s, err = tagless([]int{1, 2, 3}, []int{2, 3})
+	show("tagless", s, err)
+	s, err = tagless([]int{1}, []int{2, 3})
+	show("tagless", s, err)
+}
+
+// runLoops prints the loop header attacks.
+func runLoops() {
+	var s string
+	var err error
+	s, err = labeledBreak([]int{2, 3})
+	show("labeledbreak", s, err)
+	s, err = condCapture([]int{2, 3, 4})
+	show("condcapture", s, err)
+	s, err = postLabeled([]int{2})
+	show("postlabeled", s, err)
+	s, err = condFail([]int{1})
+	show("condfail", s, err)
+	s, err = condPost([]int{1})
+	show("condpost", s, err)
+	s, err = condRcv([]int{2, 3})
+	show("condrcv", s, err)
+}
+
+// runSelects prints the select, one-line, and group child attacks.
+func runSelects() {
+	var s string
+	var err error
+	s, err = selectOrder(context.Background(), []int{1, 2}, []int{3})
+	show("selectorder", s, err)
+	s, err = selectLhs([]int{2, 3})
+	show("selectlhs", s, err)
+	s, err = selectLhsWins([]int{2, 3})
+	show("selectlhswins", s, err)
+	s, err = oneLine([]int{2})
+	show("oneline", s, err)
+	n, str, err := groupChild3(context.Background(), []int{-1})
+	fmt.Printf("group3 %d %q %v\n", n, str, err)
+	n, str, err = groupChild3(context.Background(), []int{1, 2})
+	fmt.Printf("group3 %d %q %v\n", n, str, err)
+}
+
+// runShort prints the short-circuit and post attacks.
+func runShort() {
+	var s string
+	var err error
+	for _, ok := range []bool{false, true} {
+		s, err = shortAnd(ok, []int{2, 3})
+		show(fmt.Sprintf("shortand %v", ok), s, err)
+	}
+	s, err = shortAnd(false, []int{-1})
+	show("shortand skip", s, err)
+	s, err = shortAnd(true, []int{-1})
+	show("shortand fail", s, err)
+	s, err = shortOr(true, []int{-1})
+	show("shortor skip", s, err)
+	s, err = shortOr(false, []int{1, 2, 3})
+	show("shortor run", s, err)
+	s, err = shortOr(false, []int{-1})
+	show("shortor fail", s, err)
+	s, err = shortOrder(false, true, []int{1, 2, 3})
+	show("shortorder no-a", s, err)
+	s, err = shortOrder(true, true, []int{1, 2, 3})
+	show("shortorder b", s, err)
+	s, err = shortOrder(true, false, []int{1, 2, 3})
+	show("shortorder chain", s, err)
+	s, err = shortOrder(true, false, []int{1})
+	show("shortorder short", s, err)
+	s, err = condShort([]int{2, 3})
+	show("condshort", s, err)
+	s, err = postCapture([]int{2, 3})
+	show("postcapture", s, err)
+	s, err = postBoom([]int{1})
+	show("postboom", s, err)
+	fmt.Println("postboom body runs", bodyRuns)
+	s, err = postShort([]int{0, 5})
+	show("postshort stops", s, err)
+	s, err = postShort([]int{2, 3})
+	show("postshort runs", s, err)
+}
+
+// runInit prints the init-statement, guard, and jump attacks.
+func runInit() {
+	var s string
+	var err error
+	s, err = ifInit(0, []int{1, 2})
+	show("ifinit else", s, err)
+	s, err = ifInit(1, []int{1, 2})
+	show("ifinit then", s, err)
+	s, err = ifInit(1, []int{-5})
+	show("ifinit fail", s, err)
+	s, err = elseIfInit(0, []int{1, 2})
+	show("elseif zero", s, err)
+	s, err = elseIfInit(1, []int{1, 2})
+	show("elseif many", s, err)
+	s, err = elseIfInit(1, []int{-1})
+	show("elseif few", s, err)
+	s, err = elseIfInit(1, []int{-9})
+	show("elseif fail", s, err)
+	s, err = guardShort(1, true, []int{2, 3})
+	show("guardshort one", s, err)
+	s, err = guardShort(2, false, []int{2, 3})
+	show("guardshort skip", s, err)
+	s, err = guardShort(2, true, []int{2, 3})
+	show("guardshort run", s, err)
+	s, err = guardShort(2, true, []int{-1})
+	show("guardshort fail", s, err)
+	s, err = tagInit([]int{7}, []int{1, 2})
+	show("taginit two", s, err)
+	s, err = tagInit([]int{7}, []int{1, 2, 3})
+	show("taginit other", s, err)
+	s, err = tagInit([]int{7}, []int{-5})
+	show("taginit fail", s, err)
+	s, err = loopJumps([]int{2})
+	show("loopjumps", s, err)
+}

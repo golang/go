@@ -1,0 +1,14 @@
+// run
+
+package main
+
+import "fmt"
+
+func main() {
+	xs := []int{1, 2, 3, 4}
+	ys := []int{5, 6, 7}
+	fmt.Println("taketake", xs.take(ys.take(2).count()))
+	fmt.Println("mapcount", xs.map(x => x*ys.count()))
+	fmt.Println("filtercount", xs.filter(x => x > ys.count()))
+	fmt.Println("recvarg", ys.map(y => y*2).take(xs.count()))
+}

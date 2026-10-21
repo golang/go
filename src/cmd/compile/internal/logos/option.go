@@ -1017,12 +1017,19 @@ func (fl *fileLower) wrapSpanOf(v syntax.Expr) span {
 // span inside a const for copy drains the splices of its region, where
 // appendSplice recorded them.
 func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
-	pending := &fl.splices
-	if r := fl.regionAt(vs.start, vs.end); r != nil {
-		pending = &r.splices
+	// Each end drains from the list holding insertions at it: the
+	// narrowest moved region strictly holding the endpoint, else its
+	// const for region, else the file. Ends in different lists drain
+	// separately; ends sharing one list drain in one pass so a
+	// zero-width span keeps HEAD's head-first behavior.
+	ls := fl.ownerOfInsertion(vs.start)
+	if le := fl.ownerOfInsertion(vs.end); le != ls {
+		head = drainOwnedAt(ls, vs.start, id)
+		tail = drainOwnedAt(le, vs.end, id)
+		return head, tail
 	}
 	var rest []splice
-	for _, sp := range *pending {
+	for _, sp := range *ls {
 		if sp.owner != id || sp.start != sp.end || (sp.start != vs.start && sp.start != vs.end) {
 			rest = append(rest, sp)
 			continue
@@ -1033,8 +1040,24 @@ func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
 			tail += sp.text
 		}
 	}
-	*pending = rest
+	*ls = rest
 	return head, tail
+}
+
+// drainOwnedAt removes the boundary inserts owned by id at off from list
+// and returns their texts.
+func drainOwnedAt(list *[]splice, off, id int) string {
+	var text string
+	var rest []splice
+	for _, sp := range *list {
+		if sp.owner != id || sp.start != sp.end || sp.start != off {
+			rest = append(rest, sp)
+			continue
+		}
+		text += sp.text
+	}
+	*list = rest
+	return text
 }
 
 // drainBodyWrapper composes the owned boundary inserts of a top-level

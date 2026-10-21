@@ -1,0 +1,4 @@
+taketake [1 2]
+mapcount [3 6 9 12]
+filtercount [4]
+recvarg [10 12 14]

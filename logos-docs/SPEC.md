@@ -282,6 +282,10 @@ Chained calls MUST fuse into one loop with the receiver evaluated once [T-104.6]
 Lambda parameters in chains MUST be const views [T-104.6].
 Mutation of the receiver inside a chain lambda MUST fail compilation [T-104.6].
 `?` in an expression-lambda body MUST propagate from the enclosing function [T-104.6].
+A `?`-chain in a `for` condition or post statement MUST run on every iteration: the loop lowers to an infinite loop evaluating the hoisted computation at the top and the narrowed post at the bottom of each pass, with `continue` reaching the post computation [T-104.6].
+A `?`-chain in a `switch` tag MUST run once before any guard [T-104.6].
+A `?`-chain in a case guard MUST run only when earlier guards miss, in order: the switch lowers to sequential guarded ifs over one tag temporary, with multi-guard cases joined by temporaries, a done flag keeping order, and `fallthrough` setting a flag tested by later conditions [T-104.6].
+A `?`-chain in a `go { }` child MUST return to the group with only the error result, never the enclosing function's results [T-206].
 A `?`-chain nested in a lambda body, in a `??` fallback, or in a `?.` call argument MUST fail with `correctness::nested_try_capture`: hoisting it to the enclosing function would unbind its captured parameters or run it when the source skips it [T-104.6].
 When produced elements implement `io.Closer`, partial failure MUST close already produced elements in reverse order [T-104.6].
 A newline followed by spaces or tabs then `.` plus a letter or `_` MUST insert no semicolon in `.lgo` [T-104.6].

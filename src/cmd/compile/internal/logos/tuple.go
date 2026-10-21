@@ -479,7 +479,11 @@ func replaceTupleExpr(root syntax.Node, old, repl syntax.Expr) {
 }
 
 // replaceTupleField swaps old for repl in interfaces, slices, and child
-// nodes reachable through f.
+// nodes reachable through f. A branch statement is a leaf: its Target
+// points to the enclosing loop, switch, or select, or to a labeled
+// statement elsewhere in the tree, so following it walks a cycle from
+// every `break` and `continue`, as syntax.Inspect notes. It holds no
+// expression, so no replacement is lost.
 func replaceTupleField(f, old, repl reflect.Value) bool {
 	switch f.Kind() {
 	case reflect.Interface:
@@ -508,7 +512,11 @@ func replaceTupleField(f, old, repl reflect.Value) bool {
 		if f.IsNil() {
 			return false
 		}
-		if n, ok := f.Interface().(syntax.Node); !ok || n == nil {
+		n, ok := f.Interface().(syntax.Node)
+		if !ok || n == nil {
+			return false
+		}
+		if _, leaf := n.(*syntax.BranchStmt); leaf {
 			return false
 		}
 		if f.Interface() == old.Interface() {

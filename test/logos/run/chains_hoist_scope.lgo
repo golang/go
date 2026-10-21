@@ -1,0 +1,186 @@
+// run
+
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+)
+
+var calls int
+var errNeg = errors.New("neg")
+
+func parse(x int) (int, error) {
+	calls++
+	if x < 0 {
+		return 0, errNeg
+	}
+	return 2 * x, nil
+}
+
+func isPos(x int) (bool, error) {
+	calls++
+	if x < 0 {
+		return false, errNeg
+	}
+	return x > 1, nil
+}
+
+func condIter(xs []int) (int, error) {
+	calls = 0
+	total := 0
+	for i := 0; i < len(xs.map(x => parse(x)?)); i++ {
+		total++
+	}
+	return total, nil
+}
+
+func postIter(xs []int) (int, error) {
+	calls = 0
+	total := 0
+	for i := 0; i < 3; i += len(xs.map(x => parse(x)?)) {
+		total++
+	}
+	return total, nil
+}
+
+func caseGuard(k int, ys []int) (string, error) {
+	calls = 0
+	switch k {
+	case 1:
+		return fmt.Sprintf("one calls=%d", calls), nil
+	case ys.count(x => isPos(x)?):
+		return fmt.Sprintf("count calls=%d", calls), nil
+	default:
+		return fmt.Sprintf("default calls=%d", calls), nil
+	}
+}
+
+var childRan int
+
+func markRun() error {
+	childRan = 1
+	return nil
+}
+
+func groupChildTry(ctx context.Context, xs []int) (int, error) {
+	calls = 0
+	childRan = 0
+	go group (ctx) {
+		go markRun()
+		go {
+			ys := xs.map(x => parse(x)?)
+			_ = ys
+		}
+	}
+	return childRan, nil
+}
+
+func takeNested(xs []int, ys []int) ([]int, error) {
+	return xs.take(ys.count()), nil
+}
+
+func contPost(xs []int) (int, error) {
+	calls = 0
+	total := 0
+	for i := 0; i < 3; i += len(xs.map(x => parse(x)?)) {
+		if i == 1 {
+			continue
+		}
+		total += 10
+	}
+	return total, nil
+}
+
+func switchFall(k int, ys []int) (string, error) {
+	calls = 0
+	switch k {
+	case ys.count(x => isPos(x)?):
+		return fmt.Sprintf("hit calls=%d", calls), nil
+	case 9:
+		calls = 100
+		fallthrough
+	default:
+		return fmt.Sprintf("def calls=%d", calls), nil
+	}
+}
+
+func groupChildFilter(ctx context.Context, xs []int) (int, error) {
+	calls = 0
+	childRan = 0
+	n := 0
+	go group (ctx) {
+		go markRun()
+		go {
+			ys := xs.filter(x => isPos(x)?)
+			total := 0
+			for _, v := range ys {
+				total += v
+			}
+			n = total
+		}
+	}
+	return n, nil
+}
+
+func show(name string, v any, err error) {
+	if err != nil {
+		fmt.Println(name, "err:", err)
+		return
+	}
+	fmt.Println(name, v)
+}
+
+func main() {
+	total, err := condIter([]int{1, 2})
+	if err != nil {
+		fmt.Println("cond err:", err)
+	} else {
+		fmt.Println("cond", total, calls)
+	}
+	total, err = postIter([]int{1})
+	if err != nil {
+		fmt.Println("post err:", err)
+	} else {
+		fmt.Println("post", total, calls)
+	}
+	s, err := caseGuard(1, []int{-1})
+	show("caseguard", s, err)
+	s, err = caseGuard(2, []int{1, 2, 3})
+	show("caseguardok", s, err)
+	s, err = caseGuard(9, []int{1})
+	show("caseguarddefault", s, err)
+	n, err := groupChildTry(context.Background(), []int{-1})
+	if err != nil {
+		fmt.Println("groupchild", n, "err:", err, childRan)
+	} else {
+		fmt.Println("groupchild", n, childRan)
+	}
+	t, err := takeNested([]int{1, 2, 3}, []int{4, 5})
+	show("takenested", t, err)
+	total, err = contPost([]int{1})
+	if err != nil {
+		fmt.Println("contpost err:", err)
+	} else {
+		fmt.Println("contpost", total, calls)
+	}
+	s, err = switchFall(2, []int{1, 2, 3})
+	show("switchfall", s, err)
+	s, err = switchFall(9, []int{1, 2, 3})
+	show("switchfallthrough", s, err)
+	s, err = switchFall(7, []int{1, 2, 3})
+	show("switchfalldefault", s, err)
+	n, err = groupChildFilter(context.Background(), []int{-1})
+	if err != nil {
+		fmt.Println("groupfilter", n, "err:", err, childRan)
+	} else {
+		fmt.Println("groupfilter", n, childRan)
+	}
+	n, err = groupChildFilter(context.Background(), []int{1, 2})
+	if err != nil {
+		fmt.Println("groupfilterok", n, "err:", err, childRan)
+	} else {
+		fmt.Println("groupfilterok", n, err, childRan)
+	}
+}

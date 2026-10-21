@@ -1,0 +1,46 @@
+# M6-S7: a ?-chain in a for condition or post statement, in a case guard, or in
+# a go child runs per evaluation natively and ejected. test/logos/run is the
+# single source: each .out file is the expected output of the native build and
+# of the ejected tree, which builds with plain go and stays gofmt-clean.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cp $GOROOT/test/logos/run/chains_guard_attacks.lgo a/main.lgo
+cp $GOROOT/test/logos/run/chains_hoist_scope.lgo b/main.lgo
+
+# Loop, switch, select, and group attacks.
+cd a
+logos run .
+cmp stdout $GOROOT/test/logos/run/chains_guard_attacks.out
+logos eject -o out
+exists out/main.go
+! exists out/main.lgo
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chains_guard_attacks.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+# Scope fixture: condition, post, guard, fallthrough, and group child chains.
+cd b
+logos run .
+cmp stdout $GOROOT/test/logos/run/chains_hoist_scope.out
+logos eject -o out
+exists out/main.go
+cd out
+go run .
+cmp stdout $GOROOT/test/logos/run/chains_hoist_scope.out
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ../..
+
+-- a/go.mod --
+module example.com/chainguardsa
+
+go 1.27
+-- b/go.mod --
+module example.com/chainguardsb
+
+go 1.27

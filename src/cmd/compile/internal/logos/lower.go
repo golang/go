@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"cmd/compile/internal/base"
 	"cmd/compile/internal/logos/facts"
@@ -95,6 +96,7 @@ type fileLower struct {
 	splices   []splice
 	regions   []*cfRegion
 	hosts     []*cfHost
+	moves     []*chainMove
 	changed   bool
 	needRT    bool
 	needSimd  bool
@@ -140,6 +142,8 @@ type fileLower struct {
 	// function's results.
 	loweredChains map[*syntax.CallExpr]bool
 	transparent   map[*syntax.FuncLit]bool
+	chainGrp      chainGroup               // M6-S7 hook: group-body scope for chain results.
+	chainExit     func(err string) string  // M6-S7 hook: a header closure hands a failing hoist's error to its statement; nil returns it.
 	groupDone     map[*syntax.FuncLit]bool // M8-S2 hook: finished group closures, pruned by the literal scan.
 }
 
@@ -148,20 +152,16 @@ func (fl *fileLower) off(pos syntax.Pos) int {
 	return fl.start[pos.Line()-1] + int(pos.Col()) - 1
 }
 
-// add records one replacement splice.
-func (fl *fileLower) add(start, end int, text string) {
-	fl.appendSplice(splice{start: start, end: end, text: text})
-}
-
-// addOwned records one splice owned by one wrapper (a wrap ID from
-// nextWrapID): a later wrap of the same wrapper drains its boundary
-// inserts into fused text instead of leaving them to interleave.
-func (fl *fileLower) addOwned(id, start, end int, text string) {
-	fl.appendSplice(splice{start: start, end: end, text: text, owner: id})
-}
-
+// appendSplice records one replacement splice in its narrowest owner: a
+// moved region holding it, else its const for region, else the file. A
+// zero-width splice on a move boundary stays outside the move, as textOf
+// treats it, while region routing keeps the M7 boundary rule.
 func (fl *fileLower) appendSplice(sp splice) {
 	fl.changed = true
+	if m := fl.moveContaining(span{start: sp.start, end: sp.end}); m != nil {
+		m.inner = append(m.inner, sp)
+		return
+	}
 	r := fl.regionAt(sp.start, sp.end)
 	if r == nil {
 		fl.splices = append(fl.splices, sp)
@@ -173,9 +173,149 @@ func (fl *fileLower) appendSplice(sp splice) {
 	r.splices = append(r.splices, sp)
 }
 
+// moveContaining returns the narrowest moved region holding s, or nil.
+// A zero-width splice on the boundary stays outside, matching the
+// partition rule textOf drains with.
+func (fl *fileLower) moveContaining(s span) *chainMove {
+	var best *chainMove
+	for _, m := range fl.moves {
+		r := m.region
+		if s.start < r.start || s.end > r.end {
+			continue
+		}
+		if s.start == s.end && (s.start <= r.start || s.end >= r.end) {
+			continue
+		}
+		if best == nil || r.end-r.start < best.region.end-best.region.start {
+			best = m
+		}
+	}
+	return best
+}
+
+// moveAtInsertion returns the narrowest moved region strictly holding
+// off, or nil. Insertions on the boundary belong to the enclosing
+// region or file, never to the move.
+func (fl *fileLower) moveAtInsertion(off int) *chainMove {
+	return fl.moveContaining(span{start: off, end: off})
+}
+
+// ownerOfInsertion returns the list holding a zero-width splice at off:
+// the narrowest moved region strictly holding it, else its const for
+// region, else the file.
+func (fl *fileLower) ownerOfInsertion(off int) *[]splice {
+	if m := fl.moveAtInsertion(off); m != nil {
+		return &m.inner
+	}
+	if r := fl.regionAt(off, off); r != nil {
+		return &r.splices
+	}
+	return &fl.splices
+}
+
+// openMove registers r as a moved region and returns the list that held
+// it, from which the edits inside r have left for the copy, and the mark
+// that stands for the copy of r.
+func (fl *fileLower) openMove(r span) (*[]splice, string) {
+	outer := &fl.splices
+	if m := fl.moveContaining(r); m != nil {
+		outer = &m.inner
+	} else if rg := fl.regionAt(r.start, r.end); rg != nil {
+		outer = &rg.splices
+	}
+	kept, inner := partitionSplices(*outer, r)
+	*outer = kept
+	m := &chainMove{region: r, mark: fmt.Sprintf("\x00move%d\x00", len(fl.moves)), inner: inner}
+	fl.moves = append(fl.moves, m)
+	fl.changed = true
+	return outer, m.mark
+}
+
+func (fl *fileLower) add(start, end int, text string) {
+	fl.appendSplice(splice{start: start, end: end, text: text})
+}
+
+// addOwned records one splice owned by one wrapper (a wrap ID from
+// nextWrapID): a later wrap of the same wrapper drains its boundary
+// inserts into fused text instead of leaving them to interleave.
+func (fl *fileLower) addOwned(id, start, end int, text string) {
+	fl.appendSplice(splice{start: start, end: end, text: text, owner: id})
+}
+
+// chainMove is a source region that a hoist copies ahead of its statement
+// while the region itself keeps a stub in place. The copy stands in the
+// hoist text as mark; the edits inside the region, those already recorded
+// and those that later passes record, belong to the copy, so the stub
+// never overlaps them, and the copy is composed once every pass has run.
+type chainMove struct {
+	region span
+	mark   string
+	inner  []splice
+}
+
+// moveRegion turns r into a moved region whose place holds stub, and
+// returns the mark that stands for the copy of r. The edits recorded inside
+// r so far move to the copy.
+func (fl *fileLower) moveRegion(r span, stub string) string {
+	list, mark := fl.openMove(r)
+	*list = append(*list, splice{start: r.start, end: r.end, text: stub})
+	return mark
+}
+
+// copyRegion copies r into the text that carries the returned mark, for a
+// caller that replaces r in place with a splice covering it. The edits
+// inside r, recorded so far and recorded later, belong to the copy, so the
+// covering splice never overlaps them.
+func (fl *fileLower) copyRegion(r span) string {
+	_, mark := fl.openMove(r)
+	return mark
+}
+
+// resolveChainMoves composes the copy of every moved region, with the
+// edits of every pass inside it, into the texts that carry its mark.
+// Regions resolve in the order they were moved, which puts a region
+// nested in another one ahead of it. Marks substitute in the file, in
+// every const for region (a chain inside a const for hoists into its
+// region copy), and in later moves; finalizeConstFor then composes the
+// regions with the copies inside, so this runs before it.
+func (fl *fileLower) resolveChainMoves() {
+	for i, m := range fl.moves {
+		r := m.region
+		adj := make([]splice, len(m.inner))
+		for j, sp := range m.inner {
+			adj[j] = splice{start: sp.start - r.start, end: sp.end - r.start, text: sp.text, owner: sp.owner}
+		}
+		out, err := applySplices(fl.src[r.start:r.end], adj)
+		if err != nil {
+			base.Fatalf("logos: overlapping edits at byte offset %d", r.start)
+		}
+		for j := range fl.splices {
+			fl.splices[j].text = strings.ReplaceAll(fl.splices[j].text, m.mark, string(out))
+		}
+		for _, rg := range fl.regions {
+			for j := range rg.splices {
+				rg.splices[j].text = strings.ReplaceAll(rg.splices[j].text, m.mark, string(out))
+			}
+		}
+		for _, later := range fl.moves[i+1:] {
+			for j := range later.inner {
+				later.inner[j].text = strings.ReplaceAll(later.inner[j].text, m.mark, string(out))
+			}
+		}
+	}
+	fl.moves = nil
+}
+
 // textOf returns the source of s with nested splices substituted.
 func (fl *fileLower) textOf(s span) string {
-	inner := fl.drainInner(s)
+	var inner []splice
+	if m := fl.moveContaining(s); m != nil {
+		var kept []splice
+		kept, inner = partitionSplices(m.inner, s)
+		m.inner = kept
+	} else {
+		inner = fl.drainInner(s)
+	}
 	sub := fl.src[s.start:s.end]
 	adj := make([]splice, len(inner))
 	for i, sp := range inner {
@@ -322,6 +462,7 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerAddrFresh()      // M6-S2 hook: `&expr` to new(expr).
 	fl.emitRodata()          // M5-S3 hook: read-only vars, after every pass that creates them.
 	fl.lowerInterp()         // M6-S1 hook: interpolated strings (last: whole-span text drains inner splices).
+	fl.resolveChainMoves()   // M6-S7 hook: copies of moved chain operands, after every edit inside them.
 	fl.finalizeConstFor()
 	fl.remapRegions()
 }
