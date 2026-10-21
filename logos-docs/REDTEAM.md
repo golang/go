@@ -13,10 +13,10 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #7 | M3, M11 |  | planned |
 | #8 | M3 | test/logos/run/platform.lgo | tested |
 | #9 | M13 |  | planned |
-| #10 | M9 |  | planned |
+| #10 | M9 | test/logos/lint/exhaustive_union_switch.lgo; src/cmd/go/testdata/script/logos_pedantic_lint.txt | tested |
 | #11 | M18 |  | planned |
 | #12 | M18 |  | planned |
-| #13 | M8, M9 |  | planned |
+| #13 | M8, M9 | test/logos/lint/concurrent_multiword_race.lgo; test/logos/lint/concurrent_multiword_race_go.go | planned |
 | #14 | M3 | src/internal/types/testdata/logos/narrowing.lgo | tested |
 | #15 | M13 |  | planned |
 | #16 | M5 | src/internal/types/testdata/logos/const_views.lgo (cvPlainReslice, cvPlainReuseLoop); test/logos/run/reslice_reuse.lgo | tested |
@@ -80,7 +80,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #74 | M13 |  | planned |
 | #75 |M2| test/logos/redteam/attack_075_nil_arm_common_type | tested |
 | #76 | M7 | test/logos/compile/const_for_perfield.lgo; test/logos/compile/const_for_error.lgo; test/logos/run/const_for_lines.lgo | tested |
-| #77 | M9 |  | planned |
+| #77 | M9 | test/logos/lint/defer_erases_errdefer_state.lgo | tested |
 | #78 | M16 | test/logos/codegen/wasm_align.lgo | tested |
 | #79 |M1| test/logos/redteam/attack_079_import_alias_collision | tested |
 | #80 | M22 |  | planned |
@@ -151,7 +151,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #145 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
 | #146 | M6 | src/cmd/compile/internal/logos/spread_test.go; test/logos/codegen/spread_nomemmove.lgo | tested |
 | #147 | M8 | src/logos/rt/group_test.go; test/logos/run/group_panic.lgo | tested |
-| #148 | M8, M9 |  | planned |
+| #148 | M8, M9 | test/logos/lint/concurrent_multiword_race.lgo; test/logos/lint/concurrent_multiword_race_go.go | planned |
 | #149 | M15 | test/logos/codegen/clear_kept.lgo | satisfied upstream |
 | #150 | M7 | src/cmd/go/testdata/script/logos_comptime_nodes.txt | tested |
 | #151 | M8 | test/logos/run/group_netpoll.lgo; src/runtime/logos_group_netpoll_test.go | tested |
@@ -160,22 +160,22 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #154 | M8 | src/logos/sync/sync_test.go (TestHotLayout) | tested |
 | #155 | M18 |  | planned |
 | #156 | M3 | src/internal/types/testdata/logos/error_first.lgo | tested |
-| #157 | M7, M9 |  | planned |
-| #158 | M9 |  | planned |
+| #157 | M7, M9 | test/logos/lint/infinite_recursion.lgo; test/logos/lint/infinite_recursion_go.go | planned |
+| #158 | M9 | test/logos/lint/large_backing_array_pin.lgo; test/logos/lint/large_backing_array_pin_go.go | tested |
 | #159 | M19 |  | planned |
 | #160 | M19, M20 |  | planned |
 | #161 | M19 |  | planned |
-| #162 | M9 |  | planned |
-| #163 | M9 |  | planned |
-| #164 | M9 |  | planned |
+| #162 | M9 | src/cmd/go/testdata/script/logos_lint_go.txt | planned |
+| #163 | M9 | test/logos/lint/unbounded_channel_op.lgo; test/logos/lint/unbounded_channel_op_go.go | planned |
+| #164 | M9 | test/logos/lint/discarded_error.lgo; test/logos/lint/discarded_error_go.go | tested |
 | #165 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #166 | M19 |  | planned |
-| #167 | M8, M9 |  | planned |
+| #167 | M8, M9 | test/logos/lint/reentrant_withlock_deadlock.lgo; test/logos/lint/reentrant_withlock_deadlock_go.go | planned |
 | #168 | M19 |  | planned |
 | #169 | M15 | test/logos/run/make_overflow.lgo (length and capacity); test/logos/run/make_overflow_go.go; test/logos/run/make_const.lgo; src/logos/rt/mullen_test.go | tested |
-| #170 | M9 |  | planned |
+| #170 | M9 | test/logos/lint/time_after_in_loop.lgo; test/logos/lint/time_after_in_loop_go.go | planned |
 | #171 | M19 |  | planned |
-| #172 | M9 |  | planned |
+| #172 | M9 | test/logos/lint/time_after_in_loop.lgo; test/logos/lint/time_after_in_loop_go.go | planned |
 | #173 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #174 | M7 | src/internal/types/testdata/logos/const_if.lgo; test/logos/run/const_if.lgo; test/logos/codegen/const_if_dead.lgo | tested |
 | #175 | M19 |  | planned |
@@ -185,7 +185,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #179 | M6 | test/logos/run/chains.lgo (64-item stability, NaN order) | tested |
 | #180 | M5 | src/cmd/compile/internal/logos/ctfe/ctfe_test.go (TestWidthsComposite); test/logos/run/const_init_read.lgo | tested |
 | #181 | M18 |  | planned |
-| #182 | M9 |  | planned |
+| #182 | M9 | test/logos/lint/serialized_unsized_int.lgo | tested |
 | #183 | M0 | src/cmd/go/testdata/script/logos_interop.txt (case 1) | tested |
 | #184 | M0 | src/cmd/go/testdata/script/logos_interop.txt (case 2) | tested |
 | #185 | M2 | test/logos/redteam/attack_185_dual_use_union; src/cmd/go/testdata/script/logos_eject_union.txt; src/cmd/go/testdata/script/logos_interop_union.txt | tested |
