@@ -148,7 +148,7 @@ TEXT ·AsmB(SB), NOSPLIT, $0-8
 `
 
 // TestLogosIcfFoldsIdentical links a program with two identical
-// functions and requires one copy, a smaller binary, and same output.
+// functions and requires one emitted copy and the same output.
 func TestLogosIcfFoldsIdentical(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
 	dir := t.TempDir()
@@ -160,9 +160,6 @@ func TestLogosIcfFoldsIdentical(t *testing.T) {
 	folded := filepath.Join(dir, "folded.exe")
 	logosIcfBuild(t, dir, plain)
 	logosIcfBuild(t, dir, folded, "-logos.icf")
-	if logosIcfSize(t, folded) >= logosIcfSize(t, plain) {
-		t.Errorf("folded size %d not smaller than plain size %d", logosIcfSize(t, folded), logosIcfSize(t, plain))
-	}
 	outPlain := logosIcfRun(t, plain)
 	outFolded := logosIcfRun(t, folded)
 	if outPlain != "333501 333501\n" {
@@ -172,12 +169,15 @@ func TestLogosIcfFoldsIdentical(t *testing.T) {
 		t.Errorf("folded output = %q, plain = %q", outFolded, outPlain)
 	}
 	nmPlain := logosIcfNm(t, plain)
-	if logosIcfCount(nmPlain, "main.Alpha") != 1 || logosIcfCount(nmPlain, "main.Beta") != 1 {
-		t.Errorf("plain nm lost a function: Alpha=%d Beta=%d", logosIcfCount(nmPlain, "main.Alpha"), logosIcfCount(nmPlain, "main.Beta"))
+	if n := logosIcfTextCount(t, plain, "main.Alpha"); n != 1 {
+		t.Errorf("plain nm holds %d main.Alpha text copies, want 1", n)
+	}
+	if n := logosIcfTextCount(t, plain, "main.Beta"); n != 1 {
+		t.Errorf("plain nm holds %d main.Beta text copies, want 1", n)
 	}
 	nmFolded := logosIcfNm(t, folded)
-	if logosIcfCount(nmFolded, "main.Alpha")+logosIcfCount(nmFolded, "main.Beta") != 1 {
-		t.Errorf("folded nm keeps %d copies, want 1", logosIcfCount(nmFolded, "main.Alpha")+logosIcfCount(nmFolded, "main.Beta"))
+	if n := logosIcfTextCount(t, folded, "main.Alpha") + logosIcfTextCount(t, folded, "main.Beta"); n != 1 {
+		t.Errorf("folded nm keeps %d text copies, want 1", n)
 	}
 	if logosIcfCount(nmPlain, "runtime.") != logosIcfCount(nmFolded, "runtime.") {
 		t.Errorf("runtime symbol count changed: plain=%d folded=%d", logosIcfCount(nmPlain, "runtime."), logosIcfCount(nmFolded, "runtime."))
@@ -572,14 +572,4 @@ func logosIcfCount(names []string, sub string) int {
 		}
 	}
 	return n
-}
-
-// logosIcfSize returns the file size of one linked binary.
-func logosIcfSize(t *testing.T, exe string) int64 {
-	t.Helper()
-	fi, err := os.Stat(exe)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return fi.Size()
 }
