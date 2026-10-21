@@ -210,8 +210,13 @@ func (w *writer) logosUnderlying(obj *types2.TypeName, under types2.Type) {
 // once, before either export root encodes anything. The public root
 // writes object definitions before pkgInit runs, so classifying in
 // pkgInit would leave the public root on the pre-M2-S7 rules while the
-// private root used the new ones.
+// private root used the new ones. A plain Go package is never
+// classified: its interfaces with type terms are constraints even when
+// the package never names them, and the export keeps them whole.
 func (pw *pkgWriter) logosClassifyUnionUses(info *types2.Info, noders []*noder) {
+	if !base.Logos {
+		return
+	}
 	files := make([]*syntax.File, 0, len(noders))
 	for _, p := range noders {
 		if p.file != nil {
