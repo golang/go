@@ -1,0 +1,462 @@
+# Foreign-consumer acceptance: managed loGo/s shared library.
+# The library is built with the existing Go-syntax .lgo import-C export
+# bridge. core.lgo holds Logos-only syntax (? on genuine foreign input);
+# c_bridge.lgo is Go syntax only, per the rule pinned in logos_cgo_lgo.txt.
+# The embedded C consumer compiles against ONLY the generated header and
+# exercises every export from real C threads; the Python ctypes consumer
+# repeats the same interface with full argtypes/restype.
+
+[!cgo] skip 'cgo is not available'
+[!buildmode:c-shared] stop
+[GOOS:windows] skip 'POSIX sh/cc/pthreads consumer'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# Real managed shared library through the existing bridge and the
+# standard c-shared mode. No new flag, generator, or second pipeline.
+logos build -buildvcs=false -buildmode=c-shared -o $WORK/liblogos.so ./lib
+
+# c-shared installs the generated C header next to the library.
+exists $WORK/liblogos.so
+exists $WORK/liblogos.h
+
+# Real C consumer: fixed-width scalars, borrowed buffers (normal, empty,
+# malformed, unconvertible length), error/panic statuses, handle
+# lifecycle, and concurrent immutable-handle reads from foreign threads.
+# Deletion happens after every thread joins, never racing use.
+exec sh c/compile.sh $WORK
+exec $WORK/consumer
+stdout 'C-OK add=42 div=7 sum=42'
+
+# Same C interface through Python ctypes. Conditional in the portable
+# suite; acceptance hosts run it and observe PY-OK.
+[exec:python3] exec python3 py/consumer.py $WORK
+[exec:python3] stdout 'PY-OK add=42 sum=42 div=7 handle=7'
+
+-- go.mod --
+module example.com/shared
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- lib/core.lgo --
+package main
+
+import (
+	"errors"
+	"strconv"
+	"strings"
+)
+
+// Counter is an immutable value object shared with foreign callers
+// through an opaque handle. It is created once by LogosCounterNew and
+// never mutated, so concurrent readers need no locking.
+type Counter struct {
+	seed int64
+}
+
+// NewCounter captures the foreign-supplied seed in an immutable value.
+func NewCounter(seed int64) *Counter {
+	return &Counter{seed: seed}
+}
+
+// Seed reports the captured value.
+func (c *Counter) Seed() int64 {
+	return c.seed
+}
+
+const (
+	maxInt64 = int64(^uint64(0) >> 1)
+	minInt64 = -maxInt64 - 1
+)
+
+// AddChecked adds two fixed-width integers, reporting overflow as an
+// error instead of wrapping.
+func AddChecked(a, b int64) (int64, error) {
+	if (b > 0 && a > maxInt64-b) || (b < 0 && a < minInt64-b) {
+		return 0, errors.New("logos: int64 overflow")
+	}
+	return a + b, nil
+}
+
+// Div is Go integer division. A zero divisor panics; the cgo bridge
+// contains that panic and reports it instead of crashing the host.
+func Div(a, b int64) int64 {
+	return a / b
+}
+
+// SumPairText parses a borrowed "a,b" decimal field pair and sums it.
+// The ? operator propagates genuine foreign-input failures as errors:
+// empty, missing-comma, non-decimal, and overflowing inputs all fail
+// here. No integer ever round-trips through text to exercise syntax.
+func SumPairText(s string) (int64, error) {
+	fields := strings.SplitN(s, ",", 2)
+	if len(fields) != 2 {
+		return 0, errors.New("logos: pair needs two comma-separated fields")
+	}
+	a := strconv.ParseInt(fields[0], 10, 64)?
+	b := strconv.ParseInt(fields[1], 10, 64)?
+	sum := AddChecked(a, b)?
+	return sum, nil
+}
+
+-- lib/c_bridge.lgo --
+package main
+
+/*
+#include <stddef.h>
+#include <stdint.h>
+*/
+import "C"
+
+import (
+	"runtime/cgo"
+	"unsafe"
+)
+
+// Foreign status codes. One C interface reports every outcome:
+//
+//	0  ok
+//	1  caller-visible error: bad input, overflow, or a length that
+//	   cannot convert to int (checked before any slice is formed)
+//	2  contained core panic (for example integer divide by zero);
+//	   the host process survives
+//	3  invalid or released handle; never aborts the host
+//
+// No managed pointer escapes into the foreign caller. Borrowed buffers
+// are copied into Go before use and never retained. Results travel out
+// only through caller-owned scalar slots.
+//
+// Concurrency contract: a Counter is immutable after LogosCounterNew
+// returns, so concurrent LogosCounterGet calls on one handle are safe.
+// LogosCounterDelete must happen after the last use; the caller joins
+// every thread holding the handle first, so deletion never races use.
+// A deleted or never-issued handle reports status 3.
+//
+// Caller preconditions (not runtime-validated; foreign addresses cannot
+// be audited from Go): out slots are non-null writable scalars, and buf
+// is non-null and readable for n bytes whenever n > 0. A null buf with
+// n == 0 is the defined empty input.
+const (
+	logosOK        C.int32_t = 0
+	logosErr       C.int32_t = 1
+	logosPanic     C.int32_t = 2
+	logosBadHandle C.int32_t = 3
+)
+
+// maxInt bounds int on this platform; a foreign length above it cannot
+// back a slice and fails before unsafe.Slice runs.
+const maxInt = int(^uint(0) >> 1)
+
+//export LogosAdd
+func LogosAdd(a, b C.int64_t, out *C.int64_t) C.int32_t {
+	sum, err := AddChecked(int64(a), int64(b))
+	if err != nil {
+		return logosErr
+	}
+	*out = C.int64_t(sum)
+	return logosOK
+}
+
+//export LogosDiv
+func LogosDiv(a, b C.int64_t, out *C.int64_t) (res C.int32_t) {
+	defer func() {
+		if recover() != nil {
+			res = logosPanic
+		}
+	}()
+	*out = C.int64_t(Div(int64(a), int64(b)))
+	return logosOK
+}
+
+//export LogosSumPair
+func LogosSumPair(buf *C.char, n C.size_t, out *C.int64_t) (res C.int32_t) {
+	defer func() {
+		if recover() != nil {
+			res = logosPanic
+		}
+	}()
+	if uint64(n) > uint64(maxInt) {
+		return logosErr
+	}
+	// Zero length is the defined empty input: no slice is formed, so
+	// the empty path never depends on nil-pointer slice semantics.
+	var raw []byte
+	if n != 0 {
+		raw = unsafe.Slice((*byte)(unsafe.Pointer(buf)), int(n))
+	}
+	sum, err := SumPairText(string(raw))
+	if err != nil {
+		return logosErr
+	}
+	*out = C.int64_t(sum)
+	return logosOK
+}
+
+//export LogosCounterNew
+func LogosCounterNew(seed C.int64_t, out *C.uintptr_t) C.int32_t {
+	*out = C.uintptr_t(cgo.NewHandle(NewCounter(int64(seed))))
+	return logosOK
+}
+
+//export LogosCounterGet
+func LogosCounterGet(h C.uintptr_t, out *C.int64_t) C.int32_t {
+	seed, ok := counterSeed(h)
+	if !ok {
+		return logosBadHandle
+	}
+	*out = C.int64_t(seed)
+	return logosOK
+}
+
+//export LogosCounterDelete
+func LogosCounterDelete(h C.uintptr_t) (res C.int32_t) {
+	defer func() {
+		if recover() != nil {
+			res = logosBadHandle
+		}
+	}()
+	cgo.Handle(h).Delete()
+	return logosOK
+}
+
+// counterSeed resolves h through the runtime handle table only. There
+// is no second registry: an unknown, zero, or already-deleted handle
+// panics inside Value and fails closed here as ok == false.
+func counterSeed(h C.uintptr_t) (seed int64, ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	seed = cgo.Handle(h).Value().(*Counter).Seed()
+	return seed, true
+}
+
+func main() {}
+
+-- c/consumer.c --
+// C consumer for the loGo/s c-shared foreign-consumer proof. Compiles
+// against ONLY the generated liblogos.h plus system headers, links the
+// built .so, and exercises every export: fixed-width scalars, borrowed
+// buffers (normal, empty, malformed, unconvertible length), error and
+// panic statuses, and the opaque-handle lifecycle. Eight pthreads read
+// one immutable handle concurrently; the handle is deleted only after
+// every thread joins, so deletion never races use. Any failure prints
+// FAIL and exits nonzero; success prints C-OK.
+#include <pthread.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "liblogos.h"
+
+static int failures = 0;
+
+#define CHECK(cond)                                                      \
+	do {                                                             \
+		if (!(cond)) {                                           \
+			printf("FAIL %s:%d: %s\n", __FILE__, __LINE__,  \
+			    #cond);                                  \
+			failures = 1;                                \
+		}                                                        \
+	} while (0)
+
+struct readers {
+	uintptr_t handle;
+	int64_t expect;
+	int iters;
+};
+
+static void *read_loop(void *arg) {
+	struct readers *r = (struct readers *)arg;
+	for (int i = 0; i < r->iters; i++) {
+		int64_t v = 0;
+		int32_t st = LogosCounterGet(r->handle, &v);
+		if (st != 0 || v != r->expect) {
+			printf("FAIL foreign-thread read: st=%d v=%lld want %lld\n",
+			    (int)st, (long long)v, (long long)r->expect);
+			return (void *)1;
+		}
+	}
+	return (void *)0;
+}
+
+int main(void) {
+	int64_t v = 0;
+	int32_t st = 0;
+
+	st = LogosAdd(40, 2, &v);
+	CHECK(st == 0 && v == 42);
+
+	st = LogosAdd(9223372036854775807LL, 1, &v);
+	CHECK(st == 1);
+
+	st = LogosDiv(42, 6, &v);
+	CHECK(st == 0 && v == 7);
+
+	/* Zero divisor panics in Go; the bridge contains it and the host lives. */
+	st = LogosDiv(1, 0, &v);
+	CHECK(st == 2);
+
+	const char *pair = "40,2";
+	st = LogosSumPair((char *)pair, 4, &v);
+	CHECK(st == 0 && v == 42);
+
+	/* Empty input: null with zero length is defined, and fails as input error. */
+	st = LogosSumPair((char *)0, 0, &v);
+	CHECK(st == 1);
+
+	st = LogosSumPair((char *)"x,2", 3, &v);
+	CHECK(st == 1);
+
+	st = LogosSumPair((char *)"7,", 2, &v);
+	CHECK(st == 1);
+
+	/* A length that cannot convert to int fails before any slice forms. */
+	st = LogosSumPair((char *)pair, (uintptr_t)-1, &v);
+	CHECK(st == 1);
+
+	uintptr_t h = 0;
+	st = LogosCounterNew(7, &h);
+	CHECK(st == 0 && h != 0);
+
+	v = 0;
+	st = LogosCounterGet(h, &v);
+	CHECK(st == 0 && v == 7);
+
+	enum { NTHREADS = 8, ITERS = 1000 };
+	pthread_t th[NTHREADS];
+	struct readers r = { h, 7, ITERS };
+	int ncreated = 0;
+	for (int i = 0; i < NTHREADS; i++) {
+		if (pthread_create(&th[i], 0, read_loop, &r) != 0) {
+			CHECK(0);
+			break;
+		}
+		ncreated++;
+	}
+	for (int i = 0; i < ncreated; i++) {
+		void *rv = 0;
+		CHECK(pthread_join(th[i], &rv) == 0 && rv == 0);
+	}
+	CHECK(ncreated == NTHREADS);
+
+	v = 0;
+	st = LogosCounterGet(h, &v);
+	CHECK(st == 0 && v == 7);
+
+	st = LogosCounterDelete(h);
+	CHECK(st == 0);
+
+	/* Released handles fail through the documented status, never abort. */
+	st = LogosCounterGet(h, &v);
+	CHECK(st == 3);
+	st = LogosCounterDelete(h);
+	CHECK(st == 3);
+
+	if (failures == 0) {
+		printf("C-OK add=42 div=7 sum=42 readers=%d iters=%d handle=7\n",
+		    NTHREADS, ITERS);
+	}
+	return failures;
+}
+
+-- c/compile.sh --
+#!/bin/sh
+# Compile the C consumer against the generated c-shared header.
+# Arg 1 is $WORK: the library lives at $1/liblogos.so with the header
+# $1/liblogos.h beside it. Sources are relative to the script dir.
+set -e
+W="$1"
+CCBIN=""
+for c in cc gcc clang; do
+	if command -v "$c" >/dev/null 2>&1; then
+		CCBIN="$c"
+		break
+	fi
+done
+if [ -z "$CCBIN" ]; then
+	echo "no C compiler on PATH" >&2
+	exit 1
+fi
+exec "$CCBIN" -std=c23 -o "$W/consumer" c/consumer.c -I"$W" -L"$W" -llogos "-Wl,-rpath,$W" -pthread
+
+-- py/consumer.py --
+"""Python ctypes consumer for the loGo/s c-shared proof.
+
+Exercises the same generated C interface as the C consumer: normal,
+error, empty, and lifecycle paths with full argtypes/restype. Every
+check asserts a real status or value; an invalid handle must report
+status 3 without aborting the host.
+"""
+import ctypes
+import os
+import sys
+
+work = sys.argv[1]
+lib = ctypes.CDLL(os.path.join(work, "liblogos.so"))
+
+OK, ERR, PANIC, BAD_HANDLE = 0, 1, 2, 3
+
+lib.LogosAdd.argtypes = (
+    ctypes.c_int64, ctypes.c_int64, ctypes.POINTER(ctypes.c_int64))
+lib.LogosAdd.restype = ctypes.c_int32
+
+lib.LogosDiv.argtypes = (
+    ctypes.c_int64, ctypes.c_int64, ctypes.POINTER(ctypes.c_int64))
+lib.LogosDiv.restype = ctypes.c_int32
+
+lib.LogosSumPair.argtypes = (
+    ctypes.c_char_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_int64))
+lib.LogosSumPair.restype = ctypes.c_int32
+
+lib.LogosCounterNew.argtypes = (
+    ctypes.c_int64, ctypes.POINTER(ctypes.c_size_t))
+lib.LogosCounterNew.restype = ctypes.c_int32
+
+lib.LogosCounterGet.argtypes = (
+    ctypes.c_size_t, ctypes.POINTER(ctypes.c_int64))
+lib.LogosCounterGet.restype = ctypes.c_int32
+
+lib.LogosCounterDelete.argtypes = (ctypes.c_size_t,)
+lib.LogosCounterDelete.restype = ctypes.c_int32
+
+
+def main():
+    out = ctypes.c_int64()
+    # Normal scalar path.
+    assert lib.LogosAdd(40, 2, ctypes.byref(out)) == OK
+    assert out.value == 42
+    # Error paths: overflow and malformed buffer.
+    assert lib.LogosAdd(2**63 - 1, 1, ctypes.byref(out)) == ERR
+    assert lib.LogosSumPair(b"40,2", 4, ctypes.byref(out)) == OK
+    assert out.value == 42
+    assert lib.LogosSumPair(b"x,2", 3, ctypes.byref(out)) == ERR
+    # Empty input: NULL with zero length.
+    assert lib.LogosSumPair(None, 0, ctypes.byref(out)) == ERR
+    # Panic containment: the host survives divide by zero.
+    assert lib.LogosDiv(1, 0, ctypes.byref(out)) == PANIC
+    assert lib.LogosDiv(42, 6, ctypes.byref(out)) == OK
+    assert out.value == 7
+    # Lifecycle: create, use, delete, then released fails closed.
+    handle = ctypes.c_size_t(0)
+    assert lib.LogosCounterNew(7, ctypes.byref(handle)) == OK
+    assert handle.value != 0
+    assert lib.LogosCounterGet(handle, ctypes.byref(out)) == OK
+    assert out.value == 7
+    assert lib.LogosCounterDelete(handle) == OK
+    assert lib.LogosCounterGet(handle, ctypes.byref(out)) == BAD_HANDLE
+    assert lib.LogosCounterDelete(handle) == BAD_HANDLE
+    print("PY-OK add=42 sum=42 div=7 handle=7")
+
+
+main()

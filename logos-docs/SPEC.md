@@ -1127,6 +1127,34 @@ POD and primitive-slice arguments MUST skip `_cgoCheckPointer`. [T-304]
 Pin cost MUST be reported through `BenchmarkFastcall`. [T-PERF]
 Pin cost MUST NOT gate a test pass; only the speed rule and the blocking rule above use their ratios. [T-PERF]
 
+#### 3.4.1 Shared-library export usage (informative)
+
+This subsection is informative and adds no requirements.
+The [shared-library fixture](../src/cmd/go/testdata/script/logos_cgo_shared.txt) demonstrates C and Python calls on Linux.
+Its `main` package contains a Logos core and a separate Go-syntax `.lgo` bridge.
+The bridge imports `C` and declares the `//export` functions.
+
+Enable cgo in `logos.toml`:
+
+```toml
+[build]
+cgo = "allow"
+```
+
+Build the library with `logos build -buildmode=c-shared -o liblogos.so ./lib`.
+The build also produces `liblogos.h`.
+C callers include that generated header.
+Python callers use the same ABI through `ctypes`, with explicit `argtypes` and `restype`.
+The library includes the managed Go runtime; it is not runtime-free.
+
+The fixture uses fixed-width integers, example status codes, and borrowed pointer-plus-length buffers copied before use.
+Opaque integer handles backed by `runtime/cgo.Handle` retain Go objects without exposing Go pointers.
+The caller supplies valid buffer ranges and aligned, writable output slots.
+Selected exports recover Go panics and return status codes; this does not provide recovery from every fault.
+Concurrent reads use an immutable object.
+The caller joins all reader threads before deleting its handle.
+The fixture's `-buildvcs=false` isolates the test from VCS metadata; it is not an FFI requirement.
+
 ## 4. Red-team summary and resolutions
 
 The original text of this section described implementation internals; it is archived in archive/red-team-summary.md. Section 17 holds the tailored resolutions. `REDTEAM.md` records their test status.
