@@ -125,5 +125,12 @@ or
 
 A server implementation will often provide a simple, type-safe wrapper for the
 client.
+
+# Security Considerations
+
+This package is not hardened against adversarial peers and is
+out of scope for the [Go Security Policy].
+
+[Go Security Policy]: https://go.dev/security/policylient.
 */
 package rpc
