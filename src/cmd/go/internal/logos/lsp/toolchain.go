@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"internal/cpu"
 	"maps"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	"sync"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/config"
 	"cmd/internal/quoted"
 )
 
@@ -135,9 +137,16 @@ func (ov *overlay) source(file string) string {
 // executable is named, so it keeps logos mode. A command that ran and
 // failed is not an error here: its diagnostics are the answer.
 func (t *toolchain) run(ctx context.Context, dir string, args ...string) (stdout, stderr []byte, err error) {
+	return t.runEnv(ctx, dir, nil, args...)
+}
+
+// runEnv is run with cmd.Env set to env. A nil env inherits the process
+// environment.
+func (t *toolchain) runEnv(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
 	cmd := exec.CommandContext(ctx, t.exe, args...)
 	cmd.Args[0] = "logos"
 	cmd.Dir = dir
+	cmd.Env = env
 	var so, se bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &so, &se
 	err = cmd.Run()
@@ -391,15 +400,99 @@ func (t *toolchain) compileHints(ctx context.Context, work string, target pkgInf
 	out := filepath.Join(work, "hints.json")
 	args := []string{"tool", "compile", "-p", target.importPath, "-importcfg", importcfg,
 		"-logos.mode=hints", "-logos.hintsout=" + out, "-o", filepath.Join(work, "x.a")}
-	_, stderr, err := t.run(ctx, target.dir, append(args, files...)...)
+	stdout, stderr, err := t.runEnv(ctx, target.dir, hintsEnv(target.dir), append(args, files...)...)
 	if err != nil {
 		return nil, err
 	}
 	data, err := os.ReadFile(out)
 	if err != nil {
-		return nil, fmt.Errorf("no hints for %s: %s", target.importPath, strings.TrimSpace(string(stderr)))
+		detail := strings.TrimSpace(string(stderr) + "\n" + string(stdout))
+		return nil, fmt.Errorf("no hints for %s: %s", target.importPath, detail)
 	}
 	return json.RawMessage(data), nil
+}
+
+// hintsEnv returns the environment for the direct hints compile: the
+// process environment plus the GOAMD64 and GOARM64 levels logos list and
+// build compiled the importcfg exports with. A bare go tool compile
+// defaults to v1, while a logos build defaults to the deterministic
+// target_cpu (v3); the mismatch makes every import unreadable, so the
+// compile prints to stdout, writes no report, and Hints fails with an
+// empty message. An explicit user setting wins over the file.
+func hintsEnv(dir string) []string {
+	amd64, arm64 := hintsArchLevels(dir)
+	// An explicit user setting wins over the file, whether it is
+	// exported or lives only in the GOENV file: the bare compiler
+	// reads neither GOENV nor logos.toml, so a GOENV-only value must
+	// be materialized here or the compile still defaults to v1.
+	if v := cfg.Getenv("GOAMD64"); v != "" {
+		amd64 = v
+	}
+	if v := cfg.Getenv("GOARM64"); v != "" {
+		arm64 = v
+	}
+	env := os.Environ()
+	if os.Getenv("GOAMD64") == "" {
+		env = append(env, "GOAMD64="+amd64)
+	}
+	if os.Getenv("GOARM64") == "" {
+		env = append(env, "GOARM64="+arm64)
+	}
+	return env
+}
+
+// hintsArchLevels returns the GOAMD64 and GOARM64 levels for the module
+// holding dir, following the target_cpu precedence of
+// work.logosApplyTargetCPU: baseline, native, else deterministic.
+func hintsArchLevels(dir string) (amd64, arm64 string) {
+	file, err := config.Load(moduleRoot(dir))
+	if err != nil || file == nil {
+		return "v3", "v8.2"
+	}
+	switch file.Build.TargetCPU {
+	case "baseline":
+		return "v1", "v8.0"
+	case "native":
+		return hintsNativeAMD64(), hintsNativeARM64()
+	default:
+		return "v3", "v8.2"
+	}
+}
+
+// moduleRoot returns the directory holding the go.mod enclosing dir, or
+// "" when there is none, so config.Load yields its defaults. It walks
+// target.dir itself, not the process working directory, which is the
+// test binary's directory under logos lsp.
+func moduleRoot(dir string) string {
+	for d := dir; ; {
+		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
+			return d
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return ""
+		}
+		d = parent
+	}
+}
+
+// hintsNativeAMD64 reports the host level, as in work.logosNativeAMD64.
+func hintsNativeAMD64() string {
+	if cpu.X86.HasAVX512F && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512CD && cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512VL {
+		return "v4"
+	}
+	if cpu.X86.HasAVX2 && cpu.X86.HasBMI2 && cpu.X86.HasFMA {
+		return "v3"
+	}
+	return "v1"
+}
+
+// hintsNativeARM64 reports the host level, as in work.logosNativeARM64.
+func hintsNativeARM64() string {
+	if cpu.ARM64.HasATOMICS {
+		return "v8.1"
+	}
+	return "v8.0"
 }
 
 // importConfig returns the importcfg text that maps every dependency of

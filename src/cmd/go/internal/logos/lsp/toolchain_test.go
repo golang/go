@@ -217,16 +217,12 @@ func TestToolchainDiagnosesGoPackages(t *testing.T) {
 	}
 }
 
-// TestToolchainHints runs the hints runner over a loGo/s package. The
-// compiler mode belongs to M21-S2; without it the compile rejects the
-// flag, and the test says so instead of failing.
+// TestToolchainHints runs the hints runner over a loGo/s package: the
+// compiler writes its hints report and the runner returns it as JSON.
 func TestToolchainHints(t *testing.T) {
 	root, tc := realWorkspace(t)
 	hints, err := tc.Hints(t.Context(), filepath.Join(root, "lmod", "a"), nil)
 	if err != nil {
-		if strings.Contains(err.Error(), "logos.hintsout") {
-			t.Skipf("the compiler has no hints mode yet (M21-S2): %v", err)
-		}
 		t.Fatal(err)
 	}
 	if !json.Valid(hints) {
