@@ -141,6 +141,34 @@ stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''mylib
 ! stderr 'Transitive dependency ''([^m]|m[^y])'
 cd ../..
 
+# Case W (allow leg): the same Init built with everything allowed
+# produces a binary; its disassembly proves the direct constructor
+# edge is gone. Tool convention follows logos_cap_stdcgo.txt
+# (`go tool nm $WORK/bin/...`) with the selector form of
+# `go tool objdump -s symbol binary` (src/cmd/cgo/internal/testlogos).
+cd w/ok
+logos build -o $WORK/bin/cwok$GOEXE ./cmd
+! stderr 'capabilities'
+go tool objdump -s 'example\.com/wdep\.Init' $WORK/bin/cwok$GOEXE
+stdout 'example\.com/wdep\.Init'
+! stdout 'ValueOf'
+cd ../..
+
+# Case W (deny leg): the same Init, proved inlined with no direct
+# ValueOf edge above, still reaches os.startProcess through the
+# method lookup, so the linker blames the dependency for exec.
+# Reflect stays allowed: transitive ValueOf/New via synthetic paths
+# are legitimate and out of scope here; the normative point is an
+# inlined constructor plus a Method lookup with no Method sink.
+cd w/main
+! logos build -a -gcflags=example.com/wdep=-m -o $WORK/bin/cw$GOEXE ./cmd
+stderr 'inlining call to reflect\.ValueOf'
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/wdep'' reaches ''os\.startProcess'''
+stderr 'example\.com/wdep\.Init\(\) +at [^ ]+\.go:\d+'
+stderr 'os\.startProcess\(\) +at .*os/exec_posix\.go:\d+'
+! stderr 'unauthorized_(cgo|net)'
+cd ../..
+
 -- a/main/go.mod --
 module example.com/amain
 
@@ -698,4 +726,80 @@ func Init() {
 	if len(os.Args) > 99 {
 		_ = exec.Command("true").Run()
 	}
+}
+
+-- w/main/go.mod --
+module example.com/wmain
+
+go 1.27
+
+require example.com/wdep v0.0.0
+
+replace example.com/wdep => ../dep
+
+-- w/main/logos.toml --
+[capabilities]
+transitive_reflect = "allow"
+transitive_exec = "deny"
+
+-- w/main/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/wdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- w/ok/go.mod --
+module example.com/wok
+
+go 1.27
+
+require example.com/wdep v0.0.0
+
+replace example.com/wdep => ../dep
+
+-- w/ok/logos.toml --
+[capabilities]
+transitive_reflect = "allow"
+transitive_exec = "allow"
+
+-- w/ok/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/wdep"
+)
+
+func main() {
+	dep.Init()
+	fmt.Println("done")
+}
+
+-- w/dep/go.mod --
+module example.com/wdep
+
+go 1.27
+
+-- w/dep/dep.go --
+package dep
+
+import (
+	"os/exec"
+	"reflect"
+)
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	m := reflect.ValueOf(cmd).MethodByName("Start")
+	m.Call(nil)
 }
