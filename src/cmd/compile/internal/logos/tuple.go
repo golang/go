@@ -464,7 +464,7 @@ func skipComment(src []byte, i int) int {
 	}
 	if i+1 < len(src) && src[i+1] == '*' {
 		j := i + 2
-		for j+1 < len(src) && !(src[j] == '*' && src[j+1] == '/') {
+		for j+1 < len(src) && (src[j] != '*' || src[j+1] != '/') {
 			j++
 		}
 		return j + 2
@@ -959,11 +959,6 @@ func (fl *fileLower) lowerTupleLitTargeted(lit *syntax.TupleLit, names []string,
 	comp, compText := fl.tupleComposite(pos, names, types, vals, texts)
 	fl.add(fl.off(syntax.StartPos(lit)), extendPastComma(fl.src, fl.off(syntax.EndPos(lit))), compText)
 	replaceTupleExpr(fl.file, lit, comp)
-}
-
-// lowerTupleNestedExpr lowers tuple forms under e.
-func (fl *fileLower) lowerTupleNestedExpr(e syntax.Expr) {
-	fl.lowerTupleNestedExprTargeted(e, nil, nil)
 }
 
 // lowerTupleNestedExprTargeted lowers tuple forms under e, spelling

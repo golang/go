@@ -139,7 +139,7 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 			}
 		case token.ILLEGAL:
 			if string(fl.src[t.start:t.end]) == "?" {
-				if depth == 0 && operator == needOperator {
+				if depth == 0 && operator {
 					if question >= 0 {
 						end = question
 						done = true
@@ -153,14 +153,14 @@ func (fl *fileLower) unaryOperandEnd(from int) int {
 		case token.PERIOD:
 			operator = needOperand
 		case token.ARROW:
-			if depth == 0 && operator == needOperator {
+			if depth == 0 && operator {
 				end = t.start
 				done = true
 				return false
 			}
 		default:
 			if isUnaryOperandEndOp(t.kind) {
-				if depth == 0 && operator == needOperator {
+				if depth == 0 && operator {
 					end = t.start
 					done = true
 					return false

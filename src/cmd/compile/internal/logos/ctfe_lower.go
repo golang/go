@@ -288,7 +288,7 @@ func constKeywordStart(src []byte, nameOff int) (int, bool) {
 	for off >= 2 && src[off-1] == '/' && src[off-2] == '*' {
 		end := off - 2
 		start := end
-		for start >= 2 && !(src[start-1] == '/' && src[start-2] == '*') {
+		for start >= 2 && (src[start-1] != '/' || src[start-2] != '*') {
 			start--
 		}
 		if start < 2 {

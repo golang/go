@@ -51,10 +51,6 @@ func (e *evaluator) step(pos syntax.Pos) error {
 	if e.steps > e.cfg.MaxSteps {
 		return &Error{Code: CodeStepLimit, Pos: pos}
 	}
-	if e.steps%1024 == 0 {
-		// Periodic cap enforcement; roots are supplied by callers
-		// through checkLive.
-	}
 	return nil
 }
 

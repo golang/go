@@ -40,8 +40,6 @@ type renderer struct {
 	pos syntax.Pos
 }
 
-func (r *renderer) at(n syntax.Node) syntax.Pos { return r.pos }
-
 func (r *renderer) expr(v Value) (syntax.Expr, error) {
 	if v.isNil {
 		t, err := r.typeExpr(v.typ)

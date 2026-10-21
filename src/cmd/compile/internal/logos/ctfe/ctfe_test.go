@@ -159,20 +159,6 @@ func isBasicName(name string) bool {
 	return false
 }
 
-func litType(lit *syntax.BasicLit, word int64) *Type {
-	switch lit.Kind {
-	case syntax.IntLit:
-		return UntypedInt()
-	case syntax.FloatLit:
-		return UntypedFloat()
-	case syntax.RuneLit:
-		return UntypedRune()
-	case syntax.StringLit:
-		return UntypedString()
-	}
-	return &Type{Kind: KInvalid}
-}
-
 // parseFunc parses one `func` declaration and builds a Func with the
 // given const flag, parameter types, and result types.
 func parseFunc(t *testing.T, src string, constFunc bool, ptypes []*Type, rtypes []*Type) *Func {

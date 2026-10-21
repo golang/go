@@ -35,7 +35,7 @@ func lowerSnippetSrc(t *testing.T, name, src string) string {
 	if err != nil {
 		t.Fatal(errors.Join(append(perrs, err)...))
 	}
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	info := &types2.Info{
 		Defs:       make(map[*syntax.Name]types2.Object),
 		Uses:       make(map[*syntax.Name]types2.Object),
@@ -123,7 +123,7 @@ func TestChainSumPairwise(t *testing.T) {
 	}
 	left := strings.Index(out, "_s[:")
 	right := strings.Index(out, "_m:]")
-	if left < 0 || right < 0 || !(left < right) {
+	if left < 0 || right < 0 || left >= right {
 		t.Errorf("left-half slice not before right-half slice:\n%s", out)
 	}
 	if !strings.Contains(out, ") + ") {
@@ -184,7 +184,7 @@ func TestInterpBindBeforeSizing(t *testing.T) {
 	if v0 < 0 || v1 < 0 || mk < 0 {
 		t.Fatalf("bind-before-size shape missing:\n%s", out)
 	}
-	if !(v0 < v1 && v1 < mk) {
+	if v0 >= v1 || v1 >= mk {
 		t.Errorf("wrong order: v0 at %d, v1 at %d, make at %d (want v0 < v1 < make)", v0, v1, mk)
 	}
 	if n := strings.Count(out, "_logos_v0 :="); n != 1 {

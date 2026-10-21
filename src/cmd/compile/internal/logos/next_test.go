@@ -51,7 +51,7 @@ func scanSnippet(t *testing.T, imp *testImporter, src string) ([]NextEdit, []Nex
 
 // TestNextScan covers the rewrite shapes and their negative cases.
 func TestNextScan(t *testing.T) {
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	call := `
 package p
 
@@ -190,7 +190,7 @@ func errNew() error { return nil }
 
 // TestNextSprintf covers interpolation rewrites and verb rejections.
 func TestNextSprintf(t *testing.T) {
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	cases := []struct {
 		name string
 		body string

@@ -65,9 +65,6 @@ const (
 	nextRuleSprintf   = "sprintf-interp"
 )
 
-// nextAIDefault carries the verification command of every task.
-const nextAIDefault = "logos build ./..."
-
 // ScanNext finds logos next rewrites in files: err-return checks become
 // ?, fmt.Sprintf calls with interpolation-compatible verbs become $"...",
 // and pure index-range append loops become map chains. Anything shaped
@@ -802,15 +799,6 @@ func (s *nextScan) lineCol(off int) (int, int) {
 		line = i
 	}
 	return line + 1, off - s.starts[line] + 1
-}
-
-// text slices the source between byte offsets.
-func (s *nextScan) text(pos syntax.Pos, end int) string {
-	start, err := offsetOf(s.starts, len(s.src), pos)
-	if err != nil || end < start || end > len(s.src) {
-		return ""
-	}
-	return string(s.src[start:end])
 }
 
 // nameObj resolves the declared object of one identifier use.

@@ -20,7 +20,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -695,9 +694,10 @@ func remapLogosImports(f *ast.File) bool {
 
 // writeSupportModule writes the shared support module: src/logos/rt at
 // the root, src/logos/sync as sync/, without runtime and test files
-// and without ejected build lines.
+// and without ejected build lines. The sources come from cfg.GOROOT, the
+// root of the toolchain running this command.
 func writeSupportModule(out, goVer string) {
-	goroot := runtime.GOROOT()
+	goroot := cfg.GOROOT
 	rtDst := filepath.Join(out, "_logos_deps", "rt")
 	copySupportDir(filepath.Join(goroot, "src", "logos", "rt"), rtDst)
 	if st, err := os.Stat(filepath.Join(goroot, "src", "logos", "sync")); err == nil && st.IsDir() {

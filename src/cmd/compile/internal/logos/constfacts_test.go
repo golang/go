@@ -60,7 +60,7 @@ func (b *Box) Count() int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	var checkErrs []error
 	conf := types2.Config{
 		Importer: imp,

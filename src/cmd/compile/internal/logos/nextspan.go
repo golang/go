@@ -389,7 +389,7 @@ func (s *closeScanner) skipLineComment() {
 // skipBlockComment advances past one block comment.
 func (s *closeScanner) skipBlockComment() {
 	s.i += 2
-	for s.i+1 < len(s.src) && !(s.src[s.i] == '*' && s.src[s.i+1] == '/') {
+	for s.i+1 < len(s.src) && (s.src[s.i] != '*' || s.src[s.i+1] != '/') {
 		s.i++
 	}
 	s.i += 2
@@ -398,9 +398,10 @@ func (s *closeScanner) skipBlockComment() {
 // bracket folds one bracket byte into the depth, reporting the match
 // end when the depth returns to zero.
 func (s *closeScanner) bracket(c byte) (int, bool) {
-	if c == s.want {
+	switch c {
+	case s.want:
 		s.depth++
-	} else if c == s.close {
+	case s.close:
 		s.depth--
 		if s.depth == 0 {
 			s.i++

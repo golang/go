@@ -37,7 +37,7 @@ func Wrap(err error) {
 	}
 	var checkErrs []error
 	conf := types2.Config{
-		Importer: &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)},
+		Importer: newTestImporter(t),
 		Error:    func(err error) { checkErrs = append(checkErrs, err) },
 		Logos:    true,
 	}

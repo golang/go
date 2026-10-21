@@ -54,8 +54,8 @@ func compareFuncMetrics(t *testing.T, label string, got map[string]cogMetrics, w
 			t.Errorf("%s: no function %s", label, name)
 			continue
 		}
-		if g != (cogMetrics{w.depth, w.params, w.lines, w.score}) {
-			t.Errorf("%s: %s = %+v, want %+v", label, name, g, cogMetrics{w.depth, w.params, w.lines, w.score})
+		if g != cogMetrics(w) {
+			t.Errorf("%s: %s = %+v, want %+v", label, name, g, cogMetrics(w))
 		}
 	}
 	for name := range got {

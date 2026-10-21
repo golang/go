@@ -667,8 +667,7 @@ func unionTerms(t types2.Type) ([]types2.Type, bool) {
 func mentionsTypeParam(t types2.Type) bool {
 	seen := make(map[types2.Type]bool)
 	var walk func(t types2.Type) bool
-	var walkTuple func(t *types2.Tuple) bool
-	walkTuple = func(t *types2.Tuple) bool {
+	walkTuple := func(t *types2.Tuple) bool {
 		for i := range t.Len() {
 			if walk(t.At(i).Type()) {
 				return true

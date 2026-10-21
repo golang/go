@@ -7,6 +7,7 @@ package logos
 import (
 	"errors"
 	"go/build"
+	"internal/testenv"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -44,6 +45,16 @@ func runLogosDir(t *testing.T) string {
 type testImporter struct {
 	pkgs map[string]*types2.Package
 	busy map[string]bool
+	// goroot is always testenv.GOROOT(t) supplied by newTestImporter.
+	goroot string
+}
+
+// newTestImporter returns a testImporter rooted at testenv.GOROOT(t).
+// Invariant: the source fallback in importFromSource uses exactly this
+// root, with no build.Default fallback.
+func newTestImporter(t *testing.T) *testImporter {
+	t.Helper()
+	return &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool), goroot: testenv.GOROOT(t)}
 }
 
 func (m *testImporter) Import(path string) (*types2.Package, error) {
@@ -72,7 +83,7 @@ func (m *testImporter) importFromSource(path string) (*types2.Package, error) {
 	if m.busy[path] {
 		return nil, errors.New("import cycle: " + path)
 	}
-	dir := filepath.Join(runtime.GOROOT(), "src", filepath.FromSlash(path))
+	dir := filepath.Join(m.goroot, "src", filepath.FromSlash(path))
 	p, err := build.ImportDir(dir, 0)
 	if err != nil {
 		return nil, err
@@ -152,7 +163,7 @@ func TestNoLogosNodesSurvive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	found := 0
 	for _, e := range entries {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".lgo") {

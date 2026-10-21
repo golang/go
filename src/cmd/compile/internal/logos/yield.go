@@ -207,9 +207,7 @@ func (fc *funcLower) lowerYieldStmt(s *syntax.YieldStmt) syntax.Stmt {
 	pos := s.Pos()
 	vals := syntax.UnpackListExpr(s.Value)
 	args := make([]syntax.Expr, len(vals))
-	for i, v := range vals {
-		args[i] = v
-	}
+	copy(args, vals)
 	call := callOf(pos, nameOf(pos, yieldParam), args)
 	cond := at(&syntax.Operation{Op: syntax.Not, X: call}, pos)
 	native := ifOf(pos, nil, cond, []syntax.Stmt{returnOf(pos, nil)})

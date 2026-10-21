@@ -33,7 +33,7 @@ func lowerSpreadSrc(t *testing.T, src string) (printed, ejected string) {
 	if err != nil {
 		t.Fatal(errors.Join(append(perrs, err)...))
 	}
-	imp := &testImporter{pkgs: make(map[string]*types2.Package), busy: make(map[string]bool)}
+	imp := newTestImporter(t)
 	info := &types2.Info{
 		Defs:       make(map[*syntax.Name]types2.Object),
 		Uses:       make(map[*syntax.Name]types2.Object),

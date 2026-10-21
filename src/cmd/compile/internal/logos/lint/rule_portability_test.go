@@ -71,7 +71,7 @@ func TestRegisteredSeverityAndScope(t *testing.T) {
 		if got := DefaultPolicy().Level(tc.id, KindLgo); got != tc.level {
 			t.Errorf("%s default level = %v, want %v", tc.id, got, tc.level)
 		}
-		if got := DefaultPolicy().Level(tc.id, KindGo); got != tc.level && !(tc.level == Forbid && got == Deny) {
+		if got := DefaultPolicy().Level(tc.id, KindGo); got != tc.level && (tc.level != Forbid || got != Deny) {
 			t.Errorf("%s level in a Go package = %v", tc.id, got)
 		}
 	}

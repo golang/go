@@ -284,21 +284,6 @@ type cfSub struct {
 	text       string
 }
 
-// subsToSplices converts leaf replacements to splices.
-func subsToSplices(subs []cfSub) []splice {
-	out := make([]splice, 0, len(subs))
-	for _, s := range subs {
-		out = append(out, splice{start: s.start, end: s.end, text: s.text})
-	}
-	return out
-}
-
-// cfDelta is one applied length adjustment at a base offset.
-type cfDelta struct {
-	at  int
-	adj int
-}
-
 // cfMapper maps base offsets to current-text offsets through the
 // applied substitutions.
 type cfMapper struct {

@@ -39,7 +39,10 @@ func derefErrors(t *testing.T, src string) (*types2.Info, *syntax.File, []types2
 		Logos:       true,
 		LogosUnions: true,
 	}
-	conf.Check("p", []*syntax.File{file}, info)
+	_, checkErr := conf.Check("p", []*syntax.File{file}, info)
+	if checkErr != nil && len(errs) == 0 {
+		t.Fatalf("conf.Check %v with no collected errors", checkErr)
+	}
 	return info, file, errs
 }
 
