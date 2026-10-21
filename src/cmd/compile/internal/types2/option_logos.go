@@ -332,10 +332,23 @@ func (check *Checker) logosCoalesce(x *operand, e *syntax.CoalesceExpr) exprKind
 // logosOptionalCall type-checks `x?.M(args)` (SPEC T-104.3): the function
 // operand carries an option of a signature (from logosOptSelect), so the
 // call runs against the unwrapped signature and each result is wrapped
-// back into an option, since none propagates. It reports true when it
-// handled the call.
+// back into an option, since none propagates. A plain call on an
+// unnarrowed option-typed function value is rejected with
+// nil_deref_unproven (SPEC T-202). It reports true when it handled the
+// call.
 func (check *Checker) logosOptionalCall(x *operand, call *syntax.CallExpr) bool {
 	if !check.conf.Logos {
+		return false
+	}
+	if _, ok := syntax.Unparen(call.Fun).(*syntax.OptSelectExpr); !ok {
+		if opt := logosAsOption(x.typ()); opt != nil {
+			if _, ok := Unalias(opt.Elem).(*Signature); ok {
+				check.errorf(syntax.Unparen(call.Fun), InvalidCall, "%s cannot call %s without proving != nil", logosNilDeref, x.typ())
+				x.invalidate()
+				x.expr = call
+				return true
+			}
+		}
 		return false
 	}
 	opt := logosAsOption(x.typ())

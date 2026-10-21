@@ -164,3 +164,48 @@ func optNestWrap(x int?, w (int?)?) {
 	var b int? = w /* ERROR "cannot use w (variable of type (int?)?) as int? value in" */
 	_, _ = a, b
 }
+
+// Optional function values: a plain call on a `T?` callee is a use
+// before guard (SPEC T-202, T-102), so it fails with nil_deref_unproven
+// even though the value was initialized. Guarded locals and parameters
+// narrow to the element signature and call normally; an explicit `?.`
+// method call keeps its option result.
+func optFuncPlainLocal() {
+	var f (func(int) int)? = func(n int) int { return n + 1 }
+	_ = f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */ (1)
+}
+
+func optFuncPlainParam(f (func(int) int)?) {
+	_ = f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */ (1)
+}
+
+func optFuncPlainParen() {
+	var f (func(int) int)? = func(n int) int { return n + 1 }
+	_ = (f /* ERROR "[correctness::nil_deref_unproven] cannot call func(int) int? without proving != nil" */)(1)
+}
+
+func optFuncGuardedLocal() int {
+	var f (func(int) int)? = func(n int) int { return n + 1 }
+	if f != nil {
+		return f(1)
+	}
+	return 0
+}
+
+func optFuncGuardedParam(f (func(int) int)?, n int) int {
+	if f != nil {
+		return f(n)
+	}
+	return 0
+}
+
+func optFuncEarlyExit(f (func(int) int)?) int {
+	if f == nil {
+		return 0
+	}
+	return f(1)
+}
+
+func optFuncParenOptCall(up *OptUser?) string? {
+	return (up?.Greet)()
+}
