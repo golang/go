@@ -501,11 +501,16 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 	cg.kept = keptSpans(recv, ops, term)
 	for i := range ops {
 		if ops[i].lam != nil {
+			// D4: lower logos constructs in the body before the
+			// closure captures its text: the fragment re-parses as
+			// Go, so no `$"..."`, `??`, or property read may remain.
+			cg.fl.preLowerCaptureBody(ops[i].lam)
 			ops[i].savedBody = ops[i].lam.Body
 		}
 		cg.lowerArgChains(ops[i].arg)
 	}
 	if term.lam != nil {
+		cg.fl.preLowerCaptureBody(term.lam)
 		term.savedBody = term.lam.Body
 	}
 	cg.lowerArgChains(term.arg)
@@ -514,6 +519,106 @@ func (cg *chainGen) run(call *syntax.CallExpr) {
 	resultT := cg.fl.pkg.info.TypeOf(call)
 	isTry := cg.runIsTry(ops, term)
 	cg.emit(call, ops, baseText, elemT, resultT, term, isTry)
+}
+
+// preLowerCaptureBody lowers logos constructs in a lambda body before a
+// capture pass bakes its text (D4, D7, D8): a chain closure re-parses
+// its body as Go, and lambda/eject text must agree, so no `$"..."`,
+// top-level `??`, or property read may remain raw. Top-level `??` and
+// `?.` already lowered in the options pass; here property reads lower
+// first, so interpolation operand texts drain their needles, and then
+// interpolations lower innermost first. Every splice lands strictly
+// inside the lambda span and drains into the capture text. Replaced
+// bodies keep their checked types in optBodyType for prodType. The
+// later full passes find no remaining nodes (chain bodies detach; plain
+// bodies were renamed past re-matching), so nothing lowers twice.
+func (fl *fileLower) preLowerCaptureBody(lam *syntax.LambdaExpr) {
+	if lam == nil {
+		return
+	}
+	// D7: stash the source span before any replacement: synthetic
+	// replacements carry no scannable parens, but the capture text must
+	// cover the original extent. A wrapper top (`??`/`?.`) already
+	// records its exact span; a source call keeps tupleCallSpan.
+	if body, ok := lam.Body.(syntax.Expr); ok {
+		if _, done := fl.optBodySpan[lam]; !done {
+			espan := span{fl.off(syntax.StartPos(body)), fl.off(syntax.EndPos(body))}
+			if ws, ok := fl.wrapSpan[syntax.Unparen(body)]; ok {
+				espan = ws
+			} else if call, ok := syntax.Unparen(body).(*syntax.CallExpr); ok {
+				espan = fl.callBodySpan(call)
+			}
+			if fl.optBodySpan == nil {
+				fl.optBodySpan = make(map[*syntax.LambdaExpr]span)
+			}
+			fl.optBodySpan[lam] = espan
+		}
+	}
+	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
+		block.List = fl.lowerPropBlock(block.List)
+	} else if body, ok := lam.Body.(syntax.Expr); ok {
+		if t, ok := syntax.Unparen(body).(*syntax.TryExpr); ok {
+			if call, ok := syntax.Unparen(t.X).(*syntax.CallExpr); ok {
+				c := &propCollect{}
+				t.X = fl.propWalk(call, c)
+				fl.emitPropReads(c)
+			}
+		} else {
+			orig := fl.pkg.info.TypeOf(body)
+			c := &propCollect{}
+			newBody := fl.propWalk(body, c)
+			fl.emitPropReads(c)
+			lam.Body = newBody
+			fl.stashBodyType(orig, body, newBody)
+		}
+	} else {
+		return
+	}
+	fl.preLowerCaptureInterps(lam.Body)
+}
+
+// stashBodyType records the checked type of a capture body the
+// pre-pass replaced: the replacement is synthetic and carries no
+// recorded type, but chain prodType still needs the produced type.
+func (fl *fileLower) stashBodyType(orig types2.Type, old, new syntax.Expr) {
+	if new == old || orig == nil {
+		return
+	}
+	if fl.optBodyType == nil {
+		fl.optBodyType = make(map[syntax.Expr]types2.Type)
+	}
+	fl.optBodyType[new] = orig
+}
+
+// preLowerCaptureInterps lowers the interpolated strings under root
+// innermost first, crediting the scoped strconv/unsafe import needs to
+// the final flush. Nodes without recorded kinds were already lowered.
+func (fl *fileLower) preLowerCaptureInterps(root syntax.Node) {
+	if root == nil {
+		return
+	}
+	var lits []*syntax.InterpExpr
+	syntax.Inspect(root, func(n syntax.Node) bool {
+		if e, ok := n.(*syntax.InterpExpr); ok {
+			lits = append(lits, e)
+		}
+		return true
+	})
+	slices.SortFunc(lits, func(a, b *syntax.InterpExpr) int {
+		return len(a.Raw) - len(b.Raw)
+	})
+	for _, e := range lits {
+		kinds, ok := interpKinds[e]
+		if !ok {
+			continue
+		}
+		delete(interpKinds, e)
+		need, _ := fl.lowerInterpExpr(e, kinds)
+		fl.interpNeedConv = fl.interpNeedConv || need
+		if len(e.Exprs) > 0 {
+			fl.interpNeedUnsafe = true
+		}
+	}
 }
 
 // keptSpans lists the source spans of a run whose text the generated
@@ -702,6 +807,12 @@ func (cg *chainGen) prodType(op chainOp) types2.Type {
 	if tv := cg.fl.pkg.info.TypeOf(body); tv != nil {
 		return tv
 	}
+	// D4: a replaced capture body (top-level `??`/`?.`, property
+	// read, interpolation) is synthetic and carries no recorded type;
+	// the pre-lower stashed the checked type under the replacement.
+	if st, ok := cg.fl.optBodyType[body]; ok {
+		return st
+	}
 	return nil
 }
 
@@ -715,6 +826,12 @@ func (cg *chainGen) blockProdType(block *syntax.BlockStmt) types2.Type {
 		}
 		for _, res := range syntax.UnpackListExpr(ret.Results) {
 			t := cg.fl.pkg.info.TypeOf(res)
+			if t == nil {
+				// D4: a return lowered by the capture pre-pass
+				// (interpolation, property read) is synthetic; the
+				// pre-pass stashed the checked type under it.
+				t, _ = cg.fl.optBodyType[res]
+			}
 			if t == nil {
 				continue
 			}
@@ -762,11 +879,15 @@ func (cg *chainGen) closure(name string, op chainOp, elem, result string) string
 		inner := strings.TrimPrefix(text, "{")
 		return fmt.Sprintf("%s := func(%s %s) %s {%s }", name, pname, elem, result, inner)
 	}
-	if _, ok := op.savedBody.(syntax.Expr); !ok {
-		return ""
+	if expr, ok := op.savedBody.(syntax.Expr); ok {
+		// D4: a top-level `??`/`?.` wrapper records its head insert
+		// exactly on the body start and its tail exactly on the body
+		// end, which textOf keeps pending. Drain those boundary
+		// inserts here; strictly interior wrappers already drained.
+		bodyText := fl.drainBodyWrapper(expr, fl.textOf(op.bodySpan))
+		return fmt.Sprintf("%s := func(%s %s) %s { return %s }", name, pname, elem, result, bodyText)
 	}
-	bodyText := fl.textOf(op.bodySpan)
-	return fmt.Sprintf("%s := func(%s %s) %s { return %s }", name, pname, elem, result, bodyText)
+	return ""
 }
 
 // inferType resolves the checked type behind a result spelling.
@@ -815,6 +936,13 @@ func cgKeyType(cg *chainGen, op chainOp) types2.Type {
 			return defaultBasicType(t)
 		}
 		return t
+	}
+	// D4: replaced capture body; see prodType.
+	if st, ok := cg.fl.optBodyType[body]; ok {
+		if isUntypedBasic(st) {
+			return defaultBasicType(st)
+		}
+		return st
 	}
 	return nil
 }

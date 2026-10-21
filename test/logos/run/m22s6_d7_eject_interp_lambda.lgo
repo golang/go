@@ -1,0 +1,15 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D7 (SPEC Sec 11, T-Sec11, T-104.4): `logos eject` on a
+// `$"..."` inside a lambda body reproduces the native output.
+
+func conv(g func(int) string) string { return g(1) }
+
+func main() {
+	fmt.Println(conv(x => $"n{x}"))
+	fmt.Println(conv(x => { return $"m{x}" }))
+}

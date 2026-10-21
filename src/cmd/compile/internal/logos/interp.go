@@ -153,7 +153,10 @@ func (fl *fileLower) lowerInterp() {
 	slices.SortFunc(lits, func(a, b *syntax.InterpExpr) int {
 		return len(a.Raw) - len(b.Raw)
 	})
-	needConv, needUnsafe := false, false
+	// Scoped capture pre-lowering (D4, D7) credits its import needs
+	// here, so the flush below still runs once even when every
+	// interpolation was pre-lowered.
+	needConv, needUnsafe := fl.interpNeedConv, fl.interpNeedUnsafe
 	for _, e := range lits {
 		kinds := interpKinds[e]
 		delete(interpKinds, e)
@@ -374,6 +377,13 @@ func (fl *fileLower) lowerInterpExpr(e *syntax.InterpExpr, kinds []types2.LogosI
 	lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, stmts)}, pos)
 	native := callOf(pos, lit, nil)
 	fl.replaceInterpLit(e, native)
+	// D4: an interpolation is always string-typed, but the replacement
+	// is synthetic; stash the type for chain prodType over capture
+	// bodies.
+	if fl.optBodyType == nil {
+		fl.optBodyType = make(map[syntax.Expr]types2.Type)
+	}
+	fl.optBodyType[native] = types2.Typ[types2.String]
 	text := "func() string {\n" + strings.Join(lines, "\n") + "\n}()"
 	fl.add(start, end, text)
 	return needConv, text

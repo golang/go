@@ -128,8 +128,44 @@ func (fl *fileLower) lowerOptNode(n syntax.Node) {
 		n.Values = fl.lowerOptVarValues(n.NameList, n.Type, n.Values)
 	case *syntax.SendStmt:
 		fl.lowerOptSend(n)
+	case *syntax.LambdaExpr:
+		// M6-S6 (D4): an expression-lambda body is a syntax.Node
+		// field, so the field pass below never lowers a top-level
+		// `??` or `?.` in it. Lower it here and stash the checked
+		// type: chains capture body text before reparse, and
+		// prodType reads the live node afterwards.
+		fl.lowerOptLambdaBody(n)
 	}
 	fl.lowerOptFields(n)
+}
+
+// lowerOptLambdaBody lowers a top-level `??` or `?.` that sits
+// directly as an expression-lambda body. Interior option forms lower
+// through the field pass and the Inspect descent as usual; only the
+// top form needs the explicit expression call, mirroring what an
+// assignment right-hand side gets from lowerOptAssign. A replaced body
+// keeps its checked type in optBodyType: the replacement is synthetic
+// and carries no recorded type, but chain prodType still needs the
+// produced type afterwards.
+func (fl *fileLower) lowerOptLambdaBody(lam *syntax.LambdaExpr) {
+	body, ok := lam.Body.(syntax.Expr)
+	if !ok {
+		return
+	}
+	switch syntax.Unparen(body).(type) {
+	case *syntax.CoalesceExpr, *syntax.OptSelectExpr:
+	default:
+		return
+	}
+	orig := fl.pkg.info.TypeOf(body)
+	lowered := fl.lowerOptExpr(body)
+	lam.Body = lowered
+	if lowered != body && orig != nil {
+		if fl.optBodyType == nil {
+			fl.optBodyType = make(map[syntax.Expr]types2.Type)
+		}
+		fl.optBodyType[lowered] = orig
+	}
 }
 
 // lowerOptFields rewrites the option forms held directly by n: every
@@ -943,6 +979,34 @@ func (fl *fileLower) drainOwned(vs span, id int) (head, tail string) {
 	}
 	fl.splices = rest
 	return head, tail
+}
+
+// drainBodyWrapper composes the owned boundary inserts of a top-level
+// `??` or `?.` wrapper that a lambda-body capture left outside its
+// textOf span (D4, D7): the head insert sits exactly on the capture
+// start and the tail exactly on its end, so the plain textOf keeps them
+// pending. A wrapper strictly inside the span already drained through
+// textOf, so drainOwned finds nothing and the text passes through
+// unchanged. Bodies that are not wrapper tops pass through too.
+func (fl *fileLower) drainBodyWrapper(body syntax.Node, text string) string {
+	expr, ok := body.(syntax.Expr)
+	if !ok {
+		return text
+	}
+	top, ok := syntax.Unparen(expr).(*syntax.CallExpr)
+	if !ok {
+		return text
+	}
+	id, ok := fl.wrapOwner[top]
+	if !ok {
+		return text
+	}
+	vs, ok := fl.wrapSpan[top]
+	if !ok {
+		return text
+	}
+	head, tail := fl.drainOwned(vs, id)
+	return head + text + tail
 }
 
 // lowerMapIndex lowers one single-value map read: a kept read stays,

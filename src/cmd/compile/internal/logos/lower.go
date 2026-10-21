@@ -109,6 +109,21 @@ type fileLower struct {
 	wrapOwner  map[syntax.Expr]int
 	wrapSeq    int
 	retResults map[*syntax.ReturnStmt][]types2.Type
+	// optBodyType stashes the checked type of a replaced top-level
+	// lambda body (`??`/`?.`/property-read/interpolation): the
+	// replacement is synthetic and carries no recorded type, but chain
+	// prodType still needs the produced type afterwards (D4).
+	optBodyType map[syntax.Expr]types2.Type
+	// optBodySpan stashes the source span of a lambda body before the
+	// capture pre-pass replaces it: positions of synthetic replacements
+	// cannot recover the span (tupleCallSpan reads real parens), but the
+	// capture text must cover the original extent (D7).
+	optBodySpan map[*syntax.LambdaExpr]span
+	// interpNeedConv/interpNeedUnsafe carry the strconv/unsafe import
+	// needs of scoped interpolation pre-lowering (D4, D7) into the
+	// final import flush, which runs once at the end of lowerInterp.
+	interpNeedConv   bool
+	interpNeedUnsafe bool
 	// Chain lowering state (M6-S7): loweredChains pins one lowering per
 	// chain call, so traversals over replaced trees never reprocess a
 	// finished call with stale spans. transparent marks generated

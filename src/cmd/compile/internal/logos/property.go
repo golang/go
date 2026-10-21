@@ -587,6 +587,14 @@ func (fl *fileLower) propWalk(e syntax.Expr, c *propCollect) syntax.Expr {
 			e.ElemList[i] = fl.propWalk(x, c)
 		}
 		return e
+	case *syntax.InterpExpr:
+		// M6-S1 (D8): property reads inside `$"..."` braces lower to
+		// Get calls like every other read. Interpolation lowering runs
+		// afterwards and drains the needles into its operand texts.
+		for i, x := range e.Exprs {
+			e.Exprs[i] = fl.propWalk(x, c)
+		}
+		return e
 	case *syntax.FuncLit:
 		if e.Body != nil {
 			e.Body.List = fl.lowerPropBlock(e.Body.List)

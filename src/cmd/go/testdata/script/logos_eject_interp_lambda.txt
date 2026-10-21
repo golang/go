@@ -1,0 +1,41 @@
+# M22-S6 D7: eject reproduces native output for `$"..."` inside a lambda
+# body, expression or block (T-Sec11, T-104.4).
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+logos run .
+stdout '^n1$'
+stdout '^m1$'
+cp stdout $WORK/eject-stdout.txt
+
+logos eject -o out
+exists out/main.go
+cd out
+go build ./...
+go run .
+cmp stdout $WORK/eject-stdout.txt
+cd ..
+cd out
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+cd ..
+
+-- m/go.mod --
+module example.com/ejectinterplambda
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import "fmt"
+
+func conv(g func(int) string) string { return g(1) }
+
+func main() {
+	fmt.Println(conv(x => $"n{x}"))
+	fmt.Println(conv(x => { return $"m{x}" }))
+}

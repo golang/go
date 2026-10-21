@@ -118,6 +118,11 @@ func (fl *fileLower) lowerLambdaExpr(lam *syntax.LambdaExpr) {
 	end := fl.off(syntax.EndPos(lam))
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
 		end = fl.off(block.Rbrace) + 1
+	} else if stashed, ok := fl.optBodySpan[lam]; ok {
+		// D7: the pre-pass may have replaced the body with a
+		// synthetic node whose EndPos collapses onto one position;
+		// the stashed source span covers the original extent.
+		end = stashed.end
 	} else if expr, ok := lam.Body.(syntax.Expr); ok {
 		end = lambdaBodyEnd(fl.src, fl.off(syntax.StartPos(expr)))
 	}
@@ -154,8 +159,29 @@ func (fl *fileLower) lambdaResultSpell(pos syntax.Pos, sig *types2.Signature) ([
 	return out, " (" + strings.Join(texts, ", ") + ")"
 }
 
+// callBodySpan reports the source span of a call used as a lambda
+// body: from its leftmost token through its closing parenthesis.
+// tupleCallSpan assumes the function ends before `(`, which fails for
+// a function literal (`func() ...` bodies), whose end sits at `}`;
+// those match the call parenthesis at the call position instead.
+func (fl *fileLower) callBodySpan(call *syntax.CallExpr) span {
+	start := fl.off(leftmostOf(call))
+	if _, ok := syntax.Unparen(call.Fun).(*syntax.FuncLit); ok {
+		if split, ok := splitCall(fl.src, fl.off(call.Pos())); ok {
+			return span{start, split.end}
+		}
+	}
+	_, rparen := fl.findCallParens(fl.off(syntax.EndPos(syntax.Unparen(call.Fun))))
+	return span{start, rparen + 1}
+}
+
 // lambdaBody builds the function body and its text for a lambda.
 func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, pos syntax.Pos) (*syntax.BlockStmt, string) {
+	// D7: pre-lower captures in the body (interpolations, property
+	// reads) before baking eject text, so the splice and the tree
+	// agree. Scope-defer splices from lowerLambdaExpr land strictly
+	// inside the lambda span and drain below.
+	fl.preLowerCaptureBody(lam)
 	if block, ok := lam.Body.(*syntax.BlockStmt); ok {
 		text := fl.textOf(span{fl.off(syntax.StartPos(block)) + 1, fl.off(block.Rbrace)})
 		return block, text
@@ -167,8 +193,19 @@ func (fl *fileLower) lambdaBody(lam *syntax.LambdaExpr, sig *types2.Signature, p
 	if t, ok := syntax.Unparen(expr).(*syntax.TryExpr); ok {
 		return fl.lambdaTryBody(sig, pos, t)
 	}
-	start := fl.off(syntax.StartPos(expr))
-	text := fl.textOf(span{start, lambdaBodyEnd(fl.src, start)})
+	// D7: prefer the pre-pass source span, which synthetic replacements
+	// do not carry in their own positions; otherwise the body ends at its
+	// last source token.
+	var espan span
+	if stashed, ok := fl.optBodySpan[lam]; ok {
+		espan = stashed
+	} else {
+		start := fl.off(syntax.StartPos(expr))
+		espan = span{start, lambdaBodyEnd(fl.src, start)}
+	}
+	// D7: a top-level `??`/`?.` wrapper records its boundary inserts
+	// exactly on the capture edges; drain them here.
+	text := fl.drainBodyWrapper(expr, fl.textOf(espan))
 	return blockOf(pos, []syntax.Stmt{returnOf(pos, []syntax.Expr{expr})}), "return " + text
 }
 

@@ -1,0 +1,15 @@
+// run
+
+package main
+
+import "fmt"
+
+// M22-S6 defect D4 (SPEC T-104.4, T-104.6): a `$"..."` at the top of a
+// chain lambda body, expression or block, lowers before the chain
+// fragment re-parses as Go.
+
+func main() {
+	xs := []int{1, 2}
+	fmt.Println(xs.map(x => $"n{x}"))
+	fmt.Println(xs.map(x => { return $"m{x}" }))
+}
