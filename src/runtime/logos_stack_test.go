@@ -138,6 +138,12 @@ func TestLogosStackSiteStartsAtLearnedSize(t *testing.T) {
 		}
 	}
 
+	// The global starting size can move at the end of any GC cycle.
+	// Finish the cycles before sampling it for the other statement, so
+	// the batch cannot race the sample.
+	runtime.GC()
+	runtime.GC()
+	debug.SetGCPercent(-1)
 	global := runtime.LogosGlobalStartSize()
 	if global == logosStackTarget {
 		t.Skip("global starting size equals the learned size; the other statement cannot tell them apart")
@@ -166,6 +172,27 @@ func TestLogosStackOffRecordsNothing(t *testing.T) {
 	}
 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	runtime.LogosStackReset()
+
+	// The global starting size is the start size the runtime promises a
+	// goroutine with no call-site history on the recycled-g path: a
+	// fresh g from malg starts at the smallest stack, and
+	// gcComputeStartingStackSize may raise the global size at the end of
+	// any GC cycle. The test finishes all GC cycles first, so the
+	// global it samples can no longer move, and fills the free-g pool so
+	// the batch is served from it, because only a recycled g is resized
+	// to the global size at gfget.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	runtime.GC()
+	runtime.GC()
+	debug.SetGCPercent(-1)
+	var warm sync.WaitGroup
+	for range 64 {
+		logosStackSpawn(&warm, func() {})
+	}
+	warm.Wait()
+	runtime.Gosched()
+	global := runtime.LogosGlobalStartSize()
+
 	starts, pc := logosStackStarts(logosStackSpawn, 16)
 	var wg sync.WaitGroup
 	logosStackSpawn(&wg, func() { logosStackUse(logosStackTarget * 3 / 4) })
@@ -173,9 +200,15 @@ func TestLogosStackOffRecordsNothing(t *testing.T) {
 	if ema, ok := runtime.LogosStackEMA(pc); ok {
 		t.Fatalf("history %d recorded without the experiment", ema)
 	}
+	if n := runtime.LogosStackOccupied(); n != 0 {
+		t.Fatalf("%d table slots hold history without the experiment", n)
+	}
+	if got := runtime.LogosStartSize(^uintptr(0)); got != global {
+		t.Fatalf("LogosStartSize without history = %d, want the global size %d", got, global)
+	}
 	for _, size := range starts {
-		if !logosStackStartIs(size, runtime.LogosGlobalStartSize()) {
-			t.Fatalf("goroutine started with %d bytes, want the global size %d", size, runtime.LogosGlobalStartSize())
+		if !logosStackStartIs(size, global) {
+			t.Fatalf("goroutine started with %d bytes, want the global size %d", size, global)
 		}
 	}
 }
