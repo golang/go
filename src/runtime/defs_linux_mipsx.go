@@ -107,16 +107,16 @@ func (ts *timespec32) setNsec(ns int64) {
 	ts.tv_nsec = int32(ns % 1e9)
 }
 
+// Linux time64 syscalls use __kernel_timespec, with two 64-bit fields.
 type timespec struct {
 	tv_sec  int64
-	tv_nsec int32
-	_       [4]byte // the C ABI aligns int64 to 8 bytes
+	tv_nsec int64
 }
 
 //go:nosplit
 func (ts *timespec) setNsec(ns int64) {
 	ts.tv_sec = ns / 1e9
-	ts.tv_nsec = int32(ns % 1e9)
+	ts.tv_nsec = ns % 1e9
 }
 
 type timeval struct {
