@@ -85,21 +85,31 @@ func runFakeGopls() int {
 		if err != nil || m.Method == "exit" {
 			return 0
 		}
-		line, _ := json.Marshal(m)
-		logFile.Write(append(line, '\n'))
+		line, err := json.Marshal(m)
+		if err == nil {
+			_, err = logFile.Write(append(line, '\n'))
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "fake gopls: logging a message:", err)
+			return 2
+		}
 		if m.Method == script.CrashOn && m.isRequest() {
 			return 3
 		}
-		fakeHandle(wr, &script, m)
+		if err := fakeHandle(wr, &script, m); err != nil {
+			fmt.Fprintln(os.Stderr, "fake gopls: answering a message:", err)
+			return 2
+		}
 	}
 }
 
-// fakeHandle answers one message of the proxy.
-func fakeHandle(wr *writer, script *fakeScript, m *message) {
+// fakeHandle answers one message of the proxy. It returns the error of
+// writing the answer.
+func fakeHandle(wr *writer, script *fakeScript, m *message) error {
 	switch {
 	case m.isRequest():
 		time.Sleep(time.Duration(script.DelayMillis) * time.Millisecond)
-		wr.respond(m.ID, fakeResult(script, m.Method))
+		return wr.respond(m.ID, fakeResult(script, m.Method))
 	case m.Method == "textDocument/didOpen" || m.Method == "textDocument/didChange":
 		var p struct {
 			TextDocument struct {
@@ -108,14 +118,15 @@ func fakeHandle(wr *writer, script *fakeScript, m *message) {
 			} `json:"textDocument"`
 		}
 		if json.Unmarshal(m.Params, &p) != nil {
-			return
+			return nil
 		}
 		if diags, ok := script.Diagnostics[p.TextDocument.URI]; ok {
-			wr.notify("textDocument/publishDiagnostics", map[string]any{
+			return wr.notify("textDocument/publishDiagnostics", map[string]any{
 				"uri": p.TextDocument.URI, "version": p.TextDocument.Version, "diagnostics": diags,
 			})
 		}
 	}
+	return nil
 }
 
 // fakeResult returns the scripted result of method.

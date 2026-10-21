@@ -180,11 +180,46 @@ func (p *Proxy) logf(format string, args ...any) {
 }
 
 // server is the running gopls process. done closes when the loop that
-// reads its output has ended, and err then holds why.
+// reads its output has ended, and err then holds why. reap alone waits for
+// cmd, and kills it when it ignores the closed input; exec.CommandContext
+// also kills it when the context given to start ends.
 type server struct {
 	cmd  *exec.Cmd
 	done chan struct{}
 	err  error
+}
+
+// reap waits for gopls to end after its input is closed, kills it when it
+// outlives stopGrace, and collects the process. Whatever it returns, gopls
+// is waited for. ctx is the context given to start.
+//
+// It returns how gopls ended only when a clean exit or a signal sent on
+// purpose does not explain it: reap's own kill, or the kill that the
+// cancellation of ctx delivers. A kill that finds gopls already gone is no
+// error. A kill that fails is returned together with the wait error; reap
+// still waits for the process then, because returning without Wait would
+// leave the child unreaped, and a cancelled ctx may still end it.
+func (s *server) reap(ctx context.Context) error {
+	var errs []error
+	killed := false
+	select {
+	case <-s.done:
+	case <-time.After(stopGrace):
+		if err := s.cmd.Process.Kill(); err == nil {
+			killed = true
+		} else if !errors.Is(err, os.ErrProcessDone) {
+			errs = append(errs, fmt.Errorf("killing gopls: %w", err))
+		}
+		<-s.done
+	}
+	if err := s.cmd.Wait(); err != nil {
+		_, exited := errors.AsType[*exec.ExitError](err)
+		signalled := (killed || ctx.Err() != nil) && (exited || errors.Is(err, ctx.Err()))
+		if !signalled {
+			errs = append(errs, fmt.Errorf("waiting for gopls: %w", err))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // Serve runs a proxy that reads client messages from in and writes
@@ -218,7 +253,7 @@ func Serve(ctx context.Context, in io.Reader, out io.Writer, opts Options) error
 	case <-srv.done:
 		err = cmp.Or(srv.err, errors.New("gopls exited unexpectedly"))
 	}
-	p.stop(srv, cancelWork)
+	p.stop(ctx, srv, cancelWork)
 	closeInput(in, clientDone)
 	return err
 }
@@ -287,8 +322,11 @@ func (p *Proxy) drain(gopls <-chan struct{}) {
 // stop ends the background work, closes gopls's input, and waits for it,
 // killing it when it ignores the closed input, then releases the compiler.
 // No background work starts after stop marks the proxy stopped, and a
-// compile already running is cancelled with cancelWork and awaited.
-func (p *Proxy) stop(srv *server, cancelWork context.CancelFunc) {
+// compile already running is cancelled with cancelWork and awaited. An end
+// of gopls that the shutdown does not explain (see server.reap) goes to the
+// log; it does not change what Serve returns. ctx is the context given to
+// start.
+func (p *Proxy) stop(ctx context.Context, srv *server, cancelWork context.CancelFunc) {
 	p.mu.Lock()
 	p.stopped = true
 	if p.timer != nil && p.timer.Stop() {
@@ -300,13 +338,9 @@ func (p *Proxy) stop(srv *server, cancelWork context.CancelFunc) {
 	if c, ok := p.server.w.(io.Closer); ok {
 		c.Close()
 	}
-	select {
-	case <-srv.done:
-	case <-time.After(stopGrace):
-		srv.cmd.Process.Kill()
-		<-srv.done
+	if err := srv.reap(ctx); err != nil {
+		p.logf("gopls: %v", err)
 	}
-	srv.cmd.Wait()
 	p.work.Lock()
 	defer p.work.Unlock()
 	if c, ok := p.opts.Compiler.(io.Closer); ok {
