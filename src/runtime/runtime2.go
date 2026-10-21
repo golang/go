@@ -748,6 +748,10 @@ type m struct {
 
 	// self points this M until mexit clears it to return nil.
 	self mWeakPointer
+
+	// Fast-cgo diagnostics belong to the original M across _Gsyscall.
+	fastCgoFrame      [4]uintptr
+	fastCallEnterNano int64
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)
@@ -861,11 +865,6 @@ type p struct {
 	// Cache of a single pinner object to reduce allocations from repeated
 	// pinner creation.
 	pinnerCache *pinner
-
-	// Fast-cgo call state (M20-S1): pinned argument frames and the call
-	// start timestamp. Zero outside a fast call.
-	cgoPinnedPtrs     [4]uintptr // pinned fast-cgo argument frames
-	fastCallEnterNano int64      // fast-cgo call start timestamp
 
 	// loGo/s arena chunk cache (M18-S1): chunks whose regions are at base,
 	// owned by this P and linked through sideStackChunk.next.

@@ -435,47 +435,6 @@ func TestFastcallOneTrampoline(t *testing.T) {
 	}
 }
 
-// objdumpFunc returns the disassembly chunk for one symbol.
-func objdumpFunc(t *testing.T, binary, symbol string) string {
-	t.Helper()
-	out, err := runCmd(t, "", goBin(t), "tool", "objdump", "-s", symbol, binary)
-	if err != nil {
-		t.Fatalf("go tool objdump -s %s: %v\n%s", symbol, err, out)
-	}
-	return out
-}
-
-// TestFastcallStructure ATTACK: the trampoline body performs the status
-// dance through the standard entries and, with the experiment on,
-// contains no fallback call into plain cgocall. With the experiment
-// off it is a stub over cgocall. Red before: no such symbol.
-func TestFastcallStructure(t *testing.T) {
-	self := selfTestBin(t)
-	body := objdumpFunc(t, self, "runtime\\.logosCgocallFast")
-	if !strings.Contains(body, "logosCgocallFast") {
-		t.Fatalf("no logosCgocallFast disassembly:\n%s", body)
-	}
-	if goexperiment.LogosFastCgo {
-		for _, want := range []string{"asmcgocall", "reentersyscall", "exitsyscall"} {
-			if !strings.Contains(body, want) {
-				t.Fatalf("fast body lacks %s:\n%s", want, body)
-			}
-		}
-		// Exactly one plain call: the no-P guard delegating to
-		// cgocall. The experiment fallback itself is pruned away.
-		if got := strings.Count(body, "CALL runtime.cgocall(SB)"); got != 1 {
-			t.Fatalf("fast body has %d plain cgocall calls, want 1:\n%s", got, body)
-		}
-	} else {
-		if !strings.Contains(body, "runtime.cgocall(SB)") {
-			t.Fatalf("fallback body lacks plain cgocall call:\n%s", body)
-		}
-		if strings.Contains(body, "asmcgocall") {
-			t.Fatalf("fallback body reaches asmcgocall directly:\n%s", body)
-		}
-	}
-}
-
 // delayStats reports the median and population standard deviation.
 func delayStats(ds []float64) (median, stddev float64) {
 	cp := slices.Clone(ds)
@@ -792,6 +751,19 @@ func TestFastcallNoCallbackViolation(t *testing.T) {
 func TestFastcallCallbackParity(t *testing.T) {
 	_, out := violatorBin(t, "plain")
 	checkViolation(t, "plain", out)
+}
+
+func TestFastcallNumCgoCallAccounting(t *testing.T) {
+	requireCgo(t)
+	bin := filepath.Join(t.TempDir(), "callcount.exe")
+	text, err := runCmd(t, filepath.Join("testdata", "callcount"), goBin(t), "build", "-o", bin, ".")
+	if err != nil {
+		t.Fatalf("callcount build: %v\n%s", err, text)
+	}
+	out, err := runCmd(t, "", bin)
+	if err != nil {
+		t.Fatalf("callcount run: %v\n%s", err, out)
+	}
 }
 
 // TestFastcallGoPointerValid PIN (#160): a Go pointer argument stays

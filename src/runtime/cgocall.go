@@ -346,6 +346,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	// and will end up being stale when restored by reentersyscall.
 	savedsp := unsafe.Pointer(gp.syscallsp)
 	savedpc := gp.syscallpc
+	if gp.nocgocallback && gp.m.inFastCall {
+		logosClearFastCall(gp.m)
+	}
 	savedbp := unsafe.Pointer(gp.syscallbp)
 	exitsyscall() // coming out of cgo call
 	gp.m.incgo = false

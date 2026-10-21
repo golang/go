@@ -1127,6 +1127,13 @@ POD and primitive-slice arguments MUST skip `_cgoCheckPointer`. [T-304]
 Pin cost MUST be reported through `BenchmarkFastcall`. [T-PERF]
 Pin cost MUST NOT gate a test pass; only the speed rule and the blocking rule above use their ratios. [T-PERF]
 
+Implementation note (informative): Fast calls preserve `runtime.NumCgoCall` accounting and reset the cgo traceback buffer.
+The original M owns the diagnostic slots and monotonic start time, even when sysmon retakes its P.
+Normal return and rejected callbacks clear this record before leaving syscall state.
+The slots contain address copies, not GC roots or pins.
+The ordinary cgo pointer-lifetime rules still apply.
+This repair does not establish the speed or blocking gates above.
+
 #### 3.4.1 Shared-library export usage (informative)
 
 This subsection is informative and adds no requirements.

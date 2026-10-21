@@ -46,7 +46,10 @@ func main() {
 		C.cbusyf(20000000)
 		x := C.cbusyf(C.ulonglong(n))
 		pprof.StopCPUProfile()
-		f.Close()
+		if err := f.Close(); err != nil {
+			fmt.Println("profile:", err)
+			os.Exit(1)
+		}
 		fmt.Println(uint64(x))
 		return
 	}

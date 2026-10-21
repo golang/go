@@ -19,22 +19,24 @@ import (
 // (reentersyscall around asmcgocall, exitsyscall on return), so sysmon
 // retakes the P under the same rule and threshold, and it keeps the
 // profiling state (syscallpc, syscallsp, ncgo) so SIGPROF and CPU
-// profiles attribute C time to the Go call site. It skips the cgo
-// extras that cost but add no safety here: the ncgocall statistic and
-// the cgoCallers traceback reset. In return it records fast-call
-// bookkeeping: m.inFastCall, the argument frame pinned in
-// p.cgoPinnedPtrs[0], and the call start in p.fastCallEnterNano.
-// The pin slots hold plain uintptr and are informational only: the
+// profiles attribute C time to the Go call site. It records fast-call
+// diagnostics on the original M: m.inFastCall, the argument frame in
+// m.fastCgoFrame[0], and the call start in m.fastCallEnterNano.
+// The slots hold plain uintptr and are informational only: the
 // argument frame stays valid through the ordinary goroutine stack
-// scan, and nothing in the tree reads the slots yet.
+// scan, nothing in the tree reads them, and they are not pins.
 //
 // Until the M20 gate passes the path stays behind GOEXPERIMENT
 // logosfastcgo and falls back to cgocall otherwise.
 //
 //go:linkname logosCgocallFast
+//go:nosplit
 func logosCgocallFast(fn, arg unsafe.Pointer) int32 {
 	if !goexperiment.LogosFastCgo {
 		return cgocall(fn, arg)
+	}
+	if !iscgo && GOOS != "solaris" && GOOS != "illumos" && GOOS != "windows" {
+		throw("cgocall unavailable")
 	}
 	if fn == nil {
 		throw("cgocall nil")
@@ -45,39 +47,27 @@ func logosCgocallFast(fn, arg unsafe.Pointer) int32 {
 		racereleasemerge(unsafe.Pointer(&racecgosync))
 	}
 
-	// Without a P there is nowhere to record the call; keep the exact
-	// upstream behavior instead of inventing a new failure mode.
-	pp := mp.p.ptr()
-	if pp == nil {
-		return cgocall(fn, arg)
+	mp.ncgocall++
+	if mp.cgoCallers != nil {
+		mp.cgoCallers[0] = 0
 	}
-	logosEnterFastCall(mp, pp, arg, int64(nanotime()))
-
-	mp.ncgo++
-	osPreemptExtEnter(mp)
-	mp.incgo = true
+	logosRecordFastCall(mp, arg, int64(nanotime()))
 
 	// N.B. getcallerfp cannot be written directly as an argument for
 	// the same spilling reason stated on entersyscall.
 	fp := getcallerfp()
 	reentersyscall(sys.GetCallerPC(), sys.GetCallerSP(), fp)
 
+	osPreemptExtEnter(mp)
+	mp.incgo = true
+	mp.ncgo++
+
 	errno := asmcgocall(fn, arg)
 
 	mp.incgo = false
 	mp.ncgo--
-	if mp.p.ptr() == pp && pp.m.ptr() == mp {
-		logosExitFastCall(mp, pp)
-	} else {
-		// Sysmon stole the P mid-call (takeP in releaseP): the
-		// M-owned flag is still ours to clear, but the P-owned
-		// record belongs to the new owner now. Nothing reads these
-		// fields; the next fast call on that P overwrites them. A
-		// steal landing between the check and the clear above stays
-		// possible in principle over a few instructions, with the
-		// same benign outcome.
-		mp.inFastCall = false
-	}
+	logosClearFastCall(mp)
+
 	osPreemptExtExit(mp)
 
 	// After exitsyscall we may be rescheduled on a different M, so
@@ -113,26 +103,27 @@ func logosCgocallFast(fn, arg unsafe.Pointer) int32 {
 	return errno
 }
 
-// logosEnterFastCall records a fast-call entry: the argument frame goes
-// in pin slot 0, the call start in the timestamp, and the M flag is set.
+// logosRecordFastCall records a fast-call entry on the original M: the
+// argument frame in slot 0, the call start in the timestamp, and the
+// flag is set. Slots are diagnostics, not pins.
 //
-// Must be nosplit: the exit helper runs between reentersyscall and
+// Must be nosplit: the clear helper runs between reentersyscall and
 // exitsyscall, where the stack guard is fake and any growth throws.
 //
 //go:nosplit
-func logosEnterFastCall(mp *m, pp *p, arg unsafe.Pointer, now int64) {
-	pp.cgoPinnedPtrs = [4]uintptr{uintptr(arg), 0, 0, 0}
-	pp.fastCallEnterNano = now
+func logosRecordFastCall(mp *m, arg unsafe.Pointer, now int64) {
+	mp.fastCgoFrame = [4]uintptr{uintptr(arg), 0, 0, 0}
+	mp.fastCallEnterNano = now
 	mp.inFastCall = true
 }
 
-// logosExitFastCall clears a fast-call entry: the flag, the timestamp,
-// and all pin slots read zero after return. See logosEnterFastCall for
-// why this must be nosplit.
+// logosClearFastCall clears a fast-call record: flag, timestamp, and
+// slots all read zero. See logosRecordFastCall for why this must be
+// nosplit.
 //
 //go:nosplit
-func logosExitFastCall(mp *m, pp *p) {
+func logosClearFastCall(mp *m) {
 	mp.inFastCall = false
-	pp.fastCallEnterNano = 0
-	pp.cgoPinnedPtrs = [4]uintptr{}
+	mp.fastCallEnterNano = 0
+	mp.fastCgoFrame = [4]uintptr{}
 }
