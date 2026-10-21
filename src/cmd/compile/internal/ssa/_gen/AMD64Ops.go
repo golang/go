@@ -1270,6 +1270,13 @@ func init() {
 		{name: "SHRXQ", argLength: 2, reg: gp21, asm: "SHRXQ"}, // unsigned arg0 >> arg1, shift amount is mod 64
 		{name: "SHRXL", argLength: 2, reg: gp21, asm: "SHRXL"}, // unsigned uint32(arg0) >> arg1, shift amount is mod 32
 
+		// RORX{Q,L}: rotate right by the constant auxint, which must be in the range 0 to (Q=63,L=31) inclusive.
+		// They write no flags and put the result in any register. The encoding takes an immediate
+		// count only, so there is no variable-count form, and no 16-bit or 8-bit form.
+		// RORXL zeroes the upper 32 bits of the destination register.
+		{name: "RORXQ", argLength: 1, reg: gp11, asm: "RORXQ", aux: "Int8", earlyOk: true}, // arg0 rotated right by auxint bits
+		{name: "RORXL", argLength: 1, reg: gp11, asm: "RORXL", aux: "Int8", earlyOk: true}, // uint32(arg0) rotated right by auxint bits
+
 		{name: "SARXLload", argLength: 3, reg: gp21shxload, asm: "SARXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read", addrSinkArg0: true}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 32
 		{name: "SARXQload", argLength: 3, reg: gp21shxload, asm: "SARXQ", aux: "SymOff", typ: "Uint64", faultOnNilArg0: true, symEffect: "Read", addrSinkArg0: true}, // signed *(arg0+auxint+aux) >> arg1, arg2=mem, shift amount is mod 64
 		{name: "SHLXLload", argLength: 3, reg: gp21shxload, asm: "SHLXL", aux: "SymOff", typ: "Uint32", faultOnNilArg0: true, symEffect: "Read", addrSinkArg0: true}, // *(arg0+auxint+aux) << arg1, arg2=mem, shift amount is mod 32

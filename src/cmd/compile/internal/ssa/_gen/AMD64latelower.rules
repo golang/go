@@ -7,6 +7,15 @@
 (SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
 (SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
 
+// Prefer RORX for constant rotates: it writes no flags and does not tie the destination to the source register.
+// ROL*const rotates left and RORX rotates right, so the count becomes its complement within the width.
+// The ROL*const count is already in [0,63] or [0,31], so the mask keeps the new count in range and keeps 0 at 0.
+// RORXL zeroes the upper 32 bits, like ROLL.
+// Variable counts keep ROL and ROR because RORX takes an immediate count only, and ROLWconst and
+// ROLBconst stay because RORX has no 16-bit or 8-bit form.
+(ROLQconst [c] x) && buildcfg.GOAMD64 >= 3 => (RORXQ [(-c)&63] x)
+(ROLLconst [c] x) && buildcfg.GOAMD64 >= 3 => (RORXL [(-c)&31] x)
+
 // See comments in ARM64latelower.rules for why these are here.
 (MOVLQZX x) && ZeroUpper32Bits(x,3) => x
 (MOVWQZX x) && ZeroUpper48Bits(x,3) => x

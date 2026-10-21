@@ -1141,6 +1141,8 @@ const (
 	OpAMD64SHLXL
 	OpAMD64SHRXQ
 	OpAMD64SHRXL
+	OpAMD64RORXQ
+	OpAMD64RORXL
 	OpAMD64SARXLload
 	OpAMD64SARXQload
 	OpAMD64SHLXLload
@@ -21152,6 +21154,36 @@ var opcodeTable = [...]opInfo{
 			inputs: []inputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 				{1, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "RORXQ",
+		auxType: auxInt8,
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ARORXQ,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			outputs: []outputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		name:    "RORXL",
+		auxType: auxInt8,
+		argLen:  1,
+		earlyOk: true,
+		asm:     x86.ARORXL,
+		reg: regInfo{
+			inputs: []inputInfo{
+				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			outputs: []outputInfo{
 				{0, regMask{v1: 49135, v2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15

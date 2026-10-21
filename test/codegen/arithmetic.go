@@ -472,7 +472,8 @@ func ConstMods(n1 uint, n2 int) (uint, int) {
 
 // Check that divisibility checks x%c==0 are converted to MULs and rotates
 func DivisibleU(n uint) (bool, bool) {
-	// amd64:"MOVQ [$]-6148914691236517205" "IMULQ" "ROLQ [$]63" -"DIVQ"
+	// amd64/v1:"MOVQ [$]-6148914691236517205" "IMULQ" "ROLQ [$]63" -"DIVQ"
+	// amd64/v2:"MOVQ [$]-6148914691236517205" "IMULQ" "ROLQ [$]63" -"DIVQ"
 	// 386:"IMUL3L [$]-1431655765" "ROLL [$]31" -"DIVQ"
 	// arm64:"MOVD [$]-6148914691236517205" "MOVD [$]3074457345618258602" "MUL" "ROR" -"DIV"
 	// arm:"MUL" "CMP [$]715827882" -".*udiv"
@@ -490,7 +491,8 @@ func DivisibleU(n uint) (bool, bool) {
 }
 
 func Divisible(n int) (bool, bool) {
-	// amd64:"IMULQ" "ADD" "ROLQ [$]63" -"DIVQ"
+	// amd64/v1:"IMULQ" "ADD" "ROLQ [$]63" -"DIVQ"
+	// amd64/v2:"IMULQ" "ADD" "ROLQ [$]63" -"DIVQ"
 	// 386:"IMUL3L [$]-1431655765" "ADDL [$]715827882" "ROLL [$]31" -"DIVQ"
 	// arm64:"MOVD [$]-6148914691236517205" "MOVD [$]3074457345618258602" "MUL" "ADD R" "ROR" -"DIV"
 	// arm:"MUL" "ADD [$]715827882" -".*udiv"

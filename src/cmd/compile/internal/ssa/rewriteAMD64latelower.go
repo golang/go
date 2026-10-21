@@ -12,6 +12,10 @@ func rewriteValueAMD64latelower(v *Value) bool {
 		return rewriteValueAMD64latelower_OpAMD64MOVLQZX(v)
 	case OpAMD64MOVWQZX:
 		return rewriteValueAMD64latelower_OpAMD64MOVWQZX(v)
+	case OpAMD64ROLLconst:
+		return rewriteValueAMD64latelower_OpAMD64ROLLconst(v)
+	case OpAMD64ROLQconst:
+		return rewriteValueAMD64latelower_OpAMD64ROLQconst(v)
 	case OpAMD64SARL:
 		return rewriteValueAMD64latelower_OpAMD64SARL(v)
 	case OpAMD64SARQ:
@@ -68,6 +72,42 @@ func rewriteValueAMD64latelower_OpAMD64MOVWQZX(v *Value) bool {
 			break
 		}
 		v.copyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64latelower_OpAMD64ROLLconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (ROLLconst [c] x)
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (RORXL [(-c)&31] x)
+	for {
+		c := auxIntToInt8(v.AuxInt)
+		x := v_0
+		if !(buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64RORXL)
+		v.AuxInt = int8ToAuxInt((-c) & 31)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValueAMD64latelower_OpAMD64ROLQconst(v *Value) bool {
+	v_0 := v.Args[0]
+	// match: (ROLQconst [c] x)
+	// cond: buildcfg.GOAMD64 >= 3
+	// result: (RORXQ [(-c)&63] x)
+	for {
+		c := auxIntToInt8(v.AuxInt)
+		x := v_0
+		if !(buildcfg.GOAMD64 >= 3) {
+			break
+		}
+		v.reset(OpAMD64RORXQ)
+		v.AuxInt = int8ToAuxInt((-c) & 63)
+		v.AddArg(x)
 		return true
 	}
 	return false

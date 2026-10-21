@@ -341,6 +341,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
 		p.AddRestSourceReg(v.Args[0].Reg())
 
+	case ssa.OpAMD64RORXQ, ssa.OpAMD64RORXL:
+		maxRotate := int64(63)
+		if v.Op == ssa.OpAMD64RORXL {
+			maxRotate = 31
+		}
+		if v.AuxInt < 0 || v.AuxInt > maxRotate {
+			v.Fatalf("rotate amount out of range [0,%d]: %d", maxRotate, v.AuxInt)
+		}
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = v.AuxInt
+		p.AddRestSourceReg(v.Args[0].Reg())
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+
 	case ssa.OpAMD64SHLXLload, ssa.OpAMD64SHLXQload,
 		ssa.OpAMD64SHRXLload, ssa.OpAMD64SHRXQload,
 		ssa.OpAMD64SARXLload, ssa.OpAMD64SARXQload:
