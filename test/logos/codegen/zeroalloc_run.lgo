@@ -54,6 +54,18 @@ func emptyPtr() *struct{} {
 
 //logos:zeroalloc
 //go:noinline
+func emptySlice() []int {
+	return []int{}
+}
+
+//logos:zeroalloc
+//go:noinline
+func zeroBox() any {
+	return struct{}{}
+}
+
+//logos:zeroalloc
+//go:noinline
 func (b *box) record(vs []int) {
 	b.vs = append(b.vs, vs...)
 }
@@ -76,6 +88,8 @@ func main() {
 		{"byteBox", func() { sinkAny, sinkAny2 = byteBox(7, true) }},
 		{"staticClosure", func() { sinkFn = staticClosure() }},
 		{"emptyPtr", func() { sinkEmpty = emptyPtr() }},
+		{"emptySlice", func() { sinkInts = emptySlice() }},
+		{"zeroBox", func() { sinkAny = zeroBox() }},
 		{"record", func() { b.vs = b.vs[:0]; b.record(src) }},
 		{"push", func() { sinkInts = push(buf[:0], 1) }},
 	}

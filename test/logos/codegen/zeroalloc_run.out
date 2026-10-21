@@ -2,5 +2,7 @@ constBox allocs=0
 byteBox allocs=0
 staticClosure allocs=0
 emptyPtr allocs=0
+emptySlice allocs=0
+zeroBox allocs=0
 record allocs=0
 push allocs=0

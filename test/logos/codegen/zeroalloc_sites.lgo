@@ -1,0 +1,78 @@
+// errorcheck
+
+package p
+
+// M22-S4 (SPEC Sec 22.4): zeroalloc.lgo covers the allocation sites of
+// composite literals, make, interface conversions, moved variables, closures
+// and channels. This file covers the remaining nodes the check reports, one
+// function for each: new, map make and map literal, string concatenation,
+// every string and slice conversion that copies, and a method value. Each
+// returns its allocation, so escape analysis puts it on the heap and the
+// function fails with the node and the flow to the result. The last two
+// functions allocate nothing at run time, an empty slice literal and a
+// zero-size value in an interface, and compile without a diagnostic;
+// zeroalloc_run.lgo proves they never call the allocator.
+
+type box struct{ v int }
+
+func (b *box) get() int { return b.v }
+
+//logos:zeroalloc
+func newInt() *int {
+	return new(int) // ERROR "\[perf::zeroalloc_violation\] newInt allocates: new\(int\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func makeMap() map[string]int {
+	return make(map[string]int) // ERROR "\[perf::zeroalloc_violation\] makeMap allocates: make\(map\[string\]int\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func mapLit() map[string]int {
+	return map[string]int{"a": 1} // ERROR "\[perf::zeroalloc_violation\] mapLit allocates: map\[string\]int\{\.\.\.\} escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func concat(a, b string) string {
+	return a + b // ERROR "\[perf::zeroalloc_violation\] concat allocates: a \+ b escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func toBytes(s string) []byte {
+	return []byte(s) // ERROR "\[perf::zeroalloc_violation\] toBytes allocates: \(\[\]byte\)\(s\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func fromBytes(b []byte) string {
+	return string(b) // ERROR "\[perf::zeroalloc_violation\] fromBytes allocates: string\(b\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func toRunes(s string) []rune {
+	return []rune(s) // ERROR "\[perf::zeroalloc_violation\] toRunes allocates: \(\[\]rune\)\(s\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func fromRunes(rs []rune) string {
+	return string(rs) // ERROR "\[perf::zeroalloc_violation\] fromRunes allocates: string\(rs\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func fromRune(r rune) string {
+	return string(r) // ERROR "\[perf::zeroalloc_violation\] fromRune allocates: string\(r\) escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func (b *box) getter() func() int {
+	return b.get // ERROR "\[perf::zeroalloc_violation\] \(\*box\)\.getter allocates: b\.get escapes to heap: flows to result ~r0 \(return\)"
+}
+
+//logos:zeroalloc
+func emptySlice() []int {
+	return []int{}
+}
+
+//logos:zeroalloc
+func zeroBox() any {
+	return struct{}{}
+}
