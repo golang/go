@@ -33,7 +33,9 @@
 // mapped back. Locations that name other lowered documents map to their
 // sources, so definition, references, and rename cross files. A request on
 // a loGo/s document whose lowering is not current, because the package
-// does not compile at the client's text, gets a null result. Edits of the
+// does not compile at the client's text, gets a null result, except for
+// textDocument/codeAction, which still answers the compiler autofix
+// candidates of the source itself. Edits of the
 // client update the proxy's text of the document at once; the proxy
 // recompiles before it forwards the next request, after the client stops
 // typing for the debounce delay, and on open and save.
@@ -47,7 +49,8 @@
 //
 // Test files are not lowered: the compiler lowers the files of each
 // package's build, not its _test.lgo files, so a request on an open
-// _test.lgo file gets a null result, while the _test.go files of Go
+// _test.lgo file gets a null result, except for textDocument/codeAction,
+// which answers the compiler autofix candidates all the same, while the _test.go files of Go
 // packages work as any Go file does. Diagnostics reach only documents the
 // client has open.
 //
@@ -86,8 +89,8 @@
 //     is the one line "Hints: hints.Serve" in the Options literal of
 //     runLSP.
 //   - CodeActions is a CodeActionsFunc that turns the compiler autofix
-//     candidates into code actions; its wiring is an adapter around
-//     hints.CodeActions in the same literal.
+//     candidates into code actions; runLSP sets it to codeActionsAdapter,
+//     the adapter around hints.CodeActions, in the same literal.
 //
 // With both hooks nil the proxy serves what gopls and the compiler
 // diagnostics report.
@@ -110,6 +113,7 @@ import (
 
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/logos/hints"
 )
 
 // CmdLSP implements the logos lsp command.
@@ -155,10 +159,12 @@ func runLSP(ctx context.Context, cmd *base.Command, args []string) {
 		base.Fatalf("logos lsp: %v", err)
 	}
 	err = Serve(ctx, os.Stdin, os.Stdout, Options{
-		Gopls:     gopls,
-		Env:       goplsEnv(os.Environ(), filepath.Join(cfg.GOROOT, "bin")),
-		Compiler:  tc,
-		HintsJSON: tc.Hints,
+		Gopls:       gopls,
+		Env:         goplsEnv(os.Environ(), filepath.Join(cfg.GOROOT, "bin")),
+		Compiler:    tc,
+		HintsJSON:   tc.Hints,
+		Hints:       hints.Serve,
+		CodeActions: codeActionsAdapter,
 	})
 	if err != nil {
 		base.Fatalf("logos lsp: %v", err)

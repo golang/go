@@ -108,12 +108,20 @@ type serverDiags struct {
 // pending is a request forwarded to gopls whose response is yet to come.
 // It keeps the tables the request was mapped with, so the response maps
 // back through the same lowerings even when a recompile has replaced them.
+// A codeAction request also keeps the version of the document it was
+// asked about, so a crossed edit drops the whole codeAction answer
+// instead of mixing the old range with new diagnostics.
 type pending struct {
 	method string
 	path   string
 	lw     *lowered
 	tb     *tables
 	params json.RawMessage
+	// fixVersion is the version of the document at request time, and
+	// fixHas reports whether the document was open then. Only codeAction
+	// requests set them.
+	fixVersion int
+	fixHas     bool
 }
 
 // Proxy sits between an LSP client and gopls. Positions and URIs of loGo/s

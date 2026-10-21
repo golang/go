@@ -34,9 +34,11 @@ type HintsJSONFunc func(ctx context.Context, dir string, buffers map[string][]by
 // (M21-S2). The proxy calls it for every textDocument/codeAction request
 // with the compiler diagnostics of the document, each as the JSON line the
 // compiler wrote (SPEC Sec 16), the document's URI, its current text, and
-// the range of the request as LSP Range JSON in the client's own text. It
+// range of the request as LSP Range JSON in the client's own text. It
 // returns a JSON array of CodeAction, which the proxy appends to the
-// actions of gopls. An error leaves the answer of gopls as it is.
+// actions of gopls, or answers on its own when the document has no
+// current lowering to ask gopls with. An error leaves the answer of gopls
+// as it is.
 type CodeActionsFunc func(diags [][]byte, uri string, src []byte, rng json.RawMessage) (json.RawMessage, error)
 
 // servesHints reports whether the hints hook answers method.
@@ -192,12 +194,25 @@ func mergeHover(base, extra any) any {
 }
 
 // mergeCodeActions appends the hook's code actions for the request of
-// pend to result.
+// pend to result. When an edit crossed the request in flight, the whole
+// answer is dropped: a code action applies its edits to the current text,
+// so neither the compiler fixes for the old range nor the gopls actions in
+// the old coordinates may cross it. The client re-requests after the edit.
 func (p *Proxy) mergeCodeActions(pend pending, result any) any {
 	if p.opts.CodeActions == nil {
 		return result
 	}
-	lines, src := p.autofixInput(pend.path)
+	var lines [][]byte
+	var src []byte
+	if pend.fixHas {
+		var moved bool
+		lines, src, moved = p.autofixSince(pend.path, pend.fixVersion)
+		if moved {
+			return []any{}
+		}
+	} else {
+		lines, src = p.autofixCurrent(pend.path)
+	}
 	if src == nil {
 		return result
 	}
@@ -220,21 +235,76 @@ func (p *Proxy) mergeCodeActions(pend pending, result any) any {
 	return appendList(result, extra)
 }
 
-// autofixInput returns the compiler diagnostic lines of the open document
-// at path and its text, or no text when the document is not open or the
-// diagnostics describe another version of it.
-func (p *Proxy) autofixInput(path string) ([][]byte, []byte) {
+// docVersion returns the version of the open document at path, or false
+// when the document is not open.
+func (p *Proxy) docVersion(path string) (int, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	doc := p.docs[path]
+	if doc == nil {
+		return 0, false
+	}
+	return doc.version, true
+}
+
+// autofixState is one locked observation of a document's autofix inputs:
+// its version, whether it is open, and, when its diagnostics describe
+// that version, their lines and its text.
+type autofixState struct {
+	lines   [][]byte
+	src     []byte
+	version int
+	open    bool
+	current bool
+}
+
+// autofixObserve captures the autofix inputs of the document at path
+// under one lock, so an edit cannot slip between the version check and
+// the read.
+func (p *Proxy) autofixObserve(path string) autofixState {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	doc, u := p.docs[path], p.unitFor(path)
-	if doc == nil || u == nil || u.diagVersions[path] != doc.version {
-		return nil, nil
+	if doc == nil {
+		return autofixState{}
 	}
-	var lines [][]byte
+	st := autofixState{version: doc.version, open: true}
+	if u == nil || u.diagVersions[path] != doc.version {
+		return st
+	}
 	for _, d := range u.diags {
 		if d.File == path {
-			lines = append(lines, d.Raw)
+			st.lines = append(st.lines, d.Raw)
 		}
 	}
-	return lines, doc.text.data
+	st.src, st.current = doc.text.data, true
+	return st
+}
+
+// autofixCurrent returns the compiler diagnostic lines and text for an
+// answer computed without gopls, or nothing when the document is not
+// open with current diagnostics.
+func (p *Proxy) autofixCurrent(path string) ([][]byte, []byte) {
+	st := p.autofixObserve(path)
+	if !st.current {
+		return nil, nil
+	}
+	return st.lines, st.src
+}
+
+// autofixSince returns the compiler diagnostic lines and text for a
+// request that saw version. It reports moved when the document has since
+// changed or closed: the whole codeAction answer must be dropped, since
+// neither the old range nor the old coordinates apply. A document that is
+// merely behind on diagnostics is not a move: there is nothing
+// compiler-side to add, and the gopls answer, if any, stands.
+func (p *Proxy) autofixSince(path string, version int) (lines [][]byte, src []byte, moved bool) {
+	st := p.autofixObserve(path)
+	if !st.open || st.version != version {
+		return nil, nil, true
+	}
+	if !st.current {
+		return nil, nil, false
+	}
+	return st.lines, st.src, false
 }

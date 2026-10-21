@@ -1345,3 +1345,77 @@ func TestContentLengthLimit(t *testing.T) {
 		t.Errorf("a body over the cap = %v, want the invalid Content-Length error before any allocation", err)
 	}
 }
+
+// TestProxyCodeActionWithoutLoweringUsesCompiler is the regression for the
+// live M21 path: a source the compiler denies (slop::discarded_error on a
+// bare call) has no lowering, yet textDocument/codeAction still answers
+// the compiler autofix "add ? to propagate the error" from the real
+// toolchain, without asking gopls. After the edit that removes the denied
+// call, the old fix must not cross the edit.
+func TestProxyCodeActionWithoutLoweringUsesCompiler(t *testing.T) {
+	root, tc := realWorkspace(t)
+	aPath := filepath.Join(root, filepath.FromSlash("lmod/a/a.lgo"))
+	const denied = "package a\n\nfunc get() (int, error) { return 1, nil }\n\nfunc run() error {\n\tget()\n\treturn nil\n}\n"
+	scratch := t.TempDir()
+	scriptPath := filepath.Join(scratch, "script.json")
+	scriptData, err := json.Marshal(fakeScript{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(scriptPath, scriptData, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	logPath := filepath.Join(scratch, "gopls.log")
+	client := startProxy(t, Options{
+		Gopls:       []string{os.Args[0], "-mode=stdio"},
+		Env:         append(os.Environ(), fakeEnv+"="+scriptPath, fakeLogEnv+"="+logPath),
+		Compiler:    tc,
+		Debounce:    -1,
+		CodeActions: codeActionsAdapter,
+	})
+	client.call("initialize", map[string]any{
+		"processId": nil,
+		"rootUri":   pathURI(root),
+		"capabilities": map[string]any{
+			"general": map[string]any{"positionEncodings": []string{"utf-8", "utf-16"}},
+		},
+	})
+	client.notify("initialized", map[string]any{})
+	client.notify("textDocument/didOpen", map[string]any{
+		"textDocument": map[string]any{"uri": pathURI(aPath), "languageId": "logos", "version": 1, "text": denied},
+	})
+	call := findPos(t, denied, "get()", 1)
+	rng := span(call, len("get()"))
+	res := client.call("textDocument/codeAction", map[string]any{
+		"textDocument": map[string]any{"uri": pathURI(aPath)},
+		"range":        rng,
+		"context":      map[string]any{"diagnostics": []any{}},
+	})
+	if string(res) == "null" {
+		t.Fatal("codeAction on a denied source answered null, want the compiler autofix")
+	}
+	if !strings.Contains(string(res), "add ? to propagate the error") {
+		t.Errorf("codeAction lacks the compiler autofix: %s", res)
+	}
+	if !strings.Contains(string(res), `get()?`) {
+		t.Errorf("codeAction lacks the ? replacement: %s", res)
+	}
+	if data, err := os.ReadFile(logPath); err != nil {
+		t.Fatal(err)
+	} else if strings.Contains(string(data), `"method":"textDocument/codeAction"`) {
+		t.Errorf("gopls got a codeAction request for a document with no lowering; the proxy must answer compiler actions directly")
+	}
+	fixed := strings.Replace(denied, "\tget()\n", "", 1)
+	client.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": pathURI(aPath), "version": 2},
+		"contentChanges": []any{map[string]any{"text": fixed}},
+	})
+	res2 := client.call("textDocument/codeAction", map[string]any{
+		"textDocument": map[string]any{"uri": pathURI(aPath)},
+		"range":        rng,
+		"context":      map[string]any{"diagnostics": []any{}},
+	})
+	if strings.Contains(string(res2), "add ? to propagate the error") {
+		t.Errorf("a stale autofix crossed the edit: %s", res2)
+	}
+}

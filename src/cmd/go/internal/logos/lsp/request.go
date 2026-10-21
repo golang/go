@@ -87,7 +87,8 @@ func (p *Proxy) target(path string) (*lowered, bool) {
 // positions mapped to the lowered documents. It first recompiles the
 // packages whose documents changed, so the request sees every edit the
 // client made before it. A request on a loGo/s document with no current
-// lowering gets a null result.
+// lowering gets a null result, except for textDocument/codeAction, which
+// answers the compiler autofix candidates of the source itself.
 func (p *Proxy) request(ctx context.Context, m *message) {
 	params, err := decode(m.Params)
 	if err != nil {
@@ -100,6 +101,16 @@ func (p *Proxy) request(ctx context.Context, m *message) {
 	p.refreshLocked(ctx)
 	lw, ok := p.target(path)
 	if !ok {
+		// A codeAction request names no lowered document when the
+		// source does not compile, yet the compiler diagnostics of
+		// the source itself may still carry autofix candidates. Answer
+		// those directly, without the gopls mapping there is nothing
+		// to map. Every other position request gets a null result,
+		// never a position computed from an older text.
+		if m.Method == "textDocument/codeAction" && isLogosPath(path) {
+			p.respond(m.ID, p.finishResult(pending{method: m.Method, path: path, params: m.Params}, []any{}))
+			return
+		}
 		p.send(p.client, &message{ID: m.ID, Result: nullResult})
 		return
 	}
@@ -111,7 +122,11 @@ func (p *Proxy) request(ctx context.Context, m *message) {
 			return
 		}
 	}
-	p.addPending(m.ID, pending{method: m.Method, path: path, lw: lw, tb: tb, params: m.Params})
+	pend := pending{method: m.Method, path: path, lw: lw, tb: tb, params: m.Params}
+	if m.Method == "textDocument/codeAction" {
+		pend.fixVersion, pend.fixHas = p.docVersion(path)
+	}
+	p.addPending(m.ID, pend)
 	p.send(p.server, out)
 }
 
