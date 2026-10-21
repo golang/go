@@ -1031,7 +1031,6 @@ var (
 	errCloseIdle          = errors.New("http: putIdleConn: CloseIdleConnections was called")
 	errTooManyIdle        = errors.New("http: putIdleConn: too many idle connections")
 	errTooManyIdleHost    = errors.New("http: putIdleConn: too many idle connections for host")
-	errNotInPool          = errors.New("http: putIdleConn: connection is not in a pool")
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
@@ -1072,41 +1071,40 @@ func (t *Transport) keepAlivesDisabled() bool {
 	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 || t.MaxIdleConns < 0
 }
 
-// tryPutIdleConn adds pconn to the list of idle persistent connections awaiting
-// a new request.
-// If pconn is no longer needed or not in a good state, tryPutIdleConn returns
-// an error explaining why it wasn't registered.
-// tryPutIdleConn does not close pconn.
-func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
-	if t.keepAlivesDisabled() {
+// roundTripDone records that an in-flight request has completed.
+// It returns an error if the connection should now be closed.
+func (pc *persistConn) roundTripDone() error {
+	if pc.t.keepAlivesDisabled() {
 		return errKeepAlivesDisabled
 	}
-	if pconn.isBroken() {
-		return errConnBroken
-	}
-	pconn.markReused()
-	if pconn.isClientConn {
-		// internalStateHook is always set for conns created by NewClientConn.
-		defer pconn.internalStateHook()
-		pconn.mu.Lock()
-		defer pconn.mu.Unlock()
-		if !pconn.inFlight {
+	if err := func() error {
+		pc.mu.Lock()
+		defer pc.mu.Unlock()
+		if pc.closed != nil {
+			return errConnBroken
+		}
+		pc.reused = true
+		if !pc.inFlight {
 			panic("pconn is not in flight")
 		}
-		pconn.inFlight = false
+		pc.inFlight = false
 		select {
-		case pconn.availch <- struct{}{}:
+		case pc.availch <- struct{}{}:
 		default:
 			panic("unable to make pconn available")
 		}
 		return nil
+	}(); err != nil {
+		return err
 	}
-	return t.poolPutIdleConn(pconn.poolConn)
-}
-
-// removeIdleConn marks pconn as dead.
-func (t *Transport) removeIdleConn(pconn *persistConn) {
-	t.poolRemoveConn(pconn.poolConn)
+	if pc.internalStateHook != nil {
+		pc.internalStateHook()
+	}
+	// The state hook could have closed the conn.
+	// If it did, return an error so readLoop can exit quickly.
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	return pc.closed
 }
 
 var zeroDialer net.Dialer
@@ -1155,16 +1153,28 @@ func (t *Transport) getConn(ctx context.Context, cm connectMethod) (_ *poolConn,
 	if err != nil {
 		return nil, err
 	}
-	if !pconn.cc.IsAlt() && trace != nil && trace.GotConn != nil {
-		info := httptrace.GotConnInfo{
-			Conn:   pconn.cc.NetConn(),
-			Reused: pconn.cc.IsReused(),
+	if !pconn.cc.IsAlt() && trace != nil {
+		if _, ok := pconn.cc.(*persistConn); ok {
+			// Arrange to call PutIdleConn for HTTP/1 connections.
+			// Our documented behavior is to not call PutIdleConn for HTTP/2
+			// (and eventually HTTP/3) connections.
+			//
+			// Setting putIdleHook here is race-free: The conn can only become
+			// idle after RoundTrip sends a request on it, and putIdleHook
+			// is only checked for idle conns.
+			pconn.putIdleHook = trace.PutIdleConn
 		}
-		if !pconn.idleAt.IsZero() {
-			info.WasIdle = true
-			info.IdleTime = time.Since(pconn.idleAt)
+		if trace.GotConn != nil {
+			info := httptrace.GotConnInfo{
+				Conn:   pconn.cc.NetConn(),
+				Reused: pconn.cc.IsReused(),
+			}
+			if !pconn.idleAt.IsZero() {
+				info.WasIdle = true
+				info.IdleTime = time.Since(pconn.idleAt)
+			}
+			trace.GotConn(info)
 		}
-		trace.GotConn(info)
 	}
 	return pconn, nil
 }
@@ -1239,7 +1249,7 @@ type erringRoundTripper interface {
 
 var testHookProxyConnectTimeout = context.WithTimeout
 
-func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, poolConn *poolConn, internalStateHook func()) (_ genericClientConn, err error) {
+func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (_ genericClientConn, err error) {
 	// TODO: actually support HTTP/3. Among other things:
 	// - make HTTP/3 play well with proxy.
 	// - implement happy eyeball between HTTP/3 and HTTP/1 & HTTP/2.
@@ -1267,13 +1277,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	pconn := &persistConn{
 		t:                 t,
 		cacheKey:          cm.key(),
-		poolConn:          poolConn,
 		reqch:             make(chan requestAndChan, 1),
 		writech:           make(chan writeRequest, 1),
 		closech:           make(chan struct{}),
 		writeErrCh:        make(chan error, 1),
 		writeLoopDone:     make(chan struct{}),
-		isClientConn:      isClientConn,
 		internalStateHook: internalStateHook,
 	}
 	trace := httptrace.ContextClientTrace(ctx)
@@ -1535,10 +1543,8 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	// All HTTP/1 connections.
-	if isClientConn {
-		pconn.availch = make(chan struct{}, 1)
-		pconn.availch <- struct{}{}
-	}
+	pconn.availch = make(chan struct{}, 1)
+	pconn.availch <- struct{}{}
 	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
 	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
 
@@ -1654,23 +1660,20 @@ func (k connectMethodKey) String() string {
 // persistConn wraps an HTTP/1 client connection, usually a persistent one
 // (but may be used for non-keep-alive requests as well).
 type persistConn struct {
-	poolConn *poolConn
-
-	t            *Transport
-	cacheKey     connectMethodKey
-	conn         net.Conn
-	tlsState     *tls.ConnectionState
-	br           *bufio.Reader       // from conn
-	bw           *bufio.Writer       // to conn
-	nwrite       int64               // bytes written
-	reqch        chan requestAndChan // written by roundTrip; read by readLoop
-	writech      chan writeRequest   // written by roundTrip; read by writeLoop
-	closech      chan struct{}       // closed when conn closed
-	availch      chan struct{}       // ClientConn only: contains a value when conn is usable
-	isProxy      bool
-	sawEOF       bool  // whether we've seen EOF from conn; owned by readLoop
-	isClientConn bool  // whether this is a ClientConn (outside any pool)
-	readLimit    int64 // bytes allowed to be read; owned by readLoop
+	t         *Transport
+	cacheKey  connectMethodKey
+	conn      net.Conn
+	tlsState  *tls.ConnectionState
+	br        *bufio.Reader       // from conn
+	bw        *bufio.Writer       // to conn
+	nwrite    int64               // bytes written
+	reqch     chan requestAndChan // written by roundTrip; read by readLoop
+	writech   chan writeRequest   // written by roundTrip; read by writeLoop
+	closech   chan struct{}       // closed when conn closed
+	availch   chan struct{}       // contains a value when conn is usable
+	isProxy   bool
+	sawEOF    bool  // whether we've seen EOF from conn; owned by readLoop
+	readLimit int64 // bytes allowed to be read; owned by readLoop
 	// writeErrCh passes the request write error (usually nil)
 	// from the writeLoop goroutine to the readLoop which passes
 	// it off to the res.Body reader, which then uses it to decide
@@ -1684,9 +1687,9 @@ type persistConn struct {
 	closed               error  // set non-nil when conn is closed, before closech is closed
 	canceledErr          error  // set non-nil if conn is canceled
 	reused               bool   // whether conn has had successful request/response and is being reused.
-	reserved             bool   // ClientConn only: concurrency slot reserved
-	inFlight             bool   // ClientConn only: request is in flight
-	internalStateHook    func() // ClientConn state hook
+	reserved             bool   // concurrency slot reserved
+	inFlight             bool   // request is in flight
+	internalStateHook    func() // called when connection state changes
 
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
@@ -1851,23 +1854,15 @@ func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
 		pc.CloseWithError(closeErr)
-		pc.t.removeIdleConn(pc)
 		if pc.internalStateHook != nil {
 			pc.internalStateHook()
 		}
 	}()
 
-	tryPutIdleConn := func(treq *transportRequest) bool {
-		trace := treq.trace
-		if err := pc.t.tryPutIdleConn(pc); err != nil {
+	tryPutIdleConn := func() bool {
+		if err := pc.roundTripDone(); err != nil {
 			closeErr = err
-			if trace != nil && trace.PutIdleConn != nil && err != errKeepAlivesDisabled {
-				trace.PutIdleConn(err)
-			}
 			return false
-		}
-		if trace != nil && trace.PutIdleConn != nil {
-			trace.PutIdleConn(nil)
 		}
 		return true
 	}
@@ -1875,6 +1870,9 @@ func (pc *persistConn) readLoop() {
 	// eofc is used to block caller goroutines reading from Response.Body
 	// at EOF until this goroutines has (potentially) added the connection
 	// back to the idle pool.
+	//
+	// (We also use this channel to coordinate bodyless responses with RoundTrip,
+	// see waitc below.)
 	eofc := make(chan struct{})
 	defer close(eofc) // unblock reader on errors
 
@@ -1941,27 +1939,39 @@ func (pc *persistConn) readLoop() {
 		}
 
 		if !hasBody || bodyWritable {
-			// Put the idle conn back into the pool before we send the response
-			// so if they process it quickly and make another request, they'll
-			// get this same conn. But we use the unbuffered channel 'rc'
-			// to guarantee that persistConn.roundTrip got out of its select
-			// potentially waiting for this persistConn to close.
-			alive = alive &&
-				!pc.sawEOF &&
-				pc.wroteRequest() &&
-				tryPutIdleConn(rc.treq)
-
-			if bodyWritable {
-				closeErr = errCallerOwnsConn
-			}
-
+			// Three things need to happen, in order:
+			//
+			// 1. Notify roundTrip that we have a response.
+			// 2. Put the now-idle conn back into the pool.
+			//    This must happen after notifying roundTrip, because returning
+			//    the connection to the pool could close the connection,
+			//    causing roundTrip to return an error.
+			// 3. roundTrip returns.
+			//    This must happen after putting the conn back into the pool,
+			//    so if the caller starts a new request they can reuse this conn.
+			//
+			// We send roundTrip a channel to wait on, which we will signal
+			// once the conn is back in the pool (or possibly closed).
+			waitc := eofc // no body, never going to use eofc
 			select {
-			case rc.ch <- responseAndError{res: resp}:
+			case rc.ch <- responseAndError{res: resp, waitc: waitc}:
 			case <-rc.callerGone:
 				return
 			}
 
+			// Put the idle conn back into the pool before roundTrip returns the
+			// response to its caller.
+			alive = alive &&
+				!pc.sawEOF &&
+				pc.wroteRequest() &&
+				tryPutIdleConn()
+			if bodyWritable {
+				closeErr = errCallerOwnsConn
+			}
 			rc.treq.cancel(errRequestDone)
+
+			// Tell roundTrip that we've put the conn back into the pool.
+			waitc <- struct{}{}
 
 			// Now that they've read from the unbuffered channel, they're safely
 			// out of the select that also waits on this goroutine to die, so
@@ -2018,7 +2028,7 @@ func (pc *persistConn) readLoop() {
 				alive = alive &&
 					!pc.sawEOF &&
 					pc.wroteRequest() &&
-					tryPutIdleConn(rc.treq)
+					tryPutIdleConn()
 			}
 			switch status {
 			case bodyReadEOF:
@@ -2305,9 +2315,10 @@ func (pc *persistConn) wroteRequest() bool {
 // responseAndError is how the goroutine reading from an HTTP/1 server
 // communicates with the goroutine doing the RoundTrip.
 type responseAndError struct {
-	_   incomparable
-	res *Response // else use this response (see res method)
-	err error
+	_     incomparable
+	res   *Response       // else use this response (see res method)
+	waitc <-chan struct{} // read from this before returning from RoundTrip (see readLoop)
+	err   error
 }
 
 type requestAndChan struct {
@@ -2399,17 +2410,19 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 	testHookEnterRoundTrip()
 
 	pc.mu.Lock()
-	if pc.isClientConn {
-		if !pc.reserved {
+	if !pc.reserved {
+		select {
+		case <-pc.availch:
+		default:
 			pc.mu.Unlock()
 			if err := pc.waitForAvailability(req.ctx); err != nil {
 				return nil, err
 			}
 			pc.mu.Lock()
 		}
-		pc.reserved = false
-		pc.inFlight = true
 	}
+	pc.reserved = false
+	pc.inFlight = true
 	pc.numExpectedResponses++
 	headerFn := pc.mutateHeaderFunc
 	pc.mu.Unlock()
@@ -2481,6 +2494,9 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 		}
 		if debugRoundTrip {
 			req.logf("resc recv: %p, %T/%#v", re.res, re.err, re.err)
+		}
+		if re.waitc != nil {
+			<-re.waitc
 		}
 		if re.err != nil {
 			return nil, pc.mapRoundTripError(req, startBytesWritten, re.err)
@@ -2577,14 +2593,6 @@ func (tr *transportRequest) logf(format string, args ...any) {
 	if logf, ok := tr.Request.Context().Value(tLogKey{}).(func(string, ...any)); ok {
 		logf(time.Now().Format(time.RFC3339Nano)+": "+format, args...)
 	}
-}
-
-// markReused marks this connection as having been successfully used for a
-// request and response.
-func (pc *persistConn) markReused() {
-	pc.mu.Lock()
-	pc.reused = true
-	pc.mu.Unlock()
 }
 
 // CloseWithError closes the underlying TCP connection and closes
