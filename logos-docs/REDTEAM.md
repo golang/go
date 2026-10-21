@@ -193,3 +193,14 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #187 | M16 | src/cmd/go/testdata/script/logos_wasm_loader.txt | tested |
 | #188 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #189 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
+
+## Cgo benchmark input validity
+
+The old `BenchmarkFastcall` recurrence caused signed C overflow.
+A 64-call UBSan run failed at `fastcall_c.c:12` on `2147483647 + 1`.
+Both cgo benchmarks now bound the first argument to 1073741823 and assign the C result.
+The maximum C sum is 1073741824, within the signed 32-bit range.
+Both variants pass the same UBSan check with `logosfastcgo` enabled and disabled.
+The C operation and the performance thresholds are unchanged.
+Historical timings from the old recurrence are observations of a different workload.
+They do not prove acceptance of the corrected benchmark.
