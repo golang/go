@@ -1,0 +1,135 @@
+# M19: -gc=MODE selection. logos defaults to greentea (wasm on GOARCH=wasm);
+# plain go keeps the upstream collector unless -gc names a mode and reads no
+# logos.toml. The flag beats logos.toml [build] gc. batch and epsilon compile
+# every package but the runtime closure with -wb=false. Unknown modes and the
+# unfinished moving modes fail with the pinned text.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# logos defaults to greentea and keeps write barriers.
+logos build -n -a -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=greentea'
+! stderr ' -wb=false'
+
+# go with no flag keeps the upstream collector: no mode, no -wb=false.
+go build -n -a -o $WORK/x.exe .
+! stderr 'logosGCMode'
+! stderr ' -wb=false'
+
+# go -gc selects any mode.
+go build -n -a -gc=batch -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=batch'
+stderr '/compile .* -p fmt .* -wb=false'
+stderr '/compile .* -p main .* -wb=false'
+! stderr '/compile .* -p runtime .* -wb=false'
+! stderr '/compile .* -p internal/abi .* -wb=false'
+
+go build -n -a -gc=epsilon -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=epsilon'
+stderr '/compile .* -p fmt .* -wb=false'
+! stderr '/compile .* -p runtime .* -wb=false'
+
+go build -n -a -gc=wasm -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=wasm'
+! stderr ' -wb=false'
+
+# -gc works under run and test, and through GOFLAGS.
+go run -n -gc=epsilon .
+stderr ' -X=runtime\.logosGCMode=epsilon'
+go test -n -gc=batch .
+stderr ' -X=runtime\.logosGCMode=batch'
+env GOFLAGS=-gc=batch
+go build -n -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=batch'
+env GOFLAGS=
+
+# logos.toml [build] gc is read under logos only; the flag overrides it.
+cd batchtoml
+logos build -n -a -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=batch'
+stderr '/compile .* -p main .* -wb=false'
+logos build -n -a -gc=greentea -o $WORK/x.exe .
+stderr ' -X=runtime\.logosGCMode=greentea'
+! stderr ' -wb=false'
+go build -n -a -o $WORK/x.exe .
+! stderr 'logosGCMode'
+cd ..
+
+# GOARCH=wasm defaults to wasm under logos.
+env GOOS=js GOARCH=wasm
+logos build -n -a -o $WORK/x.wasm .
+stderr ' -X=runtime\.logosGCMode=wasm'
+env GOOS= GOARCH=
+
+# Unknown modes fail with the command prefix, from the flag and from the key.
+! logos build -gc=x .
+stderr '^logos build: unknown -gc mode "x" \(want greentea, zgc, immix, wasm, batch, epsilon\)$'
+! go build -gc=x .
+stderr '^go build: unknown -gc mode "x" \(want greentea, zgc, immix, wasm, batch, epsilon\)$'
+! go build -gc= .
+stderr '^go build: unknown -gc mode "" \(want greentea, zgc, immix, wasm, batch, epsilon\)$'
+! go build -gc=Batch .
+stderr 'unknown -gc mode "Batch"'
+cd badtoml
+! logos build .
+stderr '^logos build: unknown -gc mode "x" \(want greentea, zgc, immix, wasm, batch, epsilon\)$'
+cd ..
+
+# immix and zgc stay unavailable until their phases pass.
+! logos build -gc=immix .
+stderr '^logos build: -gc=immix requires GOEXPERIMENT=logosgcmoving phase 1, which is not complete$'
+! go build -gc=zgc .
+stderr '^go build: -gc=zgc requires GOEXPERIMENT=logosgcmoving phase 2, which is not complete$'
+
+# The flag has help text under logos only.
+logos help build
+stdout '\t-gc mode\n'
+go help build
+! stdout '\t-gc mode\n'
+
+-- go.mod --
+module example.com/gcmode
+
+go 1.27
+
+-- main.go --
+package main
+
+import "fmt"
+
+func main() { fmt.Println("gc") }
+
+-- main_test.go --
+package main
+
+import "testing"
+
+func TestMain1(t *testing.T) {}
+
+-- batchtoml/go.mod --
+module example.com/batchtoml
+
+go 1.27
+
+-- batchtoml/logos.toml --
+[build]
+gc = "batch"
+
+-- batchtoml/main.go --
+package main
+
+func main() {}
+
+-- badtoml/go.mod --
+module example.com/badtoml
+
+go 1.27
+
+-- badtoml/logos.toml --
+[build]
+gc = "x"
+
+-- badtoml/main.go --
+package main
+
+func main() {}

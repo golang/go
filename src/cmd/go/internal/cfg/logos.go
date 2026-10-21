@@ -59,6 +59,19 @@ var WasmLoader string
 // passes no lint policy to the compiler.
 var LogosLintCmd bool
 
+// BuildGC is the value of the -gc flag (SPEC Sec 19), and BuildGCSet reports
+// whether the flag appeared, so -gc= can be told from an absent flag.
+var (
+	BuildGC    string
+	BuildGCSet bool
+)
+
+// LogosGC is the collector mode the build selected, checked and defaulted by
+// work.BuildInit: the -gc flag, else logos.toml [build] gc under logos, else
+// the logos default. It is empty when plain go selected no mode, which keeps
+// the upstream collector and compiles with write barriers.
+var LogosGC string
+
 // logosInitCC snapshots the user CC at process startup, covering both the
 // process environment and the GOENV file. main.invoke later injects every
 // MkEnv value (including a CC default) into the process environment, so a

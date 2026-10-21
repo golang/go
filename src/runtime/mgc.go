@@ -186,7 +186,7 @@ func gcinit() {
 	// Initialize GC pacer state.
 	// Use the environment variable GOGC for the initial gcPercent value.
 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
-	gcController.init(readGOGC(), readGOMEMLIMIT())
+	gcController.init(logosGCInit(readGOGC(), readGOMEMLIMIT()))
 
 	// Set up the cleanup block ptr mask.
 	for i := range cleanupBlockPtrMask {
@@ -705,6 +705,9 @@ const (
 // condition should be tested when allocating.
 func (t gcTrigger) test() bool {
 	if !memstats.enablegc || panicking.Load() != 0 || gcphase != _GCoff {
+		return false
+	}
+	if logosGCRefuses(t) {
 		return false
 	}
 	switch t.kind {

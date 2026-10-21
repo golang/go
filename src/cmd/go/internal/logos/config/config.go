@@ -50,8 +50,8 @@ type Project struct {
 }
 
 // Build holds the [build] table: the cgo policy and its allowlist, the
-// optimization level, the synthetic PGO level, the CPU target, and the
-// arena experiment.
+// optimization level, the synthetic PGO level, the CPU target, the
+// arena experiment, and the collector mode.
 type Build struct {
 	// Cgo is one of "forbid", "restricted", or "allow". It defaults to "forbid".
 	Cgo string
@@ -70,7 +70,17 @@ type Build struct {
 	// Arena enables the tier-0 arena experiment (GOEXPERIMENT=logosarena)
 	// for the build. It defaults to false.
 	Arena bool
+	// GC is the collector mode named by the gc key. It is checked against
+	// GCModes at build time, with the same text as the -gc flag, and is empty
+	// while GCSet is false.
+	GC string
+	// GCSet reports whether the gc key was present in the file.
+	GCSet bool
 }
+
+// GCModes lists the collector modes that -gc and the gc key accept, in the
+// order the unknown-mode message names them.
+var GCModes = []string{"greentea", "zgc", "immix", "wasm", "batch", "epsilon"}
 
 // Capabilities holds the [capabilities] table (M12): severity keys, each one
 // of "deny", "warn", or "allow", and allowlist keys holding path globs.
@@ -140,8 +150,8 @@ func Load(modRoot string) (*File, error) {
 
 // Format renders f as canonical TOML that re-parses to an equal File.
 // Keys with default-absent state are omitted: an empty name (which could not
-// re-parse), an unset cgo key (which must keep CgoSet false), and nil
-// allowlists.
+// re-parse), an unset cgo or gc key (which must keep CgoSet or GCSet false),
+// and nil allowlists.
 func (f *File) Format() []byte {
 	var b strings.Builder
 	b.WriteString("[project]\n")
@@ -198,6 +208,11 @@ func (f *File) Format() []byte {
 	}
 	if f.Build.Arena {
 		b.WriteString("arena = true\n")
+	}
+	if f.Build.GCSet {
+		b.WriteString("gc = ")
+		appendQuoted(&b, f.Build.GC)
+		b.WriteByte('\n')
 	}
 	writeCapabilities(&b, f.Capabilities)
 	return []byte(b.String())

@@ -1186,6 +1186,9 @@ const (
 // not be, in the case of small movements for efficiency) checked whenever
 // the heap goal may change.
 func (c *gcControllerState) trigger() (uint64, uint64) {
+	if logosGCMode == "batch" {
+		return c.logosBatchTrigger()
+	}
 	goal, minTrigger := c.heapGoalInternal()
 
 	// Invariant: the trigger must always be less than the heap goal.

@@ -3317,6 +3317,7 @@ func setToolFlags(ld *modload.Loader, pkgs ...*Package) {
 		p.Internal.Gcflags = BuildGcflags.For(ld, p)
 		p.Internal.Gcflags = append(p.Internal.Gcflags, logosEjectGcflags(p)...)
 		p.Internal.Gcflags = append(p.Internal.Gcflags, logosNextGcflags(p)...)
+		p.Internal.Gcflags = append(p.Internal.Gcflags, logosGCGcflags(p)...)
 		logosLintMark(ld, p)
 		p.Internal.Ldflags = BuildLdflags.For(ld, p)
 		p.Internal.Gccgoflags = BuildGccgoflags.For(ld, p)
