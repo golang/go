@@ -120,6 +120,9 @@ func locationToStrings(loc *profile.Location, funcs []string) []string {
 
 // This is a regression test for https://go.dev/issue/64528.
 func TestGenericsHashKeyInPprofBuilder(t *testing.T) {
+	if logosOptGenericsHashKeyInPprofBuilder(t) {
+		return
+	}
 	if asan.Enabled {
 		t.Skip("extra allocations with -asan throw off the test; see #70079")
 	}

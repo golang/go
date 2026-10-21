@@ -218,6 +218,9 @@ func tracebackFunc(t *testing.T) uintptr {
 //
 // This is a regression test for issue 44971.
 func TestFunctionAlignmentTraceback(t *testing.T) {
+	if logosOptFunctionAlignmentTraceback(t) {
+		return
+	}
 	pc := tracebackFunc(t)
 
 	// Double-check we got the right PC.

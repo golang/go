@@ -125,6 +125,102 @@ stderr 'GOAMD64=.v1.'
 cd ../native
 logos build -a -x .
 stderr 'GOAMD64=.v[134].'
+cd ..
+
+# The levels change what the compiled code does, not only the flags the
+# compiler receives: a frame-local make of variable size stays off the
+# heap up to the level's stack buffer and takes the heap one byte past
+# it. The expected size is written here beside each command and is never
+# read back from the build under test, so an optimization that stops
+# working fails the probe. src/runtime/logos_mode_gate.bash carries the
+# same level and size pairs for the runtime tests.
+cd stackbuf
+env WANT_STACKBUF=32
+go test -count=1 .
+stdout '^ok'
+go test -count=1 -O=1 .
+stdout '^ok'
+logos test -count=1 -O=1 .
+stdout '^ok'
+env WANT_STACKBUF=256
+go test -count=1 -O=2 .
+stdout '^ok'
+logos test -count=1 .
+stdout '^ok'
+logos test -count=1 -O=2 .
+stdout '^ok'
+env WANT_STACKBUF=4096
+go test -count=1 -O=3 .
+stdout '^ok'
+logos test -count=1 -O=3 .
+stdout '^ok'
+
+# An explicit -gcflags pin still wins over the level's buffer.
+env WANT_STACKBUF=32
+go test -count=1 -O=3 -gcflags=all=-d=variablemakethreshold=32 .
+stdout '^ok'
+
+# A build whose buffer is not the expected one fails the probe: a level
+# that lost its optimization cannot pass as a level that kept it.
+env WANT_STACKBUF=4096
+! go test -count=1 -O=3 -gcflags=all=-d=variablemakethreshold=32 .
+stdout 'FAIL'
+env WANT_STACKBUF=256
+! go test -count=1 .
+stdout 'FAIL'
+env WANT_STACKBUF=
+cd ..
+
+-- stackbuf/go.mod --
+module example.com/optlevels/stackbuf
+
+go 1.27
+
+-- stackbuf/stackbuf.go --
+package stackbuf
+
+-- stackbuf/stackbuf_test.go --
+package stackbuf
+
+import (
+	"os"
+	"strconv"
+	"testing"
+)
+
+// probe is a frame-local make of variable size. The compiler keeps it in
+// the frame when n is at most the stack buffer of the build.
+//
+//go:noinline
+func probe(n int) byte {
+	b := make([]byte, n)
+	b[0] = 1
+	return b[n-1]
+}
+
+func allocs(n int) float64 {
+	return testing.AllocsPerRun(10, func() { _ = probe(n) })
+}
+
+func TestCompiledStackBuffer(t *testing.T) {
+	want, err := strconv.Atoi(os.Getenv("WANT_STACKBUF"))
+	if err != nil || want < 2 {
+		t.Fatalf("WANT_STACKBUF=%q: want a byte count of at least 2", os.Getenv("WANT_STACKBUF"))
+	}
+	for _, c := range []struct {
+		n     int
+		stack bool
+	}{
+		{want / 2, true},
+		{want, true},
+		{want + 1, false},
+		{2*want + 1, false},
+	} {
+		if got := allocs(c.n); (got == 0) != c.stack {
+			t.Errorf("make of %d bytes took %v allocations, want the stack buffer of %d bytes to decide: stack=%v", c.n, got, want, c.stack)
+		}
+	}
+}
 
 -- go.mod --
 module example.com/optlevels
