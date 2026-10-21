@@ -104,6 +104,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -157,7 +158,12 @@ func main() {
 		err := cmd.Run()
 		if err != nil {
 			if w.n > 0 {
-				// Assume command printed why it failed.
+				// If the command exited with a non-zero status, report it
+				// even if it printed output of its own. This matches the
+				// output produced by "go test -json".
+				if ee, ok := errors.AsType[*exec.ExitError](err); ok && ee.Exited() {
+					fmt.Fprintf(c, "%v\n", err)
+				}
 			} else {
 				fmt.Fprintf(c, "test2json: %v\n", err)
 			}

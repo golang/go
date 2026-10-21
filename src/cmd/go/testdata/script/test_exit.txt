@@ -66,8 +66,14 @@ stdout '"Output":"FAIL'
 # Running the test via test2json also fails.
 ! go tool test2json ./zero.exe -test.v -test.paniconexit0
 ! stdout '"Output":"ok'
-! stdout 'exit status'
+stdout '"Output":"exit status 2'
 stdout 'panic'
+
+# Running a test that exits non-zero via test2json reports the exit status.
+go test -c -o ./one.exe ./one
+! go tool test2json ./one.exe -test.v
+stdout '"Output":"exit status 1'
+stdout '"Action":"fail"'
 
 -- go.mod --
 module m
