@@ -1873,8 +1873,8 @@ It MUST rise linearly from 0.25 to 0.75 when u is at least 0.80 and below 0.95. 
 It MUST stay 0.75 when u is at or above 0.95. [T-301.2]
 Here u means live heap over heap goal. [T-301.2]
 Assists MUST still run when u reaches 0.95 or more. [T-301.2]
-Until the generational gate passes, `-gc=greentea` builds MUST ignore the experiment. [T-301.2]
-In that case `logos` MUST print `note: logosgen disabled: ` plus the first failing package. [T-301.2]
+The generational gate has passed: `-gc=greentea` builds with `GOEXPERIMENT=logosgen` MUST run the generational collector. [T-301.2]
+Without the experiment, `-gc=greentea` behavior is unchanged, and `logosgen` stays opt-in (never a global default). [T-301.2]
 
 ### 19.2 Engine 2: Colored-pointer compactor
 

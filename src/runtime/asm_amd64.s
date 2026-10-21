@@ -1312,7 +1312,14 @@ retry:
 	// TODO: Consider passing g.m.p in as an argument so they can be shared
 	// across a sequence of write barriers.
 	MOVQ	g_m(R14), R13
+#ifdef GOEXPERIMENT_logosgen
+	MOVQ	m_p(R13), R12
+	TESTQ	R12, R12
+	JEQ	nop
+	MOVQ	R12, R13
+#else
 	MOVQ	m_p(R13), R13
+#endif
 	// Get current buffer write position.
 	MOVQ	(p_wbBuf+wbBuf_next)(R13), R12	// original next position
 	ADDQ	R11, R12			// new next position
@@ -1328,6 +1335,16 @@ retry:
 	MOVQ	96(SP), R12
 	MOVQ	104(SP), R13
 	RET
+
+#ifdef GOEXPERIMENT_logosgen
+nop:
+	// A store made without a P has no buffer; its entries land in the
+	// M's scratch space and are dropped.
+	LEAQ	m_logosWbScratch(R13), R11
+	MOVQ	96(SP), R12
+	MOVQ	104(SP), R13
+	RET
+#endif
 
 flush:
 	// Save all general purpose registers since these could be

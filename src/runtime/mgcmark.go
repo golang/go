@@ -1655,6 +1655,9 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
 	if obj&(goarch.PtrSize-1) != 0 {
 		throw("greyobject: obj not pointer-aligned")
 	}
+	if logosGenSkip(span) {
+		return
+	}
 	mbits := span.markBitsForIndex(objIndex)
 
 	if useCheckmark {

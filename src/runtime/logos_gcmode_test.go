@@ -440,7 +440,7 @@ func TestLogosGCModeSelection(t *testing.T) {
 		}
 	})
 	t.Run("default/logos/wasm", func(t *testing.T) {
-		plan := logosGCPlan(t, "logos", logosGCEnv("GOOS=js", "GOARCH=wasm"))
+		plan := logosGCPlan(t, "logos", logosGCEnv("GOOS=js", "GOARCH=wasm", "GOEXPERIMENT="))
 		if !strings.Contains(plan, " -X=runtime.logosGCMode=wasm") {
 			t.Errorf("logos default on GOARCH=wasm: want -X=runtime.logosGCMode=wasm")
 		}

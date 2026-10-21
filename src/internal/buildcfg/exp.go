@@ -141,6 +141,10 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		}
 	}
 
+	if flags.LogosGen && (!flags.GreenTeaGC || goarch != "amd64") {
+		return nil, fmt.Errorf("GOEXPERIMENT logosgen requires greenteagc on amd64")
+	}
+
 	if regabiAlwaysOn {
 		flags.RegabiWrappers = true
 		flags.RegabiArgs = true

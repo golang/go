@@ -884,6 +884,7 @@ mapped:
 				throw("out of memory allocating heap arena metadata")
 			}
 		}
+		logosGenInitArena(r)
 
 		// Register the arena in allArenas if requested.
 		if len((*arenaList)) == cap((*arenaList)) {

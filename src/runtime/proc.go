@@ -6026,6 +6026,7 @@ func (pp *p) destroy() {
 		println("runtime: p id", pp.id, "destroyed during GC phase", phase)
 		throw("P destroyed while GC is running")
 	}
+	logosGenDrainCards(pp)
 	// We should free the queues though.
 	pp.gcw.spanq.destroy()
 	logosArenaFlushP(pp)

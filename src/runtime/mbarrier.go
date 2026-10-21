@@ -151,7 +151,7 @@ func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
 	if dst == src {
 		return
 	}
-	if writeBarrier.enabled && typ.Pointers() {
+	if wbActive() && typ.Pointers() {
 		// This always copies a full value of type typ so it's safe
 		// to pass typ along as an optimization. See the comment on
 		// bulkBarrierPreWrite.
@@ -247,7 +247,7 @@ func maps_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
 //
 //go:nosplit
 func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
-	if writeBarrier.enabled && typ != nil && typ.Pointers() && size >= goarch.PtrSize {
+	if wbActive() && typ != nil && typ.Pointers() && size >= goarch.PtrSize {
 		// Pass nil for the type. dst does not point to value of type typ,
 		// but rather points into one, so applying the optimization is not
 		// safe. See the comment on this function.
@@ -314,7 +314,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
 	// and growslice and reflect_typedslicecopy check for pointers
 	// before calling typedslicecopy.
 	size := uintptr(n) * typ.Size_
-	if writeBarrier.enabled {
+	if wbActive() {
 		// This always copies one or more full values of type typ so
 		// it's safe to pass typ along as an optimization. See the comment on
 		// bulkBarrierPreWrite.

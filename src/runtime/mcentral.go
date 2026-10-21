@@ -126,6 +126,10 @@ func (c *mcentral) cacheSpan() *mspan {
 			if s, ok := sl.tryAcquire(s); ok {
 				// We got ownership of the span, so let's sweep it and use it.
 				s.sweep(true)
+				if logosGenClosed(s.mspan) {
+					c.fullSwept(sg).push(s.mspan)
+					continue
+				}
 				sweep.active.end(sl)
 				goto havespan
 			}
@@ -146,6 +150,10 @@ func (c *mcentral) cacheSpan() *mspan {
 			if s, ok := sl.tryAcquire(s); ok {
 				// We got ownership of the span, so let's sweep it.
 				s.sweep(true)
+				if logosGenClosed(s.mspan) {
+					c.fullSwept(sg).push(s.mspan)
+					continue
+				}
 				// Check if there's any free space.
 				freeIndex := s.nextFreeIndex()
 				if freeIndex != s.nelems {

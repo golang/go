@@ -320,6 +320,9 @@ type heapArena struct {
 	// stored directly at the top end of the span's memory.
 	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
 
+	// logosCards is the card table of GOEXPERIMENT=logosgen; nil otherwise.
+	logosCards *logosGenCardTable
+
 	// checkmarks stores the debug.gccheckmark state. It is only
 	// used if debug.gccheckmark > 0 or debug.checkfinalizers > 0.
 	checkmarks *checkmarksMap
@@ -514,6 +517,7 @@ type mspan struct {
 	specials              *special      // linked list of special records sorted by offset.
 	userArenaChunkFree    addrRange     // interval for managing chunk allocation
 	largeType             *_type        // malloc header for large objects.
+	logosAge              uint8         // cycles survived, saturating at logosGenMatureAge (GOEXPERIMENT=logosgen)
 }
 
 func (s *mspan) base() uintptr {
@@ -1822,6 +1826,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
 	span.elemsize = 0
 	span.speciallock.key = 0
 	span.specials = nil
+	span.logosAge = 0
 	span.needzero = 0
 	span.isLogosArenaChunk = false
 	span.freeindex = 0

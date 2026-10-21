@@ -148,4 +148,8 @@ type Flags struct {
 	// monotonic address order and prefetch the mark bits of the spans
 	// a scanned span points into (M19-S6).
 	LogosSpanDeck bool
+
+	// LogosGen enables the generational card table of the Green Tea
+	// collector: minor cycles that skip mature spans (M19-S4).
+	LogosGen bool
 }

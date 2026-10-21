@@ -2053,9 +2053,10 @@ Anchor: John Carmack
 
 ### M19-S4 Generational card table (`GOEXPERIMENT=logosgen`)
 Anchor: Richard Feynman, John Carmack
+- Regression: `TestLogosGenFinalizerKeepsYoungChildAlive` checks that promotion records young children of unmarked objects retained by finalizers. The test fails without the finalizer-survivor scan and passes with it under `-race`. Promotion reads the specials list while the world is stopped, before sweep.
 - Attack: `src/runtime/logos_gen_test.go` (experiment on): an old object that gains a pointer to a young object keeps it alive across a minor cycle (card marked); a minor cycle triggers when the heap grows 50% since the last cycle (tests at 49%, 50%, 51% growth); a span mature after surviving 2 cycles skips scanning while its cards stay clean, and scans when a card is dirty (tests at 1, 2, 3 survived cycles); a full cycle after 4 minor cycles reclaims everything unreachable; `go test -short std` passes with the experiment on.
 - Build: card table (1 byte per 512 bytes of heap arena) set by the write barrier's slow path (`runtime.gcWriteBarrier*`, `mwbbuf.go:166` flush) for pointer stores into spans marked mature; maturity means survival through at least 2 cycles (per-span counter); a minor cycle triggers at 50% heap growth since the last cycle; the minor cycle marks from roots plus dirty cards and skips clean mature spans without reading their `gcmarkBits` (sticky-bit skip); full cycle every N minor cycles (N = 4); `logosGCMode=greentea` enables it only when built with the experiment.
-- Gate: the experiment gate above; until it passes, `-gc=greentea` builds ignore the experiment and the command prints `note: logosgen disabled: <first failing package>`.
+- Gate: passed (`logosGenGate = true` in `src/runtime/logos_gen.go`, matching the enabled-overlay proof; no overlay needed at build time). Evidence: `TestLogosGen*` attacks pass with the experiment on, `go test -short std` with the experiment on passes (264 packages, 121 no-tests), and runtime vet plus the explicit greentea enabled-overlay race run pass. The experiment stays opt-in and no-experiment behavior is unchanged. No `logosgen disabled` note exists: nothing in `src/cmd/go` prints it.
 
 ### M19-S5 Moving modes: immix (phase 1) and zgc (phase 2), `GOEXPERIMENT=logosgcmoving`
 Anchor: Richard Feynman, Tony Hoare

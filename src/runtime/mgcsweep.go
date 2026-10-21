@@ -529,6 +529,14 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		traceRelease(trace)
 	}
 
+	if logosGenSkip(s) {
+		logosGenSweepMature(s)
+		if !preserve {
+			logosGenRelist(s)
+		}
+		return false
+	}
+
 	mheap_.pagesSwept.Add(int64(s.npages))
 
 	spc := s.spanclass
@@ -685,6 +693,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 		throw("sweep increased allocation count")
 	}
 
+	logosGenAge(s, nalloc)
 	s.allocCount = nalloc
 	s.freeindex = 0 // reset allocation index to start of span.
 	s.freeIndexForScan = 0
@@ -789,7 +798,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 				return true
 			}
 			// Return span back to the right mcentral list.
-			if nalloc == s.nelems {
+			if nalloc == s.nelems || logosGenClosed(s) {
 				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
 			} else {
 				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)

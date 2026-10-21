@@ -447,6 +447,13 @@ func writebarrier(f *Func) {
 			pos := w.Pos
 			ptr := w.Args[0]
 			val := w.Args[1]
+			if buildcfg.Experiment.LogosGen && logosStoresSlot(val) {
+				slotPtr := ptr
+				if ptr == nilcheck {
+					slotPtr = nilcheckThen
+				}
+				addEntry(pos, logosSlotEntry(bThen, pos, slotPtr, memThen))
+			}
 			if !srcs.contains(val.ID) && needWBsrc(val) {
 				srcs.add(val.ID)
 				addEntry(pos, val)

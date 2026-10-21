@@ -216,6 +216,7 @@ func gcenable() {
 	<-c
 	<-c
 	memstats.enablegc = true // now that runtime is initialized, GC is okay
+	logosGenEnable()
 }
 
 // Garbage collector phase.
@@ -238,7 +239,8 @@ var gcphase uint32
 //go:linkname writeBarrier
 var writeBarrier struct {
 	enabled bool    // compiler emits a check of this before calling write barrier
-	pad     [3]byte // compiler uses 32-bit load for "enabled" field
+	cards   bool    // pointer stores record their slots for the card table (logosgen)
+	pad     [2]byte // compiler uses 32-bit load for "enabled" field
 	alignme uint64  // guarantee alignment so that compiler can use a 32 or 64-bit load
 }
 
@@ -713,7 +715,7 @@ func (t gcTrigger) test() bool {
 	switch t.kind {
 	case gcTriggerHeap:
 		trigger, _ := gcController.trigger()
-		return gcController.heapLive.Load() >= trigger
+		return gcController.heapLive.Load() >= logosGenHeapTrigger(trigger)
 	case gcTriggerTime:
 		if gcController.gcPercent.Load() < 0 {
 			return false
@@ -854,6 +856,7 @@ func gcStart(trigger gcTrigger) {
 	systemstack(func() {
 		finishsweep_m()
 	})
+	logosGenBeginCycle(trigger)
 
 	// clearpools before we start the GC. If we wait the memory will not be
 	// reclaimed until the next GC cycle.
@@ -898,6 +901,7 @@ func gcStart(trigger gcTrigger) {
 	// allocations are blocked until assists can
 	// happen, we want to enable assists as early as
 	// possible.
+	logosGenSettle()
 	setGCPhase(_GCmark)
 
 	gcBgMarkPrepare() // Must happen before assists are enabled.
@@ -909,6 +913,7 @@ func gcStart(trigger gcTrigger) {
 	// the tiny block on every allocation from it, which
 	// would slow down the tiny allocator.
 	gcMarkTinyAllocs()
+	logosGenMarkCards()
 
 	// At this point all Ps have enabled the write
 	// barrier, thus maintaining the no white to
@@ -1401,6 +1406,7 @@ func gcMarkTermination(stw worldStop) {
 		if debug.checkfinalizers > 0 {
 			checkFinalizersAndCleanups()
 		}
+		logosGenEndCycle()
 
 		// marking is complete so we can turn the write barrier off
 		setGCPhase(_GCoff)
@@ -2008,6 +2014,7 @@ func gcMark(startTime int64) {
 		// ensured all reachable objects were marked, all of
 		// these must be pointers to black objects. Hence we
 		// can just discard the write barrier buffer.
+		logosGenDrainCards(p)
 		if debug.gccheckmark > 0 {
 			// For debugging, flush the buffer and make
 			// sure it really was all marked.
@@ -2055,6 +2062,7 @@ func gcMark(startTime int64) {
 	}
 
 	// Reset controller state.
+	work.bytesMarked += logosGenMatureBytes()
 	gcController.resetLive(work.bytesMarked)
 }
 

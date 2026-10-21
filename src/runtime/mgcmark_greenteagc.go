@@ -271,6 +271,9 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	if ha == nil {
 		return false
 	}
+	if logosGenSkipPointer(ha, p) {
+		return true
+	}
 	pageIdx := ((p / pageSize) / 8) % uintptr(len(ha.pageInUse))
 	pageMask := byte(1 << ((p / pageSize) % 8))
 	if ha.pageUseSpanInlineMarkBits[pageIdx]&pageMask == 0 {

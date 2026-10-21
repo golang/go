@@ -202,6 +202,10 @@ func wbBufFlush1(pp *p) {
 	// while we're processing the buffer.
 	pp.wbBuf.next = 0
 
+	if logosGenFlush(pp, ptrs) {
+		return
+	}
+
 	if useCheckmark {
 		// Slow path for checkmark mode.
 		for _, ptr := range ptrs {
@@ -241,7 +245,7 @@ func wbBufFlush1(pp *p) {
 			continue
 		}
 		obj, span, objIndex := findObject(ptr, 0, 0)
-		if obj == 0 {
+		if obj == 0 || logosGenSkip(span) {
 			continue
 		}
 		// TODO: Consider making two passes where the first

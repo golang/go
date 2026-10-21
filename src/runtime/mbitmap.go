@@ -389,11 +389,14 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
 		throw("bulkBarrierPreWrite: unaligned arguments")
 	}
-	if !writeBarrier.enabled {
+	if !wbActive() {
 		return
 	}
 	s := spanOf(dst)
 	if s == nil {
+		if logosGenGlobalDst() {
+			return
+		}
 		// If dst is a global, use the data or BSS bitmaps to
 		// execute write barriers.
 		for _, datap := range activeModules() {
@@ -416,6 +419,9 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
 		// another stack. Either way, no need for barriers.
 		// This will also catch if dst is in a freed span,
 		// though that should never have.
+		return
+	}
+	if logosGenBulk(s, dst, src, size) {
 		return
 	}
 	buf := &getg().m.p.ptr().wbBuf
@@ -1469,7 +1475,10 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
 		throw("runtime: invalid typeBitsBulkBarrier")
 	}
-	if !writeBarrier.enabled {
+	if !wbActive() {
+		return
+	}
+	if logosGenTypeBits(typ, dst) {
 		return
 	}
 	ptrmask := getGCMask(typ)

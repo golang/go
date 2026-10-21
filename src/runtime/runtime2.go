@@ -696,6 +696,10 @@ type m struct {
 	mWaitList       mWaitList   // list of runtime lock waiters
 	ditEnabled      bool        // set if DIT is currently enabled on this M
 
+	// logosWbScratch is the write barrier buffer of a store made without a P
+	// (GOEXPERIMENT=logosgen).
+	logosWbScratch logosGenScratch
+
 	mLockProfile mLockProfile // fields relating to runtime.lock contention
 	profStack    []uintptr    // used for memory/block/mutex stack traces
 

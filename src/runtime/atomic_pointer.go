@@ -43,6 +43,7 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
 	if writeBarrier.enabled {
 		atomicwb((*unsafe.Pointer)(ptr), new)
 	}
+	logosGenSlot(uintptr(ptr), uintptr(new))
 	if goexperiment.CgoCheck2 {
 		cgoCheckPtrWrite((*unsafe.Pointer)(ptr), new)
 	}
@@ -67,6 +68,7 @@ func atomic_casPointer(ptr *unsafe.Pointer, old, new unsafe.Pointer) bool {
 	if writeBarrier.enabled {
 		atomicwb(ptr, new)
 	}
+	logosGenSlot(uintptr(unsafe.Pointer(ptr)), uintptr(new))
 	if goexperiment.CgoCheck2 {
 		cgoCheckPtrWrite(ptr, new)
 	}
@@ -86,6 +88,7 @@ func sync_atomic_StorePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
 	if writeBarrier.enabled {
 		atomicwb(ptr, new)
 	}
+	logosGenSlot(uintptr(unsafe.Pointer(ptr)), uintptr(new))
 	if goexperiment.CgoCheck2 {
 		cgoCheckPtrWrite(ptr, new)
 	}
@@ -101,6 +104,7 @@ func sync_atomic_SwapPointer(ptr *unsafe.Pointer, new unsafe.Pointer) unsafe.Poi
 	if writeBarrier.enabled {
 		atomicwb(ptr, new)
 	}
+	logosGenSlot(uintptr(unsafe.Pointer(ptr)), uintptr(new))
 	if goexperiment.CgoCheck2 {
 		cgoCheckPtrWrite(ptr, new)
 	}
@@ -117,6 +121,7 @@ func sync_atomic_CompareAndSwapPointer(ptr *unsafe.Pointer, old, new unsafe.Poin
 	if writeBarrier.enabled {
 		atomicwb(ptr, new)
 	}
+	logosGenSlot(uintptr(unsafe.Pointer(ptr)), uintptr(new))
 	if goexperiment.CgoCheck2 {
 		cgoCheckPtrWrite(ptr, new)
 	}
