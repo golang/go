@@ -12,7 +12,7 @@ batch 1 ledger:
   #104 rejected: quantity 2000 above limit 1000 (code 422)
   #105 filled TX-105 at 409020
 batch 1 trades: 3
-level=INFO msg="batch committed" orders=1 receipts=1
+level=INFO msg="batch committed" orders=2 receipts=1
 batch 2 receipts:
   Order #103 by cyd (NO-PROMO)
 batch 2 ledger:
@@ -21,6 +21,7 @@ batch 2 ledger:
   #103 filled TX-103 at 5263125
   #104 rejected: quantity 2000 above limit 1000 (code 422)
   #105 filled TX-105 at 409020
+  #106 filled TX-106 at 12012
 batch 3 error: invalid quantity 0 for order 202
 batch 4 error: no quote for symbol NOPE
 final ledger:
@@ -29,4 +30,5 @@ final ledger:
   #103 filled TX-103 at 5263125
   #104 rejected: quantity 2000 above limit 1000 (code 422)
   #105 filled TX-105 at 409020
+  #106 filled TX-106 at 12012
 commits: 2 rollbacks: 1 closes: 3

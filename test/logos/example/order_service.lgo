@@ -3,8 +3,10 @@
 // Command order_service is the loGo/s end-to-end example (SPEC Sec 11):
 // an order service over a fake database. main runs four batches through
 // ProcessBatch and prints receipts, the ledger, and the database counters.
-// order_service.out holds the expected output, and the ejected module must
-// print the same under plain go.
+// order_service.out holds the expected output. It was worked out by hand
+// from the price list and the fee tiers below (see run), not captured
+// from a run. The ejected module must print the same under plain go
+// (logos_eject_example.txt).
 package main
 
 import (
@@ -63,22 +65,21 @@ const quoteCents = map[string]int64{
 }
 
 // CreateOrderReq asserts at its declaration that *CreateOrderReq
-// implements Auditable. PromoTag is an option. Field defaults are left
-// out because a `: I` list drops them (M22-S6 D6).
+// implements Auditable. A literal that leaves out Qty or Tier gets the
+// default; PromoTag is an option.
 type CreateOrderReq struct : Auditable {
 	ID       int64
 	Author   string
 	Symbol   string
-	Qty      int64
-	Tier     string
+	Qty      int64  = 1
+	Tier     string = "STANDARD"
 	PromoTag string?
 }
 
-// Validate rejects a request with a non-positive quantity. The int64
-// conversions strip the const qualifier that `$"..."` rejects (M22-S6 D1).
+// Validate rejects a request with a non-positive quantity.
 func (r const *CreateOrderReq) Validate() error {
 	if r.Qty <= 0 {
-		return errors.New($"invalid quantity {int64(r.Qty)} for order {int64(r.ID)}")
+		return errors.New($"invalid quantity {r.Qty} for order {r.ID}")
 	}
 	return nil
 }
@@ -194,9 +195,8 @@ func (s *OrderService) SetLimits(holdQty, maxQty int64) {
 // transaction with at most 8 requests in flight, and returns one receipt
 // per request of at least 10 units. A receipt acknowledges the request,
 // filled or not. On failure the transaction rolls back and the ledger
-// forgets the batch. The batch is a plain slice because the compiler
-// rejects chains on a const slice (M22-S6 D3).
-func (s *OrderService) ProcessBatch(ctx context.Context, batch []CreateOrderReq) ([]string, error) {
+// forgets the batch. The batch is a const view: the method only reads it.
+func (s *OrderService) ProcessBatch(ctx context.Context, batch const []CreateOrderReq) ([]string, error) {
 	for i := range batch {
 		batch[i].Validate()?
 	}
@@ -221,24 +221,19 @@ func (s *OrderService) ProcessBatch(ctx context.Context, batch []CreateOrderReq)
 
 	receipts := batch
 		.filter(r => r.Qty >= 10)
-		.map(r => receipt(r))
+		.map(r => $"Order #{r.ID} by {r.Author} ({r.PromoTag ?? "NO-PROMO"})")
 
 	s.logger.Info("batch committed", "orders", len(batch), "receipts", len(receipts))
 	return receipts, nil
 }
 
-// receipt formats the receipt line of one request. It is a function
-// because a chain lambda cannot hold `$"..."` or `??` (M22-S6 D4).
-func receipt(r CreateOrderReq) string {
-	return $"Order #{r.ID} by {r.Author} ({r.PromoTag ?? "NO-PROMO"})"
-}
-
-// execute prices one request against the current limits. The int64
-// conversion strips a const qualifier (M22-S6 D1).
-func (s *OrderService) execute(tx *Tx, req CreateOrderReq) (OrderResult, error) {
+// execute prices one order against the current limits, reading the price
+// inputs (ID, Symbol, Tier, Qty) from the request. A tier without a fee
+// entry pays 25 basis points.
+func (s *OrderService) execute(tx *Tx, req const CreateOrderReq) (OrderResult, error) {
 	cfg := s.config.Load()
 	if req.Qty > cfg.MaxQty {
-		return Rejected{Reason: $"quantity {req.Qty} above limit {int64(cfg.MaxQty)}", Code: 422}, nil
+		return Rejected{Reason: $"quantity {req.Qty} above limit {cfg.MaxQty}", Code: 422}, nil
 	}
 	if req.Qty > cfg.HoldQty {
 		return Pending{}, nil
@@ -257,41 +252,38 @@ func (s *OrderService) forget(batch const []CreateOrderReq) {
 	})
 }
 
-// Report lists the ledger in order of order id. describe runs outside the
-// lambda because eject fails on `$"..."` inside one (M22-S6 D7).
+// Report lists the ledger in order of order id.
 func (s *OrderService) Report() []string {
 	var lines []string
 	s.ledger.WithLock(m => {
 		for _, id := range slices.Sorted(maps.Keys(*m)) {
 			res, _ := (*m)[id]
-			lines = append(lines, describe(id, res))
+			lines = append(lines, $"#{id} {describe(res)}")
 		}
 	})
 	return lines
 }
 
 // describe renders one ledger entry.
-func describe(id int64, r OrderResult) string {
+func describe(r OrderResult) string {
 	var line string
 	switch v := r.(type) {
 	case Filled:
-		line = $"#{id} filled {v.TxID} at {v.Price}"
+		line = $"filled {v.TxID} at {v.Price}"
 	case Rejected:
-		line = $"#{id} rejected: {v.Reason} (code {v.Code})"
+		line = $"rejected: {v.Reason} (code {v.Code})"
 	case Pending:
-		line = $"#{id} pending review"
+		line = "pending review"
 	case nil:
-		line = $"#{id} unknown"
+		line = "unknown"
 	}
 	return line
 }
 
 // Audit names who submitted an order, reading the Auditable properties
-// through the interface. The reads bind to locals first because a property
-// read inside `$"..."` braces fails (M22-S6 D8).
+// through the interface.
 func Audit(a Auditable) string {
-	id, author := a.ID, a.Author
-	return $"order {id} submitted by {author}"
+	return $"order {a.ID} submitted by {a.Author}"
 }
 
 func newLogger() *slog.Logger {
@@ -312,43 +304,63 @@ func show(title string, lines []string) {
 	}
 }
 
+// run drives four batches. The expected output was worked out by hand
+// from the price list (ACME 12000, GLOBEX 34000, INITECH 7500) and the fee
+// tiers (VIP 2, STANDARD 10, GUEST 25 basis points; an unknown tier pays
+// 25). A price is quote * qty plus quote * qty * bps / 10000. The risk
+// limits start at hold 500 and max 1000.
 func run() error {
 	ctx := context.Background()
 	svc := NewOrderService(NewDatabase(), newLogger())
 
+	// Batch 1. Request 101 leaves Tier out and gets STANDARD.
+	//   101: 12000 * 40 = 480000, plus 480 = 480480
+	//   102: 34000 * 5 = 170000, VIP, plus 34 = 170034
+	//   103: 700 is above the hold limit 500, so it stays pending
+	//   104: 2000 is above the max limit 1000, so it is rejected with 422
+	//   105: 34000 * 12 = 408000, PLATINUM pays 25, plus 1020 = 409020
+	// Three trades run (101, 102, 105). Receipts go to the requests of at
+	// least 10 units: 101, 103, 104, and 105.
 	first := []CreateOrderReq{
-		{ID: 101, Author: "ada", Symbol: "ACME", Qty: 40, Tier: "STANDARD"},
+		{ID: 101, Author: "ada", Symbol: "ACME", Qty: 40, PromoTag: "SPRING"},
 		{ID: 102, Author: "bob", Symbol: "GLOBEX", Qty: 5, Tier: "VIP"},
 		{ID: 103, Author: "cyd", Symbol: "INITECH", Qty: 700, Tier: "PLATINUM"},
 		{ID: 104, Author: "dee", Symbol: "ACME", Qty: 2000, Tier: "GUEST"},
 		{ID: 105, Author: "eve", Symbol: "GLOBEX", Qty: 12, Tier: "PLATINUM"},
 	}
-	// A struct literal rejects a plain string or nil for its option field
-	// (M22-S6 D5).
-	first[0].PromoTag = "SPRING"
 	fmt.Println(Audit(&first[0]))
 	receipts := svc.ProcessBatch(ctx, first)?
 	show("batch 1 receipts:", receipts)
 	show("batch 1 ledger:", svc.Report())
 	fmt.Println("batch 1 trades:", svc.db.Stats().Trades)
 
+	// Batch 2 raises the hold limit to 800. Request 103 now fills, and
+	// request 106 leaves Qty and Tier out, so it trades 1 unit at STANDARD.
+	//   103: 7500 * 700 = 5250000, PLATINUM pays 25, plus 13125 = 5263125
+	//   106: 12000 * 1 = 12000, plus 12 = 12012
+	// Only 103 earns a receipt: 106 is below 10 units.
 	svc.SetLimits(800, 1000)
 	second := []CreateOrderReq{
 		{ID: 103, Author: "cyd", Symbol: "INITECH", Qty: 700, Tier: "PLATINUM"},
+		{ID: 106, Author: "joy", Symbol: "ACME"},
 	}
 	receipts = svc.ProcessBatch(ctx, second)?
 	show("batch 2 receipts:", receipts)
 	show("batch 2 ledger:", svc.Report())
 
+	// Batch 3 fails validation before a transaction opens: request 202 sets
+	// Qty to 0 itself, and a default only fills a field that is left out.
 	_, err := svc.ProcessBatch(ctx, []CreateOrderReq{
-		{ID: 201, Author: "fay", Symbol: "ACME", Qty: 10, Tier: "STANDARD"},
-		{ID: 202, Author: "gus", Symbol: "ACME", Qty: 0, Tier: "STANDARD"},
+		{ID: 201, Author: "fay", Symbol: "ACME", Qty: 10},
+		{ID: 202, Author: "gus", Symbol: "ACME", Qty: 0},
 	})
 	fmt.Println("batch 3 error:", err)
 
+	// Batch 4 opens a transaction and fails on the unknown symbol: the
+	// transaction rolls back and the ledger forgets both requests.
 	_, err = svc.ProcessBatch(ctx, []CreateOrderReq{
-		{ID: 301, Author: "hal", Symbol: "ACME", Qty: 10, Tier: "STANDARD"},
-		{ID: 302, Author: "ivy", Symbol: "NOPE", Qty: 10, Tier: "STANDARD"},
+		{ID: 301, Author: "hal", Symbol: "ACME", Qty: 10},
+		{ID: 302, Author: "ivy", Symbol: "NOPE", Qty: 10},
 	})
 	fmt.Println("batch 4 error:", err)
 	show("final ledger:", svc.Report())

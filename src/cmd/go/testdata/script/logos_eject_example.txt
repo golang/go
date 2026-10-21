@@ -1,8 +1,11 @@
 # M22-S6: the Sec 11 end-to-end example ejects to pure Go and prints the same
 # output. test/logos/example/order_service.lgo is the single source: a fake
-# database, a closed union, a property interface, a const map, options, errdefer,
-# go group, Locked and Hot, and a leading-dot chain. order_service.out is the
-# expected output of the native build and of the ejected tree.
+# database, a closed union, a property interface, a const map, struct defaults
+# with an assertion list, options, errdefer, go group, Locked and Hot, a const
+# batch view, a leading-dot chain whose lambdas hold interpolation and ??, and
+# interpolation inside block lambdas. order_service.out is the expected output
+# of the native build and of the ejected tree; it was worked out by hand from
+# the example's price list, not captured from a run.
 
 env GOPROXY=off
 env GOTOOLCHAIN=local
@@ -10,14 +13,15 @@ env GOTOOLCHAIN=local
 cp $GOROOT/test/logos/example/order_service.lgo m/order_service.lgo
 cd m
 
+# Snapshot the inputs before anything runs; neither the native build nor the
+# eject may write into the source tree.
+cp order_service.lgo $WORK/order_service.lgo.orig
+cp go.mod $WORK/go.mod.orig
+
 # The native build prints the expected output file.
 logos run .
 cmp stdout $GOROOT/test/logos/example/order_service.out
 cp stdout $WORK/native-stdout.txt
-
-# Snapshot the source tree; eject must never write into it.
-cp order_service.lgo $WORK/order_service.lgo.orig
-cp go.mod $WORK/go.mod.orig
 
 # Eject the module: plain .go name, no loGo/s source, one support module.
 logos eject -o out
@@ -40,9 +44,14 @@ exec $GOROOT/bin/gofmt -l .
 ! stdout .
 cd ..
 
-# The source tree is unchanged after the eject.
+# The source tree is unchanged after the native build and the eject: the
+# inputs are byte-identical to the snapshot and to the shipped example, and
+# the eject left no lowered file beside them.
 cmp order_service.lgo $WORK/order_service.lgo.orig
 cmp go.mod $WORK/go.mod.orig
+cmp order_service.lgo $GOROOT/test/logos/example/order_service.lgo
+! exists order_service.go
+! exists _logos_deps
 
 -- m/go.mod --
 module example.com/order
