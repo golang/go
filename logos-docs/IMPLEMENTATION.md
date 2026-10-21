@@ -1790,7 +1790,7 @@ Anchor: Tony Hoare, Edsger W. Dijkstra
 | `correctness::defer_erases_errdefer_state` | forbid | a plain deferred function literal assigns `nil` to the error result in a function with `errdefer` (#77) |
 | `correctness::infinite_recursion` | forbid | every path from function entry reaches a call to the same function with arguments syntactically identical to the parameters before any return (#157) |
 | `concurrency::concurrent_multiword_race` | forbid | a variable of multi-word type (string, slice, interface, union, complex, multi-word struct or array) captured by a `go` statement or group child and written by either side after the spawn, unless it is a const view or a `logos/sync` type (#13, #148) |
-| `concurrency::reentrant_withlock_deadlock` | forbid | inside a `WithLock` lambda, a call to `WithLock` on the same receiver expression, directly or through a same-package function one call deep (#167) |
+| `concurrency::reentrant_withlock_deadlock` | forbid | inside a `WithLock` lambda, a call to `WithLock` on the same receiver, directly or through the same-package call and callback graph, including bound method receivers (#167) |
 | `concurrency::unsupervised_goroutine` | forbid | `go f()` in `.lgo` outside a `go group` block |
 | `slop::err_chain_reset` | deny | `fmt.Errorf` formats an `error` operand with a verb other than `%w`, or passes `err.Error()` |
 | `slop::discarded_error` | deny | an expression statement or `_ =` drops an `error` result, except callees with fact `AlwaysNilError` and `fmt.Print*`, `fmt.Fprint*` to `os.Stdout`/`os.Stderr`, `bytes.Buffer.Write*`, `strings.Builder.Write*` (#164) |

@@ -6,8 +6,8 @@ import "logos/sync"
 
 // Go twin of reentrant_withlock_deadlock.lgo: concurrency::reentrant_withlock_deadlock
 // (SPEC Sec 1.2, #167) on a Go package, where it runs at deny and the
-// callback is a function literal. Depth 0 and depth 1 fail; depth 2 and a
-// different receiver pass.
+// callback is a function literal. Direct and transitive closure calls at
+// any depth fail; a different receiver passes.
 
 var global sync.Locked[int]
 
@@ -75,7 +75,7 @@ func (c *Counter) outerDeadlocks() {
 
 func (c *Counter) outerTwoDeep() {
 	c.mu.WithLock(func(n *int) {
-		c.incTwoDeep()
+		c.incTwoDeep() // ERROR "reentrant_withlock_deadlock"
 	})
 }
 
@@ -195,13 +195,13 @@ func depthOneMethodOnField() {
 func depthTwoParameter() {
 	var l sync.Locked[int]
 	l.WithLock(func(n *int) {
-		lockParamTwoDeep(&l)
+		lockParamTwoDeep(&l) // ERROR "reentrant_withlock_deadlock"
 	})
 }
 
 func depthTwoGlobal() {
 	global.WithLock(func(n *int) {
-		lockGlobalTwice()
+		lockGlobalTwice() // ERROR "reentrant_withlock_deadlock"
 	})
 }
 
@@ -299,4 +299,206 @@ func passUnmatchedReceiver() {
 
 func setOne(n *int) {
 	*n = 1
+}
+
+func chainOne(l *sync.Locked[int]) {
+	l.WithLock(func(n *int) { *n++ })
+}
+
+func chainTwo(l *sync.Locked[int]) {
+	chainOne(l)
+}
+
+func chainThree(l *sync.Locked[int]) {
+	chainTwo(l)
+}
+
+func depthThreeParameter() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		chainThree(&l) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func cyclePing(l *sync.Locked[int]) {
+	cyclePong(l)
+}
+
+func cyclePong(l *sync.Locked[int]) {
+	l.WithLock(func(n *int) { *n++ })
+	cyclePing(l)
+}
+
+func cyclePositive() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		cyclePing(&l) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func lockOtherTwice() {
+	lockOther()
+	lockOther()
+}
+
+func passTwoHopDifferent() {
+	global.WithLock(func(n *int) {
+		lockOtherTwice()
+	})
+}
+
+var byName sync.Locked[int]
+
+func relock(n *int) {
+	byName.WithLock(func(k *int) { // ERROR "reentrant_withlock_deadlock"
+		*k++
+	})
+}
+
+func namedCallbackPositive() {
+	byName.WithLock(relock)
+}
+
+func (c *Counter) set(n *int) {
+	c.mu.WithLock(func(m *int) { // ERROR "reentrant_withlock_deadlock"
+		*m++
+	})
+}
+
+func methodValueCallbackPositive() {
+	var c Counter
+	c.mu.WithLock(c.set)
+}
+
+func directImmediateLiteral() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		func() {
+			l.WithLock(func(m *int) { // ERROR "reentrant_withlock_deadlock"
+				*m++
+			})
+		}()
+	})
+}
+
+func directDeferredLiteral() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		defer func() {
+			l.WithLock(func(m *int) { // ERROR "reentrant_withlock_deadlock"
+				*m++
+			})
+		}()
+	})
+}
+
+func sink(v int) {
+}
+
+func sinkFunc(f func()) {
+}
+
+func lockAndReturn() int {
+	global.WithLock(func(n *int) { *n++ })
+	return 0
+}
+
+func passGoSpawnedCall() {
+	global.WithLock(func(n *int) {
+		go lockGlobal()
+	})
+}
+
+func passGoSpawnedDirectLock() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		go l.WithLock(func(m *int) { *m++ })
+	})
+}
+
+func passGoSpawnedLiteral() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		go func() {
+			l.WithLock(func(m *int) { *m++ })
+		}()
+	})
+}
+
+func passGoSpawnedFunctionLiteralArgument() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		go sinkFunc(func() {
+			l.WithLock(func(m *int) { *m++ })
+		})
+	})
+}
+
+func goArgumentEvaluationPositive() {
+	global.WithLock(func(n *int) {
+		go sink(lockAndReturn()) // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func passDeferredDifferentLock() {
+	var l sync.Locked[int]
+	l.WithLock(func(n *int) {
+		defer lockOther()
+	})
+}
+
+type Node struct {
+	mu   sync.Locked[int]
+	next *Node
+}
+
+func (n *Node) walk() {
+	if n.next != nil {
+		n.next.walk()
+		n.next.mu.WithLock(func(k *int) { *k++ })
+	}
+}
+
+func passRecursiveWalkTerminates() {
+	n := &Node{next: &Node{}}
+	n.mu.WithLock(func(k *int) {
+		n.walk()
+	})
+}
+
+func relockGlobal(n *int) {
+	global.WithLock(func(k *int) { *k++ })
+}
+
+func h() {
+	other.WithLock(relockGlobal)
+}
+
+func outer() {
+	global.WithLock(func(n *int) {
+		h() // ERROR "reentrant_withlock_deadlock"
+	})
+}
+
+func relockOuter(n *int) {
+	other.WithLock(relockGlobal) // ERROR "reentrant_withlock_deadlock"
+}
+
+func outer2() {
+	global.WithLock(relockOuter)
+}
+
+func (c *Counter) relockMu(n *int) {
+	c.mu.WithLock(func(m *int) { *m++ })
+}
+
+func (c *Counter) grabOther(o *Counter) {
+	o.mu.WithLock(c.relockMu)
+}
+
+func methodCallbackTransitive() {
+	var c, o Counter
+	c.mu.WithLock(func(n *int) {
+		c.grabOther(&o) // ERROR "reentrant_withlock_deadlock"
+	})
 }

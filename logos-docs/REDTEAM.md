@@ -170,7 +170,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #164 | M9 | test/logos/lint/discarded_error.lgo; test/logos/lint/discarded_error_go.go | tested |
 | #165 | M20 | src/cmd/cgo/internal/testlogos/fastcall_test.go | tested |
 | #166 | M19 |  | planned |
-| #167 | M8, M9 | test/logos/lint/reentrant_withlock_deadlock.lgo; test/logos/lint/reentrant_withlock_deadlock_go.go; src/logos/sync/sync_test.go (TestLockedWithLockMutates, TestLockedWithLockUnlocksAfterPanic) | planned |
+| #167 | M8, M9 | test/logos/lint/reentrant_withlock_deadlock.lgo; test/logos/lint/reentrant_withlock_deadlock_go.go; src/logos/sync/sync_test.go (TestLockedWithLockMutates, TestLockedWithLockUnlocksAfterPanic) | tested |
 | #168 | M19 |  | planned |
 | #169 | M15 | test/logos/run/make_overflow.lgo (length and capacity); test/logos/run/make_overflow_go.go; test/logos/run/make_const.lgo; src/logos/rt/mullen_test.go | tested |
 | #170 | M9 | test/logos/lint/time_after_in_loop.lgo; test/logos/lint/time_after_in_loop_go.go | tested |
