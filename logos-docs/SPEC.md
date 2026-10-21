@@ -1132,7 +1132,11 @@ The original M owns the diagnostic slots and monotonic start time, even when sys
 Normal return and rejected callbacks clear this record before leaving syscall state.
 The slots contain address copies, not GC roots or pins.
 The ordinary cgo pointer-lifetime rules still apply.
-This repair does not establish the speed or blocking gates above.
+With `GOEXPERIMENT=logosfastcgo`, eligible result wrappers omit stack-top lookups and result-frame relocation.
+The trusted `nocallback` contract and the runtime's syscall stack rules keep that frame stable.
+Disabled, unmarked, and single-directive calls retain ordinary relocation.
+Result stores, sanitizer operations, and callback guards are unchanged.
+These implementation changes do not establish the speed or blocking gates above.
 
 #### 3.4.1 Shared-library export usage (informative)
 

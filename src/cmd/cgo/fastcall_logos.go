@@ -5,6 +5,7 @@
 package main
 
 import (
+	"internal/buildcfg"
 	"strings"
 )
 
@@ -26,6 +27,15 @@ func logosFastCall(p *Package, n *Name) bool {
 		return false
 	}
 	return p.noEscapes[n.C] && p.noCallbacks[n.C]
+}
+
+// logosStableFastCall reports whether n's result wrapper may keep its
+// argument frame at a fixed address. The experiment gates the existing
+// pair-marked fast call; syscallsp prevents stack shrinking while C runs,
+// and the trusted nocallback contract excludes callbacks that may grow the
+// stack.
+func logosStableFastCall(p *Package, n *Name) bool {
+	return buildcfg.Experiment.LogosFastCgo && logosFastCall(p, n)
 }
 
 // logosCgoCall names the runtime entry the wrapper calls for n: the

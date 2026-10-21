@@ -790,9 +790,12 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	if (n.Kind != "macro" && len(n.FuncType.Params) > 0) || tr != nil {
 		fmt.Fprintf(fgcc, "\t%s %v *_cgo_a = v;\n", ctype, p.packedAttribute())
 	}
+	stableReturnFrame := tr != nil && logosStableFastCall(p, n)
 	if tr != nil {
-		// Save the stack top for use below.
-		fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
+		if !stableReturnFrame {
+			// Save the stack top for use below.
+			fmt.Fprintf(fgcc, "\tchar *_cgo_stktop = _cgo_topofstack();\n")
+		}
 		fmt.Fprintf(fgcc, "\t__typeof__(_cgo_a->r) _cgo_r;\n")
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_acquire();\n")
@@ -823,9 +826,11 @@ func (p *Package) writeOutputFunc(fgcc *os.File, n *Name) {
 	}
 	fmt.Fprintf(fgcc, "\t_cgo_tsan_release();\n")
 	if tr != nil {
-		// The cgo call may have caused a stack copy (via a callback).
-		// Adjust the return value pointer appropriately.
-		fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
+		if !stableReturnFrame {
+			// The cgo call may have caused a stack copy (via a callback).
+			// Adjust the return value pointer appropriately.
+			fmt.Fprintf(fgcc, "\t_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));\n")
+		}
 		// Save the return value.
 		fmt.Fprintf(fgcc, "\t_cgo_a->r = _cgo_r;\n")
 		// The return value is on the Go stack. If we are using msan,
