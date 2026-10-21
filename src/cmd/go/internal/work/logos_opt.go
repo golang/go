@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"internal/cpu"
-
 	"cmd/go/internal/base"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/logos/config"
@@ -140,22 +138,15 @@ func logosFlagsFor(level, synth string) (gc, ld []string) {
 
 // logosApplyTargetCPU sets GOAMD64 and GOARM64 from target_cpu. An
 // environment or GOENV setting wins over the file. Plain go keeps the
-// upstream defaults.
+// upstream defaults. The levels come from config.ArchLevels, the single
+// owner of the target_cpu selection.
 func logosApplyTargetCPU(file *config.File) {
 	if file == nil {
 		return
 	}
-	switch file.Build.TargetCPU {
-	case "baseline":
-		logosSetArchLevel("GOAMD64", "v1")
-		logosSetArchLevel("GOARM64", "v8.0")
-	case "native":
-		logosSetArchLevel("GOAMD64", logosNativeAMD64())
-		logosSetArchLevel("GOARM64", logosNativeARM64())
-	default:
-		logosSetArchLevel("GOAMD64", "v3")
-		logosSetArchLevel("GOARM64", "v8.2")
-	}
+	amd64, arm64 := config.ArchLevels(file.Build.TargetCPU)
+	logosSetArchLevel("GOAMD64", amd64)
+	logosSetArchLevel("GOARM64", arm64)
 }
 
 // logosSetArchLevel sets one arch level when the startup environment
@@ -176,23 +167,4 @@ func logosSetArchLevel(key, val string) {
 	}
 	os.Setenv(key, val)
 	cfgChangedEnv = append(cfgChangedEnv, key+"="+val)
-}
-
-// logosNativeAMD64 picks the host level from CPU feature bits.
-func logosNativeAMD64() string {
-	if cpu.X86.HasAVX512F && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512CD && cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512VL {
-		return "v4"
-	}
-	if cpu.X86.HasAVX2 && cpu.X86.HasBMI2 && cpu.X86.HasFMA {
-		return "v3"
-	}
-	return "v1"
-}
-
-// logosNativeARM64 picks the host level from CPU feature bits.
-func logosNativeARM64() string {
-	if cpu.ARM64.HasATOMICS {
-		return "v8.1"
-	}
-	return "v8.0"
 }

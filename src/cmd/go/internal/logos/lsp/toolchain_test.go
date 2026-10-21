@@ -256,6 +256,52 @@ func TestImportConfigAndHintSources(t *testing.T) {
 	}
 }
 
+// TestHintsArchLevelsFollowsModuleTargetCPU checks that the hints compile
+// environment follows the module's target_cpu and that an explicit user
+// setting wins over the file: a baseline module selects the baseline
+// levels, a module without logos.toml selects the deterministic levels,
+// the file's levels reach the compile environment, and GOAMD64/GOARM64
+// in the environment override the file.
+func TestHintsArchLevelsFollowsModuleTargetCPU(t *testing.T) {
+	root := t.TempDir()
+	writeFile := func(dir, name, content string) {
+		t.Helper()
+		if err := os.MkdirAll(dir, 0o777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	baseline := filepath.Join(root, "baseline")
+	writeFile(baseline, "go.mod", "module example.com/base\n\ngo 1.27\n")
+	writeFile(baseline, "logos.toml", "[build]\ntarget_cpu = \"baseline\"\n")
+	if amd64, arm64 := hintsArchLevels(baseline); amd64 != "v1" || arm64 != "v8.0" {
+		t.Errorf("baseline levels = (%q, %q), want (v1, v8.0)", amd64, arm64)
+	}
+	plain := filepath.Join(root, "plain")
+	writeFile(plain, "go.mod", "module example.com/plain\n\ngo 1.27\n")
+	if amd64, arm64 := hintsArchLevels(plain); amd64 != "v3" || arm64 != "v8.2" {
+		t.Errorf("default levels = (%q, %q), want (v3, v8.2)", amd64, arm64)
+	}
+	// Without explicit settings the file's levels reach the compile
+	// environment: empty process values count as unset here, as in
+	// hintsEnv, so the file path is exercised deterministically.
+	t.Setenv("GOAMD64", "")
+	t.Setenv("GOARM64", "")
+	if env := hintsEnv(baseline); !slices.Contains(env, "GOAMD64=v1") || !slices.Contains(env, "GOARM64=v8.0") {
+		t.Errorf("file levels missing from hints env: %q", env)
+	}
+	// An explicit user setting wins over the file: the file's levels
+	// must not reach the compile environment.
+	t.Setenv("GOAMD64", "v4")
+	t.Setenv("GOARM64", "v8.1")
+	if env := hintsEnv(baseline); !slices.Contains(env, "GOAMD64=v4") || !slices.Contains(env, "GOARM64=v8.1") ||
+		slices.Contains(env, "GOAMD64=v1") || slices.Contains(env, "GOARM64=v8.0") {
+		t.Errorf("explicit environment lost in hints env: %q", env)
+	}
+}
+
 // TestExecutableDirFlag checks when the executable directory is asked for:
 // only for a build of exactly one main package, the one build that writes
 // an executable into the current directory.

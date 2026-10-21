@@ -13,7 +13,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"internal/cpu"
 	"maps"
 	"os"
 	"os/exec"
@@ -442,21 +441,15 @@ func hintsEnv(dir string) []string {
 }
 
 // hintsArchLevels returns the GOAMD64 and GOARM64 levels for the module
-// holding dir, following the target_cpu precedence of
-// work.logosApplyTargetCPU: baseline, native, else deterministic.
+// holding dir. The selection is config.ArchLevels, the same owner the
+// build path calls; a load failure falls back to its deterministic
+// default, matching the build's treatment of a broken file.
 func hintsArchLevels(dir string) (amd64, arm64 string) {
 	file, err := config.Load(moduleRoot(dir))
 	if err != nil || file == nil {
-		return "v3", "v8.2"
+		return config.ArchLevels("")
 	}
-	switch file.Build.TargetCPU {
-	case "baseline":
-		return "v1", "v8.0"
-	case "native":
-		return hintsNativeAMD64(), hintsNativeARM64()
-	default:
-		return "v3", "v8.2"
-	}
+	return config.ArchLevels(file.Build.TargetCPU)
 }
 
 // moduleRoot returns the directory holding the go.mod enclosing dir, or
@@ -474,25 +467,6 @@ func moduleRoot(dir string) string {
 		}
 		d = parent
 	}
-}
-
-// hintsNativeAMD64 reports the host level, as in work.logosNativeAMD64.
-func hintsNativeAMD64() string {
-	if cpu.X86.HasAVX512F && cpu.X86.HasAVX512BW && cpu.X86.HasAVX512CD && cpu.X86.HasAVX512DQ && cpu.X86.HasAVX512VL {
-		return "v4"
-	}
-	if cpu.X86.HasAVX2 && cpu.X86.HasBMI2 && cpu.X86.HasFMA {
-		return "v3"
-	}
-	return "v1"
-}
-
-// hintsNativeARM64 reports the host level, as in work.logosNativeARM64.
-func hintsNativeARM64() string {
-	if cpu.ARM64.HasATOMICS {
-		return "v8.1"
-	}
-	return "v8.0"
 }
 
 // importConfig returns the importcfg text that maps every dependency of
