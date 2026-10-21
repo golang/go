@@ -302,6 +302,7 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 	}
 	addLogosRTXTestImport(ld, ctx, opts, pre, pxtest)
 	logosLintXTest(p, pxtest)
+	logosTestXTest(p, pxtest)
 
 	// Arrange for testing.Testing to report true.
 	ldflags := append(p.Internal.Ldflags, "-X", "testing.testBinary=1")

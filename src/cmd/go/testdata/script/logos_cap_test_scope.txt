@@ -1,0 +1,471 @@
+# M12 scope: under `logos test` the capabilities audit never blames the
+# generated test main, the standard library, or the main module; it still
+# blames a third-party dependency a test reaches.
+#
+# RED expectation: the linker derived a symbol's package by cutting its name
+# at the last '.', so any symbol with dots after the package got a bogus
+# package: main..stmp_N (the tests table of _testmain.go, on every chain to
+# a test function) became "main.", closures and funcvals became
+# "flag.init" or "os_test.TestSpliceFile", a value-receiver method became
+# "example.com/edep.T". Case A failed with
+#   ERROR [capabilities::unauthorized_cgo]: Transitive dependency 'main.' reaches ...
+# and cases B, C, E, and G failed the same way; case F failed on the
+# escaped %2e of the dotted import path.
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Case A: standard-library test binaries link clean. os/exec reaches
+# os.startProcess, net reaches net.sysSocket and (with cgo) runtime.cgocall,
+# reflect reaches reflect.ValueOf; the whole standard library is exempt.
+logos test -short -run=^$ os/exec net reflect
+stdout 'ok\s+os/exec'
+stdout 'ok\s+net\s'
+stdout 'ok\s+reflect'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+! stdout 'FAIL'
+
+# Case B: a Go main module's own test reaches exec, net, and cgo through
+# first-party code, including closures in the module's root package:
+# first-party and standard-library frames never blame.
+cd b/main
+logos test -short ./...
+stdout 'ok\s+example\.com/bmain\s'
+stdout 'ok\s+example\.com/bmain/runner'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+cd ../..
+
+# Case C: the same holds for a loGo/s main module.
+cd c/main
+logos test -short ./...
+stdout 'ok\s+example\.com/cmain/run'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+cd ../..
+
+# Case D: a test that reaches a sink through a third-party dependency still
+# fails, blamed on that dependency and never on the test main.
+cd d/main
+! logos test -short ./...
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/ddep'' reaches ''os\.startProcess'''
+stderr 'example\.com/ddep\.Init\(\)'
+! stderr 'Transitive dependency ''main'
+! stderr 'Transitive dependency ''example\.com/dmain'
+cd ../..
+
+# Case E: a dependency reaching exec through a value-receiver method and a
+# closure is blamed under its import path, so an allowlist glob for it
+# applies. The dependency is blamed as 'example.com/edep', never as
+# 'example.com/edep.Runner' or 'example.com/edep.Runner.Run'.
+cd e/deny
+! logos test -short ./...
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/edep'' reaches ''os\.startProcess'''
+cd ../..
+cd e/allow
+logos test -short ./...
+stdout 'ok\s+example\.com/eallow/app'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+cd ../..
+
+# Case F: a dependency whose import path has a dot in its last element
+# (the linker writes %2e) is blamed and allowlisted under the real path.
+cd f/deny
+! logos test -short ./...
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/f\.dep'' reaches ''os\.startProcess'''
+cd ../..
+cd f/allow
+logos test -short ./...
+stdout 'ok\s+example\.com/fallow/app'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+cd ../..
+
+# Case G: a main module whose path has a dot in its last element is
+# first-party: its own test reaches exec and is never blamed.
+cd g/main
+logos test -short ./...
+stdout 'ok\s+example\.com/g\.main/app'
+! stderr 'capabilities::'
+! stdout 'capabilities::'
+cd ../..
+
+# Case H: a third-party dependency's external test package keeps its
+# third-party blame: the foo_test package of a dependency that reaches exec
+# fails the audit, never exempted by the suffix the standard library's own
+# external tests carry.
+cd h/main
+! logos test -short example.com/hdep
+stderr 'ERROR \[capabilities::unauthorized_exec\]: Transitive dependency ''example\.com/hdep_test'' reaches ''os\.startProcess'''
+cd ../..
+
+-- b/main/go.mod --
+module example.com/bmain
+
+go 1.27
+
+-- b/main/bmain.go --
+package bmain
+
+import "os/exec"
+
+func Spawn() error {
+	run := func() error { return exec.Command("true").Run() }
+	return run()
+}
+
+-- b/main/bmain_test.go --
+package bmain
+
+import "testing"
+
+func TestSpawn(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	t.Run("spawn", func(t *testing.T) { _ = Spawn() })
+}
+
+-- b/main/runner/runner.go --
+package runner
+
+import (
+	"net"
+	"os/exec"
+)
+
+func Run() error { return exec.Command("true").Run() }
+
+func Dial() error {
+	c, err := net.Dial("tcp", "127.0.0.1:1")
+	if c != nil {
+		c.Close()
+	}
+	return err
+}
+
+-- b/main/runner/runner_test.go --
+package runner
+
+import "testing"
+
+func TestRun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	_ = Run()
+	_ = Dial()
+}
+
+-- c/main/go.mod --
+module example.com/cmain
+
+go 1.27
+
+-- c/main/run/run.lgo --
+package run
+
+import "os/exec"
+
+func Run() error {
+	err := exec.Command("true").Run()
+	return err
+}
+
+-- c/main/run/run_test.lgo --
+package run
+
+import "testing"
+
+func TestRun(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	if err := Run(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+-- d/main/go.mod --
+module example.com/dmain
+
+go 1.27
+
+require example.com/ddep v0.0.0
+
+replace example.com/ddep => ../dep
+
+-- d/main/app/app.go --
+package app
+
+import "example.com/ddep"
+
+func Go() { dep.Init() }
+
+-- d/main/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- d/dep/go.mod --
+module example.com/ddep
+
+go 1.27
+
+-- d/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	cmd := exec.Command("echo", "hi")
+	_ = cmd.Run()
+}
+
+-- e/dep/go.mod --
+module example.com/edep
+
+go 1.27
+
+-- e/dep/dep.go --
+package edep
+
+import "os/exec"
+
+type Runner struct{}
+
+//go:noinline
+func (Runner) Run() {
+	f := func() { _ = exec.Command("echo", "hi").Run() }
+	f()
+}
+
+-- e/deny/go.mod --
+module example.com/edeny
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/deny/app/app.go --
+package app
+
+import "example.com/edep"
+
+func Go() { edep.Runner{}.Run() }
+
+-- e/deny/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- e/allow/go.mod --
+module example.com/eallow
+
+go 1.27
+
+require example.com/edep v0.0.0
+
+replace example.com/edep => ../dep
+
+-- e/allow/logos.toml --
+[capabilities]
+transitive_exec_allowlist = ["example.com/edep/**"]
+
+-- e/allow/app/app.go --
+package app
+
+import "example.com/edep"
+
+func Go() { edep.Runner{}.Run() }
+
+-- e/allow/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- f/dep/go.mod --
+module example.com/f.dep
+
+go 1.27
+
+-- f/dep/dep.go --
+package fdep
+
+import "os/exec"
+
+//go:noinline
+func Init() {
+	_ = exec.Command("echo", "hi").Run()
+}
+
+-- f/deny/go.mod --
+module example.com/fdeny
+
+go 1.27
+
+require example.com/f.dep v0.0.0
+
+replace example.com/f.dep => ../dep
+
+-- f/deny/app/app.go --
+package app
+
+import fdep "example.com/f.dep"
+
+func Go() { fdep.Init() }
+
+-- f/deny/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- f/allow/go.mod --
+module example.com/fallow
+
+go 1.27
+
+require example.com/f.dep v0.0.0
+
+replace example.com/f.dep => ../dep
+
+-- f/allow/logos.toml --
+[capabilities]
+transitive_exec_allowlist = ["example.com/f.dep/**"]
+
+-- f/allow/app/app.go --
+package app
+
+import fdep "example.com/f.dep"
+
+func Go() { fdep.Init() }
+
+-- f/allow/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- g/main/go.mod --
+module example.com/g.main
+
+go 1.27
+
+-- g/main/app/app.go --
+package app
+
+import "os/exec"
+
+func Go() error {
+	run := func() error { return exec.Command("true").Run() }
+	return run()
+}
+
+-- g/main/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	_ = Go()
+}
+
+-- h/main/go.mod --
+module example.com/hmain
+
+go 1.27
+
+require example.com/hdep v0.0.0
+
+replace example.com/hdep => ../dep
+
+-- h/main/app/app.go --
+package app
+
+import "example.com/hdep"
+
+func Go() { dep.Watch() }
+
+-- h/main/app/app_test.go --
+package app
+
+import "testing"
+
+func TestGo(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	Go()
+}
+
+-- h/dep/go.mod --
+module example.com/hdep
+
+go 1.27
+
+-- h/dep/dep.go --
+package dep
+
+import "os/exec"
+
+//go:noinline
+func Watch() {
+	_ = exec.Command("echo", "hi").Run()
+}
+
+-- h/dep/dep_test.go --
+package dep_test
+
+import (
+	"os/exec"
+	"testing"
+)
+
+func TestWatch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("reachability only")
+	}
+	_ = exec.Command("echo", "hi").Run()
+}
