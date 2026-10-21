@@ -169,9 +169,16 @@ func (check *Checker) logosDisqualified(name string) bool {
 }
 
 // logosNarrowable reports whether v can carry narrowing: a same-package
-// option-typed variable that is not disqualified.
+// option-typed variable of local or parameter kind (local, receiver,
+// parameter, or result) that is not disqualified. Package-level
+// variables are excluded.
 func (check *Checker) logosNarrowable(v *Var) bool {
 	if v == nil || v.pkg != check.pkg || v.typ == nil {
+		return false
+	}
+	switch v.Kind() {
+	case LocalVar, RecvVar, ParamVar, ResultVar:
+	default:
 		return false
 	}
 	if logosAsOption(v.typ) == nil {

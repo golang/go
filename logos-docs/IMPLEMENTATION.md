@@ -1496,6 +1496,7 @@ Anchor: Tony Hoare, Edsger W. Dijkstra
 
 ### M3-S4 Narrowing and the error-first guard
 Anchor: Edsger W. Dijkstra, Tony Hoare
+- Attack (scope): `testdata/logos/global_option_scope.lgo` MUST reject package-variable narrowing in then, else, early-exit, and `&&` guards. A local copy, input parameter, or named result MUST retain narrowing.
 - Attack: `testdata/logos/narrowing.lgo`: narrowing inside `if x != nil {}`; after `if x == nil { return }` (also `panic`, `break`, `continue`); through `x != nil && x.f > 0`; killed after `x = other`; disabled when `&x` is taken or a closure assigns `x`; not applied to fields (`s.p != nil` then `s.p.f` -> error, copy to a local works); #14 (outer variable narrowed after `if x == nil { return }`, standard block scoping kept). `testdata/logos/error_first.lgo`: for a callee declared in `.lgo`, `n, err := f(); use(n)` before `if err != nil { return }` -> `[correctness::result_before_error_check] read n only after err is checked`; for `io.Reader.Read` (standard library), using `n` first is allowed (#23, #156).
 - Build: `types2/narrow_logos.go`: per function, a pre-pass collects disqualified variables (assigned after declaration in a loop or closure, address taken); `ident` resolution consults a narrowing stack pushed by `if` conditions and early-exit statements in `stmtList`; the error-first guard uses the same stack with tuple bindings from `.lgo` callees (state machine ErrorFirstTuple: Unchecked -> ErrNil on the fall-through of `if err != nil { exit }` or inside `if err == nil {}`).
 - Gate: types2 tests.
