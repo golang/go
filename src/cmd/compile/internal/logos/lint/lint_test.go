@@ -727,6 +727,73 @@ func TestInfiniteRecursionTry(t *testing.T) {
 	expect(t, KindLgo, nil, testSource{"x.lgo", recursionLgoSrc}, finding{"correctness::infinite_recursion", Forbid})
 }
 
+const recursionConstSwitchSrc = `package p
+
+func csSel(n int) int { // want
+	const switch int {
+	case ~string:
+		return n
+	case int:
+		return csSel(n)
+	}
+	return n
+}
+
+func csDead(n int) int {
+	const switch int {
+	case ~string:
+		return csDead(n)
+	case int:
+		return n
+	}
+	return n
+}
+
+func csTilde(n int) int { // want
+	const switch int {
+	case ~int:
+		return csTilde(n)
+	}
+	return n
+}
+
+func csIface(n int) int { // want
+	const switch int {
+	case error:
+		return n
+	case any:
+		return csIface(n)
+	}
+	return n
+}
+
+func csFirst(n int) int { // want
+	const switch int {
+	case int:
+		return csFirst(n)
+	case any:
+		return n
+	}
+	return n
+}
+
+func csNoMatch(n int) int { // want
+	const switch int {
+	case ~string:
+		return n
+	}
+	return csNoMatch(n)
+}
+`
+
+// TestInfiniteRecursionConstSwitch covers const-switch selection: only the
+// compile-time selected branch runs, so recursion in the selected branch
+// reports while recursion solely in a dead branch does not. Each marked
+// line is the reported function name.
+func TestInfiniteRecursionConstSwitch(t *testing.T) {
+	expect(t, KindLgo, nil, testSource{"x.lgo", recursionConstSwitchSrc}, finding{"correctness::infinite_recursion", Forbid})
+}
+
 // TestDirective covers the //logos:allow scope rules.
 func TestDirective(t *testing.T) {
 	const src = `package p

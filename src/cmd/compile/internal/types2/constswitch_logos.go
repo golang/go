@@ -119,21 +119,90 @@ func (check *Checker) logosConstCase(c *syntax.ConstSwitchCase, tag Type) *logos
 	if tpar, ok := tag.(*TypeParam); ok {
 		info.tpar = tpar
 	}
-	switch {
-	case c.Tilde:
+	info.kind = logosConstCaseKind(x.typ(), c.Tilde)
+	if info.kind == logosCaseTilde {
 		base, ok := underBasic(x.typ())
 		if !ok {
 			check.errorf(c.TildePos, InvalidSyntaxTree, "%s const switch tilde case needs a basic type, not %s", logosTildeNotBasic, x.typ())
 			return nil
 		}
-		info.kind = logosCaseTilde
 		info.typ = base
-	case isIfaceCase(x.typ()):
-		info.kind = logosCaseIface
-	default:
-		info.kind = logosCaseExact
 	}
 	return info
+}
+
+// logosConstCaseKind classifies one const-switch case from its resolved
+// type: a tilde case, an interface case, or an exact case. Checking and
+// compile-time selection share it, so both agree on every case.
+func logosConstCaseKind(typ Type, tilde bool) logosCaseKind {
+	switch {
+	case tilde:
+		return logosCaseTilde
+	case isIfaceCase(typ):
+		return logosCaseIface
+	default:
+		return logosCaseExact
+	}
+}
+
+// LogosConstSelectedCase reports the case a `const switch` statement selects
+// at compile time: the first case matching the tag, with exact cases by
+// identity, tilde cases by the underlying basic type, and interface cases by
+// implementation. It returns static false when selection is not static: the
+// tag is a type parameter, so the switch dispatches at run time, or a type
+// the checker did not record. A nil case with static true means no case
+// matches and the statement folds away.
+func LogosConstSelectedCase(info *Info, s *syntax.ConstSwitchStmt) (sel *syntax.ConstSwitchCase, static bool) {
+	tag := logosConstTypeOf(info, s.Targ)
+	if tag == nil {
+		return nil, false
+	}
+	if _, ok := tag.(*TypeParam); ok {
+		return nil, false
+	}
+	for _, c := range s.Cases {
+		typ := logosConstTypeOf(info, c.Type)
+		if typ == nil {
+			return nil, false
+		}
+		if logosConstMatches(tag, typ, c) {
+			return c, true
+		}
+	}
+	return nil, true
+}
+
+// logosConstTypeOf returns the checked type denoted by e, resolving a type
+// name through its declared object, or nil when the checker recorded none.
+func logosConstTypeOf(info *Info, e syntax.Expr) Type {
+	var name *syntax.Name
+	switch e := e.(type) {
+	case *syntax.Name:
+		name = e
+	case *syntax.SelectorExpr:
+		name = e.Sel
+	}
+	if name != nil {
+		if tn, ok := info.Uses[name].(*TypeName); ok {
+			return tn.Type()
+		}
+	}
+	return info.TypeOf(e)
+}
+
+// logosConstMatches reports whether the concrete tag selects the case of
+// resolved type typ.
+func logosConstMatches(tag Type, typ Type, c *syntax.ConstSwitchCase) bool {
+	switch logosConstCaseKind(typ, c.Tilde) {
+	case logosCaseTilde:
+		ub, ok := Unalias(tag).Underlying().(*Basic)
+		return ok && Identical(ub, typ)
+	case logosCaseIface:
+		iface, _ := Unalias(typ).Underlying().(*Interface)
+		return iface != nil && Implements(tag, iface)
+	default:
+		return Identical(typ, tag)
+	}
 }
 
 // isIfaceCase reports whether a case type is an interface case: any

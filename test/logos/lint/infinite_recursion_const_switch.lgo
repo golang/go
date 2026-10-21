@@ -1,0 +1,23 @@
+// errorcheck
+
+package p
+
+func constSwitchSelected(n int) int { // ERROR "correctness::infinite_recursion"
+	const switch int {
+	case ~string:
+		return n
+	case int:
+		return constSwitchSelected(n)
+	}
+	return constSwitchSelected(n)
+}
+
+func constSwitchDeadBranch(n int) int {
+	const switch int {
+	case ~string:
+		return constSwitchDeadBranch(n)
+	case int:
+		return n
+	}
+	return n
+}

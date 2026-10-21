@@ -218,27 +218,20 @@ func typeEnd(src []byte, start, bound int) int {
 	return end
 }
 
-// matches reports whether the concrete tag selects cs.
-func (c *cswLower) matches(cs *cswCase) bool {
-	switch cs.kind {
-	case cswExact:
-		return types2.Identical(cs.typ, c.tag)
-	case cswTilde:
-		ub, ok := types2.Unalias(c.tag).Underlying().(*types2.Basic)
-		return ok && types2.Identical(ub, cs.typ)
-	case cswIface:
-		iface, _ := types2.Unalias(cs.typ).Underlying().(*types2.Interface)
-		return iface != nil && types2.Implements(c.tag, iface)
-	}
-	return false
-}
-
 // lowerFold replaces a concrete-tag switch with a block holding its first
-// matching case. No case matching removes the statement.
+// matching case. No case matching removes the statement. Selection is the
+// shared checker operation, so lowering and lint agree on every case. The
+// tag here is concrete (lowerConstSwitchStmt routes a type parameter to
+// lowerRuntime) and newCswLower already resolved every type, so an unknown
+// selection fails loudly like the nil types newCswLower rejects.
 func (c *cswLower) lowerFold() []syntax.Stmt {
+	sel, static := types2.LogosConstSelectedCase(c.info, c.stmt)
+	if !static {
+		base.Fatalf("logos: const switch at %s has no compile-time selection", c.stmt.Pos().String())
+	}
 	var match *cswCase
 	for i := range c.cases {
-		if c.matches(&c.cases[i]) {
+		if c.cases[i].syn == sel {
 			match = &c.cases[i]
 			break
 		}

@@ -188,6 +188,8 @@ func (r *recursion) stmtCalls(s syntax.Stmt) bool {
 		return r.ifCalls(s)
 	case *syntax.SwitchStmt:
 		return r.switchCalls(s)
+	case *syntax.ConstSwitchStmt:
+		return r.constSwitchCalls(s)
 	}
 	return false
 }
@@ -228,6 +230,18 @@ func (r *recursion) switchCalls(s *syntax.SwitchStmt) bool {
 	return def
 }
 
+// constSwitchCalls reports whether a `const switch` statement reaches a
+// self-call on every path: a concrete tag folds to its first matching case
+// at compile time, so only the selected body runs, while a type-parameter
+// tag dispatches at run time and the arm it does not take calls nothing. A
+// concrete tag no case matches folds the statement away, so control falls
+// through to the next statement. Selection is the shared checker operation
+// (types2 LogosConstSelectedCase), so lint and lowering agree on every case.
+func (r *recursion) constSwitchCalls(s *syntax.ConstSwitchStmt) bool {
+	sel, static := types2.LogosConstSelectedCase(r.pass.Info, s)
+	return static && sel != nil && r.always(sel.Body)
+}
+
 // exitsCovered reports whether every path through s that leaves the
 // enclosing statement list reaches a self-call first: a taken arm that
 // self-calls before returning covers its path, while a path that falls
@@ -253,8 +267,32 @@ func (r *recursion) exitsCovered(s syntax.Stmt) bool {
 			}
 		}
 		return true
+	case *syntax.ConstSwitchStmt:
+		return r.constSwitchCovered(s)
 	}
 	return false
+}
+
+// constSwitchCovered reports whether every path through s that leaves the
+// enclosing statement list reaches a self-call first. Only the selected
+// body can leave: a dead branch never runs, so its returns must not cover
+// or clear the function. A type-parameter tag dispatches at run time, so
+// every arm's leaving paths must call first, as for a Go switch. A
+// statement no case matches folds away, so no path leaves it.
+func (r *recursion) constSwitchCovered(s *syntax.ConstSwitchStmt) bool {
+	sel, static := types2.LogosConstSelectedCase(r.pass.Info, s)
+	if !static {
+		for _, c := range s.Cases {
+			if !r.branchCovered(c.Body) {
+				return false
+			}
+		}
+		return true
+	}
+	if sel == nil {
+		return true
+	}
+	return r.branchCovered(sel.Body)
 }
 
 // branchCovered reports whether every path through list either reaches a
