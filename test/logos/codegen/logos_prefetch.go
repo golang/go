@@ -43,6 +43,16 @@ type insn struct {
 func command(dir string, name string, args ...string) error {
 	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", name), args...)
 	cmd.Dir = dir
+	// Span deck selection is compile time (GOEXPERIMENT=logosspandeck) and
+	// the default build has it off, so enable it explicitly for the probe
+	// build. GOEXPERIMENT parsing is in order and later entries win, so
+	// appending keeps the inherited experiments and overrides any prior
+	// nologosspandeck.
+	exp := os.Getenv("GOEXPERIMENT")
+	if exp != "" {
+		exp += ","
+	}
+	cmd.Env = append(os.Environ(), "GOEXPERIMENT="+exp+"logosspandeck")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%s %s: %w\n%s", name, strings.Join(args, " "), err, out)
 	}
