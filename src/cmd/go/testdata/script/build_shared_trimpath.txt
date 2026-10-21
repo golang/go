@@ -1,0 +1,22 @@
+[!buildmode:shared] skip
+[short] skip
+[!cgo] skip '-buildmode=shared requires external linking'
+
+env GO111MODULE=off
+env CGO_ENABLED=1
+
+# -trimpath should keep GOROOT out of shared libraries too.
+go install -trimpath -buildmode=shared -pkgdir=$WORK/pkgdir runtime
+go build -trimpath -linkshared -pkgdir=$WORK/pkgdir -o goroot$GOEXE goroot.go
+env GOROOT=
+exec ./goroot$GOEXE
+stderr '^GOROOT=$'
+
+-- goroot.go --
+package main
+
+import "runtime"
+
+func main() {
+	println("GOROOT=" + runtime.GOROOT())
+}

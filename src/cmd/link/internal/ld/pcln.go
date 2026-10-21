@@ -995,6 +995,10 @@ func expandGoroot(s string) string {
 		if final := buildcfg.GOROOT; final != "" {
 			return filepath.ToSlash(filepath.Join(final, s[n:]))
 		}
+		// Without GOROOT, as with -trimpath, trim to the import path.
+		if rest, ok := strings.CutPrefix(s[n+1:], "src/"); ok {
+			return rest
+		}
 	}
 	return s
 }

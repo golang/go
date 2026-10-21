@@ -304,7 +304,10 @@ func (a *Action) trimpath() string {
 	rewrite := ""
 
 	rewriteDir := a.Package.Dir
-	if cfg.BuildTrimpath {
+	if trimpathInvariant(a.Package) {
+		// The compiler does this by itself, except for overlaid files.
+		rewriteDir = filepath.Join("$GOROOT", "src", a.Package.Internal.OrigImportPath)
+	} else if cfg.BuildTrimpath {
 		importPath := a.Package.Internal.OrigImportPath
 		if m := a.Package.Module; m != nil && m.Version != "" {
 			rewriteDir = m.Path + "@" + m.Version + strings.TrimPrefix(importPath, m.Path)
@@ -724,14 +727,21 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 		dir, targetPath = filepath.Split(targetPath)
 	}
 
-	env := cfgChangedEnv
-	// When -trimpath is used, GOROOT is cleared
+	return b.Shell(root).run(dir, root.Package.ImportPath, linkEnv(), cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
+}
+
+// linkEnv returns the environment for the linker.
+func linkEnv() []string {
+	return append(slices.Clip(cfgChangedEnv), "GOROOT="+linkGOROOT())
+}
+
+// linkGOROOT returns the GOROOT that the linker expands "$GOROOT" to.
+// It is empty with -trimpath, to trim those paths instead.
+func linkGOROOT() string {
 	if cfg.BuildTrimpath {
-		env = append(env, "GOROOT=")
-	} else {
-		env = append(env, "GOROOT="+cfg.GOROOT)
+		return ""
 	}
-	return b.Shell(root).run(dir, root.Package.ImportPath, env, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags, mainpkg)
+	return cfg.GOROOT
 }
 
 func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
@@ -779,7 +789,7 @@ func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action,
 	// the output file path is recorded in the .gnu.version_d section.
 	dir, targetPath := filepath.Split(targetPath)
 
-	return b.Shell(root).run(dir, targetPath, cfgChangedEnv, cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
+	return b.Shell(root).run(dir, targetPath, linkEnv(), cfg.BuildToolexec, base.Tool("link"), "-o", targetPath, "-importcfg", importcfg, ldflags)
 }
 
 func (gcToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {

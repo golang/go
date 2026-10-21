@@ -7,9 +7,10 @@ mkdir $GOCACHE
 cd $WORK
 go build -o a.out
 
-# Varying -trimpath should cause a rebuild.
+# Varying -trimpath should cause a rebuild, but not of std (go.dev/issue/57346).
 go build -x -o a.out -trimpath
 stderr '(compile|gccgo)( |\.exe)'
+! stderr 'compile( |\.exe).* -p runtime '
 stderr 'link( |\.exe)'
 
 # Two distinct versions of the same module with identical content should
@@ -21,6 +22,24 @@ stdout '^example.com/stack@v1.0.0/stack.go$'
 go get example.com/stack@v1.0.1
 go run -trimpath printstack.go
 stdout '^example.com/stack@v1.0.1/stack.go$'
+
+[!compiler:gc] stop
+
+# The linker expands "$GOROOT" in std file names, or trims it with -trimpath.
+go run stdstack.go
+stdout '/src/runtime/extern\.go$'
+! stdout '\$GOROOT'
+go run -trimpath stdstack.go
+stdout '^runtime/extern\.go$'
+
+# Std should compile to the same objects with or without -trimpath.
+go build -o runtime.a runtime
+[cgo] go build -o cgo.a runtime/cgo
+env GOCACHE=$WORK/gocache-trimpath
+go build -trimpath -o runtime-trimpath.a runtime
+[cgo] go build -trimpath -o cgo-trimpath.a runtime/cgo
+cmp runtime.a runtime-trimpath.a
+[cgo] cmp cgo.a cgo-trimpath.a
 
 -- $WORK/hello.go --
 package main
@@ -39,6 +58,22 @@ import (
 
 func main() {
 	fmt.Println(stack.TopFile())
+}
+-- $WORK/stdstack.go --
+//go:build ignore
+
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	pc := make([]uintptr, 1)
+	runtime.Callers(0, pc) // the frame for runtime.Callers itself
+	frame, _ := runtime.CallersFrames(pc).Next()
+	fmt.Println(frame.File)
 }
 -- $WORK/go.mod --
 module m

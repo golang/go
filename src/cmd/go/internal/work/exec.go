@@ -282,9 +282,6 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
 	fmt.Fprintf(h, "import %q\n", p.ImportPath)
 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
-	if cfg.BuildTrimpath {
-		fmt.Fprintln(h, "trimpath")
-	}
 	if p.Internal.ForceLibrary {
 		fmt.Fprintf(h, "forcelibrary\n")
 	}
@@ -385,11 +382,20 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	return h.Sum()
 }
 
+// trimpathInvariant reports whether p compiles to the same objects
+// with or without -trimpath. Go paths in GOROOT/src start with "$GOROOT",
+// which the linker expands or trims, and C paths in GOROOT are always trimmed.
+func trimpathInvariant(p *load.Package) bool {
+	return p.Standard && p.Dir == filepath.Join(cfg.GOROOTsrc, p.Internal.OrigImportPath)
+}
+
 // addPackageOrigin writes information about the origin of the package that
-// may be embedded in the debug info for the object file. It is used by
-// buildActionID.
+// may be embedded in the debug info for the object file.
 func (b *Builder) addPackageOrigin(h io.Writer, p *load.Package) {
-	if cfg.BuildTrimpath {
+	if trimpathInvariant(p) {
+		// Paths depend on neither -trimpath nor GOROOT.
+	} else if cfg.BuildTrimpath {
+		fmt.Fprintln(h, "trimpath")
 		// When -trimpath is used with a package built from the module cache,
 		// its debug information refers to the module path and version
 		// instead of the directory.
@@ -406,7 +412,7 @@ func (b *Builder) addPackageOrigin(h io.Writer, p *load.Package) {
 		// GOROOT_FINAL, but we no longer ship precompiled archive files as of Go 1.20
 		// (https://go.dev/issue/47257) and no longer support GOROOT_FINAL
 		// (https://go.dev/issue/62047).
-		// TODO(bcmills): Figure out whether this behavior is still useful.
+		// It also keeps C objects independent of -trimpath.
 		//
 		// b.WorkDir is always either trimmed or rewritten to
 		// the literal string "/tmp/go-build".
@@ -1296,9 +1302,6 @@ func (b *Builder) cgoCompileActionID(a *Action, f string, flags []string) cache.
 	// flag added during C compilation, which changes the DWARF paths
 	// in the resulting .o file.
 	b.addPackageOrigin(h, p)
-	if cfg.BuildTrimpath {
-		fmt.Fprintln(h, "trimpath")
-	}
 
 	// This has too much information.
 	// We only need to choose CC/CXX/FC based on which kind of compilation this
@@ -2043,9 +2046,7 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	fmt.Fprintf(h, "goVersion %s\n", ecfg.GoVersion)
 	// The type checker's sizes depend on the target architecture.
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
-	if cfg.BuildTrimpath {
-		fmt.Fprintln(h, "trimpath")
-	}
+	b.addPackageOrigin(h, a.Package)
 	// Source file contents.
 	for _, file := range ecfg.GoFiles {
 		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))
@@ -2140,13 +2141,8 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
 		}
 
-		// The linker writes source file paths that refer to GOROOT,
-		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
-		gorootFinal := cfg.GOROOT
-		if cfg.BuildTrimpath {
-			gorootFinal = ""
-		}
-		fmt.Fprintf(h, "GOROOT=%s\n", gorootFinal)
+		// The linker writes source file paths that refer to GOROOT.
+		fmt.Fprintf(h, "GOROOT=%s\n", linkGOROOT())
 
 		// GO_EXTLINK_ENABLED controls whether the external linker is used.
 		fmt.Fprintf(h, "GO_EXTLINK_ENABLED=%s\n", cfg.Getenv("GO_EXTLINK_ENABLED"))

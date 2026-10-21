@@ -9,6 +9,11 @@ cp stdout out.json
 go run q.go out.json V
 stdout '^m/p\.go$'
 
+# Std export data does not depend on -trimpath, so it should be reused.
+go list -export internal/goarch
+go list -x -trimpath -export internal/goarch
+! stderr 'export\.cfg'
+
 [!cgo] stop
 
 # The object directory should be removed from cgo-generated file names.
