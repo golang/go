@@ -1,0 +1,36 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S4 const switch over a type parameter with exact/tilde/exact runs
+// (SPEC Sec 2.5, T-205): the cases split into maximal runs, each run lowers
+// to its own guarded construct, and every run scope closes before the next
+// run opens, so scope positions stay monotonic. The exact bodies use the
+// switched value, which keeps the scope-closing paths live through
+// dwarfgen instead of retracted.
+
+type SwitchScalar interface {
+	~float32 | float64
+}
+
+type SwitchKilos float32
+
+func switchKind[T SwitchScalar](v T) string {
+	const switch T {
+	case float32:
+		return "exact-f32 " + fmt.Sprint(v+v)
+	case ~float32:
+		return "tilde-f32"
+	case float64:
+		return "exact-f64 " + fmt.Sprint(v+v)
+	}
+	return "other"
+}
+
+func main() {
+	fmt.Println(switchKind(float64(3.75)), switchKind(float64(7.5)))
+	fmt.Println(switchKind(float32(7.5)), switchKind(float32(2.0)))
+	fmt.Println(switchKind(SwitchKilos(1.5)))
+}

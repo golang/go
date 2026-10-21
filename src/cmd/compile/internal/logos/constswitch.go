@@ -296,17 +296,21 @@ func (c *cswLower) lowerRuntime() []syntax.Stmt {
 	text := "{" + done + " := false\n"
 	for _, run := range runs {
 		first := run[0].syn.Case
+		close := run[len(run)-1].close
 		var inner syntax.Stmt
 		var innerText string
 		if run[0].kind == cswExact {
 			inner, innerText = c.typeSwitch(run, nil, done)
+			if sw, ok := inner.(*syntax.SwitchStmt); ok {
+				sw.Rbrace = close
+			}
 		} else {
 			inner, innerText = c.chainIf(run, done)
 		}
 		guard := at(&syntax.Operation{Op: syntax.Not, X: nameOf(first, done)}, first)
 		block.List = append(block.List, at(&syntax.IfStmt{
 			Cond: guard,
-			Then: blockOf(first, []syntax.Stmt{inner}),
+			Then: closeAt(first, []syntax.Stmt{inner}, close),
 		}, first))
 		text += "if !" + done + " {" + innerText + "}\n"
 	}

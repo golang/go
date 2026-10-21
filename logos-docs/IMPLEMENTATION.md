@@ -1696,6 +1696,7 @@ Anchor: David Parnas, Edsger W. Dijkstra
 
 ### M7-S4 `const switch T`
 Anchor: Tony Hoare, J.R.R. Tolkien
+- Attack (eject scopes): `test/logos/run/const_switch_exact_tilde_exact.lgo` places exact and tilde cases in sequence. Eject MUST close each generated scope at that case's source boundary. Native and ejected execution MUST match the expected output.
 - Attack: `testdata/logos/const_switch.lgo`: shadowed case after a broader one -> `[comptime::unreachable_case]` (#57); `case int` vs `case ~int` on `type UserID int` (#91); interface case gains the interface's methods inside the block and keeps outer constraint methods (#86); `[]*os.File` never rebinds as `[]io.Writer` (#45). `test/logos/run/const_switch.lgo` and `logos_eject_const_switch.txt`: the PLAN Sec 7.2 example runs natively and ejected with identical output (#37, #108). `test/logos/run/const_switch_nomatch.lgo`: a `T` matching no case returns the input unchanged (trailing `return buf, nil`).
 - Build: parser `ConstSwitchStmt` with `ConstCaseClause` arms; types2 types each case body with `T` replaced by the case type (exact cases) or `T` constrained by the intersection (interface cases); the rebinding lives in new `cmd/compile/internal/types2/subst_logos.go`; lowering: inside comptime-generic copies, fold to the matching case; elsewhere emit PLAN Sec 7.2's runtime form (`switch any((*T)(nil)).(type)` with `unsafe` rebinding for exact cases, `any(v).(I)` for interface cases). The runtime form ends with a trailing `return buf, nil` when no case matches.
 - Gate: types2 and testdir tests.
