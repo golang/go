@@ -131,7 +131,7 @@ Resolutions: logos-docs/SPEC.md Section 17. Status values: planned, tested, sati
 | #125 |M1| test/logos/redteam/attack_125_errdefer_join | tested |
 | #126 | M6 | src/cmd/compile/internal/logos/m6gaps_test.go (TestInterpBindBeforeSizing) | tested |
 | #127 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
-| #128 | M7 |  | planned |
+| #128 | M7 | test/logos/run/comptime_generic.lgo; test/logos/run/comptime_generic_inner_lowering.lgo; src/cmd/go/testdata/script/logos_comptime_cross.txt; src/cmd/go/testdata/script/logos_comptime_importcfg.txt; src/cmd/go/testdata/script/logos_comptime_foreign_types.txt | tested |
 | #129 | M7 | test/logos/compile/comptime_cycle.lgo | tested |
 | #130 | M7 | test/logos/compile/comptime_mapto.lgo; test/logos/run/comptime_mapto.lgo | tested |
 | #131 | M4 | src/internal/types/testdata/logos/property_iface.lgo | tested |
