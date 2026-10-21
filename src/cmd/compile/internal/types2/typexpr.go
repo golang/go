@@ -37,6 +37,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, wantType bool) {
 	}
 
 	check.recordUse(e, obj)
+	check.logosFieldVarNote(e, obj) // logos M7-S2 hook: bare const-for field uses.
 
 	// If we want a type but don't have one, stop right here and avoid potential problems
 	// with missing underlying types. This also gives better error messages in some cases
@@ -269,6 +270,9 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *TypeName) (T Type) {
 
 	case *syntax.SelectorExpr:
 		var x operand
+		if check.logosFieldTypeType(e, &x) { // logos M7-S2 hook: f.Type in type position.
+			return x.typ()
+		}
 		check.selector(&x, e, true)
 
 		switch x.mode() {

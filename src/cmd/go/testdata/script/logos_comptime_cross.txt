@@ -1,0 +1,174 @@
+# M7-S3: comptime generics cross packages through facts (T-Sec6, T-205).
+# Package wire exports the comptime generics Autowire and Names; package
+# main instantiates them over a local type and over a wire type. The
+# expansion copies live in main, built from the comptime source text in
+# wire's __.LOGOS member. A wire type's unexported field stays out of the
+# expansion (#65): writing it from main would not compile.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos build ./...
+logos run ./main
+stdout '^wire-ok$'
+stdout '^names-cfg \[Port\]$'
+stdout '^names-svc \[Port Host hidden\]$'
+stdout '^cfg-port 9090$'
+stdout '^labels-cfg \[0=Port\]$'
+stdout '^labels-svc \[0=Port 1=Host 2=hidden\]$'
+# A const if over comptime.IsStruct in an exported comptime generic: the
+# record folds the package constant to a literal, keeps the predicate,
+# and each importer expansion keeps the live branch.
+stdout '^describe-svc struct$'
+stdout '^describe-cfg struct$'
+stdout '^describe-int scalar$'
+stdout '^describe-off silent$'
+# A package whose only use of wire is a type argument of a comptime
+# generic compiles: the import survives erasure of the const for range.
+logos run ./names
+stdout '^\[Port\]$'
+cd ..
+
+# The exported comptime generics travel as marked source text in the
+# __.LOGOS member of the wire archive: the type parameter and the names of
+# the defining package are markers the importer resolves.
+go list -export -deps -f '{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}' fmt
+cp stdout $WORK/importcfg
+go tool compile -p example.com/wiretest/wire -importcfg $WORK/importcfg -o $WORK/wire.a w/wire/wire.lgo
+go tool pack p $WORK/wire.a __.LOGOS
+stdout 'comptime Autowire'
+stdout 'comptime Names'
+stdout 'comptime Describe'
+stdout 'const if true && '
+stdout '_logos_ctpkg\.Container'
+stdout '_logos_ctpkg\.Resolve\[f\.Type\]'
+stdout '_logos_tparam0'
+stdout '//logosimp fmt fmt'
+stdout '_logos_ctimp0\.Sprintf'
+
+-- w/go.mod --
+module example.com/wiretest
+
+go 1.27
+
+-- w/wire/wire.lgo --
+package wire
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Container struct {
+	Port int
+	Host string
+}
+
+type Config struct {
+	Port   int
+	secret int
+}
+
+func Resolve[T any](c *Container) T {
+	var zero T
+	switch any(zero).(type) {
+	case int:
+		return any(c.Port).(T)
+	case string:
+		return any(c.Host).(T)
+	default:
+		panic("unresolvable")
+	}
+}
+
+func Autowire[T any](c *Container) *T {
+	var v T
+	const for _, f := range comptime.Fields[T]() {
+		v.[f] = Resolve[f.Type](c)
+	}
+	return &v
+}
+
+func Labels[T any]() []string {
+	var out []string
+	const for i, f := range comptime.Fields[T]() {
+		out = append(out, fmt.Sprintf("%d=%s", i, f.Name))
+	}
+	return out
+}
+
+func Names[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+const traced = true
+
+const quiet = false
+
+func Describe[T any]() string {
+	const if traced && comptime.IsStruct[T]() {
+		return "struct"
+	} else const if traced {
+		return "scalar"
+	}
+	return "silent"
+}
+
+func DescribeOff[T any]() string {
+	const if quiet && comptime.IsStruct[T]() {
+		return "struct"
+	} else const if quiet {
+		return "scalar"
+	}
+	return "silent"
+}
+
+-- w/main/main.lgo --
+package main
+
+import (
+	"example.com/wiretest/wire"
+	"fmt"
+)
+
+type Service struct {
+	Port   int
+	Host   string
+	hidden int
+}
+
+func main() {
+	c := &wire.Container{Port: 9090, Host: "svc"}
+	s := wire.Autowire[Service](c)
+	if s.Port != 9090 || s.Host != "svc" {
+		fmt.Println("BAD", s.Port, s.Host)
+		return
+	}
+	cfg := wire.Autowire[wire.Config](c)
+	fmt.Println("wire-ok")
+	fmt.Println("names-cfg", wire.Names[wire.Config]())
+	fmt.Println("names-svc", wire.Names[Service]())
+	fmt.Println("cfg-port", cfg.Port)
+	fmt.Println("labels-cfg", wire.Labels[wire.Config]())
+	fmt.Println("labels-svc", wire.Labels[Service]())
+	fmt.Println("describe-svc", wire.Describe[Service]())
+	fmt.Println("describe-cfg", wire.Describe[wire.Config]())
+	fmt.Println("describe-int", wire.Describe[int]())
+	fmt.Println("describe-off", wire.DescribeOff[Service]())
+}
+
+-- w/names/names.lgo --
+package main
+
+import (
+	"example.com/wiretest/wire"
+	"fmt"
+)
+
+func main() {
+	fmt.Println(wire.Names[wire.Config]())
+}

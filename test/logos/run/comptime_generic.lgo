@@ -1,0 +1,58 @@
+// run
+
+// M7-S3 comptime generics (SPEC Sec 2.5, T-205): Autowire[T] expands
+// once per instantiation into a non-generic copy in this package;
+// Resolve[f.Type](c) resolves per field (#128); two instantiations over
+// different types coexist, and a repeated instantiation reuses its copy.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Container struct {
+	Port int
+	Host string
+}
+
+func Resolve[T any](c *Container) T {
+	var zero T
+	switch any(zero).(type) {
+	case int:
+		return any(c.Port).(T)
+	case string:
+		return any(c.Host).(T)
+	default:
+		panic("unresolvable")
+	}
+}
+
+type ServiceA struct {
+	Port int
+	Host string
+}
+
+type ServiceB struct {
+	Host string
+	Port int
+}
+
+func Autowire[T any](c *Container) *T {
+	var v T
+	const for _, f := range comptime.Fields[T]() {
+		v.[f] = Resolve[f.Type](c)
+	}
+	return &v
+}
+
+func main() {
+	c := &Container{Port: 8080, Host: "db"}
+	a := Autowire[ServiceA](c)
+	fmt.Println(a.Port, a.Host)
+	b := Autowire[ServiceB](c)
+	fmt.Println(b.Host, b.Port)
+	a2 := Autowire[ServiceA](c)
+	fmt.Println(a2.Port, a2.Host)
+}

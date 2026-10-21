@@ -62,6 +62,10 @@ func (fc *funcLower) pruneConstIfChildren(s syntax.Stmt) {
 		fc.pruneLabeled(s)
 	case *syntax.ConstSwitchStmt:
 		fc.pruneConstCases(s.Cases)
+	case *syntax.GroupStmt:
+		s.Body.List = fc.lowerConstIfList(s.Body.List)
+	case *syntax.GroupChild:
+		s.Body.List = fc.lowerConstIfList(s.Body.List)
 	}
 }
 
@@ -115,10 +119,11 @@ func (fc *funcLower) pruneLabeled(s *syntax.LabeledStmt) {
 }
 
 // pruneConstIf replaces one `const if` statement, including its whole
-// else chain, with the live branch. The statement is one splice: its
-// source is replaced by the text of the live block, so no nested splice
-// can leave the `else` keyword or a header behind. A false condition with
-// no live branch deletes the statement and reports false.
+// else chain, with the live branch. Two deletions cut the source before
+// and after the live block, so the header and every dead branch go away
+// with their splices while the splices of later lowering inside the live
+// block keep their own offsets. A false condition with no live branch
+// deletes the statement and reports false.
 func (fc *funcLower) pruneConstIf(s *syntax.ConstIfStmt) (syntax.Stmt, bool) {
 	start := fc.fl.off(s.Pos())
 	end := fc.fl.off(syntax.EndPos(s))
@@ -128,13 +133,14 @@ func (fc *funcLower) pruneConstIf(s *syntax.ConstIfStmt) (syntax.Stmt, bool) {
 		return nil, false
 	}
 	live.List = fc.lowerConstIfList(live.List)
-	fc.replaceConstSpan(start, end, live)
+	fc.cutConstSpan(start, fc.fl.off(live.Pos()))
+	fc.cutConstSpan(fc.fl.off(syntax.EndPos(live))+1, end)
 	return live, true
 }
 
 // liveBranch returns the block that the const-if chain rooted at s selects,
 // or nil when no branch is selected. It follows the chain without rewriting
-// it, so the caller makes the one replacement of the whole statement.
+// it, so the caller cuts the statement around the block it returns.
 func (fc *funcLower) liveBranch(s *syntax.ConstIfStmt) *syntax.BlockStmt {
 	val, ok := typeConst(fc.fl.pkg.info, s.Cond)
 	if !ok || val.Kind() != constant.Bool {
@@ -156,16 +162,16 @@ func (fc *funcLower) liveBranch(s *syntax.ConstIfStmt) *syntax.BlockStmt {
 	return nil
 }
 
-// replaceConstSpan replaces the source of one pruned statement with the
-// text of its live block. The live block's own splices are applied to
-// that text first, and any splice already recorded inside the statement
-// is discarded, because the text already carries its effect.
-func (fc *funcLower) replaceConstSpan(start, end int, live syntax.Stmt) {
-	keptSpan := span{fc.fl.off(live.Pos()), fc.fl.off(syntax.EndPos(live)) + 1}
-	text := fc.fl.textOf(keptSpan)
+// cutConstSpan is deleteConstSpan for the regions around a live branch:
+// the comments of the region survive, so the eject text keeps the
+// comments of the header and of the dead branches.
+func (fc *funcLower) cutConstSpan(start, end int) {
+	if start >= end {
+		return
+	}
 	kept, _ := fc.fl.splitSplices(span{start, end})
 	fc.fl.splices = kept
-	fc.fl.add(start, end, leftoverComments(fc.fl, span{start, end}, []span{keptSpan})+text)
+	fc.fl.add(start, end, leftoverComments(fc.fl, span{start, end}, nil))
 }
 
 // deleteConstSpan discards the splices strictly inside [start, end) and

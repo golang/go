@@ -1,0 +1,54 @@
+// run
+
+// M7-S1 const if with lowering inside the live branch (SPEC Sec 2.5,
+// T-205): a `?` in the live block, in the live else block, and in a
+// nested chain lowers in place, and the ejected text agrees with the
+// native tree.
+
+package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+const (
+	on  = true
+	off = false
+)
+
+func then(s string) (int, error) {
+	const if on {
+		n := strconv.Atoi(s)?
+		return n + 1, nil
+	}
+	return 0, nil
+}
+
+func other(s string) (int, error) {
+	const if off {
+		return -1, nil
+	} else {
+		n := strconv.Atoi(s)?
+		return n + 2, nil
+	}
+}
+
+func chain(s string) (int, error) {
+	const if off {
+		return -1, nil
+	} else const if on {
+		n := strconv.Atoi(s)?
+		return n + 3, nil
+	} else {
+		return -2, nil
+	}
+}
+
+func main() {
+	fmt.Println(then("40"))
+	fmt.Println(other("40"))
+	fmt.Println(chain("40"))
+	_, err := chain("x")
+	fmt.Println(err != nil)
+}

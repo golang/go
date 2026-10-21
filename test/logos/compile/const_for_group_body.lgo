@@ -1,0 +1,28 @@
+// compile
+
+// M7-S2 const for directly in a go group body (SPEC Sec 2.5, T-205,
+// Sec 2.6): the unroller reaches the group body, so the unrolled `go`
+// statements still lower as group children.
+
+package p
+
+import (
+	"comptime"
+	"context"
+)
+
+type Counts struct {
+	A int
+	B int
+}
+
+func bump(n int) error { return nil }
+
+func fill(ctx context.Context, c Counts) error {
+	go group (ctx) {
+		const for _, f := range comptime.Fields[Counts]() {
+			go bump(c.[f])
+		}
+	}
+	return nil
+}

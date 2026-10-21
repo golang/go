@@ -65,7 +65,8 @@ func logosComptimeViewAs(info *types2.Info, sel *syntax.SelectorExpr) bool {
 // comptime-qualified selector remains. Names this pass rewrote are in
 // done; anything else (a later M7 provider's selectors) keeps the
 // import. Removal takes the whole spec line through swallowSep, so a
-// trailing comment survives on its own line.
+// trailing comment survives on its own line; an ungrouped import takes
+// its import keyword too.
 func (fl *fileLower) dropComptimeImport(done map[*syntax.Name]bool) {
 	keep := false
 	syntax.Inspect(fl.file, func(n syntax.Node) bool {

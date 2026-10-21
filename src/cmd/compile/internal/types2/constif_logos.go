@@ -20,32 +20,47 @@ const logosNotConstant = "[comptime::not_constant]"
 
 // logosConstIf checks a `const if` statement: the condition must be a
 // constant boolean, and both branches check in the enclosing context.
-// The live branch index feeds the dead-branch map; an invalid condition
-// still checks both branches without marking either dead.
+// The live branch index feeds the dead-branch map before either branch
+// is checked, because a statement's deferred checks run at its end,
+// inside the branch; an invalid condition, and a condition that waits
+// for an instantiation, still check both branches without marking
+// either dead.
 func (check *Checker) logosConstIf(ctxt stmtContext, s *syntax.ConstIfStmt) {
-	var x operand
-	check.expr(nil, &x, s.Cond)
-	live := -1
-	if x.isValid() {
-		switch {
-		case x.val == nil:
-			check.errorf(s.Cond, InvalidCond, "%s const if condition is not constant", logosNotConstant)
-		case !allBoolean(x.typ()):
-			check.error(s.Cond, InvalidCond, "non-boolean condition in const if statement")
-		case constant.BoolVal(x.val):
-			live = 0
-		default:
-			live = 1
-		}
+	live := check.logosConstIfLive(s)
+	if live >= 0 {
+		check.logosMarkConstIfDead(s, live)
 	}
 	inner := ctxt &^ (fallthroughOk | finalSwitchCase | inTypeSwitch)
 	check.stmt(inner, s.Then)
 	if s.Else != nil {
 		check.stmt(inner, s.Else)
 	}
-	if live >= 0 {
-		check.logosMarkConstIfDead(s, live)
+}
+
+// logosConstIfLive checks the condition of s and returns the index of
+// the live branch: 0 for Then, 1 for Else, -1 when the condition is
+// invalid or only deferred predicates keep it from being constant (the
+// comptime predicates of a comptime generic answer per instantiation).
+func (check *Checker) logosConstIfLive(s *syntax.ConstIfStmt) int {
+	var x operand
+	outer := check.logosPred
+	check.logosPred = logosPredState{depth: 1}
+	check.expr(nil, &x, s.Cond)
+	deferred := check.logosPred.calls
+	check.logosPred = outer
+	switch {
+	case !x.isValid():
+	case x.val == nil && check.logosPredOnly(s.Cond, deferred):
+	case x.val == nil:
+		check.errorf(s.Cond, InvalidCond, "%s const if condition is not constant", logosNotConstant)
+	case !allBoolean(x.typ()):
+		check.error(s.Cond, InvalidCond, "non-boolean condition in const if statement")
+	case constant.BoolVal(x.val):
+		return 0
+	default:
+		return 1
 	}
+	return -1
 }
 
 // logosMarkConstIfDead records every statement of the dead branch of s

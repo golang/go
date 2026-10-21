@@ -172,6 +172,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	if check.logosChainCall(x, call) { // logos M6-S7 hook: slice chain methods.
 		return statement
 	}
+	if check.logosComptimeCall(x, call) { // logos M7-S2 hook: compile-time-only calls and predicates.
+		return expression
+	}
 	if check.logosSimdCall(x, call) { // logos M14-S1 hook: array reductions.
 		return statement
 	}
@@ -871,6 +874,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, wantType bool
 		return
 	}
 
+	check.logosFieldVarSelMark(x, e)       // logos M7-S2 hook: selections on const-for field variables.
 	if check.logosConstSelect(x, e, sel) { // logos M5-S1 hook: selections through const views.
 		return
 	}

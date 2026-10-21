@@ -184,10 +184,12 @@ func (p *parser) logosConstStmt() Stmt {
 //
 //	ConstIf = "const" "if" Expr Block ["else" (Block | ConstIf)] .
 //
-// The condition is a full expression; types2 requires it to be a
-// constant boolean. There is no initializer (unlike header). The else
-// arm takes a block or a nested `const if` per the SPEC grammar; a
-// regular `else if` stays a syntax error.
+// The condition is a full expression, parsed with composite literals
+// off like an `if` header, so `const if name {` ends the condition at
+// the name; types2 requires it to be a constant boolean. There is no
+// initializer (unlike header). The else arm takes a block or a nested
+// `const if` per the SPEC grammar; a regular `else if` stays a syntax
+// error.
 func (p *parser) constIfStmt() Stmt {
 	if trace {
 		defer p.trace("constIfStmt")()

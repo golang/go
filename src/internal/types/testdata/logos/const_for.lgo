@@ -1,0 +1,66 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+import "comptime"
+
+// M7-S2 const for attacks (SPEC Sec 2.5, T-205): the range operand must
+// be a comptime.Fields call; val.[f] needs a struct value and the field
+// variable of an enclosing const for; comptime package calls outside
+// their compile-time positions report runtime_use.
+
+type CFWidget struct {
+	Name  string
+	Count int
+}
+
+func cfNonStruct() {
+	const for _, f := range comptime.Fields[int /* ERROR "comptime::const_for_fields" */]() {
+		_ = f
+	}
+}
+
+func cfNotFields(n int) {
+	const for _, f := range n /* ERROR "comptime::const_for_fields" */ {
+		_ = f
+	}
+}
+
+func cfUnknownField(v CFWidget) {
+	const for _, f := range comptime.Fields[CFWidget]() {
+		_ = f.Name
+		_ = v.[g /* ERROR "comptime::const_for_projection" */]
+	}
+}
+
+func cfNonStructVal(n int) {
+	const for _, f := range comptime.Fields[CFWidget]() {
+		_ = f.Name
+		_ = n./* ERROR "comptime::const_for_projection" */[f]
+	}
+}
+
+func cfRuntimeFields() {
+	_ = comptime /* ERROR "comptime::runtime_use" */ .Fields[CFWidget]()
+}
+
+func cfRuntimeIsStruct() bool {
+	return comptime /* ERROR "comptime::runtime_use" */ .IsStruct[CFWidget]()
+}
+
+func cfErrorLive() {
+	comptime.Error("live fire" /* ERROR "live fire" */)
+}
+
+func cfErrorNotConstant(msg string) {
+	comptime.Error(msg /* ERROR "comptime::error_not_constant" */)
+}
+
+func cfFieldTypeValue(v CFWidget) {
+	const for _, f := range comptime.Fields[CFWidget]() {
+		_ = f /* ERROR "comptime::runtime_use" */ .Type
+		_ = v.[f]
+	}
+}

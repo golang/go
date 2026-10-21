@@ -1,0 +1,113 @@
+# M7-S3: expanded-node limit (SPEC Sec 2.5, T-205, #150). The default
+# selected limit is 4096 nodes per expansion: triple-nested const for
+# over a 16-field struct exceeds it, while a single const for over the
+# same struct passes. Raising the limit with -logos.comptime_nodes lets
+# the nested case through; a tiny limit rejects even the single case.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Triple nesting fails at the default limit.
+cd wbig
+! logos build ./...
+stderr 'comptime::node_limit'
+cd ..
+
+# The same shape passes with a raised limit, and runs.
+cd wbig
+logos build -gcflags=all=-logos.comptime_nodes=1000000 ./...
+logos run -gcflags=all=-logos.comptime_nodes=1000000 ./...
+stdout '^big-ok$'
+cd ..
+
+# A tiny limit rejects even a single const for. The selected limit is
+# exact: the 24-node expansion passes at 24 and fails at 23.
+cd wsmall
+! logos build -gcflags=all=-logos.comptime_nodes=4 ./...
+stderr 'comptime::node_limit'
+stderr 'expansion has 24 nodes above the selected limit 4'
+logos build -gcflags=all=-logos.comptime_nodes=24 ./...
+! logos build -gcflags=all=-logos.comptime_nodes=23 ./...
+stderr 'comptime::node_limit'
+logos build ./...
+logos run ./...
+stdout '^small-ok$'
+cd ..
+
+-- wbig/go.mod --
+module example.com/bignest
+
+go 1.27
+
+-- wbig/big.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Wide struct {
+	A0 int
+	A1 int
+	A2 int
+	A3 int
+	A4 int
+	A5 int
+	A6 int
+	A7 int
+	A8 int
+	A9 int
+	B0 int
+	B1 int
+	B2 int
+	B3 int
+	B4 int
+	B5 int
+}
+
+func show(v Wide) int {
+	n := 0
+	const for _, f := range comptime.Fields[Wide]() {
+		const for _, g := range comptime.Fields[Wide]() {
+			const for _, h := range comptime.Fields[Wide]() {
+				n += v.[f] + v.[g] + v.[h]
+			}
+		}
+	}
+	return n
+}
+
+func main() {
+	fmt.Println("big-ok")
+}
+
+-- wsmall/go.mod --
+module example.com/smallnest
+
+go 1.27
+
+-- wsmall/small.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Small struct {
+	X int
+	Y int
+}
+
+func show(v Small) int {
+	n := 0
+	const for _, f := range comptime.Fields[Small]() {
+		n += v.[f]
+	}
+	return n
+}
+
+func main() {
+	fmt.Println("show:", show(Small{X: 1, Y: 2}))
+	fmt.Println("small-ok")
+}

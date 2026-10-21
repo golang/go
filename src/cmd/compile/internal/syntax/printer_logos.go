@@ -151,6 +151,22 @@ func printLogos(p *printer, n Node) {
 			}
 		}
 		p.print(_Rbrace)
+	case *ConstForStmt:
+		p.print(_Const, blank, _For, blank)
+		if n.Index != nil {
+			p.printNode(n.Index)
+			p.print(_Comma, blank)
+		}
+		p.printNode(n.Field)
+		p.print(blank, _Define, blank, _Range, blank)
+		p.printNode(n.Range)
+		p.print(blank)
+		p.printNode(n.Body)
+	case *FieldProjExpr:
+		p.printNode(n.X)
+		p.print(_Dot, _Lbrack)
+		p.printNode(n.Field)
+		p.print(_Rbrack)
 	case *AssertedStruct:
 		p.print(_Struct, blank, _Colon, blank)
 		p.printExprList(n.Asserts)

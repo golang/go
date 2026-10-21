@@ -1,0 +1,41 @@
+// errorcheck
+
+// M7-S3 circular comptime instantiation (SPEC Sec 2.5, T-205, #129):
+// BuildA over ServiceA needs BuildB over ServiceB, which needs BuildA
+// over ServiceA again. The diagnostic names the chain by type arguments.
+
+package p
+
+import "comptime"
+
+type Container struct {
+	N int
+}
+
+type ServiceA struct {
+	N int
+}
+
+type ServiceB struct {
+	N int
+}
+
+func BuildA[T any](c *Container) *T {
+	var v T
+	const for _, f := range comptime.Fields[T]() {
+		_ = v.[f]
+	}
+	BuildB[ServiceB](c)
+	return &v
+}
+
+func BuildB[T any](c *Container) *T {
+	var v T
+	const for _, f := range comptime.Fields[T]() {
+		_ = v.[f]
+	}
+	BuildA[ServiceA](c)
+	return &v
+}
+
+var _ = BuildA[ServiceA](&Container{N: 1}) // ERROR "comptime::circular_instantiation\] ServiceA -> ServiceB -> ServiceA"

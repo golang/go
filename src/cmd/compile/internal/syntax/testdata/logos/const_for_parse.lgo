@@ -1,0 +1,50 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+// M7-S2 parser coverage: `const for` statements and `.[f]` projections
+// (SPEC Sec 2.5, T-205). Every form below parses cleanly in LogosMode;
+// the semantic rules (struct-only range, field resolution, live errors)
+// are pinned by the types2 and run fixtures instead of here.
+
+package p
+
+import "comptime"
+
+type CFPoint struct {
+	X int
+	Y int
+}
+
+func cfNames() []string {
+	var out []string
+	const for _, f := range comptime.Fields[CFPoint]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func cfIndexed() []int {
+	var out []int
+	const for i, f := range comptime.Fields[CFPoint]() {
+		out = append(out, i+f.Index)
+	}
+	return out
+}
+
+func cfCopy(v CFPoint) CFPoint {
+	var out CFPoint
+	const for _, f := range comptime.Fields[CFPoint]() {
+		out.[f] = v.[f]
+	}
+	return out
+}
+
+func cfTag(v CFPoint) string {
+	s := ""
+	const for _, f := range comptime.Fields[CFPoint]() {
+		s += f.Tag.Get("json")
+		_ = v.[f]
+	}
+	return s
+}

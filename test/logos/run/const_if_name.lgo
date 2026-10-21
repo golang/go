@@ -1,0 +1,46 @@
+// run
+
+package main
+
+import "fmt"
+
+// M7-S1 const if header (SPEC Sec 2.5, T-205): a named boolean constant
+// or `true` directly before the block is the condition, as in an `if`
+// header; the block is not read as a composite literal.
+
+const (
+	debugOn = true
+	traceOn = false
+)
+
+type point struct{ x, y int }
+
+func flags() string {
+	s := ""
+	const if debugOn {
+		p := point{1, 2}
+		s += fmt.Sprintf("debug %d ", p.x+p.y)
+	}
+	const if traceOn {
+		s += "trace "
+	} else const if debugOn {
+		s += "else-debug "
+	}
+	const if true {
+		s += "true"
+	}
+	return s
+}
+
+func combined() string {
+	const if debugOn && !traceOn {
+		return "debug-only"
+	} else {
+		return "other"
+	}
+}
+
+func main() {
+	fmt.Println(flags())
+	fmt.Println(combined())
+}

@@ -82,6 +82,16 @@ func (w walker) walkLogos(n Node) {
 			}
 			w.node(f.Type)
 		}
+	case *ConstForStmt:
+		if n.Index != nil {
+			w.node(n.Index)
+		}
+		w.node(n.Field)
+		w.node(n.Range)
+		w.node(n.Body)
+	case *FieldProjExpr:
+		w.node(n.X)
+		w.node(n.Field)
 	case *TupleLit:
 		w.exprList(n.Elems)
 	case *LambdaExpr:

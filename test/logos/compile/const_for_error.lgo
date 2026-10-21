@@ -1,0 +1,22 @@
+// errorcheck
+
+// M7-S2 live comptime.Error (SPEC Sec 2.5, T-205): a live
+// comptime.Error call fails compilation with its message.
+
+package p
+
+import "comptime"
+
+type Point struct {
+	X int
+	Y int
+}
+
+func checkPoint(v Point) Point {
+	var out Point
+	const for _, f := range comptime.Fields[Point]() {
+		out.[f] = v.[f]
+		comptime.Error("no points allowed") // ERROR "no points allowed"
+	}
+	return out
+}

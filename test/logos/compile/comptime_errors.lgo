@@ -1,0 +1,47 @@
+// errorcheck
+
+// M7-S2/S3 lowering diagnostics (SPEC Sec 2.5, T-205): a const for index
+// variable is not assignable, a comptime generic cannot be instantiated
+// with a type parameter, and a method of a generic type cannot be a
+// comptime generic.
+
+package p
+
+import "comptime"
+
+type Point struct {
+	X int
+	Y int
+}
+
+func assignIndex() {
+	const for i, f := range comptime.Fields[Point]() {
+		_ = f.Name
+		_ = i
+		i = 3 // ERROR "comptime::const_for_assign"
+	}
+}
+
+func Describe[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func Wrap[T any]() []string {
+	return Describe[T]() // ERROR "comptime::generic_targ"
+}
+
+type Box[T any] struct {
+	v T
+}
+
+func (b *Box[T]) Dump() []string { // ERROR "comptime::generic_method"
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}

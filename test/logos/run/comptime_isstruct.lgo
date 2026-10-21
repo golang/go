@@ -1,0 +1,129 @@
+// run
+
+// M7-S3 comptime predicates (SPEC Sec 2.5, T-205): comptime.IsStruct[T]()
+// is a constant `const if` condition for every instantiation of a
+// comptime generic. The struct instantiation keeps the unrolled branch,
+// the others keep the rest, and the dead branch never resolves its const
+// for over a non-struct type. A concrete type is a constant at once, and
+// a const if inside an unrolled const for answers per field.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+const debugOn = true
+
+const typedOn bool = true
+
+const traceOff = false
+
+type Pair struct {
+	X int
+	Y int
+}
+
+type Outer struct {
+	ID    int
+	Inner Pair
+	Tag   string
+}
+
+func Walk[T any](val T) string {
+	const if comptime.IsStruct[T]() {
+		n := 0
+		const for _, f := range comptime.Fields[T]() {
+			_ = val.[f]
+			n++
+		}
+		return fmt.Sprintf("struct with %d fields", n)
+	}
+	return "not a struct"
+}
+
+func Kind[T any]() string {
+	const if comptime.IsStruct[T]() {
+		return "struct"
+	} else {
+		return "scalar"
+	}
+}
+
+func Negated[T any]() string {
+	const if !comptime.IsStruct[T]() {
+		return "plain"
+	}
+	return "composite"
+}
+
+func Combined[T any]() string {
+	const if debugOn && comptime.IsStruct[T]() {
+		return "debug struct"
+	} else const if debugOn {
+		return "debug other"
+	}
+	return "release"
+}
+
+func Typed[T any]() string {
+	const if typedOn && comptime.IsStruct[T]() {
+		return "typed struct"
+	}
+	return "typed other"
+}
+
+func Release[T any]() string {
+	const if traceOff && comptime.IsStruct[T]() {
+		return "trace struct"
+	} else const if traceOff {
+		return "trace other"
+	}
+	return "release"
+}
+
+func Shape[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		const if comptime.IsStruct[f.Type]() {
+			out = append(out, f.Name+"{}")
+		} else {
+			out = append(out, f.Name)
+		}
+	}
+	return out
+}
+
+func concrete() string {
+	const if comptime.IsStruct[Pair]() {
+		return "Pair is a struct"
+	} else {
+		return "Pair is not a struct"
+	}
+}
+
+func concreteOther() string {
+	const if comptime.IsStruct[int]() {
+		const for _, f := range comptime.Fields[int]() {
+			_ = f
+		}
+		return "int is a struct"
+	}
+	return "int is not a struct"
+}
+
+func main() {
+	fmt.Println(Walk[Pair](Pair{X: 1, Y: 2}))
+	fmt.Println(Walk[Outer](Outer{}))
+	fmt.Println(Walk[int](7))
+	fmt.Println(Walk[string]("s"))
+	fmt.Println(Kind[Pair](), Kind[int](), Kind[*Pair]())
+	fmt.Println(Negated[Pair](), Negated[int]())
+	fmt.Println(Combined[Pair](), Combined[int]())
+	fmt.Println(Typed[Pair](), Typed[int]())
+	fmt.Println(Release[Pair](), Release[int]())
+	fmt.Println(Shape[Outer]())
+	fmt.Println(concrete())
+	fmt.Println(concreteOther())
+}

@@ -12,32 +12,12 @@ import (
 // LoGo/s M7-S5 checking for comptime.ViewAs (SPEC Sec 2.5, T-205).
 //
 // ViewAs reinterprets bytes as a POD struct. The virtual comptime
-// package is synthesized here in Logos mode: importPackage serves it
-// without touching the real importer, so the types2 tests, the eject
-// oracle, and the compiler all resolve `import "comptime"` the same
-// way. When the M7-S2 provider has already created the package, only
-// the ViewAs declaration is added; creation order never matters.
+// package is provided by comptime_logos.go in Logos mode, so the types2
+// tests, the eject oracle, and the compiler all resolve
+// `import "comptime"` the same way; it declares ViewAs through
+// logosEnsureComptimeViewAs below.
 
 const logosViewAsNotPOD = "[comptime::viewas_not_pod]"
-
-// logosServeComptimeViewAs returns the "comptime" package for dir,
-// creating and caching it like importPackage does when absent, and
-// ensures it declares ViewAs.
-func (check *Checker) logosServeComptimeViewAs(dir string) *Package {
-	key := importKey{path: "comptime", dir: dir}
-	if imp := check.impMap[key]; imp != nil {
-		logosEnsureComptimeViewAs(imp)
-		return imp
-	}
-	imp := NewPackage("comptime", "comptime")
-	imp.MarkComplete()
-	logosEnsureComptimeViewAs(imp)
-	check.impMap[key] = imp
-	if check.pkgPathMap != nil {
-		check.markImports(imp)
-	}
-	return imp
-}
 
 // logosEnsureComptimeViewAs inserts the ViewAs declaration unless the
 // package already has one.

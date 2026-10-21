@@ -169,6 +169,10 @@ type Checker struct {
 	logosGoStore     []bool                        // logos M3-S5 hook: assignment-LHS Go-location suppression stack.
 	logosCSwitch     []logosIfaceCase              // logos M7-S4 hook: active interface-case stack for `const switch`.
 	logosGroup       []logosGroupFrame             // logos M8-S2 hook: lexical go-group nesting per function.
+	logosFieldVars   map[*Var]*LogosConstFor       // logos M7-S2 hook: const-for field variables.
+	logosFieldPend   map[*syntax.Name]*Var         // logos M7-S2 hook: bare field-variable uses awaiting consumption.
+	logosFieldBind   *logosFieldBinding            // logos M7-S2 hook: per-iteration field meaning over concrete structs.
+	logosPred        logosPredState                // logos M7-S3 hook: `const if` condition context for comptime predicates.
 	methods          map[*TypeName][]*Func         // maps package scope type names to associated non-blank (non-interface) methods
 	untyped          map[syntax.Expr]exprInfo      // map of expressions without final type
 	delayed          []action                      // stack of delayed action segments; segments are processed in FIFO order

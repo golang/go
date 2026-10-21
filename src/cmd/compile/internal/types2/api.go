@@ -334,6 +334,7 @@ type Info struct {
 	LogosConstIfDead map[syntax.Stmt]bool                             // logos M7-S1 hook: statements of dead `const if` branches, for comptime checks.
 	LogosConstSel    map[*syntax.SelectorExpr]*syntax.ConstSwitchCase // logos M7-S4 hook: interface-case selectors on the switched value, by their case.
 	LogosConstCases  map[*syntax.ConstSwitchCase]LogosConstCase       // logos M7-S4 hook: the case-scope substitution of each `const switch` case.
+	LogosConstFor    map[syntax.Node]*LogosConstFor                   // logos M7-S2 hook: checked `const for` statements for unrolling.
 
 	LogosPlatformRets map[syntax.Pos][]LogosPlatformRet // logos M9-S2 hook: start positions of return operands holding platform pointers that convert to an interface result.
 }

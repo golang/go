@@ -1108,6 +1108,9 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 	case *syntax.SelectorExpr:
 		check.selector(x, e, false)
 
+	case *syntax.FieldProjExpr:
+		check.logosFieldProjExpr(x, e) // logos M7-S2 hook.
+
 	case *syntax.IndexExpr:
 		if check.indexExpr(x, e) {
 			if !enableReverseTypeInference {

@@ -1093,6 +1093,9 @@ func newPreload() *preload {
 func (pre *preload) preloadMatches(ld *modload.Loader, ctx context.Context, opts PackageOpts, matches []*search.Match) {
 	for _, m := range matches {
 		for _, pkg := range m.Pkgs {
+			if logosSkipVirtualImport(pkg) { // logos M7 hook: the virtual comptime package has no files to preload.
+				continue
+			}
 			select {
 			case <-pre.cancel:
 				return
@@ -1117,6 +1120,9 @@ func (pre *preload) preloadImports(ld *modload.Loader, ctx context.Context, opts
 	parentIsStd := parent.Goroot && parent.ImportPath != "" && search.IsStandardImportPath(parent.ImportPath)
 	for _, path := range imports {
 		if path == "C" || path == "unsafe" {
+			continue
+		}
+		if logosSkipVirtualImport(path) { // M7-S2 hook: virtual comptime package needs no loading.
 			continue
 		}
 		select {
@@ -3013,6 +3019,9 @@ func PackagesAndErrors(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		for _, pkg := range m.Pkgs {
 			if pkg == "" {
 				panic(fmt.Sprintf("ImportPaths returned empty package for pattern %s", m.Pattern()))
+			}
+			if logosSkipVirtualImport(pkg) { // logos M7 hook: the virtual comptime package matches "all" but has no files.
+				continue
 			}
 			mode := cmdlinePkg
 			if m.IsLiteral() {

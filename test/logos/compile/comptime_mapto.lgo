@@ -1,0 +1,35 @@
+// errorcheck
+
+// M7-S3 field copies through f.Type (SPEC Sec 2.5, T-205, #130): a copy
+// whose field types differ fails as an ordinary type mismatch at the
+// instantiation, while a copy with equal field types compiles.
+
+package p
+
+import "comptime"
+
+type Dst struct {
+	ID   int
+	Name string
+}
+
+type SrcOK struct {
+	ID   int
+	Name string
+}
+
+type SrcBad struct {
+	ID   string
+	Name string
+}
+
+func MapTo[D, S any](dst *D, src *S) {
+	const for _, f := range comptime.Fields[D]() {
+		dst.[f] = src.[f]
+	}
+}
+
+func use(d *Dst, ok *SrcOK, bad *SrcBad) {
+	MapTo[Dst, SrcOK](d, ok)
+	MapTo[Dst, SrcBad](d, bad) // ERROR "cannot use src.ID"
+}

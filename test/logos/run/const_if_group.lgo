@@ -1,0 +1,48 @@
+// run
+
+// M7-S1 const if inside go group (SPEC Sec 2.5, T-205, Sec 2.6): the
+// live branch of a const if in a group body, and in a child block of a
+// group, survives with its children; the dead branch lowers to nothing.
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync/atomic"
+)
+
+const on = true
+
+var total atomic.Int64
+
+func bump(n int) error {
+	total.Add(int64(n))
+	return nil
+}
+
+func fill(ctx context.Context) error {
+	go group (ctx) {
+		const if on {
+			go bump(1)
+		} else {
+			go bump(100)
+		}
+		go {
+			const if !on {
+				total.Add(10000)
+			} else {
+				total.Add(20)
+			}
+		}
+	}
+	return nil
+}
+
+func main() {
+	if err := fill(context.Background()); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(total.Load())
+}

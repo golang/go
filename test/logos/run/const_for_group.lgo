@@ -1,0 +1,47 @@
+// run
+
+// M7-S2 const for inside a go group child block (SPEC Sec 2.5, T-205,
+// Sec 2.6): the const for unrolls before the child lowers, the child
+// wraps the unrolled statements, and the ejected text agrees with the
+// native tree.
+
+package main
+
+import (
+	"comptime"
+	"context"
+	"fmt"
+	"sync/atomic"
+)
+
+type Counts struct {
+	A int
+	B int
+	C int
+}
+
+var total atomic.Int64
+
+func fill(ctx context.Context, c Counts) error {
+	go group (ctx) {
+		go {
+			const for _, f := range comptime.Fields[Counts]() {
+				total.Add(int64(c.[f]))
+			}
+		}
+		go {
+			const for i, f := range comptime.Fields[Counts]() {
+				total.Add(int64(c.[f]) * int64(100*(i+1)))
+			}
+		}
+	}
+	return nil
+}
+
+func main() {
+	if err := fill(context.Background(), Counts{A: 1, B: 2, C: 3}); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(total.Load())
+}

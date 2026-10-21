@@ -1,0 +1,64 @@
+// run
+
+// M7-S2 const for inside const if (SPEC Sec 2.5, T-205): a const for in
+// the live branch of a const if unrolls; a const for in the dead branch
+// (including a live comptime.Error there) is pruned with its branch and
+// never reaches lowering. Both branches still type-check.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Pair struct {
+	X int
+	Y int
+}
+
+func live(v Pair) int {
+	n := 0
+	const if 1 == 1 {
+		const for _, f := range comptime.Fields[Pair]() {
+			n += v.[f]
+		}
+	} else {
+		const for _, f := range comptime.Fields[Pair]() {
+			n -= v.[f]
+			comptime.Error("dead else branch is never lowered")
+		}
+	}
+	return n
+}
+
+func elseLive(v Pair) int {
+	n := 0
+	const if 1 == 2 {
+		const for _, f := range comptime.Fields[Pair]() {
+			n -= v.[f]
+			comptime.Error("dead then branch is never lowered")
+		}
+	} else {
+		const for _, f := range comptime.Fields[Pair]() {
+			n += 2 * v.[f]
+		}
+	}
+	return n
+}
+
+func deadOnly(v Pair) int {
+	n := 0
+	const if 1 == 2 {
+		const for _, f := range comptime.Fields[Pair]() {
+			n += v.[f]
+			comptime.Error("dead branch is never lowered")
+		}
+	}
+	return n
+}
+
+func main() {
+	p := Pair{X: 3, Y: 4}
+	fmt.Println(live(p), elseLive(p), deadOnly(p))
+}

@@ -1,0 +1,35 @@
+// run
+
+// M7-S3 field copies through f.Type (SPEC Sec 2.5, T-205, #130): MapTo
+// copies every field of the destination from the source by name; the
+// expansion compares the compile-time types per field.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+)
+
+type Dst struct {
+	ID   int
+	Name string
+}
+
+type Src struct {
+	ID    int
+	Name  string
+	Extra bool
+}
+
+func MapTo[D, S any](dst *D, src *S) {
+	const for _, f := range comptime.Fields[D]() {
+		dst.[f] = src.[f]
+	}
+}
+
+func main() {
+	var d Dst
+	MapTo[Dst, Src](&d, &Src{ID: 7, Name: "x", Extra: true})
+	fmt.Println(d.ID, d.Name)
+}

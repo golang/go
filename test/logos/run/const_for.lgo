@@ -1,0 +1,81 @@
+// run
+
+// M7-S2 const for over concrete types (SPEC Sec 2.5, T-205): fields
+// visit in declaration order (#114); val.[f] reads and writes the named
+// field; f.Name and f.Tag.Get("json") fold to constants; unexported
+// fields of the current package are included (#65).
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"strings"
+)
+
+type Account struct {
+	Name    string `json:"name"`
+	balance int64
+	Active  bool `json:"active"`
+}
+
+func names() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Account]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func tags() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Account]() {
+		out = append(out, f.Tag.Get("json"))
+	}
+	return out
+}
+
+func indexes() []int {
+	var out []int
+	const for i, f := range comptime.Fields[Account]() {
+		_ = f.Name
+		out = append(out, i+f.Index)
+	}
+	return out
+}
+
+func foreignNames() []string {
+	var out []string
+	const for _, f := range comptime.Fields[strings.Builder]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func copyAccount(a Account) Account {
+	var b Account
+	const for _, f := range comptime.Fields[Account]() {
+		b.[f] = a.[f]
+	}
+	return b
+}
+
+func nameLenSum(a Account) int {
+	n := 0
+	const for _, f := range comptime.Fields[Account]() {
+		n += len(f.Name)
+		_ = a.[f]
+	}
+	return n
+}
+
+func main() {
+	fmt.Println(names())
+	fmt.Println(tags())
+	fmt.Println(indexes())
+	src := Account{Name: "ann", Active: true}
+	dst := copyAccount(src)
+	fmt.Println(dst)
+	fmt.Println(nameLenSum(src))
+	fmt.Println(foreignNames())
+}

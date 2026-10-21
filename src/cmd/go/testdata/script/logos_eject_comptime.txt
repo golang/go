@@ -1,0 +1,103 @@
+# M7 eject (SPEC Sec 2.5, T-205; T-0.3): a module that imports the virtual
+# comptime package ejects to plain Go. main.lgo uses comptime.ViewAs and a
+# const for comptime generic with a grouped import; names/names.lgo uses
+# const for with an ungrouped import. The ejected tree drops every comptime
+# import, runs under plain go with the output logos run prints, and stays
+# vet- and gofmt-clean.
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd m
+
+# logos runs the module before eject.
+logos run .
+stdout '^header 1 2$'
+stdout '^fields \[X Y\]$'
+stdout '^names \[Left Right\]$'
+cp stdout $WORK/native.txt
+
+# Snapshot the source tree; eject must never write into it (#112).
+mkdir $WORK/orig
+cp main.lgo $WORK/orig/main.lgo
+cp names/names.lgo $WORK/orig/names.lgo
+
+logos eject -o out
+exists out/main.go
+exists out/names/names.go
+
+# No ejected file imports comptime, and no bare import keyword is left.
+! grep '"comptime"' out/main.go
+! grep '"comptime"' out/names/names.go
+! grep '^import$' out/names/names.go
+
+# The ejected tree runs under plain go with identical output.
+cd out
+go run .
+cmp stdout $WORK/native.txt
+go vet ./...
+exec $GOROOT/bin/gofmt -l .
+! stdout .
+cd ..
+
+# The source tree is unchanged after eject (#112).
+cmp main.lgo $WORK/orig/main.lgo
+cmp names/names.lgo $WORK/orig/names.lgo
+
+-- m/go.mod --
+module example.com/ejectct
+
+go 1.27
+
+-- m/main.lgo --
+package main
+
+import (
+	"comptime"
+	"fmt"
+
+	"example.com/ejectct/names"
+)
+
+type Header struct {
+	Magic   uint32
+	Version uint32
+}
+
+type Pair struct {
+	X int
+	Y int
+}
+
+func Names[T any]() []string {
+	var out []string
+	const for _, f := range comptime.Fields[T]() {
+		out = append(out, f.Name)
+	}
+	return out
+}
+
+func main() {
+	b := []byte{1, 0, 0, 0, 2, 0, 0, 0}
+	h := comptime.ViewAs[Header](b)
+	fmt.Println("header", h.Magic, h.Version)
+	fmt.Println("fields", Names[Pair]())
+	fmt.Println("names", names.Sides())
+}
+
+-- m/names/names.lgo --
+package names
+
+import "comptime"
+
+type Side struct {
+	Left  int
+	Right int
+}
+
+func Sides() []string {
+	var out []string
+	const for _, f := range comptime.Fields[Side]() {
+		out = append(out, f.Name)
+	}
+	return out
+}

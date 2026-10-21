@@ -1171,6 +1171,10 @@ loop:
 				p.want(_Rparen)
 
 			default:
+				if fp := p.logosFieldProj(x, pos); fp != nil { // M7-S2 hook: `.[f]` projections.
+					x = fp
+					break
+				}
 				if sel := p.logosDotMap(); sel != nil { // M6-S7 hook: `.map` chains.
 					t := new(SelectorExpr)
 					t.pos = pos
@@ -2707,6 +2711,9 @@ func (p *parser) stmtOrNil() Stmt {
 
 	case _Const:
 		if s := p.logosConstStmt(); s != nil { // M7-S1/S4 hook: `const if` and `const switch` statements.
+			return s
+		}
+		if s := p.logosConstForStmt(); s != nil { // M7-S2 hook: `const for` statements.
 			return s
 		}
 		return p.declStmt(p.constDecl)

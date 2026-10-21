@@ -38,6 +38,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 		facts.SetCurrent(f)
 	}
 	shared := &packageLower{info: info, tpkg: pkg, constMaps: collectConstMaps(files, info)}
+	shared.ctExp = newCfExpander(shared, files, src) // M7-S3 hook: comptime generics of every file, registered before any file lowers.
 	edits := make(map[*syntax.File][]Edit)
 	changed := false
 	for _, file := range files {
@@ -63,6 +64,7 @@ func Lower(pkg *types2.Package, info *types2.Info, files []*syntax.File, src map
 	if !changed {
 		changed = infoHasConstView(info, files) // M5-S6: pure-info consts (rt.Freeze results) need a plain recheck.
 	}
+	base.ExitIfErrors() // M7-S3 hook: comptime diagnostics end lowering before survivors are rejected.
 	for _, file := range files {
 		rejectSurvivors(file)
 	}
@@ -75,6 +77,7 @@ type packageLower struct {
 	tpkg      *types2.Package
 	siteSeq   int
 	constMaps map[*types2.Const]*constMapGen // M5-S4: every const map of the package.
+	ctExp     *cfExpander                    // M7-S3: definitions, memo, and cycle stack across files.
 }
 
 // fileLower carries the state of lowering one file.
@@ -196,6 +199,7 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 // lowerFile lowers every function body of one file.
 func (fl *fileLower) lowerFile() {
 	fl.collectInterpKinds()  // M6-S1 hook: interpolation operand kinds before any rewrite.
+	fl.lowerComptime()       // M7-S2/S3 hook: comptime generic copies, then const for unrolling, before any rewrite.
 	fl.scanRodataMarkers()   // M5-S3 hook: hand-written //logos:rodata lines.
 	fl.lowerZeroCopy()       // M5-S5 hook: zero-copy string/bytes conversions.
 	fl.lowerCTFE()           // M5-S2 hook: const composite literals and const func erasure.
@@ -216,6 +220,7 @@ func (fl *fileLower) lowerFile() {
 		}
 		scanForLiterals(fl, decl)
 	}
+	fl.endComptime()  // M7-S2/S3 hook: comptime import and erased-package imports, after pruning removed the dead branches.
 	fl.lowerSimd()    // M14-S1 hook: array operators and reductions to IIFEs.
 	fl.lowerTuples()  // M6-S5 hook: tuples to structs, pack/unpack.
 	fl.lowerLambdas() // M6-S6 hook: lambdas to function literals.
@@ -500,7 +505,7 @@ func rejectSurvivors(file *syntax.File) {
 			*syntax.OptionType, *syntax.CoalesceExpr, *syntax.OptSelectExpr, *syntax.ConstType, *syntax.ConstFuncDecl,
 			*syntax.YieldStmt, *syntax.ScopeDeferStmt, *syntax.FieldDefault, *syntax.SpreadExpr, *syntax.InterpExpr,
 			*syntax.TupleType, *syntax.TupleLit, *syntax.LambdaExpr, *syntax.ConstIfStmt, *syntax.ConstSwitchStmt,
-			*syntax.GroupStmt, *syntax.GroupChild:
+			*syntax.ConstForStmt, *syntax.FieldProjExpr, *syntax.GroupStmt, *syntax.GroupChild:
 			base.Fatalf("logos: %T survived lowering at %s", n, n.Pos().String())
 		}
 		return true

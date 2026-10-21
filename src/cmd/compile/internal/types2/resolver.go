@@ -128,6 +128,11 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	// Checker.impMap only caches packages that are marked Complete
 	// or fake (dummy packages for failed imports). Incomplete but
 	// non-fake packages do require an import to complete them.
+	var logosImp *Package
+	check.logosComptimeImport(&logosImp, path, dir) // logos M7-S2 hook: virtual comptime package.
+	if logosImp != nil {
+		return logosImp
+	}
 	key := importKey{path, dir}
 	imp := check.impMap[key]
 	if imp != nil {
@@ -135,9 +140,6 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
 	}
 
 	// no package yet => import it
-	if path == "comptime" && check.conf.Logos {
-		return check.logosServeComptimeViewAs(dir) // logos M7-S5 hook: virtual comptime package.
-	}
 	if path == "C" && (check.conf.FakeImportC || check.conf.go115UsesCgo) {
 		if check.conf.FakeImportC && check.conf.go115UsesCgo {
 			check.error(pos, BadImportPath, "cannot use FakeImportC and go115UsesCgo together")

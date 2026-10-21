@@ -1,0 +1,49 @@
+// errorcheck
+
+// M7-S3 comptime predicates (SPEC Sec 2.5, T-205): comptime.IsStruct is
+// a constant only in a `const if` condition. Anywhere else it is a
+// run-time use. A condition that mixes it with a run-time value is not
+// constant. A const for over a non-struct type fails in a live branch and
+// is silent in a dead one.
+
+package p
+
+import "comptime"
+
+type Pair struct {
+	X int
+	Y int
+}
+
+func outside() bool {
+	return comptime.IsStruct[Pair]() // ERROR "comptime::runtime_use"
+}
+
+func RuntimeGuard[T any](ok bool) {
+	const if ok && comptime.IsStruct[T]() { // ERROR "comptime::not_constant"
+	}
+}
+
+func liveNonStruct() {
+	const if comptime.IsStruct[Pair]() {
+		const for _, f := range comptime.Fields[int]() { // ERROR "comptime::const_for_fields"
+			_ = f.Name
+		}
+	}
+}
+
+func fieldCondition() {
+	const for _, f := range comptime.Fields[Pair]() {
+		const if f.Name == "X" { // ERROR "comptime::not_constant"
+		}
+	}
+}
+
+func deadNonStruct() string {
+	const if comptime.IsStruct[int]() {
+		const for _, f := range comptime.Fields[int]() {
+			_ = f.Name
+		}
+	}
+	return "ok"
+}

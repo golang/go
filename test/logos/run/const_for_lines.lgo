@@ -1,0 +1,49 @@
+// run
+
+// M7-S2 const for line numbers (SPEC Sec 2.5, T-205): a panic in an
+// unrolled body names the .lgo const for line in its trace. The test
+// recovers the panic, renders the stack, and reports whether a frame
+// names this file.
+
+package main
+
+import (
+	"comptime"
+	"fmt"
+	"runtime/debug"
+)
+
+type Item struct {
+	Name  string
+	Value int
+}
+
+func get(items []Item, i int) string {
+	defer func() {
+		_ = recover()
+		stack := string(debug.Stack())
+		fmt.Println("recovered")
+		fmt.Println("namesfile:", contains(stack, "const_for_lines.lgo"))
+		fmt.Println("namesline:", contains(stack, "const_for_lines.lgo:30"))
+	}()
+	var out string
+	const for _, f := range comptime.Fields[Item]() {
+		out += items[i].Name
+		_ = f.Name
+		out += items[i].Name
+	}
+	return out
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
+}
+
+func main() {
+	fmt.Println(get(nil, 3))
+}

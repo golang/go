@@ -24,6 +24,8 @@ func startPosLogos(n Node) (pos Pos, ok bool) {
 		return n.Pos(), true
 	case *OptionType:
 		return StartPos(n.Elem), true
+	case *FieldProjExpr:
+		return StartPos(n.X), true
 	case *CoalesceExpr:
 		return StartPos(n.X), true
 	case *OptSelectExpr:
@@ -66,13 +68,7 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		p := n.Pos()
 		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *ConstIfStmt:
-		if els, ok := n.Else.(*ConstIfStmt); ok {
-			return EndPos(els), true
-		}
-		end := EndPos(n.Then)
-		if n.Else != nil {
-			end = EndPos(n.Else)
-		}
+		end := EndPos(constIfTail(n))
 		return MakePos(end.Base(), end.Line(), end.Col()+1), true
 	case *ConstSwitchStmt:
 		p := n.Rbrace
@@ -97,6 +93,11 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return EndPos(n.Elems[len(n.Elems)-1]), true
 	case *LambdaExpr:
 		return EndPos(n.Body), true
+	case *ConstForStmt:
+		return EndPos(n.Body), true
+	case *FieldProjExpr:
+		p := n.Rbrack
+		return MakePos(p.Base(), p.Line(), p.Col()+1), true
 	case *OptSelectExpr:
 		return EndPos(n.Sel), true
 	case *ConstType:
@@ -125,4 +126,16 @@ func endPosLogos(n Node) (pos Pos, ok bool) {
 		return EndPos(n.Func), true
 	}
 	return Pos{}, false
+}
+
+// constIfTail returns the last block of the `const if` chain rooted at s,
+// the block that ends the statement.
+func constIfTail(s *ConstIfStmt) *BlockStmt {
+	switch els := s.Else.(type) {
+	case *ConstIfStmt:
+		return constIfTail(els)
+	case *BlockStmt:
+		return els
+	}
+	return s.Then
 }

@@ -1,0 +1,53 @@
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package p
+
+// M7-S1 const if header (SPEC Sec 2.5, T-205): like an `if` header, the
+// condition is parsed with composite literals off, so a name or a
+// keyword constant followed by `{` is the condition and the block.
+
+const debugOn = true
+
+type point struct{ x, y int }
+
+func constIfName() int {
+	const if debugOn {
+		return 1
+	}
+	return 2
+}
+
+func constIfTrue() int {
+	const if true {
+		return 1
+	} else {
+		return 2
+	}
+}
+
+func constIfBinary() int {
+	const if debugOn && !false {
+		return 1
+	} else const if debugOn {
+		return 2
+	} else const if false {
+		return 3
+	}
+	return 4
+}
+
+func constIfParenLiteral(p point) int {
+	const if (point{1, 2}) == p {
+		return 1
+	}
+	return 2
+}
+
+func constIfCall() int {
+	const if len("ab") == 2 {
+		return 1
+	}
+	return 2
+}

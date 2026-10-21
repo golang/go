@@ -802,6 +802,18 @@ Both branches MUST type-check. [T-205]
 
 Only the live branch MUST reach lowering. [T-205]
 
+The condition MUST end at the `{` that opens the branch, so a name or `true` before `{` is the condition and not a composite literal. [T-205]
+
+`comptime.IsStruct[T]()` MUST be a constant `const if` condition, true when the underlying type of `T` is a struct. [T-205]
+
+Inside a comptime generic its value MUST be taken per instantiation, and a condition built from it with `!`, `&&`, `||`, `==`, `!=` and constants MUST NOT fail `[comptime::not_constant]`. [T-205]
+
+A `const if` inside a comptime generic or a `const for` body MUST evaluate per instantiation or per field over `true`, `false`, constants, `comptime.IsStruct[X]()` with `X` a type argument, a type parameter or `f.Type`, and the connectives `!`, `&&`, `||`, `==`, `!=`. [T-205]
+
+Any other non-constant condition MUST fail with `[comptime::not_constant]`, including a condition on `f.Name`, `f.Index`, `f.Exported` or the index variable. [T-205]
+
+A `const for` in a dead `const if` branch MUST NOT fail with `[comptime::const_for_fields]`. [T-205]
+
 `comptime.Fields[T]()`, `val.[f]`, `f.Name`, `f.Type`, `f.Tag.Get(k)`, `comptime.IsStruct[T]()`, `comptime.TypeOf[X]()`, and `comptime.Error(msg)` MUST be compile-time only. [T-205]
 
 Any run-time use MUST fail with `[comptime::runtime_use]`. [T-205]
@@ -814,6 +826,10 @@ Copies MUST be memoized per type-argument list. [T-205]
 
 An exported comptime generic MUST travel as source text in `__.LOGOS`. [T-205]
 
+A `const for` range MUST be `comptime.Fields[T]()` over a struct type. [T-205]
+
+Any other range operand, and a non-struct `T`, MUST fail with `[comptime::const_for_fields]`. [T-205]
+
 Expansion MUST visit fields in declaration order. [T-205]
 
 It MUST include exported fields and unexported fields of a current-package `T`. [T-205]
@@ -822,15 +838,35 @@ It MUST exclude unexported fields of other packages. [T-205]
 
 `val.[f]` MUST read and write the named field. [T-205]
 
+`val.[f]` MUST name the field variable of an enclosing `const for` and project a struct value of that loop's type. [T-205]
+
+Any other use MUST fail with `[comptime::const_for_projection]`. [T-205]
+
+A `const for` index variable MUST NOT be assigned. [T-205]
+
+An assignment to it MUST fail with `[comptime::const_for_assign]`. [T-205]
+
 `f.Tag.Get(k)` MUST constant-fold. [T-205]
 
 A live `comptime.Error(msg)` MUST fail compilation with `msg`. [T-205]
+
+`comptime.Error(msg)` MUST take a constant string. [T-205]
+
+A non-constant `msg` MUST fail with `[comptime::error_not_constant]`. [T-205]
 
 `Resolve[f.Type](c)` MUST resolve per field. [T-205]
 
 A panic in unrolled code MUST name the `.lgo` `const for` line in its trace. [T-205]
 
 A circular instantiation MUST fail with `[comptime::circular_instantiation]` naming the chain. [T-205]
+
+A comptime generic MUST be instantiated with concrete type arguments. [T-205]
+
+An instantiation with a type parameter, a type argument that expansion cannot resolve, or a call inside an expansion without explicit type arguments MUST fail with `[comptime::generic_targ]`. [T-205]
+
+A method of a generic type MUST NOT be a comptime generic. [T-205]
+
+A method of a generic type that uses `const for` over a type parameter MUST fail with `[comptime::generic_method]`. [T-205]
 
 An expansion above the selected `max_comptime_ast_nodes` limit with default 4,096 nodes MUST fail with `[comptime::node_limit]`. [T-205][T-102]
 

@@ -1,0 +1,12 @@
+struct with 2 fields
+struct with 3 fields
+not a struct
+not a struct
+struct scalar scalar
+composite plain
+debug struct debug other
+typed struct typed other
+release release
+[ID Inner{} Tag]
+Pair is a struct
+int is not a struct

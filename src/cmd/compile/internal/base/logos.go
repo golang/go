@@ -51,6 +51,12 @@ var LogosJSON bool
 // escape rules, and stop before SSA and the backend.
 var LogosLintOnly bool
 
+// LogosComptimeNodes caps the expanded nodes of one comptime expansion
+// (SPEC Sec 2.5, T-205, #150). The selected-limit tests use the selected
+// value; logos.toml [lints.thresholds] max_comptime_ast_nodes wires to
+// this flag in M9.
+var LogosComptimeNodes = 4096
+
 // logosRegisterFlags registers the loGo/s compiler flags.
 func logosRegisterFlags() {
 	flag.StringVar(&LogosCfg, "logos.cfg", "", "read the lint policy from `file`")
@@ -60,4 +66,5 @@ func logosRegisterFlags() {
 	flag.StringVar(&LogosMode, "logos.mode", "", "run a logos helper mode (`next`, `context`, or `hints`)")
 	flag.StringVar(&LogosHintsOut, "logos.hintsout", "", "write the logos editor hints of the package to `file`")
 	flag.StringVar(&LogosNextOut, "logos.nextout", "", "append logos next scan results to `file`")
+	flag.IntVar(&LogosComptimeNodes, "logos.comptime_nodes", 4096, "cap expanded nodes per comptime expansion")
 }
