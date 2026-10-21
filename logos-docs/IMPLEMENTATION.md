@@ -1628,6 +1628,7 @@ Anchor: Tony Hoare, Kenya Hara
 
 ### M6-S4 Spread
 Anchor: Tony Hoare, Edsger W. Dijkstra
+- Attack (addressed literal): `test/logos/run/spread_addr_literal.lgo` takes the address of a literal with spread fields. Eject MUST preserve one address operator and evaluate the spread source once. Native and ejected output MUST match.
 - Attack: `testdata/logos/spread.lgo`: same name with different type -> `spread_type_mismatch` (#119, #146); `test/logos/run/spread.lgo`: explicit fields win; source evaluated once; `s = State{A: s.B, B: s.A, ..s}` swaps correctly; a 4 KB struct self-update performs no full copy (codegen check: no `runtime.memmove` of 4 KB, #146).
 - Build: parser: `..expr` as a composite literal element in LogosMode; lowering: simple source operands referenced directly, others captured once in a function literal; self-update form -> one tuple assignment.
 - Gate: types2, testdir, codegen tests.

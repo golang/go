@@ -303,8 +303,11 @@ func (fl *fileLower) spreadAddrOp(op *syntax.Operation, c *syntax.CompositeLit) 
 	start := fl.off(op.Pos())
 	native := fl.spreadAddrComposite(c)
 	// spreadAddrComposite spliced the composite span; widen it to the
-	// operator by draining that splice into the wider text.
-	inner := fl.textOf(span{start: start, end: fl.off(c.Rbrace) + 1})
+	// operator, dropping the `&` itself: the IIFE already returns *T,
+	// so keeping the operator would take the address of a pointer.
+	// The drained span starts just after the operator, so a comment in
+	// that gap stays while only the `&` itself is dropped.
+	inner := fl.textOf(span{start: start + len("&"), end: fl.off(c.Rbrace) + 1})
 	fl.add(start, skipCloseParens(fl.src, fl.off(c.Rbrace)+1), inner)
 	return native
 }

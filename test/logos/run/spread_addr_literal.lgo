@@ -1,0 +1,26 @@
+// run
+
+// BUG (eject): taking the address of a spread literal, `&S{B: 5, ..a}`,
+// builds and runs natively but the ejected Go does not compile. The
+// spread lowering turns the literal into an immediately called function
+// literal, and eject keeps the `&` in front of the call:
+//   invalid operation: cannot take address of func() *S {...}() (value of type *S)
+// SPEC Sec 1.4 (T-104.5): `T{..src}` is a composite literal of type T,
+// so `&T{..src}` is the address of a fresh T; SPEC Sec 0.3 (T-0.3):
+// ejected output MUST build and behave as the native build.
+// Expected stdout: {1 2} {9 5}.
+package main
+
+import "fmt"
+
+type S struct {
+	A int
+	B int
+}
+
+func main() {
+	a := S{A: 1, B: 2}
+	q := &S{B: 5, ..a}
+	q.A = 9
+	fmt.Println(a, *q)
+}
