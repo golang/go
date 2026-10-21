@@ -21,3 +21,23 @@ func constSwitchDeadBranch(n int) int {
 	}
 	return n
 }
+
+func constSwitchGenericSelected[T any](n T) T { // ERROR "correctness::infinite_recursion"
+	const switch int {
+	case ~string:
+		return n
+	case int:
+		return constSwitchGenericSelected[T](n)
+	}
+	return constSwitchGenericSelected[T](n)
+}
+
+func constSwitchGenericDead[T any](n T) T {
+	const switch int {
+	case ~string:
+		return constSwitchGenericDead[T](n)
+	case int:
+		return n
+	}
+	return n
+}

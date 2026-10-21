@@ -794,6 +794,118 @@ func TestInfiniteRecursionConstSwitch(t *testing.T) {
 	expect(t, KindLgo, nil, testSource{"x.lgo", recursionConstSwitchSrc}, finding{"correctness::infinite_recursion", Forbid})
 }
 
+const recursionGenericSrc = `package p
+
+func genSimple[T any](n T) T { return genSimple[T](n) } // want
+
+func genParen[T any](n T) T { return (genParen[T])(n) } // want
+
+func genMulti[T any, U any](a T, b U) (T, U) { return genMulti[T, U](a, b) } // want
+
+func genSwitchFall[T any](n int, v T) T { // want
+	switch n {
+	case 0:
+		return genSwitchFall[T](n, v)
+	case 1:
+		return genSwitchFall[T](n, v)
+	}
+	return genSwitchFall[T](n, v)
+}
+
+func genMonoChanged[T any](n int) int { return genMonoChanged[string](n) }
+
+func genChangedVals[T any](a T, b T) T { return genChangedVals[T](b, a) }
+
+func genSwapType[T any, U any](a T, b U) int { return genSwapType[U, T](b, a) }
+
+func genShadow[T any](n T) T {
+	{
+		n := n
+		return genShadow[T](n)
+	}
+}
+
+type R struct{}
+
+func (r R) MSimple[T any](n T) T { return r.MSimple[T](n) } // want
+
+func (r R) MOtherRecv[T any](n T) T {
+	other := R{}
+	return other.MOtherRecv[T](n)
+}
+
+func (r R) MChangedArg[T any](n int) int { return r.MChangedArg[string](n) }
+
+type GR[T any] struct{ v T }
+
+func (r GR[T]) GM[U any](a T, b U) (T, U) { return r.GM[U](a, b) } // want
+`
+
+// TestInfiniteRecursionGenericSelfCall covers declaration-unconditional
+// recognition of explicit generic self calls with identical type and value
+// parameters: a simple f[T](n) entry recursion, a parenthesized call, a
+// multi-type-parameter call with the same positional vector, a
+// switch fallthrough with a trailing self call, a method r.M[T](n) on the
+// same receiver, and a generic-receiver r.GM[U](a, b). Changed
+// type-argument vectors, changed value arguments, swapped multi-type
+// vectors, a call on another receiver, and shadowed names must not report.
+// Each marked line is the reported function name. RED before the
+// production fix: callsFn does not unwrap IndexExpr, so every generic self
+// call is missed.
+func TestInfiniteRecursionGenericSelfCall(t *testing.T) {
+	for _, kind := range []Kind{KindGo, KindLgo} {
+		name, sev := "x.go", Deny
+		if kind == KindLgo {
+			name, sev = "x.lgo", Forbid
+		}
+		expect(t, kind, nil, testSource{name, recursionGenericSrc}, finding{"correctness::infinite_recursion", sev})
+	}
+}
+
+const recursionGenericConstSwitchSrc = `package p
+
+func genConstSel[T any](n T) T { // want
+	const switch int {
+	case ~string:
+		return n
+	case int:
+		return genConstSel[T](n)
+	}
+	return genConstSel[T](n)
+}
+
+func genConstDead[T any](n T) T {
+	const switch int {
+	case ~string:
+		return genConstDead[T](n)
+	case int:
+		return n
+	}
+	return n
+}
+
+func genTermSwitch[T any](n int) int {
+	const switch T {
+	case int:
+		return genTermSwitch[string](n)
+	case string:
+		return n
+	}
+	return n
+}
+`
+
+// TestInfiniteRecursionGenericConstSwitch covers the generic const-switch
+// witness: a concrete tag selects the matching case at compile time, so the
+// selected case plus the trailing fallthrough path must both call with the
+// identical type and value vector to report. Recursion solely in a dead
+// branch, and a terminating f[int]->f[string] dispatch on a type-parameter
+// tag, must not report. Each marked line is the reported function name.
+// RED before the production fix: the generic selected-case call is missed.
+func TestInfiniteRecursionGenericConstSwitch(t *testing.T) {
+	expect(t, KindLgo, nil, testSource{"x.lgo", recursionGenericConstSwitchSrc}, finding{"correctness::infinite_recursion", Forbid})
+}
+
 // TestDirective covers the //logos:allow scope rules.
 func TestDirective(t *testing.T) {
 	const src = `package p

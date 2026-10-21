@@ -363,7 +363,8 @@ func (r *recursion) isSelfCall(call *syntax.CallExpr) bool {
 }
 
 // callsFn reports whether fun names the function under analysis: a plain
-// identifier, or the receiver with the method name.
+// identifier, the receiver with the method name, or an explicit
+// instantiation of either with its own type parameters in order.
 func (r *recursion) callsFn(fun syntax.Expr) bool {
 	switch f := fun.(type) {
 	case *syntax.ParenExpr:
@@ -373,8 +374,64 @@ func (r *recursion) callsFn(fun syntax.Expr) bool {
 	case *syntax.SelectorExpr:
 		x, ok := f.X.(*syntax.Name)
 		return ok && r.recv != nil && r.pass.Info.Uses[x] == r.recv && r.pass.Info.Uses[f.Sel] == r.fn
+	case *syntax.IndexExpr:
+		return r.callsGeneric(f)
 	}
 	return false
+}
+
+// callsGeneric reports whether idx instantiates the function under
+// analysis with its own type parameters (f[T], (f[T]), f[T, U]): the base
+// must name it as in callsFn, and the recorded type arguments must be
+// identical to its type parameters, position by position.
+func (r *recursion) callsGeneric(idx *syntax.IndexExpr) bool {
+	sig, ok := r.fn.Type().(*types2.Signature)
+	if !ok {
+		return false
+	}
+	tparams := sig.TypeParams()
+	if tparams == nil || tparams.Len() == 0 {
+		return false
+	}
+	var id *syntax.Name
+	switch b := syntax.Unparen(idx.X).(type) {
+	case *syntax.Name:
+		if r.recv != nil || r.pass.Info.Uses[b] != r.fn {
+			return false
+		}
+		id = b
+	case *syntax.SelectorExpr:
+		x, ok := b.X.(*syntax.Name)
+		if !ok || r.recv == nil || r.pass.Info.Uses[x] != r.recv || !r.methodIsFn(b) {
+			return false
+		}
+		id = b.Sel
+	default:
+		return false
+	}
+	inst, ok := r.pass.Info.Instances[id]
+	if !ok || inst.TypeArgs == nil || inst.TypeArgs.Len() != tparams.Len() {
+		return false
+	}
+	for i := range tparams.Len() {
+		if !types2.Identical(inst.TypeArgs.At(i), tparams.At(i)) {
+			return false
+		}
+	}
+	return true
+}
+
+// methodIsFn reports whether sel selects the function under analysis: the
+// checker's recorded selection when present, otherwise the denoted object.
+// Methods on generic receivers resolve to expanded clones, so identity is
+// by origin, not pointer.
+func (r *recursion) methodIsFn(sel *syntax.SelectorExpr) bool {
+	if s, ok := r.pass.Info.Selections[sel]; ok && s != nil {
+		fn, ok := s.Obj().(*types2.Func)
+		return ok && fn.Origin() == r.fn.Origin()
+	}
+	fn, ok := r.pass.Info.Uses[sel.Sel].(*types2.Func)
+	return ok && fn.Origin() == r.fn.Origin()
 }
 
 // mayLeave reports whether s contains a node after which control may not
