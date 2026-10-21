@@ -618,6 +618,45 @@ func TestTransportPoolEntryCleanup(t *testing.T) {
 	}
 }
 
+// TestTransportPoolDialerClosesConnOnCancel tests a user-provided DialContext
+// function which expects the dial context to live for as long as the connection.
+func TestTransportPoolDialerClosesConnOnCancel(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http1Mode)
+
+		dialContext := dt.cst.tr.DialContext
+		dt.cst.tr.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+			nc, err := dialContext(ctx, network, addr)
+			if err != nil {
+				return nil, err
+			}
+			// Close the connection when the dial context is canceled.
+			// (This isn't really something DialContext funcs should do,
+			// but we've observed this behavior in practice.)
+			context.AfterFunc(ctx, func() {
+				nc.Close()
+			})
+			return nc, nil
+		}
+
+		// First request creates a new connection.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/1.1")
+		rt1.finish()
+
+		// Canceling the first request's context should not prevent another
+		// request from using the connection.
+		rt1.cancel()
+		synctest.Wait()
+
+		rt2 := dt.roundTrip()
+		rt2.wantDone(c1, "HTTP/1.1")
+		rt2.finish()
+	})
+}
+
 // A transportDialTester manages a test of a connection's Dials.
 type transportDialTester struct {
 	t   *testing.T
@@ -876,6 +915,7 @@ func (c *transportDialTesterConn) Close() error {
 	select {
 	case <-c.closed:
 	default:
+		c.Conn.Close()
 		c.t.Logf("Conn %v: closed", c.connID)
 		close(c.closed)
 	}

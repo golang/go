@@ -462,6 +462,12 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 		case <-candialc:
 			// Reading from candialc locks the entry, and indicates that we may
 			// start a new dial.
+			//
+			// Create a context for the dial which inherits the request context's
+			// values, but not its cancellation (since the dial may outlive the
+			// request). Note that we only cancel this context to cancel the dial.
+			// If the dial finishes, we leave it uncanceled since cancelling it can
+			// (for some user-provided DialContext functions) close the connection.
 			dialCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 			dialresultc = make(chan pconnOrError)
 			getdonec = make(chan struct{})
@@ -555,7 +561,6 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 		defer dial.postDial()
 	}
 
-	defer dial.cancel() // clean up dial context
 	pconn, err := t.dialConn(ctx, dial.cm, false, ent, nil)
 	needClose, needExpire := func() (needClose, needExpire bool) {
 		ent.lock()
