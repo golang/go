@@ -225,28 +225,30 @@ func (t *Transport) poolCloseIdleConnections() {
 	t.pool.mu.Unlock()
 
 	for _, ent := range t.poolCopyEntries() {
-		ent.lock()
 		var toClose []*persistConn
-		if ent.altConn != nil && ent.numWaiters == 0 {
-			ent.unregisterConnLocked(ent.altConn)
-			toClose = append(toClose, ent.altConn)
-			ent.altConn = nil
-		}
-		ent.deleteIdleLocked(t, func(pconn *persistConn) bool {
-			toClose = append(toClose, pconn)
-			return true
-		})
-
-		// Cancel dials in progress where the initiating request is no longer waiting.
-		for dial := range ent.dials.all() {
-			select {
-			case <-dial.donec:
-				dial.cancel()
-			default:
+		func() {
+			ent.lock()
+			defer ent.unlock(t)
+			if ent.altConn != nil && ent.numWaiters == 0 {
+				ent.unregisterConnLocked(ent.altConn)
+				toClose = append(toClose, ent.altConn)
+				ent.altConn = nil
 			}
-		}
+			ent.deleteIdleLocked(t, func(pconn *persistConn) bool {
+				toClose = append(toClose, pconn)
+				return true
+			})
 
-		ent.unlock(t)
+			// Cancel dials in progress where the initiating request
+			// is no longer waiting.
+			for dial := range ent.dials.all() {
+				select {
+				case <-dial.donec:
+					dial.cancel()
+				default:
+				}
+			}
+		}()
 		for _, pconn := range toClose {
 			pconn.close(errCloseIdleConns)
 		}
@@ -264,9 +266,11 @@ func (t *Transport) poolPutIdleConn(pconn *persistConn) error {
 		// Ignore them if they do.
 		return nil
 	}
-	ent.lock()
-	err, needExpire := t.poolPutIdleConnLocked(ent, pconn)
-	ent.unlock(t)
+	err, needExpire := func() (_ error, needExpire bool) {
+		ent.lock()
+		defer ent.unlock(t)
+		return t.poolPutIdleConnLocked(ent, pconn)
+	}()
 	if needExpire {
 		t.expireIdleLRU()
 	}
@@ -411,13 +415,17 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 
 	// Fast path: Check to see if there's a usable conn.
 	const clearCloseIdle = true
-	ent := t.getLockedPoolEntry(cm.key(), clearCloseIdle)
-	pconn := t.poolTryGetForEntryLocked(ent)
-	if pconn == nil {
-		// Increment the waiters count to keep this pool entry alive while we're using it.
-		ent.numWaiters++
-	}
-	ent.unlock(t)
+	ent, pconn := func() (*clientConnPoolEntry, *persistConn) {
+		ent := t.getLockedPoolEntry(cm.key(), clearCloseIdle)
+		defer ent.unlock(t)
+		pconn := t.poolTryGetForEntryLocked(ent)
+		if pconn == nil {
+			// Increment the waiters count to keep this pool entry alive
+			// while we're using it.
+			ent.numWaiters++
+		}
+		return ent, pconn
+	}()
 	if pconn != nil {
 		return pconn, nil
 	}
@@ -429,11 +437,12 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 	// expires at the same time as a dial finishes.
 	waiting := true
 	defer func() {
-		if waiting {
-			ent.lock()
-			ent.numWaiters--
-			ent.unlock(t)
+		if !waiting {
+			return
 		}
+		ent.lock()
+		defer ent.unlock(t)
+		ent.numWaiters--
 	}()
 
 	var (
@@ -447,12 +456,15 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 		case <-ent.cangetc:
 			// Reading from cangetc locks the entry, and indicates that there is
 			// an available connection in the idle list.
-			pconn := t.poolTryGetForEntryLocked(ent)
-			if pconn != nil {
-				ent.numWaiters--
-				waiting = false
-			}
-			ent.unlock(t)
+			pconn := func() *persistConn {
+				defer ent.unlock(t)
+				pconn := t.poolTryGetForEntryLocked(ent)
+				if pconn != nil {
+					ent.numWaiters--
+					waiting = false
+				}
+				return pconn
+			}()
 			if pconn != nil {
 				return pconn, nil
 			}
@@ -462,29 +474,33 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*persist
 		case <-candialc:
 			// Reading from candialc locks the entry, and indicates that we may
 			// start a new dial.
-			//
-			// Create a context for the dial which inherits the request context's
-			// values, but not its cancellation (since the dial may outlive the
-			// request). Note that we only cancel this context to cancel the dial.
-			// If the dial finishes, we leave it uncanceled since cancelling it can
-			// (for some user-provided DialContext functions) close the connection.
-			dialCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
-			dialresultc = make(chan pconnOrError)
-			getdonec = make(chan struct{})
+			func() {
+				defer ent.unlock(t)
+				// Create a context for the dial which inherits the
+				// request context's values, but not its cancellation
+				// (since the dial may outlive the request).
+				//
+				// Note that we only cancel this context to cancel the dial.
+				// If the dial finishes, we leave it uncanceled since cancelling
+				// it can (for some user-provided DialContext functions)
+				// close the connection.
+				dialCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
+				dialresultc = make(chan pconnOrError)
+				getdonec = make(chan struct{})
+				dial := &poolDial{
+					ent:      ent,
+					cm:       cm,
+					cancel:   cancel,
+					resultc:  dialresultc,
+					donec:    getdonec,
+					postDial: postDialHook,
+				}
+				ent.dials.pushBack(dial)
+				postDialHook = nil // will be called by poolDialForEntry
+				go t.poolDialForEntry(dialCtx, dial)
+				candialc = nil // don't dial again
+			}()
 			defer close(getdonec)
-			dial := &poolDial{
-				ent:      ent,
-				cm:       cm,
-				cancel:   cancel,
-				resultc:  dialresultc,
-				donec:    getdonec,
-				postDial: postDialHook,
-			}
-			ent.dials.pushBack(dial)
-			postDialHook = nil // will be called by poolDialForEntry
-			go t.poolDialForEntry(dialCtx, dial)
-			candialc = nil // don't dial again
-			ent.unlock(t)
 		case res := <-dialresultc:
 			// A dial we started has completed and provided us with
 			// either a connection, or a dial failure.
@@ -659,14 +675,13 @@ func (t *Transport) expireIdleLRU() {
 		return
 	}
 	maxIdle := max(t.MaxIdleConns, 0)
-	for t.pool.lru.size > maxIdle {
-		// Lock ordering is ent >> pool, so we need to drop the pool mutex
-		// before locking the entry.
-		ent := t.pool.lru.head.poolEnt
-		t.pool.mu.Unlock()
+	// expireEntry expires conns from the head of the LRU which belong to ent.
+	// It locks the entry and pool.
+	expireEntry := func(ent *clientConnPoolEntry) {
 		ent.lock()
+		defer ent.unlock(t)
 		t.pool.mu.Lock()
-
+		defer t.pool.mu.Unlock()
 		// Expire conns for the entry we currently have locked.
 		// It's possible the head of the LRU changed while we were juggling locks;
 		// that's okay. Worst case, we loop back and try again with the new head.
@@ -682,11 +697,15 @@ func (t *Transport) expireIdleLRU() {
 			}
 			t.pool.lru.remove(pconn)
 		}
-
-		// ent.unlock can lock the pool (if the entry is now dead),
-		// so we need to drop the pool mutex while unlocking it.
-		t.pool.mu.Unlock()
-		ent.unlock(t)
-		t.pool.mu.Lock()
+	}
+	for t.pool.lru.size > maxIdle {
+		func() {
+			// Lock ordering is ent >> pool, so we need to drop the pool mutex
+			// before locking the entry.
+			ent := t.pool.lru.head.poolEnt
+			t.pool.mu.Unlock()
+			defer t.pool.mu.Lock()
+			expireEntry(ent)
+		}()
 	}
 }
