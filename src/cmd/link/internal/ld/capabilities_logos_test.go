@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
 	"encoding/json"
 	"strings"
@@ -117,6 +118,53 @@ func TestLogosCapExemptPkg(t *testing.T) {
 	} {
 		if a.exemptPkg(pkg) {
 			t.Errorf("exemptPkg(%q) = true, want false", pkg)
+		}
+	}
+}
+
+// TestLogosCapTextPkg pins the ownership decision for symbols whose
+// loader metadata and whose name disagree. The generated test main is
+// compiled as package main but recorded under the test binary's import
+// path ("bufio.test"), and type-descriptor glue carries a name no linked
+// package owns. Only metadata naming a package the link actually loaded,
+// with a matching name prefix, may own the symbol; everything else falls
+// back to the name parser.
+func TestLogosCapTextPkg(t *testing.T) {
+	libs := make(map[string]*sym.Library)
+	for _, pkg := range []string{"main", "bufio.test", "net", "os/exec"} {
+		libs[pkg] = &sym.Library{Pkg: pkg}
+	}
+	er := loader.ErrorReporter{}
+	a := &logosCapAuditor{
+		ctxt: &Link{LibraryByPkg: libs},
+		ldr:  loader.NewLoader(0, &er),
+	}
+	tests := []struct {
+		symPkg, symName, want string
+	}{
+		// The generated test-main glue: metadata names the test binary,
+		// which does not match this symbol's name prefix, so the name's
+		// package decides.
+		{"bufio.test", "main.main", "main"},
+		{"bufio.test", "main..stmp_1", "main"},
+		{"main.test", "main.main", "main"},
+		// Linked metadata with a matching prefix still wins.
+		{"net", "net.sysSocket", "net"},
+		{"os/exec", "os/exec.(*Cmd).Start", "os/exec"},
+		// Metadata naming no loaded library falls back to the name.
+		{"type:noalg.struct { F uintptr; R reflect.NewType", "type:noalg.struct { F uintptr; R reflect.Type }", ""},
+		{"flag.test", "flag.isZeroValue", ""},
+		{"unlinked/pkg", "unlinked/pkg.Func", ""},
+		{"", "type:.eq.[2]string", ""},
+		// Metadata that names a linked package but not this symbol's name
+		// prefix falls back to the name, which names a linked package.
+		{"net", "os/exec.Command", "os/exec"},
+	}
+	for _, tc := range tests {
+		s := a.ldr.LookupOrCreateSym(tc.symName, 0)
+		a.ldr.SetSymPkg(s, tc.symPkg)
+		if got := a.textPkg(s); got != tc.want {
+			t.Errorf("textPkg(SymPkg=%q, SymName=%q) = %q, want %q", tc.symPkg, tc.symName, got, tc.want)
 		}
 	}
 }

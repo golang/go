@@ -10,18 +10,26 @@
 # "example.com/edep.T". Case A failed with
 #   ERROR [capabilities::unauthorized_cgo]: Transitive dependency 'main.' reaches ...
 # and cases B, C, E, and G failed the same way; case F failed on the
-# escaped %2e of the dotted import path.
-
+# escaped %2e of the dotted import path. A later regression blamed the
+# same main for net.sysSocket in bufio's test binary, and blamed
+# type:noalg.struct { F uintptr; R reflect ... } (a type descriptor the
+# deadcode pass kept for internal/buildcfg.init) for os.StartProcess in
+# crypto's test binary, so Case A builds both too.
 env GOPROXY=off
 env GOTOOLCHAIN=local
 
 # Case A: standard-library test binaries link clean. os/exec reaches
 # os.startProcess, net reaches net.sysSocket and (with cgo) runtime.cgocall,
 # reflect reaches reflect.ValueOf; the whole standard library is exempt.
-logos test -short -run=^$ os/exec net reflect
+# bufio's test reaches net.sysSocket through net_test, and crypto's test
+# binary carries internal/buildcfg.init with type descriptors, exercising
+# the exact shapes of both regressions.
+logos test -short -run=^$ os/exec net reflect bufio crypto
 stdout 'ok\s+os/exec'
 stdout 'ok\s+net\s'
 stdout 'ok\s+reflect'
+stdout 'ok\s+bufio\s'
+stdout 'ok\s+crypto\s'
 ! stderr 'capabilities::'
 ! stdout 'capabilities::'
 ! stdout 'FAIL'

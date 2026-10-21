@@ -522,12 +522,11 @@ func (a *logosCapAuditor) roleOf(s loader.Sym) capRole {
 
 // textPkg returns the import path of the package that owns the code of
 // text symbol s, or "" when the name carries no linked package. The
-// object's own package wins when the name starts with it. Otherwise the
-// object is another package's: a generic instantiated there, or compiler
-// glue such as method value wrappers, so the name decides.
+// object's own package wins when the name starts with it and the package
+// is one the link actually loaded; otherwise the name decides.
 func (a *logosCapAuditor) textPkg(s loader.Sym) string {
 	name := a.ldr.SymName(s)
-	if pkg := a.ldr.SymPkg(s); pkg != "" && strings.HasPrefix(name, objabi.PathToPrefix(pkg)+".") {
+	if pkg := a.ldr.SymPkg(s); pkg != "" && a.ctxt.LibraryByPkg[pkg] != nil && strings.HasPrefix(name, objabi.PathToPrefix(pkg)+".") {
 		return pkg
 	}
 	return a.namedPkg(name)
