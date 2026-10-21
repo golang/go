@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"go/token"
 	"reflect"
+	"sort"
 	"strings"
 
 	"cmd/compile/internal/base"
@@ -413,7 +414,7 @@ func (fl *fileLower) lowerOptionType(e *syntax.OptionType) syntax.Expr {
 		// The head anchor comes from the original tree: lowering
 		// first would descend into already-lowered nodes whose
 		// synthetic positions sit mid-type.
-		es := fl.off(fl.optLeftmost(e.Elem))
+		es := fl.optTypeHead(e.Elem)
 		le := fl.lowerTypeExpr(e.Elem)
 		fl.needRT = true
 		fl.add(es, es, rtAlias+".Option[")
@@ -422,6 +423,43 @@ func (fl *fileLower) lowerOptionType(e *syntax.OptionType) syntax.Expr {
 		fl.deleteGroupingParens(es, qoff)
 	}
 	fl.optMemo[e] = out
+	return out
+}
+
+// optTypeHead returns the offset of the first token of the option
+// payload type. A node position covers every type but one: a FuncType
+// sits at its parameter parenthesis (`func` has no stored position), so
+// the wrapper would land between `func` and its parameters and split
+// the type. The grammar puts nothing but trivia between the keyword and
+// the parameters, so the nearest preceding `func` token is always the
+// payload's own keyword. Keyword offsets come from one forward
+// tokenization per file, looked up with a binary search.
+func (fl *fileLower) optTypeHead(e syntax.Expr) int {
+	es := fl.off(fl.optLeftmost(e))
+	if _, ok := syntax.Unparen(e).(*syntax.FuncType); !ok {
+		return es
+	}
+	if fl.funcHeadOffs == nil {
+		fl.funcHeadOffs = funcHeadOffsets(fl.src)
+	}
+	i := sort.SearchInts(fl.funcHeadOffs, es)
+	if i == 0 {
+		base.Fatalf("logos: function type at offset %d has no func keyword", es)
+	}
+	return fl.funcHeadOffs[i-1]
+}
+
+// funcHeadOffsets returns the offsets of every `func` keyword in src,
+// in source order, from a single forward tokenization starting at the
+// file beginning, which is always a lexically valid position.
+func funcHeadOffsets(src []byte) []int {
+	var out []int
+	scanSegment(src, 0, len(src), func(t tok) bool {
+		if t.kind == token.FUNC {
+			out = append(out, t.start)
+		}
+		return true
+	})
 	return out
 }
 
@@ -1795,7 +1833,6 @@ func (fl *fileLower) lowerNilCompare(e *syntax.Operation) (syntax.Expr, bool) {
 	} else {
 		xside, nilside = e.Y, lx
 	}
-	_ = nilside
 	ox := fl.asOption(fl.optType(xside))
 	if ox == nil || keepMapRead(ox.Elem) {
 		return nil, false
@@ -1810,19 +1847,66 @@ func (fl *fileLower) lowerNilCompare(e *syntax.Operation) (syntax.Expr, bool) {
 	if e.Op == syntax.Eql {
 		bang = "!"
 	}
-	xs := fl.off(leftmostOf(xside))
+	// StartPos descends to the operand surface like leftmostOf but
+	// keeps parentheses whole, so the bang lands before an opening
+	// paren instead of inside it, where it would invert the operand
+	// instead of the presence test.
+	xs := fl.off(syntax.StartPos(xside))
 	if rnil {
-		xe := fl.findCmpOp(xs, fl.off(leftmostOf(nilside)))
-		ee := fl.exprEnd(xe)
+		// The nil name ends exactly; unmatched group parentheses end
+		// at their closers. The replace spans the operator through
+		// the nil, keeping the spaces around the whole comparison and
+		// any comment between the operand and the operator.
+		op := fl.findCmpOp(xs, fl.off(leftmostOf(nilside)))
 		fl.add(xs, xs, bang)
-		fl.add(xe, ee, ".Present")
+		fl.add(op, fl.nilEnd(op, fl.off(syntax.EndPos(nilside))), ".Present")
 	} else {
-		ns := fl.off(leftmostOf(nilside))
-		xe := fl.exprEnd(xs)
-		fl.add(ns, xs, bang)
-		fl.add(xe, xe, ".Present")
+		// The replace spans the whole `nil` prefix through the
+		// operator, so the bang lands directly on the operand, and
+		// the operand end (makelen.operandEnd, exact past the last
+		// operand token, comments skipped not consumed) places
+		// `.Present` without a stray space.
+		fl.add(fl.off(e.X.Pos()), xs, bang)
+		fl.add(fl.operandEnd(xs), fl.operandEnd(xs), ".Present")
 	}
 	return out, true
+}
+
+// nilEnd returns the offset just past the nil operand whose Name ends
+// at inner, including any parentheses around it: each unmatched opening
+// parenthesis between the comparison operator op and the nil takes its
+// closing paren too, so the replacement never leaves a stray `)`. The
+// range holds only the operator, trivia, grouping parentheses, and the
+// nil itself, so counting `(` there is exact with no tree dependence.
+func (fl *fileLower) nilEnd(op, inner int) int {
+	end := inner
+	depth := 0
+	scanSegment(fl.src, op, end, func(t tok) bool {
+		if t.comment || t.auto {
+			return true
+		}
+		if t.kind == token.LPAREN {
+			depth++
+		}
+		return true
+	})
+	for range depth {
+		matched := false
+		scanSegment(fl.src, end, len(fl.src), func(t tok) bool {
+			if t.comment || t.auto {
+				return true
+			}
+			if t.kind == token.RPAREN {
+				end = t.span.end
+				matched = true
+			}
+			return false
+		})
+		if !matched {
+			base.Fatalf("logos: parenthesized nil at offset %d has no )", op)
+		}
+	}
+	return end
 }
 
 // findCmpOp returns the offset of the `==` or `!=` operator ending the

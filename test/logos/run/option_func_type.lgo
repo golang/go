@@ -1,0 +1,114 @@
+// run
+
+package main
+
+import "fmt"
+
+// Optional function types (seed 9 root class): the `Option[...]` wrapper
+// anchors at the `func` keyword, never between `func` and its parameters.
+// Covers the parenthesized spelling with and without an initializer, an
+// outer-paren variant, nil comparison, and invocation.
+
+var q (func /*
+	 * filler 001
+	 * filler 002
+	 * filler 003
+	 * filler 004
+	 * filler 005
+	 * filler 006
+	 * filler 007
+	 * filler 008
+	 * filler 009
+	 * filler 010
+	 * filler 011
+	 * filler 012
+	 * filler 013
+	 * filler 014
+	 * filler 015
+	 * filler 016
+	 * filler 017
+	 * filler 018
+	 * filler 019
+	 * filler 020
+	 * filler 021
+	 * filler 022
+	 * filler 023
+	 * filler 024
+	 * filler 025
+	 * filler 026
+	 * filler 027
+	 * filler 028
+	 * filler 029
+	 * filler 030
+	 * filler 031
+	 * filler 032
+	 * filler 033
+	 * filler 034
+	 * filler 035
+	 * filler 036
+	 * filler 037
+	 * filler 038
+	 * filler 039
+	 * filler 040
+	 * filler 041
+	 * filler 042
+	 * filler 043
+	 * filler 044
+	 * filler 045
+	 * filler 046
+	 * filler 047
+	 * filler 048
+	 * filler 049
+	 * filler 050
+	 * filler 051
+	 * filler 052
+	 * filler 053
+	 * filler 054
+	 * filler 055
+	 * filler 056
+	 * filler 057
+	 * filler 058
+	 * filler 059
+	 * filler 060
+	 * filler 061
+	 * filler 062
+	 * filler 063
+	 * filler 064
+	 * filler 065
+	 * filler 066
+	 * filler 067
+	 * filler 068
+	 * filler 069
+	 * filler 070
+	 */ (int) int)? = func(n int) int { return n + 3 }
+
+// callOpt invokes an optional function value only after a nil proof: the
+// parameter is a local, so the guard narrows it (SPEC 2.2, T-202). A
+// package global such as q is copied in here rather than narrowed in place.
+func callOpt(f (func(int) int)?, n int) int {
+	if f != nil {
+		return f(n)
+	}
+	panic("callOpt: unexpected none option function")
+}
+
+func main() {
+	var bjarne1 (func(int) int)? = func(n int) int { return (61 + n) }
+	var ken2 (func(int) int)?
+	fmt.Println(bjarne1 == nil, ken2 == nil)
+	if bjarne1 != nil {
+		fmt.Println(bjarne1(8), bjarne1(-6))
+	}
+	bjarne1 = ken2
+	fmt.Println(bjarne1 == nil)
+	var rob3 ((func(int) int))? = func(n int) int { return (n + 1) }
+	fmt.Println(rob3 == nil, callOpt(rob3, 10))
+	var h (func // between keyword and parameter
+	(int) int)? = func(n int) int { return n + 1 }
+	var k (func /* outer /* inner */ (int) int)? = func(n int) int { return n + 2 }
+	fmt.Println(h != nil, k != nil)
+	fmt.Println(callOpt(h, 10), callOpt(k, 20))
+	var w (func /* func */ (int) int)? = func(n int) int { return n + 5 }
+	fmt.Println(w != nil, q != nil)
+	fmt.Println(callOpt(w, 50), callOpt(q, 30))
+}

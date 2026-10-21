@@ -130,6 +130,10 @@ type fileLower struct {
 	// cannot recover the span (tupleCallSpan reads real parens), but the
 	// capture text must cover the original extent (D7).
 	optBodySpan map[*syntax.LambdaExpr]span
+	// funcHeadOffs caches the offsets of `func` keywords in source
+	// order, built once per file by a single forward tokenization for
+	// the option type-head lookup.
+	funcHeadOffs []int
 	// interpNeedConv/interpNeedUnsafe carry the strconv/unsafe import
 	// needs of scoped interpolation pre-lowering (D4, D7) into the
 	// final import flush, which runs once at the end of lowerInterp.

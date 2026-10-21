@@ -1,0 +1,41 @@
+// run
+
+package main
+
+import "fmt"
+
+// Adjacent option nil comparisons (seed 12 root class): the eject splices
+// of one comparison must not overlap the next. Forward (`x != nil`) and
+// reverse (`nil == x`) orders mix in one chain and one expression list,
+// with name, call, and map-index operands.
+
+func fwd(x int?, y int?) bool { return x != nil && y != nil }
+
+func rev(x int?, y int?) bool { return nil == x && nil == y }
+
+func mixed(x int?, y string?) bool { return nil != x && y == nil }
+
+func ident(x int?) bool { return x == nil }
+
+func revIdent(x int?) bool { return nil != x }
+
+func give(x int?) int? { return x }
+
+var m map[int]int
+
+func main() {
+	m = make(map[int]int)
+	m[1] = 7
+	var a int?
+	var b int? = 3
+	var s string?
+	var t string? = "hi"
+	fmt.Println(fwd(a, a), fwd(b, b), fwd(a, b), fwd(b, a))
+	fmt.Println(rev(a, a), rev(b, b), rev(a, b), rev(b, a))
+	fmt.Println(mixed(a, s), mixed(b, s), mixed(a, t), mixed(b, t))
+	fmt.Println(ident(a), ident(b), revIdent(a), revIdent(b))
+	fmt.Println(give(b) != nil, give(a) == nil, m[1] != nil, m[2] == nil)
+	fmt.Println(nil != give(b), nil == give(a), m[1] != nil && give(a) == nil)
+	fmt.Println(a != (nil), (nil) != a, b == (nil), (nil) == b)
+	fmt.Println((nil) == a, (nil) != b)
+}
