@@ -21,6 +21,7 @@ func parse(name string, src []byte, flags parser.Mode) *ast.File {
 	ast1, err := parser.ParseFile(fset, name, src, flags)
 	if err != nil {
 		if list, ok := err.(scanner.ErrorList); ok {
+			logosRejectSyntax(name, src)
 			// If err is a scanner.ErrorList, its String will print just
 			// the first error and then (+n more errors).
 			// Instead, turn it into a new Error that will return

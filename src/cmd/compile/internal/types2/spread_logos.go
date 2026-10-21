@@ -43,7 +43,7 @@ type LogosSpread struct {
 // nor spread-copied keep the upstream zero rules, with spread copies
 // counting as provided.
 func (check *Checker) logosSpreadLiteral(x *operand, e *syntax.CompositeLit, utyp *Struct, typ Type) bool {
-	if !check.conf.Logos {
+	if !check.isLogosFile(e) {
 		return false
 	}
 	var spreads []*syntax.SpreadExpr

@@ -1,0 +1,497 @@
+# M20-S0: cgo in loGo/s packages. A package whose c_bridge.lgo imports "C"
+# and holds Go syntax only builds beside other .lgo files that use ? and
+# unions. The cgo layout is the upstream one: cmd/cgo names its outputs
+# from the source file and the compiler takes them with the .lgo files.
+# Pointers C returns are platform pointers: a NULL stored into a declared
+# non-nil location panics with the checked-store message instead of
+# reaching loGo/s code as a non-nil value. loGo/s syntax in a file that
+# imports "C" fails with the pinned rule text; a plain Go syntax error in
+# the same file and loGo/s syntax in a .go cgo file keep the parser text.
+[!cgo] skip 'cgo is not available'
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+# Default CC: a host compiler setting must not drive the build.
+env CC=
+
+# The bridge and the other .lgo files build and run as one package.
+logos build -x -o $WORK/ok.bin ./ok
+stderr 'c_bridge\.lgo\.cgo1\.go'
+stderr '_cgo_gotypes\.go'
+exec $WORK/ok.bin
+stdout '^sum: 42$'
+stdout '^bad: true$'
+stdout '^num:42$'
+stdout '^str:none$'
+stdout '^find: id:7$'
+stdout '^stored: id:7$'
+stdout '^next: 7$'
+stdout '^item: 0$'
+
+# A NULL from C stored into a non-nil location panics; neither a return
+# nor a declared variable lets it reach loGo/s code unchecked.
+# The panic names the .lgo source and its line, not the generated file.
+stdout '^find-missing: logos: nil from Go value stored into non-nil \*main\._Ctype_struct_item at c_bridge\.lgo:39$'
+stdout '^stored-missing: logos: nil from Go value stored into non-nil \*main\._Ctype_struct_item at c_bridge\.lgo:44$'
+
+# loGo/s syntax in a file that imports "C" fails with the pinned text at
+# the first loGo/s token. The parser errors that follow stay unprinted.
+! logos build -o $WORK/badtry.bin ./badtry
+stderr 'c_bridge\.lgo:13:22: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+! stderr 'illegal character'
+! stderr 'expected'
+
+! logos build -o $WORK/badlambda.bin ./badlambda
+stderr 'c_bridge\.lgo:9:11: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badinterp.bin ./badinterp
+stderr 'c_bridge\.lgo:9:9: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badspread.bin ./badspread
+stderr 'c_bridge\.lgo:10:14: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/baddot.bin ./baddot
+stderr 'c_bridge\.lgo:11:3: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+# The plain-token loGo/s families fail the same way: errdefer, yield,
+# scope defer, go group and go child blocks, const if/for/switch, and
+# tuples. Each pin names the first loGo/s spelling in the file.
+! logos build -o $WORK/baderrdefer.bin ./baderrdefer
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badyield.bin ./badyield
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badscopedefer.bin ./badscopedefer
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badgroup.bin ./badgroup
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badgochild.bin ./badgochild
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badconstif.bin ./badconstif
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badconstfor.bin ./badconstfor
+stderr 'c_bridge\.lgo:10:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badconstswitch.bin ./badconstswitch
+stderr 'c_bridge\.lgo:9:2: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+! logos build -o $WORK/badtuple.bin ./badtuple
+stderr 'c_bridge\.lgo:9:20: \[correctness::cgo_file_logos_syntax\] files that import "C" must use Go syntax only$'
+
+# A bridge-only package (no other .lgo files) still checks a NULL from C
+# stored into a declared non-nil location.
+logos build -o $WORK/bridge.bin ./okbridge
+! exec $WORK/bridge.bin
+stderr 'logos: nil from Go value stored into non-nil \*main\._Ctype_int at c_bridge\.lgo:10$'
+
+# Characters of loGo/s syntax inside comments and strings are Go syntax,
+# and an ordinary Go syntax error is not loGo/s syntax: the parser text
+# stays and the loGo/s rule never fires.
+! logos build -o $WORK/goerr.bin ./goerr
+stderr 'c_bridge\.lgo:8:[0-9]+: expected'
+! stderr 'cgo_file_logos_syntax'
+
+# A .go cgo file is not a loGo/s input: plain go keeps the parser text.
+cd gomod
+! go build ./...
+stderr 'illegal character U\+003F'
+! stderr 'cgo_file_logos_syntax'
+cd ..
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+
+-- logos.toml --
+[build]
+cgo = "allow"
+
+-- ok/c_bridge.lgo --
+package main
+
+/*
+#include <stddef.h>
+
+struct item {
+	int id;
+	struct item *next;
+};
+
+static struct item the_item = {7, 0};
+
+static int c_add(int a, int b) { return a + b; }
+
+static struct item *c_find(int id) {
+	if (id == 7) {
+		return &the_item;
+	}
+	return NULL;
+}
+
+static struct item *c_next(struct item *n) {
+	if (n->next != 0) {
+		return n->next;
+	}
+	return n;
+}
+*/
+import "C"
+
+// Add calls C and returns a Go int.
+func Add(a, b int) int {
+	return int(C.c_add(C.int(a), C.int(b)))
+}
+
+// Find returns the item with the given id. C returns NULL for a missing
+// id, and the result is a pointer in a non-nil result.
+func Find(id int) *C.struct_item {
+	return C.c_find(C.int(id))
+}
+
+// Stored keeps the C result in a declared non-nil variable and reads it.
+func Stored(id int) int {
+	var it *C.struct_item = C.c_find(C.int(id))
+	return int(it.id)
+}
+
+// ID reads the id of an item.
+func ID(it *C.struct_item) int {
+	return int(it.id)
+}
+
+// Next returns the item after n, or n itself at the tail.
+func Next(n *C.struct_item) *C.struct_item {
+	return C.c_next(n)
+}
+
+// ZeroItem declares a C item value; pointer fields of C structs stay
+// nilable under Go semantics.
+func ZeroItem() C.struct_item {
+	var n C.struct_item
+	return n
+}
+
+-- ok/app.lgo --
+package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+type Num struct {
+	N int
+}
+
+type Str struct {
+	S string
+}
+
+// Value is a closed union of Num and Str.
+type Value interface {
+	Num | Str
+	Describe() string
+}
+
+func (n Num) Describe() string {
+	return "num:" + strconv.Itoa(n.N)
+}
+
+func (s Str) Describe() string {
+	return "str:" + s.S
+}
+
+func pick(n int) Value {
+	if n > 0 {
+		return Num{N: n}
+	}
+	return Str{S: "none"}
+}
+
+// total adds two numbers through the C bridge; ? returns the parse error.
+func total(a, b string) (int, error) {
+	x := strconv.Atoi(a)?
+	y := strconv.Atoi(b)?
+	return Add(x, y), nil
+}
+
+func tryFind(id int) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	return "id:" + strconv.Itoa(ID(Find(id)))
+}
+
+func tryStored(id int) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	return "id:" + strconv.Itoa(Stored(id))
+}
+
+func main() {
+	sum, err := total("40", "2")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("sum:", sum)
+	_, err = total("x", "2")
+	fmt.Println("bad:", err != nil)
+	fmt.Println(pick(sum).Describe())
+	fmt.Println(pick(0).Describe())
+	fmt.Println("find:", tryFind(7))
+	fmt.Println("stored:", tryStored(7))
+	fmt.Println("find-missing:", tryFind(9))
+	fmt.Println("stored-missing:", tryStored(9))
+	fmt.Println("next:", int(Next(Find(7)).id))
+	fmt.Println("item:", int(ZeroItem().id))
+}
+
+-- badtry/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+import "strconv"
+
+// parse uses ?, which a file that imports "C" cannot.
+func parse(s string) (int, error) {
+	// A comment with ? and $"x" is fine.
+	n := strconv.Atoi(s)?
+	return n + int(C.c_one()), nil
+}
+
+func main() {}
+
+-- badlambda/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	inc := x => x + int(C.c_one())
+	_ = inc
+}
+
+-- badinterp/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	msg := $"one={C.c_one()}"
+	_ = msg
+}
+
+-- badspread/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	xs := []int{int(C.c_one())}
+	ys := []int{..xs}
+	_ = ys
+}
+
+-- baddot/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	n := int(C.c_one())
+	s := fmt.Sprint(n)
+		.trim()
+	_ = s
+}
+
+-- baderrdefer/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	errdefer C.c_one()
+	_ = 1
+}
+
+-- badyield/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	yield C.c_one()
+}
+
+-- badscopedefer/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	scope defer C.c_one()
+}
+
+-- badgroup/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	go group(C.c_one()) {
+	}
+}
+
+-- badgochild/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	go {
+		_ = C.c_one()
+	}
+}
+
+-- badconstif/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	const if true {
+		_ = C.c_one()
+	}
+}
+
+-- badconstfor/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	xs := []int{int(C.c_one())}
+	const for x := range xs {
+	}
+}
+
+-- badconstswitch/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	const switch C.c_one() {
+	}
+}
+
+-- badtuple/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	pair := (C.c_one(), 2)
+	_ = pair
+}
+
+-- okbridge/c_bridge.lgo --
+package main
+
+/*
+#include <stddef.h>
+static int *c_null(void) { return 0; }
+*/
+import "C"
+
+func main() {
+	var p *C.int = C.c_null()
+	println(int(*p))
+}
+
+-- goerr/c_bridge.lgo --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func broken( {
+	_ = C.c_one()
+	_ = "what? $\"x\" a => b"
+}
+
+-- gomod/go.mod --
+module example.com/gomod
+
+go 1.27
+
+-- gomod/main.go --
+package main
+
+/*
+int c_one(void) { return 1; }
+*/
+import "C"
+
+func main() {
+	n := int(C.c_one())?
+	_ = n
+}

@@ -162,7 +162,8 @@ func (g *goCallLower) wrapArgs(call *syntax.CallExpr, sig *types2.Signature, pos
 func (g *goCallLower) newSite(pos syntax.Pos) string {
 	name := fmt.Sprintf("_logos_site%d", g.siteSeq)
 	g.siteSeq++
-	g.sites = append(g.sites, siteDecl(pos, nameOf(pos, name), g.baseName, pos.Line()))
+	base, line := siteDisplay(pos, g.baseName, pos.Line())
+	g.sites = append(g.sites, siteDecl(pos, nameOf(pos, name), base, line))
 	g.needRT = true
 	return name
 }

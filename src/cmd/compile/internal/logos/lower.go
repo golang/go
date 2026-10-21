@@ -16,6 +16,31 @@ import (
 	"cmd/compile/internal/types2"
 )
 
+// isGeneratedFile reports whether name is a compiler-generated input:
+// a cgo output. Only generated inputs go through //line mapping below,
+// so user //line directives in hand-written files keep their physical
+// names exactly as before.
+func isGeneratedFile(name string) bool {
+	bn := filepath.Base(name)
+	return strings.HasPrefix(bn, "_cgo_") || strings.HasSuffix(bn, ".cgo1.go")
+}
+
+// siteDisplay reports the file and line a generated check site names:
+// for a check under a //line directive in a generated input (M20-S0: the
+// rewritten cgo user file, whose checks lowering adds after cmd/cgo
+// mapped the positions back to the .lgo source), the directive's file
+// and line, so the panic names the source the user wrote (SPEC T-202).
+// Everywhere else it keeps the physical file and line, so no existing
+// site moves.
+func siteDisplay(pos syntax.Pos, base string, line uint) (string, uint) {
+	if b := pos.Base(); b != nil && !b.IsFileBase() {
+		if phys := pos.FileBase().Filename(); isGeneratedFile(phys) {
+			return filepath.Base(pos.RelFilename()), pos.RelLine()
+		}
+	}
+	return base, line
+}
+
 // Lower rewrites the loGo/s nodes of files to plain Go syntax and records
 // the matching eject edits. pkg and info come from a successful types2
 // check with Config.Logos; src holds the original bytes of the files Lower
@@ -409,7 +434,8 @@ func (fl *fileLower) newSite(pos syntax.Pos, line uint) string {
 	name := fmt.Sprintf("_logos_site%d", fl.pkg.siteSeq)
 	fl.pkg.siteSeq++
 	node := nameOf(pos, name)
-	fl.siteDecls = append(fl.siteDecls, siteDecl(pos, node, fl.baseName, line))
+	base, ln := siteDisplay(pos, fl.baseName, line)
+	fl.siteDecls = append(fl.siteDecls, siteDecl(pos, node, base, ln))
 	fl.needRT = true
 	return name
 }

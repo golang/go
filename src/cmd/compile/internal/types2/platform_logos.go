@@ -36,11 +36,12 @@ func (check *Checker) logosIsNonNilPointer(t Type) bool {
 }
 
 // logosOpaqueType reports whether t is a named type declared outside the
-// current package. Its interior (e.g. Go pointer fields) is platform
-// territory: nilable, with no zero-value rules.
+// current package or in one of its cgo-generated Go files (M20-S0: the
+// C.struct_x types of _cgo_gotypes.go). Its interior (e.g. Go pointer
+// fields) is platform territory: nilable, with no zero-value rules.
 func (check *Checker) logosOpaqueType(t Type) bool {
 	n, _ := t.(*Named)
-	return n != nil && n.obj != nil && n.obj.pkg != check.pkg
+	return n != nil && n.obj != nil && (n.obj.pkg != check.pkg || logosGoModePos(n.obj.pos))
 }
 
 // logosZeroNeedsInit reports whether the zero value of t is illegal in
@@ -100,7 +101,7 @@ func (check *Checker) logosMissingNonNilField(st *Struct, seen map[Type]bool) *V
 // logosZeroDecl rejects an uninitialized variable declaration whose type
 // has no legal zero value. Errors report at the declared name.
 func (check *Checker) logosZeroDecl(obj *Var) {
-	if !check.conf.Logos || obj.name == "_" || !isValid(obj.typ) {
+	if !check.isLogosFile(obj) || obj.name == "_" || !isValid(obj.typ) {
 		return
 	}
 	if isTypeParam(obj.typ) || check.logosOpaqueType(obj.typ) {
@@ -128,7 +129,7 @@ func (check *Checker) logosZeroDecl(obj *Var) {
 // non-nil pointer field empty. Positional forms are left to the upstream
 // arity check. Errors report at the literal.
 func (check *Checker) logosZeroLiteral(e *syntax.CompositeLit, typ, base Type) {
-	if !check.conf.Logos || typ == nil || base == nil {
+	if !check.isLogosFile(e) || typ == nil || base == nil {
 		return
 	}
 	u, _ := commonUnder(base, nil)
@@ -161,7 +162,9 @@ func (check *Checker) logosZeroLiteral(e *syntax.CompositeLit, typ, base Type) {
 // logosZeroMakeElem reports whether T is a slice whose elements have no
 // legal zero value: the shared gate for the make hooks below.
 func (check *Checker) logosZeroMakeElem(T Type) bool {
-	if !check.conf.Logos || !isValid(T) {
+	// Reached only from logosZeroMake, which already gates on the call
+	// position; the shape check below carries no position of its own.
+	if !isValid(T) {
 		return false
 	}
 	u, _ := T.Underlying().(*Slice)
@@ -173,7 +176,7 @@ func (check *Checker) logosZeroMakeElem(T Type) bool {
 // length reports unconditionally. `make([]*T, 0, n)` is allowed.
 // Errors report at the length argument.
 func (check *Checker) logosZeroMake(call *syntax.CallExpr, T Type) {
-	if !check.logosZeroMakeElem(T) || len(call.ArgList) < 2 {
+	if !check.isLogosFile(call) || !check.logosZeroMakeElem(T) || len(call.ArgList) < 2 {
 		return
 	}
 	_, length := check.index(call.ArgList[1], -1)
@@ -191,7 +194,7 @@ func (check *Checker) logosZeroMake(call *syntax.CallExpr, T Type) {
 // type form is hooked; `new(expr)` initializes from its argument. Errors
 // report at the type argument.
 func (check *Checker) logosZeroNew(arg syntax.Expr, T Type) {
-	if !check.conf.Logos || !isValid(T) || isTypeParam(T) || check.logosOpaqueType(T) {
+	if !check.isLogosFile(arg) || !isValid(T) || isTypeParam(T) || check.logosOpaqueType(T) {
 		return
 	}
 	if check.logosIsNonNilPointer(T) {
@@ -213,7 +216,7 @@ func (check *Checker) logosZeroNew(arg syntax.Expr, T Type) {
 // non-nil location. Only compile-time nils report; typed values stay
 // silent for the S5 run-time check. It returns true when it reported.
 func (check *Checker) logosNilToNonNil(x *operand, T Type) bool {
-	if !check.conf.Logos || !x.isNil() || !isValid(T) {
+	if !check.isLogosFile(x) || !x.isNil() || !isValid(T) {
 		return false
 	}
 	if !check.logosIsNonNilPointer(T) {
@@ -261,8 +264,9 @@ func logosIsCgoName(name string) bool {
 }
 
 // logosIsGoObj reports whether obj is declared outside the current
-// package (a Go-mode declaration), or is cgo-generated. Universe
-// objects (builtins, nil) are never Go-mode.
+// package (a Go-mode declaration), or is cgo-generated: named like a cgo
+// declaration or declared in a cgo-generated Go file of the package.
+// Universe objects (builtins, nil) are never Go-mode.
 func (check *Checker) logosIsGoObj(obj Object) bool {
 	if obj == nil {
 		return false
@@ -270,7 +274,7 @@ func (check *Checker) logosIsGoObj(obj Object) bool {
 	if pkg := obj.Pkg(); pkg != nil && pkg != check.pkg {
 		return true
 	}
-	return logosIsCgoName(obj.Name())
+	return logosIsCgoName(obj.Name()) || logosGoModePos(obj.Pos())
 }
 
 // logosFuncOfExpr resolves e to the *Func it denotes, looking through
@@ -319,7 +323,7 @@ func (check *Checker) logosFuncOfExpr(e syntax.Expr) *Func {
 // Unresolvable callees count as .lgo (checks apply), matching
 // logosIsLgoCall's default.
 func (check *Checker) logosCalleeIsGo(call *syntax.CallExpr) bool {
-	if !check.conf.Logos || call == nil {
+	if call == nil || !check.isLogosFile(call) {
 		return false
 	}
 	if sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr); ok {
@@ -351,7 +355,7 @@ func (check *Checker) logosCalleeIsGo(call *syntax.CallExpr) bool {
 // (explicitly or implicitly instantiated). Type-parameter results
 // instantiated with a non-nil pointer are platform pointers.
 func (check *Checker) logosCalleeWasGeneric(call *syntax.CallExpr) bool {
-	if !check.conf.Logos || call == nil {
+	if call == nil || !check.isLogosFile(call) {
 		return false
 	}
 	fn := check.logosFuncOfExpr(call.Fun)
@@ -419,7 +423,7 @@ func (check *Checker) logosMarkDerivedExpr(e syntax.Expr) {
 // conversions thereof. Inferred variables and tuple dummies consult
 // the Checker maps; everything else resolves on demand.
 func (check *Checker) logosExprDerived(e syntax.Expr) bool {
-	if !check.conf.Logos || e == nil {
+	if e == nil || !check.isLogosFile(e) {
 		return false
 	}
 	if check.logosDerivedExpr[e] {
@@ -498,7 +502,7 @@ func (check *Checker) logosExprDerived(e syntax.Expr) bool {
 
 // logosIsDerived reports whether the operand value is Go-derived.
 func (check *Checker) logosIsDerived(x *operand) bool {
-	if !check.conf.Logos || x == nil || !x.isValid() || x.expr == nil {
+	if x == nil || !x.isValid() || x.expr == nil || !check.isLogosFile(x) {
 		return false
 	}
 	if x.mode() == typexpr {
@@ -535,7 +539,7 @@ func (check *Checker) logosIsPlatform(x *operand) bool {
 // platform pointer. It reports true when the caller (initVar) may skip
 // the assignment.
 func (check *Checker) logosInheritPlatform(lhs *Var, x *operand) bool {
-	if !check.conf.Logos || lhs == nil || x == nil || !x.isValid() {
+	if lhs == nil || x == nil || !x.isValid() || !check.isLogosFile(lhs) {
 		return false
 	}
 	if !check.logosIsDerived(x) && !check.logosIsPlatform(x) {
@@ -550,7 +554,7 @@ func (check *Checker) logosInheritPlatform(lhs *Var, x *operand) bool {
 // pointer results of a generic call are platform sources. Hooked from
 // multiExpr, which owns the dummy nodes.
 func (check *Checker) logosMarkTupleDummies(e syntax.Expr, list []*operand) {
-	if !check.conf.Logos || e == nil || len(list) == 0 {
+	if e == nil || len(list) == 0 || !check.isLogosFile(e) {
 		return
 	}
 	call, ok := syntax.Unparen(e).(*syntax.CallExpr)
@@ -581,7 +585,7 @@ func (check *Checker) logosMarkTupleDummies(e syntax.Expr, list []*operand) {
 // (a field or element of a Go-derived value, or through a derived
 // pointer): such stores keep Go's nullable contract and need no check.
 func (check *Checker) logosLHSIsGo(lhs syntax.Expr) bool {
-	if !check.conf.Logos || lhs == nil {
+	if lhs == nil || !check.isLogosFile(lhs) {
 		return false
 	}
 	switch lhs := syntax.Unparen(lhs).(type) {
@@ -670,7 +674,9 @@ func (check *Checker) logosPopGenericCall() {
 // an enclosing generic call: such parameters are nullable and take
 // platform arguments without a check.
 func (check *Checker) logosGenericArg(T Type) bool {
-	if !check.conf.Logos || !isValid(T) {
+	// Reached only from logosPlatformStore, which already gates on the
+	// store position; the scope walk below carries no position of its own.
+	if !isValid(T) {
 		return false
 	}
 	for _, scope := range check.logosGenericCall {
@@ -785,7 +791,7 @@ func (check *Checker) logosRecordCheck(e syntax.Expr, T Type) {
 // theirs, and proven non-nil values need no check. Hooked as a bare
 // call from assignment.
 func (check *Checker) logosPlatformStore(x *operand, T Type) {
-	if !check.conf.Logos {
+	if x == nil || !check.isLogosFile(x) {
 		return
 	}
 	if check.logosInGoCall() {

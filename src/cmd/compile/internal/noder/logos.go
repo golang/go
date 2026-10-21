@@ -45,6 +45,17 @@ func isCgoOutput(name string) bool {
 	return strings.HasPrefix(bn, "_cgo_") || strings.HasSuffix(bn, ".cgo1.go")
 }
 
+// isLogosCgoUser reports whether name is the rewritten user output of a
+// loGo/s cgo input. cmd/cgo names it from the source file (M20-S0), so
+// "c_bridge.lgo" becomes "c_bridge.lgo.cgo1.go". Unlike the other cgo
+// outputs it holds the user's own code, written in Go syntax, so the
+// package's loGo/s rules apply to it and the compiler lowers it with the
+// loGo/s files of the package; "_cgo_*" files stay Go-mode.
+func isLogosCgoUser(name string) bool {
+	stem, ok := strings.CutSuffix(filepath.Base(name), ".cgo1.go")
+	return ok && isLogosFile(stem)
+}
+
 // hasMethodTable reports whether the unified IR reader sees iface as a
 // non-empty interface. The reader folds the type set of a closed union
 // away (reader.go unionType), so only methods count: a union without
@@ -65,12 +76,22 @@ func logosMode(filename string) syntax.Mode {
 }
 
 // allLogos reports whether the package sources are .lgo files: at least
-// one loGo/s file and no user-authored .go files. Cgo outputs are exempt.
+// one loGo/s file and no user-authored .go files. Cgo outputs are exempt,
+// except the rewritten user file of a loGo/s cgo input (M20-S0): its
+// //line-mapped source is a .lgo file, so a bridge-only package still
+// counts as loGo/s and its platform-pointer stores lower with checks.
 func allLogos(noders []*noder) bool {
 	sawLogos := false
 	for _, p := range noders {
-		name := p.file.Pos().FileBase().Filename()
+		if p.file == nil {
+			continue // parse failed; the upstream error reports it.
+		}
+		pos := p.file.Pos()
+		name := pos.FileBase().Filename()
 		if isCgoOutput(name) {
+			if isLogosFile(pos.RelFilename()) {
+				sawLogos = true
+			}
 			continue
 		}
 		if !isLogosFile(name) {

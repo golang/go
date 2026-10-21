@@ -24,10 +24,10 @@ type LogosPlatformRet struct {
 // and the two types tell them apart. It never reports an error. Hooked as a
 // bare call from assignment.
 func (check *Checker) logosPlatformReturn(x *operand, T Type, context string) {
-	if !check.conf.Logos || context != "return statement" || check.Info == nil {
+	if x == nil || !check.isLogosFile(x) || context != "return statement" || check.Info == nil {
 		return
 	}
-	if T == nil || !isNonTypeParamInterface(T) || x == nil || !x.isValid() || x.expr == nil || x.isNil() {
+	if T == nil || !isNonTypeParamInterface(T) || !x.isValid() || x.expr == nil || x.isNil() {
 		return
 	}
 	if !check.logosIsPlatform(x) {
