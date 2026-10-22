@@ -1060,7 +1060,7 @@
 (CMPconst  (SRDconst _ [c]) [n]) && c > 0 && n < 0 => (FlagGT)
 (CMPWconst (SRWconst _ [c]) [n]) && c > 0 && n < 0 => (FlagGT)
 
-(CMPUconst  (SRDconst _ [c]) [n]) && c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(n) => (FlagLT)
+(CMPUconst  (SRDconst _ [c]) [n]) && c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(uint32(n)) => (FlagLT)
 (CMPWUconst (SRWconst _ [c]) [n]) && c > 0 && c < 32 && (1<<uint(32-c)) <= uint32(n) => (FlagLT)
 
 (CMPWconst  (ANDWconst _ [m]) [n]) && int32(m) >= 0 &&  int32(m) <  int32(n) => (FlagLT)
