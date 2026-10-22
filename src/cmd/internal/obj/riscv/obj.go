@@ -4722,9 +4722,7 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		if p.As == AFLIS {
 			f32 := float32(p.From.Val.(float64))
 			// NaN is special as it can't be used in comparison.
-			if f32 != f32 {
-				index = 31
-			} else if idx, ok := flisMapping[f32]; ok {
+			if idx, ok := flisMapping[f32]; ok {
 				index = idx
 			} else {
 				p.Ctxt.Diag("%v: invalid floating point immediate", f32)
@@ -4732,9 +4730,7 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			}
 		} else {
 			f64 := p.From.Val.(float64)
-			if math.IsNaN(f64) {
-				index = 31
-			} else if idx, ok := flidMapping[f64]; ok {
+			if idx, ok := flidMapping[f64]; ok {
 				index = idx
 			} else {
 				p.Ctxt.Diag("%v: invalid floating point immediate", f64)
