@@ -14,12 +14,25 @@ import (
 
 var started int32
 
-// Start a goroutine that loops forever.
+var sink uint32
+
+// Start a goroutine that loops "forever".
+// the inner loop(s) of the subroutine contains
+// no preemption checks; preemption must come
+// from a signal handler (which should be
+// installed even when coming from cgo).
 func init() {
 	runtime.GOMAXPROCS(1)
 	go func() {
-		for {
-			atomic.StoreInt32(&started, 1)
+		const K = 2_000_000_000
+		for i := 0; i < K; i++ {
+			for i := 0; i < K; i++ {
+				for i := 0; i < K; i++ {
+					// atomic.StoreInt32 is intrinsic or asm-nosplit, no preemption check.
+					atomic.StoreInt32(&started, 1)
+					sink++
+				}
+			}
 		}
 	}()
 }
