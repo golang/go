@@ -40,7 +40,7 @@ const (
 var sysinfo systeminfo
 
 func sysinit() {
-	syscall.Syscall(procGetSystemInfo.Addr(), 1, uintptr(unsafe.Pointer(&sysinfo)), 0, 0)
+	syscall.SyscallN(procGetSystemInfo.Addr(), uintptr(unsafe.Pointer(&sysinfo)))
 	switch sysinfo.wProcessorArchitecture {
 	case PROCESSOR_ARCHITECTURE_AMD64:
 		gohostarch = "amd64"

@@ -127,7 +127,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 // Errno values can be tested against error values using [errors.Is].
 // For example:
 //
-//	_, _, err := syscall.Syscall(...)
+//	_, _, err := syscall.SyscallN(...)
 //	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
@@ -557,10 +557,10 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
 	if unsafe.Sizeof(uintptr(0)) == 8 {
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
+		_, _, e1 = SyscallN(procSetFilePointerEx.Addr(), uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 	} else {
 		// distToMove is a LARGE_INTEGER, which is 64 bits.
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+		_, _, e1 = SyscallN(procSetFilePointerEx.Addr(), uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 	}
 	if e1 != 0 {
 		return errnoErr(e1)
@@ -1048,7 +1048,7 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 			return err
 		}
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1064,7 +1064,7 @@ func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
 	if err != nil {
 		return err
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1080,7 +1080,7 @@ func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
 	if err != nil {
 		return err
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1122,7 +1122,7 @@ func LoadConnectEx() error {
 }
 
 func connectEx(s Handle, name unsafe.Pointer, namelen int32, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) (err error) {
-	r1, _, e1 := Syscall9(connectExFunc.addr, 7, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)), 0, 0)
+	r1, _, e1 := SyscallN(connectExFunc.addr, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)
