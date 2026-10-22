@@ -133,4 +133,8 @@ type Flags struct {
 
 	// CgoBindings enables specifying cgo bindings using the go types they bind to.
 	CgoBindings bool
+
+	// ARM64E builds darwin/arm64 and ios/arm64 code that links into
+	// arm64e programs, which use pointer authentication.
+	ARM64E bool
 }

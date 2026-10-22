@@ -152,6 +152,10 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
 	}
+	// arm64e is an ABI of darwin and ios on arm64.
+	if goarch != "arm64" || (goos != "darwin" && goos != "ios") {
+		flags.ARM64E = false
+	}
 	return flags, nil
 }
 
