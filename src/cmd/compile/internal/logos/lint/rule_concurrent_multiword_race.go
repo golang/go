@@ -9,6 +9,7 @@ import (
 
 	"cmd/compile/internal/syntax"
 	"cmd/compile/internal/types2"
+	"internal/buildcfg"
 )
 
 // concurrentMultiwordRace is concurrency::concurrent_multiword_race (SPEC
@@ -17,7 +18,8 @@ import (
 // literal of a go statement or a loGo/s group child block. A variable is
 // multi-word when its value spans more than one machine word: a string
 // (two), a slice (three), an interface or union (two), a complex number
-// (two), and a struct or array holding more than one word in all. A value
+// (two), and a struct or array whose value-bearing storage, padding and
+// zero-sized fields excluded, spans more than one target machine word. A value
 // of a logos/sync type is exempt, and so is a const view, which nothing
 // writes through. A write is an assignment, an increment, or a range
 // assignment to the variable itself or to a field or array element held in
@@ -262,51 +264,74 @@ func isLogosSyncType(t types2.Type) bool {
 	return pkg != nil && pkg.Path() == logosSyncPath
 }
 
-// wordsOf returns the machine words a value of type t spans: the words its
-// parts hold in all, so a struct or array of narrow parts stays one word.
-// A pointer, a map, a channel, a function, a const view, and a type
-// parameter count one.
+// wordsOf returns the machine words a value of type t spans: its
+// value-bearing bytes over the target word size, rounded up once.
 func wordsOf(t types2.Type) int {
+	word := targetWord()
+	return int((valueBytes(t, word) + word - 1) / word)
+}
+
+// targetWord returns the target machine word size in bytes: the size the
+// gc layout gives an int for the configured GOARCH, which is one word on
+// every architecture, or eight when the layout is unknown.
+func targetWord() int64 {
+	sizes := types2.SizesFor("gc", buildcfg.GOARCH)
+	if sizes == nil {
+		return 8
+	}
+	if word := sizes.Sizeof(types2.Typ[types2.Int]); word > 0 {
+		return word
+	}
+	return 8
+}
+
+// valueBytes returns the value-bearing bytes a value of type t holds:
+// padding and zero-sized fields count nothing, so a struct or array sums
+// the true sizes of its parts. A pointer, a map, a channel, a function, a
+// const view, and a type parameter count one word.
+func valueBytes(t types2.Type, word int64) int64 {
 	if _, ok := types2.Unalias(t).(*types2.TypeParam); ok {
-		return 1
+		return word
 	}
 	switch u := t.Underlying().(type) {
 	case *types2.Basic:
-		return basicWords(u)
+		return basicBytes(u, word)
 	case *types2.Slice:
-		return 3
+		return 3 * word
 	case *types2.Interface:
-		return 2
+		return 2 * word
 	case *types2.Array:
-		return int(min(u.Len(), 2)) * wordsOf(u.Elem())
+		return min(u.Len()*valueBytes(u.Elem(), word), 2*word)
 	case *types2.Struct:
-		return structWords(u)
+		total := int64(0)
+		for i := range u.NumFields() {
+			total += valueBytes(u.Field(i).Type(), word)
+		}
+		return total
 	}
-	return 1
+	return word
 }
 
-// basicWords returns the words of a basic type: two for a string or a
-// complex number, one for a type that fills a whole word, and zero for a
-// narrower type, which shares its word with its neighbors.
-func basicWords(b *types2.Basic) int {
-	if b.Info()&(types2.IsString|types2.IsComplex) != 0 {
-		return 2
+// basicBytes returns the value-bearing bytes of a basic type: a string
+// takes its two-word header, a complex number its exact width, a narrow
+// scalar its true size, and int, uint, and uintptr one word.
+func basicBytes(b *types2.Basic, word int64) int64 {
+	if b.Info()&types2.IsString != 0 {
+		return 2 * word
 	}
 	switch b.Kind() {
-	case types2.Bool,
-		types2.Int8, types2.Int16, types2.Int32,
-		types2.Uint8, types2.Uint16, types2.Uint32,
-		types2.Float32:
-		return 0
+	case types2.Complex128:
+		return 16
+	case types2.Complex64:
+		return 8
+	case types2.Bool, types2.Int8, types2.Uint8:
+		return 1
+	case types2.Int16, types2.Uint16:
+		return 2
+	case types2.Int32, types2.Uint32, types2.Float32:
+		return 4
+	case types2.Int64, types2.Uint64, types2.Float64:
+		return 8
 	}
-	return 1
-}
-
-// structWords returns the sum of the words of the fields of s.
-func structWords(s *types2.Struct) int {
-	total := 0
-	for i := range s.NumFields() {
-		total += wordsOf(s.Field(i).Type())
-	}
-	return total
+	return word
 }
