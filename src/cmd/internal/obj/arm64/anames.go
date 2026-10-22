@@ -656,4 +656,12 @@ var Anames = []string{
 	"AUTIBSP",
 	"AUTIA1716",
 	"AUTIB1716",
+	"PACIA",
+	"AUTIA",
+	"PACDA",
+	"AUTDA",
+	"PACIZA",
+	"AUTIZA",
+	"XPACI",
+	"XPACD",
 }
