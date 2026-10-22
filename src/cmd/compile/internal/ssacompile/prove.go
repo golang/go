@@ -1789,6 +1789,11 @@ func getBranch(sdom ssa.SparseTree, p *ssa.Block, b *ssa.Block) branch {
 			return negative
 		}
 	case block.BlockJumpTable:
+		// A direct successor with a single predecessor records its branch
+		// index in the incoming edge, so we need not scan all successors.
+		if len(b.Preds) == 1 && b.Preds[0].B == p {
+			return jumpTable0 + branch(b.Preds[0].I)
+		}
 		// TODO: this loop can lead to quadratic behavior, as
 		// getBranch can be called len(p.Succs) times.
 		for i, e := range p.Succs {
