@@ -4,7 +4,10 @@
 
 package archsimd
 
-import "unsafe"
+import (
+	"simd/internal/simdfmt"
+	"unsafe"
+)
 
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {
@@ -114,7 +117,7 @@ func (x Float32s) String() string {
 	var s [8]float32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Float64s is a scalable SIMD vector of float64s.
@@ -215,7 +218,7 @@ func (x Float64s) String() string {
 	var s [4]float64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int8s is a scalable SIMD vector of int8s.
@@ -325,7 +328,7 @@ func (x Int8s) String() string {
 	var s [32]int8
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int16s is a scalable SIMD vector of int16s.
@@ -435,7 +438,7 @@ func (x Int16s) String() string {
 	var s [16]int16
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int32s is a scalable SIMD vector of int32s.
@@ -545,7 +548,7 @@ func (x Int32s) String() string {
 	var s [8]int32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int64s is a scalable SIMD vector of int64s.
@@ -655,7 +658,7 @@ func (x Int64s) String() string {
 	var s [4]int64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint8s is a scalable SIMD vector of uint8s.
@@ -756,7 +759,7 @@ func (x Uint8s) String() string {
 	var s [32]uint8
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint16s is a scalable SIMD vector of uint16s.
@@ -857,7 +860,7 @@ func (x Uint16s) String() string {
 	var s [16]uint16
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint32s is a scalable SIMD vector of uint32s.
@@ -958,7 +961,7 @@ func (x Uint32s) String() string {
 	var s [8]uint32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint64s is a scalable SIMD vector of uint64s.
@@ -1059,7 +1062,7 @@ func (x Uint64s) String() string {
 	var s [4]uint64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask8s is a scalable mask for a SIMD vector of 8-bit elements.
@@ -1138,7 +1141,7 @@ func (x Mask8s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask16s is a scalable mask for a SIMD vector of 16-bit elements.
@@ -1217,7 +1220,7 @@ func (x Mask16s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask32s is a scalable mask for a SIMD vector of 32-bit elements.
@@ -1296,7 +1299,7 @@ func (x Mask32s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask64s is a scalable mask for a SIMD vector of 64-bit elements.
@@ -1375,5 +1378,5 @@ func (x Mask64s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }

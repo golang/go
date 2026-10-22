@@ -4,6 +4,8 @@
 
 package archsimd
 
+import "simd/internal/simdfmt"
+
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.
 //
@@ -202,26 +204,26 @@ func (x Float64x2) IfElse(mask Mask64x2, y Float64x2) (z Float64x2) {
 func (x Mask8x16) String() string {
 	var s [16]int8
 	x.ToInt8x16().Neg().StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask16x8) String() string {
 	var s [8]int16
 	x.ToInt16x8().Neg().StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask32x4) String() string {
 	var s [4]int32
 	x.ToInt32x4().Neg().StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // String returns a string representation of SIMD mask x.
 func (x Mask64x2) String() string {
 	var s [2]int64
 	x.ToInt64x2().Neg().StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }

@@ -1359,7 +1359,7 @@ var toString = templateOf("toString",
 func (x {{.Name}}) String() string {
 	var s [{{.Count}}]{{.Elem}}
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 `)
 
@@ -1368,7 +1368,7 @@ var maskToString = templateOf("maskToString",
 func (x Mask{{.ElemSize}}x{{.Count}}) String() string {
 	var s [{{.Count}}]{{.Elem}}
 	x.ToInt{{.ElemSize}}x{{.Count}}().Neg().StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 `)
 
@@ -1419,6 +1419,8 @@ func genOps(f *bytes.Buffer) {
 	fmt.Fprintln(f, "//go:build goexperiment.simd && wasm")
 	fmt.Fprintln(f)
 	fmt.Fprintln(f, "package archsimd")
+	fmt.Fprintln(f)
+	fmt.Fprintln(f, `import "simd/internal/simdfmt"`)
 	fmt.Fprintln(f)
 
 	// Basic operations
