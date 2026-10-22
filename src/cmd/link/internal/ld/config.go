@@ -128,6 +128,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, fmt.Sprintf("%s/%s requires external linking", buildcfg.GOOS, buildcfg.GOARCH)
 	}
 
+	if buildcfg.Experiment.ARM64E {
+		return true, "GOEXPERIMENT=arm64e"
+	}
+
 	if *flagMsan {
 		return true, "msan"
 	}
