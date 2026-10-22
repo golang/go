@@ -619,3 +619,15 @@ TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
 	MOVD	0(R0), R0 // pid
 	BL	libc_proc_regionfilename(SB)
 	RET
+
+#ifdef GOEXPERIMENT_arm64e
+// func cfuncptr(pc uintptr) uintptr
+TEXT runtime·cfuncptr<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	PACIZA	R0
+	RET
+
+// func cfuncaddr(p uintptr) uintptr
+TEXT runtime·cfuncaddr<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	AUTIZA	R0
+	RET
+#endif

@@ -16,6 +16,7 @@ import (
 	"debug/elf"
 	"flag"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"log"
@@ -1288,6 +1289,55 @@ func TestPreemption(t *testing.T) {
 	t.Logf("%v\n%s", cmd.Args, sb)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+// TestARM64E runs the other tests again with GOEXPERIMENT=arm64e, which
+// builds the archives and the C programs for arm64e.
+func TestARM64E(t *testing.T) {
+	globalSkip(t)
+	if GOOS != "darwin" || GOARCH != "arm64" {
+		t.Skip("GOEXPERIMENT=arm64e requires darwin/arm64")
+	}
+	if goexperiment.ARM64E {
+		t.Skip("already testing GOEXPERIMENT=arm64e")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	// Not every version of macOS runs arm64e programs.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "main.c")
+	if err := os.WriteFile(src, []byte("int main(void) { return 0; }\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "main")
+	if out, err := exec.Command(cc[0], "-arch", "arm64e", "-o", exe, src).CombinedOutput(); err != nil {
+		t.Skipf("cannot build an arm64e program: %v\n%s", err, out)
+	}
+	if err := exec.Command(exe).Run(); err != nil {
+		t.Skipf("cannot run an arm64e program: %v", err)
+	}
+
+	args := []string{"-test.skip=^(TestARM64E|TestEarlySignalHandler|TestPreemption)$"}
+	if testing.Short() {
+		args = append(args, "-test.short")
+	}
+	if testing.Verbose() {
+		args = append(args, "-test.v")
+	}
+	cmd := testenv.Command(t, testenv.Executable(t), args...)
+	cmd.Dir = filepath.Join(testenv.GOROOT(t), "src", "cmd", "cgo", "internal", "testcarchive")
+	exp := goEnv("GOEXPERIMENT")
+	if exp != "" {
+		exp += ","
+	}
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+exp+"arm64e")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

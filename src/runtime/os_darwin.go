@@ -6,6 +6,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"internal/stringslite"
 	"unsafe"
 )
@@ -149,7 +150,18 @@ func osinit() {
 
 	osinit_hack()
 	initWorkingDir()
+
+	if goexperiment.ARM64E && _cgo_yield != nil {
+		// _cgo_yield is a C function pointer, which is signed on
+		// arm64e, but the runtime calls it with a plain branch.
+		cgoYield = unsafe.Pointer(cfuncaddr(uintptr(_cgo_yield)))
+		cgo_yield = &cgoYield
+	}
 }
+
+// cgoYield is the address that _cgo_yield points to, with
+// GOEXPERIMENT=arm64e.
+var cgoYield unsafe.Pointer
 
 func sysctlbynameInt32(name []byte) (int32, int32) {
 	out := int32(0)
@@ -316,6 +328,11 @@ func newosproc0(stacksize uintptr, fn unsafe.Pointer) {
 //go:nosplit
 //go:nowritebarrierrec
 func libpreinit() {
+	if goexperiment.ARM64E {
+		// pthread_create calls the start routine through an
+		// authenticating branch.
+		rt0LibGoFn = cfuncptr(abi.FuncPCABIInternal(rt0_lib_go))
+	}
 	initsig(true)
 }
 
@@ -407,6 +424,7 @@ func setsig(i uint32, fn uintptr) {
 		} else {
 			fn = abi.FuncPCABI0(sigtramp)
 		}
+		fn = cfuncptr(fn)
 	}
 	*(*uintptr)(unsafe.Pointer(&sa.__sigaction_u)) = fn
 	sigaction(i, &sa, nil)
