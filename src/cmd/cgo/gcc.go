@@ -20,6 +20,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/buildcfg"
 	"internal/xcoff"
 	"math"
 	"os"
@@ -1764,6 +1765,9 @@ func gccMachine() []string {
 		return []string{"-m64"}
 	case "arm64":
 		if goos == "darwin" {
+			if buildcfg.Experiment.ARM64E {
+				return []string{"-arch", "arm64e"}
+			}
 			return []string{"-arch", "arm64"}
 		}
 	case "386":

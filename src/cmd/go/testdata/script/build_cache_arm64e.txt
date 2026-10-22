@@ -1,0 +1,50 @@
+# GOEXPERIMENT=arm64e changes the architecture that cgo and the C compiler
+# target, so their cached results must not be shared with ordinary builds.
+
+[!GOOS:darwin] skip
+[!GOARCH:arm64] skip
+[!cgo] skip
+
+# clear CC, in case user sets it
+env CC=
+
+env GOCACHE=$WORK/gocache
+mkdir $GOCACHE
+
+go build -o a.exe .
+
+env GOEXPERIMENT=arm64e
+go build -x -o b.exe .
+stderr 'cgo -objdir'
+stderr 'clang.*-arch arm64e'
+
+env GOEXPERIMENT=
+go build -o c.exe .
+
+# On ios, CC chooses the architecture, so the C compiler gets no -arch
+# flag, but the experiment can still change the output of cgo.
+env GOOS=ios
+env CGO_ENABLED=1
+go build ./lib
+env GOEXPERIMENT=arm64e
+go build -x ./lib
+stderr 'cgo -objdir'
+
+-- go.mod --
+module m
+
+go 1.26
+-- main.go --
+package main
+
+// int f(void) { return 1; }
+import "C"
+
+func main() { println(C.f()) }
+-- lib/lib.go --
+package lib
+
+// int g(void) { return 2; }
+import "C"
+
+func G() int { return int(C.g()) }
