@@ -491,6 +491,8 @@ var optab = []Optab{
 	{AEXTR, C_VCON, C_ZREG, C_ZREG, C_ZREG, C_NONE, 44, 4, 0, 0, 0},
 	{ASXTB, C_ZREG, C_NONE, C_NONE, C_ZREG, C_NONE, 45, 4, 0, 0, 0},
 	{ACLS, C_ZREG, C_NONE, C_NONE, C_ZREG, C_NONE, 46, 4, 0, 0, 0},
+	{APACIA, C_RSP, C_NONE, C_NONE, C_ZREG, C_NONE, 46, 4, 0, 0, 0},
+	{APACIZA, C_NONE, C_NONE, C_NONE, C_ZREG, C_NONE, 46, 4, 0, 0, 0},
 	{ALSL, C_VCON, C_ZREG, C_NONE, C_ZREG, C_NONE, 8, 4, 0, 0, 0},
 	{ALSL, C_VCON, C_NONE, C_NONE, C_ZREG, C_NONE, 8, 4, 0, 0, 0},
 	{ALSL, C_ZREG, C_NONE, C_NONE, C_ZREG, C_NONE, 9, 4, 0, 0, 0},
@@ -2915,6 +2917,16 @@ func buildop(ctxt *obj.Link) {
 			oprangeset(AREV16W, t)
 			oprangeset(AREV32, t)
 
+		case APACIA:
+			oprangeset(AAUTIA, t)
+			oprangeset(APACDA, t)
+			oprangeset(AAUTDA, t)
+
+		case APACIZA:
+			oprangeset(AAUTIZA, t)
+			oprangeset(AXPACI, t)
+			oprangeset(AXPACD, t)
+
 		case ASDIV:
 			oprangeset(ASDIVW, t)
 			oprangeset(AUDIV, t)
@@ -4496,7 +4508,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			break
 		}
 
-	case 46: /* cls */
+	case 46: /* cls, clz, rbit, rev; pointer authentication */
 		o1 = c.opbit(p, p.As)
 
 		o1 |= uint32(p.From.Reg&31) << 5
@@ -7458,6 +7470,32 @@ func (c *ctxt7) opbit(p *obj.Prog, a obj.As) uint32 {
 
 	case AREV32:
 		return S64 | OPBIT(2)
+
+	// Pointer authentication uses opcode2 = 1. The forms without
+	// a modifier register have Rn = 31.
+	case APACIA:
+		return S64 | OPBIT(0) | 1<<16
+
+	case AAUTIA:
+		return S64 | OPBIT(4) | 1<<16
+
+	case APACDA:
+		return S64 | OPBIT(2) | 1<<16
+
+	case AAUTDA:
+		return S64 | OPBIT(6) | 1<<16
+
+	case APACIZA:
+		return S64 | OPBIT(8) | 1<<16 | 31<<5
+
+	case AAUTIZA:
+		return S64 | OPBIT(12) | 1<<16 | 31<<5
+
+	case AXPACI:
+		return S64 | OPBIT(16) | 1<<16 | 31<<5
+
+	case AXPACD:
+		return S64 | OPBIT(17) | 1<<16 | 31<<5
 
 	default:
 		c.ctxt.Diag("bad bit op\n%v", p)
