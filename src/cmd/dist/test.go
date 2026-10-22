@@ -1246,6 +1246,7 @@ func (t *tester) internalLinkPIE() bool {
 	}
 	switch goos + "-" + goarch {
 	case "darwin-amd64", "darwin-arm64",
+		"freebsd-amd64",
 		"linux-amd64", "linux-arm64", "linux-loong64", "linux-ppc64", "linux-ppc64le", "linux-s390x",
 		"android-arm64",
 		"windows-amd64", "windows-386", "windows-arm64":
