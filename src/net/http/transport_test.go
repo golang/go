@@ -6067,6 +6067,30 @@ func testTransportResponseBodyWritableOnProtocolSwitch(t *testing.T, mode testMo
 	}
 }
 
+func TestTransportUnsolicitedProtocolSwitch(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tt := newHTTP1TransportTest(t)
+
+		sentReq, _ := http.NewRequest("GET", "http://example.tld/request/path", nil)
+		rt := tt.roundTrip(sentReq)
+
+		dial := tt.wantDial("tcp", "example.tld:80")
+		conn := dial.connect()
+
+		_ = conn.readRequest()
+		conn.writeMessage(
+			"HTTP/1.1 101 Switching Protocols",
+			"Connection: Upgrade",
+			"Upgrade: foo",
+			"",
+			"data",
+		)
+		rt.wantStatus(101)
+		rt.wantBody(nil)
+		conn.wantClosed()
+	})
+}
+
 func TestTransportCONNECTBidi(t *testing.T) {
 	runSynctest(t, testTransportCONNECTBidi, []testMode{http1Mode})
 }

@@ -6923,7 +6923,13 @@ func testDisableKeepAliveUpgrade(t *testing.T, mode testMode) {
 	cl := s.Client()
 	cl.Transport.(*Transport).DisableKeepAlives = true
 
-	resp, err := cl.Get(s.URL)
+	req, err := NewRequest("GET", s.URL, nil)
+	if err != nil {
+		t.Fatalf("failed to create request: %v", err)
+	}
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "someProto")
+	resp, err := cl.Do(req)
 	if err != nil {
 		t.Fatalf("failed to perform request: %v", err)
 	}

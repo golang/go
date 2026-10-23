@@ -2073,7 +2073,7 @@ func (pc *persistConn) readResponse(rc requestAndChan, trace *httptrace.ClientTr
 		}
 		break
 	}
-	if resp.isProtocolSwitch() {
+	if resp.isProtocolSwitch() && isProtocolSwitchHeader(rc.treq.Request.Header) {
 		resp.Body = newReadWriteCloserBody(pc.br, pc.conn)
 	}
 	if continueCh != nil {
