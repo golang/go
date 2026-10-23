@@ -1488,7 +1488,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// Check for an explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.wants10KeepAlive && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
+	if w.wants10KeepAlive && !w.wantsClose && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"

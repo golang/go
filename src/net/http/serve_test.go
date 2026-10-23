@@ -7891,6 +7891,35 @@ func TestServerRequestBodyLength(t *testing.T) {
 		wantBodyLength:    5,
 		wantClose:         true, // RFC 9112 6.1
 	}, {
+		// RFC 9112 6.1
+		name: "HTTP/1.0 TE and CL with keep-alive",
+		message: joinCRLF(
+			"POST / HTTP/1.0",
+			"Host: example.tld",
+			"Connection: keep-alive",
+			"Transfer-Encoding: chunked",
+			"Content-Length: 5",
+			"",
+			"hello",
+		),
+		wantContentLength: 5,
+		wantBodyLength:    5,
+		wantClose:         true,
+	}, {
+		// RFC 9112 6.1
+		name: "HTTP/1.0 TE only with keep-alive",
+		message: joinCRLF(
+			"POST / HTTP/1.0",
+			"Host: example.tld",
+			"Connection: keep-alive",
+			"Transfer-Encoding: chunked",
+			"",
+			"",
+		),
+		wantContentLength: 0,
+		wantBodyLength:    0,
+		wantClose:         true,
+	}, {
 		// RFC 9112 6.3.4 paragraph 1
 		name: "TE only",
 		message: joinCRLF(
