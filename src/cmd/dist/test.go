@@ -947,7 +947,7 @@ func (t *tester) registerTests() {
 	}
 
 	// sync tests
-	if t.hasParallelism() {
+	if !t.compileOnly && t.hasParallelism() {
 		t.registerTest("sync -cpu=10",
 			&goTest{
 				variant: "cpu10",
