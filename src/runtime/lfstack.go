@@ -36,8 +36,13 @@ func (head *lfstack) push(node *lfnode) {
 func (head *lfstack) pop() unsafe.Pointer {
 	var backoff uint32
 	// TODO: tweak backoff parameters on other architectures.
-	if GOARCH == "arm64" {
+	switch GOARCH {
+	case "arm64":
 		backoff = 128
+	case "amd64":
+		// procyield counts PAUSE iterations here; 8 is roughly 140 ns on
+		// recent AMD parts. See go.dev/issue/82472.
+		backoff = 8
 	}
 	for {
 		old := atomic.Load64((*uint64)(head))
