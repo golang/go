@@ -1412,6 +1412,52 @@ func TestFaultRegisters(t *testing.T) {
 	}
 }
 
+// Test C functions used as values: passed back to C, and registered with
+// runtime.SetCgoTraceback, whose context function C calls on every call
+// into Go.
+func TestCFuncValue(t *testing.T) {
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp13" + exeSuffix)
+			os.Remove("libgo13.a")
+			os.Remove("libgo13.h")
+		}()
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo13.a", "./libgo13")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo13.h")
+	checkArchive(t, "libgo13.a")
+
+	ccArgs := append(cc, "-o", "testp13"+exeSuffix, "main13.c", "libgo13.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp13")
+	out, err = testenv.Command(t, argv[0], argv[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", argv, out)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 // TestARM64E runs the other tests again with GOEXPERIMENT=arm64e, which
 // builds the archives and the C programs for arm64e.
 func TestARM64E(t *testing.T) {
