@@ -740,13 +740,15 @@ func init() {
 		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, earlyOk: true},
 		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, earlyOk: true, zeroUpperBits: 32},
 
-		// BS{F,R}Q returns a tuple [result, flags]
+		// BS{F,R}{Q,L} return only the result.
 		// result is undefined if the input is zero.
-		// flags are set to "equal" if the input is zero, "not equal" otherwise.
-		// BS{F,R}L returns only the result.
-		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)", earlyOk: true},        // # of low-order zeroes in 64-bit arg
+		{name: "BSFQ", argLength: 1, reg: gp11, asm: "BSFQ", typ: "UInt64", clobberFlags: true, earlyOk: true}, // # of low-order zeroes in 64-bit arg
+		{name: "BSRQ", argLength: 1, reg: gp11, asm: "BSRQ", typ: "UInt64", clobberFlags: true, earlyOk: true}, // # of high-order zeroes in 64-bit arg
+		// init variants take the destination in arg0 and input in arg1.
+		// arg0 is preserved if arg1 is zero.
+		{name: "BSFQinit", argLength: 2, reg: gp21, asm: "BSFQ", typ: "UInt64", resultInArg0: true, clobberFlags: true, earlyOk: true},
+		{name: "BSRQinit", argLength: 2, reg: gp21, asm: "BSRQ", typ: "UInt64", resultInArg0: true, clobberFlags: true, earlyOk: true},
 		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32", clobberFlags: true, earlyOk: true}, // # of low-order zeroes in 32-bit arg
-		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)", earlyOk: true},        // # of high-order zeroes in 64-bit arg
 		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32", clobberFlags: true, earlyOk: true}, // # of high-order zeroes in 32-bit arg
 
 		// CMOV instructions: 64, 32 and 16-bit sizes.

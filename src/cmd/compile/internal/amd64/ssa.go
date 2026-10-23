@@ -1606,17 +1606,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
-	case ssaop.OpAMD64BSFQ, ssaop.OpAMD64BSRQ, ssaop.OpAMD64BSFL, ssaop.OpAMD64BSRL, ssaop.OpAMD64SQRTSD, ssaop.OpAMD64SQRTSS:
+	case ssaop.OpAMD64BSFQinit, ssaop.OpAMD64BSRQinit:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[1].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssaop.OpAMD64BSFQ, ssaop.OpAMD64BSRQ, ssaop.OpAMD64BSFL, ssaop.OpAMD64BSRL:
+		if v.Args[0].Reg() != v.Reg() {
+			// BSF/BSR depend on the previous destination value.
+			// Clear the destination to break the dependency.
+			opregreg(s, x86.AXORL, v.Reg(), v.Reg())
+		}
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[0].Reg()
 		p.To.Type = obj.TYPE_REG
-		switch v.Op {
-		case ssaop.OpAMD64BSFQ, ssaop.OpAMD64BSRQ:
-			p.To.Reg = v.Reg0()
-		case ssaop.OpAMD64BSFL, ssaop.OpAMD64BSRL, ssaop.OpAMD64SQRTSD, ssaop.OpAMD64SQRTSS:
-			p.To.Reg = v.Reg()
-		}
+		p.To.Reg = v.Reg()
+	case ssaop.OpAMD64SQRTSD, ssaop.OpAMD64SQRTSS:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 	case ssaop.OpAMD64LoweredRound32F, ssaop.OpAMD64LoweredRound64F:
 		// input is already rounded
 	case ssaop.OpAMD64ROUNDSD, ssaop.OpAMD64ROUNDSS:

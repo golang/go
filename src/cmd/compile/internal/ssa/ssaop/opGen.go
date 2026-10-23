@@ -564,8 +564,10 @@ const (
 	OpAMD64NOTQ
 	OpAMD64NOTL
 	OpAMD64BSFQ
-	OpAMD64BSFL
 	OpAMD64BSRQ
+	OpAMD64BSFQinit
+	OpAMD64BSRQinit
+	OpAMD64BSFL
 	OpAMD64BSRL
 	OpAMD64CMOVQEQ
 	OpAMD64CMOVQNE
@@ -17923,16 +17925,65 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "BSFQ",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ABSFQ,
+		Name:         "BSFQ",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSFQ,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			Outputs: []OutputInfo{
-				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSRQ",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSRQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSFQinit",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSFQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSRQinit",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSRQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
@@ -17948,21 +17999,6 @@ var OpcodeTable = [...]OpInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		Name:    "BSRQ",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ABSRQ,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			Outputs: []OutputInfo{
-				{1, RegMask{V1: 0, V2: 0}},
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
