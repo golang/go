@@ -22,7 +22,7 @@ TEXT ·archHypot(SB),NOSPLIT,$0
 	MOVV	F4, R4
 	MOVV	F5, R5
 	DIVD	F9, F9, F7	// F7 = 1.0
-	SUBD	F7, F7, F4	// F4 = 0.0
+	SUBD	F9, F9, F4	// F4 = 0.0
 	OR	R4, R5, R6
 
 	// +Inf special case
