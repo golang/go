@@ -14,6 +14,7 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
+	"internal/buildcfg"
 	"internal/xcoff"
 	"io"
 	"os"
@@ -173,6 +174,15 @@ func (p *Package) writeDefs() {
 	for _, key := range nameKeys(p.Name) {
 		n := p.Name[key]
 		if !n.IsVar() {
+			continue
+		}
+
+		if n.Kind == "fpvar" && !*gccgo && buildcfg.Experiment.ARM64E {
+			// Use the function pointer that writeOutput took in C,
+			// which is signed for C to call.
+			fmt.Fprintf(fgo2, "//go:cgo_import_static _cgo%s%s\n", cPrefix, n.Mangle)
+			fmt.Fprintf(fgo2, "//go:linkname %s _cgo%s%s\n", n.Mangle, cPrefix, n.Mangle)
+			fmt.Fprintf(fgo2, "var %s unsafe.Pointer\n", n.Mangle)
 			continue
 		}
 
@@ -728,6 +738,10 @@ func (p *Package) writeOutput(f *File, srcfile string) {
 		n := f.Name[key]
 		if n.FuncType != nil {
 			p.writeOutputFunc(fgcc, n)
+		}
+		if n.Kind == "fpvar" && !*gccgo && buildcfg.Experiment.ARM64E && !p.Written[n.Mangle] {
+			p.Written[n.Mangle] = true
+			fmt.Fprintf(fgcc, "__typeof__(&%s) const _cgo%s%s = &%s;\n", n.C, cPrefix, n.Mangle, n.C)
 		}
 	}
 
