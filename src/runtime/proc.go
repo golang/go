@@ -5319,6 +5319,9 @@ func syscall_runtime_AfterExec() {
 // Allocate a new g, with a stack big enough for stacksize bytes.
 func malg(stacksize int32) *g {
 	newg := new(g)
+	// Give newg its WebAssembly continuation table slot (GOWASM=stackswitch),
+	// which it keeps for its lifetime, including on free lists.
+	wasmContAlloc(newg)
 	if stacksize >= 0 {
 		stacksize = round2(stackSystem + stacksize)
 		systemstack(func() {

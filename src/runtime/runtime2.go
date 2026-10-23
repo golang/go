@@ -503,6 +503,7 @@ type g struct {
 	//    param may point to a savedOpenDeferState.
 	param        unsafe.Pointer
 	atomicstatus atomic.Uint32
+	wasmCont     wasmContPerG // GOWASM=stackswitch only; fills the padding before goid
 	goid         uint64
 	schedlink    guintptr
 	waitsince    int64      // approx time when the g become blocked
