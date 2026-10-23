@@ -21,27 +21,26 @@ import (
 )
 
 func TestUserAgent(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(r.UserAgent()))
+	// Initial request fails with a 404, so the request is retried with credentials
+	// obtained by invoking GOAUTH with the request URL. The retry fails as well.
+	// Both requests should have the User-Agent set.
+	reqs := 0
+	ts := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqs++
+		if got, want := r.UserAgent(), userAgent; got != want {
+			t.Errorf("request %q: User-Agent = %q, want %q", r.URL, got, want)
+		}
+		t.Log(r.URL, r.UserAgent())
+		w.WriteHeader(404)
 	}))
-	defer ts.Close()
-
-	u, err := url.Parse(ts.URL)
-	if err != nil {
-		t.Fatal("parse httptest url:", err)
-	}
-	res, err := Get(Insecure, u)
+	setTestTransport(t, ts.Client())
+	res, err := Get(Insecure, url.MustParse("https://example.tld/"))
 	if err != nil {
 		t.Error("http get:", err)
 	}
 	defer res.Body.Close()
-	b, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Error("read response body:", err)
-	}
-	gotUserAgent := string(bytes.TrimSpace(b))
-	if gotUserAgent != userAgent {
-		t.Errorf("User-Agent: %s, want %s", gotUserAgent, userAgent)
+	if got, want := reqs, 2; got != want {
+		t.Errorf("Get made %v requests, want %v", got, want)
 	}
 }
 
@@ -334,6 +333,10 @@ func TestRetryResumed(t *testing.T) {
 		synctest.Subtest(t, test.name, func(t *testing.T) {
 			attempts := 0
 			ts := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+				if got, want := req.UserAgent(), userAgent; got != want {
+					t.Errorf("request %q: User-Agent = %q, want %q", req.URL, got, want)
+				}
+
 				if attempts >= len(test.attempts) {
 					attempts++
 					w.WriteHeader(http.StatusNotAcceptable)
