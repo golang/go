@@ -1,0 +1,22 @@
+# GOEXPERIMENT=arm64e does not support the race detector or plugins.
+
+[!GOOS:darwin] skip
+[!GOARCH:arm64] skip
+[!cgo] skip
+
+env GOEXPERIMENT=arm64e
+
+! go build -race .
+stderr '^-race is not supported with GOEXPERIMENT=arm64e$'
+
+! go build -buildmode=plugin .
+stderr '^-buildmode=plugin not supported with GOEXPERIMENT=arm64e$'
+
+-- go.mod --
+module m
+
+go 1.26
+-- main.go --
+package main
+
+func main() {}
