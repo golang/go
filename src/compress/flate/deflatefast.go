@@ -32,6 +32,15 @@ const (
 
 	// bufferReset is the buffer offset at which the history is reset.
 	bufferReset = (1 << 31) - allocHistory - maxStoreBlockSize - 1
+
+	// inputMargin is the number of bytes the encoders must be able to read
+	// past the last position they look for a match at.
+	inputMargin = 12 - 1
+
+	// minNonLiteralBlockSize is the smallest block encode will emit tokens for.
+	// Smaller blocks are only added to the history and must be written by the
+	// caller.
+	minNonLiteralBlockSize = 1 + 1 + inputMargin
 )
 
 // fastEncL1 to fastEncL6 provides specialized encoders for levels 1-6
