@@ -2,6 +2,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// Individual test cases in GOROOT/test are already responsible for setting -race flag
+// and other flags to suit their needs, and that flag doesn't automatically propagate
+// to the individual test cases anyway.
+//
+// So, avoid repeating these tests in race mode to avoid doing duplicate work.
+// In particular, this saves time on the race builders.
+//
+//go:build !race
+
 // Package testdir_test runs tests in the GOROOT/test directory.
 package testdir_test
 
@@ -13,7 +22,6 @@ import (
 	"fmt"
 	"go/build"
 	"go/build/constraint"
-	"hash/fnv"
 	"internal/testenv"
 	"io"
 	"io/fs"
@@ -42,9 +50,6 @@ var (
 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
 	force          = flag.Bool("f", false, "ignore expected-failure test lists")
 	target         = flag.String("target", "", "cross-compile tests for `goos/goarch`")
-
-	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
-	shards = flag.Int("shards", 0, "number of shards. If 0, all tests are run. This is used by the continuous build.")
 )
 
 // defaultAllCodeGen returns the default value of the -all_codegen
@@ -158,15 +163,6 @@ func Test(t *testing.T) {
 	}
 }
 
-func shardMatch(name string) bool {
-	if *shards <= 1 {
-		return true
-	}
-	h := fnv.New32()
-	io.WriteString(h, name)
-	return int(h.Sum32()%uint32(*shards)) == *shard
-}
-
 func goFiles(t *testing.T, dir string) []string {
 	files, err := os.ReadDir(filepath.Join(testenv.GOROOT(t), "test", dir))
 	if err != nil {
@@ -175,7 +171,7 @@ func goFiles(t *testing.T, dir string) []string {
 	names := []string{}
 	for _, file := range files {
 		name := file.Name()
-		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") && shardMatch(name) {
+		if !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".go") {
 			names = append(names, name)
 		}
 	}
@@ -1833,10 +1829,6 @@ func defaultRunOutputLimit() int {
 }
 
 func TestShouldTest(t *testing.T) {
-	if *shard != 0 {
-		t.Skipf("nothing to test on shard index %d", *shard)
-	}
-
 	assert := func(ok bool, _ string) {
 		t.Helper()
 		if !ok {

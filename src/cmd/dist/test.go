@@ -619,21 +619,6 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 }
 
 func (t *tester) registerTests() {
-	// registerStdTestSpecially tracks import paths in the standard library
-	// whose test registration happens in a special way.
-	//
-	// These tests *must* be able to run normally as part of "go test std cmd",
-	// even if they are also registered separately by dist, because users often
-	// run go test directly. Use skips or build tags in preference to expanding
-	// this list.
-	registerStdTestSpecially := map[string]bool{
-		// testdir can run normally as part of "go test std cmd", but because
-		// it's a very large test, we register is specially as several shards to
-		// enable better load balancing on sharded builders. Ideally the build
-		// system would know how to shard any large test package.
-		"cmd/internal/testdir": true,
-	}
-
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
@@ -671,9 +656,6 @@ func (t *tester) registerTests() {
 		}
 		pkgs := strings.Fields(string(all))
 		for _, pkg := range pkgs {
-			if registerStdTestSpecially[pkg] {
-				continue
-			}
 			if t.short && (strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "cmd/vendor/")) {
 				// Vendored code has no tests, and we don't care too much about vet errors
 				// since we can't modify the code, so skip the tests in short mode.
@@ -1025,31 +1007,16 @@ func (t *tester) registerTests() {
 		t.registerRaceTests()
 	}
 
-	if goos != "android" && !t.iOS() {
-		// Only start multiple test dir shards on builders,
-		// where they get distributed to multiple machines.
-		// See issues 20141 and 31834.
-		nShards := 1
-		if os.Getenv("GO_BUILDER_NAME") != "" {
-			nShards = 10
-		}
-		if n, err := strconv.Atoi(os.Getenv("GO_TEST_SHARDS")); err == nil {
-			nShards = n
-		}
-		for shard := 0; shard < nShards; shard++ {
-			id := fmt.Sprintf("%d_%d", shard, nShards)
-			t.registerTest("../test",
-				&goTest{
-					// Include the variant even though there's no overlap in test names.
-					// This makes the test target more clearly distinct in our build
-					// results and is important for load-balancing test shards.
-					variant:   id,
-					pkg:       "cmd/internal/testdir",
-					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
-					runOnHost: true,
-				},
-			)
-		}
+	// These tests will be skipped as part of the initial go test std cmd invocation for
+	// js and wasip1 and need to be run on the host. Register them specially here.
+	if goos == "js" || goos == "wasip1" {
+		t.registerTest("../test",
+			&goTest{
+				variant:   "host",
+				pkg:       "cmd/internal/testdir",
+				runOnHost: true,
+			},
+		)
 	}
 }
 
