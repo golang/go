@@ -5332,7 +5332,7 @@ func testServerContext_ServerContextKey(t *testing.T, mode testMode) {
 }
 
 func TestServerContext_LocalAddrContextKey(t *testing.T) {
-	runNoSynctest(t, testServerContext_LocalAddrContextKey, http3SkippedMode)
+	runNoSynctest(t, testServerContext_LocalAddrContextKey)
 }
 func testServerContext_LocalAddrContextKey(t *testing.T, mode testMode) {
 	ch := make(chan any, 1)

@@ -235,6 +235,9 @@ type serverConn struct {
 // newServerConn handles a new connection.
 // The baseCtx parameter is the base context for request handlers on this connection.
 func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
+	if localAddr := qconn.LocalAddr(); localAddr.IsValid() {
+		baseCtx = context.WithValue(baseCtx, http.LocalAddrContextKey, net.UDPAddrFromAddrPort(localAddr))
+	}
 	baseCtx, cancel := context.WithCancel(baseCtx)
 	defer cancel()
 
