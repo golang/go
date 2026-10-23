@@ -1128,6 +1128,7 @@ const (
 	O_DSYNC                                 = 0x400000
 	O_EVTONLY                               = 0x8000
 	O_EXCL                                  = 0x800
+	O_EXEC                                  = 0x40000000
 	O_EXLOCK                                = 0x20
 	O_FSYNC                                 = 0x80
 	O_NDELAY                                = 0x4
@@ -1138,6 +1139,7 @@ const (
 	O_POPUP                                 = 0x80000000
 	O_RDONLY                                = 0x0
 	O_RDWR                                  = 0x2
+	O_SEARCH                                = 0x40100000
 	O_SHLOCK                                = 0x10
 	O_SYMLINK                               = 0x200000
 	O_SYNC                                  = 0x80
@@ -1147,6 +1149,10 @@ const (
 	PARMRK                                  = 0x8
 	PARODD                                  = 0x2000
 	PENDIN                                  = 0x20000000
+	PRIO_DARWIN_BG                          = 0x1000
+	PRIO_DARWIN_NONUI                       = 0x1001
+	PRIO_DARWIN_PROCESS                     = 0x4
+	PRIO_DARWIN_THREAD                      = 0x3
 	PRIO_PGRP                               = 0x1
 	PRIO_PROCESS                            = 0x0
 	PRIO_USER                               = 0x2

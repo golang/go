@@ -657,6 +657,7 @@ const (
 	EDQUOT          = syscall.Errno(0x7a)
 	EFSBADCRC       = syscall.Errno(0x4a)
 	EFSCORRUPTED    = syscall.Errno(0x75)
+	EFTYPE          = syscall.Errno(0x86)
 	EHOSTDOWN       = syscall.Errno(0x70)
 	EHOSTUNREACH    = syscall.Errno(0x71)
 	EHWPOISON       = syscall.Errno(0x85)
@@ -898,6 +899,7 @@ var errorList = [...]struct {
 	{131, "ENOTRECOVERABLE", "state not recoverable"},
 	{132, "ERFKILL", "operation not possible due to RF-kill"},
 	{133, "EHWPOISON", "memory page has hardware error"},
+	{134, "EFTYPE", "unknown error 134"},
 }
 
 // Signal table

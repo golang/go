@@ -28,13 +28,9 @@ import (
 )
 
 //go:noescape
-func initZosLibVec()
-
-//go:noescape
 func GetZosLibVec() uintptr
 
 func init() {
-	initZosLibVec()
 	r0, _, _ := CallLeFuncWithPtrReturn(GetZosLibVec()+SYS_____GETENV_A<<4, uintptr(unsafe.Pointer(&([]byte("__ZOS_XSYSTRACE\x00"))[0])))
 	if r0 != 0 {
 		n, _, _ := CallLeFuncWithPtrReturn(GetZosLibVec()+SYS___ATOI_A<<4, r0)

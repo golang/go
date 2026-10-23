@@ -50,7 +50,7 @@ func (c *Conn) maybeSend(now time.Time) (next time.Time) {
 		// Prepare to write a datagram of at most maxSendSize bytes.
 		c.w.reset(c.loss.maxSendSize())
 
-		dstConnID, ok := c.connIDState.dstConnID()
+		dstConnID, ok := c.connIDState.dstConnIDForPath(c.path)
 		if !ok {
 			// It is currently not possible for us to end up without a connection ID,
 			// but handle the case anyway.
@@ -182,8 +182,8 @@ func (c *Conn) maybeSend(now time.Time) (next time.Time) {
 		}
 
 		c.endpoint.sendDatagram(datagram{
-			b:        buf,
-			peerAddr: c.peerAddr,
+			b:    buf,
+			path: pathAddrs{peer: c.path.peer},
 		})
 	}
 }

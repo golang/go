@@ -10,6 +10,7 @@ package bidirule
 
 import (
 	"errors"
+	"sync"
 	"unicode/utf8"
 
 	"golang.org/x/text/transform"
@@ -246,8 +247,9 @@ func (t *Transformer) Span(src []byte, atEOF bool) (n int, err error) {
 // Precomputing the ASCII values decreases running time for the ASCII fast path
 // by about 30%.
 var asciiTable [128]bidi.Properties
+var asciiTableOnce sync.Once
 
-func init() {
+func initASCIITable() {
 	for i := range asciiTable {
 		p, _ := bidi.LookupRune(rune(i))
 		asciiTable[i] = p
@@ -255,6 +257,8 @@ func init() {
 }
 
 func (t *Transformer) advance(s []byte) (n int, ok bool) {
+	asciiTableOnce.Do(initASCIITable)
+
 	var e bidi.Properties
 	var sz int
 	for n < len(s) {
@@ -297,6 +301,8 @@ func (t *Transformer) advance(s []byte) (n int, ok bool) {
 }
 
 func (t *Transformer) advanceString(s string) (n int, ok bool) {
+	asciiTableOnce.Do(initASCIITable)
+
 	var e bidi.Properties
 	var sz int
 	for n < len(s) {

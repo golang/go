@@ -13,12 +13,12 @@ func FcntlInt(fd uintptr, cmd, arg int) (int, error) {
 
 // FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
 func FcntlFlock(fd uintptr, cmd int, lk *Flock_t) error {
-	_, err := fcntl(int(fd), cmd, int(uintptr(unsafe.Pointer(lk))))
+	_, err := fcntlPtr(int(fd), cmd, unsafe.Pointer(lk))
 	return err
 }
 
 // FcntlFstore performs a fcntl syscall for the F_PREALLOCATE command.
 func FcntlFstore(fd uintptr, cmd int, fstore *Fstore_t) error {
-	_, err := fcntl(int(fd), cmd, int(uintptr(unsafe.Pointer(fstore))))
+	_, err := fcntlPtr(int(fd), cmd, unsafe.Pointer(fstore))
 	return err
 }

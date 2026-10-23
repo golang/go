@@ -56,7 +56,7 @@ func Getxattr(file string, attr string, dest []byte) (sz int, err error) {
 		return -1, err
 	}
 
-	return ExtattrGetFile(file, nsid, a, uintptr(d), destsize)
+	return extattrGetFile(file, nsid, a, d, destsize)
 }
 
 func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
@@ -68,7 +68,7 @@ func Fgetxattr(fd int, attr string, dest []byte) (sz int, err error) {
 		return -1, err
 	}
 
-	return ExtattrGetFd(fd, nsid, a, uintptr(d), destsize)
+	return extattrGetFd(fd, nsid, a, d, destsize)
 }
 
 func Lgetxattr(link string, attr string, dest []byte) (sz int, err error) {
@@ -80,7 +80,7 @@ func Lgetxattr(link string, attr string, dest []byte) (sz int, err error) {
 		return -1, err
 	}
 
-	return ExtattrGetLink(link, nsid, a, uintptr(d), destsize)
+	return extattrGetLink(link, nsid, a, d, destsize)
 }
 
 // flags are unused on FreeBSD
@@ -97,7 +97,7 @@ func Fsetxattr(fd int, attr string, data []byte, flags int) (err error) {
 		return
 	}
 
-	_, err = ExtattrSetFd(fd, nsid, a, uintptr(d), datasiz)
+	_, err = extattrSetFd(fd, nsid, a, d, datasiz)
 	return
 }
 
@@ -113,7 +113,7 @@ func Setxattr(file string, attr string, data []byte, flags int) (err error) {
 		return
 	}
 
-	_, err = ExtattrSetFile(file, nsid, a, uintptr(d), datasiz)
+	_, err = extattrSetFile(file, nsid, a, d, datasiz)
 	return
 }
 
@@ -129,7 +129,7 @@ func Lsetxattr(link string, attr string, data []byte, flags int) (err error) {
 		return
 	}
 
-	_, err = ExtattrSetLink(link, nsid, a, uintptr(d), datasiz)
+	_, err = extattrSetLink(link, nsid, a, d, datasiz)
 	return
 }
 
@@ -199,9 +199,9 @@ func ListxattrNS(file string, nsid int, dest []byte) (sz int, err error) {
 	d := initxattrdest(dest, 0)
 	destsiz := len(dest)
 
-	s, e := ExtattrListFile(file, nsid, uintptr(d), destsiz)
+	s, e := extattrListFile(file, nsid, d, destsiz)
 	if e != nil {
-		return 0, err
+		return 0, e
 	}
 
 	return s, nil
@@ -235,9 +235,9 @@ func FlistxattrNS(fd int, nsid int, dest []byte) (sz int, err error) {
 	d := initxattrdest(dest, 0)
 	destsiz := len(dest)
 
-	s, e := ExtattrListFd(fd, nsid, uintptr(d), destsiz)
+	s, e := extattrListFd(fd, nsid, d, destsiz)
 	if e != nil {
-		return 0, err
+		return 0, e
 	}
 
 	return s, nil
@@ -271,9 +271,9 @@ func LlistxattrNS(link string, nsid int, dest []byte) (sz int, err error) {
 	d := initxattrdest(dest, 0)
 	destsiz := len(dest)
 
-	s, e := ExtattrListLink(link, nsid, uintptr(d), destsiz)
+	s, e := extattrListLink(link, nsid, d, destsiz)
 	if e != nil {
-		return 0, err
+		return 0, e
 	}
 
 	return s, nil

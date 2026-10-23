@@ -17,15 +17,18 @@ type rttState struct {
 }
 
 func (r *rttState) init() {
-	r.minRTT = -1 // -1 indicates the first sample has not been taken yet
-
 	// "[...] the initial RTT SHOULD be set to 333 milliseconds."
 	// https://www.rfc-editor.org/rfc/rfc9002.html#section-6.2.2-1
 	const initialRTT = 333 * time.Millisecond
 
-	// https://www.rfc-editor.org/rfc/rfc9002.html#section-5.3-12
-	r.smoothedRTT = initialRTT
-	r.rttvar = initialRTT / 2
+	*r = rttState{
+		// -1 indicates the first sample has not been taken yet
+		minRTT: -1,
+
+		// https://www.rfc-editor.org/rfc/rfc9002.html#section-5.3-12
+		smoothedRTT: initialRTT,
+		rttvar:      initialRTT / 2,
+	}
 }
 
 func (r *rttState) establishPersistentCongestion() {

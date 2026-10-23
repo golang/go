@@ -178,8 +178,8 @@ func (e *Endpoint) sendRetry(now time.Time, p genericLongPacket, peerAddr netip.
 		token:     token,
 	})
 	e.sendDatagram(datagram{
-		b:        b,
-		peerAddr: peerAddr,
+		b:    b,
+		path: pathAddrs{peer: peerAddr},
 	})
 }
 

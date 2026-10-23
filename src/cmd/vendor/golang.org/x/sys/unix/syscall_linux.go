@@ -1991,7 +1991,24 @@ func FsconfigReconfigure(fd int) (err error) {
 	return fsconfig(fd, FSCONFIG_CMD_RECONFIGURE, nil, nil, 0)
 }
 
-//sys	Getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
+//sys	getdents(fd int, buf []byte) (n int, err error) = SYS_GETDENTS64
+
+// Getdents reads directory entries from fd into buf.
+func Getdents(fd int, buf []byte) (n int, err error) {
+	// getdents64 stores d_ino with a 64-bit write, which faults on
+	// strict-alignment targets unless buf is 8-aligned.
+	if len(buf) > 0 {
+		if off := int(-uintptr(unsafe.Pointer(&buf[0])) & 7); off > 0 && off < len(buf) {
+			n, err = getdents(fd, buf[off:])
+			if n > 0 {
+				copy(buf, buf[off:off+n])
+			}
+			return n, err
+		}
+	}
+	return getdents(fd, buf)
+}
+
 //sysnb	Getpgid(pid int) (pgid int, err error)
 
 func Getpgrp() (pid int) {
@@ -2033,6 +2050,7 @@ func Getrandom(buf []byte, flags int) (n int, err error) {
 //sysnb	Kill(pid int, sig syscall.Signal) (err error)
 //sys	Klogctl(typ int, buf []byte) (n int, err error) = SYS_SYSLOG
 //sys	Lgetxattr(path string, attr string, dest []byte) (sz int, err error)
+//sys	Listns(req *NsIdReq, nsIds []uint64, flags uint) (n int, err error)
 //sys	Listxattr(path string, dest []byte) (sz int, err error)
 //sys	Llistxattr(path string, dest []byte) (sz int, err error)
 //sys	Lremovexattr(path string, attr string) (err error)
@@ -2046,6 +2064,7 @@ func Getrandom(buf []byte, flags int) (n int, err error) {
 //sys	PerfEventOpen(attr *PerfEventAttr, pid int, cpu int, groupFd int, flags int) (fd int, err error)
 //sys	PivotRoot(newroot string, putold string) (err error) = SYS_PIVOT_ROOT
 //sys	Prctl(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 uintptr) (err error)
+//sys	PrctlArg5Ptr(option int, arg2 uintptr, arg3 uintptr, arg4 uintptr, arg5 unsafe.Pointer) (err error) = SYS_PRCTL
 //sys	pselect6(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timespec, sigmask *sigset_argpack) (n int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Removexattr(path string, attr string) (err error)

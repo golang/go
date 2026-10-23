@@ -15,14 +15,16 @@ import (
 // https://www.rfc-editor.org/rfc/rfc9000.html#section-17
 type packetType byte
 
+// handleFrames requires packetType values to be usable in a bitmask.
 const (
-	packetTypeInvalid = packetType(iota)
-	packetTypeInitial
+	packetTypeInitial = packetType(1 << iota)
 	packetType0RTT
 	packetTypeHandshake
 	packetTypeRetry
 	packetType1RTT
 	packetTypeVersionNegotiation
+
+	packetTypeInvalid packetType = 0
 )
 
 func (p packetType) String() string {

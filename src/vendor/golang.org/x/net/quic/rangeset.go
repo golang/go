@@ -4,8 +4,13 @@
 
 package quic
 
+import (
+	"iter"
+	"math"
+)
+
 // A rangeset is a set of int64s, stored as an ordered list of non-overlapping,
-// non-empty ranges.
+// non-empty ranges of non-negative integers.
 //
 // Rangesets are efficient for small numbers of ranges,
 // which is expected to be the common case.
@@ -190,4 +195,22 @@ func (s *rangeset[T]) insertrange(i int, start, end T) {
 	*s = append(*s, i64range[T]{})
 	copy((*s)[i+1:], (*s)[i:])
 	(*s)[i] = i64range[T]{start, end}
+}
+
+// iterNotContains returns an iterator over ranges that are not contained in s.
+func (s rangeset[T]) iterNotContains() iter.Seq[i64range[T]] {
+	return func(yield func(i64range[T]) bool) {
+		var start T
+		for _, r := range s {
+			if start < r.start {
+				if !yield(i64range[T]{start, r.start}) {
+					return
+				}
+			}
+			start = r.end
+		}
+		if start < math.MaxInt64 {
+			yield(i64range[T]{start, math.MaxInt64})
+		}
+	}
 }

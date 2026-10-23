@@ -208,26 +208,22 @@ func (p *paragraph) determineMatchingIsolates() {
 		p.matchingIsolateInitiator[i] = -1
 	}
 
+	var open []int
 	for i := range p.matchingPDI {
 		p.matchingPDI[i] = -1
 
-		if t := p.resultTypes[i]; t.in(LRI, RLI, FSI) {
-			depthCounter := 1
-			for j := i + 1; j < p.Len(); j++ {
-				if u := p.resultTypes[j]; u.in(LRI, RLI, FSI) {
-					depthCounter++
-				} else if u == PDI {
-					if depthCounter--; depthCounter == 0 {
-						p.matchingPDI[i] = j
-						p.matchingIsolateInitiator[j] = i
-						break
-					}
-				}
-			}
-			if p.matchingPDI[i] == -1 {
-				p.matchingPDI[i] = p.Len()
-			}
+		switch t := p.resultTypes[i]; {
+		case t.in(LRI, RLI, FSI):
+			open = append(open, i)
+		case t == PDI && len(open) > 0:
+			j := open[len(open)-1]
+			open = open[:len(open)-1]
+			p.matchingPDI[j] = i
+			p.matchingIsolateInitiator[i] = j
 		}
+	}
+	for _, i := range open {
+		p.matchingPDI[i] = p.Len()
 	}
 }
 
@@ -496,16 +492,13 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 
 	// Rule W2.
 	// EN does not change at the start of the run, because sos != AL.
+	lastStrong := unknownClass
 	for i, t := range s.types {
-		if t == EN {
-			for j := i - 1; j >= 0; j-- {
-				if t := s.types[j]; t.in(L, R, AL) {
-					if t == AL {
-						s.types[i] = AN
-					}
-					break
-				}
-			}
+		switch {
+		case t.in(L, R, AL):
+			lastStrong = t
+		case t == EN && lastStrong == AL:
+			s.types[i] = AN
 		}
 	}
 
@@ -543,29 +536,30 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W5.
-	for i, t := range s.types {
-		if t == ET {
-			// locate end of sequence
-			runStart := i
-			runEnd := s.findRunLimit(runStart, ET)
-
-			// check values at ends of sequence
-			t := s.sos
-			if runStart > 0 {
-				t = s.types[runStart-1]
-			}
-			if t != EN {
-				t = s.eos
-				if runEnd < len(s.types) {
-					t = s.types[runEnd]
-				}
-			}
-			if t == EN {
-				setTypes(s.types[runStart:runEnd], EN)
-			}
-			// continue at end of sequence
-			i = runEnd
+	for i := 0; i < len(s.types); i++ {
+		if s.types[i] != ET {
+			continue
 		}
+		// locate end of sequence
+		runStart := i
+		runEnd := s.findRunLimit(runStart, ET)
+
+		// check values at ends of sequence
+		t := s.sos
+		if runStart > 0 {
+			t = s.types[runStart-1]
+		}
+		if t != EN {
+			t = s.eos
+			if runEnd < len(s.types) {
+				t = s.types[runEnd]
+			}
+		}
+		if t == EN {
+			setTypes(s.types[runStart:runEnd], EN)
+		}
+		// continue at end of sequence
+		i = runEnd
 	}
 
 	// Rule W6.
@@ -576,20 +570,13 @@ func (s *isolatingRunSequence) resolveWeakTypes() {
 	}
 
 	// Rule W7.
+	prevStrongType := s.sos
 	for i, t := range s.types {
-		if t == EN {
-			// set default if we reach start of run
-			prevStrongType := s.sos
-			for j := i - 1; j >= 0; j-- {
-				t = s.types[j]
-				if t == L || t == R { // AL's have been changed to R
-					prevStrongType = t
-					break
-				}
-			}
-			if prevStrongType == L {
-				s.types[i] = L
-			}
+		switch {
+		case t == L || t == R: // AL's have been changed to R
+			prevStrongType = t
+		case t == EN && prevStrongType == L:
+			s.types[i] = L
 		}
 	}
 }

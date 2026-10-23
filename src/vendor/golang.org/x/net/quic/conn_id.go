@@ -7,6 +7,7 @@ package quic
 import (
 	"bytes"
 	"crypto/rand"
+	"net/netip"
 	"slices"
 )
 
@@ -28,12 +29,17 @@ type connIDState struct {
 
 	// Handling of retirement of remote connection IDs.
 	// The rangesets track ID sequence numbers.
-	// IDs in need of retirement are added to remoteRetiring,
-	// moved to remoteRetiringSent once we send a RETIRE_CONECTION_ID frame,
-	// and removed from the set once retirement completes.
-	retireRemotePriorTo int64           // largest Retire Prior To value sent by the peer
-	remoteRetiring      rangeset[int64] // remote IDs in need of retirement
-	remoteRetiringSent  rangeset[int64] // remote IDs waiting for ack of retirement
+	//
+	// All retired IDs are in remoteRetired.
+	//
+	// IDs in need of retirement are added to remoteRetiringToSend,
+	// moved to remoteRetiringSent once we send a RETIRE_CONNECTION_ID frame,
+	// and removed from remoteRetiringSent once retirement completes.
+	//
+	// (We could be more clever and use just two rangesets, at the cost of being clever.)
+	remoteRetired        rangeset[int64] // remote IDs retired
+	remoteRetiringToSend rangeset[int64] // remote IDs in need of retirement
+	remoteRetiringSent   rangeset[int64] // remote IDs waiting for ack of retirement
 
 	originalDstConnID []byte // expected original_destination_connection_id param
 	retrySrcConnID    []byte // expected retry_source_connection_id param
@@ -66,9 +72,10 @@ type connID struct {
 type remoteConnID struct {
 	connID
 	resetToken statelessResetToken
+	path       pathAddrs // path this connection ID may be used on
 }
 
-func (s *connIDState) initClient(c *Conn) error {
+func (s *connIDState) initClient(c *Conn, path pathAddrs) error {
 	// Client chooses its initial connection ID, and sends it
 	// in the Source Connection ID field of the first Initial packet.
 	locid, err := c.newConnID(0)
@@ -95,12 +102,13 @@ func (s *connIDState) initClient(c *Conn) error {
 			seq: -1,
 			cid: remid,
 		},
+		path: path,
 	})
 	s.originalDstConnID = remid
 	return nil
 }
 
-func (s *connIDState) initServer(c *Conn, cids newServerConnIDs) error {
+func (s *connIDState) initServer(c *Conn, path pathAddrs, cids newServerConnIDs) error {
 	dstConnID := cloneBytes(cids.dstConnID)
 	// Client-chosen, transient connection ID received in the first Initial packet.
 	// The server will not use this as the Source Connection ID of packets it sends,
@@ -127,11 +135,17 @@ func (s *connIDState) initServer(c *Conn, cids newServerConnIDs) error {
 	})
 
 	// Client chose its own connection ID.
+	cidPath := path
+	if len(cids.srcConnID) == 0 {
+		// A zero-length connection ID is not associated with any particular path.
+		cidPath = pathAddrs{}
+	}
 	s.remote = append(s.remote, remoteConnID{
 		connID: connID{
 			seq: 0,
 			cid: cloneBytes(cids.srcConnID),
 		},
+		path: cidPath,
 	})
 	return nil
 }
@@ -145,23 +159,90 @@ func (s *connIDState) srcConnID() []byte {
 	return s.local[0].cid
 }
 
-// dstConnID is the Destination Connection ID to use in a sent packet.
-func (s *connIDState) dstConnID() (cid []byte, ok bool) {
-	for i := range s.remote {
-		return s.remote[i].cid, true
+// dstConnIDForPath is the Destination Connection ID to use in a sent packet.
+//
+// DCIDs are bound to a path once allocated.
+// If the path has no DCID bound to it, a new one will be assigned to it (if available).
+func (s *connIDState) dstConnIDForPath(path pathAddrs) (dstConnID []byte, ok bool) {
+	if !path.peer.IsValid() {
+		// Should be impossible, but guard against trying to use a nonsensical path.
+		return nil, false
 	}
-	return nil, false
+	allocID := -1
+	for i := range len(s.remote) {
+		if s.remote[i].path == path {
+			// We have an existing DCID for this path.
+			return s.remote[i].cid, true
+		}
+		if len(s.remote[i].cid) == 0 {
+			// An endpoint with a zero-length DCID uses it for all packets.
+			// https://www.rfc-editor.org/rfc/rfc9000.html#section-5.1.1-8
+			return []byte{}, true
+		}
+		if allocID < 0 && s.remote[i].path == (pathAddrs{}) {
+			// This is an unused DCID which we might allocate to this path.
+			allocID = i
+		}
+	}
+	if allocID < 0 {
+		// We have no DCID for this path, and none to allocate to it.
+		return nil, false
+	}
+	// Allocate a new DCID for the path.
+	s.remote[allocID].path = path
+	return s.remote[allocID].cid, true
+}
+
+// abandonPath retires any remote connection IDs associated with path.
+func (s *connIDState) abandonPath(c *Conn, path pathAddrs) {
+	if path == (pathAddrs{}) {
+		return
+	}
+	s.retireRemoteIDs(c, func(rcid remoteConnID) bool {
+		return rcid.path == path
+	})
+}
+
+// retireRemoteIDs retires all remote connection IDs for which f returns true.
+// It never retires a zero-length connection ID (which will be the peer's only ID).
+func (s *connIDState) retireRemoteIDs(c *Conn, f func(rcid remoteConnID) bool) {
+	var retiredTokens []statelessResetToken
+	s.remote = slices.DeleteFunc(s.remote, func(rcid remoteConnID) bool {
+		if len(rcid.cid) == 0 || !f(rcid) {
+			return false
+		}
+		if !s.remoteRetired.contains(rcid.seq) {
+			s.remoteRetired.add(rcid.seq, rcid.seq+1)
+			s.remoteRetiringToSend.add(rcid.seq, rcid.seq+1)
+			s.needSend = true
+		}
+		retiredTokens = append(retiredTokens, rcid.resetToken)
+		return true
+	})
+	if len(retiredTokens) > 0 {
+		c.endpoint.connsMap.updateConnIDs(func(conns *connsMap) {
+			for _, resetToken := range retiredTokens {
+				conns.retireResetToken(c, resetToken)
+			}
+		})
+	}
 }
 
 // isValidStatelessResetToken reports whether the given reset token is
-// associated with a non-retired connection ID which we have used.
-func (s *connIDState) isValidStatelessResetToken(resetToken statelessResetToken) bool {
-	if len(s.remote) == 0 {
+// associated with a non-retired connection ID which we have used for the given path.
+func (s *connIDState) isValidStatelessResetToken(resetToken statelessResetToken, peer netip.AddrPort) bool {
+	if resetToken == (statelessResetToken{}) {
+		return false // ignore all-0 token (don't match an uninitialized token)
+	}
+	if !peer.IsValid() {
 		return false
 	}
-	// We currently only use the first available remote connection ID,
-	// so any other reset token is not valid.
-	return s.remote[0].resetToken == resetToken
+	return slices.ContainsFunc(s.remote, func(rcid remoteConnID) bool {
+		// A zero-length connection ID is used for all paths.
+		// A non-zero-length connection ID must have been used for this specific path.
+		return (len(rcid.cid) == 0 || rcid.path.peer == peer) &&
+			rcid.resetToken == resetToken
+	})
 }
 
 // setPeerActiveConnIDLimit sets the active_connection_id_limit
@@ -263,11 +344,17 @@ func (s *connIDState) handlePacket(c *Conn, ptype packetType, srcConnID []byte) 
 			// We're a client connection processing the first Initial packet
 			// from the server. Replace the transient remote connection ID
 			// with the Source Connection ID from the packet.
+			cidPath := c.path
+			if len(srcConnID) == 0 {
+				// A zero-length connection ID is not associated with any particular path.
+				cidPath = pathAddrs{}
+			}
 			s.remote[0] = remoteConnID{
 				connID: connID{
 					seq: 0,
 					cid: cloneBytes(srcConnID),
 				},
+				path: cidPath,
 			}
 		}
 	case ptype == packetTypeHandshake && c.side == serverSide:
@@ -292,8 +379,8 @@ func (s *connIDState) handleRetryPacket(srcConnID []byte) {
 	s.remote[0].cid = s.retrySrcConnID
 }
 
-func (s *connIDState) handleNewConnID(c *Conn, seq, retire int64, cid []byte, resetToken statelessResetToken) error {
-	if len(s.remote[0].cid) == 0 {
+func (s *connIDState) handleNewConnID(c *Conn, seq, retirePriorTo int64, cid []byte, resetToken statelessResetToken) error {
+	if len(s.remote) > 0 && len(s.remote[0].cid) == 0 {
 		// "An endpoint that is sending packets with a zero-length
 		// Destination Connection ID MUST treat receipt of a NEW_CONNECTION_ID
 		// frame as a connection error of type PROTOCOL_VIOLATION."
@@ -304,27 +391,14 @@ func (s *connIDState) handleNewConnID(c *Conn, seq, retire int64, cid []byte, re
 		}
 	}
 
-	if seq < s.retireRemotePriorTo {
-		// This ID was already retired by a previous NEW_CONNECTION_ID frame.
-		// Nothing to do.
-		return nil
-	}
-
-	if retire > s.retireRemotePriorTo {
-		// Add newly-retired connection IDs to the set we need to send
-		// RETIRE_CONNECTION_ID frames for, and remove them from s.remote.
-		//
-		// (This might cause us to send a RETIRE_CONNECTION_ID for an ID we've
-		// never seen. That's fine.)
-		s.remoteRetiring.add(s.retireRemotePriorTo, retire)
-		s.retireRemotePriorTo = retire
-		s.needSend = true
-		s.remote = slices.DeleteFunc(s.remote, func(rcid remoteConnID) bool {
-			return rcid.seq < s.retireRemotePriorTo
-		})
-	}
-
-	have := false // do we already have this connection ID?
+	// Check for errors (mismatch, exceeding limits) before we touch the list of
+	// connection IDs. If something is wrong with this frame, we'll use our existing
+	// state to send the error.
+	var (
+		have      = false // do we already have this connection ID?
+		havePath  = false // will we still have a connection ID for the active path?
+		unretired = 0
+	)
 	for i := range s.remote {
 		rcid := &s.remote[i]
 		if rcid.seq == seq {
@@ -335,7 +409,65 @@ func (s *connIDState) handleNewConnID(c *Conn, seq, retire int64, cid []byte, re
 				}
 			}
 			have = true // yes, we've seen this sequence number
-			break
+		}
+		if rcid.seq >= retirePriorTo {
+			unretired++
+			if rcid.path == c.path {
+				havePath = true
+			}
+		}
+	}
+	if !have && s.remoteRetired.contains(seq) {
+		// This ID was already retired. We have it, in the retired set.
+		have = true
+	}
+	if !have {
+		unretired++
+	}
+	if unretired > activeConnIDLimit {
+		// Retired connection IDs (including newly-retired ones) do not count
+		// against the limit.
+		// https://www.rfc-editor.org/rfc/rfc9000.html#section-5.1.1-5
+		return localTransportError{
+			code:   errConnectionIDLimit,
+			reason: "active_connection_id_limit exceeded",
+		}
+	}
+
+	if retirePriorTo > s.remoteRetired.rangeContaining(0).end {
+		// Add newly-retired connection IDs to the set we need to send
+		// RETIRE_CONNECTION_ID frames for, and remove them from s.remote.
+		//
+		// (This might cause us to send a RETIRE_CONNECTION_ID for an ID we've
+		// never seen. That's fine.)
+		for r := range s.remoteRetired.iterNotContains() {
+			if r.start >= retirePriorTo {
+				break
+			}
+			s.remoteRetiringToSend.add(r.start, min(r.end, retirePriorTo))
+			s.needSend = true
+		}
+		s.remoteRetired.add(0, retirePriorTo)
+		s.retireRemoteIDs(c, func(rcid remoteConnID) bool {
+			return rcid.seq < retirePriorTo
+		})
+	}
+
+	// "An endpoint SHOULD limit the number of connection IDs it has retired locally
+	// for which RETIRE_CONNECTION_ID frames have not yet been acknowledged."
+	// https://www.rfc-editor.org/rfc/rfc9000#section-5.1.2-6
+	//
+	// Set a limit of three times the active_connection_id_limit for
+	// the total number of remote connection IDs we keep retirement state for.
+	//
+	// (We check this even if the peer hasn't increased retirePriorTo, because a
+	// malicious peer could induce us to probe and abandon paths, ever increasing
+	// the number of retired connection IDs without itself ever increasing retirePriorTo.
+	// Not the most plausible scenario to exploit, admittedly.)
+	if s.remoteRetiringToSend.size()+s.remoteRetiringSent.size() > 3*activeConnIDLimit {
+		return localTransportError{
+			code:   errConnectionIDLimit,
+			reason: "too many unacknowledged retired connection ids",
 		}
 	}
 
@@ -357,27 +489,13 @@ func (s *connIDState) handleNewConnID(c *Conn, seq, retire int64, cid []byte, re
 		})
 	}
 
-	if len(s.remote) > activeConnIDLimit {
-		// Retired connection IDs (including newly-retired ones) do not count
-		// against the limit.
-		// https://www.rfc-editor.org/rfc/rfc9000.html#section-5.1.1-5
-		return localTransportError{
-			code:   errConnectionIDLimit,
-			reason: "active_connection_id_limit exceeded",
-		}
-	}
-
-	// "An endpoint SHOULD limit the number of connection IDs it has retired locally
-	// for which RETIRE_CONNECTION_ID frames have not yet been acknowledged."
-	// https://www.rfc-editor.org/rfc/rfc9000#section-5.1.2-6
-	//
-	// Set a limit of three times the active_connection_id_limit for
-	// the total number of remote connection IDs we keep retirement state for.
-	if s.remoteRetiring.size()+s.remoteRetiringSent.size() > 3*activeConnIDLimit {
-		return localTransportError{
-			code:   errConnectionIDLimit,
-			reason: "too many unacknowledged retired connection ids",
-		}
+	if !havePath {
+		// We have no connection ID for the active path
+		// (probably because we just retired it).
+		//
+		// Try to allocate a new one now.
+		// If we don't have an unused one to allocate, there's not much we can do.
+		_, _ = s.dstConnIDForPath(c.path)
 	}
 
 	return nil
@@ -421,8 +539,10 @@ func (s *connIDState) ackOrLossRetireConnectionID(pnum packetNumber, seq int64, 
 	s.remoteRetiringSent.sub(seq, seq+1)
 	if fate == packetLost {
 		// RETIRE_CONNECTION_ID frame was lost, mark for retransmission.
-		s.remoteRetiring.add(seq, seq+1)
+		s.remoteRetiringToSend.add(seq, seq+1)
 		s.needSend = true
+	} else {
+		s.remoteRetiringToSend.sub(seq, seq+1)
 	}
 }
 
@@ -463,12 +583,12 @@ func (s *connIDState) appendFrames(c *Conn, pnum packetNumber, pto bool) bool {
 			}
 		}
 	}
-	for s.remoteRetiring.numRanges() > 0 {
-		cid := s.remoteRetiring.min()
+	for s.remoteRetiringToSend.numRanges() > 0 {
+		cid := s.remoteRetiringToSend.min()
 		if !c.w.appendRetireConnectionIDFrame(cid) {
 			return false
 		}
-		s.remoteRetiring.sub(cid, cid+1)
+		s.remoteRetiringToSend.sub(cid, cid+1)
 		s.remoteRetiringSent.add(cid, cid+1)
 	}
 	s.needSend = false

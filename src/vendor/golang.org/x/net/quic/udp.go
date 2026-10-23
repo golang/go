@@ -4,7 +4,10 @@
 
 package quic
 
-import "net/netip"
+import (
+	"net"
+	"net/netip"
+)
 
 // Per-plaform consts describing support for various features.
 //
@@ -25,4 +28,19 @@ func unmapAddrPort(a netip.AddrPort) netip.AddrPort {
 		)
 	}
 	return a
+}
+
+func localAddrFor(local, remote netip.AddrPort) (netip.AddrPort, error) {
+	if local.Addr().IsValid() && !local.Addr().IsUnspecified() {
+		return local, nil
+	}
+	// Simplest portable approach: Bind a socket and see what address it gets.
+	remoteAddr := net.UDPAddrFromAddrPort(remote)
+	uc, err := net.DialUDP("udp", nil, remoteAddr)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	boundAddr := uc.LocalAddr().(*net.UDPAddr).AddrPort()
+	uc.Close()
+	return netip.AddrPortFrom(boundAddr.Addr(), local.Port()), nil
 }

@@ -48,7 +48,7 @@ const (
 	// we're willing to send to the peer.
 	//
 	// https://www.rfc-editor.org/rfc/rfc9000.html#section-18.2-6.2.1
-	activeConnIDLimit        = 2
+	activeConnIDLimit        = 4
 	maxPeerActiveConnIDLimit = 4
 )
 

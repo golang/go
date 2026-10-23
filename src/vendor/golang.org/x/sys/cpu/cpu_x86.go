@@ -43,7 +43,11 @@ func initOptions() {
 		{Name: "bmi2", Feature: &X86.HasBMI2},
 		{Name: "cx16", Feature: &X86.HasCX16},
 		{Name: "erms", Feature: &X86.HasERMS},
+		{Name: "f16c", Feature: &X86.HasF16C},
 		{Name: "fma", Feature: &X86.HasFMA},
+		{Name: "lahf", Feature: &X86.HasLAHF},
+		{Name: "lzcnt", Feature: &X86.HasLZCNT},
+		{Name: "movbe", Feature: &X86.HasMOVBE},
 		{Name: "osxsave", Feature: &X86.HasOSXSAVE},
 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
 		{Name: "popcnt", Feature: &X86.HasPOPCNT},
@@ -56,6 +60,7 @@ func initOptions() {
 		{Name: "avxifma", Feature: &X86.HasAVXIFMA},
 		{Name: "avxvnni", Feature: &X86.HasAVXVNNI},
 		{Name: "avxvnniint8", Feature: &X86.HasAVXVNNIInt8},
+		{Name: "xsave", Feature: &X86.HasXSAVE},
 
 		// These capabilities should always be enabled on amd64:
 		{Name: "sse2", Feature: &X86.HasSSE2, Required: runtime.GOARCH == "amd64"},
@@ -83,10 +88,13 @@ func archInit() {
 		cpuid_AVX512VPOPCNTDQ = 1 << 14
 		cpuid_SSE41           = 1 << 19
 		cpuid_SSE42           = 1 << 20
+		cpuid_MOVBE           = 1 << 22
 		cpuid_POPCNT          = 1 << 23
 		cpuid_AES             = 1 << 25
+		cpuid_XSAVE           = 1 << 26
 		cpuid_OSXSAVE         = 1 << 27
 		cpuid_AVX             = 1 << 28
+		cpuid_F16C            = 1 << 29
 
 		// "Extended Feature Flag" bits returned in EBX for CPUID EAX=0x7 ECX=0x0
 		cpuid_BMI1     = 1 << 3
@@ -110,6 +118,9 @@ func archInit() {
 
 		// edx bits
 		cpuid_FSRM = 1 << 4
+		// ecx bits for CPUID 0x80000001
+		cpuid_LAHF  = 1 << 0
+		cpuid_LZCNT = 1 << 5
 		// edx bits for CPUID 0x80000001
 		cpuid_RDTSCP = 1 << 27
 	)
@@ -158,8 +169,20 @@ func archInit() {
 	X86.HasSSE42 = isSet(ecx1, cpuid_SSE42)
 	X86.HasPOPCNT = isSet(ecx1, cpuid_POPCNT)
 	X86.HasAES = isSet(ecx1, cpuid_AES)
+	X86.HasXSAVE = isSet(ecx1, cpuid_XSAVE)
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
+	X86.HasF16C = isSet(ecx1, cpuid_F16C)
+	X86.HasMOVBE = isSet(ecx1, cpuid_MOVBE)
 	X86.HasRDRAND = isSet(ecx1, cpuid_RDRAND)
+
+	// Extended processor info and feature bits, under the separate extended
+	// (0x8000_0000-prefixed) leaf hierarchy, so maxID (the basic leaf count)
+	// doesn't gate it.
+	if maxExtID, _, _, _ := cpuid(0x80000000, 0); maxExtID >= 0x80000001 {
+		_, _, ecxExt1, _ := cpuid(0x80000001, 0)
+		X86.HasLAHF = isSet(ecxExt1, cpuid_LAHF)
+		X86.HasLZCNT = isSet(ecxExt1, cpuid_LZCNT)
+	}
 
 	var osSupportsAVX, osSupportsAVX512 bool
 	// For XGETBV, OSXSAVE bit is required and sufficient.
