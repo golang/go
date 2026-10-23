@@ -1785,9 +1785,9 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// We need to retrieve them all, or none:
 		// the effect must be transactional.
 		var (
-			vetxFile   string                           // name of cached .vetx file
-			fixArchive string                           // name of cached .fix.zip file
-			stdout     io.Reader = bytes.NewReader(nil) // cached stdout stream
+			vetxFile   string    // name of cached .vetx file
+			fixArchive string    // name of cached .fix.zip file
+			stdout     io.Reader // cached stdout stream
 		)
 
 		// Obtain location of cached .vetx file.
@@ -1806,14 +1806,16 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		}
 
 		// Copy cached .stdout file to stdout.
-		if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
-			f, err := os.Open(file)
-			if err != nil {
-				goto cachemiss
-			}
-			defer f.Close() // ignore error (can't fail)
-			stdout = f
+		file, _, err := cache.GetFile(c, stdoutKey)
+		if err != nil {
+			goto cachemiss
 		}
+		f, err := os.Open(file)
+		if err != nil {
+			goto cachemiss
+		}
+		defer f.Close() // ignore error (can't fail)
+		stdout = f
 
 		// Cache hit: commit transaction.
 		a.built = vetxFile
@@ -1861,12 +1863,10 @@ cachemiss:
 	// The principled fix is for 'go test' to run vet in -json mode (like
 	// 'go vet' does), where exit code 0 unambiguously indicates a clean
 	// run (with diagnostics in stdout), while non-zero indicates tool failure.
-	if f, err := os.Open(vcfg.VetxOutput); err == nil {
-		defer f.Close() // ignore error
+	vetx, vetxErr := os.Open(vcfg.VetxOutput)
+	if vetxErr == nil {
+		defer vetx.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		if runErr == nil {
-			cache.Default().Put(id, f) // ignore error
-		}
 	}
 
 	if runErr != nil {
@@ -1890,6 +1890,12 @@ cachemiss:
 		}
 		f.Seek(0, io.SeekStart)           // ignore error
 		cache.Default().Put(stdoutKey, f) // ignore error
+	}
+
+	// Save facts last so that a cache hit on id implies fixArchiveKey
+	// and stdoutKey have already been written.
+	if vetxErr == nil {
+		cache.Default().Put(id, vetx) // ignore error
 	}
 
 	return nil
