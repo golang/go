@@ -1463,7 +1463,14 @@ func (t *tester) runPending(nextTest *distTest) {
 		}(w)
 	}
 
-	maxbg := maxbg
+	var maxbg = 4 /* maximum number of jobs to run at once */
+	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
+		maxbg = min(maxbg, runtime.NumCPU())
+	}
+	if runtime.GOMAXPROCS(0) == 1 {
+		maxbg = 1
+	}
+
 	// for runtime.NumCPU() < 4 ||  runtime.GOMAXPROCS(0) == 1, do not change maxbg.
 	// Because there is not enough CPU to parallel the testing of multiple packages.
 	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
