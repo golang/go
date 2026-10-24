@@ -116,6 +116,13 @@ func archinit(ctxt *ld.Link) {
 		}
 		if *ld.FlagTextAddr == -1 {
 			*ld.FlagTextAddr = ld.Rnd(1<<22, *ld.FlagRound) + int64(ld.HEADR)
+			if ctxt.HeadType == objabi.Hfreebsd && ctxt.BuildMode == ld.BuildModePIE {
+				// The FreeBSD kernel loads a PIE at the address in
+				// its program headers when that address is non-zero,
+				// which defeats ASLR. Link PIEs at address zero so
+				// the kernel picks a random load address.
+				*ld.FlagTextAddr = int64(ld.HEADR)
+			}
 		}
 
 	case objabi.Hwindows: /* PE executable */
