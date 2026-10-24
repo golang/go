@@ -981,6 +981,41 @@ func Sub64MSaveC(p, q, r, c *[2]uint64) {
 	r[1], c[1] = bits.Sub64(p[1], q[1], c[0])
 }
 
+// The second operand of a carry chain link can be read
+// straight from memory; see issue 80400.
+
+func Add64LoadOperand(a, b [2]uint64, s uint64) uint64 {
+	// amd64:`ADDQ [^,]*\(SP\), [A-Z]+`
+	_, c := bits.Add64(a[0], b[0], 0)
+	// amd64:`ADCQ [^,]*\(SP\), [A-Z]+`
+	_, c = bits.Add64(a[1], b[1], c)
+	return s + c
+}
+
+func Add128LoadOperand(x, y *[2]uint64) (lo, hi uint64) {
+	var c uint64
+	lo, c = bits.Add64(x[0], y[0], 0)
+	// amd64:`ADCQ 8\([A-Z]+\), [A-Z]+`
+	hi, _ = bits.Add64(x[1], y[1], c)
+	return
+}
+
+func Sub64LoadOperand(a, b [2]uint64, s uint64) uint64 {
+	// amd64:`SUBQ [^,]*\(SP\), [A-Z]+`
+	_, c := bits.Sub64(a[0], b[0], 0)
+	// amd64:`SBBQ [^,]*\(SP\), [A-Z]+`
+	_, c = bits.Sub64(a[1], b[1], c)
+	return s + c
+}
+
+func Sub128LoadOperand(x, y *[2]uint64) (lo, hi uint64) {
+	var b uint64
+	lo, b = bits.Sub64(x[0], y[0], 0)
+	// amd64:`SBBQ 8\([A-Z]+\), [A-Z]+`
+	hi, _ = bits.Sub64(x[1], y[1], b)
+	return
+}
+
 func Sub64PanicOnOverflowEQ(a, b uint64) uint64 {
 	r, b := bits.Sub64(a, b, 0)
 	// s390x:"BRC [$]12," -"ADDE" -"SUBE"
