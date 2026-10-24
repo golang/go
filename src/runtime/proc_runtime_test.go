@@ -6,6 +6,8 @@
 
 package runtime
 
+import "internal/runtime/atomic"
+
 func RunStealOrderTest() {
 	var ord randomOrder
 	for procs := 1; procs <= 64; procs++ {
@@ -47,4 +49,34 @@ func RunStealOrderTest() {
 			checked[j] = true
 		}
 	}
+}
+
+// SyscallHoldingScanBitThroughStop emulates a system call that keeps
+// its P until *release is set. Entering it, the goroutine takes its own
+// scan bit, as sysmon's retake would, so that a stop's sweep cannot take
+// the P, and sets *held; it lets the bit go a millisecond after a stop
+// begins, and reports whether one did.
+//
+//go:nosplit
+func SyscallHoldingScanBitThroughStop(held, release *uint32) (stopped bool) {
+	entersyscall()
+	systemstack(func() {
+		gp := getg().m.curg
+		for !castogscanstatus(gp, _Gsyscall, _Gscansyscall) {
+			osyield() // sysmon's retake may hold it for a moment
+		}
+		atomic.Store(held, 1)
+		for deadline := nanotime() + 5e9; !sched.gcwaiting.Load() && nanotime() < deadline; {
+			osyield()
+		}
+		if stopped = sched.gcwaiting.Load(); stopped {
+			usleep(1000) // let the stop's sweep pass the held bit
+		}
+		casfrom_Gscanstatus(gp, _Gscansyscall, _Gsyscall)
+		for atomic.Load(release) == 0 {
+			usleep(100)
+		}
+	})
+	exitsyscall()
+	return
 }

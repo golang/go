@@ -1112,6 +1112,49 @@ func TestPreemptionAfterSyscall(t *testing.T) {
 	}
 }
 
+// When a stop of the world sweeps for Ps in system calls while one's
+// goroutine has its scan bit held, as sysmon's retake holds it, the stop
+// must take that P itself rather than wait for sysmon. See go.dev/issue/81759.
+func TestStopTheWorldRetakesSyscallP(t *testing.T) {
+	// The goroutine in the system call and the one stopping the world
+	// each need a P and a thread.
+	if runtime.GOARCH == "wasm" || runtime.GOMAXPROCS(0) < 2 {
+		t.Skip("needs two Ps and two threads")
+	}
+
+	// No GC may run while the scan bit is held: its forEachP would wait
+	// for the bit while holding worldsema, so the stop could not begin.
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+
+	// A pending timer bounds how long sysmon sleeps while the world is
+	// stopping, so a stop that waits for sysmon ends after about a
+	// second rather than a minute.
+	defer time.AfterFunc(time.Second, func() {}).Stop()
+
+	var held, release uint32
+	stopped := make(chan bool)
+	go func() {
+		stopped <- runtime.SyscallHoldingScanBitThroughStop(&held, &release)
+	}()
+	// Yield the thread, not the P: after Gosched this P could run the
+	// goroutine and keep it in the system call, leaving this one queued.
+	for atomic.LoadUint32(&held) == 0 {
+		runtime.OSYield()
+	}
+
+	start := time.Now()
+	var ms runtime.MemStats
+	runtime.ReadMemStats(&ms)
+	d := time.Since(start)
+	atomic.StoreUint32(&release, 1)
+	if !<-stopped {
+		t.Fatal("no stop of the world began while the scan bit was held")
+	}
+	if d > 500*time.Millisecond {
+		t.Fatalf("stopping the world took %v, want well under 500ms; it waited for sysmon to take the system call's P", d)
+	}
+}
+
 func TestGetgThreadSwitch(t *testing.T) {
 	runtime.RunGetgThreadSwitchTest()
 }
