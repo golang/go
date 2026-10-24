@@ -273,8 +273,10 @@ var depsRules = `
 
 	FMT, encoding, encoding/base32, encoding/base64, encoding/binary,
 	internal/saferio
-	< encoding/ascii85, encoding/csv, encoding/gob, encoding/hex,
+	< encoding/ascii85, encoding/csv, encoding/gob,
 	  encoding/pem, encoding/xml, mime;
+
+	FMT, simd < encoding/hex;
 
 	STR, errors
 	< encoding/json/internal
