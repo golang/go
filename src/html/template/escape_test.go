@@ -811,6 +811,162 @@ func TestEscape(t *testing.T) {
 	}
 }
 
+func TestEscapeForeignCDATA(t *testing.T) {
+	const (
+		value     = `<b>${alert(1)}</b>`
+		jsValue   = `\u003cb\u003e\u0024\u007balert(1)\u007d\u003c\/b\u003e`
+		htmlValue = `&lt;b&gt;${alert(1)}&lt;/b&gt;`
+	)
+	tests := []struct {
+		name, input, want string
+	}{
+		{
+			"svg script",
+			"<svg><script><![CDATA[1</script/>`{{.}}`]]></script></svg>",
+			"<svg><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+		{
+			"nested mixed-case SVG script",
+			"<SvG><g><ScRiPt><![CDATA[1</ScRiPt/>`{{.}}`]]></ScRiPt></g></SvG>",
+			"<SvG><g><ScRiPt><![CDATA[1</ScRiPt/>`" + jsValue + "`]]></ScRiPt></g></SvG>",
+		},
+		{
+			"SVG integration point closes before script",
+			"<svg><title>x</title><script><![CDATA[1</script/>`{{.}}`]]></script></svg>",
+			"<svg><title>x</title><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+		{
+			"nested SVG in HTML integration point",
+			"<svg><foreignObject><svg><script><![CDATA[1</script/>`{{.}}`]]></script></svg></foreignObject></svg>",
+			"<svg><foreignObject><svg><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg></foreignObject></svg>",
+		},
+		{
+			"nested SVG with same tag name",
+			"<svg><svg></svg><script><![CDATA[1</script/>`{{.}}`]]></script></svg>",
+			"<svg><svg></svg><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+		{
+			"self-closing SVG",
+			"<svg/><script><![CDATA[1</script/>`{{.}}`]]></script>",
+			"<svg/><script><![CDATA[1</script/>`" + htmlValue + "`]]></script>",
+		},
+		{
+			"self-closing foreign child",
+			"<svg><g/><script><![CDATA[1</script/>`{{.}}`]]></script></svg>",
+			"<svg><g/><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+		{
+			"HTML integration point",
+			"<svg><foreignObject><script><![CDATA[1</script/>`{{.}}`]]></script></foreignObject></svg>",
+			"<svg><foreignObject><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></foreignObject></svg>",
+		},
+		{
+			"nested HTML integration point tag name",
+			"<svg><foreignObject><foreignObject></foreignObject><script><![CDATA[1</script/>`{{.}}`]]></script></foreignObject></svg>",
+			"<svg><foreignObject><foreignObject></foreignObject><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></foreignObject></svg>",
+		},
+		{
+			"MathML annotation without HTML encoding",
+			"<math><annotation-xml><script><![CDATA[1</script/>`{{.}}`]]></script></annotation-xml></math>",
+			"<math><annotation-xml><script><![CDATA[1</script/>`" + jsValue + "`]]></script></annotation-xml></math>",
+		},
+		{
+			"MathML annotation HTML integration point",
+			"<math><annotation-xml encoding='text&#x2f;html'><script><![CDATA[1</script/>`{{.}}`]]></script></annotation-xml></math>",
+			"<math><annotation-xml encoding='text&#x2f;html'><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></annotation-xml></math>",
+		},
+		{
+			"MathML text integration exception",
+			"<math><mtext><mglyph><script><![CDATA[1</script/>`{{.}}`]]></script></mglyph></mtext></math>",
+			"<math><mtext><mglyph><script><![CDATA[1</script/>`" + jsValue + "`]]></script></mglyph></mtext></math>",
+		},
+		{
+			"nested MathML integration tag name",
+			"<math><mtext><mtext><mglyph><script><![CDATA[1</script/>`{{.}}`]]></script></mglyph></mtext></mtext></math>",
+			"<math><mtext><mtext><mglyph><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></mglyph></mtext></mtext></math>",
+		},
+		{
+			"SVG child of MathML annotation",
+			"<math><annotation-xml><svg><foreignObject><script><![CDATA[1</script/>`{{.}}`]]></script></foreignObject></svg></annotation-xml></math>",
+			"<math><annotation-xml><svg><foreignObject><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></foreignObject></svg></annotation-xml></math>",
+		},
+		{
+			"foreign-content breakout tag",
+			"<svg><div><script><![CDATA[1</script/>`{{.}}`]]></script></div></svg>",
+			"<svg><div><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></div></svg>",
+		},
+		{
+			"breakout after nested foreign tag name",
+			"<svg><svg><div><script><![CDATA[1</script/>`{{.}}`]]></script></div></svg></svg>",
+			"<svg><svg><div><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></div></svg></svg>",
+		},
+		{
+			"foreign font without breakout attributes",
+			"<svg><font><script><![CDATA[1</script/>`{{.}}`]]></script></font></svg>",
+			"<svg><font><script><![CDATA[1</script/>`" + jsValue + "`]]></script></font></svg>",
+		},
+		{
+			"font breakout attribute",
+			"<svg><font color=red><script><![CDATA[1</script/>`{{.}}`]]></script></font></svg>",
+			"<svg><font color=red><script><![CDATA[1</script/>`" + htmlValue + "`]]></script></font></svg>",
+		},
+		{
+			"ordinary HTML script",
+			"<script><![CDATA[1</script/>`{{.}}`]]></script>",
+			"<script><![CDATA[1</script/>`" + htmlValue + "`]]></script>",
+		},
+		{
+			"after foreign CDATA",
+			"<svg><script><![CDATA[var x = 1;]]>var y = `{{.}}`;</script></svg>",
+			"<svg><script><![CDATA[var x = 1;]]>var y = `" + jsValue + "`;</script></svg>",
+		},
+		{
+			"template invocation in foreign CDATA",
+			"{{define \"value\"}}`{{.}}`{{end}}<svg><script><![CDATA[1</script/>{{template \"value\" .}}]]></script></svg>",
+			"<svg><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+		{
+			"template specialized for HTML and foreign text",
+			"{{define \"script\"}}<script><![CDATA[1</script/>`{{.}}`]]></script>{{end}}<svg>{{template \"script\" .}}</svg>{{template \"script\" .}}",
+			"<svg><script><![CDATA[1</script/>`" + jsValue + "`]]></script></svg><script><![CDATA[1</script/>`" + htmlValue + "`]]></script>",
+		},
+		{
+			"conditional in foreign CDATA",
+			"<svg><script><![CDATA[{{if true}}console.log(1{{else}}console.log(1{{end}}</script/>`{{.}}`]]></script></svg>",
+			"<svg><script><![CDATA[console.log(1</script/>`" + jsValue + "`]]></script></svg>",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			tmpl := Must(New(test.name).Parse(test.input))
+			var out strings.Builder
+			if err := tmpl.Execute(&out, value); err != nil {
+				t.Fatal(err)
+			}
+			if got := out.String(); got != test.want {
+				t.Fatalf("escaped output: want\n\t%q\ngot\n\t%q", test.want, got)
+			}
+		})
+	}
+}
+
+func TestEscapeForeignRecursiveTemplate(t *testing.T) {
+	type node struct {
+		Next *node
+	}
+	tmpl := Must(New("root").Parse(`{{define "rec"}}<g>{{if .}}x{{template "rec" .Next}}{{end}}</g>{{end}}<svg>{{template "rec" .}}</svg>`))
+	data := &node{Next: &node{Next: &node{}}}
+	var out strings.Builder
+	if err := tmpl.Execute(&out, data); err != nil {
+		t.Fatal(err)
+	}
+	const want = `<svg><g>x<g>x<g>x<g></g></g></g></g></svg>`
+	if got := out.String(); got != want {
+		t.Fatalf("output: want %q, got %q", want, got)
+	}
+}
+
 func TestEscapeMap(t *testing.T) {
 	data := map[string]string{
 		"html":     `<h1>Hi!</h1>`,
