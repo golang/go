@@ -215,17 +215,9 @@ func Average[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// Div divides x by y elementwise.
+// DivInts divides x by y elementwise.
 //
 //	z[i] = x[i] / y[i]
-//
-// {{if eq .xB "float"}}
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-//
-// {{else}}
 //
 // The result is rounded toward zero (truncated division), just like Go's /
 // operator.{{if eq .xB "int"}} Also like Go's / operator, dividing Min{{title .xE}}
@@ -233,8 +225,26 @@ func Average[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 //
-// {{end}}
-func Div[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+//specgen:name Div
+func DivInts[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, func(x, y E) E {
+		if y == 0 {
+			return 0
+		}
+		return x / y
+	})
+}
+
+// DivFloats divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+//
+//specgen:name Div
+func DivFloats[E Floats, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E {
 		return x / y
 	})

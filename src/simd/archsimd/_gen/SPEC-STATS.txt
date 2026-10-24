@@ -53,7 +53,7 @@ High-drift-risk names (emitted by >1 generator):
   covered                                         137 / 145    94%  [spec-all]
   portable core (comments.yaml .common_methods)    67 / 67    100%  [spec-common]
 
-spec operations written so far                     84
+spec operations written so far                     85
   expanding to distinct names                     289
   expanding to (receiver, name) pairs            2784
 

@@ -14412,101 +14412,13 @@ func (x Uint64s) Average(y Uint64s) (z Uint64s) {
 //
 //	z[i] = x[i] / y[i]
 //
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x4) Div(y Float32x4) (z Float32x4) {
-	return Float32x4{spec.Div[float32, spec.Width128](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x8) Div(y Float32x8) (z Float32x8) {
-	return Float32x8{spec.Div[float32, spec.Width256](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x16) Div(y Float32x16) (z Float32x16) {
-	return Float32x16{spec.Div[float32, spec.Width512](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32s) Div(y Float32s) (z Float32s) {
-	return Float32s{spec.Div[float32, spec.WidthScalable](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x2) Div(y Float64x2) (z Float64x2) {
-	return Float64x2{spec.Div[float64, spec.Width128](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x4) Div(y Float64x4) (z Float64x4) {
-	return Float64x4{spec.Div[float64, spec.Width256](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x8) Div(y Float64x8) (z Float64x8) {
-	return Float64x8{spec.Div[float64, spec.Width512](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64s) Div(y Float64s) (z Float64s) {
-	return Float64s{spec.Div[float64, spec.WidthScalable](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
 // The result is rounded toward zero (truncated division), just like Go's /
 // operator. Also like Go's / operator, dividing MinInt8
 // by -1 results in MinInt8, since the true result is unrepresentable.
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x16) Div(y Int8x16) (z Int8x16) {
-	return Int8x16{spec.Div[int8, spec.Width128](x.v, y.v)}
+	return Int8x16{spec.DivInts[int8, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14519,7 +14431,7 @@ func (x Int8x16) Div(y Int8x16) (z Int8x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x32) Div(y Int8x32) (z Int8x32) {
-	return Int8x32{spec.Div[int8, spec.Width256](x.v, y.v)}
+	return Int8x32{spec.DivInts[int8, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14532,7 +14444,7 @@ func (x Int8x32) Div(y Int8x32) (z Int8x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x64) Div(y Int8x64) (z Int8x64) {
-	return Int8x64{spec.Div[int8, spec.Width512](x.v, y.v)}
+	return Int8x64{spec.DivInts[int8, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14545,7 +14457,7 @@ func (x Int8x64) Div(y Int8x64) (z Int8x64) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8s) Div(y Int8s) (z Int8s) {
-	return Int8s{spec.Div[int8, spec.WidthScalable](x.v, y.v)}
+	return Int8s{spec.DivInts[int8, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14558,7 +14470,7 @@ func (x Int8s) Div(y Int8s) (z Int8s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x8) Div(y Int16x8) (z Int16x8) {
-	return Int16x8{spec.Div[int16, spec.Width128](x.v, y.v)}
+	return Int16x8{spec.DivInts[int16, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14571,7 +14483,7 @@ func (x Int16x8) Div(y Int16x8) (z Int16x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x16) Div(y Int16x16) (z Int16x16) {
-	return Int16x16{spec.Div[int16, spec.Width256](x.v, y.v)}
+	return Int16x16{spec.DivInts[int16, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14584,7 +14496,7 @@ func (x Int16x16) Div(y Int16x16) (z Int16x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x32) Div(y Int16x32) (z Int16x32) {
-	return Int16x32{spec.Div[int16, spec.Width512](x.v, y.v)}
+	return Int16x32{spec.DivInts[int16, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14597,7 +14509,7 @@ func (x Int16x32) Div(y Int16x32) (z Int16x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16s) Div(y Int16s) (z Int16s) {
-	return Int16s{spec.Div[int16, spec.WidthScalable](x.v, y.v)}
+	return Int16s{spec.DivInts[int16, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14610,7 +14522,7 @@ func (x Int16s) Div(y Int16s) (z Int16s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x4) Div(y Int32x4) (z Int32x4) {
-	return Int32x4{spec.Div[int32, spec.Width128](x.v, y.v)}
+	return Int32x4{spec.DivInts[int32, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14623,7 +14535,7 @@ func (x Int32x4) Div(y Int32x4) (z Int32x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x8) Div(y Int32x8) (z Int32x8) {
-	return Int32x8{spec.Div[int32, spec.Width256](x.v, y.v)}
+	return Int32x8{spec.DivInts[int32, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14636,7 +14548,7 @@ func (x Int32x8) Div(y Int32x8) (z Int32x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x16) Div(y Int32x16) (z Int32x16) {
-	return Int32x16{spec.Div[int32, spec.Width512](x.v, y.v)}
+	return Int32x16{spec.DivInts[int32, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14649,7 +14561,7 @@ func (x Int32x16) Div(y Int32x16) (z Int32x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32s) Div(y Int32s) (z Int32s) {
-	return Int32s{spec.Div[int32, spec.WidthScalable](x.v, y.v)}
+	return Int32s{spec.DivInts[int32, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14662,7 +14574,7 @@ func (x Int32s) Div(y Int32s) (z Int32s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x2) Div(y Int64x2) (z Int64x2) {
-	return Int64x2{spec.Div[int64, spec.Width128](x.v, y.v)}
+	return Int64x2{spec.DivInts[int64, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14675,7 +14587,7 @@ func (x Int64x2) Div(y Int64x2) (z Int64x2) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x4) Div(y Int64x4) (z Int64x4) {
-	return Int64x4{spec.Div[int64, spec.Width256](x.v, y.v)}
+	return Int64x4{spec.DivInts[int64, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14688,7 +14600,7 @@ func (x Int64x4) Div(y Int64x4) (z Int64x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x8) Div(y Int64x8) (z Int64x8) {
-	return Int64x8{spec.Div[int64, spec.Width512](x.v, y.v)}
+	return Int64x8{spec.DivInts[int64, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14701,7 +14613,7 @@ func (x Int64x8) Div(y Int64x8) (z Int64x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64s) Div(y Int64s) (z Int64s) {
-	return Int64s{spec.Div[int64, spec.WidthScalable](x.v, y.v)}
+	return Int64s{spec.DivInts[int64, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14713,7 +14625,7 @@ func (x Int64s) Div(y Int64s) (z Int64s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x16) Div(y Uint8x16) (z Uint8x16) {
-	return Uint8x16{spec.Div[uint8, spec.Width128](x.v, y.v)}
+	return Uint8x16{spec.DivInts[uint8, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14725,7 +14637,7 @@ func (x Uint8x16) Div(y Uint8x16) (z Uint8x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x32) Div(y Uint8x32) (z Uint8x32) {
-	return Uint8x32{spec.Div[uint8, spec.Width256](x.v, y.v)}
+	return Uint8x32{spec.DivInts[uint8, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14737,7 +14649,7 @@ func (x Uint8x32) Div(y Uint8x32) (z Uint8x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x64) Div(y Uint8x64) (z Uint8x64) {
-	return Uint8x64{spec.Div[uint8, spec.Width512](x.v, y.v)}
+	return Uint8x64{spec.DivInts[uint8, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14749,7 +14661,7 @@ func (x Uint8x64) Div(y Uint8x64) (z Uint8x64) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8s) Div(y Uint8s) (z Uint8s) {
-	return Uint8s{spec.Div[uint8, spec.WidthScalable](x.v, y.v)}
+	return Uint8s{spec.DivInts[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14761,7 +14673,7 @@ func (x Uint8s) Div(y Uint8s) (z Uint8s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x8) Div(y Uint16x8) (z Uint16x8) {
-	return Uint16x8{spec.Div[uint16, spec.Width128](x.v, y.v)}
+	return Uint16x8{spec.DivInts[uint16, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14773,7 +14685,7 @@ func (x Uint16x8) Div(y Uint16x8) (z Uint16x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x16) Div(y Uint16x16) (z Uint16x16) {
-	return Uint16x16{spec.Div[uint16, spec.Width256](x.v, y.v)}
+	return Uint16x16{spec.DivInts[uint16, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14785,7 +14697,7 @@ func (x Uint16x16) Div(y Uint16x16) (z Uint16x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x32) Div(y Uint16x32) (z Uint16x32) {
-	return Uint16x32{spec.Div[uint16, spec.Width512](x.v, y.v)}
+	return Uint16x32{spec.DivInts[uint16, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14797,7 +14709,7 @@ func (x Uint16x32) Div(y Uint16x32) (z Uint16x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16s) Div(y Uint16s) (z Uint16s) {
-	return Uint16s{spec.Div[uint16, spec.WidthScalable](x.v, y.v)}
+	return Uint16s{spec.DivInts[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14809,7 +14721,7 @@ func (x Uint16s) Div(y Uint16s) (z Uint16s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x4) Div(y Uint32x4) (z Uint32x4) {
-	return Uint32x4{spec.Div[uint32, spec.Width128](x.v, y.v)}
+	return Uint32x4{spec.DivInts[uint32, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14821,7 +14733,7 @@ func (x Uint32x4) Div(y Uint32x4) (z Uint32x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x8) Div(y Uint32x8) (z Uint32x8) {
-	return Uint32x8{spec.Div[uint32, spec.Width256](x.v, y.v)}
+	return Uint32x8{spec.DivInts[uint32, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14833,7 +14745,7 @@ func (x Uint32x8) Div(y Uint32x8) (z Uint32x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x16) Div(y Uint32x16) (z Uint32x16) {
-	return Uint32x16{spec.Div[uint32, spec.Width512](x.v, y.v)}
+	return Uint32x16{spec.DivInts[uint32, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14845,7 +14757,7 @@ func (x Uint32x16) Div(y Uint32x16) (z Uint32x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32s) Div(y Uint32s) (z Uint32s) {
-	return Uint32s{spec.Div[uint32, spec.WidthScalable](x.v, y.v)}
+	return Uint32s{spec.DivInts[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14857,7 +14769,7 @@ func (x Uint32s) Div(y Uint32s) (z Uint32s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x2) Div(y Uint64x2) (z Uint64x2) {
-	return Uint64x2{spec.Div[uint64, spec.Width128](x.v, y.v)}
+	return Uint64x2{spec.DivInts[uint64, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14869,7 +14781,7 @@ func (x Uint64x2) Div(y Uint64x2) (z Uint64x2) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x4) Div(y Uint64x4) (z Uint64x4) {
-	return Uint64x4{spec.Div[uint64, spec.Width256](x.v, y.v)}
+	return Uint64x4{spec.DivInts[uint64, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14881,7 +14793,7 @@ func (x Uint64x4) Div(y Uint64x4) (z Uint64x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x8) Div(y Uint64x8) (z Uint64x8) {
-	return Uint64x8{spec.Div[uint64, spec.Width512](x.v, y.v)}
+	return Uint64x8{spec.DivInts[uint64, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14893,7 +14805,95 @@ func (x Uint64x8) Div(y Uint64x8) (z Uint64x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64s) Div(y Uint64s) (z Uint64s) {
-	return Uint64s{spec.Div[uint64, spec.WidthScalable](x.v, y.v)}
+	return Uint64s{spec.DivInts[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x4) Div(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.DivFloats[float32, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x8) Div(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.DivFloats[float32, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x16) Div(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.DivFloats[float32, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32s) Div(y Float32s) (z Float32s) {
+	return Float32s{spec.DivFloats[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x2) Div(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.DivFloats[float64, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x4) Div(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.DivFloats[float64, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x8) Div(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.DivFloats[float64, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64s) Div(y Float64s) (z Float64s) {
+	return Float64s{spec.DivFloats[float64, spec.WidthScalable](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
