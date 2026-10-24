@@ -75,8 +75,10 @@ Flags:
 	-e
 		No limit on number of errors reported.
 	-extar ar
-		Set the external archive program (default "ar").
-		Used only for -buildmode=c-archive.
+		Set the external archive program (used only with
+		-buildmode=c-archive). By default the linker asks the
+		C compiler (see -extld) to locate the archive program
+		via "--print-prog-name=ar", falling back to "ar".
 	-extld linker
 		Set the external linker (default "clang" or "gcc").
 	-extldflags flags
