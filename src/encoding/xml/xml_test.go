@@ -265,6 +265,8 @@ var xmlInput = []string{
 	"<t a>",
 	"<t a=>",
 	"<t a=v>",
+	// Issue 68385
+	"<a b='c'c='d'/>",
 	//	"<![CDATA[d]]>",	// let the Token() caller handle
 	"<t></e>",
 	"<t></>",
@@ -1146,15 +1148,15 @@ func TestIssue7113(t *testing.T) {
 }
 
 func TestIssue20396(t *testing.T) {
-
-	var attrError = UnmarshalError("XML syntax error on line 1: expected attribute name in element")
+	var attrError = UnmarshalError("XML syntax error on line 1: expected whitespace, />, or > following element name or attribute value")
 
 	testCases := []struct {
 		s       string
 		wantErr error
 	}{
 		{`<a:te:st xmlns:a="abcd"/>`, // Issue 20396
-			UnmarshalError("XML syntax error on line 1: expected element name after <")},
+			UnmarshalError("XML syntax error on line 1: colon after prefixed XML name a:te")},
+		{`<a test='d'xmlns:a="abcd"/>`, attrError},
 		{`<a:te=st xmlns:a="abcd"/>`, attrError},
 		{`<a:te&st xmlns:a="abcd"/>`, attrError},
 		{`<a:test xmlns:a="abcd"/>`, nil},
