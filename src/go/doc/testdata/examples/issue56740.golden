@@ -1,0 +1,14 @@
+-- MyMethod.Play --
+package main
+
+import (
+	"fmt"
+
+	"github.com/xxx/go-foo"
+)
+
+func main() {
+	fmt.Println(foo.MyMethod())
+}
+-- MyMethod.Output --
+expected output
