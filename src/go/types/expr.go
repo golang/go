@@ -368,7 +368,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
 	// an expression is not representable in the new type (was go.dev/issue/82087).
 	if _, isParen := x.(*ast.ParenExpr); !isParen && old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
-		c := operand{old.mode, x, old.typ, old.val, 0}
+		c := operand{old.mode, x, nopos, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
 		if !c.isValid() {
 			return
@@ -1078,6 +1078,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr) exprKind {
 	// (was go.dev/issue/5770)
 	x.invalidate()
 	x.typ_ = Typ[Invalid]
+	x.exprEnd = nopos
 
 	switch e := e.(type) {
 	case *ast.BadExpr:
@@ -1340,11 +1341,12 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 	if t, ok := x.typ().(*Tuple); ok && x.isValid() {
 		// multiple values
 		list = make([]*operand, t.Len())
+		exprEnd := endPos(e)
 		for i, v := range t.vars {
 			// create a dummy expression (in place of e) for better error messages
 			dummy := ast.NewIdent(nth(i+1, "function result"))
 			dummy.NamePos = e.Pos() // fix position
-			list[i] = &operand{mode_: value, expr: dummy, typ_: v.typ}
+			list[i] = &operand{mode_: value, expr: dummy, exprEnd: exprEnd, typ_: v.typ}
 		}
 		return
 	}
@@ -1361,7 +1363,7 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 		// create a dummy expression (in place of e) for better error messages
 		dummy := ast.NewIdent(what)
 		dummy.NamePos = e.Pos() // fix position
-		x2 := &operand{mode_: value, expr: dummy, typ_: typ}
+		x2 := &operand{mode_: value, expr: dummy, exprEnd: endPos(e), typ_: typ}
 		list = append(list, x2)
 		commaOk = true
 	}

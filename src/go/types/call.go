@@ -102,7 +102,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			// that makes sense when reported in error messages from infer, below.
 			expr := ast.NewIdent(T.desc)
 			expr.NamePos = x.Pos() // correct position
-			args = []*operand{{mode_: value, expr: expr, typ_: Tsig}}
+			args = []*operand{{mode_: value, expr: expr, exprEnd: endPos(x.expr), typ_: Tsig}}
 			reverse = true
 		}
 
