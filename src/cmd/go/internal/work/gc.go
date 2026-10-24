@@ -607,6 +607,77 @@ func setextld(ldflags []string, compiler []string) ([]string, error) {
 	return append(ldflags, "-extld="+joined), nil
 }
 
+// addStaticLdflags returns ldflags with the flags added that make the
+// linker build a statically linked executable for the link action root.
+// They follow the flags that the user gave, and so take precedence.
+// It may change the elements of ldflags.
+func addStaticLdflags(ldflags []string, root *Action) []string {
+	usesCgo := false
+	for _, a := range root.Deps {
+		if a.Package != nil && a.Package.ImportPath == "runtime/cgo" {
+			usesCgo = true
+			break
+		}
+	}
+	if !usesCgo {
+		// The Go linker builds a statically linked executable by itself
+		// when nothing in the program needs dynamic linking, which is
+		// the case for a program that does not use cgo on the systems
+		// that support -static. Do not let GO_EXTLINK_ENABLED hand
+		// the link to the external linker, which would link dynamically.
+		ldflags = append(ldflags, "-linkmode=internal")
+		switch cfg.Goos {
+		case "js", "plan9", "wasip1":
+			// There is no dynamic linking to rule out.
+		default:
+			// Report an error rather than build a dynamically linked
+			// executable, should the program turn out to need one.
+			ldflags = append(ldflags, "-d")
+		}
+		return ldflags
+	}
+
+	// A program that uses cgo depends on the C library, and only
+	// the external linker knows how to link that statically.
+	ldflags = addStaticExtldflag(ldflags)
+	return append(ldflags, "-linkmode=external")
+}
+
+// addStaticExtldflag returns ldflags changed to have the linker pass
+// -static to the external linker. If ldflags includes -extldflags, -static
+// is added to the last instance, which is the one that the linker uses,
+// so as to keep the flags that the user asked for.
+// It may change the elements of ldflags.
+func addStaticExtldflag(ldflags []string) []string {
+	const static = "-static"
+	for i := len(ldflags) - 1; i >= 0; i-- {
+		name, value, hasValue := strings.Cut(ldflags[i], "=")
+		if name != "-extldflags" && name != "--extldflags" {
+			continue
+		}
+		valueIndex := i
+		if !hasValue {
+			// The value is the next argument.
+			if i+1 == len(ldflags) {
+				// There is none. Leave it to the linker to report.
+				return ldflags
+			}
+			valueIndex = i + 1
+			value = ldflags[valueIndex]
+		}
+		if flags, err := quoted.Split(value); err != nil || slices.Contains(flags, static) {
+			return ldflags
+		}
+		value = strings.TrimSpace(value + " " + static)
+		if hasValue {
+			value = name + "=" + value
+		}
+		ldflags[valueIndex] = value
+		return ldflags
+	}
+	return append(ldflags, "-extldflags="+static)
+}
+
 // pluginPath computes the package path for a plugin main package.
 //
 // This is typically the import path of the main package p, unless the
@@ -699,6 +770,9 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	}
 	ldflags = append(ldflags, forcedLdflags...)
 	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
+	if cfg.BuildStatic {
+		ldflags = addStaticLdflags(ldflags, root)
+	}
 	ldflags, err := setextld(ldflags, compiler)
 	if err != nil {
 		return err

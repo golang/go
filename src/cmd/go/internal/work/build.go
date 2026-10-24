@@ -191,6 +191,21 @@ and test commands:
 		install and load all packages from dir instead of the usual locations.
 		For example, when building with a non-standard configuration,
 		use -pkgdir to keep generated packages in a separate location.
+	-static
+		build statically linked executables: ones that depend at run time
+		neither on shared libraries nor on a dynamic linker.
+		A program that uses cgo is linked by the host linker with its
+		-static flag, which requires static versions of the C libraries
+		that the program uses, and pkg-config is run with --static.
+		C code that loads shared libraries at run time may not work.
+		The "static", "netgo", and "osusergo" build tags are set,
+		so that packages net and os/user use their pure Go implementations
+		instead of the C library, except that "netgo" is not set if the
+		"netcgo" build tag is given.
+		Supported only on dragonfly, freebsd, linux, and netbsd, as well as
+		on js, plan9, and wasip1, where all executables are statically linked.
+		The build mode must be exe, and -static cannot be used with
+		-race, -msan, -asan, or -linkshared.
 	-tags tag,list
 		a comma-separated list of additional build tags to consider satisfied
 		during the build. For more information about build tags, see
@@ -354,6 +369,7 @@ func AddBuildFlags(cmd *base.Command, mask BuildFlagMask) {
 	cmd.Flag.StringVar(&cfg.BuildPGO, "pgo", "auto", "specify the `file` path of a profile for profile-guided optimization (PGO); special name \"auto\" selects default.pgo, \"off\" turns off PGO")
 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "install and load all packages from `dir` instead of the usual locations")
 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "enable data race detection")
+	cmd.Flag.BoolVar(&cfg.BuildStatic, "static", false, "build statically linked executables")
 	cmd.Flag.Var((*tagsFlag)(&cfg.BuildContext.BuildTags), "tags", "a comma-separated list of additional build `tags` to consider satisfied during the build")
 	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildToolexec), "toolexec", "a `program` to use to invoke toolchain programs like vet and asm; see 'go help build'")
 	cmd.Flag.BoolVar(&cfg.BuildTrimpath, "trimpath", false, "remove all file system paths from the resulting executable")
