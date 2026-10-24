@@ -490,6 +490,112 @@ func TestFileReadDir(t *testing.T) {
 	t.Run("TempDir", testReadDir(t.TempDir(), nil))
 }
 
+var readdirFuncs = []struct {
+	name string
+	fn   func(*File, int) error
+}{
+	{"ReadDir", func(f *File, n int) error { _, err := f.ReadDir(n); return err }},
+	{"Readdir", func(f *File, n int) error { _, err := f.Readdir(n); return err }},
+	{"Readdirnames", func(f *File, n int) error { _, err := f.Readdirnames(n); return err }},
+}
+
+// A directory read after Close must fail, even with entries buffered
+// before Close. See go.dev/issue/82292.
+func TestReaddirAfterClose(t *testing.T) {
+	dir := t.TempDir()
+	for i := range 2 {
+		if err := WriteFile(filepath.Join(dir, strconv.Itoa(i)), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, read := range readdirFuncs {
+		f, err := Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// Leave the rest of the entries buffered.
+		if err := read.fn(f, 1); err != nil {
+			t.Fatal(err)
+		}
+		if err := f.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if err := read.fn(f, 1); !errors.Is(err, ErrClosed) {
+			t.Errorf("%s after Close: got %v, want ErrClosed", read.name, err)
+		}
+	}
+}
+
+// Test concurrent directory reads with Close and Seek. See go.dev/issue/82292.
+func TestReaddirConcurrentCloseSeek(t *testing.T) {
+	dir := t.TempDir()
+	for i := range 100 {
+		if err := WriteFile(filepath.Join(dir, strconv.Itoa(i)), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, read := range readdirFuncs {
+		for _, seek := range []bool{false, true} {
+			op := "Close"
+			if seek {
+				op = "Seek"
+			}
+			t.Run(read.name+"/"+op, func(t *testing.T) {
+				deadline := time.Now().Add(time.Second / 6)
+				trials := 10000
+				if testing.Short() {
+					trials = 10
+				}
+				// Run each read size at least once, however slow the machine.
+				for i := 0; i < trials && (i < 2 || time.Now().Before(deadline)); i++ {
+					f, err := Open(dir)
+					if err != nil {
+						t.Fatal(err)
+					}
+					// Leave entries in the buffer for the concurrent reads.
+					if err := read.fn(f, 1); err != nil {
+						f.Close()
+						t.Fatal(err)
+					}
+					var wg sync.WaitGroup
+					for range 2 {
+						wg.Go(func() {
+							for range 10 {
+								// Exercise both buffered and unbounded reads.
+								n := 1
+								if i%2 == 0 {
+									n = -1
+								}
+								if err := read.fn(f, n); err != nil {
+									return
+								}
+							}
+						})
+					}
+					runtime.Gosched()
+					if seek {
+						for range 10 {
+							// Seeking directories is not supported on every platform.
+							f.Seek(0, io.SeekStart)
+						}
+					} else if err := f.Close(); err != nil {
+						t.Error(err)
+					}
+					wg.Wait()
+					if seek {
+						if err := f.Close(); err != nil {
+							t.Error(err)
+						}
+					}
+					if err := read.fn(f, 1); !errors.Is(err, ErrClosed) {
+						t.Fatalf("directory read after Close: got %v, want ErrClosed", err)
+					}
+				}
+			})
+		}
+	}
+}
+
 func benchmarkReaddirname(path string, b *testing.B) {
 	var nentries int
 	for i := 0; i < b.N; i++ {
