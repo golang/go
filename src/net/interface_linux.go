@@ -5,6 +5,7 @@
 package net
 
 import (
+	"internal/bytealg"
 	"os"
 	"slices"
 	"syscall"
@@ -15,6 +16,15 @@ import (
 // network interfaces. Otherwise it returns a mapping of a specific
 // interface.
 func interfaceTable(ifindex int) ([]Interface, error) {
+	if ifindex != 0 {
+		if ifi, err := netlinkLink(ifindex, ""); err == nil {
+			if ifi == nil {
+				return nil, nil
+			}
+			return []Interface{*ifi}, nil
+		}
+		// Fall back to dumping every link.
+	}
 	tab, err := syscall.NetlinkRIB(syscall.RTM_GETLINK, syscall.AF_UNSPEC)
 	if err != nil {
 		return nil, os.NewSyscallError("netlinkrib", err)
@@ -44,6 +54,118 @@ loop:
 		}
 	}
 	return ift, nil
+}
+
+// interfaceByName returns the interface with the given name, or
+// errNoSuchInterface.
+func interfaceByName(name string) (*Interface, error) {
+	ifi, err := netlinkLink(0, name)
+	if err != nil {
+		return interfaceByNameFromTable(name)
+	}
+	if ifi == nil {
+		return nil, errNoSuchInterface
+	}
+	return ifi, nil
+}
+
+// netlinkLink returns the interface with the given index, or with the
+// given name if the index is zero, or nil if there is no such
+// interface.
+//
+// It sends one RTM_GETLINK request for that link rather than a dump
+// of every link, which the kernel refuses to filter by index, so a
+// lookup costs the same on a host with a thousand interfaces as on
+// one with two. Linux answers such requests by index and, since
+// 2.6.33, by name.
+func netlinkLink(index int, name string) (*Interface, error) {
+	if index == 0 && (name == "" || len(name) >= syscall.IFNAMSIZ || bytealg.IndexByteString(name, 0) >= 0) {
+		// No interface has such a name. A NUL byte would end the
+		// name the kernel sees, so it is not sent either.
+		return nil, nil
+	}
+	s, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, syscall.NETLINK_ROUTE)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.Close(s)
+	sa := &syscall.SockaddrNetlink{Family: syscall.AF_NETLINK}
+	if err := syscall.Bind(s, sa); err != nil {
+		return nil, err
+	}
+	lsa, err := syscall.Getsockname(s)
+	if err != nil {
+		return nil, err
+	}
+	lsanl, ok := lsa.(*syscall.SockaddrNetlink)
+	if !ok {
+		return nil, syscall.EINVAL
+	}
+
+	const seq = 1
+	req := struct {
+		hdr  syscall.NlMsghdr
+		ifim syscall.IfInfomsg
+	}{
+		hdr:  syscall.NlMsghdr{Type: syscall.RTM_GETLINK, Flags: syscall.NLM_F_REQUEST, Seq: seq},
+		ifim: syscall.IfInfomsg{Family: syscall.AF_UNSPEC, Index: int32(index)},
+	}
+	wb := slices.Clone(unsafe.Slice((*byte)(unsafe.Pointer(&req)), unsafe.Sizeof(req)))
+	if index == 0 {
+		attr := syscall.RtAttr{Len: uint16(syscall.SizeofRtAttr + len(name) + 1), Type: syscall.IFLA_IFNAME}
+		wb = append(wb, unsafe.Slice((*byte)(unsafe.Pointer(&attr)), syscall.SizeofRtAttr)...)
+		wb = append(wb, name...)
+		wb = append(wb, 0)
+		for len(wb)%syscall.NLMSG_ALIGNTO != 0 {
+			wb = append(wb, 0)
+		}
+	}
+	*(*uint32)(unsafe.Pointer(&wb[0])) = uint32(len(wb))
+	if err := syscall.Sendto(s, wb, 0, sa); err != nil {
+		return nil, err
+	}
+
+	rb := make([]byte, syscall.Getpagesize())
+	nr, _, err := syscall.Recvfrom(s, rb, syscall.MSG_TRUNC)
+	if err != nil {
+		return nil, err
+	}
+	if nr < syscall.NLMSG_HDRLEN || nr > len(rb) {
+		// The reply is too short, or was larger than the buffer
+		// and the rest of it has been dropped.
+		return nil, syscall.EINVAL
+	}
+	msgs, err := syscall.ParseNetlinkMessage(rb[:nr])
+	if err != nil {
+		return nil, err
+	}
+	for _, m := range msgs {
+		if m.Header.Seq != seq || m.Header.Pid != lsanl.Pid {
+			return nil, syscall.EINVAL
+		}
+		switch m.Header.Type {
+		case syscall.NLMSG_ERROR:
+			err := netlinkErrno(&m)
+			if err == syscall.ENODEV {
+				return nil, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			return nil, syscall.EINVAL
+		case syscall.RTM_NEWLINK:
+			if len(m.Data) < syscall.SizeofIfInfomsg {
+				return nil, syscall.EINVAL
+			}
+			ifim := (*syscall.IfInfomsg)(unsafe.Pointer(&m.Data[0]))
+			attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+			if err != nil {
+				return nil, err
+			}
+			return newLink(ifim, attrs), nil
+		}
+	}
+	return nil, syscall.EINVAL
 }
 
 const (
