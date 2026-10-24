@@ -10,6 +10,7 @@
 #include "go_tls.h"
 #include "textflag.h"
 #include "asm_ppc64x.h"
+#include "cgo/abi_ppc64x.h"
 
 // This function calls a C function with the function descriptor in R12
 TEXT callCfunction<>(SB),	NOSPLIT|NOFRAME,$0
@@ -206,8 +207,12 @@ DATA	runtime·rt0LibGoDesc+8(SB)/8, $TOC(SB)
 DATA	runtime·rt0LibGoDesc+16(SB)/8, $0
 GLOBL	runtime·rt0LibGoDesc(SB), NOPTR, $24
 
-TEXT tstart<>(SB),NOSPLIT,$0
-	XOR	 R0, R0 // reset R0
+// tstart is the first function executed on a new thread started by
+// pthread_create. It is called with the C calling convention, and
+// libpthreads relies on the callee-saved registers after it returns.
+TEXT tstart<>(SB),NOSPLIT|NOFRAME,$0
+	MOVD	R1, R4 // stack top on entry, above the register save area
+	STACK_AND_SAVE_HOST_TO_GO_ABI(0) // also sets R0 to 0
 
 	// set g
 	MOVD	m_g0(R3), g
@@ -215,8 +220,8 @@ TEXT tstart<>(SB),NOSPLIT,$0
 	MOVD	R3, g_m(g)
 
 	// Layout new m scheduler stack on os stack.
-	MOVD	R1, R3
-	MOVD	R3, (g_stack+stack_hi)(g)
+	MOVD	R1, (g_stack+stack_hi)(g)
+	MOVD	R4, R3
 	SUB	$(const_threadStackSize), R3		// stack size
 	MOVD	R3, (g_stack+stack_lo)(g)
 	ADD	$const_stackGuard, R3
@@ -225,7 +230,8 @@ TEXT tstart<>(SB),NOSPLIT,$0
 
 	BL	runtime·mstart(SB)
 
-	MOVD R0, R3
+	UNSTACK_AND_RESTORE_GO_TO_HOST_ABI(0)
+	MOVD	$0, R3
 	RET
 
 
