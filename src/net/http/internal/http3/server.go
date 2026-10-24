@@ -646,6 +646,7 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		st.writeDeadline.set(time.Now().Add(t))
 	}
 	sc.handler.ServeHTTP(rw, req)
+	cancel()
 	return rw.close()
 }
 
