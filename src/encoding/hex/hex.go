@@ -43,13 +43,35 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always [EncodedLen](len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	j := 0
-	for _, v := range src {
-		dst[j] = hextable[v>>4]
-		dst[j+1] = hextable[v&0x0f]
-		j += 2
+	l := len(src)
+	// Process the data in predictable chunks (4 src bytes, 8 dst bytes),
+	// to reduce the number of bounds checks.
+	for len(src) >= 4 {
+		_ = dst[7] // Eliminate bounds checks.
+		v0 := src[0]
+		dst[0] = hextable[v0>>4]
+		dst[1] = hextable[v0&0x0f]
+		v1 := src[1]
+		dst[2] = hextable[v1>>4]
+		dst[3] = hextable[v1&0x0f]
+		v2 := src[2]
+		dst[4] = hextable[v2>>4]
+		dst[5] = hextable[v2&0x0f]
+		v3 := src[3]
+		dst[6] = hextable[v3>>4]
+		dst[7] = hextable[v3&0x0f]
+		src = src[4:]
+		dst = dst[8:]
 	}
-	return len(src) * 2
+
+	// Process the rest.
+	for i := range len(src) {
+		v := src[i]
+		dst[i*2] = hextable[v>>4]
+		dst[i*2+1] = hextable[v&0x0f]
+	}
+
+	return l * 2
 }
 
 // AppendEncode appends the hexadecimally encoded src to dst
