@@ -279,6 +279,40 @@ func TestArchCastagnoli(t *testing.T) {
 	})
 }
 
+// TestArchMisaligned verifies that the arch-specific implementations handle
+// arbitrarily misaligned inputs correctly, matching the slicing-by-8 result
+// for every alignment offset 0..15 and for lengths around the fold cutoffs.
+// Some implementations (e.g. RISC-V CLMUL) read multi-byte words with LD,
+// which requires the address to be aligned; they must realign the input
+// themselves.
+func TestArchMisaligned(t *testing.T) {
+	if !archAvailableIEEE() {
+		t.Skip("arch-specific IEEE not available")
+	}
+	archInitIEEE()
+	archInitCastagnoli()
+	slicingIeee := slicingMakeTable(IEEE)
+	slicingCast := slicingMakeTable(Castagnoli)
+
+	lengths := []int{16, 17, 31, 32, 33, 47, 48, 63, 64, 65, 79, 80, 96,
+		127, 128, 129, 255, 256, 511, 512, 1024, 4096}
+	for _, n := range lengths {
+		for align := 0; align < 16; align++ {
+			buf := make([]byte, n+align+16) // +16 so a 16-byte word never reads past p
+			p := buf[align : align+n]
+			_, _ = rand.Read(p)
+			for _, crcInit := range []uint32{0, 0xdeadbeef} {
+				if got, want := archUpdateIEEE(crcInit, p), slicingUpdate(crcInit, slicingIeee, p); got != want {
+					t.Fatalf("IEEE n=%d align=%d crc=%08x: got %08x want %08x", n, align, crcInit, got, want)
+				}
+				if got, want := archUpdateCastagnoli(crcInit, p), slicingUpdate(crcInit, slicingCast, p); got != want {
+					t.Fatalf("Castagnoli n=%d align=%d crc=%08x: got %08x want %08x", n, align, crcInit, got, want)
+				}
+			}
+		}
+	}
+}
+
 func TestGolden(t *testing.T) {
 	testGoldenIEEE(t, ChecksumIEEE)
 
@@ -332,7 +366,7 @@ func BenchmarkCRC32(b *testing.B) {
 
 func benchmarkAll(h hash.Hash32) func(b *testing.B) {
 	return func(b *testing.B) {
-		for _, size := range []int{15, 40, 512, 1 << 10, 4 << 10, 32 << 10} {
+		for _, size := range []int{15, 16, 32, 40, 60, 64, 120, 128, 400, 512, 1 << 10, 4 << 10, 32 << 10} {
 			name := fmt.Sprint(size)
 			if size >= 1024 {
 				name = fmt.Sprintf("%dkB", size/1024)
