@@ -133,6 +133,11 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
 // returned value is the maximum magnitude integer of the
 // appropriate bitSize and sign.
 //
+// ParseInt does not always read all of s: when it detects that the
+// value is out of range, it returns err.Err = [ErrRange] without
+// reading the rest, so trailing invalid digits yield [ErrRange]
+// rather than [ErrSyntax].
+//
 // [integer literals]: https://go.dev/ref/spec#Integer_literals
 func ParseInt(s string, base int, bitSize int) (i int64, err error) {
 	x, err := strconv.ParseInt(s, base, bitSize)
