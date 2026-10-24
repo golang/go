@@ -24,9 +24,8 @@ import (
 	"time"
 )
 
-// BUG: Use of the Uid and Gid fields in Header could overflow on 32-bit
-// architectures. If a large value is encountered when decoding, the result
-// stored in Header will be the truncated version.
+// BUG: Use of the Uid and Gid fields in Header cannot represent values above
+// int on 32-bit architectures when writing.
 
 var tarinsecurepath = godebug.New("tarinsecurepath")
 
