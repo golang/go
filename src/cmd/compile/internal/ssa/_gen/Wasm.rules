@@ -24,6 +24,9 @@
 (Div8u  x y) => (I64DivU (ZeroExt8to64 x) (ZeroExt8to64 y))
 (Div(64|32)F ...) => (F(64|32)Div ...)
 
+(Min(64|32)F ...) => (F(64|32)Min ...)
+(Max(64|32)F ...) => (F(64|32)Max ...)
+
 (Mod64 [false] x y) => (I64RemS x y)
 (Mod32 [false] x y) => (I64RemS (SignExt32to64 x) (SignExt32to64 y))
 (Mod16 [false] x y) => (I64RemS (SignExt16to64 x) (SignExt16to64 y))
