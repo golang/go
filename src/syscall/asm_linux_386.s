@@ -23,7 +23,7 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-24
 	INVOKE_SYSCALL
 	PUSHL	SI
 	CMPL	AX, $0xfffff001
-	JLS	ok
+	JCS	ok
 	MOVL	$-1, r1+16(FP)
 	NEGL	AX
 	MOVL	AX, err+20(FP)
@@ -60,7 +60,7 @@ TEXT ·socketcall(SB),NOSPLIT,$0-36
 	MOVL	$0, DI
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	oksock
+	JCS	oksock
 	MOVL	$-1, n+28(FP)
 	NEGL	AX
 	MOVL	AX, err+32(FP)
@@ -83,7 +83,7 @@ TEXT ·rawsocketcall(SB),NOSPLIT,$0-36
 	MOVL	$0, DI
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	oksock1
+	JCS	oksock1
 	MOVL	$-1, n+28(FP)
 	NEGL	AX
 	MOVL	AX, err+32(FP)
@@ -109,7 +109,7 @@ TEXT ·seek(SB),NOSPLIT,$0-28
 	MOVL	whence+12(FP), DI
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	okseek
+	JCS	okseek
 	MOVL	$-1, newoffset_lo+16(FP)
 	MOVL	$-1, newoffset_hi+20(FP)
 	NEGL	AX

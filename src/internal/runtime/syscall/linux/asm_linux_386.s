@@ -21,7 +21,7 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-40
 	MOVL	a6+24(FP), BP
 	INVOKE_SYSCALL
 	CMPL	AX, $0xfffff001
-	JLS	ok
+	JCS	ok
 	MOVL	$-1, r1+28(FP)
 	MOVL	$0, r2+32(FP)
 	NEGL	AX
