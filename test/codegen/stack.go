@@ -174,3 +174,33 @@ func storeArg(a [2]int) {
 	// amd64:-`MOVQ \$123,.*\.a\+\d+\(SP\)`
 	a[1] = 123
 }
+
+var sinkByte byte
+
+//go:noinline
+func consumeSlice(s []byte) {
+	if cap(s) > 0 {
+		sinkByte = s[:cap(s)][cap(s)-1]
+	}
+}
+
+//go:noinline
+func largeSliceLiteral() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{(1<<17 - 1): 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeZeroSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 0}[:0]
+	consumeSlice(s)
+}
