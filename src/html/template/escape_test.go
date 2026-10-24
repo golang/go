@@ -1232,6 +1232,10 @@ func TestErrors(t *testing.T) {
 			"<script>var a = `{{if .X}}a{{else}}b{{end}}`</script>",
 			``,
 		},
+		{
+			"<script>var x = `${ {{range .Items}} { {{else}} { { {{end}} } } {{.X}}}`</script>",
+			`on range loop re-entry: {{range}} branches end in different contexts`,
+		},
 	}
 	for _, test := range tests {
 		buf := new(bytes.Buffer)
