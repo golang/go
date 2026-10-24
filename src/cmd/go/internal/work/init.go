@@ -253,8 +253,7 @@ func buildModeInit() {
 			case "linux", "android", "freebsd":
 				codegenArg = "-shared"
 			case "windows":
-				// Do not add usual .exe suffix to the .dll file.
-				cfg.ExeSuffix = ""
+				cfg.ExeSuffix = ".dll"
 			}
 		}
 		ldBuildmode = "c-shared"

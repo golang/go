@@ -2,6 +2,10 @@
 
 ### Go command {#go-command}
 
+When building for Windows with `-buildmode=c-shared` and no `-o` flag,
+`go build` now names the output file with a `.dll` extension.
+Previously the file had no extension. <!-- go.dev/issue/38244 -->
+
 ### Cgo {#cgo}
 
 ### Vet {#vet}
