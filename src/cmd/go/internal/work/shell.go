@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -639,7 +640,14 @@ func (sh *Shell) startOut(dir string, env []string, extraFiles []*os.File, done 
 	cmd.Stdout = &sc.buf
 	cmd.Stderr = &sc.buf
 	cmd.ExtraFiles = extraFiles
-	sc.cleanup = passLongArgsInResponseFiles(cmd)
+	// Leave the -toolexec command and tool path outside the response file.
+	// The wrapper needs the path to know which tool it is invoking.
+	toolIndex := 0
+	if len(cfg.BuildToolexec) > 0 && len(cmdline) > len(cfg.BuildToolexec) &&
+		slices.Equal(cmdline[:len(cfg.BuildToolexec)], cfg.BuildToolexec) {
+		toolIndex = len(cfg.BuildToolexec)
+	}
+	sc.cleanup = passLongArgsInResponseFiles(cmd, toolIndex)
 	if dir != "." {
 		cmd.Dir = dir
 	}
