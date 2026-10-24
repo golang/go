@@ -7,7 +7,10 @@
 package net
 
 import (
+	"errors"
 	"internal/syscall/unix"
+	"os"
+	"syscall"
 	"testing"
 )
 
@@ -97,5 +100,64 @@ func TestFileFdBlocks(t *testing.T) {
 	}
 	if nonblock {
 		t.Error("unix socket through os.File.Fd is non-blocking")
+	}
+}
+
+// An SCTP one-to-many style socket (RFC 6458, Section 3.1.1) is an
+// AF_INET or AF_INET6 socket of type SOCK_SEQPACKET, which this package
+// does not support. FileConn, FileListener and FilePacketConn must
+// return an error for it rather than panic. See go.dev/issue/82051.
+func TestFileUnsupportedSocketType(t *testing.T) {
+	const ipprotoSCTP = 132 // syscall.IPPROTO_SCTP is not defined on all platforms
+
+	tests := []struct {
+		name   string
+		family int
+		sa     syscall.Sockaddr
+		ok     bool
+	}{
+		{"IPv4", syscall.AF_INET, &syscall.SockaddrInet4{Addr: [4]byte{127, 0, 0, 1}}, supportsIPv4()},
+		{"IPv6", syscall.AF_INET6, &syscall.SockaddrInet6{Addr: [16]byte{15: 1}}, supportsIPv6()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !tt.ok {
+				t.Skipf("skipping: %s not supported", tt.name)
+			}
+			s, err := syscall.Socket(tt.family, syscall.SOCK_SEQPACKET, ipprotoSCTP)
+			if err != nil {
+				t.Skipf("skipping: cannot create SCTP socket: %v", err)
+			}
+			f := os.NewFile(uintptr(s), "sctp")
+			defer f.Close()
+			if err := syscall.Bind(s, tt.sa); err != nil {
+				t.Skipf("skipping: cannot bind SCTP socket: %v", err)
+			}
+			if err := syscall.Listen(s, 1); err != nil {
+				t.Skipf("skipping: cannot listen on SCTP socket: %v", err)
+			}
+
+			c, err := FileConn(f)
+			if err == nil {
+				c.Close()
+			}
+			if !errors.Is(err, syscall.EPROTONOSUPPORT) {
+				t.Errorf("FileConn: got %v; want %v", err, syscall.EPROTONOSUPPORT)
+			}
+			ln, err := FileListener(f)
+			if err == nil {
+				ln.Close()
+			}
+			if !errors.Is(err, syscall.EPROTONOSUPPORT) {
+				t.Errorf("FileListener: got %v; want %v", err, syscall.EPROTONOSUPPORT)
+			}
+			pc, err := FilePacketConn(f)
+			if err == nil {
+				pc.Close()
+			}
+			if !errors.Is(err, syscall.EPROTONOSUPPORT) {
+				t.Errorf("FilePacketConn: got %v; want %v", err, syscall.EPROTONOSUPPORT)
+			}
+		})
 	}
 }

@@ -42,6 +42,12 @@ func newFileFD(f *os.File) (*netFD, error) {
 	}
 	fd := newFD(s, family, sotype, "")
 	laddr := fd.addrFunc()(lsa)
+	if laddr == nil {
+		// The socket type is not supported for this address family,
+		// for example an SCTP SOCK_SEQPACKET socket.
+		fd.Close()
+		return nil, syscall.EPROTONOSUPPORT
+	}
 	raddr := fd.addrFunc()(rsa)
 	fd.net = laddr.Network()
 	if err := fd.init(); err != nil {
