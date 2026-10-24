@@ -133,4 +133,9 @@ type Flags struct {
 
 	// CgoBindings enables specifying cgo bindings using the go types they bind to.
 	CgoBindings bool
+
+	// JIT enables the runtime/jit package for registering user code
+	// frames (JIT compilers, WASM engines, embedded VMs) with the
+	// Go runtime's stack unwinder, panic/recover, and GC.
+	JIT bool
 }
