@@ -457,11 +457,35 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
 			sym := types.NewPkg(path, "").Lookup(name)
 			if _, ok := importBodyReader[sym]; !ok {
 				importBodyReader[sym] = pkgReaderIndex{pr, idx, nil, nil, nil}
+				// Private roots contain only static (non-generic) function and
+				// method bodies; index method bodies by receiver type symbol.
+				if typSym := methodRecvSym(sym.Pkg, name); typSym != nil {
+					importTypeBodies[typSym] = append(importTypeBodies[typSym], sym)
+				}
 			}
 		}
 
 		r.Sync(pkgbits.SyncEOF)
 	}
+}
+
+// methodRecvSym returns the receiver base type symbol in pkg if name
+// is a static method symbol name (e.g. "T.M" or "(*T).M"), or nil
+// otherwise. Unlike ir.LookupMethodSelector, it does not intern a
+// selector symbol in types.LocalPkg.
+func methodRecvSym(pkg *types.Pkg, name string) *types.Sym {
+	if strings.Contains(name, "[") {
+		return nil
+	}
+	i := strings.IndexByte(name, '.')
+	if i <= 0 {
+		return nil
+	}
+	typName := name[:i]
+	if len(typName) > 3 && strings.HasPrefix(typName, "(*") && strings.HasSuffix(typName, ")") {
+		typName = typName[2 : len(typName)-1]
+	}
+	return pkg.Lookup(typName)
 }
 
 // writeUnifiedExport writes to `out` the finalized, self-contained
@@ -470,9 +494,10 @@ func writeUnifiedExport(out io.Writer) {
 	l := linker{
 		pw: pkgbits.NewPkgEncoder(uirVersion, base.Debug.SyncFrames),
 
-		pkgs:   make(map[string]index),
-		decls:  make(map[*types.Sym]index),
-		bodies: make(map[*types.Sym]index),
+		pkgs:      make(map[string]index),
+		decls:     make(map[*types.Sym]index),
+		bodies:    make(map[*types.Sym]index),
+		forwarded: make(map[*types.Sym]bool),
 	}
 
 	publicRootWriter := l.pw.NewEncoder(pkgbits.SectionMeta, pkgbits.SyncPublic)
@@ -558,7 +583,10 @@ func writeUnifiedExport(out io.Writer) {
 		for sym, idx := range l.bodies {
 			bodies = append(bodies, symIdx{sym, idx})
 		}
-		slices.SortFunc(bodies, func(a, b symIdx) int { return cmp.Compare(a.idx, b.idx) })
+		slices.SortFunc(bodies, func(a, b symIdx) int {
+			assert(a.idx != b.idx || a.sym == b.sym)
+			return cmp.Compare(a.idx, b.idx)
+		})
 
 		w := privateRootWriter
 
