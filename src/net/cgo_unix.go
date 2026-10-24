@@ -330,7 +330,7 @@ func cgoResSearch(hostname string, rtype, class int) ([]dnsmessage.Resource, err
 	if err := _C_res_ninit(state); err != nil {
 		return nil, errors.New("res_ninit failure: " + err.Error())
 	}
-	defer _C_res_nclose(state)
+	defer _C_res_ndestroy(state)
 
 	// Some res_nsearch implementations (like macOS) do not set errno.
 	// They set h_errno, which is not per-thread and useless to us.
