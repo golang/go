@@ -172,6 +172,7 @@ func Select() {
 	}
 
 	gotoolchain = minToolchain
+	var modcacherwSeen bool
 	if mode == "auto" || mode == "path" {
 		// Read go.mod to find new minimum and suggested toolchain.
 		file, goVers, toolchain := modGoToolchain(moduleLoader)
@@ -234,7 +235,7 @@ func Select() {
 				}
 			}
 		}
-		maybeSwitchForGoInstallVersion(moduleLoader, minVers)
+		modcacherwSeen = maybeSwitchForGoInstallVersion(moduleLoader, minVers)
 	}
 
 	// If we are invoked as a target toolchain, confirm that
@@ -283,6 +284,13 @@ func Select() {
 	// since we will find that in the path lookup.
 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+	}
+
+	// Exec may download the toolchain. See go.dev/issue/81802.
+	if v, ok := base.LookupGOFLAGS("-modcacherw"); ok && !modcacherwSeen {
+		if rw, err := strconv.ParseBool(v); err == nil {
+			cfg.ModCacheRW = rw
+		}
 	}
 
 	counterSelectExec.Inc()
@@ -556,7 +564,8 @@ func modGoToolchain(ld *modload.Loader) (file, goVers, toolchain string) {
 
 // maybeSwitchForGoInstallVersion reports whether the command line is go install m@v or go run m@v.
 // If so, switch to the go version required to build m@v if it's higher than minVers.
-func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
+// It reports whether -modcacherw was on the command line.
+func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) (modcacherwSeen bool) {
 	// Note: We assume there are no flags between 'go' and 'install' or 'run'.
 	// During testing there are some debugging flags that are accepted
 	// in that position, but in production go binaries there are not.
@@ -593,10 +602,7 @@ func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 
 	// Make a best effort to parse the command's args to find the pkg@version
 	// argument and the -modcacherw flag.
-	var (
-		pkgArg         string
-		modcacherwSeen bool
-	)
+	var pkgArg string
 	for args := os.Args[2:]; len(args) > 0; {
 		a := args[0]
 		args = args[1:]
@@ -726,4 +732,5 @@ func maybeSwitchForGoInstallVersion(ld *modload.Loader, minVers string) {
 			SwitchOrFatal(ld, ctx, err)
 		}
 	}
+	return
 }
