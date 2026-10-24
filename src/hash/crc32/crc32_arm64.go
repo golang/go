@@ -11,7 +11,18 @@ package crc32
 import "internal/cpu"
 
 func castagnoliUpdate(crc uint32, p []byte) uint32
+
+// castagnoliUpdatePMULL is castagnoliUpdate for CPUs that also have PMULL.
+//
+//go:noescape
+func castagnoliUpdatePMULL(crc uint32, p []byte) uint32
 func ieeeUpdate(crc uint32, p []byte) uint32
+
+// castagnoliUpdatePMULL only folds from 256 bytes.
+const pmullMinLength = 256
+
+// SHA3 excludes cores like Neoverse N1, where the fold is slower than CRC32C.
+var usePMULL = cpu.ARM64.HasPMULL && cpu.ARM64.HasSHA3
 
 func archAvailableCastagnoli() bool {
 	return cpu.ARM64.HasCRC32
@@ -28,6 +39,9 @@ func archUpdateCastagnoli(crc uint32, p []byte) uint32 {
 		panic("arch-specific crc32 instruction for Castagnoli not available")
 	}
 
+	if len(p) >= pmullMinLength && usePMULL {
+		return ^castagnoliUpdatePMULL(^crc, p)
+	}
 	return ^castagnoliUpdate(^crc, p)
 }
 
