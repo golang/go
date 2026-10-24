@@ -1070,7 +1070,33 @@ func (b *Builder) reportCompile(a *Action, out []byte, err error) error {
 		// If we're using -x, assume we're debugging and want the full dump, so disable the rewrite.
 		out = cgoTypeSigRe.ReplaceAll(out, []byte("C."))
 	}
+	if err != nil && len(out) > 0 && !cfg.BuildContext.CgoEnabled {
+		out = append(out, cgoDisabledNote(p)...)
+	}
 	return b.Shell(a).reportCmd("", "", out, err)
+}
+
+// cgoDisabledNote returns a note naming the Go files of p that were excluded
+// from the build only because cgo is disabled, or "" if there are none.
+func cgoDisabledNote(p *load.Package) string {
+	cgoCtxt := cfg.BuildContext
+	cgoCtxt.CgoEnabled = true
+	var files []string
+	for _, name := range p.IgnoredGoFiles {
+		// MatchFile evaluates build constraints but not imports, so it also
+		// matches files that were ignored because they import "C".
+		if match, _ := cgoCtxt.MatchFile(p.Dir, name); match {
+			files = append(files, filepath.Join(p.Dir, name))
+		}
+	}
+	if len(files) == 0 {
+		return ""
+	}
+	const maxFiles = 5
+	if len(files) > maxFiles {
+		files = append(files[:maxFiles], fmt.Sprintf("and %d more", len(files)-maxFiles))
+	}
+	return "note: cgo is disabled (CGO_ENABLED=0), so the build excluded " + strings.Join(files, ", ") + "\n"
 }
 
 var cgoTypeSigRe = lazyregexp.New(`\b_C2?(type|func|var|macro)_\B`)
