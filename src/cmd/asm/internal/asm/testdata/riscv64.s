@@ -209,6 +209,20 @@ start:
 	CSRW	$2, VSTART				// 73508100
 	CSRWI	$2, VSTART				// 73508100
 
+	// 8: Zihintntl Extension for Non-Temporal Locality Hints
+	NTLP1						// 33002000
+	NTLPALL						// 33003000
+	NTLS1						// 33004000
+	NTLALL						// 33005000
+	CNTLP1						// 0a90
+	CNTLPALL					// 0e90
+	CNTLS1						// 1290
+	CNTLALL						// 1690
+	CADD	SP, X0				// 0a90
+	CADD	X3, X0				// 0e90
+	CADD	TP, X0				// CADD X4, X0 // 1290
+	CADD	X5, X0				// 1690
+
 	// 8.1: Base Counters and Timers (Zicntr)
 	RDCYCLE		X5				// f32200c0
 	RDTIME		X5				// f32210c0
