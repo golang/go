@@ -308,16 +308,32 @@ fixloop:
 	//
 	// TODO(adonovan): should we log that n files were updated in case of total victory?
 	if badFixes > 0 || filesUpdated < totalFiles {
-		if printDiff {
-			return fmt.Errorf("%d of %s skipped (e.g. due to conflicts)",
+		var msg string
+		if filesUpdated < totalFiles {
+			msg = fmt.Sprintf("applied %d of %s; %s updated, but %d files failed to update",
+				goodFixes,
+				plural(len(fixes), "fix", "fixes"),
+				plural(filesUpdated, "file", "files"),
+				totalFiles-filesUpdated)
+		} else if printDiff {
+			msg = fmt.Sprintf("%d of %s skipped (e.g. due to conflicts)",
 				badFixes,
 				plural(len(fixes), "fix", "fixes"))
 		} else {
-			return fmt.Errorf("applied %d of %s; %s updated. (Re-run the command to apply more.)",
+			msg = fmt.Sprintf("applied %d of %s; %s updated. (Re-run the command to apply more.)",
 				goodFixes,
 				plural(len(fixes), "fix", "fixes"),
 				plural(filesUpdated, "file", "files"))
 		}
+
+		if goodFixes > 0 && filesUpdated == totalFiles {
+			// Partial success: report via log but return nil so the
+			// caller (like go fix) can apply the partial results.
+			log.Print(msg)
+			return nil
+		}
+		// Total failure or file write error: return as error.
+		return fmt.Errorf("%s", msg)
 	}
 
 	if verbose {
