@@ -14374,46 +14374,10 @@ func (x Float64s) Div(y Float64s) (z Float64s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
-func (x Float32x4) DotProductPairs(y Float32x4) (z Float64x2) {
-	return Float64x2{spec.DotProductPairs[float32, spec.Width128, float64](x.v, y.v)}
-}
-
-// DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, returning a vector of half as many elements, each with twice
-// the input element size.
 //
-//	w[i] = x[i] * y[i]        // Double width
-//	z[j] = w[2*j] + w[2*j+1]
-func (x Float32x8) DotProductPairs(y Float32x8) (z Float64x4) {
-	return Float64x4{spec.DotProductPairs[float32, spec.Width256, float64](x.v, y.v)}
-}
-
-// DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, returning a vector of half as many elements, each with twice
-// the input element size.
+// While the products can never overflow, the sum wraps on overflow.
 //
-//	w[i] = x[i] * y[i]        // Double width
-//	z[j] = w[2*j] + w[2*j+1]
-func (x Float32x16) DotProductPairs(y Float32x16) (z Float64x8) {
-	return Float64x8{spec.DotProductPairs[float32, spec.Width512, float64](x.v, y.v)}
-}
-
-// DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, returning a vector of half as many elements, each with twice
-// the input element size.
-//
-//	w[i] = x[i] * y[i]        // Double width
-//	z[j] = w[2*j] + w[2*j+1]
-func (x Float32s) DotProductPairs(y Float32s) (z Float64s) {
-	return Float64s{spec.DotProductPairs[float32, spec.WidthScalable, float64](x.v, y.v)}
-}
-
-// DotProductPairs multiplies corresponding elements of x and y, and sums
-// adjacent pairs, returning a vector of half as many elements, each with twice
-// the input element size.
-//
-//	w[i] = x[i] * y[i]        // Double width
-//	z[j] = w[2*j] + w[2*j+1]
+// This happens in exactly one situation: if all four input elements are MinInt8.
 func (x Int8x16) DotProductPairs(y Int8x16) (z Int16x8) {
 	return Int16x8{spec.DotProductPairs[int8, spec.Width128, int16](x.v, y.v)}
 }
@@ -14424,6 +14388,10 @@ func (x Int8x16) DotProductPairs(y Int8x16) (z Int16x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt8.
 func (x Int8x32) DotProductPairs(y Int8x32) (z Int16x16) {
 	return Int16x16{spec.DotProductPairs[int8, spec.Width256, int16](x.v, y.v)}
 }
@@ -14434,6 +14402,10 @@ func (x Int8x32) DotProductPairs(y Int8x32) (z Int16x16) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt8.
 func (x Int8x64) DotProductPairs(y Int8x64) (z Int16x32) {
 	return Int16x32{spec.DotProductPairs[int8, spec.Width512, int16](x.v, y.v)}
 }
@@ -14444,6 +14416,10 @@ func (x Int8x64) DotProductPairs(y Int8x64) (z Int16x32) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt8.
 func (x Int8s) DotProductPairs(y Int8s) (z Int16s) {
 	return Int16s{spec.DotProductPairs[int8, spec.WidthScalable, int16](x.v, y.v)}
 }
@@ -14454,6 +14430,10 @@ func (x Int8s) DotProductPairs(y Int8s) (z Int16s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
 func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
 	return Int32x4{spec.DotProductPairs[int16, spec.Width128, int32](x.v, y.v)}
 }
@@ -14464,6 +14444,10 @@ func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
 func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8) {
 	return Int32x8{spec.DotProductPairs[int16, spec.Width256, int32](x.v, y.v)}
 }
@@ -14474,6 +14458,10 @@ func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
 func (x Int16x32) DotProductPairs(y Int16x32) (z Int32x16) {
 	return Int32x16{spec.DotProductPairs[int16, spec.Width512, int32](x.v, y.v)}
 }
@@ -14484,6 +14472,10 @@ func (x Int16x32) DotProductPairs(y Int16x32) (z Int32x16) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
 func (x Int16s) DotProductPairs(y Int16s) (z Int32s) {
 	return Int32s{spec.DotProductPairs[int16, spec.WidthScalable, int32](x.v, y.v)}
 }
@@ -14494,6 +14486,10 @@ func (x Int16s) DotProductPairs(y Int16s) (z Int32s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt32.
 func (x Int32x4) DotProductPairs(y Int32x4) (z Int64x2) {
 	return Int64x2{spec.DotProductPairs[int32, spec.Width128, int64](x.v, y.v)}
 }
@@ -14504,6 +14500,10 @@ func (x Int32x4) DotProductPairs(y Int32x4) (z Int64x2) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt32.
 func (x Int32x8) DotProductPairs(y Int32x8) (z Int64x4) {
 	return Int64x4{spec.DotProductPairs[int32, spec.Width256, int64](x.v, y.v)}
 }
@@ -14514,6 +14514,10 @@ func (x Int32x8) DotProductPairs(y Int32x8) (z Int64x4) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt32.
 func (x Int32x16) DotProductPairs(y Int32x16) (z Int64x8) {
 	return Int64x8{spec.DotProductPairs[int32, spec.Width512, int64](x.v, y.v)}
 }
@@ -14524,6 +14528,10 @@ func (x Int32x16) DotProductPairs(y Int32x16) (z Int64x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt32.
 func (x Int32s) DotProductPairs(y Int32s) (z Int64s) {
 	return Int64s{spec.DotProductPairs[int32, spec.WidthScalable, int64](x.v, y.v)}
 }
@@ -14534,6 +14542,8 @@ func (x Int32s) DotProductPairs(y Int32s) (z Int64s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint8x16) DotProductPairs(y Uint8x16) (z Uint16x8) {
 	return Uint16x8{spec.DotProductPairs[uint8, spec.Width128, uint16](x.v, y.v)}
 }
@@ -14544,6 +14554,8 @@ func (x Uint8x16) DotProductPairs(y Uint8x16) (z Uint16x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint8x32) DotProductPairs(y Uint8x32) (z Uint16x16) {
 	return Uint16x16{spec.DotProductPairs[uint8, spec.Width256, uint16](x.v, y.v)}
 }
@@ -14554,6 +14566,8 @@ func (x Uint8x32) DotProductPairs(y Uint8x32) (z Uint16x16) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint8x64) DotProductPairs(y Uint8x64) (z Uint16x32) {
 	return Uint16x32{spec.DotProductPairs[uint8, spec.Width512, uint16](x.v, y.v)}
 }
@@ -14564,6 +14578,8 @@ func (x Uint8x64) DotProductPairs(y Uint8x64) (z Uint16x32) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint8s) DotProductPairs(y Uint8s) (z Uint16s) {
 	return Uint16s{spec.DotProductPairs[uint8, spec.WidthScalable, uint16](x.v, y.v)}
 }
@@ -14574,6 +14590,8 @@ func (x Uint8s) DotProductPairs(y Uint8s) (z Uint16s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint16x8) DotProductPairs(y Uint16x8) (z Uint32x4) {
 	return Uint32x4{spec.DotProductPairs[uint16, spec.Width128, uint32](x.v, y.v)}
 }
@@ -14584,6 +14602,8 @@ func (x Uint16x8) DotProductPairs(y Uint16x8) (z Uint32x4) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint16x16) DotProductPairs(y Uint16x16) (z Uint32x8) {
 	return Uint32x8{spec.DotProductPairs[uint16, spec.Width256, uint32](x.v, y.v)}
 }
@@ -14594,6 +14614,8 @@ func (x Uint16x16) DotProductPairs(y Uint16x16) (z Uint32x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint16x32) DotProductPairs(y Uint16x32) (z Uint32x16) {
 	return Uint32x16{spec.DotProductPairs[uint16, spec.Width512, uint32](x.v, y.v)}
 }
@@ -14604,6 +14626,8 @@ func (x Uint16x32) DotProductPairs(y Uint16x32) (z Uint32x16) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint16s) DotProductPairs(y Uint16s) (z Uint32s) {
 	return Uint32s{spec.DotProductPairs[uint16, spec.WidthScalable, uint32](x.v, y.v)}
 }
@@ -14614,6 +14638,8 @@ func (x Uint16s) DotProductPairs(y Uint16s) (z Uint32s) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint32x4) DotProductPairs(y Uint32x4) (z Uint64x2) {
 	return Uint64x2{spec.DotProductPairs[uint32, spec.Width128, uint64](x.v, y.v)}
 }
@@ -14624,6 +14650,8 @@ func (x Uint32x4) DotProductPairs(y Uint32x4) (z Uint64x2) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint32x8) DotProductPairs(y Uint32x8) (z Uint64x4) {
 	return Uint64x4{spec.DotProductPairs[uint32, spec.Width256, uint64](x.v, y.v)}
 }
@@ -14634,6 +14662,8 @@ func (x Uint32x8) DotProductPairs(y Uint32x8) (z Uint64x4) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint32x16) DotProductPairs(y Uint32x16) (z Uint64x8) {
 	return Uint64x8{spec.DotProductPairs[uint32, spec.Width512, uint64](x.v, y.v)}
 }
@@ -14644,6 +14674,8 @@ func (x Uint32x16) DotProductPairs(y Uint32x16) (z Uint64x8) {
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
 func (x Uint32s) DotProductPairs(y Uint32s) (z Uint64s) {
 	return Uint64s{spec.DotProductPairs[uint32, spec.WidthScalable, uint64](x.v, y.v)}
 }

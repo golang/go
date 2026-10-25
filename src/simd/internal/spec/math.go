@@ -257,21 +257,14 @@ func DivFloats[E Floats, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
 //
+// While the products can never overflow, the sum wraps on overflow.
+// {{if eq .xB "int"}}
+// This happens in exactly one situation: if all four input elements are Min{{title .xE}}.
+// {{end}}
+//
 //specgen:commutative
 //specgen:require z={xB}{xN*2}x{xL/2}
-func DotProductPairs[E Nums, W Width, zE Nums](x, y Vec[E, W]) (z Vec[zE, W]) {
-	// TODO: How do we handle/specify overflow? x86 only supports this on signed
-	// types, and the only case that can overflow is if all four elements are
-	// MinInt16 (in which case the true result is MaxInt32+1, which wraps around
-	// to MinInt32). Unsigned types can overflow much more readily.
-	//
-	// Maybe we just leave overflow unspecified (or "architecture dependent").
-	// In which case, we probably need a way to communicate that in the spec
-	// (designated panic?).
-	//
-	// We might also need a way to constraint this to same-signed E and zE,
-	// which the constraint language doesn't currently have a way to say, but we
-	// could add as a built-in projection function in the syntax.
+func DotProductPairs[E Ints | Uints, W Width, zE Nums](x, y Vec[E, W]) (z Vec[zE, W]) {
 	z = makeVec[zE, W]()
 	for i := range z {
 		z[i] = zE(x[2*i])*zE(y[2*i]) + zE(x[2*i+1])*zE(y[2*i+1])

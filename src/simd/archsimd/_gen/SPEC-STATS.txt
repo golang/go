@@ -55,7 +55,7 @@ High-drift-risk names (emitted by >1 generator):
 
 spec operations written so far                     91
   expanding to distinct names                     289
-  expanding to (receiver, name) pairs            2680
+  expanding to (receiver, name) pairs            2676
 
 
 ## 2. Signatures and names   [named-results, fill-enforce]
@@ -154,12 +154,12 @@ Every name either side defines, less the 186 spec has never defined at all
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
   api = spec         221              0              0
-  api ⊂ spec          51              0            711
+  api ⊂ spec          51              0            707
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              289              8            761
+  total              289              8            757
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -194,7 +194,7 @@ Names that disagree, with api - spec receivers (the defects):
   ConvertToUint64            api ⊂ spec      9     10            0            1
   ConvertToUint8             api ⊂ spec      4     10            0            6
   Div                        api ⊂ spec     12     40            0           28
-  DotProductPairs            api ⊂ spec      3     28            0           25
+  DotProductPairs            api ⊂ spec      3     24            0           21
   DotProductPairsSaturated   api ⊂ spec      3     12            0            9
   ExtendLo16ToInt16          api = ∅         0      1            0            1
   ExtendLo16ToInt32          api = ∅         0      2            0            2

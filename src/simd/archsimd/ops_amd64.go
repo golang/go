@@ -2395,6 +2395,10 @@ func (x Float64x8) Div(y Float64x8) (z Float64x8)
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
 //
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+//
 // Asm: VPMADDWD, CPU Feature: AVX
 func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4)
 
@@ -2405,6 +2409,10 @@ func (x Int16x8) DotProductPairs(y Int16x8) (z Int32x4)
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
 //
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
+//
 // Asm: VPMADDWD, CPU Feature: AVX2
 func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8)
 
@@ -2414,6 +2422,10 @@ func (x Int16x16) DotProductPairs(y Int16x16) (z Int32x8)
 //
 //	w[i] = x[i] * y[i]        // Double width
 //	z[j] = w[2*j] + w[2*j+1]
+//
+// While the products can never overflow, the sum wraps on overflow.
+//
+// This happens in exactly one situation: if all four input elements are MinInt16.
 //
 // Asm: VPMADDWD, CPU Feature: AVX512
 func (x Int16x32) DotProductPairs(y Int16x32) (z Int32x16)
