@@ -298,6 +298,11 @@ const (
 	ARDTIMED
 	ACPUCFG
 
+	// 4.2.1. CSR Access Instructions
+	ACSRRD
+	ACSRWR
+	ACSRXCHG
+
 	// 3.2.1.2
 	AFMADDF
 	AFMADDD

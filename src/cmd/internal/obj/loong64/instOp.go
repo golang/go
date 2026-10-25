@@ -773,10 +773,12 @@ var opi = map[obj.As]uint32{
 }
 
 var opir = map[obj.As]uint32{
-	ALU12IW:    0x0a << 25, // lu12i.w
-	ALU32ID:    0x0b << 25, // lu32i.d
-	APCALAU12I: 0x0d << 25, // pcalau12i
-	APCADDU12I: 0x0e << 25, // pcaddu12i
+	ALU12IW:    0x0a << 25,       // lu12i.w
+	ALU32ID:    0x0b << 25,       // lu32i.d
+	APCALAU12I: 0x0d << 25,       // pcalau12i
+	APCADDU12I: 0x0e << 25,       // pcaddu12i
+	ACSRRD:     0x4<<24 | 0x0<<5, // csrrd
+	ACSRWR:     0x4<<24 | 0x1<<5, // csrwr
 }
 
 var opirr = map[obj.As]uint32{
@@ -812,6 +814,7 @@ var opirr = map[obj.As]uint32{
 	ABFPT:       0x12<<26 | 0x1<<8,    // bcnez
 	ABFPF:       0x12<<26 | 0x0<<8,    // bceqz
 	APRELDX:     0x07058 << 15,        // preldx
+	ACSRXCHG:    0x4 << 24,            // csrxchg
 	-AMOVB:      0x0a0 << 22,          // ld.b
 	-AMOVH:      0x0a1 << 22,          // ld.h
 	-AMOVW:      0x0a2 << 22,          // ld.w

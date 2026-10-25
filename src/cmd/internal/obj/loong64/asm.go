@@ -318,6 +318,9 @@ var optab = []Optab{
 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 	{ASYSCALL, C_U15CON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
 
+	{ACSRRD, C_U15CON, C_NONE, C_NONE, C_REG, C_NONE, 75, 4, 0, 0},
+	{ACSRXCHG, C_U15CON, C_REG, C_NONE, C_REG, C_NONE, 75, 4, 0, 0},
+
 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 37, 4, 0, 0},
 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 37, 4, 0, 0},
 
@@ -1548,6 +1551,7 @@ func buildop(ctxt *obj.Link) {
 			AFSEL,
 			AADDV16,
 			ASCQ,
+			ACSRXCHG,
 			obj.ANOP,
 			obj.ATEXT,
 			obj.AFUNCDATA,
@@ -1558,6 +1562,9 @@ func buildop(ctxt *obj.Link) {
 		case ARDTIMELW:
 			opset(ARDTIMEHW, r0)
 			opset(ARDTIMED, r0)
+
+		case ACSRRD:
+			opset(ACSRWR, r0)
 
 		case ACLOW:
 			opset(ACLZW, r0)
@@ -3350,6 +3357,19 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
 			o4 = OP_RRR(c.oprrr(add), uint32(r), uint32(REGTMP), uint32(REGTMP))
 			o5 = OP_14IRR(c.opirr(p.As), uint32(v>>2), uint32(REGTMP), uint32(p.To.Reg))
 		}
+
+	case 75: // csrrd/csrwr/csrxchg $csr, [rj], rd
+		v := c.regoff(&p.From)
+		c.checkoperand(p, uint32(v), 0x3fff)
+		if p.As != ACSRXCHG {
+			// csrrd and csrwr: the rj field (0 or 1) is part of the opcode.
+			o1 = OP_14IRR(c.opir(p.As), uint32(v), 0, uint32(p.To.Reg))
+			break
+		}
+		if p.Reg == REG_R0 || p.Reg == REG_R1 {
+			c.ctxt.Diag("CSRXCHG mask register must not be R0 or R1: %v", p)
+		}
+		o1 = OP_14IRR(c.opirr(p.As), uint32(v), uint32(p.Reg), uint32(p.To.Reg))
 	}
 
 	out[0] = o1
