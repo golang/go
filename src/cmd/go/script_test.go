@@ -239,6 +239,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
 		"TESTGO_GOHOSTOS=" + goHostOS,
 		"GOPROXY=" + proxyURL,
 		"GOPRIVATE=",
+		"GORACE=atexit_sleep_ms=100", // saves ~10m on darwin race builder, ~1m on 32 core amd64 race builder
 		"GOROOT=" + testGOROOT,
 		"GOTRACEBACK=system",
 		"TESTGONETWORK=panic", // allow only local connections by default; the [net] condition resets this
