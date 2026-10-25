@@ -648,9 +648,10 @@ func (d *compressor) deflateFast() {
 	// data to draw conclusions from.
 	const smallBlockSize = 128
 
-	if d.closing && d.windowEnd < smallBlockSize {
-		// Nothing follows, so there is no history left to keep in sync and no
-		// reason to search a window this small for matches. Write it as is.
+	if d.closing && d.windowEnd < smallBlockSize && !d.fast.hasHistory() {
+		// Nothing precedes or follows this window, so there is no history to
+		// match against or keep in sync, and a window this small is not worth
+		// searching on its own. Write it as is.
 		if d.windowEnd <= 32 {
 			d.err = d.writeStoredBlock(d.window[:d.windowEnd])
 		} else {
@@ -669,8 +670,9 @@ func (d *compressor) deflateFast() {
 	case d.windowEnd < minNonLiteralBlockSize,
 		d.tokens.n == 0 && d.windowEnd >= smallBlockSize:
 		// Either too small for encode to emit tokens, and for a Huffman table
-		// to pay for itself, or big enough that finding no match at all means
-		// the data is incompressible. Store the block as is.
+		// to pay for itself, or big enough that finding no match at all most
+		// likely means incompressible data, which is not worth a Huffman pass.
+		// Store the block as is.
 		d.err = d.writeStoredBlock(d.window[:d.windowEnd])
 	case d.tokens.n == 0, int32(d.tokens.n) > d.windowEnd-(d.windowEnd>>4):
 		// A small block without matches can still have a skewed literal

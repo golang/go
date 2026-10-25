@@ -529,8 +529,8 @@ func TestNonCompressedBlockDoesntLeakDict(t *testing.T) {
 }
 
 // TestSmallFlushKeepsHistory checks that a block too small to compress does not
-// discard the match history, so data written after it can still be matched
-// against data written before it.
+// discard the match history, so data written after it, up to Close, can still
+// be matched against data written before it.
 // See https://go.dev/issue/81542.
 func TestSmallFlushKeepsHistory(t *testing.T) {
 	const msg = `{"id":"a7f3e9c2","name":"Wynn Kessler","age":34,"active":true,` +
@@ -567,14 +567,22 @@ func TestSmallFlushKeepsHistory(t *testing.T) {
 					if n := write(msg); n > 40 {
 						t.Errorf("repeat of a %d byte message took %d bytes, want it emitted as a match", len(msg), n)
 					}
+					tail := msg[:100]
+					before := buf.Len()
+					if _, err := io.WriteString(w, tail); err != nil {
+						t.Fatalf("Write: %v", err)
+					}
 					if err := w.Close(); err != nil {
 						t.Fatalf("Close: %v", err)
+					}
+					if n := buf.Len() - before; n > 40 {
+						t.Errorf("repeat of a %d byte tail at Close took %d bytes, want it emitted as a match", len(tail), n)
 					}
 					got, err := io.ReadAll(NewReader(bytes.NewReader(buf.Bytes())))
 					if err != nil {
 						t.Fatalf("ReadAll: %v", err)
 					}
-					if want := msg + sep + msg; string(got) != want {
+					if want := msg + sep + msg + tail; string(got) != want {
 						t.Errorf("roundtrip mismatch:\ngot  %q\nwant %q", got, want)
 					}
 					if first == nil {

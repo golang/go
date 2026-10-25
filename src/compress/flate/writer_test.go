@@ -345,8 +345,8 @@ func TestDeflateFast_Reset(t *testing.T) {
 }
 
 // TestDeflateFastFlush_Reset tests that blocks too small to be compressed,
-// which are only added to the match history, keep encoding consistent across a
-// wraparound of the table offset.
+// which are only added to the match history, keep encoding correct and
+// consistent across a wraparound of the table offset.
 // See https://go.dev/issue/81542.
 func TestDeflateFastFlush_Reset(t *testing.T) {
 	buf := new(bytes.Buffer)
@@ -357,7 +357,7 @@ func TestDeflateFastFlush_Reset(t *testing.T) {
 
 	// Flush blocks too small for the encoder to emit tokens, with an
 	// occasional block big enough to be matched against them.
-	writeAll := func(w *Writer) {
+	writeAll := func(t *testing.T, w *Writer) {
 		for i, data := 0, in; len(data) > 0; i++ {
 			n := 12
 			if i%64 == 63 {
@@ -382,8 +382,16 @@ func TestDeflateFastFlush_Reset(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewWriter: level %d: %v", level, err)
 			}
-			writeAll(w)
-			w.Close()
+			writeAll(t, w)
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
+			// Both encodes would agree on a gap in the history, so check that
+			// the output decodes.
+			dec, err := io.ReadAll(NewReader(bytes.NewReader(want.Bytes())))
+			if err != nil || !bytes.Equal(dec, in) {
+				t.Fatalf("roundtrip failed: %v", err)
+			}
 
 			w, err = NewWriter(io.Discard, level)
 			if err != nil {
@@ -398,8 +406,10 @@ func TestDeflateFastFlush_Reset(t *testing.T) {
 			w.Reset(&got)
 			fg := w.d.fast.(canGetFastGen).getFastGen()
 			before := fg.cur
-			writeAll(w)
-			w.Close()
+			writeAll(t, w)
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
 
 			// The offset only ever grows, except when it is rebased.
 			if fg.cur >= before {

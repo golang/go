@@ -61,6 +61,8 @@ type fastEnc interface {
 	encode(dst *tokens, src []byte)
 	// reset the encoder so matches are not made with previous data.
 	reset()
+	// hasHistory reports whether there is previous data to match against.
+	hasHistory() bool
 }
 
 // newFastEnc returns a fastEnc encoder for the given compression level (1-6).
@@ -140,6 +142,8 @@ func (e *fastGen) reset() {
 	}
 	e.hist = e.hist[:0]
 }
+
+func (e *fastGen) hasHistory() bool { return len(e.hist) > 0 }
 
 func (f *fastGen) getFastGen() *fastGen { return f }
 
