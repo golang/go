@@ -15,7 +15,7 @@ import (
 // On non-Apple ARM64, the SHA-3 instructions are apparently slower than the
 // pure Go implementation. Checking GOOS is a bit blunt, as it also excludes
 // Asahi Linux; we might consider checking the MIDR model in the future.
-var useSHA3 = cpu.ARM64HasSHA3 && runtime.GOOS == "darwin"
+var useSHA3 = cpu.ARM64HasSHA3 && (runtime.GOOS == "darwin" || runtime.GOOS == "ios")
 
 func init() {
 	impl.Register("sha3", "Armv8.2", &useSHA3)
