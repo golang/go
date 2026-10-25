@@ -201,10 +201,10 @@ func (e *Engine) Execute(s *State, file string, script *bufio.Reader, log io.Wri
 	}()
 
 	for {
-		if err := s.ctx.Err(); err != nil {
+		if s.ctx.Err() != nil {
 			// This error wasn't produced by any particular command,
 			// so don't wrap it in a CommandError.
-			return lineErr(err)
+			return lineErr(context.Cause(s.ctx))
 		}
 
 		line, err := script.ReadString('\n')

@@ -207,7 +207,8 @@ func ScriptTestContext(t *testing.T, ctx context.Context) context.Context {
 	timeout := time.Until(deadline)
 	timeout -= 2 * gracePeriod
 
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	cause := fmt.Errorf("%s timeout %v: %w", t.Name(), timeout.Round(time.Second), context.DeadlineExceeded)
+	ctx, cancel := context.WithTimeoutCause(ctx, timeout, cause)
 	t.Cleanup(cancel)
 	return ctx
 }
