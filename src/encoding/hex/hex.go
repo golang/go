@@ -43,13 +43,41 @@ func EncodedLen(n int) int { return n * 2 }
 // of bytes written to dst, but this value is always [EncodedLen](len(src)).
 // Encode implements hexadecimal encoding.
 func Encode(dst, src []byte) int {
-	j := 0
-	for _, v := range src {
-		dst[j] = hextable[v>>4]
-		dst[j+1] = hextable[v&0x0f]
-		j += 2
+	srcLen := len(src)
+	var v byte
+	// Process the data in predictable chunks (4 src bytes, 8 dst bytes)
+	// for better performance.
+	for len(src) >= 4 {
+		_ = dst[7] // Eliminate bounds checks.
+
+		v = src[0]
+		dst[0] = hextable[v>>4]
+		dst[1] = hextable[v&0x0f]
+
+		v = src[1]
+		dst[2] = hextable[v>>4]
+		dst[3] = hextable[v&0x0f]
+
+		v = src[2]
+		dst[4] = hextable[v>>4]
+		dst[5] = hextable[v&0x0f]
+
+		v = src[3]
+		dst[6] = hextable[v>>4]
+		dst[7] = hextable[v&0x0f]
+
+		src = src[4:]
+		dst = dst[8:]
 	}
-	return len(src) * 2
+
+	// Process the rest.
+	for i := range len(src) {
+		v = src[i]
+		dst[i*2] = hextable[v>>4]
+		dst[i*2+1] = hextable[v&0x0f]
+	}
+
+	return srcLen * 2
 }
 
 // AppendEncode appends the hexadecimally encoded src to dst
@@ -85,31 +113,92 @@ func DecodedLen(x int) int { return x / 2 }
 // If the input is malformed, Decode returns the number
 // of bytes decoded before the error.
 func Decode(dst, src []byte) (int, error) {
-	i, j := 0, 0
-	for ; j < len(src)-1; j += 2 {
-		p := src[j]
-		q := src[j+1]
+	dstLen := len(dst)
+	var p, q, a, b byte
+	// Process the data in predictable chunks (8 src bytes, 4 dst bytes)
+	// for better performance.
+	for len(src) >= 8 {
+		_ = dst[3] // Eliminate bounds checks.
 
-		a := reverseHexTable[p]
-		b := reverseHexTable[q]
+		p = src[0]
+		q = src[1]
+		a = reverseHexTable[p]
+		b = reverseHexTable[q]
 		if a > 0x0f {
-			return i, InvalidByteError(p)
+			return dstLen - len(dst), InvalidByteError(p)
 		}
 		if b > 0x0f {
-			return i, InvalidByteError(q)
+			return dstLen - len(dst), InvalidByteError(q)
+		}
+		dst[0] = (a << 4) | b
+
+		p = src[2]
+		q = src[3]
+		a = reverseHexTable[p]
+		b = reverseHexTable[q]
+		if a > 0x0f {
+			return dstLen - len(dst), InvalidByteError(p)
+		}
+		if b > 0x0f {
+			return dstLen - len(dst), InvalidByteError(q)
+		}
+		dst[1] = (a << 4) | b
+
+		p = src[4]
+		q = src[5]
+		a = reverseHexTable[p]
+		b = reverseHexTable[q]
+		if a > 0x0f {
+			return dstLen - len(dst), InvalidByteError(p)
+		}
+		if b > 0x0f {
+			return dstLen - len(dst), InvalidByteError(q)
+		}
+		dst[2] = (a << 4) | b
+
+		p = src[6]
+		q = src[7]
+		a = reverseHexTable[p]
+		b = reverseHexTable[q]
+		if a > 0x0f {
+			return dstLen - len(dst), InvalidByteError(p)
+		}
+		if b > 0x0f {
+			return dstLen - len(dst), InvalidByteError(q)
+		}
+		dst[3] = (a << 4) | b
+
+		src = src[8:]
+		dst = dst[4:]
+	}
+
+	// Process the rest.
+	i, j := 0, 0
+	for ; j < len(src)-1; j += 2 {
+		p = src[j]
+		q = src[j+1]
+		a = reverseHexTable[p]
+		b = reverseHexTable[q]
+		if a > 0x0f {
+			return dstLen - len(dst) + i, InvalidByteError(p)
+		}
+		if b > 0x0f {
+			return dstLen - len(dst) + i, InvalidByteError(q)
 		}
 		dst[i] = (a << 4) | b
 		i++
 	}
-	if len(src)%2 == 1 {
+	if j == len(src)-1 { // true if and only if len(src)%2 == 1
 		// Check for invalid char before reporting bad length,
 		// since the invalid char (if present) is an earlier problem.
-		if reverseHexTable[src[j]] > 0x0f {
-			return i, InvalidByteError(src[j])
+		p = src[j]
+		if reverseHexTable[p] > 0x0f {
+			return dstLen - len(dst) + i, InvalidByteError(p)
 		}
-		return i, ErrLength
+		return dstLen - len(dst) + i, ErrLength
 	}
-	return i, nil
+
+	return dstLen - len(dst) + i, nil
 }
 
 // AppendDecode appends the hexadecimally decoded src to dst
