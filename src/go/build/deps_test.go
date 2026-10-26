@@ -181,10 +181,6 @@ var depsRules = `
 	MATH
 	< runtime/metrics;
 
-	MATH
-	< simd/internal/spec
-	< simd/internal/simdref;
-
 	MATH, unicode/utf8
 	< strconv;
 
@@ -265,6 +261,10 @@ var depsRules = `
 	< encoding/binary;
 
 	FMT, encoding < flag;
+
+	FMT, MATH
+	< simd/internal/spec
+	< simd/internal/simdref;
 
 	FMT, simd/archsimd < simd/internal/bridge;
 

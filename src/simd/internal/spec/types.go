@@ -5,7 +5,7 @@
 package spec
 
 import (
-	"internal/strconv"
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 )
@@ -123,7 +123,7 @@ func ScalableWidth() int {
 // overlapping attempts to set the width.
 func SetScalableWidth(bits int) (restore func()) {
 	if bits <= 0 || bits > maxScalableWidth || bits%128 != 0 {
-		panic("invalid scalable width " + strconv.Itoa(bits))
+		panic(fmt.Sprintf("invalid scalable width %d", bits))
 	}
 
 	if !scalableWidth.CompareAndSwap(0, int64(bits)) {
