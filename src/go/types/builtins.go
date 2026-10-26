@@ -48,9 +48,34 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	// Evaluate arguments for built-ins that use ordinary (value) arguments.
 	// For built-ins with special argument handling (make, new, etc.),
 	// evaluation is done by the respective built-in code.
-	var args []*operand // not valid for _Make, _New, _Offsetof, _Trace
+	var args []*operand // not valid for _Make, _New, _Offsetof, _Trace (possibly valid for _Delete)
 	var nargs int
 	switch id {
+	case _Delete:
+		// Careful: There is a tension between argument inference and tuple
+		// arguments to built-ins.
+		//
+		// Case len(argList) != 1: No argument can be a tuple argument to a
+		// built-in and thus necessarily nargs == len(argList). We cannot
+		// evaluate argList upfront because e.g. {} in delete(m, {}) needs a
+		// target type from m.
+		if len(argList) != 1 {
+			nargs = len(argList)
+			// Type the first argument (if available) upfront for convenience.
+			if nargs > 0 {
+				check.expr(nil, x, argList[0])
+				if !x.isValid() {
+					check.use(argList[1:]...)
+					return
+				}
+			}
+			break
+		}
+		// Case len(argList) == 1: The argument may be a tuple argument to a
+		// built-in and thus potentially nargs != len(argList). We can evaluate
+		// argList upfront because e.g. {} in delete({}) has no other argument
+		// from which to get a target type.
+		fallthrough
 	default:
 		// check all arguments
 		args = check.exprList(argList)
@@ -443,10 +468,15 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 			key = map_.key
 			return true
 		}) {
+			check.use(argList[1:]...)
 			return
 		}
-
-		*x = *args[1] // key
+		if args == nil {
+			// argList[1] could be a generic function value
+			check.genericExpr(newTarget(key, "argument to delete"), x, argList[1])
+		} else {
+			*x = *args[1] // key
+		}
 		check.assignment(x, key, "argument to delete")
 		if !x.isValid() {
 			return

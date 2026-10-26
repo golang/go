@@ -9,6 +9,7 @@ package builtins
 import "unsafe"
 
 func f0() {}
+func g0[P any](P) {}
 
 func append1() {
 	var b byte
@@ -313,6 +314,18 @@ func delete2() {
 	delete(f1()) // ERROR "not enough arguments"
 	delete(f2())
 	delete(f3()) // ERROR "too many arguments"
+}
+
+func delete3() {
+	k1 := 42
+	k2 := 42
+	delete(bad /* ERROR "undefined" */, k1)
+	delete(nil /* ERROR "nil is not a map" */, k2)
+}
+
+func delete4() {
+	var m map[func/* ERROR "invalid map key type" */(int)]int
+	delete(m, g0) // should still infer the type argument to g0
 }
 
 func imag1() {

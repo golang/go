@@ -484,7 +484,7 @@ func _() {
 	// TODO(gri) there should work
 	_ = append(sl, { /* ERROR "missing type in composite literal" */ 1})
 	_ = copy(l, { /* ERROR "missing type in composite literal" */ 1, 2, 3})
-	delete(m, { /* ERROR "missing type in composite literal" */ 1})
+	delete(m, {1})
 
 	// built-in functions where untyped composite literals are not allowed
 	_ = new({ /* ERROR "missing type in composite literal" */ })
