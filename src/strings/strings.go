@@ -108,7 +108,7 @@ func IndexByte(s string, c byte) int {
 // If r is [utf8.RuneError], it returns the first instance of any
 // invalid UTF-8 byte sequence.
 func IndexRune(s string, r rune) int {
-	const haveFastIndex = bytealg.MaxBruteForce > 0
+	const haveFastIndex = true
 	switch {
 	case 0 <= r && r < utf8.RuneSelf:
 		return IndexByte(s, byte(r))

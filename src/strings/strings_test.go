@@ -1889,6 +1889,23 @@ func TestCutSuffix(t *testing.T) {
 	}
 }
 
+func TestIndexRuneFastIndexFallback(t *testing.T) {
+	tests := []struct {
+		in   string
+		r    rune
+		want int
+	}{
+		// Repeated partial matches trigger the haveFastIndex fallback.
+		{"aaaaaKKKK\U000bc104", '\U000bc104', 17},
+		{"aaaaaKKKK鄄", '鄄', 17},
+	}
+	for _, tt := range tests {
+		if got := IndexRune(tt.in, tt.r); got != tt.want {
+			t.Errorf("IndexRune(%q, %d) = %d; want %d", tt.in, tt.r, got, tt.want)
+		}
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
