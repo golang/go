@@ -224,6 +224,7 @@ var filemap = map[string]action{
 	},
 	"slice.go":           nil,
 	"subst.go":           func(f *ast.File) { fixTokenPos(f); renameSelectors(f, "Trace->_Trace") },
+	"target.go":          fixSprintf,
 	"termlist.go":        nil,
 	"termlist_test.go":   nil,
 	"trie.go":            nil,

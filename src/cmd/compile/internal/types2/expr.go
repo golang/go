@@ -1005,54 +1005,6 @@ const (
 	statement
 )
 
-// target represents the target type in an assignment context.
-type target struct {
-	typ Type
-	// TODO(gri) desc is only used in Checker.funcInst - do we need it?
-	//           (setting/computing desc may be expensive for not being used)
-	//           Also, if we keep it, review consistency of description.
-	desc string
-	hint bool // if set, the target may be used as untyped composite literal hint before Go 1.28
-}
-
-// newTarget creates a new target for the given type and description.
-// The result is nil if typ is nil.
-func newTarget(typ Type, desc string) *target {
-	if typ != nil {
-		return &target{typ, desc, false}
-	}
-	return nil
-}
-
-// newHint is like newTarget but it marks the result as a hint.
-func newHint(typ Type, desc string) *target {
-	if typ != nil {
-		return &target{typ, desc, true}
-	}
-	return nil
-}
-
-// sig returns the target type T if it is a signature (the result may be its Named or Alias type, if any).
-// The result is nil if T is nil or T's type set has no common signature type.
-func (T *target) sig() Type {
-	if T != nil {
-		if u, _ := commonUnder(T.typ, nil); u != nil {
-			if _, ok := u.(*Signature); ok {
-				return T.typ
-			}
-		}
-	}
-	return nil
-}
-
-// String returns a string representation of T, for debugging.
-func (T *target) String() string {
-	if T != nil {
-		return sprintf(nil, true, "target{%s, %q}", T.typ, T.desc)
-	}
-	return "no target"
-}
-
 // rawExpr typechecks expression e and initializes x with the expression
 // value or type. If an error occurred, x.mode is set to invalid.
 // If T != nil, it holds the assignment context target type.
