@@ -1916,7 +1916,7 @@ func TestIndexRuneFastIndexFallbackWithRepeatedPartialMatches(t *testing.T) {
 	}
 }
 
-func TestPrefixSuffixAndToTitle(t *testing.T) {
+func TestHasPrefix(t *testing.T) {
 	tests := []struct {
 		name string
 		got  any
@@ -1925,14 +1925,6 @@ func TestPrefixSuffixAndToTitle(t *testing.T) {
 		{"HasPrefix match", HasPrefix("Gopher", "Go"), true},
 		{"HasPrefix mismatch", HasPrefix("Gopher", "go"), false},
 		{"HasPrefix empty", HasPrefix("Gopher", ""), true},
-		{"HasSuffix match", HasSuffix("Gopher", "her"), true},
-		{"HasSuffix mismatch", HasSuffix("Gopher", "Her"), false},
-		{"HasSuffix empty", HasSuffix("Gopher", ""), true},
-		{"TrimPrefix match", TrimPrefix("Gopher", "Go"), "pher"},
-		{"TrimPrefix mismatch", TrimPrefix("Gopher", "go"), "Gopher"},
-		{"TrimSuffix match", TrimSuffix("Gopher", "her"), "Gop"},
-		{"TrimSuffix mismatch", TrimSuffix("Gopher", "Her"), "Gopher"},
-		{"ToTitle", ToTitle("her royal highness"), "HER ROYAL HIGHNESS"},
 	}
 
 	for _, tt := range tests {
@@ -1942,6 +1934,55 @@ func TestPrefixSuffixAndToTitle(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHasSuffix(t *testing.T) {
+	tests := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"HasSuffix match", HasSuffix("Gopher", "her"), true},
+		{"HasSuffix mismatch", HasSuffix("Gopher", "Her"), false},
+		{"HasSuffix empty", HasSuffix("Gopher", ""), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("got %#v; want %#v", tt.got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTrimPrefix(t *testing.T) {
+	tests := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"TrimPrefix match", TrimPrefix("Gopher", "Go"), "pher"},
+		{"TrimPrefix mismatch", TrimPrefix("Gopher", "go"), "Gopher"},
+		{"TrimSuffix match", TrimSuffix("Gopher", "her"), "Gop"},
+		{"TrimSuffix mismatch", TrimSuffix("Gopher", "Her"), "Gopher"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("got %#v; want %#v", tt.got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToTitle(t *testing.T) {
+	t.Run("ToTitle", func(t *testing.T) {
+		if ToTitle("her royal highness") != "HER ROYAL HIGHNESS" {
+			t.Errorf("got %#v; want %#v", ToTitle("her royal highness"), "HER ROYAL HIGHNESS")
+		}
+	})
 }
 
 func makeBenchInputHard() string {
