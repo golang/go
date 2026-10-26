@@ -167,6 +167,11 @@ type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	// Avoid injecting method marshaler on the pointer or interface version
 	// to avoid ever calling the method on a nil pointer or interface receiver.
@@ -305,6 +310,11 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	return fncs
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 	// Avoid injecting method unmarshaler on the pointer or interface version
 	// to avoid ever calling the method on a nil pointer or interface receiver.

@@ -163,6 +163,11 @@ func makeDefaultUnmarshaler(t reflect.Type) *unmarshaler {
 	}
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeBoolMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
@@ -200,6 +205,11 @@ func makeBoolMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeBoolUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	fnc.fnc = func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {
@@ -253,6 +263,11 @@ func makeBoolUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStringMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
@@ -302,6 +317,11 @@ func makeStringMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStringUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	fnc.fnc = func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {
@@ -378,6 +398,11 @@ func initMarshalBytes() {
 	appendEncodeBase64URL = base64URLEncoding.AppendEncode
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeBytesMarshaler(t reflect.Type, fnc *marshaler) *marshaler {
 	// NOTE: This handles both []~byte and [N]~byte.
 	// The v2 default is to treat a []namedByte as equivalent to []T
@@ -456,6 +481,11 @@ func initUnmarshalBytes() {
 	appendDecodeBase64URL, encodedLenBase64URL = base64URLEncoding.AppendDecode, base64URLEncoding.EncodedLen
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeBytesUnmarshaler(t reflect.Type, fnc *unmarshaler) *unmarshaler {
 	// NOTE: This handles both []~byte and [N]~byte.
 	unmarshalArray := fnc.fnc
@@ -550,6 +580,11 @@ func makeBytesUnmarshaler(t reflect.Type, fnc *unmarshaler) *unmarshaler {
 	return fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeIntMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
@@ -577,6 +612,11 @@ func makeIntMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeIntUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	bits := t.Bits()
@@ -654,6 +694,11 @@ func makeIntUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeUintMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
@@ -681,6 +726,11 @@ func makeUintMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeUintUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	bits := t.Bits()
@@ -749,6 +799,11 @@ func makeUintUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeFloatMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	bits := t.Bits()
@@ -794,6 +849,11 @@ func makeFloatMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeFloatUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	bits := t.Bits()
@@ -876,6 +936,11 @@ func makeFloatUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeMapMarshaler(t reflect.Type) *marshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// when handling map keys with a unique representation.
@@ -1060,6 +1125,11 @@ func makeMapMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeMapUnmarshaler(t reflect.Type) *unmarshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// when handling map keys with a unique representation.
@@ -1612,6 +1682,11 @@ func isLegacyEmpty(v reflect.Value) bool {
 	return false
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeSliceMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	var (
@@ -1687,6 +1762,11 @@ func makeSliceMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeSliceUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	var (
@@ -1771,6 +1851,11 @@ func makeSliceUnmarshaler(t reflect.Type) *unmarshaler {
 var errArrayUnderflow = errors.New("too few array elements")
 var errArrayOverflow = errors.New("too many array elements")
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeArrayMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	var (
@@ -1812,6 +1897,11 @@ func makeArrayMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeArrayUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	var (
@@ -1887,6 +1977,11 @@ func makeArrayUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makePointerMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	var (
@@ -1927,6 +2022,11 @@ func makePointerMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makePointerUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	var (
@@ -1979,6 +2079,11 @@ func makePointerUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeInterfaceMarshaler(t reflect.Type) *marshaler {
 	// NOTE: Values retrieved from an interface are not addressable.
 	// Marshal passes them through as is, and the marshaler for the
@@ -2043,6 +2148,11 @@ func makeInterfaceMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeInterfaceUnmarshaler(t reflect.Type) *unmarshaler {
 	// NOTE: Values retrieved from an interface are not addressable,
 	// so we shallow copy the values to make them addressable and
@@ -2162,6 +2272,11 @@ func isAnyType(t reflect.Type) bool {
 	return t == anyType || anyType.Implements(t)
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeInvalidMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
@@ -2170,6 +2285,11 @@ func makeInvalidMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeInvalidUnmarshaler(t reflect.Type) *unmarshaler {
 	var fnc unmarshaler
 	fnc.fnc = func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {

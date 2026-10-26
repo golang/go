@@ -29,6 +29,11 @@ var (
 	timeTimeType     = reflect.TypeFor[time.Time]()
 )
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	// Ideally, time types would implement MarshalerTo,
 	// but that would incur a dependency on package json from package time.
@@ -104,6 +109,11 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	return fncs
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeTimeUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 	// Ideally, time types would implement UnmarshalerFrom,
 	// but that would incur a dependency on package json from package time.
