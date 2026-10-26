@@ -2768,7 +2768,7 @@ func (ctxt *Link) textaddress() {
 	// not require trampoline generation.
 	big := false
 	for _, s := range ctxt.Textp {
-		sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big)
+		sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big, 0)
 		if va-start >= limit {
 			big = true
 			break
@@ -2785,6 +2785,15 @@ func (ctxt *Link) textaddress() {
 			}
 		}
 		va = start
+
+		// Split text sections start at the largest alignment of any
+		// text symbol; see assignAddress.
+		var maxAlign int32
+		if splitTextSections(ctxt) {
+			for _, s := range ctxt.Textp {
+				maxAlign = max(maxAlign, ldr.SymAlign(s))
+			}
+		}
 
 		ntramps := 0
 		var curPkg string
@@ -2804,7 +2813,7 @@ func (ctxt *Link) textaddress() {
 					}
 					// We do not pass big to assignAddress here, as this
 					// can result in side effects such as section splitting.
-					sect, n, vaTmp = assignAddress(ctxt, sect, n, curSym, vaTmp, false, false)
+					sect, n, vaTmp = assignAddress(ctxt, sect, n, curSym, vaTmp, false, false, 0)
 					vaTmp += maxSizeTrampolines(ctxt, ldr, curSym, false)
 				}
 			}
@@ -2815,7 +2824,7 @@ func (ctxt *Link) textaddress() {
 			}
 
 			// Assign actual address for current symbol.
-			sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big)
+			sect, n, va = assignAddress(ctxt, sect, n, s, va, false, big, maxAlign)
 
 			// Resolve jumps, adding trampolines if they are needed.
 			trampoline(ctxt, s)
@@ -2827,7 +2836,7 @@ func (ctxt *Link) textaddress() {
 					// Already set in assignAddress
 					continue
 				}
-				sect, n, va = assignAddress(ctxt, sect, n, tramp, va, true, big)
+				sect, n, va = assignAddress(ctxt, sect, n, tramp, va, true, big, maxAlign)
 			}
 		}
 
@@ -2865,7 +2874,9 @@ func (ctxt *Link) textaddress() {
 }
 
 // assigns address for a text symbol, returns (possibly new) section, its number, and the address.
-func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp, big bool) (*sym.Section, int, uint64) {
+// maxAlign is the largest alignment of any text symbol, used when a new
+// text section is split off.
+func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp, big bool, maxAlign int32) (*sym.Section, int, uint64) {
 	ldr := ctxt.loader
 	if thearch.AssignAddress != nil {
 		return thearch.AssignAddress(ldr, sect, n, s, va, isTramp)
@@ -2907,18 +2918,19 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
 		}
 
 		if va-sect.Vaddr+funcsize+maxSizeTrampolines(ctxt, ldr, s, isTramp) > textSizelimit {
-			sectAlign := int32(thearch.Funcalign)
+			// Align the next text section to the largest alignment of any
+			// function it may hold. (*Link).address later rounds the section
+			// start up to its final alignment, and symbol addresses assigned
+			// here would no longer match their section if that moved it. This
+			// happens with PCALIGN directives larger than Funcalign.
+			sectAlign := max(int32(thearch.Funcalign), maxAlign)
 			if ctxt.IsPPC64() {
-				// Align the next text section to the worst case function alignment likely
-				// to be encountered when processing function symbols. The start address
-				// is rounded against the final alignment of the text section later on in
-				// (*Link).address. This may happen due to usage of PCALIGN directives
-				// larger than Funcalign, or usage of ISA 3.1 prefixed instructions
-				// (see ISA 3.1 Book I 1.9).
+				// ISA 3.1 prefixed instructions can also raise the
+				// alignment (see ISA 3.1 Book I 1.9).
 				const ppc64maxFuncalign = 64
-				sectAlign = ppc64maxFuncalign
-				va = uint64(Rnd(int64(va), ppc64maxFuncalign))
+				sectAlign = max(sectAlign, ppc64maxFuncalign)
 			}
+			va = uint64(Rnd(int64(va), int64(sectAlign)))
 
 			// Set the length for the previous text section
 			sect.Length = va - sect.Vaddr
