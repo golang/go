@@ -28,9 +28,10 @@ type specPackage struct {
 	ElemTypes  map[specexpr.Basic]types.Type
 	WidthTypes map[specexpr.Num]types.Type
 
-	VecType   types.Type // Uninstantiated Vec type
-	ArrayType types.Type // Uninstantiated Array type
-	UintNType types.Type // Uninstantiated UintN type
+	VecType       types.Type // Uninstantiated Vec type
+	ArrayType     types.Type // Uninstantiated Array type
+	UintNType     types.Type // Uninstantiated UintN type
+	VariationType types.Type // Uninstantiated Variation type
 }
 
 // specFunc represents an exported function in the spec source.
@@ -151,7 +152,7 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 
 		for _, decl := range file.Decls {
 			d, ok := decl.(*ast.FuncDecl)
-			if !ok || !d.Name.IsExported() {
+			if !ok || d.Recv != nil || !d.Name.IsExported() {
 				continue
 			}
 			switch d.Name.Name {
@@ -290,19 +291,21 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 	vecType := lookupType("Vec")
 	arrayType := lookupType("Array")
 	uintNType := lookupType("UintN")
+	variationType := lookupType("Variation")
 
 	pkg = specPackage{
-		Fset:       &ctx.root.fset,
-		Pkg:        typesPkg,
-		TypesInfo:  info,
-		Funcs:      funcs,
-		TypeElems:  typeElems,
-		TypeWidths: typeWidths,
-		ElemTypes:  elemTypes,
-		WidthTypes: widthTypes,
-		VecType:    vecType,
-		ArrayType:  arrayType,
-		UintNType:  uintNType,
+		Fset:          &ctx.root.fset,
+		Pkg:           typesPkg,
+		TypesInfo:     info,
+		Funcs:         funcs,
+		TypeElems:     typeElems,
+		TypeWidths:    typeWidths,
+		ElemTypes:     elemTypes,
+		WidthTypes:    widthTypes,
+		VecType:       vecType,
+		ArrayType:     arrayType,
+		UintNType:     uintNType,
+		VariationType: variationType,
 	}
 	return &pkg
 }

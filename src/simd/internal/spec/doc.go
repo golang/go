@@ -166,6 +166,15 @@
 // Calls to [SetScalableWidth] return a restore function and must follow a
 // strict set/restore sequence. Concurrency or nested sets panic.
 //
+// ### Platform variations
+//
+// While we try to make operations exactly equivalent across all architectures,
+// there are occasional edge cases where we intentionally decide to permit
+// variation. We express these variations using the [Variation[E]] wrapper type,
+// which describes a set of permitted values of type E. Variation can be used
+// directly for a scalar result, or as the lane type of a vector, e.g.,
+// Vec[Variation[float64], W].
+//
 // ## Documentation conventions
 //
 // Look at other functions in this package and try to follow their example.

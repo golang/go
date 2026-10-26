@@ -155,25 +155,34 @@ func (WidthScalable) bits() int { return ScalableWidth() }
 // This is implemented as a Go slice, which must have length `width[W]() / elemBits[E]()`.
 //
 // This type is known to specgen.
-type Vec[E EltOrMask, W Width] []E
+type Vec[E any, W Width] []E
 
 func (x Vec[E, W]) len() int {
 	return lanes[E, W]()
 }
 
-func makeVec[E EltOrMask, W Width]() Vec[E, W] {
+func makeVec[E any, W Width]() Vec[E, W] {
 	return make([]E, lanes[E, W]())
 }
 
-func elemBits[E EltOrMask]() int {
-	return 8 * int(unsafe.Sizeof(*new(E)))
+type elemBitter interface {
+	elemBits() int
+}
+
+func elemBits[E any]() int {
+	var zero E
+	if v, ok := any(zero).(elemBitter); ok {
+		// Variation[E] provides its own size via v.elemBits()
+		return v.elemBits()
+	}
+	return 8 * int(unsafe.Sizeof(zero))
 }
 
 func width[W Width]() int {
 	return (*(new(W))).bits()
 }
 
-func lanes[E EltOrMask, W Width]() int {
+func lanes[E any, W Width]() int {
 	return width[W]() / elemBits[E]()
 }
 

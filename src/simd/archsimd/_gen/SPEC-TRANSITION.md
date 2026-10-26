@@ -464,11 +464,11 @@ wherever its prerequisites and track allow.
 | [x] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [x] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
 | [x] | C | `ci-audit` | CI/hardware audit | — | — |
-| [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
+| [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit`, `impl-defined` | `specfill` |
 | [ ] | C | `conform-scalable` | Conformance harness, scalable types | `width`, `conform-fixed` | — |
 | [x] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
 | [x] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
-| [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common`, `impl-defined` | — |
+| [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
 | [ ] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
@@ -694,7 +694,7 @@ the API name changes, land the rename through the generators as its own CL.
 recorded in `internal/spec/doc.go`.
 
 ### `impl-defined` — Implementation-defined behavior policy
-**Done:** [ ] · **Needs:** — · **Blocks:** `validate-amd64` · **Risk:** `risk-impl-defined-behavior`
+**Done:** [ ] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-impl-defined-behavior`
 
 Decide what counts as implementation-defined behavior in the SIMD API, and how
 spec expresses it so conformance testing stays meaningful. Architectures
@@ -726,11 +726,12 @@ conversion rounding, shuffle index out of range, saturation edges, NaN/±0
 handling — classifying each as specified, implementation-defined, or undefined.
 (2) Choose and document the spec vocabulary in `internal/spec/doc.go`. (3)
 Implement it far enough that one operation with a genuinely
-implementation-defined corner round-trips through `refgen` and the harness.
+implementation-defined corner round-trips through `refgen`.
 
 **Done when** an operation with an architecture-dependent corner can be written
-in spec, generated into `simdref`, and conformance-tested without a false failure
-on any supported target.
+in spec, generated into `simdref`. If this is done in conjunction with
+`conform-fixed`, also check that variations can be conformance-tested without a
+false failure on any supported target.
 
 ## Track B — Instrumentation and enforcement
 
@@ -999,7 +1000,7 @@ roughly 7x slower than the gotip-linux-arm64 builder, and node is about 3x
 faster than wazero.
 
 ### `conform-fixed` — Conformance harness, fixed-width types
-**Done:** [ ] · **Needs:** `ci-audit` · **Blocks:** `validate-amd64`, `conform-scalable` · **Prefers:** `specfill`
+**Done:** [ ] · **Needs:** `ci-audit`, `impl-defined` · **Blocks:** `validate-amd64`, `conform-scalable` · **Prefers:** `specfill`
 
 Generated tests comparing `archsimd` against `internal/simdref`. The generator's
 input is spec (hand-written source), so this is not a generator reading another
@@ -1033,7 +1034,7 @@ suite, gated on SVE availability per `ci-audit`.
 the hardware's actual vector length.
 
 ### `validate-amd64` — Validate spec bodies against amd64
-**Done:** [ ] · **Needs:** `conform-fixed`, `spec-common`, `impl-defined` · **Blocks:** `conform-flip`
+**Done:** [ ] · **Needs:** `conform-fixed`, `spec-common` · **Blocks:** `conform-flip`
 
 Run conformance with amd64 as the oracle. Every failure is a spec bug until
 proven otherwise. See §1.9.

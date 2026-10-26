@@ -271,6 +271,11 @@ func (b *argBinder) bind1(name string, t types.Type) specexpr.Expr {
 			b.s.Assert(funcAssertFixed(xN))
 			return specexpr.MakeBasic(&specexpr.Literal{Val: "uint"}, xN)
 		}
+		if types.Identical(t.Origin(), b.pkg.VariationType) {
+			// From a specexpr perspective, this just acts like its type
+			// argument.
+			return b.bind1(name, t.TypeArgs().At(0))
+		}
 
 	case *types.TypeParam:
 		return b.typeParams[t]

@@ -51,6 +51,7 @@ digraph spectransition {
   "named-results" -> "gen-docs" [style=dotted, color="#aaaaaa", arrowsize=0.5];
   "named-results" -> "fill-enforce";
   "ci-audit" -> "conform-fixed";
+  "impl-defined" -> "conform-fixed";
   "specfill" -> "conform-fixed" [style=dotted, color="#aaaaaa", arrowsize=0.5];
   "conform-fixed" -> "conform-scalable";
   "width" -> "conform-scalable";
@@ -58,7 +59,6 @@ digraph spectransition {
   "width" -> "spec-common" [color="#c0392b", penwidth=1.8];
   "specfill" -> "spec-common" [style=dotted, color="#aaaaaa", arrowsize=0.5];
   "conform-fixed" -> "validate-amd64";
-  "impl-defined" -> "validate-amd64";
   "spec-common" -> "validate-amd64";
   "conform-scalable" -> "conform-flip";
   "validate-amd64" -> "conform-flip";
