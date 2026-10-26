@@ -970,17 +970,6 @@ func (t *tester) registerTests() {
 			})
 	}
 
-	// Only run the API check on fast development platforms.
-	// Every platform checks the API on every GOOS/GOARCH/CGO_ENABLED combination anyway,
-	// so we really only need to run this check once anywhere to get adequate coverage.
-	// To help developers avoid trybot-only failures, we try to run on typical developer machines
-	// which is darwin,linux,windows/amd64 and darwin/arm64.
-	//
-	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
-	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
-		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", testFlags: []string{"-check"}})
-	}
-
 	// Runtime CPU tests.
 	if !t.compileOnly && t.hasParallelism() {
 		for i := 1; i <= 4; i *= 2 {

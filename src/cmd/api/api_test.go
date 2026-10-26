@@ -8,16 +8,16 @@ import (
 	"flag"
 	"fmt"
 	"go/build"
+	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
 	"testing"
 )
-
-var flagCheck = flag.Bool("check", false, "run API checks")
 
 func TestMain(m *testing.M) {
 	flag.Parse()
@@ -34,11 +34,6 @@ var (
 )
 
 func TestGolden(t *testing.T) {
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
-
 	testenv.MustHaveGoBuild(t)
 
 	td, err := os.Open("testdata/src/pkg")
@@ -99,11 +94,6 @@ func TestGolden(t *testing.T) {
 }
 
 func TestCompareAPI(t *testing.T) {
-	if *flagCheck {
-		// not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
-
 	tests := []struct {
 		name                          string
 		features, required, exception []string
@@ -185,11 +175,6 @@ func TestCompareAPI(t *testing.T) {
 }
 
 func TestSkipInternal(t *testing.T) {
-	if *flagCheck {
-		// not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
-
 	tests := []struct {
 		pkg  string
 		want bool
@@ -245,10 +230,6 @@ func TestIssue21181(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping with -short")
 	}
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
 	testenv.MustHaveGoBuild(t)
 
 	warmupCache()
@@ -267,10 +248,6 @@ func TestIssue29837(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping with -short")
 	}
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
 	testenv.MustHaveGoBuild(t)
 
 	warmupCache()
@@ -285,10 +262,6 @@ func TestIssue29837(t *testing.T) {
 }
 
 func TestIssue41358(t *testing.T) {
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
-	}
 	testenv.MustHaveGoBuild(t)
 	context := new(build.Context)
 	*context = build.Default
@@ -305,10 +278,6 @@ func TestIssue41358(t *testing.T) {
 func TestIssue64958(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping with -short")
-	}
-	if *flagCheck {
-		// slow, not worth repeating in -check
-		t.Skip("skipping with -check set")
 	}
 	testenv.MustHaveGoBuild(t)
 
@@ -328,8 +297,15 @@ func TestIssue64958(t *testing.T) {
 }
 
 func TestCheck(t *testing.T) {
-	if !*flagCheck {
-		t.Skip("-check not specified")
+	// On the builders we really only need to run this on one platform because it
+	// tests all platforms, so (arbitrarily) only run it on linux/amd64.
+	//
+	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
+	if goexperiment.SIMD {
+		t.Skip("skipping on SIMD")
+	}
+	if os.Getenv("GO_BUILDER_NAME") != "" && (runtime.GOOS != "linux" || runtime.GOARCH != "amd64") {
+		t.Skip("skipping on non-linux/amd64 builder")
 	}
 	testenv.MustHaveGoBuild(t)
 	Check(t)
