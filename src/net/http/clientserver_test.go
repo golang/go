@@ -237,6 +237,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		}
 		if fakeNet {
 			pnet := nettest.NewPacketNet()
+			t.Cleanup(func() {
+				pnet.Close()
+			})
 			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:1000"))
 			var cliPort atomic.Uint32
 			cliPort.Store(10000)

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"internal/gate"
+	"maps"
 	"net"
 	"os"
 	"slices"
@@ -17,8 +18,9 @@ import (
 
 // A PacketNet is a group of communicating [PacketConn]s.
 type PacketNet struct {
-	mu    sync.Mutex
-	conns map[netAddr]*PacketConn
+	mu     sync.Mutex
+	conns  map[netAddr]*PacketConn
+	closed bool
 }
 
 type netAddr struct {
@@ -34,10 +36,19 @@ func NewPacketNet() *PacketNet {
 }
 
 // NewConn returns a new [PacketConn] listening on the given address.
-// It returns an error if there is an existing listener on this address.
+// It returns an error if there is an existing listener on this address
+// or if the PacketNet is closed.
 func (n *PacketNet) NewConn(a net.Addr) (*PacketConn, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	if n.closed {
+		return nil, &net.OpError{
+			Op:   "listen",
+			Net:  "udp",
+			Addr: a,
+			Err:  net.ErrClosed,
+		}
+	}
 	addrKey := netAddr{a.Network(), a.String()}
 	if _, ok := n.conns[addrKey]; ok {
 		return nil, &net.OpError{
@@ -54,6 +65,17 @@ func (n *PacketNet) NewConn(a net.Addr) (*PacketConn, error) {
 	}
 	n.conns[addrKey] = p
 	return p, nil
+}
+
+// Close closes every [PacketConn] in the PacketNet.
+func (n *PacketNet) Close() {
+	n.mu.Lock()
+	n.closed = true
+	toClose := slices.Collect(maps.Values(n.conns))
+	n.mu.Unlock()
+	for _, p := range toClose {
+		p.Close()
+	}
 }
 
 type PacketConn struct {
