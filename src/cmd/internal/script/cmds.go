@@ -487,11 +487,13 @@ func startCommand(s *State, name, path string, args []string, cancel func(*exec.
 		}
 		ctx := s.Context()
 		if err != nil && errors.Is(ctx.Err(), context.DeadlineExceeded) && context.Cause(ctx) != ctx.Err() {
-			// A common case for DeadlineExceeded here is the cmd.Wait error is the
-			// command's own result (such as "exit status 2" after we sent SIGQUIT).
-			// That is not very helpful for understanding what happened, so also report
-			// a timeout occurred via the explanatory cause we set up.
-			err = fmt.Errorf("%v (command: %w)", context.Cause(ctx), err)
+			// When the context has hit DeadlineExceeded, a common case here is that the
+			// cmd.Wait error reflects the command failing (with "exit status 2" or similar)
+			// after it was sent SIGQUIT or otherwise terminated for cleanup.
+			//
+			// That error alone is not very helpful for understanding what happened, so also report
+			// an overall timeout occurred via the explanatory context timeout cause we set up.
+			err = fmt.Errorf("%v (command error: %w)", context.Cause(ctx), err)
 		}
 		return stdoutBuf.String(), stderrBuf.String(), err
 	}

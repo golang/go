@@ -312,8 +312,9 @@ type command struct {
 	conds      []condition // all must be satisfied
 	name       string      // the name of the command; must be non-empty
 	rawArgs    [][]argFragment
-	args       []string // shell-expanded arguments following name
-	background bool     // command should run in background (ends with a trailing &)
+	args       []string      // shell-expanded arguments following name
+	background bool          // command should run in background (ends with a trailing &)
+	duration   time.Duration // execution duration. Zero for background commands (because unknown)
 }
 
 // An expectedStatus describes the expected outcome of a command.
@@ -555,7 +556,11 @@ func (e *Engine) runCommand(s *State, cmd *command, impl Cmd) error {
 		return cmdError(cmd, errors.New("command cannot be run in background"))
 	}
 
+	start := time.Now()
 	wait, runErr := impl.Run(s, cmd.args...)
+	if !cmd.background {
+		cmd.duration = time.Since(start) // updated again below if we wait
+	}
 	if wait == nil {
 		if async && runErr == nil {
 			return cmdError(cmd, errors.New("internal error: async command returned a nil WaitFunc"))
@@ -579,6 +584,7 @@ func (e *Engine) runCommand(s *State, cmd *command, impl Cmd) error {
 	}
 
 	stdout, stderr, waitErr := wait(s)
+	cmd.duration = time.Since(start)
 	s.stdout = stdout
 	s.stderr = stderr
 	if stdout != "" {
