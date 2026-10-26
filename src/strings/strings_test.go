@@ -1916,6 +1916,34 @@ func TestIndexRuneFastIndexFallbackWithRepeatedPartialMatches(t *testing.T) {
 	}
 }
 
+func TestPrefixSuffixAndToTitle(t *testing.T) {
+	tests := []struct {
+		name string
+		got  any
+		want any
+	}{
+		{"HasPrefix match", HasPrefix("Gopher", "Go"), true},
+		{"HasPrefix mismatch", HasPrefix("Gopher", "go"), false},
+		{"HasPrefix empty", HasPrefix("Gopher", ""), true},
+		{"HasSuffix match", HasSuffix("Gopher", "her"), true},
+		{"HasSuffix mismatch", HasSuffix("Gopher", "Her"), false},
+		{"HasSuffix empty", HasSuffix("Gopher", ""), true},
+		{"TrimPrefix match", TrimPrefix("Gopher", "Go"), "pher"},
+		{"TrimPrefix mismatch", TrimPrefix("Gopher", "go"), "Gopher"},
+		{"TrimSuffix match", TrimSuffix("Gopher", "her"), "Gop"},
+		{"TrimSuffix mismatch", TrimSuffix("Gopher", "Her"), "Gopher"},
+		{"ToTitle", ToTitle("her royal highness"), "HER ROYAL HIGHNESS"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Errorf("got %#v; want %#v", tt.got, tt.want)
+			}
+		})
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
