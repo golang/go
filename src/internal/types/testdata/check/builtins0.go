@@ -81,6 +81,24 @@ func append3() {
 	_ = append(ff /* ERROR "must be a slice" */ ()) // TODO(gri) better error message
 }
 
+func append4() {
+	e1 := 42
+	e2 := 42
+	append(bad /* ERROR "undefined" */, e1)
+	append(nil /* ERROR "must be a slice" */, e2)
+}
+
+func append5() {
+	var s []func(int)
+	_ = append(s, g0)
+}
+
+func append6() {
+	var s [][]int
+	_ = append(s, {})
+	_ = append(s, {{1}, {2}, {3}}...)
+}
+
 func cap1() {
 	var a [10]bool
 	var p *[20]int

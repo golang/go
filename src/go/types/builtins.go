@@ -48,10 +48,13 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 	// Evaluate arguments for built-ins that use ordinary (value) arguments.
 	// For built-ins with special argument handling (make, new, etc.),
 	// evaluation is done by the respective built-in code.
-	var args []*operand // not valid for _Make, _New, _Offsetof, _Trace (possibly valid for _Delete)
+
+	// not valid	for _Append, _Delete 				if len(argList != 1)
+	// not valid	for _Make, _New, _Offsetof, _Trace
+	var args []*operand
 	var nargs int
 	switch id {
-	case _Delete:
+	case _Append, _Delete:
 		// Careful: There is a tension between argument inference and tuple
 		// arguments to built-ins.
 		//
@@ -130,7 +133,26 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
 		E, err := sliceElem(x)
 		if err != nil {
 			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
+			check.use(argList[1:]...)
 			return
+		}
+
+		if args == nil { // first argument is evaluated and is a slice
+			// process arguments so we can create a signature later
+			args = make([]*operand, nargs)
+			args[0] = x
+			if nargs == 2 && hasDots(call) {
+				// append(x, s...)
+				args[1] = new(operand)
+				check.expr(newTarget(x.typ(), "argument to append"), args[1], argList[1])
+			} else {
+				// append(x, e1, e2, e3)
+				for i := 1; i < nargs; i++ {
+					// argList[i] could be a generic function value
+					args[i] = new(operand)
+					check.genericExpr(newTarget(E, "argument to append"), args[i], argList[i])
+				}
+			}
 		}
 
 		// Handle append(bytes, y...) special case, where
