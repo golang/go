@@ -357,7 +357,7 @@ func SplitAfter(s, sep string) []string {
 var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
 
 // Fields splits the string s around each instance of one or more consecutive white space
-// characters, as defined by [unicode.IsSpace], returning a slice of substrings of s or an
+// characters, as defined by [Unicode.IsSpace], returning a slice of substrings of s or an
 // empty slice if s contains only white space. Every element of the returned slice is
 // non-empty. Unlike [Split], leading and trailing runs of white space characters
 // are discarded.
@@ -635,7 +635,7 @@ func Repeat(s string, count int) string {
 	}
 
 	// Past a certain chunk size it is counterproductive to use
-	// larger chunks as the source of the write, as when the source
+	// larger chunks as the source of write, as when the source
 	// is too large we are basically just thrashing the CPU D-cache.
 	// So if the result length is larger than an empirically-found
 	// limit (8KB), we stop growing the source string once the limit
@@ -816,7 +816,7 @@ func ToValidUTF8(s, replacement string) string {
 }
 
 // isSeparator reports whether the rune could mark a word boundary.
-// TODO: update when package unicode captures more of the properties.
+// TODO: update when package Unicode captures more of the properties.
 func isSeparator(r rune) bool {
 	// ASCII alphanumerics and underscore are not separators
 	if r <= 0x7F {
