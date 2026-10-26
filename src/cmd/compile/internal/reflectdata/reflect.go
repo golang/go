@@ -700,7 +700,6 @@ func writeType(t *types.Type) *obj.LSym {
 		// noalg instance of the same type, it left out the algorithms this
 		// instance needs, so fill them in, including TFlagRegularMemory.
 		if lsym.WeakDef() && !types.TypeHasNoAlg(t) {
-			lsym.Set(obj.AttrWeakDef, false)
 			if eqfunc := geneq(t); eqfunc != nil {
 				objw.SymPtr(lsym, int(rttype.Type.OffsetOf("Equal")), eqfunc, 0)
 			}
@@ -708,6 +707,10 @@ func writeType(t *types.Type) *obj.LSym {
 				off := int(rttype.Type.OffsetOf("TFlag"))
 				objw.Uint8(lsym, off, lsym.P[off]|uint8(abi.TFlagRegularMemory))
 			}
+			// The noalg instance was also marked weak and left out of the
+			// typelinks table. Redo those decisions for the descriptor we
+			// have now.
+			setAlgAttrs(lsym, t)
 		}
 		return lsym
 	}
@@ -939,6 +942,18 @@ func writeType(t *types.Type) *obj.LSym {
 
 	objw.Global(lsym, int32(E), int16(dupok|obj.RODATA))
 
+	setAlgAttrs(lsym, t)
+	lsym.Align = int16(types.PtrSize)
+
+	return lsym
+}
+
+// setAlgAttrs sets the attributes of t's descriptor symbol that depend on
+// whether the descriptor carries the type's hash and equality algorithms.
+// Both the code that writes a descriptor and the code that upgrades a noalg
+// descriptor into a full one must set all of them, so they live here
+// together. See issue #82462 for what happens when the two disagree.
+func setAlgAttrs(lsym *obj.LSym, t *types.Type) {
 	// A noalg type gets a descriptor without the type's hash and equality
 	// algorithms, because this package has no use for them. Another package
 	// may well have one, and emit a descriptor for the same type that does
@@ -946,35 +961,35 @@ func writeType(t *types.Type) *obj.LSym {
 	// mark this one weak: the descriptor with the algorithms is usable
 	// everywhere this one is, and has to be the one the linker keeps.
 	// See cmd/internal/obj.AttrWeakDef.
-	if types.TypeHasNoAlg(t) {
-		lsym.Set(obj.AttrWeakDef, true)
-	}
+	lsym.Set(obj.AttrWeakDef, types.TypeHasNoAlg(t))
+	lsym.Set(obj.AttrMakeTypelink, needTypelink(t))
+}
 
-	// The linker will leave a table of all the typelinks for
-	// types in the binary, so the runtime can find them.
-	//
+// needTypelink reports whether t's descriptor belongs in the table of
+// typelinks that the linker leaves for the runtime to find.
+func needTypelink(t *types.Type) bool {
+	// Do not put Noalg types in typelinks. See issue #22605.
+	if types.TypeHasNoAlg(t) {
+		return false
+	}
 	// When buildmode=shared, all types are in typelinks so the
 	// runtime can deduplicate type pointers.
-	keep := base.Ctxt.Flag_dynlink
-	if !keep && t.Sym() == nil {
-		// For an unnamed type, we only need the link if the type can
-		// be created at run time by reflect.PointerTo and similar
-		// functions. If the type exists in the program, those
-		// functions must return the existing type structure rather
-		// than creating a new one.
-		switch t.Kind() {
-		case types.TPTR, types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRUCT:
-			keep = true
-		}
+	if base.Ctxt.Flag_dynlink {
+		return true
 	}
-	// Do not put Noalg types in typelinks.  See issue #22605.
-	if types.TypeHasNoAlg(t) {
-		keep = false
+	if t.Sym() != nil {
+		return false
 	}
-	lsym.Set(obj.AttrMakeTypelink, keep)
-	lsym.Align = int16(types.PtrSize)
-
-	return lsym
+	// For an unnamed type, we only need the link if the type can
+	// be created at run time by reflect.PointerTo and similar
+	// functions. If the type exists in the program, those
+	// functions must return the existing type structure rather
+	// than creating a new one.
+	switch t.Kind() {
+	case types.TPTR, types.TARRAY, types.TCHAN, types.TFUNC, types.TMAP, types.TSLICE, types.TSTRUCT:
+		return true
+	}
+	return false
 }
 
 // InterfaceMethodOffset returns the offset of the i-th method in the interface

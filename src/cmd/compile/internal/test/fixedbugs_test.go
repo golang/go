@@ -138,3 +138,11 @@ func TestNoalgTFlag(t *testing.T) {
 		t.Fatalf("program failed: %v\n%s", err, out)
 	}
 }
+
+func TestNoalgTypelink(t *testing.T) {
+	testenv.MustHaveGoRun(t)
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "run", "./testdata/noalgtypelink")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("program failed: %v\n%s", err, out)
+	}
+}
