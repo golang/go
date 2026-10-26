@@ -1906,6 +1906,16 @@ func TestIndexRuneFastIndexFallback(t *testing.T) {
 	}
 }
 
+func TestIndexRuneFastIndexFallbackWithRepeatedPartialMatches(t *testing.T) {
+	// Repeated candidates with the same trailing byte cause failed rune
+	// comparisons until the condition switches to the fast fallback.
+	in := "a" + Repeat("Ꙁ", 64) + "Ꚁ"
+	const r = '䚀' // Shares its final UTF-8 bytes with Ꙁ and Ꚁ.
+	if got, want := IndexRune(in, r), -1; got != want {
+		t.Errorf("IndexRune(%q, %q) = %d; want %d", in, r, got, want)
+	}
+}
+
 func makeBenchInputHard() string {
 	tokens := [...]string{
 		"<a>", "<p>", "<b>", "<strong>",
