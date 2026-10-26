@@ -80,6 +80,14 @@ func (x *operand) invalidate() {
 	x.mode_ = invalid
 }
 
+func (x *operand) isTyped() bool {
+	return isTyped(x.typ_)
+}
+
+func (x *operand) isUntyped() bool {
+	return isUntyped(x.typ_)
+}
+
 // Pos returns the position of the expression corresponding to x.
 // If x is invalid the position is nopos.
 func (x *operand) Pos() token.Pos {
@@ -175,7 +183,7 @@ func operandString(x *operand, qf Qualifier) string {
 	default:
 		// should have a type, but be cautious (don't crash during printing)
 		if x.typ() != nil {
-			if isUntyped(x.typ()) {
+			if x.isUntyped() {
 				buf.WriteString(x.typ().(*Basic).name)
 				buf.WriteByte(' ')
 				break

@@ -69,7 +69,7 @@ func (check *Checker) conversion(x *operand, T Type) {
 	// The conversion argument types are final. For untyped values the
 	// conversion provides the type, per the spec: "A constant may be
 	// given a type explicitly by a constant declaration or conversion,...".
-	if isUntyped(x.typ()) {
+	if x.isUntyped() {
 		final := T
 		// - For conversions to interfaces, except for untyped nil arguments
 		//   and isTypes2, use the argument's default type.

@@ -176,7 +176,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
 		if isParameterized(tparams, par.typ) || isParameterized(tparams, arg.typ()) {
 			// Function parameters are always typed. Arguments may be untyped.
 			// Collect the indices of untyped arguments and handle them later.
-			if isTyped(arg.typ()) {
+			if arg.isTyped() {
 				if !u.unify(par.typ, arg.typ(), assign) {
 					errorf(par.typ, arg.typ(), arg)
 					return nil

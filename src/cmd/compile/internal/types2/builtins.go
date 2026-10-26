@@ -323,10 +323,10 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 
 		// convert or check untyped arguments
 		d := 0
-		if isUntyped(x.typ()) {
+		if x.isUntyped() {
 			d |= 1
 		}
-		if isUntyped(y.typ()) {
+		if y.isUntyped() {
 			d |= 2
 		}
 		switch d {
@@ -522,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		// real(complexT) floatT
 
 		// convert or check untyped argument
-		if isUntyped(x.typ()) {
+		if x.isUntyped() {
 			if x.mode() == constant_ {
 				// an untyped constant number can always be considered
 				// as a complex constant
@@ -723,13 +723,13 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			check.validVarType(arg, x.typ())
 		default:
 			// new(expr)
-			if isUntyped(x.typ()) {
+			if x.isUntyped() {
 				// check for overflow and untyped nil
 				check.assignment(x, nil, "argument to new")
 				if !x.isValid() {
 					return
 				}
-				assert(isTyped(x.typ()))
+				assert(x.isTyped())
 			}
 			// report version error only if there are no other errors
 			check.verifyVersionf(call.Fun, go1_26, "new(%s)", arg)

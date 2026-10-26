@@ -308,7 +308,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
 			}
 			// spec: "For untyped string operands the result
 			// is a non-constant value of type string."
-			if isUntyped(x.typ()) {
+			if x.isUntyped() {
 				x.typ_ = Typ[String]
 			}
 		}

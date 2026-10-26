@@ -37,7 +37,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
 		return
 	}
 
-	if isUntyped(x.typ()) {
+	if x.isUntyped() {
 		target := T
 		// spec: "If an untyped constant is assigned to a variable of interface
 		// type or the blank identifier, the constant is first converted to type

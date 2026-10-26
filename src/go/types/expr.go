@@ -394,7 +394,7 @@ func (check *Checker) updateExprVal(x ast.Expr, val constant.Value) {
 // If x is a constant operand, the returned constant.Value will be the
 // representation of x in this context.
 func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, constant.Value, Code) {
-	if !x.isValid() || isTyped(x.typ()) || !isValid(target) {
+	if !x.isValid() || x.isTyped() || !isValid(target) {
 		return x.typ(), nil, 0
 	}
 	// x is untyped
@@ -632,7 +632,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	}
 
 	if allInteger(x.typ()) ||
-		isUntyped(x.typ()) && (xval != nil && xval.Kind() == constant.Int || xval == nil && isNumeric(x.typ())) {
+		x.isUntyped() && (xval != nil && xval.Kind() == constant.Int || xval == nil && isNumeric(x.typ())) {
 		// The lhs is of integer type, or it is an untyped constant
 		// representable as an integer, or a non-constant untyped
 		// numeric value. Nothing to do.
@@ -658,7 +658,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 			return
 		}
 
-		if isUntyped(y.typ()) {
+		if y.isUntyped() {
 			// Caution: Check for representability here, rather than in the switch
 			// below, because isInteger includes untyped integers (was bug go.dev/issue/43697).
 			check.representable(y, Typ[Uint])
@@ -670,7 +670,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 	} else {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
-		case isUntyped(y.typ()):
+		case y.isUntyped():
 			// Non-constant untyped shift counts are converted to uint
 			// (go.dev/issue/77117, go.dev/issue/79252, go.dev/issue/80983).
 			// Note: If we change our opinion on go.dev/issue/77177 and
@@ -729,7 +729,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
 		}
 
 		// non-constant shift with constant lhs
-		if isUntyped(x.typ()) {
+		if x.isUntyped() {
 			// spec: "If the left operand of a non-constant shift
 			// expression is an untyped constant, the type of the
 			// constant is what it would be if the shift expression
@@ -933,7 +933,7 @@ func (check *Checker) matchTypes(x, y *operand) {
 	// not compatible, we report a type mismatch error.
 	mayConvert := func(x, y *operand) bool {
 		// If both operands are typed, there's no need for an implicit conversion.
-		if isTyped(x.typ()) && isTyped(y.typ()) {
+		if x.isTyped() && y.isTyped() {
 			return false
 		}
 		// A numeric type can only convert to another numeric type.
