@@ -435,7 +435,11 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 	if x.isNil() {
 		assert(x.isUntyped())
 		if hasNil(target) {
-			return target, nil, 0
+			if isTypes2 {
+				return target, nil, 0
+			}
+			// Preserve the type of nil as UntypedNil: see go.dev/issue/13061.
+			return Typ[UntypedNil], nil, 0
 		}
 		return nil, nil, InvalidUntypedConversion
 	}

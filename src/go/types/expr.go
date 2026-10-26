@@ -407,6 +407,18 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 		return nil, nil, InvalidUntypedConversion
 	}
 
+	if x.isNil() {
+		assert(x.isUntyped())
+		if hasNil(target) {
+			if isTypes2 {
+				return target, nil, 0
+			}
+			// Preserve the type of nil as UntypedNil: see go.dev/issue/13061.
+			return Typ[UntypedNil], nil, 0
+		}
+		return nil, nil, InvalidUntypedConversion
+	}
+
 	switch u := target.Underlying().(type) {
 	case *Basic:
 		if x.mode() == constant_ {
@@ -436,13 +448,6 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			if !isString(target) {
 				return nil, nil, InvalidUntypedConversion
 			}
-		case UntypedNil:
-			// Unsafe.Pointer is a basic type that includes nil.
-			if !hasNil(target) {
-				return nil, nil, InvalidUntypedConversion
-			}
-			// Preserve the type of nil as UntypedNil: see go.dev/issue/13061.
-			return Typ[UntypedNil], nil, 0
 		default:
 			return nil, nil, InvalidUntypedConversion
 		}
@@ -457,30 +462,15 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
 			}) {
 				return nil, nil, InvalidUntypedConversion
 			}
-			// keep nil untyped (was bug go.dev/issue/39755)
-			if x.isNil() {
-				return Typ[UntypedNil], nil, 0
-			}
 			break
 		}
-		// Values must have concrete dynamic types. If the value is nil,
-		// keep it untyped (this is important for tools such as go vet which
-		// need the dynamic type for argument checking of say, print
-		// functions)
-		if x.isNil() {
-			return Typ[UntypedNil], nil, 0
-		}
-		// cannot assign untyped values to non-empty interfaces
+		// Update operand types to the default type rather than the target
+		// (interface) type: values must have concrete dynamic types.
+		// Untyped nil was handled upfront.
 		if !u.Empty() {
-			return nil, nil, InvalidUntypedConversion
+			return nil, nil, InvalidUntypedConversion // cannot assign untyped values to non-empty interfaces
 		}
-		return Default(x.typ()), nil, 0
-	case *Pointer, *Signature, *Slice, *Map, *Chan:
-		if !x.isNil() {
-			return nil, nil, InvalidUntypedConversion
-		}
-		// Keep nil untyped - see comment for interfaces, above.
-		return Typ[UntypedNil], nil, 0
+		return Default(x.typ()), nil, 0 // default type for nil is nil
 	default:
 		return nil, nil, InvalidUntypedConversion
 	}
