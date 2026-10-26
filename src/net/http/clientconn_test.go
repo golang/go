@@ -422,7 +422,7 @@ func testClientConnRoundTripBlocks(t *testing.T, mode testMode) {
 }
 
 func TestClientConnCloseInStateHook(t *testing.T) {
-	runSynctest(t, testClientConnCloseInStateHook, http3SkippedMode)
+	runSynctest(t, testClientConnCloseInStateHook)
 }
 func testClientConnCloseInStateHook(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil)
@@ -442,4 +442,3 @@ func testClientConnCloseInStateHook(t *testing.T, mode testMode) {
 	}
 	resp.Body.Close()
 }
-

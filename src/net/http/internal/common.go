@@ -22,3 +22,17 @@ type RetryableError struct {
 }
 
 func (e RetryableError) Error() string { return e.Err }
+
+// BodyAllowedForStatus reports whether a given response status code permits a body.
+// https://www.rfc-editor.org/info/rfc9110/#section-6.4.1
+func BodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
+}

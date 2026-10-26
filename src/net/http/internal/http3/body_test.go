@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"testing"
 )
@@ -197,7 +196,7 @@ func TestReadData(t *testing.T) {
 			wantBody{size: 2},
 			wantBody{size: 4},
 			closeBody{},
-			wantError{err: net.ErrClosed},
+			wantError{err: errRespBodyClosed},
 		},
 	}} {
 
@@ -271,7 +270,7 @@ func TestReadData(t *testing.T) {
 					if n != 0 || err == nil || err == io.EOF {
 						t.Fatalf("resp.Body.Read() = %v, %v; want error", n, err)
 					}
-					if step.err != nil && !errors.Is(step.err, err) {
+					if step.err != nil && !errors.Is(err, step.err) {
 						t.Fatalf("resp.Body.Read() = %v, %v; want %v error", n, err, step.err)
 					}
 				case closeBody:

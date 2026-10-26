@@ -238,8 +238,10 @@ func (tr *transport) registerConn(cc *clientConn) {
 func (tr *transport) unregisterConn(cc *clientConn) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
-	delete(tr.activeConns, cc)
-	close(cc.unregistered)
+	if _, ok := tr.activeConns[cc]; ok {
+		delete(tr.activeConns, cc)
+		close(cc.unregistered)
+	}
 }
 
 func (tr *transport) maxResponseHeaderBytes() int64 {
@@ -270,11 +272,7 @@ func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateH
 
 	go func() {
 		cc.acceptStreams(qconn, cc)
-		cc.mu.Lock()
-		cc.closed = true
-		cc.mu.Unlock()
-		cc.maybeCallStateHook()
-		tr.unregisterConn(cc)
+		cc.handleClose()
 	}()
 	return cc, nil
 }
@@ -364,6 +362,27 @@ func (cc *clientConn) InFlight() int {
 	return cc.reserved + cc.active
 }
 
+func (cc *clientConn) handleClose() {
+	cc.mu.Lock()
+	alreadyClosed := cc.closed
+	cc.closed = true
+	cc.mu.Unlock()
+	if !alreadyClosed {
+		cc.tr.unregisterConn(cc)
+		cc.maybeCallStateHook()
+	}
+}
+
+func (cc *clientConn) decrActiveAndCallStateHook() {
+	cc.mu.Lock()
+	cc.active--
+	closed := cc.closed
+	cc.mu.Unlock()
+	if !closed {
+		cc.maybeCallStateHook()
+	}
+}
+
 func (cc *clientConn) maybeCallStateHook() {
 	if cc.stateHook != nil {
 		cc.stateHook()
@@ -406,6 +425,7 @@ func (cc *clientConn) handleControlStream(st *stream) error {
 			}
 		case frameTypeGoaway:
 			// TODO: Wait for requests to complete before closing connection.
+			// TODO: Mark connection as unavailable / reject new reservations.
 			return errH3NoError
 		default:
 			// Unknown frames are ignored.
@@ -456,4 +476,5 @@ func (cc *clientConn) abort(err error) {
 	} else {
 		cc.qconn.Abort(err)
 	}
+	cc.handleClose()
 }

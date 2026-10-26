@@ -10,6 +10,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/http/internal"
 	"net/netip"
 	"net/url"
 	"os"
@@ -1414,7 +1415,7 @@ func TestServerInfersHeaders(t *testing.T) {
 			reqStream.writeHeaders(requestHeader(nil))
 			tt.want.Add(":status", strconv.Itoa(tt.responseStatus))
 			reqStream.wantHeaders(tt.want)
-			if responseCanHaveBody(tt.responseStatus) {
+			if internal.BodyAllowedForStatus(tt.responseStatus) {
 				reqStream.wantData(body)
 			}
 			reqStream.wantClosed("request is complete")

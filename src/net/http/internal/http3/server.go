@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"net/http/internal"
 	"net/http/internal/httpcommon"
 
 	"golang.org/x/net/http/httpguts"
@@ -665,20 +666,6 @@ func (sc *serverConn) abort(err error) {
 	}
 }
 
-// responseCanHaveBody reports whether a given response status code permits a
-// body. See RFC 7230, section 3.3.
-func responseCanHaveBody(status int) bool {
-	switch {
-	case status >= 100 && status <= 199:
-		return false
-	case status == 204:
-		return false
-	case status == 304:
-		return false
-	}
-	return true
-}
-
 // trailerPrefix is a magic prefix for [responseWriter.Header] map keys that,
 // if present, signals that the map entry is actually for the response
 // trailers, and not the response headers. See [net/http.TrailerPrefix] for
@@ -734,7 +721,7 @@ func (rw *responseWriter) writeHeaderLockedOnce() {
 	if rw.wroteHeader {
 		return
 	}
-	if !responseCanHaveBody(rw.statusCode) {
+	if !internal.BodyAllowedForStatus(rw.statusCode) {
 		rw.cannotHaveBody = true
 	}
 	// If there is any Trailer declared, save them so we know which trailers
@@ -1007,7 +994,7 @@ func (bb *bodyBuffer) inferHeader(h http.Header, status int) {
 	// sniff the body. See Issue golang.org/issue/31753.
 	hasCE := len(h.Get("Content-Encoding")) > 0
 	_, hasCT := h["Content-Type"]
-	if !hasCE && !hasCT && responseCanHaveBody(status) && len(*bb) > 0 {
+	if !hasCE && !hasCT && internal.BodyAllowedForStatus(status) && len(*bb) > 0 {
 		h.Set("Content-Type", http.DetectContentType(*bb))
 	}
 	// We can technically infer Content-Length too here, as long as the entire
