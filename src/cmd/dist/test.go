@@ -1863,13 +1863,6 @@ func fips140Versions() []string {
 	for _, zip := range zips {
 		versions = append(versions, strings.TrimSuffix(filepath.Base(zip), ".zip"))
 	}
-	txts, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.txt"))
-	if err != nil {
-		fatalf("%v", err)
-	}
-	for _, txt := range txts {
-		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
-	}
 	return versions
 }
 

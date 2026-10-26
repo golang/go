@@ -16,6 +16,8 @@ import (
 	"strings"
 	"testing"
 
+	"cmd/go/internal/cfg"
+
 	"golang.org/x/mod/sumdb/dirhash"
 )
 
@@ -149,5 +151,42 @@ func TestVerifyZipSum(t *testing.T) {
 	// Missing sum file fails.
 	if err := verifyZipSum(zipfile, filepath.Join(dir, "does-not-exist.sum")); err == nil {
 		t.Errorf("expected error when sum file is missing")
+	}
+}
+
+func TestAliases(t *testing.T) {
+	lib := filepath.Join(testenv.GOROOT(t), "lib/fips140")
+	txts, err := filepath.Glob(filepath.Join(lib, "*.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(txts) == 0 {
+		t.Fatal("no *.txt files in GOROOT/lib/fips140")
+	}
+
+	defer func(origGOFIPS140, origVersion string, origTags []string) {
+		cfg.GOFIPS140 = origGOFIPS140
+		cfg.BuildContext.BuildTags = origTags
+		version = origVersion
+	}(cfg.GOFIPS140, version, cfg.BuildContext.BuildTags)
+
+	for _, txt := range txts {
+		alias := strings.TrimSuffix(filepath.Base(txt), ".txt")
+		data, err := os.ReadFile(txt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := strings.TrimSpace(string(data))
+		if want == "" {
+			t.Errorf("%s is empty", txt)
+			continue
+		}
+		cfg.GOFIPS140 = alias
+		cfg.BuildContext.BuildTags = nil
+		version = ""
+		initVersion()
+		if version != want {
+			t.Errorf("initVersion(%q): version = %q, want %q", alias, version, want)
+		}
 	}
 }
