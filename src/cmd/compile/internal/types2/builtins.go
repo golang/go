@@ -46,12 +46,12 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	// For built-ins with special argument handling (make, new, etc.),
 	// evaluation is done by the respective built-in code.
 
-	// not valid	for _Append, _Delete 				if len(argList != 1)
+	// not valid	for _Append, _Copy, _Delete 		if len(argList != 1)
 	// not valid	for _Make, _New, _Offsetof, _Trace
 	var args []*operand
 	var nargs int
 	switch id {
-	case _Append, _Delete:
+	case _Append, _Copy, _Delete:
 		// Careful: There is a tension between argument inference and tuple
 		// arguments to built-ins.
 		//
@@ -425,11 +425,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		dstE, err := sliceElem(x)
 		if err != nil {
 			check.errorf(x, InvalidCopy, "invalid copy: %s", err.format(check))
+			check.use(argList[1:]...)
 			return
 		}
 
+		var y *operand
+		if args == nil { // first argument is evaluated and is a slice
+			y = new(operand)
+			check.expr(newTarget(x.typ(), "argument to copy"), y, argList[1])
+			if !y.isValid() {
+				return
+			}
+		} else {
+			y = args[1]
+		}
+
 		// get special case out of the way
-		y := args[1]
 		var special bool
 		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 			special = true

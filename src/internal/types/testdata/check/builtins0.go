@@ -310,6 +310,13 @@ func copy2() {
 	copy(f3()) // ERROR "too many arguments"
 }
 
+func copy3() {
+	s1 := []int{42}
+	s2 := []int{42}
+	copy(bad /* ERROR "undefined" */, s1)
+	copy(nil /* ERROR "must be a slice" */, s2)
+}
+
 func delete1() {
 	var m map[string]int
 	var s string
