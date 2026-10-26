@@ -145,6 +145,13 @@ func (d *Digest) Reset() {
 	d.len = 0
 }
 
+func init() {
+	fips140.RegisterApprovedHash(func(h hash.Hash) bool {
+		_, ok := h.(*Digest)
+		return ok
+	})
+}
+
 // New returns a new Digest computing the SHA-256 hash.
 func New() *Digest {
 	d := new(Digest)

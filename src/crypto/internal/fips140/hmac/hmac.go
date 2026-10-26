@@ -9,9 +9,6 @@ package hmac
 
 import (
 	"crypto/internal/fips140"
-	"crypto/internal/fips140/sha256"
-	"crypto/internal/fips140/sha3"
-	"crypto/internal/fips140/sha512"
 	"errors"
 	"hash"
 )
@@ -51,9 +48,7 @@ func (h *HMAC) Sum(in []byte) []byte {
 	if h.keyLen < 112/8 && !h.forHKDF {
 		fips140.RecordNonApproved()
 	}
-	switch h.inner.(type) {
-	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
-	default:
+	if !fips140.ApprovedHash(h.inner) {
 		fips140.RecordNonApproved()
 	}
 

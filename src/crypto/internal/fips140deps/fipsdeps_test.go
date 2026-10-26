@@ -94,19 +94,21 @@ func TestImports(t *testing.T) {
 
 	// Ensure that all packages except check and check's dependencies import check.
 	for pkg := range allPackages {
-		switch pkg {
-		case "crypto/internal/fips140/check":
-		case "crypto/internal/fips140":
-		case "crypto/internal/fips140/alias":
-		case "crypto/internal/fips140/subtle":
-		case "crypto/internal/fips140/hmac":
-		case "crypto/internal/fips140/sha3":
-		case "crypto/internal/fips140/sha256":
-		case "crypto/internal/fips140/sha512":
-		default:
-			if !importCheck[pkg] {
-				t.Errorf("package %s does not import crypto/internal/fips140/check", pkg)
-			}
+		if pkg == "crypto/internal/fips140/check" || checkDeps[pkg] {
+			continue
+		}
+		if !importCheck[pkg] {
+			t.Errorf("package %s does not import crypto/internal/fips140/check", pkg)
 		}
 	}
+}
+
+// checkDeps are the module packages that crypto/internal/fips140/check depends
+// on, which therefore can't import it.
+var checkDeps = map[string]bool{
+	"crypto/internal/fips140":        true,
+	"crypto/internal/fips140/alias":  true,
+	"crypto/internal/fips140/subtle": true,
+	"crypto/internal/fips140/hmac":   true,
+	"crypto/internal/fips140/sha256": true,
 }

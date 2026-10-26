@@ -514,10 +514,10 @@ var depsRules = `
 	< crypto/internal/fips140/alias
 	< crypto/internal/fips140/subtle
 	< crypto/internal/fips140/sha256
-	< crypto/internal/fips140/sha512
-	< crypto/internal/fips140/sha3
 	< crypto/internal/fips140/hmac
 	< crypto/internal/fips140/check
+	< crypto/internal/fips140/sha512
+	< crypto/internal/fips140/sha3
 	< crypto/internal/fips140/pbkdf2
 	< crypto/internal/fips140/aes
 	< crypto/internal/fips140/drbg
@@ -551,11 +551,11 @@ var depsRules = `
 	crypto/internal/boring/sig,
 	crypto/internal/boring/syso,
 	crypto/internal/boring/bcache
+	< crypto/internal/fips140hash
 	< crypto/internal/fips140only
 	< crypto
 	< crypto/subtle
 	< crypto/sha3
-	< crypto/internal/fips140hash
 	< crypto/cipher
 	< crypto/internal/boring
 	< crypto/boring

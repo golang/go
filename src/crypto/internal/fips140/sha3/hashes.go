@@ -4,6 +4,19 @@
 
 package sha3
 
+import (
+	"crypto/internal/fips140"
+	"hash"
+)
+
+func init() {
+	fips140.RegisterApprovedHash(func(h hash.Hash) bool {
+		d, ok := h.(*Digest)
+		// The legacy Keccak hashes share the Digest type but are not approved.
+		return ok && d != nil && d.dsbyte == dsbyteSHA3
+	})
+}
+
 // New224 returns a new Digest computing the SHA3-224 hash.
 func New224() *Digest {
 	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}

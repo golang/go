@@ -205,6 +205,13 @@ func (d *Digest) Clone() (hash.Cloner, error) {
 	return &r, nil
 }
 
+func init() {
+	fips140.RegisterApprovedHash(func(h hash.Hash) bool {
+		_, ok := h.(*Digest)
+		return ok
+	})
+}
+
 // New returns a new Digest computing the SHA-512 hash.
 func New() *Digest {
 	d := &Digest{size: size512}

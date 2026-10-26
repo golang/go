@@ -360,7 +360,7 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
 		return nil, err
 	}
 	if fips140only.Enforced() {
-		if !hash.Available() || !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
+		if !hash.Available() || !fips140only.ApprovedHash(hash.New()) {
 			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
 	}
@@ -408,7 +408,7 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
 		return err
 	}
 	if fips140only.Enforced() {
-		if !hash.Available() || !fips140only.ApprovedHash(fips140hash.Unwrap(hash.New())) {
+		if !hash.Available() || !fips140only.ApprovedHash(hash.New()) {
 			return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
 		}
 	}

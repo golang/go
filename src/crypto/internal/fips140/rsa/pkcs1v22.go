@@ -12,9 +12,6 @@ import (
 	"crypto/internal/constanttime"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/drbg"
-	"crypto/internal/fips140/sha256"
-	"crypto/internal/fips140/sha3"
-	"crypto/internal/fips140/sha512"
 	"crypto/internal/fips140/subtle"
 	"errors"
 	"hash"
@@ -362,9 +359,7 @@ func verifyPSS(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte, saltLe
 }
 
 func checkApprovedHash(hash hash.Hash) {
-	switch hash.(type) {
-	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
-	default:
+	if !fips140.ApprovedHash(hash) {
 		fips140.RecordNonApproved()
 	}
 }

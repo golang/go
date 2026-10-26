@@ -6,6 +6,9 @@ package ecdsa_test
 import (
 	"crypto/ecdsa"
 	"crypto/internal/cryptotest/wycheproof"
+	_ "crypto/sha256"
+	_ "crypto/sha3"
+	_ "crypto/sha512"
 	"crypto/x509"
 	"fmt"
 	"testing"

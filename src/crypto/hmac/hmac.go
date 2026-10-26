@@ -23,6 +23,7 @@ package hmac
 
 import (
 	"crypto/internal/boring"
+	_ "crypto/internal/fips140/check"
 	"crypto/internal/fips140/hmac"
 	"crypto/internal/fips140hash"
 	"crypto/internal/fips140only"

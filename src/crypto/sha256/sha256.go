@@ -9,6 +9,7 @@ package sha256
 import (
 	"crypto"
 	"crypto/internal/boring"
+	_ "crypto/internal/fips140/check"
 	"crypto/internal/fips140/sha256"
 	"hash"
 )

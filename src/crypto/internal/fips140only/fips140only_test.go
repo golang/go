@@ -34,6 +34,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"hash"
 	"internal/godebug"
 	"io"
 	"math/big"
@@ -147,6 +148,14 @@ func testFIPS140Only(t *testing.T) {
 	})
 	withApprovedHash(func(h crypto.Hash) {
 		expectNoErr(t, errRet2(hkdf.Expand(h.New, make([]byte, 16), "", 16)))
+	})
+
+	withWrappedHash(func(h func() hash.Hash) {
+		expectErr(t, errRet2(pbkdf2.Key(h, "password", make([]byte, 16), 1, 14)))
+		expectPanic(t, func() { hmac.New(h, make([]byte, 16)) })
+		expectErr(t, errRet2(hkdf.Key(h, make([]byte, 16), nil, "", 16)))
+		expectErr(t, errRet2(hkdf.Extract(h, make([]byte, 16), nil)))
+		expectErr(t, errRet2(hkdf.Expand(h, make([]byte, 16), "", 16)))
 	})
 
 	expectErr(t, errRet2(rand.Prime(rand.Reader, 10)))
@@ -270,6 +279,9 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectErr(t, errRet2(rsa.EncryptOAEP(sha256.New(), rand.Reader, &smallKey.PublicKey, oaepMsg, nil)))
 	expectErr(t, errRet2(rsa.EncryptOAEP(sha1.New(), rand.Reader, &rsaKey.PublicKey, oaepMsg, nil)))
 	expectErr(t, errRet2(rsa.EncryptOAEP(sha256.New(), readerWrap{rand.Reader}, &rsaKey.PublicKey, oaepMsg, nil)))
+	withWrappedHash(func(h func() hash.Hash) {
+		expectErr(t, errRet2(rsa.EncryptOAEP(h(), rand.Reader, &rsaKey.PublicKey, oaepMsg, nil)))
+	})
 	expectNoErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: crypto.SHA256})))
 	withApprovedHash(func(h crypto.Hash) {
 		expectNoErr(t, errRet2(rsa.EncryptOAEPWithOptions(rand.Reader, &rsaKey.PublicKey, oaepMsg, &rsa.OAEPOptions{Hash: crypto.SHA256, MGFHash: h})))
@@ -282,6 +294,9 @@ bXVL8iKLrG91IYQByUHZIn3WVAd2bfi4MfKagRt0ggd4
 	expectNoErr(t, errRet2(rsa.DecryptOAEP(sha256.New(), nil, rsaKey, oaepCiphertext, nil)))
 	expectErr(t, errRet2(rsa.DecryptOAEP(sha256.New(), nil, smallKey, oaepCiphertext, nil)))
 	expectErr(t, errRet2(rsa.DecryptOAEP(sha1.New(), nil, rsaKey, oaepCiphertext, nil)))
+	withWrappedHash(func(h func() hash.Hash) {
+		expectErr(t, errRet2(rsa.DecryptOAEP(h(), nil, rsaKey, oaepCiphertext, nil)))
+	})
 	expectNoErr(t, errRet2(rsaKey.Decrypt(nil, oaepCiphertext, &rsa.OAEPOptions{Hash: crypto.SHA256})))
 	withNonApprovedHash(func(h crypto.Hash) {
 		expectErr(t, errRet2(rsaKey.Decrypt(nil, oaepCiphertext, &rsa.OAEPOptions{Hash: h})))
@@ -343,6 +358,18 @@ type blockWrap struct {
 
 type readerWrap struct {
 	io.Reader
+}
+
+type hashWrap struct {
+	hash.Hash
+}
+
+// withWrappedHash calls f with constructors of approved hashes wrapped in a
+// type that is not recognized as approved.
+func withWrappedHash(f func(func() hash.Hash)) {
+	withApprovedHash(func(h crypto.Hash) {
+		f(func() hash.Hash { return hashWrap{h.New()} })
+	})
 }
 
 func withApprovedHash(f func(crypto.Hash)) {

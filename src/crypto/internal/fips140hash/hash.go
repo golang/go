@@ -4,15 +4,17 @@
 
 package fips140hash
 
-import (
-	fsha3 "crypto/internal/fips140/sha3"
-	"crypto/sha3"
-	"hash"
-	_ "unsafe"
-)
+import "hash"
 
-//go:linkname sha3Unwrap
-func sha3Unwrap(*sha3.SHA3) *fsha3.Digest
+// sha3Unwrap is registered by crypto/sha3, so that this package doesn't need to
+// import it, linking it into every binary that uses this package.
+var sha3Unwrap func(hash.Hash) (hash.Hash, bool)
+
+// RegisterSHA3Unwrap is called by crypto/sha3 at init time with a function
+// that unwraps a *crypto/sha3.SHA3 into a *crypto/internal/fips140/sha3.Digest.
+func RegisterSHA3Unwrap(f func(hash.Hash) (hash.Hash, bool)) {
+	sha3Unwrap = f
+}
 
 // Unwrap returns h, or a crypto/internal/fips140 inner implementation of h.
 //
@@ -21,8 +23,10 @@ func sha3Unwrap(*sha3.SHA3) *fsha3.Digest
 // [crypto/internal/fips140/sha512.Digest], or
 // [crypto/internal/fips140/sha3.Digest] if it is a FIPS 140-3 approved hash.
 func Unwrap(h hash.Hash) hash.Hash {
-	if sha3, ok := h.(*sha3.SHA3); ok {
-		return sha3Unwrap(sha3)
+	if sha3Unwrap != nil {
+		if d, ok := sha3Unwrap(h); ok {
+			return d
+		}
 	}
 	return h
 }

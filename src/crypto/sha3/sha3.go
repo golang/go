@@ -9,8 +9,8 @@ package sha3
 import (
 	"crypto"
 	"crypto/internal/fips140/sha3"
+	"crypto/internal/fips140hash"
 	"hash"
-	_ "unsafe"
 )
 
 func init() {
@@ -18,6 +18,14 @@ func init() {
 	crypto.RegisterHash(crypto.SHA3_256, func() hash.Hash { return New256() })
 	crypto.RegisterHash(crypto.SHA3_384, func() hash.Hash { return New384() })
 	crypto.RegisterHash(crypto.SHA3_512, func() hash.Hash { return New512() })
+	fips140hash.RegisterSHA3Unwrap(func(h hash.Hash) (hash.Hash, bool) {
+		s, ok := h.(*SHA3)
+		if !ok {
+			return nil, false
+		}
+		s.init()
+		return &s.s, true
+	})
 }
 
 // Sum224 returns the SHA3-224 hash of data.
@@ -102,12 +110,6 @@ type SHA3 struct {
 	s sha3.Digest
 }
 
-//go:linkname fips140hash_sha3Unwrap crypto/internal/fips140hash.sha3Unwrap
-func fips140hash_sha3Unwrap(s *SHA3) *sha3.Digest {
-	s.init()
-	return &s.s
-}
-
 // New224 creates a new SHA3-224 hash.
 func New224() *SHA3 {
 	return &SHA3{*sha3.New224()}
@@ -183,8 +185,8 @@ func (s *SHA3) UnmarshalBinary(data []byte) error {
 }
 
 // Clone implements [hash.Cloner].
-func (d *SHA3) Clone() (hash.Cloner, error) {
-	r := *d
+func (s *SHA3) Clone() (hash.Cloner, error) {
+	r := *s
 	return &r, nil
 }
 
