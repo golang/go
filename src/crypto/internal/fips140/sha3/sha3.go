@@ -144,7 +144,11 @@ func (d *Digest) readGeneric(out []byte) (n int, err error) {
 // Sum appends the current hash to b and returns the resulting slice.
 // It does not change the underlying hash state.
 func (d *Digest) Sum(b []byte) []byte {
-	fips140.RecordApproved()
+	if d.dsbyte == dsbyteKeccak {
+		fips140.RecordNonApproved()
+	} else {
+		fips140.RecordApproved()
+	}
 	return d.sum(b)
 }
 
