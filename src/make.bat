@@ -129,3 +129,4 @@ set GOOS=
 set GOARCH=
 set GOEXPERIMENT=
 set GOFLAGS=
+set GOWASM=
