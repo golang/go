@@ -42,6 +42,8 @@ func (x Int8s) And(y Int8s) (z Int8s)
 func (x Int8s) AndNot(y Int8s) (z Int8s)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+// This wraps unrepresentable values.
 func (x Int8s) ConvertToUint8() (z Uint8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -196,6 +198,8 @@ func (x Int16s) And(y Int16s) (z Int16s)
 func (x Int16s) AndNot(y Int16s) (z Int16s)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+// This wraps unrepresentable values.
 func (x Int16s) ConvertToUint16() (z Uint16s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -354,6 +358,8 @@ func (x Int32s) AndNot(y Int32s) (z Int32s)
 func (x Int32s) ConvertToFloat32() (z Float32s)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+// This wraps unrepresentable values.
 func (x Int32s) ConvertToUint32() (z Uint32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -501,6 +507,8 @@ func (x Int64s) And(y Int64s) (z Int64s)
 func (x Int64s) AndNot(y Int64s) (z Int64s)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+// This wraps unrepresentable values.
 func (x Int64s) ConvertToUint64() (z Uint64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -635,6 +643,8 @@ func (x Uint8s) Average(y Uint8s) (z Uint8s)
 func (x Uint8s) BitsToInt8() (z Int8s)
 
 // ConvertToInt8 converts each element of x to int8.
+//
+// This wraps unrepresentable values.
 func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -792,6 +802,8 @@ func (x Uint16s) Average(y Uint16s) (z Uint16s)
 func (x Uint16s) BitsToInt16() (z Int16s)
 
 // ConvertToInt16 converts each element of x to int16.
+//
+// This wraps unrepresentable values.
 func (x Uint16s) ConvertToInt16() (z Int16s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -980,6 +992,8 @@ func (x Uint32s) BitsToFloat32() (z Float32s)
 func (x Uint32s) BitsToInt32() (z Int32s)
 
 // ConvertToInt32 converts each element of x to int32.
+//
+// This wraps unrepresentable values.
 func (x Uint32s) ConvertToInt32() (z Int32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -1201,6 +1215,8 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s)
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s)
 
 // ConvertToInt64 converts each element of x to int64.
+//
+// This wraps unrepresentable values.
 func (x Uint64s) ConvertToInt64() (z Int64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -1409,11 +1425,43 @@ func (x Float32s) Masked(mask Mask32s) (z Float32s)
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 func (x Float32s) Max(y Float32s) (z Float32s)
 
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 func (x Float32s) Min(y Float32s) (z Float32s)
 
 // Mul returns the elementwise product of x and y.
@@ -1445,6 +1493,10 @@ func (x Float32s) ReduceSum() (z float32)
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 func (x Float32s) Sqrt() (z Float32s)
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
@@ -1536,11 +1588,43 @@ func (x Float64s) Masked(mask Mask64s) (z Float64s)
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 func (x Float64s) Max(y Float64s) (z Float64s)
 
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 func (x Float64s) Min(y Float64s) (z Float64s)
 
 // Mul returns the elementwise product of x and y.
@@ -1572,6 +1656,10 @@ func (x Float64s) ReduceSum() (z float64)
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 func (x Float64s) Sqrt() (z Float64s)
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.

@@ -4327,12 +4327,44 @@ func (x Uint64x8) LessEqual(y Uint64x8) (z Mask64x8)
 //
 //	z[i] = max(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
+//
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x4) Max(y Float32x4) (z Float32x4)
 
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 //
 // Asm: VMAXPS, CPU Feature: AVX
 func (x Float32x8) Max(y Float32x8) (z Float32x8)
@@ -4341,12 +4373,44 @@ func (x Float32x8) Max(y Float32x8) (z Float32x8)
 //
 //	z[i] = max(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
+//
 // Asm: VMAXPS, CPU Feature: AVX512
 func (x Float32x16) Max(y Float32x16) (z Float32x16)
 
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 //
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x2) Max(y Float64x2) (z Float64x2)
@@ -4355,12 +4419,44 @@ func (x Float64x2) Max(y Float64x2) (z Float64x2)
 //
 //	z[i] = max(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
+//
 // Asm: VMAXPD, CPU Feature: AVX
 func (x Float64x4) Max(y Float64x4) (z Float64x4)
 
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 //
 // Asm: VMAXPD, CPU Feature: AVX512
 func (x Float64x8) Max(y Float64x8) (z Float64x8)
@@ -4539,12 +4635,44 @@ func (x Uint64x8) Max(y Uint64x8) (z Uint64x8)
 //
 //	z[i] = min(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
+//
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x4) Min(y Float32x4) (z Float32x4)
 
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 //
 // Asm: VMINPS, CPU Feature: AVX
 func (x Float32x8) Min(y Float32x8) (z Float32x8)
@@ -4553,12 +4681,44 @@ func (x Float32x8) Min(y Float32x8) (z Float32x8)
 //
 //	z[i] = min(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
+//
 // Asm: VMINPS, CPU Feature: AVX512
 func (x Float32x16) Min(y Float32x16) (z Float32x16)
 
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 //
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x2) Min(y Float64x2) (z Float64x2)
@@ -4567,12 +4727,44 @@ func (x Float64x2) Min(y Float64x2) (z Float64x2)
 //
 //	z[i] = min(x[i], y[i])
 //
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
+//
 // Asm: VMINPD, CPU Feature: AVX
 func (x Float64x4) Min(y Float64x4) (z Float64x4)
 
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 //
 // Asm: VMINPD, CPU Feature: AVX512
 func (x Float64x8) Min(y Float64x8) (z Float64x8)
@@ -7895,12 +8087,20 @@ func (x Uint64x8) ShiftRightConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
 //
 //	z[i] = sqrt(x[i])
 //
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
+//
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x4) Sqrt() (z Float32x4)
 
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VSQRTPS, CPU Feature: AVX
 func (x Float32x8) Sqrt() (z Float32x8)
@@ -7909,12 +8109,20 @@ func (x Float32x8) Sqrt() (z Float32x8)
 //
 //	z[i] = sqrt(x[i])
 //
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
+//
 // Asm: VSQRTPS, CPU Feature: AVX512
 func (x Float32x16) Sqrt() (z Float32x16)
 
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x2) Sqrt() (z Float64x2)
@@ -7923,12 +8131,20 @@ func (x Float64x2) Sqrt() (z Float64x2)
 //
 //	z[i] = sqrt(x[i])
 //
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
+//
 // Asm: VSQRTPD, CPU Feature: AVX
 func (x Float64x4) Sqrt() (z Float64x4)
 
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VSQRTPD, CPU Feature: AVX512
 func (x Float64x8) Sqrt() (z Float64x8)
@@ -10232,9 +10448,13 @@ func (x Uint8x16) AsInt8x16() Int8x16 {
 func (x Uint8x16) BitsToInt8() (z Int8x16)
 
 // ConvertToInt8 converts each element of x to int8.
+//
+// This wraps unrepresentable values.
 func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+// This wraps unrepresentable values.
 func (x Int8x16) ConvertToUint8() (z Uint8x16)
 
 // ToBits reinterprets the bits of each element of x as type uint8.
@@ -10358,9 +10578,13 @@ func (x Uint8x32) AsInt8x32() Int8x32 {
 func (x Uint8x32) BitsToInt8() (z Int8x32)
 
 // ConvertToInt8 converts each element of x to int8.
+//
+// This wraps unrepresentable values.
 func (x Uint8x32) ConvertToInt8() (z Int8x32)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+// This wraps unrepresentable values.
 func (x Int8x32) ConvertToUint8() (z Uint8x32)
 
 // ToBits reinterprets the bits of each element of x as type uint8.
@@ -10484,9 +10708,13 @@ func (x Uint8x64) AsInt8x64() Int8x64 {
 func (x Uint8x64) BitsToInt8() (z Int8x64)
 
 // ConvertToInt8 converts each element of x to int8.
+//
+// This wraps unrepresentable values.
 func (x Uint8x64) ConvertToInt8() (z Int8x64)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+// This wraps unrepresentable values.
 func (x Int8x64) ConvertToUint8() (z Uint8x64)
 
 // ToBits reinterprets the bits of each element of x as type uint8.
@@ -10619,9 +10847,13 @@ func (x Uint16x8) AsInt16x8() Int16x8 {
 func (x Uint16x8) BitsToInt16() (z Int16x8)
 
 // ConvertToInt16 converts each element of x to int16.
+//
+// This wraps unrepresentable values.
 func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+// This wraps unrepresentable values.
 func (x Int16x8) ConvertToUint16() (z Uint16x8)
 
 // ToBits reinterprets the bits of each element of x as type uint16.
@@ -10745,9 +10977,13 @@ func (x Uint16x16) AsInt16x16() Int16x16 {
 func (x Uint16x16) BitsToInt16() (z Int16x16)
 
 // ConvertToInt16 converts each element of x to int16.
+//
+// This wraps unrepresentable values.
 func (x Uint16x16) ConvertToInt16() (z Int16x16)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+// This wraps unrepresentable values.
 func (x Int16x16) ConvertToUint16() (z Uint16x16)
 
 // ToBits reinterprets the bits of each element of x as type uint16.
@@ -10871,9 +11107,13 @@ func (x Uint16x32) AsInt16x32() Int16x32 {
 func (x Uint16x32) BitsToInt16() (z Int16x32)
 
 // ConvertToInt16 converts each element of x to int16.
+//
+// This wraps unrepresentable values.
 func (x Uint16x32) ConvertToInt16() (z Int16x32)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+// This wraps unrepresentable values.
 func (x Int16x32) ConvertToUint16() (z Uint16x32)
 
 // ToBits reinterprets the bits of each element of x as type uint16.
@@ -11012,9 +11252,13 @@ func (x Uint32x4) AsInt32x4() Int32x4 {
 func (x Uint32x4) BitsToInt32() (z Int32x4)
 
 // ConvertToInt32 converts each element of x to int32.
+//
+// This wraps unrepresentable values.
 func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+// This wraps unrepresentable values.
 func (x Int32x4) ConvertToUint32() (z Uint32x4)
 
 // ToBits reinterprets the bits of each element of x as type uint32.
@@ -11144,9 +11388,13 @@ func (x Uint32x8) AsInt32x8() Int32x8 {
 func (x Uint32x8) BitsToInt32() (z Int32x8)
 
 // ConvertToInt32 converts each element of x to int32.
+//
+// This wraps unrepresentable values.
 func (x Uint32x8) ConvertToInt32() (z Int32x8)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+// This wraps unrepresentable values.
 func (x Int32x8) ConvertToUint32() (z Uint32x8)
 
 // ToBits reinterprets the bits of each element of x as type uint32.
@@ -11276,9 +11524,13 @@ func (x Uint32x16) AsInt32x16() Int32x16 {
 func (x Uint32x16) BitsToInt32() (z Int32x16)
 
 // ConvertToInt32 converts each element of x to int32.
+//
+// This wraps unrepresentable values.
 func (x Uint32x16) ConvertToInt32() (z Int32x16)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+// This wraps unrepresentable values.
 func (x Int32x16) ConvertToUint32() (z Uint32x16)
 
 // ToBits reinterprets the bits of each element of x as type uint32.
@@ -11417,9 +11669,13 @@ func (x Uint64x2) AsInt64x2() Int64x2 {
 func (x Uint64x2) BitsToInt64() (z Int64x2)
 
 // ConvertToInt64 converts each element of x to int64.
+//
+// This wraps unrepresentable values.
 func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+// This wraps unrepresentable values.
 func (x Int64x2) ConvertToUint64() (z Uint64x2)
 
 // ToBits reinterprets the bits of each element of x as type uint64.
@@ -11549,9 +11805,13 @@ func (x Uint64x4) AsInt64x4() Int64x4 {
 func (x Uint64x4) BitsToInt64() (z Int64x4)
 
 // ConvertToInt64 converts each element of x to int64.
+//
+// This wraps unrepresentable values.
 func (x Uint64x4) ConvertToInt64() (z Int64x4)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+// This wraps unrepresentable values.
 func (x Int64x4) ConvertToUint64() (z Uint64x4)
 
 // ToBits reinterprets the bits of each element of x as type uint64.
@@ -11681,9 +11941,13 @@ func (x Uint64x8) AsInt64x8() Int64x8 {
 func (x Uint64x8) BitsToInt64() (z Int64x8)
 
 // ConvertToInt64 converts each element of x to int64.
+//
+// This wraps unrepresentable values.
 func (x Uint64x8) ConvertToInt64() (z Int64x8)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+// This wraps unrepresentable values.
 func (x Int64x8) ConvertToUint64() (z Uint64x8)
 
 // ToBits reinterprets the bits of each element of x as type uint64.

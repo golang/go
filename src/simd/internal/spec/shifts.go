@@ -16,10 +16,17 @@ import "math/bits"
 //	z[i] = sat(x[i] * 2^scale[i])
 //
 //specgen:require scale=Int{xN}x{xL}
-func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[E, W]) {
-	z = makeVec[E, W]()
+func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[Variation[E], W]) {
+	// TODO: This is not specified for shifts that don't fit in int8. Figure out
+	// if we emulate those, or use (unzipped) int8 as the shift type. The raw
+	// ARM64 behavior is bad.
+	z = makeVec[Variation[E], W]()
 	for i := range z {
-		z[i] = scaleSaturated(x[i], scale[i])
+		if yE(int8(scale[i])) != scale[i] {
+			z[i] = undef[E]()
+		} else {
+			z[i] = exact(scaleSaturated(x[i], scale[i]))
+		}
 	}
 	return z
 }

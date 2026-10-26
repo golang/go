@@ -6,16 +6,30 @@ package spec
 
 import (
 	"fmt"
+	"math"
+	"reflect"
 	"slices"
 	"testing"
 )
 
-func vecOf[E EltOrMask, W Width](xs ...E) Vec[E, W] {
+func vecOf[E any, W Width](xs ...E) Vec[E, W] {
 	l := lanes[E, W]()
 	if len(xs) != l {
 		panic(fmt.Sprintf("got %d elements, want %d", len(xs), l))
 	}
 	return xs
+}
+
+func vecExact[E Elt, W Width](xs ...E) Vec[Variation[E], W] {
+	l := lanes[E, W]()
+	if len(xs) != l {
+		panic(fmt.Sprintf("got %d elements, want %d", len(xs), l))
+	}
+	z := make(Vec[Variation[E], W], l)
+	for i, x := range xs {
+		z[i] = exact(x)
+	}
+	return z
 }
 
 func TestPreserveTNxL(t *testing.T) {
@@ -55,7 +69,7 @@ func TestPreserveL(t *testing.T) {
 	// This operation changes T and N
 	x := vecOf[int64, Width256](1, 2, 3, 4)
 	want := vecOf[float32, Width128](1, 2, 3, 4)
-	z := ConvertToZ[int64, Width256, float32, Width128](x)
+	z := ConvertIntToFloat[int64, Width256, float32, Width128](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
@@ -65,7 +79,7 @@ func TestPreserveNxL(t *testing.T) {
 	// This operation changes T
 	x := vecOf[int32, Width128](1, 2, 3, 4)
 	want := vecOf[float32, Width128](1, 2, 3, 4)
-	z := ConvertToZ[int32, Width128, float32, Width128](x)
+	z := ConvertIntToFloat[int32, Width128, float32, Width128](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
@@ -76,7 +90,7 @@ func TestWidthRounding(t *testing.T) {
 	// 128 bits.
 	x := vecOf[int64, Width128](1, 2)
 	want := vecOf[float32, Width128](1, 2, 0, 0)
-	z := ConvertToZ[int64, Width128, float32, Width128](x)
+	z := ConvertIntToFloat[int64, Width128, float32, Width128](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
@@ -185,13 +199,13 @@ func TestShifts(t *testing.T) {
 	// positive shifts left (saturates), negative shifts right
 	x8Signed := vecOf[int8, Width128](10, -10, 100, -100, 50, 60, -60, 0, 1, 2, 3, 4, 5, 6, 7, 8)
 	y8Signed := vecOf[int8, Width128](1, -1, 2, -2, 0, 1, -1, 0, 1, 1, 1, 1, 1, 1, 1, 1)
-	want8Signed := vecOf[int8, Width128](20, -5, 127, -25, 50, 120, -30, 0, 2, 4, 6, 8, 10, 12, 14, 16)
+	want8Signed := vecExact[int8, Width128](20, -5, 127, -25, 50, 120, -30, 0, 2, 4, 6, 8, 10, 12, 14, 16)
 	if got := ScaleSaturated(x8Signed, y8Signed); !slices.Equal(got, want8Signed) {
 		t.Fatalf("ScaleSaturated signed: got %v, want %v", got, want8Signed)
 	}
 
 	x8Unsigned := vecOf[uint8, Width128](10, 20, 200, 100, 50, 60, 250, 0, 1, 2, 3, 4, 5, 6, 7, 8)
-	want8Unsigned := vecOf[uint8, Width128](20, 10, 255, 25, 50, 120, 125, 0, 2, 4, 6, 8, 10, 12, 14, 16)
+	want8Unsigned := vecExact[uint8, Width128](20, 10, 255, 25, 50, 120, 125, 0, 2, 4, 6, 8, 10, 12, 14, 16)
 	if got := ScaleSaturated(x8Unsigned, y8Signed); !slices.Equal(got, want8Unsigned) {
 		t.Fatalf("ScaleSaturated unsigned: got %v, want %v", got, want8Unsigned)
 	}
@@ -199,8 +213,73 @@ func TestShifts(t *testing.T) {
 	// Wide range (exponents beyond int8)
 	x16Signed := vecOf[int16, Width128](10, -10, 10, -10, 10, -10, 0, 1)
 	y16Signed := vecOf[int16, Width128](200, 200, -200, -200, 1, -1, 0, 10)
-	want16Signed := vecOf[int16, Width128](32767, -32768, 0, -1, 20, -5, 0, 1024)
+	want16Signed := vecOf[Variation[int16], Width128](
+		undef[int16](), undef[int16](), undef[int16](), undef[int16](),
+		exact[int16](20), exact[int16](-5), exact[int16](0), exact[int16](1024),
+	)
 	if got := ScaleSaturated(x16Signed, y16Signed); !slices.Equal(got, want16Signed) {
 		t.Fatalf("ScaleSaturated int16 wide range: got %v, want %v", got, want16Signed)
+	}
+}
+
+func convertOOB[E Ints | Uints](amd64, sat E) Variation[E] {
+	return perPlatform(map[Platform]E{
+		PlatformAMD64: amd64, // amd64 uses a special "indefinite" value rather than saturating.
+		PlatformARM64: sat,
+		PlatformWASM:  sat,
+	})
+}
+
+func TestConvertFloatToInt(t *testing.T) {
+	// Fractional values outside [min, max] that truncate into range vs
+	// overflow: each pair is the last in-range float64 and the first
+	// out-of-range float64 (1 ULP apart) at the upper (2^31) and lower (-2^31 -
+	// 1) thresholds.
+	//
+	// Since AMD64 doesn't simply saturate, this lets us distinguish between
+	// in-range and out-of-range. (If all platforms saturated, we'd have to back
+	// off more to distinguish.)
+	xI32 := vecOf[float64, Width256](
+		math.Nextafter(0x1p31, 0), 0x1p31,
+		math.Nextafter(-0x1p31-1, 0), -0x1p31-1,
+	)
+	wantI32 := vecOf[Variation[int32], Width128](
+		exact[int32](math.MaxInt32),
+		convertOOB[int32](math.MinInt32, math.MaxInt32),
+		exact[int32](math.MinInt32),
+		convertOOB[int32](math.MinInt32, math.MinInt32),
+	)
+	if got := ConvertFloatToInt[float64, Width256, int32, Width128](xI32); !reflect.DeepEqual(got, wantI32) {
+		t.Fatalf("got %v, want %v", got, wantI32)
+	}
+
+	// Unsigned lower (-1) and upper (2^32) thresholds with fractional truncation.
+	xU32 := vecOf[float64, Width256](
+		math.Nextafter(-1, 0), -1,
+		math.Nextafter(0x1p32, 0), 0x1p32,
+	)
+	wantU32 := vecOf[Variation[uint32], Width128](
+		exact[uint32](0),
+		convertOOB[uint32](math.MaxUint32, 0),
+		exact[uint32](math.MaxUint32),
+		convertOOB[uint32](math.MaxUint32, math.MaxUint32),
+	)
+	if got := ConvertFloatToInt[float64, Width256, uint32, Width128](xU32); !reflect.DeepEqual(got, wantU32) {
+		t.Fatalf("got %v, want %v", got, wantU32)
+	}
+
+	// Significand narrower than integer width: float32(MaxInt32) rounds up to 2^31.
+	x32 := vecOf[float32, Width128](
+		math.Nextafter32(0x1p31, 0), 0x1p31,
+		-0x1p31, math.Nextafter32(-0x1p31, -math.MaxFloat32),
+	)
+	want32 := vecOf[Variation[int32], Width128](
+		exact[int32](1<<31-128),
+		convertOOB[int32](math.MinInt32, math.MaxInt32),
+		exact[int32](math.MinInt32),
+		convertOOB[int32](math.MinInt32, math.MinInt32),
+	)
+	if got := ConvertFloatToInt[float32, Width128, int32, Width128](x32); !reflect.DeepEqual(got, want32) {
+		t.Fatalf("got %v, want %v", got, want32)
 	}
 }

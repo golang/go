@@ -91,6 +91,16 @@ import "simd/internal/spec"
 	}
 	fmt.Fprintf(src, ")\n\n")
 
+	fmt.Fprintf(src, `func canonVec[E spec.EltOrMask, W spec.Width](v spec.Vec[spec.Variation[E], W]) []E {
+	z := make([]E, len(v))
+	for i := range v {
+		z[i] = v[i].Canon()
+	}
+	return z
+}
+
+`)
+
 	// Define functions
 	var args []string
 	for _, fn := range funcs {
@@ -238,8 +248,16 @@ func fromSpec(t specexpr.Type, tt types.Type, val string, src *srcWriter) string
 
 	switch t := t.(type) {
 	case specexpr.Vector:
+		if elem, ok := isVariation(tt.(*types.Named).TypeArgs().At(0)); ok {
+			val = fmt.Sprintf("canonVec(%s)", val)
+			tt = elem
+		}
 		return fmt.Sprintf("%s{%s}", t, val)
 	case specexpr.Basic:
+		if elem, ok := isVariation(tt); ok {
+			val = fmt.Sprintf("(%s).Canon()", val)
+			tt = elem
+		}
 		switch tt := tt.(type) {
 		case *types.Named:
 			if tt.Obj().Name() == "UintN" {
@@ -268,4 +286,11 @@ func fromSpec(t specexpr.Type, tt types.Type, val string, src *srcWriter) string
 	}
 	log.Fatalf("unexpected specexpr type %s (%T)", t, t)
 	panic("not reachable")
+}
+
+func isVariation(t types.Type) (types.Type, bool) {
+	if n, ok := t.(*types.Named); ok && n.Obj().Name() == "Variation" && n.Obj().Pkg().Path() == "simd/internal/spec" {
+		return n.TypeArgs().At(0), true
+	}
+	return nil, false
 }

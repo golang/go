@@ -298,38 +298,116 @@ func DotProductPairsSaturated[xE Uints, xW Width, yE Ints, zE Ints](x Vec[xE, xW
 	return z
 }
 
-// Max returns the elementwise maximum of x and y.
+// MaxInts returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
-func Max[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	// Note that this is NOT marked as commutative because its handling of NaN
-	// on AMD64 is non-commutative.
-
-	// TODO: Platforms do not agree on how to handle NaNs.
-	//
-	// AMD64 AVX (VMAXPS/VMINPS): If either input is NaN or if inputs are +0.0
-	// and −0.0, the instruction selects the second operand (making it
-	// non-commutative).
-	//
-	// ARM64 NEON (VFMAX/VFMIN): Follows IEEE 754-2008 maxNum/minNum (returns
-	// the numerical operand if one is NaN).
-	//
-	// WASM (F32x4Max/F32x4Min): Follows IEEE 754-2019 maximum/minimum.
-	//
-	// simd_emulated.go: Uses Go's built-in max/min (max(x, NaN) = NaN, and
-	// preserves +0.0 vs −0.0).
+//
+//specgen:name Max
+//specgen:commutative
+func MaxInts[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E {
 		return max(x, y)
 	})
 }
 
-// Min returns the elementwise minimum of x and y.
+// MaxFloats returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
+//
+//specgen:name Max
+func MaxFloats[E Floats, W Width](x, y Vec[E, W]) (z Vec[Variation[E], W]) {
+	// Note that this is NOT marked as commutative because its handling of NaN
+	// and signed zeroes on AMD64 is non-commutative.
+	//
+	// AMD64 AVX (VMAXPS/VMINPS): Computes `if x > y { x } else { y }`. If
+	// either input is NaN or if inputs are +0.0 and −0.0, the instruction
+	// selects the second operand y (making it non-commutative).
+	//
+	// ARM64 NEON/SVE (VFMAX/VFMIN, ZFMAX/ZFMIN) and WASM (F32x4Max/F32x4Min):
+	// Follow IEEE 754-2019 maximum/minimum (like Go's built-in max/min,
+	// propagating NaN and ordering −0.0 < +0.0).
+	return map2[E, W, Variation[E], W](x, y, func(x, y E) Variation[E] {
+		amd64 := y
+		if x > y {
+			amd64 = x
+		}
+		ieee := max(x, y)
+		if equalExact(amd64, ieee) {
+			return exact(ieee)
+		}
+		return perPlatform(map[Platform]E{
+			PlatformAMD64: amd64,
+			PlatformARM64: ieee,
+			PlatformWASM:  ieee,
+		})
+	})
+}
+
+// MinInts returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
-func Min[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	// TODO: Same issue as Max.
+//
+//specgen:name Min
+//specgen:commutative
+func MinInts[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E {
 		return min(x, y)
+	})
+}
+
+// MinFloats returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
+//
+//specgen:name Min
+func MinFloats[E Floats, W Width](x, y Vec[E, W]) (z Vec[Variation[E], W]) {
+	// See MaxFloats for platform details.
+	return map2[E, W, Variation[E], W](x, y, func(x, y E) Variation[E] {
+		amd64 := y
+		if x < y {
+			amd64 = x
+		}
+		ieee := min(x, y)
+		if equalExact(amd64, ieee) {
+			return exact(ieee)
+		}
+		return perPlatform(map[Platform]E{
+			PlatformAMD64: amd64,
+			PlatformARM64: ieee,
+			PlatformWASM:  ieee,
+		})
 	})
 }
 
@@ -405,8 +483,10 @@ func ReduceSum[E Elt, W Width](x Vec[E, W]) (z E) {
 //
 //	z = max(x[0], x[1], ...)
 func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
-	// TODO: Platforms may not agree on NaN and on the sign of a zero result,
-	// as with Max.
+	// TODO: Do we need per-platform handling of non-finites? Since AMD64 is the
+	// only platform that's weird about non-finite values and it doesn't have
+	// ReduceMax, maybe we don't have to, but if we ever want to emulate this on
+	// AMD64, we'd have to decide whether to match AMD64's Max or Go/IEEE Max.
 	z = x[0]
 	for _, xi := range x[1:] {
 		z = max(z, xi)
@@ -417,10 +497,15 @@ func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 func Sqrt[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
-	// TODO: Determine and document the precision of the result.
-	//
-	// TODO: Document behavior for special float values.
+	// For float32, computing the square root in float64 and rounding to
+	// float32 is still correctly rounded: double rounding is harmless for
+	// square root when the wider format has at least 2p+2 bits of precision,
+	// and 53 >= 2*24+2.
 	return map1[E, W, E, W](x, func(x E) E {
 		return E(math.Sqrt(float64(x)))
 	})
