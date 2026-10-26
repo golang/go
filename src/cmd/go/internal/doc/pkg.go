@@ -31,11 +31,10 @@ const (
 )
 
 type Package struct {
-	writer      io.Writer    // Destination for output.
-	name        string       // Package name, json for encoding/json.
-	userPath    string       // String the user used to find this package.
-	pkg         *ast.Package // Parsed package.
-	file        *ast.File    // Merged from all files in the package
+	writer      io.Writer // Destination for output.
+	name        string    // Package name, json for encoding/json.
+	userPath    string    // String the user used to find this package.
+	file        *ast.File // Merged from all files in the package
 	doc         *doc.Package
 	build       *load.Package
 	typedValue  map[*doc.Value]bool // Consts and vars related to types.
@@ -69,7 +68,7 @@ func (pb *pkgBuffer) packageClause() {
 	if !pb.printed {
 		pb.printed = true
 		// Only show package clause for commands if requested explicitly.
-		if pb.pkg.pkg.Name != "main" || showCmd {
+		if pb.pkg.name != "main" || showCmd {
 			pb.pkg.packageClause()
 		}
 	}
@@ -207,12 +206,15 @@ func parsePackage(writer io.Writer, pkg *load.Package, userPath string) *Package
 		}
 	}
 
+	var file *ast.File
+	if astPkg != nil {
+		file = ast.MergePackageFiles(astPkg, 0)
+	}
 	p := &Package{
 		writer:      writer,
 		name:        pkg.Name,
 		userPath:    userPath,
-		pkg:         astPkg,
-		file:        ast.MergePackageFiles(astPkg, 0),
+		file:        file,
 		doc:         docPkg,
 		typedValue:  typedValue,
 		constructor: constructor,
@@ -250,7 +252,7 @@ func (pkg *Package) newlines(n int) {
 func (pkg *Package) emit(comment string, node ast.Node) {
 	if node != nil {
 		var arg any = node
-		if showSrc {
+		if showSrc && pkg.file != nil {
 			// Need an extra little dance to get internal comments to appear.
 			arg = &printer.CommentedNode{
 				Node:     node,
@@ -561,7 +563,7 @@ func (pkg *Package) packageDoc() {
 		pkg.funcsDoc()
 		pkg.typesDoc()
 
-	case pkg.pkg.Name == "main" && !showCmd:
+	case pkg.name == "main" && !showCmd:
 		// Show only package docs for commands.
 		return
 
