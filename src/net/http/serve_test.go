@@ -7508,6 +7508,33 @@ func testMaxBytesHandler(t *testing.T, mode testMode, maxSize, requestSize int64
 	})
 }
 
+func TestServerMaxBytesHeaderRace(t *testing.T) {
+	runSynctest(t, func(t *testing.T, mode testMode) {
+		cst := newClientServerTest(t, mode, MaxBytesHandler(HandlerFunc(func(w ResponseWriter, r *Request) {
+			var wg sync.WaitGroup
+			defer wg.Wait()
+			// MaxBytesHandler will hit its set limit when reading the request
+			// body. When this happens, it will make sure that the connection
+			// is closed after this response. In doing so, it will set
+			// "Connection: close" header. This must not race with any header
+			// that is explicitly set by the handler.
+			wg.Go(func() {
+				io.ReadAll(r.Body)
+			})
+			w.Header().Set("X-Test", "1")
+			w.WriteHeader(413)
+		}), 4), optFakeNet)
+		res, err := cst.c.Post(cst.ts.URL, "text/plain", strings.NewReader("hello"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != 413 {
+			t.Errorf("want status 413, got %v", res.Status)
+		}
+	})
+}
+
 func TestEarlyHints(t *testing.T) {
 	ht := newHandlerTest(HandlerFunc(func(w ResponseWriter, r *Request) {
 		h := w.Header()

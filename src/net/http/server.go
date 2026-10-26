@@ -475,7 +475,7 @@ type response struct {
 	// request. Instead, when this is set, we stop reading
 	// subsequent requests on this connection and stop reading
 	// input from it.
-	requestBodyLimitHit bool
+	requestBodyLimitHit atomic.Bool
 
 	// trailers are the headers to be sent after the handler
 	// finishes writing the body. This field is initialized from
@@ -564,11 +564,7 @@ func (w *response) declareTrailer(k string) {
 // requestTooLarge is called by maxBytesReader when too much input has
 // been read from the client.
 func (w *response) requestTooLarge() {
-	w.closeAfterReply = true
-	w.requestBodyLimitHit = true
-	if !w.wroteHeader {
-		w.Header().Set("Connection", "close")
-	}
+	w.requestBodyLimitHit.Store(true)
 }
 
 // disableWriteContinue stops Request.Body.Read from sending an automatic
@@ -1439,6 +1435,10 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
+	if w.requestBodyLimitHit.Load() {
+		w.closeAfterReply = true
+	}
+
 	// We do this by default because there are a number of clients that
 	// send a full request before starting to read the response, and they
 	// can deadlock if we start writing the response with unconsumed body
@@ -1559,6 +1559,10 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	}
 	if !w.req.ProtoAtLeast(1, 0) {
 		return
+	}
+
+	if w.requestBodyLimitHit.Load() {
+		w.closeAfterReply = true
 	}
 
 	// Only override the Connection header if it is not a successful
@@ -1744,7 +1748,7 @@ func (w *response) finishRequest() {
 // shouldReuseConnection reports whether the underlying TCP connection can be reused.
 // It must only be called after the handler is done executing.
 func (w *response) shouldReuseConnection() bool {
-	if w.closeAfterReply {
+	if w.closeAfterReply || w.requestBodyLimitHit.Load() {
 		// The request or something set while executing the
 		// handler indicated we shouldn't reuse this
 		// connection.
@@ -2164,7 +2168,7 @@ func (c *conn) serve(ctx context.Context) {
 		w.finishRequest()
 		c.rwc.SetWriteDeadline(time.Time{})
 		if !w.shouldReuseConnection() {
-			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
+			if w.requestBodyLimitHit.Load() || w.closedRequestBodyEarly() {
 				c.closeWriteAndWait()
 			}
 			return
