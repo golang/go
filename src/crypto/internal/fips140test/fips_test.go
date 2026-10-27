@@ -16,6 +16,7 @@ package fipstest
 import (
 	"bytes"
 	"crypto/internal/boring"
+	"crypto/internal/cryptotest"
 	"crypto/internal/fips140"
 	"crypto/internal/fips140/aes"
 	"crypto/internal/fips140/aes/gcm"
@@ -98,6 +99,7 @@ func TestFIPS140(t *testing.T) {
 	aesIV := make([]byte, aes.BlockSize)
 	plaintext := []byte("Go Cryptographic Module TestFIPS140 plaintext...")
 	plaintextSHA256 := decodeHex(t, "06b2614e2ef315832b23f5d0ff70294d8ddd3889527dfbe75707fe41da929325")
+	plaintextSHA384 := decodeHex(t, "ad20990965f6caec69e016072881f80f049c0687554809901ec4c0988c3fec678c0926fe5661742185be968de6c4d9b2")
 	aesBlock, err := aes.New(aesKey)
 	fatalIfErr(t, err)
 
@@ -433,6 +435,13 @@ func TestFIPS140(t *testing.T) {
 		ensureServiceIndicator(t)
 		key := tls12.MasterSecret(sha256.New, plaintextSHA256, []byte("test"))
 		t.Logf("TLS v1.2 CVL Master Secret: %x", key)
+	})
+
+	t.Run("KDF TLS v1.2 CVL SHA-384", func(t *testing.T) {
+		cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+		ensureServiceIndicator(t)
+		key := tls12.MasterSecret(sha512.New384, plaintextSHA384, []byte("test"))
+		t.Logf("TLS v1.2 CVL SHA-384 Master Secret: %x", key)
 	})
 
 	t.Run("KDF TLS v1.3 CVL", func(t *testing.T) {
