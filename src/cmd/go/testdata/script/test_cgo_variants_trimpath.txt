@@ -1,0 +1,192 @@
+# Check for data races when concurrently building test variants of a cgo package.
+
+[short] skip
+[!cgo] skip
+
+env GOCACHE=$WORK/gocache
+env GOTMPDIR=$WORK/tmp
+mkdir $WORK/tmp
+go test -run=^$ ./...
+go run ./checkwork $GOCACHE $GOTMPDIR
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+-- checkwork/main.go --
+// checkwork reports files in a directory tree that mention a string.
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	root, s := os.Args[1], os.Args[2]
+	bad := false
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if bytes.Contains(data, []byte(s)) {
+			fmt.Printf("%s mentions %s\n", path, s)
+			bad = true
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	if bad {
+		os.Exit(1)
+	}
+}
+-- c/c.go --
+package c
+
+// int add(int a, int b) { return a + b; }
+import "C"
+
+import (
+	_ "example.com/m/x1"
+	_ "example.com/m/x2"
+	_ "example.com/m/x3"
+	_ "example.com/m/x4"
+	_ "example.com/m/x5"
+	_ "example.com/m/x6"
+	_ "example.com/m/x7"
+	_ "example.com/m/x8"
+)
+
+func Add(a, b int) int { return int(C.add(C.int(a), C.int(b))) }
+-- c/f1.go --
+package c
+-- c/f2.go --
+package c
+-- c/f3.go --
+package c
+-- c/f4.go --
+package c
+-- c/f5.go --
+package c
+-- x1/x.go --
+package x1
+-- x1/export_test.go --
+package x1
+-- x1/x_test.go --
+package x1_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x2/x.go --
+package x2
+-- x2/export_test.go --
+package x2
+-- x2/x_test.go --
+package x2_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x3/x.go --
+package x3
+-- x3/export_test.go --
+package x3
+-- x3/x_test.go --
+package x3_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x4/x.go --
+package x4
+-- x4/export_test.go --
+package x4
+-- x4/x_test.go --
+package x4_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x5/x.go --
+package x5
+-- x5/export_test.go --
+package x5
+-- x5/x_test.go --
+package x5_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x6/x.go --
+package x6
+-- x6/export_test.go --
+package x6
+-- x6/x_test.go --
+package x6_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x7/x.go --
+package x7
+-- x7/export_test.go --
+package x7
+-- x7/x_test.go --
+package x7_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
+-- x8/x.go --
+package x8
+-- x8/export_test.go --
+package x8
+-- x8/x_test.go --
+package x8_test
+
+import (
+	"testing"
+
+	"example.com/m/c"
+)
+
+func Test(t *testing.T) { c.Add(1, 2) }
