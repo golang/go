@@ -105,12 +105,6 @@ func (s *state) at(node parse.Node) {
 	s.node = node
 }
 
-// doublePercent returns the string with %'s replaced by %%, if necessary,
-// so it can be used safely inside a Printf format string.
-func doublePercent(str string) string {
-	return strings.ReplaceAll(str, "%", "%%")
-}
-
 // TODO: It would be nice if ExecError was more broken down, but
 // the way ErrorContext embeds the template name makes the
 // processing too clumsy.
@@ -133,16 +127,19 @@ func (e ExecError) Unwrap() error {
 
 // errorf records an ExecError and terminates processing.
 func (s *state) errorf(format string, args ...any) {
-	name := doublePercent(s.tmpl.Name())
+	name := s.tmpl.Name()
+	var err error
 	if s.node == nil {
-		format = fmt.Sprintf("template: %s: %s", name, format)
+		args = append([]any{name}, args...)
+		err = fmt.Errorf("template: %s: "+format, args...)
 	} else {
 		location, context := s.tmpl.ErrorContext(s.node)
-		format = fmt.Sprintf("template: %s: executing %q at <%s>: %s", location, name, doublePercent(context), format)
+		args = append([]any{location, name, context}, args...)
+		err = fmt.Errorf("template: %s: executing %q at <%s>: "+format, args...)
 	}
 	panic(ExecError{
 		Name: s.tmpl.Name(),
-		Err:  fmt.Errorf(format, args...),
+		Err:  err,
 	})
 }
 

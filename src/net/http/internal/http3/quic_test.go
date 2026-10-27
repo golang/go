@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/quic"
 	"internal/gate"
 	"net/http/internal/testcert"
-	"golang.org/x/net/quic"
 )
 
 // TestNewQUICConfig verifies that newQUICConfig always produces a config with

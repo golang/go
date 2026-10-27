@@ -8077,6 +8077,42 @@ func TestSetIter(t *testing.T) {
 	}
 }
 
+// Issue 82373.
+func TestSetIterCopy(t *testing.T) {
+	const key, val = "key", "val"
+	m1 := map[string]string{key: val}
+	iter := ValueOf(m1).MapRange()
+	iter.Next()
+
+	var dst any
+	ValueOf(&dst).Elem().SetIterValue(iter)
+	if dst != val {
+		t.Errorf("SetIterValue set to %q, want %q", dst, val)
+	}
+	m1[key] = "val2"
+	if dst != val {
+		t.Errorf("SetIterValue aliased: is %q, want %q", dst, val)
+	}
+
+	ValueOf(&dst).Elem().SetIterKey(iter)
+	if dst != key {
+		t.Errorf("SetIterKey set to %q, want %q", dst, key)
+	}
+	delete(m1, key)
+	m1["key2"] = "val2"
+	if dst != key {
+		t.Errorf("SetIterKey aliased: is %q, want %q", dst, key)
+	}
+
+	m2 := map[string]error{key: nil}
+	iter = ValueOf(m2).MapRange()
+	iter.Next()
+	ValueOf(&dst).Elem().SetIterValue(iter)
+	if dst != nil {
+		t.Errorf("SetIterValue any set to %v (type %T), want nil", dst, dst)
+	}
+}
+
 func TestMethodCallValueCodePtr(t *testing.T) {
 	m := ValueOf(Point{}).Method(1)
 	want := MethodValueCallCodePtr()

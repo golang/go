@@ -140,8 +140,8 @@
 // Note that 64 bytes of stack space is used as a circular buffer
 // for the message schedule (4 bytes * 16 entries).
 //
-// func block(dig *Digest, p []byte)
-TEXT ·block(SB),0,$64-32
+// func blockScalar(dig *Digest, p []byte)
+TEXT ·blockScalar(SB),0,$64-32
 	MOV	p_base+8(FP), X29
 	MOV	p_len+16(FP), X30
 	SRL	$6, X30
@@ -260,3 +260,140 @@ loop:
 
 end:
 	RET
+
+// Zvkna requires MessageSched plus Constants
+// VADDVV	K[t:t+3], W[t:t+3], V6	// V6 = W[0] + K[0] ... W[3] + K[3]
+// VSHA2CLVV	V6, V2, V3
+// VSHA2CHVV	V6, V3, V2	// Update states
+//
+// Reuse W[t:t+3] for next schedule
+// VMERGEVVM	W[t+4:t+7], W[t+8:t+11], V0, V7
+// VSHA2MSVV	W[t+12:t+15], V7, Wnext	// Now Wnext = W[t+16:t+19]
+#define ZVKNAROUND(K, WP0) \
+	VADDVV		K, WP0, V6; \
+	VSHA2CLVV	V6, V2, V3; \
+	VSHA2CHVV	V6, V3, V2
+
+#define ZVKNAMSGSCHEDULE(WP0, WP4, WP8, WP12) \
+	VMERGEVVM	WP4, WP8, V0, V7; \
+	VSHA2MSVV	WP12, V7, WP0
+
+
+// func blockZvknha(dig *Digest, p []byte)
+TEXT ·blockZvknha(SB),0,$0-32
+	MOV	dig+0(FP), X10
+	MOV	p_base+8(FP), X11
+	MOV	p_len+16(FP), X12
+
+	VSETIVLI	$4, E32, M1, TA, MA, X0
+
+	// Notes from RISC-V manual 33.3.22
+	// The {W11, W10, W9, W4} element group can easily be formed by using a vector
+	// vmerge instruction with the appropriate mask
+	// (for example with vl=4 and 4b0001 as the 4 mask bits)
+	VMVVI	$1, V0
+
+	MOV	$state_mask<>(SB), X14
+	VLE32V	(X14), V1
+	ADD	$8, X10, X15
+	VLUXEI32V	(X10), V1, V2	// V2 = F, E, B, A
+	VLUXEI32V	(X15), V1, V3	// V3 = H, G, D, C
+
+	// Load Constants, V8..V23
+	MOV	$·_K(SB), X14
+	VLE32V	(X14), V8
+	ADD	$16, X14
+	VLE32V	(X14), V9
+	ADD	$16, X14
+	VLE32V	(X14), V10
+	ADD	$16, X14
+	VLE32V	(X14), V11
+	ADD	$16, X14
+	VLE32V	(X14), V12
+	ADD	$16, X14
+	VLE32V	(X14), V13
+	ADD	$16, X14
+	VLE32V	(X14), V14
+	ADD	$16, X14
+	VLE32V	(X14), V15
+	ADD	$16, X14
+	VLE32V	(X14), V16
+	ADD	$16, X14
+	VLE32V	(X14), V17
+	ADD	$16, X14
+	VLE32V	(X14), V18
+	ADD	$16, X14
+	VLE32V	(X14), V19
+	ADD	$16, X14
+	VLE32V	(X14), V20
+	ADD	$16, X14
+	VLE32V	(X14), V21
+	ADD	$16, X14
+	VLE32V	(X14), V22
+	ADD	$16, X14
+	VLE32V	(X14), V23
+
+loop:
+	VMV2RV	V2, V4			// V4, V5 = V2, V3, add later
+
+	// Load message and convert to big-endian form.
+	VLE32V	(X11), V25
+	VREV8V	V25, V25		// V25 = W0..W3
+	ADD	$16, X11
+	VLE32V	(X11), V26
+	VREV8V	V26, V26		// V26 = W4..W7
+	ADD	$16, X11
+	VLE32V	(X11), V27
+	VREV8V	V27, V27		// V27 = W8..W11
+	ADD	$16, X11
+	VLE32V	(X11), V28
+	VREV8V	V28, V28		// V28 = W12..W15
+	ADD	$16, X11
+
+	ZVKNAROUND(V8, V25)
+	ZVKNAMSGSCHEDULE(V25, V26, V27, V28)
+	ZVKNAROUND(V9, V26)
+	ZVKNAMSGSCHEDULE(V26, V27, V28, V25)
+	ZVKNAROUND(V10, V27)
+	ZVKNAMSGSCHEDULE(V27, V28, V25, V26)
+	ZVKNAROUND(V11, V28)
+	ZVKNAMSGSCHEDULE(V28, V25, V26, V27)
+
+	ZVKNAROUND(V12, V25)
+	ZVKNAMSGSCHEDULE(V25, V26, V27, V28)
+	ZVKNAROUND(V13, V26)
+	ZVKNAMSGSCHEDULE(V26, V27, V28, V25)
+	ZVKNAROUND(V14, V27)
+	ZVKNAMSGSCHEDULE(V27, V28, V25, V26)
+	ZVKNAROUND(V15, V28)
+	ZVKNAMSGSCHEDULE(V28, V25, V26, V27)
+
+	ZVKNAROUND(V16, V25)
+	ZVKNAMSGSCHEDULE(V25, V26, V27, V28)
+	ZVKNAROUND(V17, V26)
+	ZVKNAMSGSCHEDULE(V26, V27, V28, V25)
+	ZVKNAROUND(V18, V27)
+	ZVKNAMSGSCHEDULE(V27, V28, V25, V26)
+	ZVKNAROUND(V19, V28)
+	ZVKNAMSGSCHEDULE(V28, V25, V26, V27)
+
+	ZVKNAROUND(V20, V25)
+	ZVKNAROUND(V21, V26)
+	ZVKNAROUND(V22, V27)
+	ZVKNAROUND(V23, V28)
+
+	VADDVV	V4, V2, V2
+	VADDVV	V5, V3, V3
+
+	SUB	$64, X12
+	BNEZ	X12, loop
+
+	VSUXEI32V	V2, V1, (X10)
+	VSUXEI32V	V3, V1, (X15)
+	RET
+
+DATA state_mask<>+0(SB)/4, $20
+DATA state_mask<>+4(SB)/4, $16
+DATA state_mask<>+8(SB)/4, $4
+DATA state_mask<>+12(SB)/4, $0
+GLOBL state_mask<>(SB), RODATA, $16

@@ -423,11 +423,9 @@ func TestMakeStructFields(t *testing.T) {
 
 			// Zero out fields that are incomparable.
 			for i := range got.flattened {
-				got.flattened[i].fncs = nil
 				got.flattened[i].isEmpty = nil
 			}
 			if got.embeddedFallback != nil {
-				got.embeddedFallback.fncs = nil
 				got.embeddedFallback.isEmpty = nil
 			}
 

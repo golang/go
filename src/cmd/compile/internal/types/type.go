@@ -1998,3 +1998,19 @@ var ShapePkg = NewPkg("go.shape", "go.shape")
 func (t *Type) IsSIMD() bool {
 	return t.flags&typeIsSIMD != 0
 }
+func (t *Type) ContainsSIMD() bool {
+	if t.IsSIMD() {
+		return true
+	}
+	switch t.Kind() {
+	case TARRAY:
+		return t.Elem().ContainsSIMD()
+	case TSTRUCT:
+		for _, f := range t.Fields() {
+			if f.Type.ContainsSIMD() {
+				return true
+			}
+		}
+	}
+	return false
+}

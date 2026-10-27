@@ -350,3 +350,23 @@ func forSlicePair[T number](t *testing.T, s []T, n int, f func(a, b []T) bool) {
 		}
 	}
 }
+
+func forBoolSlice(t *testing.T, s []bool, n int, f func(a []bool) bool) {
+	t.Helper()
+	for i := 0; i < len(s)-n; i++ {
+		if !f(s[i : i+n]) {
+			return
+		}
+	}
+}
+
+func forBoolSlicePair(t *testing.T, s []bool, n int, f func(a, b []bool) bool) {
+	t.Helper()
+	for i := 0; i < len(s)-n; i++ {
+		for j := 0; j < len(s)-n; j++ {
+			if !f(s[i:i+n], s[j:j+n]) {
+				return
+			}
+		}
+	}
+}

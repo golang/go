@@ -577,6 +577,8 @@ func tcSwitchExpr(curfunc *ir.Func, n *ir.SwitchStmt) {
 	}
 
 	var defCase ir.Node
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	for _, ncase := range n.Cases {
 		ls := ncase.List
 		if len(ls) == 0 { // default:

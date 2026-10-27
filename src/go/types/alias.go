@@ -168,7 +168,7 @@ func (check *Checker) newAliasInstance(pos token.Pos, orig *Alias, targs []Type,
 	res := check.newAlias(obj, rhs)
 	res.orig = orig
 	res.tparams = orig.tparams
-	res.targs = newTypeList(targs)
+	res.targs = NewTypeList(targs)
 	// Ensure that res.actual is set before returning an instance constructed
 	// outside of package type checking (e.g. via types.Instantiate). When check != nil,
 	// res was added to check.cleanups by newAlias and will be cleaned up at the end

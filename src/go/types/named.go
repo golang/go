@@ -345,7 +345,7 @@ func (check *Checker) newNamedInstance(pos token.Pos, orig *Named, targs []Type,
 	assert(len(targs) > 0)
 
 	obj := NewTypeName(pos, orig.obj.pkg, orig.obj.name, nil)
-	inst := &instance{orig: orig, targs: newTypeList(targs)}
+	inst := &instance{orig: orig, targs: NewTypeList(targs)}
 
 	// Only pass the expanding context to the new instance if their packages
 	// match. Since type reference cycles are only possible within a single

@@ -79,7 +79,41 @@ var regNamesPPC64 = []string{
 	"F28",
 	"F29",
 	"F30",
-	// "F31", the allocator is limited to 64 entries. We sacrifice this FPR to support XER.
+	"F31",
+	// V0-V31 are the VMX/Altivec vector registers (= VS32-VS63).
+	// VS0-VS31 overlap with F0-F31 and are not listed separately.
+	"V0",
+	"V1",
+	"V2",
+	"V3",
+	"V4",
+	"V5",
+	"V6",
+	"V7",
+	"V8",
+	"V9",
+	"V10",
+	"V11",
+	"V12",
+	"V13",
+	"V14",
+	"V15",
+	"V16",
+	"V17",
+	"V18",
+	"V19",
+	"V20",
+	"V21",
+	"V22",
+	"V23",
+	"V24",
+	"V25",
+	"V26",
+	"V27",
+	"V28",
+	"V29",
+	"V30",
+	"V31",
 
 	"XER",
 
@@ -101,7 +135,7 @@ var regNamesPPC64 = []string{
 
 func init() {
 	// Make map from reg names to reg integers.
-	if len(regNamesPPC64) > 64 {
+	if len(regNamesPPC64) > 128 {
 		panic("too many registers")
 	}
 	num := map[string]int{}
@@ -121,8 +155,15 @@ func init() {
 	}
 
 	var (
-		gp  = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
-		fp  = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30")
+		// 0-31: General Purpose Registers (R1, R2, R13 omitted for system use)
+		gp = buildReg("R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29")
+		// 32-63: Dual-Purpose Overlapping Slots (FPR0-FPR31 / VSR0-VSR31)
+		fp = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31")
+		// 64-95: VMX/Altivec registers V0-V31 (= VS32-VS63)
+		vmxReg = buildReg("V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31")
+		// Full VSX register file: VS0-VS63 (= F0-F31 + V0-V31)
+		vsxReg = buildReg("F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31")
+
 		sp  = buildReg("SP")
 		sb  = buildReg("SB")
 		gr  = buildReg("g")
@@ -170,7 +211,7 @@ func init() {
 		fploadidx   = regInfo{inputs: []regMask{gp.union(sp).union(sb), gp.union(sp).union(sb)}, outputs: []regMask{fp}}
 		fpstore     = regInfo{inputs: []regMask{gp.union(sp).union(sb), fp}}
 		fpstoreidx  = regInfo{inputs: []regMask{gp.union(sp).union(sb), gp.union(sp).union(sb), fp}}
-		callerSave  = regMask(gp.union(fp).union(gr).union(xer))
+		callerSave  = regMask(gp.union(fp).union(vmxReg).union(gr).union(xer))
 		first7      = buildReg("R3 R4 R5 R6 R7 R8 R9")
 	)
 	ops := []opData{
@@ -474,6 +515,13 @@ func init() {
 		{name: "CALLclosure", argLength: -1, reg: regInfo{inputs: []regMask{callptr, ctxt, regMask{}}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},  // call function via closure.  arg0=codeptr, arg1=closure, last arg=mem, auxint=argsize, returns mem
 		{name: "CALLinter", argLength: -1, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "CallOff", clobberFlags: true, call: true},                     // call fn by pointer.  arg0=codeptr, last arg=mem, auxint=argsize, returns mem
 
+		// Zero128 produces a zero 128-bit vector value via XXLXOR VSx,VSx,VSx.
+		// It is the ppc64 lowering of the generic ZeroSIMD op, named to match
+		// the AMD64 convention (Zero128/256/512). The register allocator assigns
+		// the output register from the full VSX file (vsxReg); ssaGenValue
+		// translates it to the VSX name via simdReg when it lands in the F0-F31 bank.
+		{name: "Zero128", argLength: 0, reg: regInfo{outputs: []regMask{vsxReg}}, asm: "XXLXOR", typ: "Vec128", rematerializeable: true},
+
 		// large or unaligned zeroing
 		// arg0 = address of memory to zero (in R3, changed as side effect)
 		// returns mem
@@ -481,13 +529,13 @@ func init() {
 		// a loop is generated when there is more than one iteration
 		// needed to clear 4 doublewords
 		//
-		//	XXLXOR	VS32,VS32,VS32
+		//	XXLXOR	V0,V0,V0
 		// 	MOVD	$len/32,R31
 		//	MOVD	R31,CTR
 		//	MOVD	$16,R31
 		//	loop:
-		//	STXVD2X VS32,(R0)(R3)
-		//	STXVD2X	VS32,(R31)(R3)
+		//	STXVD2X V0,(R0)(R3)
+		//	STXVD2X	V0,(R31)(R3)
 		//	ADD	R3,32
 		//	BC	loop
 
@@ -504,9 +552,9 @@ func init() {
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
-			argLength: 2,
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
+				inputs:   []regMask{buildReg("R20"), vmxReg},
 				clobbers: buildReg("R20"),
 			},
 			clobberFlags:   true,
@@ -529,9 +577,9 @@ func init() {
 		{
 			name:      "LoweredQuadZeroShort",
 			aux:       "Int64",
-			argLength: 2,
+			argLength: 3,
 			reg: regInfo{
-				inputs: []regMask{gp},
+				inputs: []regMask{gp, vmxReg},
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
@@ -541,9 +589,9 @@ func init() {
 		{
 			name:      "LoweredQuadZero",
 			aux:       "Int64",
-			argLength: 2,
+			argLength: 3,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20")},
+				inputs:   []regMask{buildReg("R20"), vmxReg},
 				clobbers: buildReg("R20"),
 			},
 			clobberFlags:   true,
@@ -559,19 +607,16 @@ func init() {
 		//	MOVD R31,CTR
 		//	MOVD $16,R31		index register
 		// loop:
-		//	LXVD2X (R0)(R4),VS32
-		//	LXVD2X (R31)(R4),VS33
+		//	LXVD2X (R0)(R4),V0
+		//	LXVD2X (R31)(R4),V1
 		//	ADD  R4,$32          increment src
-		//	STXVD2X VS32,(R0)(R3)
-		//	STXVD2X VS33,(R31)(R3)
+		//	STXVD2X V0,(R0)(R3)
+		//	STXVD2X V1,(R31)(R3)
 		//	ADD  R3,$32          increment dst
 		//	BC 16,0,loop         branch ctr
-		// For this purpose, VS32 and VS33 are treated as
-		// scratch registers. Since regalloc does not
-		// track vector registers, even if it could be marked
-		// as clobbered it would have no effect.
-		// TODO: If vector registers are managed by regalloc
-		// mark these as clobbered.
+		// V0 and V1 are used as scratch registers.
+		// They are declared as clobbered so the register
+		// allocator does not place live values in them.
 		//
 		// Bytes not moved by this loop are moved
 		// with a combination of the following instructions,
@@ -592,7 +637,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R20"), buildReg("R21")},
-				clobbers: buildReg("R20 R21"),
+				clobbers: buildReg("R20 R21 V0 V1"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",
@@ -607,7 +652,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs: []regMask{gp, gp},
+				inputs:   []regMask{gp, gp},
+				clobbers: buildReg("V0"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
@@ -626,7 +672,7 @@ func init() {
 			argLength: 3,
 			reg: regInfo{
 				inputs:   []regMask{buildReg("R20"), buildReg("R21")},
-				clobbers: buildReg("R20 R21"),
+				clobbers: buildReg("R20 R21 V0 V1"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",
@@ -642,7 +688,8 @@ func init() {
 			aux:       "Int64",
 			argLength: 3,
 			reg: regInfo{
-				inputs: []regMask{gp, gp},
+				inputs:   []regMask{gp, gp},
+				clobbers: buildReg("V0 V1"),
 			},
 			typ:            "Mem",
 			faultOnNilArg0: true,
@@ -775,6 +822,7 @@ func init() {
 		ParamFloatRegNames: "F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12",
 		gpregmask:          gp,
 		fpregmask:          fp,
+		simdregmask:        vsxReg,
 		specialregmask:     xer,
 		framepointerreg:    -1,
 		linkreg:            -1, // not used

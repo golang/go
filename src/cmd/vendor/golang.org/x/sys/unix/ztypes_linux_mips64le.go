@@ -167,6 +167,12 @@ type Msghdr struct {
 	_          [4]byte
 }
 
+type Mmsghdr struct {
+	Hdr Msghdr
+	Len uint32
+	_   [4]byte
+}
+
 type Cmsghdr struct {
 	Len   uint64
 	Level int32
@@ -182,6 +188,7 @@ const (
 	SizeofSockaddrNFCLLCP = 0x60
 	SizeofIovec           = 0x10
 	SizeofMsghdr          = 0x38
+	SizeofMmsghdr         = 0x40
 	SizeofCmsghdr         = 0x10
 )
 

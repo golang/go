@@ -5,7 +5,6 @@
 package main
 
 import (
-	"flag"
 	"internal/testenv"
 	"io/fs"
 	"os"
@@ -15,13 +14,8 @@ import (
 	"golang.org/x/build/relnote"
 )
 
-var flagCheck = flag.Bool("check", false, "run API release note checks")
-
 // Check that each file in api/next has corresponding release note files in doc/next.
 func TestCheckAPIFragments(t *testing.T) {
-	if !*flagCheck {
-		t.Skip("-check not specified")
-	}
 	root := testenv.GOROOT(t)
 	rootFS := os.DirFS(root)
 	files, err := fs.Glob(rootFS, "api/next/*.txt")

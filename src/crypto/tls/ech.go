@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 
 	"golang.org/x/crypto/cryptobyte"
@@ -598,6 +599,11 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg, echKeys []EncryptedC
 			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKey Config: %s", err)
 		}
 		if skip {
+			continue
+		}
+		// RFC 9849, Section 7.1 requires trying the next config if the
+		// offered cipher suite is not supported by this config.
+		if !slices.Contains(config.SymmetricCipherSuite, echCiphersuite) {
 			continue
 		}
 		kem, err := hpke.NewKEM(config.KemID)

@@ -150,23 +150,32 @@ func benchmarkScanSpanPacked(b *testing.B, nPages int, sizeClass int) {
 	// Create the scan buffer.
 	buf := make([]uintptr, gc.PageWords)
 
-	// Sweep from 0 marks to all marks. We'll use the same marks for each page
-	// because I don't think that predictability matters.
+	// Sweep from 0 marks to all marks. At each density, cycle through a
+	// pool of random masks rather than reusing one for every call: which
+	// frames of a span are non-empty is effectively random at medium
+	// densities, and a kernel that branches around empty frames pays a
+	// mispredict on most of them, but with a single reused mask the
+	// branch predictor learns the pattern and hides that cost.
 	objBytes := uintptr(gc.SizeClassToSize[sizeClass])
 	nObj := gc.PageSize / objBytes
-	markOrder := rnd.Perm(int(nObj))
 	const steps = 11
+	// The pool must be large enough that one cycle through it,
+	// nMaskSets*gc.PageWords/8 per-frame branch outcomes, is far longer
+	// than any branch history, but small enough to stay in cache, so that
+	// the benchmark doesn't measure misses on the masks themselves. At
+	// 256 masks it is 32 KiB, which fits in L1 on cores with a 64 KiB L1D
+	// and in L2 on everything else.
+	const nMaskSets = 256
 	for i := 0; i < steps; i++ {
 		frac := float64(i) / float64(steps-1)
 		// Set frac marks.
-		nMarks := int(float64(len(markOrder))*frac + 0.5)
-		var objMarks gc.ObjMask
-		for _, mark := range markOrder[:nMarks] {
-			objMarks[mark/goarch.PtrBits] |= 1 << (mark % goarch.PtrBits)
-		}
-		greyClusters := 0
-		for page := range ptrs {
-			greyClusters += countGreyClusters(sizeClass, &objMarks, &ptrs[page])
+		nMarks := int(float64(nObj)*frac + 0.5)
+		var objMarksSet [nMaskSets]gc.ObjMask
+		for s := range objMarksSet {
+			markOrder := rnd.Perm(int(nObj))
+			for _, mark := range markOrder[:nMarks] {
+				objMarksSet[s][mark/goarch.PtrBits] |= 1 << (mark % goarch.PtrBits)
+			}
 		}
 
 		// Report MB/s of how much memory they're actually hitting. This assumes
@@ -179,21 +188,31 @@ func benchmarkScanSpanPacked(b *testing.B, nPages int, sizeClass int) {
 		//
 		// TODO: Should there be a separate measure where we don't expand to
 		// cache lines?
-		avgBytes := int64(greyClusters) * int64(cpu.CacheLineSize) / int64(len(ptrs))
+		//
+		// Average over nMaskSets (page, mask) pairs rather than every
+		// combination, which would scale with nPages*nMaskSets.
+		greyClusters := 0
+		for s := range objMarksSet {
+			page := pageOrder[s%len(pageOrder)]
+			greyClusters += countGreyClusters(sizeClass, &objMarksSet[s], &ptrs[page])
+		}
+		avgBytes := int64(greyClusters) * int64(cpu.CacheLineSize) / int64(nMaskSets)
 
 		b.Run(fmt.Sprintf("pct=%d", int(100*frac)), func(b *testing.B) {
 			b.Run("impl=Reference", func(b *testing.B) {
 				b.SetBytes(avgBytes)
 				for i := range b.N {
 					page := pageOrder[i%len(pageOrder)]
-					scan.ScanSpanPackedReference(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], &objMarks, uintptr(sizeClass), &ptrs[page])
+					objMarks := &objMarksSet[i%nMaskSets]
+					scan.ScanSpanPackedReference(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], objMarks, uintptr(sizeClass), &ptrs[page])
 				}
 			})
 			b.Run("impl=Go", func(b *testing.B) {
 				b.SetBytes(avgBytes)
 				for i := range b.N {
 					page := pageOrder[i%len(pageOrder)]
-					scan.ScanSpanPackedGo(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], &objMarks, uintptr(sizeClass), &ptrs[page])
+					objMarks := &objMarksSet[i%nMaskSets]
+					scan.ScanSpanPackedGo(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], objMarks, uintptr(sizeClass), &ptrs[page])
 				}
 			})
 			if scan.HasFastScanSpanPacked() {
@@ -201,7 +220,8 @@ func benchmarkScanSpanPacked(b *testing.B, nPages int, sizeClass int) {
 					b.SetBytes(avgBytes)
 					for i := range b.N {
 						page := pageOrder[i%len(pageOrder)]
-						scan.ScanSpanPacked(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], &objMarks, uintptr(sizeClass), &ptrs[page])
+						objMarks := &objMarksSet[i%nMaskSets]
+						scan.ScanSpanPacked(unsafe.Pointer(&mem[gc.PageWords*page]), &buf[0], objMarks, uintptr(sizeClass), &ptrs[page])
 					}
 				})
 			}

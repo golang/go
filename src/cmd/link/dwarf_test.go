@@ -269,12 +269,12 @@ func TestDWARF(t *testing.T) {
 func TestDWARFiOS(t *testing.T) {
 	// Normally we run TestDWARF on native platform. But on iOS we don't have
 	// go build, so we do this test with a cross build.
-	// Only run this on darwin/amd64, where we can cross build for iOS.
+	// Only run this on darwin, where we can cross build for iOS.
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	if runtime.GOARCH != "amd64" || runtime.GOOS != "darwin" {
-		t.Skip("skipping on non-darwin/amd64 platform")
+	if runtime.GOOS != "darwin" {
+		t.Skip("skipping on non-darwin platform")
 	}
 	if err := testenv.Command(t, "xcrun", "--help").Run(); err != nil {
 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
@@ -287,11 +287,11 @@ func TestDWARFiOS(t *testing.T) {
 		t.Skipf("iOS SDK not detected.")
 	}
 	cc := "CC=" + runtime.GOROOT() + "/misc/ios/clangwrap.sh"
-	// iOS doesn't allow unmapped segments, so iOS executables don't have DWARF.
+	// On iOS, split DWARF is emitted in a .dSYM file.
 	t.Run("exe", func(t *testing.T) {
-		testDWARF(t, "", false, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
+		testDWARF(t, "", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
 	})
-	// However, c-archive iOS objects have embedded DWARF.
+	// c-archive iOS objects have embedded DWARF.
 	t.Run("c-archive", func(t *testing.T) {
 		testDWARF(t, "c-archive", true, cc, "CGO_ENABLED=1", "GOOS=ios", "GOARCH=arm64")
 	})

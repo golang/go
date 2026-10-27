@@ -1,0 +1,75 @@
+# Regression test for https://go.dev/issue/82438:
+# "go list -export" should rewrite source file paths as the compiler does.
+
+env GOEXPERIMENT=golistexportnewformat
+
+# With -trimpath, the package directory should be replaced by the import path.
+go list -trimpath -export -json .
+cp stdout out.json
+go run q.go out.json V
+stdout '^m/p\.go$'
+
+[!cgo] stop
+
+# The object directory should be removed from cgo-generated file names.
+go list -export -json ./c
+cp stdout out.json
+go run q.go out.json _Ctype_int
+stdout '^_cgo_gotypes\.go$'
+
+-- go.mod --
+module m
+
+go 1.27
+-- p.go --
+package p
+
+var V = 42
+-- c/c.go --
+package c
+
+import "C"
+
+var V = C.int(42)
+-- q.go --
+//go:build ignore
+
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"go/importer"
+	"go/token"
+	"io"
+	"log"
+	"os"
+)
+
+func main() {
+	data, err := os.ReadFile(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	// This is a minimal output of go list -export -json.
+	type output struct {
+		ImportPath	string
+		Export		string
+	}
+	var out output
+	if err := json.Unmarshal(data, &out); err != nil {
+		log.Fatal(err)
+	}
+	fset := token.NewFileSet()
+	imp := importer.ForCompiler(fset, "gc", func(path string) (io.ReadCloser, error) {
+		if path != out.ImportPath {
+			log.Fatalf("unexpected import: %q", path)
+		}
+		return os.Open(out.Export)
+	})
+	pkg, err := imp.Import(out.ImportPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(fset.Position(pkg.Scope().Lookup(os.Args[2]).Pos()).Filename)
+}

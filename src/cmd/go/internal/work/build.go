@@ -852,6 +852,7 @@ func InstallPackages(ld *modload.Loader, ctx context.Context, patterns []string,
 				if m.IsRegular() {
 					if m&0111 != 0 || cfg.Goos == "windows" { // windows never sets executable bit
 						os.Remove(targ)
+						os.RemoveAll(targ + ".dSYM")
 					}
 				}
 			}

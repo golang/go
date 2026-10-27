@@ -25,17 +25,23 @@ func main() {
 	noFillDoc := flag.Bool("no-fill-doc", false, "disable filling doc comments from spec")
 	noFillNames := flag.Bool("no-fill-names", false, "disable filling parameter and result names from spec")
 
+	dirs := []string{
+		filepath.Join(genOpts.GOROOT, "src/simd"),
+		filepath.Join(genOpts.GOROOT, "src/simd/archsimd"),
+	}
+
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()
-		fmt.Fprintf(w, "usage: specfill [flags]\n")
+		fmt.Fprintf(w, "usage: specfill [flags] [files...]\n\n")
+		fmt.Fprintf(w, "If files are not given, specfill applies to all non-test, non-generated files in:\n")
+		for _, d := range dirs {
+			fmt.Fprintf(w, "  %s\n", d)
+		}
+		fmt.Fprintln(w)
 		flag.CommandLine.PrintDefaults()
 	}
 
 	flag.Parse()
-	if flag.NArg() != 0 {
-		flag.Usage()
-		os.Exit(1)
-	}
 
 	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
 	specFuncs, err := specgen.Load(specDir, nil)
@@ -45,9 +51,32 @@ func main() {
 	}
 	specIdx := specgen.NewIndex(specFuncs)
 
-	dirs := []string{
-		filepath.Join(genOpts.GOROOT, "src/simd"),
-		filepath.Join(genOpts.GOROOT, "src/simd/archsimd"),
+	var targetFiles []string
+	filesArgs := false
+	if flag.NArg() > 0 {
+		filesArgs = true
+		for _, arg := range flag.Args() {
+			p, err := filepath.Abs(arg)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", arg, err)
+				os.Exit(1)
+			}
+			targetFiles = append(targetFiles, p)
+		}
+	} else {
+		for _, dir := range dirs {
+			entries, err := os.ReadDir(dir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "reading %s: %v\n", dir, err)
+				os.Exit(1)
+			}
+			for _, e := range entries {
+				if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
+					continue
+				}
+				targetFiles = append(targetFiles, filepath.Join(dir, e.Name()))
+			}
+		}
 	}
 
 	var files gentools.Files
@@ -55,55 +84,48 @@ func main() {
 
 	var combinedReport specdoc.Report
 
-	for _, dir := range dirs {
-		entries, err := os.ReadDir(dir)
+	for _, filePath := range targetFiles {
+		relPath, err := filepath.Rel(genOpts.GOROOT, filePath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "reading %s: %v\n", dir, err)
+			relPath = filePath
+		}
+		srcRelPath, err := filepath.Rel(filepath.Join(genOpts.GOROOT, "src"), filePath)
+		if err != nil {
+			srcRelPath = strings.TrimPrefix(filepath.ToSlash(relPath), "src/")
+		}
+		src, err := os.ReadFile(filePath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "reading %s: %v\n", filePath, err)
 			os.Exit(1)
 		}
-		for _, e := range entries {
-			if e.IsDir() || !strings.HasSuffix(e.Name(), ".go") || strings.HasSuffix(e.Name(), "_test.go") {
-				continue
-			}
-			filePath := filepath.Join(dir, e.Name())
-			relPath, err := filepath.Rel(genOpts.GOROOT, filePath)
-			if err != nil {
-				relPath = filePath
-			}
-			srcRelPath, err := filepath.Rel(filepath.Join(genOpts.GOROOT, "src"), filePath)
-			if err != nil {
-				srcRelPath = strings.TrimPrefix(filepath.ToSlash(relPath), "src/")
-			}
-			src, err := os.ReadFile(filePath)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "reading %s: %v\n", filePath, err)
+		gen, err := isGenerated(src)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", filePath, err)
+			os.Exit(1)
+		}
+		if gen {
+			if filesArgs {
+				fmt.Fprintf(os.Stderr, "%s: file is generated\n", filePath)
 				os.Exit(1)
 			}
-			gen, err := isGenerated(src)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "%s: %v\n", filePath, err)
-				os.Exit(1)
-			}
-			if gen {
-				continue
-			}
-			rewritten, err := specdoc.Fill(src, specIdx, specdoc.Options{
-				Filename:        filepath.ToSlash(relPath),
-				AllowDocRewrite: true,
-				NoFillDoc:       *noFillDoc,
-				NoFillNames:     *noFillNames,
-			})
-			var rep *specdoc.Report
-			if errors.As(err, &rep) {
-				combinedReport.Merge(rep)
-			} else if err != nil {
-				fmt.Fprintf(os.Stderr, "checking %s: %v\n", filePath, err)
-				os.Exit(1)
-			}
-			if rewritten != nil && !bytes.Equal(src, rewritten) {
-				buf := files.NewGoFile(filepath.ToSlash(srcRelPath))
-				buf.Write(rewritten)
-			}
+			continue
+		}
+		rewritten, err := specdoc.Fill(src, specIdx, specdoc.Options{
+			Filename:        filepath.ToSlash(relPath),
+			AllowDocRewrite: true,
+			NoFillDoc:       *noFillDoc,
+			NoFillNames:     *noFillNames,
+		})
+		var rep *specdoc.Report
+		if errors.As(err, &rep) {
+			combinedReport.Merge(rep)
+		} else if err != nil {
+			fmt.Fprintf(os.Stderr, "checking %s: %v\n", filePath, err)
+			os.Exit(1)
+		}
+		if rewritten != nil && !bytes.Equal(src, rewritten) {
+			buf := files.NewGoFile(filepath.ToSlash(srcRelPath))
+			buf.Write(rewritten)
 		}
 	}
 
@@ -168,4 +190,3 @@ func isGenerated(src []byte) (bool, error) {
 	}
 	return false, nil
 }
-

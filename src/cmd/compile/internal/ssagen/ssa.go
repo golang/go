@@ -4638,6 +4638,12 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 	if t.Size() == 0 {
 		return s.entryNewValue0(ssaop.OpEmpty, t)
 	}
+	b := s.entryBlock()
+	if t.ContainsSIMD() {
+		// SIMD code needs to be guarded by feature checks, so
+		// we can't put its zero value in the entry block.
+		b = s.curBlock
+	}
 	switch {
 	case t.IsInteger():
 		switch t.Size() {
@@ -4685,15 +4691,15 @@ func (s *state) zeroVal(t *types.Type) *ssa.Value {
 		return s.constSlice(t)
 	case isStructNotSIMD(t):
 		n := t.NumFields()
-		v := s.entryNewValue0(ssaop.OpStructMake, t)
+		v := b.NewValue0(src.NoXPos, ssaop.OpStructMake, t)
 		for i := 0; i < n; i++ {
 			v.AddArg(s.zeroVal(t.FieldType(i)))
 		}
 		return v
 	case t.IsArray() && t.NumElem() == 1:
-		return s.entryNewValue1(ssaop.OpArrayMake1, t, s.zeroVal(t.Elem()))
+		return b.NewValue1(src.NoXPos, ssaop.OpArrayMake1, t, s.zeroVal(t.Elem()))
 	case t.IsSIMD():
-		return s.newValue0(ssaop.OpZeroSIMD, t)
+		return b.NewValue0(src.NoXPos, ssaop.OpZeroSIMD, t)
 	}
 	s.Fatalf("zero for type %v not implemented", t)
 	return nil

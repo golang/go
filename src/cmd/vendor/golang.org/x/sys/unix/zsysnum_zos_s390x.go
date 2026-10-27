@@ -2848,5 +2848,18 @@ const (
 	SYS_____CHATTRAT64_A                = 0xE39 // 3641
 	SYS_MADVISE                         = 0xE3A // 3642
 	SYS___AUTHENTICATE                  = 0xE3B // 3643
+	SYS_GETPWENT_R                      = 0xE3C // 3644
+	SYS___GETPWENT_R_A                  = 0xE3D // 3645
+	SYS_STRNLEN                         = 0xE3E // 3646
+	SYS_STPCPY                          = 0xE3F // 3647
+	SYS_STPNCPY                         = 0xE40 // 3648
+	SYS_STRSIGNAL                       = 0xE41 // 3649
+	SYS_WCPCPY                          = 0xE42 // 3650
+	SYS_WCPNCPY                         = 0xE43 // 3651
+	SYS_WCSNLEN                         = 0xE44 // 3652
+	SYS___STRSIGNAL_A                   = 0xE45 // 3653
+	SYS_FDOPENDIR                       = 0xE46 // 3654
+	SYS_FDCLOSEDIR                      = 0xE47 // 3655
+	SYS_SYSCALL                         = 0xE48 // 3656
 
 )

@@ -336,9 +336,35 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 			return 0, 0, err
 		}
 	}
-	argv0p, err := UTF16PtrFromString(argv0)
-	if err != nil {
-		return 0, 0, err
+	var argv0p *uint16
+	isBat := false
+	if sys.CmdLine == "" && hasBatchExtension(argv0) {
+		resolved, err := FullPath(argv0)
+		if err != nil {
+			return 0, 0, err
+		}
+		// Avoid rewriting argv[0] if the resolved path contains '%' or '!',
+		// which cmd.exe could expand as environment variables. Also check
+		// GetBinaryTypeW to ensure the file is not an executable binary
+		// with a .bat or .cmd extension.
+		if bytealg.IndexByteString(resolved, '%') == -1 && bytealg.IndexByteString(resolved, '!') == -1 {
+			resolvedp, err := UTF16PtrFromString(resolved)
+			if err != nil {
+				return 0, 0, err
+			}
+			var binaryType uint32
+			if getBinaryType(resolvedp, &binaryType) == _ERROR_BAD_EXE_FORMAT {
+				isBat = true
+				argv0 = resolved
+				argv0p = resolvedp
+			}
+		}
+	}
+	if argv0p == nil {
+		argv0p, err = UTF16PtrFromString(argv0)
+		if err != nil {
+			return 0, 0, err
+		}
 	}
 
 	var cmdline string
@@ -347,6 +373,34 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	// and joining each argument with spaces
 	if sys.CmdLine != "" {
 		cmdline = sys.CmdLine
+	} else if isBat {
+		// For .bat and .cmd files, Windows CreateProcess implicitly invokes
+		// cmd.exe /c <cmdline>, ignoring lpApplicationName (argv0) when
+		// resolving the script to execute. Replace argv[0] with argv0 so
+		// cmd.exe runs the resolved script rather than re-resolving argv[0]
+		// against Dir and PATH.
+		//
+		// We wrap argv0 in quotes (in case it contains spaces or cmd.exe
+		// metacharacters like '&' or '()') and wrap the entire command line
+		// in an outer pair of quotes. When cmd.exe processes /c without /s,
+		// if the command line starts with a quote and contains more than two
+		// quotes, cmd.exe strips the first and last quote characters on the
+		// command line, leaving `"argv0" args...` intact.
+		if bytealg.IndexByteString(argv0, '"') != -1 {
+			return 0, 0, EINVAL
+		}
+		var b []byte
+		b = append(b, '"', '"')
+		b = append(b, argv0...)
+		b = append(b, '"')
+		if len(argv) > 1 {
+			for _, v := range argv[1:] {
+				b = append(b, ' ')
+				b = appendEscapeArg(b, v)
+			}
+		}
+		b = append(b, '"')
+		cmdline = string(b)
 	} else {
 		cmdline = makeCmdLine(argv)
 	}
@@ -448,6 +502,38 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle 
 	runtime.KeepAlive(sys)
 
 	return int(pi.ProcessId), uintptr(pi.Process), nil
+}
+
+// hasBatchExtension reports whether path has a .bat or .cmd extension
+// (ignoring any trailing spaces or dots, which Windows strips).
+func hasBatchExtension(path string) bool {
+	for len(path) > 0 && (path[len(path)-1] == ' ' || path[len(path)-1] == '.') {
+		path = path[:len(path)-1]
+	}
+	if len(path) < 4 {
+		return false
+	}
+	ext := path[len(path)-4:]
+	return asciiEqualFold(ext, ".bat") || asciiEqualFold(ext, ".cmd")
+}
+
+func asciiEqualFold(s, t string) bool {
+	if len(s) != len(t) {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if asciiLower(s[i]) != asciiLower(t[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func asciiLower(b byte) byte {
+	if 'A' <= b && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
 }
 
 func Exec(argv0 string, argv []string, envv []string) (err error) {

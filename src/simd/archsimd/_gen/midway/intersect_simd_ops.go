@@ -492,37 +492,30 @@ package simd
 
 `)
 
+		checkSpec := func(recv string, name string) {
+			if specIdx.Lookup(recv, name) == nil {
+				fullName := name
+				if recv != "" {
+					fullName = recv + "." + name
+
+				}
+				pw("Missing from spec: %s\n", fullName)
+			}
+		}
+
 		for _, elem := range elems {
 			intersection := intersectionByElem[elem]
 
 			if elem[0] != 'M' {
 				// cannot load masks
 
-				loadComment := comments.Functions["Load"+elem]
-				if loadComment == "" && comments.Functions["default_LoadSlice"] != "" {
-					loadComment = fmt.Sprintf(comments.Functions["default_LoadSlice"], elem, toScalar(elem), elem)
-				}
-				if loadComment != "" {
-					pf("// %s\n", loadComment)
-				}
+				checkSpec("", "Load"+elem+"s")
 				pf("func Load%ss([]%s) %ss\n", elem, toScalar(elem), elem)
 
-				loadPartComment := comments.Functions["Load"+elem+"Part"]
-				if loadPartComment == "" && comments.Functions["default_LoadPart"] != "" {
-					loadPartComment = fmt.Sprintf(comments.Functions["default_LoadPart"], elem, toScalar(elem), elem)
-				}
-				if loadPartComment != "" {
-					pf("// %s\n", loadPartComment)
-				}
+				checkSpec("", "Load"+elem+"sPart")
 				pf("func Load%ssPart([]%s) (%ss, int)\n", elem, toScalar(elem), elem)
 
-				broadcastComment := comments.Functions["Broadcast"+elem]
-				if broadcastComment == "" && comments.Functions["default_Broadcast"] != "" {
-					broadcastComment = fmt.Sprintf(comments.Functions["default_Broadcast"], elem)
-				}
-				if broadcastComment != "" {
-					pf("// %s\n", broadcastComment)
-				}
+				checkSpec("", "Broadcast"+elem+"s")
 				pf("func Broadcast%ss(%s) %ss\n", elem, toScalar(elem), elem)
 			}
 
@@ -536,7 +529,7 @@ package simd
 				if methodComment != "" {
 					pf("// %s\n", methodComment)
 				} else {
-					pw("Missing doc comment (in midway/comments.yaml) for %s.%s\n", elems, m)
+					checkSpec(elems, m)
 				}
 				pf("func (x %s) %s(", elems, m)
 

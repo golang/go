@@ -23,6 +23,10 @@ type sentPacket struct {
 	ackEliciting bool // https://www.rfc-editor.org/rfc/rfc9002.html#section-2-3.4.1
 	inFlight     bool // https://www.rfc-editor.org/rfc/rfc9002.html#section-2-3.6.1
 
+	// offPath is set when the packet was sent on something other than the current path.
+	// It must not contribute to congestion control or RTT estimation.
+	offPath bool
+
 	// Frames sent in the packet.
 	//
 	// This is an abbreviated version of the packet payload, containing only the information

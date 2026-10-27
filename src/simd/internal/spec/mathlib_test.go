@@ -204,3 +204,97 @@ func TestScaleSaturated(t *testing.T) {
 		// Overflow
 		{2, 63, math.MaxUint64}, {5, 100, math.MaxUint64})
 }
+
+func TestClmul(t *testing.T) {
+	// uint8 tests
+	tab8 := []struct {
+		a, b   uint8
+		hi, lo uint8
+	}{
+		{0, 0, 0, 0},
+		{0, 0xff, 0, 0},
+		{1, 0xab, 0, 0xab},
+		{0b1110, 0b1011, 0, 0b1100010}, // Example from bitmath.go doc
+		{0x80, 0x80, 0x40, 0},
+		{0xff, 0xff, 0x55, 0x55},
+	}
+	for _, tc := range tab8 {
+		hi, lo := clmul(tc.a, tc.b)
+		if hi != tc.hi || lo != tc.lo {
+			t.Errorf("clmul[uint8](%#x, %#x) = (%#x, %#x); want (%#x, %#x)", tc.a, tc.b, hi, lo, tc.hi, tc.lo)
+		}
+		// Commutative
+		rhi, rlo := clmul(tc.b, tc.a)
+		if rhi != hi || rlo != lo {
+			t.Errorf("clmul[uint8](%#x, %#x) != clmul(%#x, %#x)", tc.b, tc.a, tc.a, tc.b)
+		}
+	}
+
+	// uint16 tests
+	tab16 := []struct {
+		a, b   uint16
+		hi, lo uint16
+	}{
+		{0, 0, 0, 0},
+		{1, 0xabcd, 0, 0xabcd},
+		{0x8000, 0x8000, 0x4000, 0},
+		{0xffff, 0xffff, 0x5555, 0x5555},
+	}
+	for _, tc := range tab16 {
+		hi, lo := clmul(tc.a, tc.b)
+		if hi != tc.hi || lo != tc.lo {
+			t.Errorf("clmul[uint16](%#x, %#x) = (%#x, %#x); want (%#x, %#x)", tc.a, tc.b, hi, lo, tc.hi, tc.lo)
+		}
+		rhi, rlo := clmul(tc.b, tc.a)
+		if rhi != hi || rlo != lo {
+			t.Errorf("clmul[uint16](%#x, %#x) != clmul(%#x, %#x)", tc.b, tc.a, tc.a, tc.b)
+		}
+	}
+
+	// uint32 tests
+	tab32 := []struct {
+		a, b   uint32
+		hi, lo uint32
+	}{
+		{0, 0, 0, 0},
+		{1, 0x12345678, 0, 0x12345678},
+		{0x80000000, 0x80000000, 0x40000000, 0},
+		{0xffffffff, 0xffffffff, 0x55555555, 0x55555555},
+	}
+	for _, tc := range tab32 {
+		hi, lo := clmul(tc.a, tc.b)
+		if hi != tc.hi || lo != tc.lo {
+			t.Errorf("clmul[uint32](%#x, %#x) = (%#x, %#x); want (%#x, %#x)", tc.a, tc.b, hi, lo, tc.hi, tc.lo)
+		}
+		rhi, rlo := clmul(tc.b, tc.a)
+		if rhi != hi || rlo != lo {
+			t.Errorf("clmul[uint32](%#x, %#x) != clmul(%#x, %#x)", tc.b, tc.a, tc.a, tc.b)
+		}
+	}
+
+	// uint64 tests
+	tab64 := []struct {
+		a, b   uint64
+		hi, lo uint64
+	}{
+		{0, 0, 0, 0},
+		{1, 0x123456789abcdef0, 0, 0x123456789abcdef0},
+		{1, 3, 0, 3},
+		{1, 9, 0, 9},
+		{5, 3, 0, 15},
+		{5, 9, 0, 45},
+		{3, 3, 0, 5},
+		{0x8000000000000000, 0x8000000000000000, 0x4000000000000000, 0},
+		{0xffffffffffffffff, 0xffffffffffffffff, 0x5555555555555555, 0x5555555555555555},
+	}
+	for _, tc := range tab64 {
+		hi, lo := clmul(tc.a, tc.b)
+		if hi != tc.hi || lo != tc.lo {
+			t.Errorf("clmul[uint64](%#x, %#x) = (%#x, %#x); want (%#x, %#x)", tc.a, tc.b, hi, lo, tc.hi, tc.lo)
+		}
+		rhi, rlo := clmul(tc.b, tc.a)
+		if rhi != hi || rlo != lo {
+			t.Errorf("clmul[uint64](%#x, %#x) != clmul(%#x, %#x)", tc.b, tc.a, tc.a, tc.b)
+		}
+	}
+}

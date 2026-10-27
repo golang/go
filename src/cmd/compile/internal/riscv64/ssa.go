@@ -218,8 +218,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.From.Reg = rs
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = rd
-	case ssaop.OpRISCV64MOVDnop:
-		// nothing to do
 	case ssaop.OpLoadReg:
 		if v.Type.IsFlags() {
 			v.Fatalf("load flags not implemented: %v", v.LongString())

@@ -251,6 +251,35 @@ func TestRoundSVE(t *testing.T) {
 	testFloat64sUnary(t, archsimd.Float64s.Round, roundSlice[float64])
 }
 
+// ifElseSlice returns, lane by lane, op(x) where x > y and y elsewhere.
+func ifElseSlice[T float32 | float64](op func([]T) []T) func(x, y []T) []T {
+	return func(x, y []T) []T {
+		r := op(x)
+		for i := range r {
+			if !(x[i] > y[i]) {
+				r[i] = y[i]
+			}
+		}
+		return r
+	}
+}
+
+// TestRoundingIfElseSVE checks the rounding operations under a select, which
+// folds into their merging-predicated forms.
+func TestRoundingIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testFloat32sBinary(t, func(x, y archsimd.Float32s) archsimd.Float32s { return x.Ceil().IfElse(x.Greater(y), y) }, ifElseSlice(ceilSlice[float32]))
+	testFloat64sBinary(t, func(x, y archsimd.Float64s) archsimd.Float64s { return x.Ceil().IfElse(x.Greater(y), y) }, ifElseSlice(ceilSlice[float64]))
+	testFloat32sBinary(t, func(x, y archsimd.Float32s) archsimd.Float32s { return x.Floor().IfElse(x.Greater(y), y) }, ifElseSlice(floorSlice[float32]))
+	testFloat64sBinary(t, func(x, y archsimd.Float64s) archsimd.Float64s { return x.Floor().IfElse(x.Greater(y), y) }, ifElseSlice(floorSlice[float64]))
+	testFloat32sBinary(t, func(x, y archsimd.Float32s) archsimd.Float32s { return x.Trunc().IfElse(x.Greater(y), y) }, ifElseSlice(truncSlice[float32]))
+	testFloat64sBinary(t, func(x, y archsimd.Float64s) archsimd.Float64s { return x.Trunc().IfElse(x.Greater(y), y) }, ifElseSlice(truncSlice[float64]))
+	testFloat32sBinary(t, func(x, y archsimd.Float32s) archsimd.Float32s { return x.Round().IfElse(x.Greater(y), y) }, ifElseSlice(roundSlice[float32]))
+	testFloat64sBinary(t, func(x, y archsimd.Float64s) archsimd.Float64s { return x.Round().IfElse(x.Greater(y), y) }, ifElseSlice(roundSlice[float64]))
+}
+
 func TestAndSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no SVE")

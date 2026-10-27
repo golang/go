@@ -1054,7 +1054,8 @@ func containsStack(got [][]string, want []string) bool {
 // shows a goroutine in the given state with a stack frame in
 // runtime/pprof.<fName>.
 func awaitBlockedGoroutine(t *testing.T, state, fName string, count int) {
-	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s\]:\n(?:.+\n\t.+\n)*runtime/pprof\.%s`, regexp.QuoteMeta(state), fName)
+	// NB: this matches [state] as well as [state, n minutes]
+	re := fmt.Sprintf(`(?m)^goroutine \d+ \[%s.*\]:\n(?:.+\n\t.+\n)*runtime/pprof\.%s`, regexp.QuoteMeta(state), fName)
 	r := regexp.MustCompile(re)
 
 	if deadline, ok := t.Deadline(); ok {

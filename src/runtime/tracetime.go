@@ -7,17 +7,11 @@
 package runtime
 
 import (
-	"internal/goarch"
 	"internal/trace/tracev2"
 	_ "unsafe"
 )
 
-// Timestamps in trace are produced through either nanotime or cputicks
-// and divided by traceTimeDiv. nanotime is used everywhere except on
-// platforms where osHasLowResClock is true, because the system clock
-// isn't granular enough to get useful information out of a trace in
-// many cases.
-//
+// Timestamps in trace are produced through nanotime and divided by traceTimeDiv.
 // This makes absolute values of timestamp diffs smaller, and so they are
 // encoded in fewer bytes.
 //
@@ -28,25 +22,12 @@ import (
 // We could be more aggressive and bump this up to 128 ns while still getting
 // useful data, but the extra bit doesn't save us that much and the headroom is
 // nice to have.
-//
-// Hitting this target resolution is easy in the nanotime case: just pick a
-// division of 64. In the cputicks case it's a bit more complex.
-//
-// For x86, on a 3 GHz machine, we'd want to divide by 3*64 to hit our target.
-// To keep the division operation efficient, we round that up to 4*64, or 256.
-// Given what cputicks represents, we use this on all other platforms except
-// for PowerPC.
-// The suggested increment frequency for PowerPC's time base register is
-// 512 MHz according to Power ISA v2.07 section 6.2, so we use 32 on ppc64
-// and ppc64le.
-const traceTimeDiv = (1-osHasLowResClockInt)*64 + osHasLowResClockInt*(256-224*(goarch.IsPpc64|goarch.IsPpc64le))
+const traceTimeDiv = 64
 
 // traceTime represents a timestamp for the trace.
 type traceTime uint64
 
-// traceClockNow returns a monotonic timestamp. The clock this function gets
-// the timestamp from is specific to tracing, and shouldn't be mixed with other
-// clock sources.
+// traceClockNow returns a monotonic timestamp in units of traceTimeDiv nanoseconds.
 //
 // nosplit because it's called from exitsyscall and various trace writing functions,
 // which are nosplit.
@@ -56,24 +37,15 @@ type traceTime uint64
 //go:linkname traceClockNow
 //go:nosplit
 func traceClockNow() traceTime {
-	if osHasLowResClock {
-		return traceTime(cputicks() / traceTimeDiv)
-	}
 	return traceTime(nanotime() / traceTimeDiv)
 }
 
-// traceClockUnitsPerSecond estimates the number of trace clock units per
+// traceClockUnitsPerSecond returns the number of trace clock units per
 // second that elapse.
 //
 //go:linkname traceClockUnitsPerSecond runtime/trace.runtime_traceClockUnitsPerSecond
 func traceClockUnitsPerSecond() uint64 {
-	if osHasLowResClock {
-		// We're using cputicks as our clock, so we need a real estimate.
-		return uint64(ticksPerSecond() / traceTimeDiv)
-	}
-	// Our clock is nanotime, so it's just the constant time division.
-	// (trace clock units / nanoseconds) * (1e9 nanoseconds / 1 second)
-	return uint64(1.0 / float64(traceTimeDiv) * 1e9)
+	return 1e9 / traceTimeDiv
 }
 
 func traceSyncBatch(gen uintptr, frequency uint64) {

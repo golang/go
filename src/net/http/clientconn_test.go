@@ -17,7 +17,7 @@ import (
 )
 
 func TestTransportNewClientConnRoundTrip(t *testing.T) {
-	runSynctest(t, testTransportNewClientConnRoundTrip, http3SkippedMode)
+	runSynctest(t, testTransportNewClientConnRoundTrip)
 }
 func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 	cst := newClientServerTest(t, mode, http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -71,7 +71,7 @@ func testTransportNewClientConnRoundTrip(t *testing.T, mode testMode) {
 // send an HTTP/2 PING frame, and verifies that a successful ping
 // returns a non-nil Response with a NoBody body (see go.dev/issue/81206).
 func TestClientConnPing(t *testing.T) {
-	runSynctest(t, testClientConnPing, http3SkippedMode)
+	runSynctest(t, testClientConnPing)
 }
 func testClientConnPing(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil)
@@ -93,7 +93,7 @@ func testClientConnPing(t *testing.T, mode testMode) {
 		}
 		resp.Body.Close()
 	default:
-		// HTTP/1 connections do not support PING.
+		// HTTP/1 and HTTP/3 connections do not support PING.
 		if err == nil {
 			t.Fatal("RoundTrip(:ping) = nil error, want error on HTTP/1")
 		}
@@ -364,7 +364,7 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 						t.Errorf("cc.Reserve() = %v, want success", err)
 					}
 				}
-			}, http3SkippedMode)
+			})
 		})
 	}
 

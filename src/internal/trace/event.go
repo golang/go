@@ -128,10 +128,9 @@ const maxTime = Time(math.MaxInt64)
 // The actual absolute value of the timestamp is only meaningful in
 // relation to other timestamps from the same clock.
 //
-// BUG: Timestamps coming from traces on Windows platforms are
-// only comparable with timestamps from the same trace. Timestamps
-// across traces cannot be compared, because the system clock is
-// not used as of Go 1.22.
+// BUG: Timestamps from traces recorded on Windows before Go 1.28 are
+// only comparable with timestamps from the same trace, because those
+// versions did not use the system clock for trace timestamps.
 //
 // BUG: Traces produced by Go versions 1.21 and earlier cannot be
 // compared with timestamps from other traces taken on the same

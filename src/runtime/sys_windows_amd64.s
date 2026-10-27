@@ -5,7 +5,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-#include "time_windows.h"
+#include "funcdata.h"
 #include "cgo/abi_amd64.h"
 
 // faster get/set last error
@@ -192,9 +192,21 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
 
 	XORL	AX, AX			// return 0 == success
 	RET
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	MOVQ	$_INTERRUPT_TIME, DI
-	MOVQ	time_lo(DI), AX
+TEXT runtime·nanotime2<ABIInternal>(SB),NOSPLIT,$32-0
+	NO_LOCAL_POINTERS
+	// asmcgocall supplies the Windows ABI's argument register and shadow space.
+	// Save LastError outside the call's argument and result slots.
+	MOVQ	0x30(GS), AX
+	MOVL	0x68(AX), DX
+	MOVL	DX, 20(SP)
+	MOVQ	runtime·_QueryInterruptTimePrecise(SB), AX
+	MOVQ	AX, 0(SP)
+	LEAQ	24(SP), AX
+	MOVQ	AX, 8(SP)
+	CALL	runtime·asmcgocall(SB)
+	MOVQ	0x30(GS), AX
+	MOVL	20(SP), DX
+	MOVL	DX, 0x68(AX)
+	MOVQ	24(SP), AX
 	IMULQ	$100, AX
-	MOVQ	AX, ret+0(FP)
 	RET

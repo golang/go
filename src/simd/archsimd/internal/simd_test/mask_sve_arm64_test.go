@@ -11,6 +11,7 @@
 package simd_test
 
 import (
+	"math"
 	"simd/archsimd"
 	"testing"
 	"unsafe"
@@ -202,4 +203,75 @@ func TestMaskAnySVE(t *testing.T) {
 	testMaskToBool(t, "Mask16s.Any", 2, archsimd.Mask16s.Any, anyWant)
 	testMaskToBool(t, "Mask32s.Any", 4, archsimd.Mask32s.Any, anyWant)
 	testMaskToBool(t, "Mask64s.Any", 8, archsimd.Mask64s.Any, anyWant)
+}
+
+func testMaskToIntAndBack[M sveMask, T signed, V any](t *testing.T, name string, laneBytes int,
+	toInt func(M) V, toMask func(V) M, store func(V, []T), load func([]T) V) {
+	t.Helper()
+	n := archsimd.Int8s{}.Len() / laneBytes
+	for _, bits := range maskPatterns(laneBytes, n) {
+		m := maskFromBits[M](bits)
+		v := toInt(m)
+		got := make([]T, n)
+		store(v, got)
+		lanes := lanesOf(bits, laneBytes, n)
+		for i, l := range lanes {
+			var want T
+			if l {
+				want = -1
+			}
+			if got[i] != want {
+				t.Errorf("%s.ToInt(%#x)[%d] = %d, want %d", name, bits, i, got[i], want)
+			}
+		}
+		if gotBits, wantBits := maskBits(toMask(v)), bitsOf(lanes, laneBytes); gotBits != wantBits {
+			t.Errorf("%s.ToInt(%#x).ToMask() = %#x, want %#x", name, bits, gotBits, wantBits)
+		}
+		// Check non-canonical non-zero values for ToMask.
+		for i := range got {
+			if got[i] != 0 {
+				got[i] = T(i + 1)
+			}
+		}
+		if gotBits, wantBits := maskBits(toMask(load(got))), bitsOf(lanes, laneBytes); gotBits != wantBits {
+			t.Errorf("%s non-canonical ToMask(%#x) = %#x, want %#x", name, bits, gotBits, wantBits)
+		}
+	}
+}
+
+func TestMaskToIntAndToMaskSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskToIntAndBack(t, "Mask8s", 1, archsimd.Mask8s.ToInt8s, archsimd.Int8s.ToMask, archsimd.Int8s.Store, archsimd.LoadInt8s)
+	testMaskToIntAndBack(t, "Mask16s", 2, archsimd.Mask16s.ToInt16s, archsimd.Int16s.ToMask, archsimd.Int16s.Store, archsimd.LoadInt16s)
+	testMaskToIntAndBack(t, "Mask32s", 4, archsimd.Mask32s.ToInt32s, archsimd.Int32s.ToMask, archsimd.Int32s.Store, archsimd.LoadInt32s)
+	testMaskToIntAndBack(t, "Mask64s", 8, archsimd.Mask64s.ToInt64s, archsimd.Int64s.ToMask, archsimd.Int64s.Store, archsimd.LoadInt64s)
+}
+
+// testMaskFromCount checks a FromCount constructor against the prefix of
+// lanes it should activate, through the mask's memory representation.
+func testMaskFromCount[M sveMask](t *testing.T, name string, laneBytes, n int, fromCount func(int) M) {
+	t.Helper()
+	for _, c := range []int{math.MinInt, -1, 0, 1, n / 2, n - 1, n, n + 1, math.MaxInt} {
+		m := fromCount(c)
+		got := *(*uint64)(unsafe.Pointer(&m))
+		lanes := make([]bool, n)
+		for i := range lanes {
+			lanes[i] = i < c
+		}
+		if want := bitsOf(lanes, laneBytes); got != want {
+			t.Errorf("%s(%d) = %#x, want %#x", name, c, got, want)
+		}
+	}
+}
+
+func TestMaskFromCountSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskFromCount(t, "Mask8sFromCount", 1, archsimd.Int8s{}.Len(), archsimd.Mask8sFromCount)
+	testMaskFromCount(t, "Mask16sFromCount", 2, archsimd.Int16s{}.Len(), archsimd.Mask16sFromCount)
+	testMaskFromCount(t, "Mask32sFromCount", 4, archsimd.Int32s{}.Len(), archsimd.Mask32sFromCount)
+	testMaskFromCount(t, "Mask64sFromCount", 8, archsimd.Int64s{}.Len(), archsimd.Mask64sFromCount)
 }

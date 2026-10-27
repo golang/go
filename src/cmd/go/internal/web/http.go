@@ -287,6 +287,7 @@ func fetch(security SecurityMode, url *urlpkg.URL, offset int64, ifRange string)
 		if intercepted {
 			intercept.Request(req)
 		}
+		req.Header.Set("User-Agent", userAgent)
 		setRangeHeaders(req)
 		res, err = client.Do(req)
 	}

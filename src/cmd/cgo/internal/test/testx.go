@@ -114,6 +114,10 @@ typedef struct {
 	int i;
 } Issue38408, *PIssue38408;
 
+// issue 44648
+typedef int issue44648T;
+typedef int (*issue44648F)(void *);
+
 extern void cfunc49633(void*); // definition is in test.go
 */
 import "C"
@@ -574,6 +578,26 @@ func GoFunc37033(handle C.uintptr_t) {
 // A typedef pointer can be used as the element type.
 // No runtime test; just make sure it compiles.
 var _ C.PIssue38408 = &C.Issue38408{i: 1}
+
+// issue 44648
+// The C wrapper for an exported Go function failed to compile if a
+// parameter had the same name as a C type used by the function.
+// No runtime test; just make sure it compiles.
+
+//export Issue44648A
+func Issue44648A(issue44648F C.issue44648F, data unsafe.Pointer) C.int {
+	return 0
+}
+
+//export Issue44648B
+func Issue44648B(issue44648T C.issue44648T) (C.issue44648T, C.issue44648T) {
+	return issue44648T, issue44648T
+}
+
+//export Issue44648C
+func Issue44648C(r C.int) (a, b C.int) {
+	return r, r
+}
 
 // issue 49633, example use of cgo.Handle with void*
 

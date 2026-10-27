@@ -72,6 +72,12 @@ func TestServerCancelPushForUnsentPromise(t *testing.T) {
 func TestServerHeader(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ts := newTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.TLS == nil {
+				t.Error("Request.TLS = nil, want non-nil")
+			}
+			if !r.TLS.HandshakeComplete {
+				t.Error("Request.TLS.HandshakeComplete = false, want true")
+			}
 			header := w.Header()
 			for key, values := range r.Header {
 				for _, value := range values {
@@ -545,27 +551,48 @@ func TestServerInvalidStatus(t *testing.T) {
 func TestServerHeaderLimits(t *testing.T) {
 	for _, test := range []struct {
 		name                string
-		h                   http.Header
+		header              http.Header
+		trailer             http.Header
 		valid               bool
 		maxHeaderBytes      int
 		maxHeaderValueCount int
 	}{{
 		name: "within limits",
-		h: http.Header{
+		header: {
 			"x-foo": {strings.Repeat("x", 1000)},
 		},
 		maxHeaderBytes: 1500,
 		valid:          true,
 	}, {
 		name: "too many header bytes",
-		h: http.Header{
+		header: {
+			"x-foo": {strings.Repeat("x", 1000)},
+			"x-bar": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+	}, {
+		name: "sent trailer within limits",
+		header: {
+			"trailer": {"x-foo"},
+		},
+		trailer: http.Header{
+			"x-foo": {strings.Repeat("x", 1000)},
+		},
+		maxHeaderBytes: 1500,
+		valid:          true,
+	}, {
+		name: "too many sent trailer bytes",
+		header: {
+			"trailer": {"x-foo, x-bar"},
+		},
+		trailer: http.Header{
 			"x-foo": {strings.Repeat("x", 1000)},
 			"x-bar": {strings.Repeat("x", 1000)},
 		},
 		maxHeaderBytes: 1500,
 	}, {
 		name: "field count within limit",
-		h: http.Header{
+		header: {
 			// :method, :scheme, :path, plus:
 			"x-foo": {"4"},
 			"x-bar": {"5"},
@@ -575,34 +602,65 @@ func TestServerHeaderLimits(t *testing.T) {
 		valid:               true,
 	}, {
 		name: "field count over limit",
-		h: http.Header{
+		header: {
 			// :method, :scheme, :path, plus:
 			"x-foo": {"4"},
 			"x-bar": {"5"},
 		},
 		maxHeaderBytes:      1500,
 		maxHeaderValueCount: 4,
+	}, {
+		name: "declared trailer field count within limit",
+		header: {
+			"trailer": {"a, b, c, d, e"},
+		},
+		maxHeaderBytes:      1500,
+		maxHeaderValueCount: 5,
+		valid:               true,
+	}, {
+		name: "declared trailer field count over limit",
+		header: {
+			"trailer": {"a, b, c, d, e"},
+		},
+		maxHeaderBytes:      1500,
+		maxHeaderValueCount: 4,
+	}, {
+		name: "declared trailer bytes over limit",
+		header: {
+			"trailer": {strings.Repeat("a,", 50)},
+		},
+		maxHeaderBytes: 1500,
 	}} {
 		synctestSubtest(t, test.name, func(t *testing.T) {
-			if test.maxHeaderValueCount != 0 {
-				t.Skip("TODO: when we support only go1.27")
-			}
 			ts := newTestServer(t, nil)
 			ts.s.srv1.MaxHeaderBytes = test.maxHeaderBytes
-			// TODO: When we only support go1.27.
-			//ts.s.srv1.MaxHeaderValueCount = test.maxHeaderValueCount
+			ts.s.srv1.MaxHeaderValueCount = test.maxHeaderValueCount
 			tc := ts.connect()
 			tc.greet()
 
 			reqStream := tc.newStream(streamTypeRequest)
-			reqStream.writeHeaders(requestHeader(test.h))
-			if test.valid {
-				call := tc.nextHandlerCall()
-				if call == nil {
-					t.Fatal("no server handler call; want one")
-				}
-			} else {
-				reqStream.wantError(quic.StreamError(errH3RequestRejected))
+			reqStream.writeHeaders(requestHeader(test.header))
+
+			if test.trailer == nil && !test.valid {
+				reqStream.wantSomeHeaders(http.Header{
+					":status": {"431"},
+				})
+				reqStream.wantClosed("request is complete")
+				return
+			}
+
+			call := tc.nextHandlerCall()
+			if call == nil {
+				t.Fatal("no server handler call; want one")
+			}
+			if test.trailer == nil {
+				return
+			}
+
+			reqStream.writeHeaders(test.trailer)
+			_, err := io.ReadAll(call.req.Body)
+			if (err == nil) != test.valid {
+				t.Fatalf("io.ReadAll(req.Body) = %v, want valid=%v", err, test.valid)
 			}
 		})
 	}

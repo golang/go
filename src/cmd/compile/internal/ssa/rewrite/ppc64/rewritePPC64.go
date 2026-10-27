@@ -15488,6 +15488,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (Zero [0] _ mem)
 	// result: mem
 	for {
@@ -15699,7 +15700,7 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 	}
 	// match: (Zero [s] ptr mem)
 	// cond: buildcfg.GOPPC64 <= 8
-	// result: (LoweredZero [s] ptr mem)
+	// result: (LoweredZero [s] ptr (Zero128 <typ.Vec128>) mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		ptr := v_0
@@ -15709,12 +15710,28 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpPPC64LoweredZero)
 		v.AuxInt = ssa.Int64ToAuxInt(s)
+		v0 := b.NewValue0(v.Pos, ssaop.OpPPC64Zero128, typ.Vec128)
+		v.AddArg3(ptr, v0, mem)
+		return true
+	}
+	// match: (Zero [s] ptr mem)
+	// cond: s < 16 && buildcfg.GOPPC64 >= 9
+	// result: (LoweredZeroShort [s] ptr mem)
+	for {
+		s := ssa.AuxIntToInt64(v.AuxInt)
+		ptr := v_0
+		mem := v_1
+		if !(s < 16 && buildcfg.GOPPC64 >= 9) {
+			break
+		}
+		v.Reset(ssaop.OpPPC64LoweredZeroShort)
+		v.AuxInt = ssa.Int64ToAuxInt(s)
 		v.AddArg2(ptr, mem)
 		return true
 	}
 	// match: (Zero [s] ptr mem)
 	// cond: s < 128 && buildcfg.GOPPC64 >= 9
-	// result: (LoweredQuadZeroShort [s] ptr mem)
+	// result: (LoweredQuadZeroShort [s] ptr (Zero128 <typ.Vec128>) mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		ptr := v_0
@@ -15724,12 +15741,13 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpPPC64LoweredQuadZeroShort)
 		v.AuxInt = ssa.Int64ToAuxInt(s)
-		v.AddArg2(ptr, mem)
+		v0 := b.NewValue0(v.Pos, ssaop.OpPPC64Zero128, typ.Vec128)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	// match: (Zero [s] ptr mem)
 	// cond: buildcfg.GOPPC64 >= 9
-	// result: (LoweredQuadZero [s] ptr mem)
+	// result: (LoweredQuadZero [s] ptr (Zero128 <typ.Vec128>) mem)
 	for {
 		s := ssa.AuxIntToInt64(v.AuxInt)
 		ptr := v_0
@@ -15739,7 +15757,8 @@ func rewriteValue_OpZero(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpPPC64LoweredQuadZero)
 		v.AuxInt = ssa.Int64ToAuxInt(s)
-		v.AddArg2(ptr, mem)
+		v0 := b.NewValue0(v.Pos, ssaop.OpPPC64Zero128, typ.Vec128)
+		v.AddArg3(ptr, v0, mem)
 		return true
 	}
 	return false

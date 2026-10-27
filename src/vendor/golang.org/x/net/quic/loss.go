@@ -44,9 +44,6 @@ type lossState struct {
 	// The limit is always disabled for clients, and for servers after the
 	// peer's address is validated.
 	//
-	// Anti-amplification is per-address; this will need to change if/when we
-	// support address migration.
-	//
 	// https://www.rfc-editor.org/rfc/rfc9000#section-8-2
 	antiAmplificationLimit int
 
@@ -56,6 +53,8 @@ type lossState struct {
 	rtt   rttState
 	pacer pacerState
 	cc    *ccReno
+
+	appDataEpoch packetNumber
 
 	// Per-space loss detection state.
 	spaces [numberSpaceCount]struct {
@@ -77,9 +76,7 @@ func (c *lossState) init(side connSide, maxDatagramSize int, now time.Time) {
 		// Clients don't have an anti-amplification limit.
 		c.antiAmplificationLimit = antiAmplificationUnlimited
 	}
-	c.rtt.init()
-	c.cc = newReno(maxDatagramSize)
-	c.pacer.init(now, c.cc.congestionWindow, timerGranularity)
+	c.reset(now, maxDatagramSize)
 
 	// Peer's assumed max_ack_delay, prior to receiving transport parameters.
 	// https://www.rfc-editor.org/rfc/rfc9000#section-18.2
@@ -89,6 +86,41 @@ func (c *lossState) init(side connSide, maxDatagramSize int, now time.Time) {
 		c.spaces[space].maxAcked = -1
 		c.spaces[space].lastAckEliciting = -1
 	}
+}
+
+// reset resets loss state when the active path changes.
+//
+// The congestion controller and RTT estimator are reset:
+// https://www.rfc-editor.org/rfc/rfc9000.html#section-9.4
+//
+// reset must not be called until after the handshake is confirmed:
+// https://www.rfc-editor.org/rfc/rfc9000.html#section-9-2
+func (c *lossState) reset(now time.Time, maxDatagramSize int) {
+	// Reset congestion controller.
+	c.cc = newReno(maxDatagramSize)
+	// Reset RTT estimator.
+	c.rtt.init()
+	// Reset pacer.
+	c.pacer.init(now, c.cc.congestionWindow, timerGranularity)
+	// Reset PTO timer and backoff.
+	c.ptoBackoffCount = 0
+	c.ptoExpired = false
+	c.scheduleTimer(now)
+	// Mark previously-sent packets as not contributing to congestion control.
+	c.appDataEpoch = c.spaces[appDataSpace].nextNum
+	// Note: We don't reset the anti-amplification limit,
+	// because a server never switches to a new path without validating it
+	// (and therefore disabling the limit).
+}
+
+// isCC reports whether a packet contributes to congestion control and RTT estimation.
+// Packets sent on paths other than the current path (either probes of a future path
+// or ones sent on a path no longer in use) do not.
+func (c *lossState) isCC(sent *sentPacket) bool {
+	// We don't bother checking the number space here:
+	// Path migration cannot occur until after the handshake is confirmed,
+	// and confirming the handshake discards keys for everything but the app data space.
+	return sent.num >= c.appDataEpoch && !sent.offPath
 }
 
 // setMaxAckDelay sets the max_ack_delay transport parameter received from the peer.
@@ -191,6 +223,12 @@ func (c *lossState) skipNumber(now time.Time, space numberSpace) {
 func (c *lossState) packetSent(now time.Time, log *slog.Logger, space numberSpace, sent *sentPacket) {
 	sent.time = now
 	c.spaces[space].add(sent)
+	if !c.isCC(sent) {
+		// None of what follows applies to an off-path probing packet:
+		// Anti-amplification limits, PTO timers, pacing, bytes in flight, etc.
+		// are all per-path.
+		return
+	}
 	size := sent.size
 	if c.antiAmplificationLimit != antiAmplificationUnlimited {
 		c.antiAmplificationLimit = max(0, c.antiAmplificationLimit-size)
@@ -257,8 +295,9 @@ func (c *lossState) receiveAckRange(now time.Time, space numberSpace, rangeIndex
 	if rangeIndex == 0 {
 		// If the latest packet in the ACK frame is newly-acked,
 		// record the RTT in c.ackFrameRTT.
+		// https://www.rfc-editor.org/rfc/rfc9002.html#section-5.1-5
 		sent := c.spaces[space].num(end - 1)
-		if sent.state == sentPacketSent {
+		if sent.state == sentPacketSent && c.isCC(sent) {
 			c.ackFrameRTT = max(0, now.Sub(sent.time))
 		}
 	}
@@ -278,10 +317,12 @@ func (c *lossState) receiveAckRange(now time.Time, space numberSpace, rangeIndex
 			c.spaces[space].maxAcked = pnum
 		}
 		sent.state = sentPacketAcked
-		c.cc.packetAcked(now, sent)
 		ackf(space, sent, packetAcked)
-		if sent.ackEliciting {
-			c.ackFrameContainsAckEliciting = true
+		if c.isCC(sent) {
+			c.cc.packetAcked(now, sent)
+			if sent.ackEliciting {
+				c.ackFrameContainsAckEliciting = true
+			}
 		}
 	}
 	return nil
@@ -340,8 +381,10 @@ func (c *lossState) discardPackets(space numberSpace, log *slog.Logger, lossf fu
 			continue
 		}
 		sent.state = sentPacketLost
-		c.cc.packetDiscarded(sent)
 		lossf(numberSpace(space), sent, packetLost)
+		if c.isCC(sent) {
+			c.cc.packetDiscarded(sent)
+		}
 	}
 	c.spaces[space].clean()
 	if logEnabled(log, QLogLevelPacket) {
@@ -354,7 +397,7 @@ func (c *lossState) discardKeys(now time.Time, log *slog.Logger, space numberSpa
 	// https://www.rfc-editor.org/rfc/rfc9002.html#section-6.4
 	for i := 0; i < c.spaces[space].size; i++ {
 		sent := c.spaces[space].nth(i)
-		if sent.state != sentPacketSent {
+		if sent.state != sentPacketSent || !c.isCC(sent) {
 			continue
 		}
 		c.cc.packetDiscarded(sent)
@@ -378,7 +421,7 @@ func (c *lossState) detectLoss(now time.Time, lossf func(numberSpace, *sentPacke
 	const lossThreshold = 3
 
 	lossTime := now.Add(-c.lossDuration())
-	for space := numberSpace(0); space < numberSpaceCount; space++ {
+	for space := range numberSpaceCount {
 		for i := 0; i < c.spaces[space].size; i++ {
 			sent := c.spaces[space].nth(i)
 			if sent.state != sentPacketSent {
@@ -399,7 +442,7 @@ func (c *lossState) detectLoss(now time.Time, lossf func(numberSpace, *sentPacke
 				// https://www.rfc-editor.org/rfc/rfc9002.html#section-6.1.2
 				sent.state = sentPacketLost
 				lossf(space, sent, packetLost)
-				if sent.inFlight {
+				if sent.inFlight && c.isCC(sent) {
 					c.cc.packetLost(now, space, sent, &c.rtt)
 				}
 			}
@@ -429,7 +472,7 @@ func (c *lossState) scheduleTimer(now time.Time) {
 	// and takes precedence over the PTO timer.
 	// https://www.rfc-editor.org/rfc/rfc9002.html#section-6.1.2
 	var oldestPotentiallyLost time.Time
-	for space := numberSpace(0); space < numberSpaceCount; space++ {
+	for space := range numberSpaceCount {
 		if c.spaces[space].size > 0 && c.spaces[space].start() <= c.spaces[space].maxAcked {
 			firstTime := c.spaces[space].nth(0).time
 			if oldestPotentiallyLost.IsZero() || firstTime.Before(oldestPotentiallyLost) {

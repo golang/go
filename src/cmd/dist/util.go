@@ -85,8 +85,6 @@ func runEnv(dir string, mode int, env []string, cmd ...string) string {
 	return string(data)
 }
 
-var maxbg = 4 /* maximum number of jobs to run at once */
-
 // isdir reports whether p names an existing directory.
 func isdir(p string) bool {
 	fi, err := os.Stat(p)

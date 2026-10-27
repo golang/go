@@ -6,6 +6,9 @@ package buildcfg
 
 import (
 	"os"
+	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -169,6 +172,25 @@ func TestIsFIPSVersion(t *testing.T) {
 	for _, s := range badFIPS {
 		if isFIPSVersion(s) {
 			t.Errorf("isFIPSVersion(%q) = true, want false", s)
+		}
+	}
+	// all snapshots and aliases in lib/fips140
+	entries, err := os.ReadDir(filepath.Join(runtime.GOROOT(), "lib/fips140"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if v, ok := strings.CutSuffix(name, ".zip"); ok {
+			t.Setenv("GOFIPS140", v)
+			if Error = nil; gofips140() != v || Error != nil {
+				t.Errorf("gofips140(%q): Error = %v", v, Error)
+			}
+		} else if v, ok := strings.CutSuffix(name, ".txt"); ok {
+			t.Setenv("GOFIPS140", v)
+			if Error = nil; gofips140() != v || Error != nil {
+				t.Errorf("gofips140(%q): Error = %v", v, Error)
+			}
 		}
 	}
 }

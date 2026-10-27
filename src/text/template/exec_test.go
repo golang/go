@@ -1009,6 +1009,19 @@ func TestExecError(t *testing.T) {
 	}
 }
 
+// Issue 80718: format verbs in template name should not consume errorf format args.
+func TestIssue80718(t *testing.T) {
+	tmpl := Must(New("%s.tmpl").Option("missingkey=error").Parse("{{ .MissingKey }}"))
+	err := tmpl.Execute(io.Discard, map[string]string{})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	const want = `template: %s.tmpl:1:3: executing "%s.tmpl" at <.MissingKey>: map has no entry for key "MissingKey"`
+	if got := err.Error(); got != want {
+		t.Errorf("expected\n%q\ngot\n%q", want, got)
+	}
+}
+
 type CustomError struct{}
 
 func (*CustomError) Error() string { return "heyo !" }

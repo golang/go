@@ -1475,17 +1475,21 @@ func TestIllformedUTF16FileName(t *testing.T) {
 }
 
 func TestUTF16Alloc(t *testing.T) {
-	allowsPerRun := func(want int, f func()) {
+	allocsPerRun := func(want int, f func()) {
 		t.Helper()
 		got := int(testing.AllocsPerRun(5, f))
 		if got != want {
 			t.Errorf("got %d allocs, want %d", got, want)
 		}
 	}
-	allowsPerRun(1, func() {
+	allocsPerRun(1, func() {
 		syscall.UTF16ToString([]uint16{'a', 'b', 'c'})
 	})
-	allowsPerRun(1, func() {
+	want := 0
+	if testenv.OptimizationOff() {
+		want = 1
+	}
+	allocsPerRun(want, func() {
 		syscall.UTF16FromString("abc")
 	})
 }
@@ -1925,6 +1929,35 @@ func TestPipe(t *testing.T) {
 		}
 	}()
 	testReadWrite(t, r, w)
+}
+
+func TestPipeCloseInvalidHandle(t *testing.T) {
+	// Closing the same handle through distinct Files must return an error,
+	// not panic. See go.dev/issue/82273.
+	for _, first := range []string{"original", "new"} {
+		t.Run(first, func(t *testing.T) {
+			r, w, err := os.Pipe()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer r.Close()
+			defer w.Close()
+
+			for _, f := range []*os.File{r, w} {
+				other := os.NewFile(f.Fd(), f.Name())
+				defer other.Close()
+				if first == "new" {
+					f, other = other, f
+				}
+				if err := f.Close(); err != nil {
+					t.Fatal(err)
+				}
+				if err := other.Close(); !errors.Is(err, windows.ERROR_INVALID_HANDLE) {
+					t.Errorf("Close = %v; want ERROR_INVALID_HANDLE", err)
+				}
+			}
+		})
+	}
 }
 
 func TestPipeCloseRaceThreadReuse(t *testing.T) {

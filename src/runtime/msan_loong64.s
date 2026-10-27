@@ -71,7 +71,7 @@ TEXT	msancall<>(SB), NOSPLIT, $0-0
 	MOVV	(g_sched+gobuf_sp)(R15), R9
 	MOVV	R9, R3
 
-g0stack:
+call:
 	JAL	(FARG)
 	MOVV	R23, R3
 	RET

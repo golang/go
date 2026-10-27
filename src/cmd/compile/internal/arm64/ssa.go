@@ -862,6 +862,38 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		simdZDupIndexed(s, v, arm64.ARNG_S)
 	case ssaop.OpARM64ZDUPID:
 		simdZDupIndexed(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYBconst:
+		simdZCpyConst(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYHconst:
+		simdZCpyConst(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYSconst:
+		simdZCpyConst(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYDconst:
+		simdZCpyConst(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYMergingBconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYMergingHconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYMergingSconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYMergingDconst:
+		simdZCpyMergingConst(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYMergingB:
+		simdZCpyMergingGp(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYMergingH:
+		simdZCpyMergingGp(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYMergingS:
+		simdZCpyMergingGp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYMergingD:
+		simdZCpyMergingGp(s, v, arm64.ARNG_D)
+	case ssaop.OpARM64ZCPYIMergingB:
+		simdZCpyMergingVec(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64ZCPYIMergingH:
+		simdZCpyMergingVec(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64ZCPYIMergingS:
+		simdZCpyMergingVec(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64ZCPYIMergingD:
+		simdZCpyMergingVec(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64ZSELB:
 		simdZ2kv(s, v, arm64.ARNG_B)
 	case ssaop.OpARM64ZSELH:
@@ -2183,6 +2215,60 @@ func simdZDupIndexed(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return p
 }
 
+// simdZCpyConst emits a zeroing-predicated SVE broadcast of a signed 8-bit
+// immediate, e.g. ZCPY $5, P0.Z, Z0.H.
+func simdZCpyConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingConst emits a merging-predicated SVE broadcast of a signed
+// 8-bit immediate, e.g. ZCPY $5, P0.M, Z0.H. SSA provides arg0=the value the
+// inactive lanes keep (pinned to the destination by resultInArg0) and
+// arg1=the governing predicate.
+func simdZCpyMergingConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = v.AuxInt
+	p.AddRestSourceReg(pregMask(v.Args[1].Reg(), arm64.PRED_M))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingGp emits a merging-predicated SVE broadcast of a general
+// register, e.g. ZCPYW R0, P0.M, Z0.B. SSA provides arg0=the value the
+// inactive lanes keep (pinned to the destination by resultInArg0),
+// arg1=scalar, and arg2=the governing predicate.
+func simdZCpyMergingGp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg()
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
+// simdZCpyMergingVec emits a merging-predicated SVE broadcast of element 0 of
+// a SIMD/FP register, e.g. ZCPYS V1, P0.M, Z0.S. SSA provides arg0=the value
+// the inactive lanes keep (pinned to the destination by resultInArg0),
+// arg1=scalar, and arg2=the governing predicate.
+func simdZCpyMergingVec(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = v.Args[1].Reg() - arm64.REG_F0 + arm64.REG_V0
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M))
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng)
+	return p
+}
+
 // simdZ2kv emits an SVE instruction that takes a predicate as a plain data
 // operand rather than a governing predicate, e.g. ZSEL Z1.B, Z0.B, P0, Z2.B.
 // Unlike a predicated instruction it is constructive: the destination is
@@ -2247,6 +2333,81 @@ func simdZ2kvPred(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 // destination behind, so the operation is unpredicated in effect.
 func simdZkv(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return sveUnaryPred(s, v, arng, v.Args[0].Reg(), v.Args[1].Reg(), arm64.PRED_M)
+}
+
+// simdZkfp emits an SVE reduction across the lanes of arg0 that arg1 governs
+// into a floating-point scalar register, e.g. ZFADDVS Z0.S, P0, V1. The
+// scalar is the low lane of the vector register with the same number, which
+// is where a float value lives.
+func simdZkfp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[0].Reg(), arng) // Zn
+	p.AddRestSourceReg(v.Args[1].Reg())          // Pg, unqualified
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg() - arm64.REG_F0 + arm64.REG_V0 // Vd
+	return p
+}
+
+// simdZ11Imm emits an unpredicated SVE operation on one vector and the
+// immediate in the aux, e.g. ZLSL $3, Z0.S, Z1.S.
+func simdZ11Imm(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng)) // Zn
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZkvPredImm emits the predicated form of an SVE operation on one vector
+// and the immediate in the aux, e.g. ZLSL $3, Z0.S, P0.M, Z0.S. It is
+// destructive, so resultInArg0 has already put the destination in arg0.
+func simdZkvPredImm(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	d := v.Reg()
+	if d != v.Args[0].Reg() {
+		v.Fatalf("destination is not arg0 of destructive op %v", v.Op)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = int64(v.AuxUInt8())
+	p.AddRestSourceReg(zregArng(d, arng))                       // Zdn
+	p.AddRestSourceReg(pregMask(v.Args[1].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
+}
+
+// simdZ21Wide emits an unpredicated SVE "wide elements" operation, whose
+// second source has 64-bit elements, e.g. ZLSL Z2.D, Z0.S, Z1.S: each element
+// of arg0 is combined with the 64-bit element of arg1 that overlaps it.
+func simdZ21Wide(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_D) // Zm
+	p.AddRestSourceReg(zregArng(v.Args[0].Reg(), arng))  // Zn
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
+// simdZ2kvPredWide emits the predicated form of an SVE "wide elements"
+// operation, e.g. ZLSL Z1.D, Z0.S, P0.M, Z0.S. It is destructive and not
+// commutative, so resultInArg0 has already put the destination in arg0.
+func simdZ2kvPredWide(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	d := v.Reg()
+	if d != v.Args[0].Reg() {
+		v.Fatalf("destination is not arg0 of destructive op %v", v.Op)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arm64.ARNG_D)        // Zm
+	p.AddRestSourceReg(zregArng(d, arng))                       // Zdn
+	p.AddRestSourceReg(pregMask(v.Args[2].Reg(), arm64.PRED_M)) // Pg/M
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(d, arng) // Zdn
+	return p
 }
 
 // simdZ2kvPredResultInArg0 emits the merging form of a predicated SVE unary

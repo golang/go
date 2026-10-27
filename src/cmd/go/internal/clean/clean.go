@@ -367,6 +367,12 @@ func clean(p *load.Package) {
 	for _, dir := range dirs {
 		name := dir.Name()
 		if dir.IsDir() {
+			// Clean the .dSYM directory for split DWARF.
+			if exe, ok := strings.CutSuffix(name, ".dSYM"); ok && (cleanFile[exe] || toRemove[exe]) {
+				if err := sh.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
+					base.Error(err)
+				}
+			}
 			continue
 		}
 		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {

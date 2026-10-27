@@ -46,6 +46,7 @@ func cmdtest() {
 	flag.BoolVar(&t.msan, "msan", false, "run in memory sanitizer builder mode")
 	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
 	flag.BoolVar(&t.json, "json", false, "report test results in JSON")
+	flag.StringVar(&t.artifactsDir, "artifacts-dir", "", "save test artifacts in the specified directory")
 
 	xflagparse(-1) // any number of args
 	if noRebuild {
@@ -57,24 +58,25 @@ func cmdtest() {
 
 // tester executes cmdtest.
 type tester struct {
-	race        bool
-	msan        bool
-	asan        bool
-	listMode    bool
-	rebuild     bool
-	failed      bool
-	keepGoing   bool
-	compileOnly bool // just try to compile all tests, but no need to run
-	short       bool
-	cgoEnabled  bool
-	asmflags    string
-	json        bool
-	runRxStr    string
-	runRx       *regexp.Regexp
-	runRxWant   bool     // want runRx to match (true) or not match (false)
-	runNames    []string // tests to run, exclusive with runRx; empty means all
-	banner      string   // prefix, or "" for none
-	lastHeading string   // last dir heading printed
+	race         bool
+	msan         bool
+	asan         bool
+	listMode     bool
+	rebuild      bool
+	failed       bool
+	keepGoing    bool
+	compileOnly  bool // just try to compile all tests, but no need to run
+	short        bool
+	cgoEnabled   bool
+	asmflags     string
+	json         bool
+	artifactsDir string
+	runRxStr     string
+	runRx        *regexp.Regexp
+	runRxWant    bool     // want runRx to match (true) or not match (false)
+	runNames     []string // tests to run, exclusive with runRx; empty means all
+	banner       string   // prefix, or "" for none
+	lastHeading  string   // last dir heading printed
 
 	tests        []distTest // use addTest to extend
 	testNames    map[string]bool
@@ -475,7 +477,10 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 		run = append(run, "-skip="+opts.skip)
 	}
 	if t.json {
-		run = append(run, "-json")
+		build = append(build, "-json")
+	}
+	if t.artifactsDir != "" {
+		run = append(run, "-artifacts", "-outputdir="+t.artifactsDir)
 	}
 
 	if opts.gcflags != "" {
@@ -614,21 +619,6 @@ func (t *tester) registerRaceBenchTest(pkg string) {
 }
 
 func (t *tester) registerTests() {
-	// registerStdTestSpecially tracks import paths in the standard library
-	// whose test registration happens in a special way.
-	//
-	// These tests *must* be able to run normally as part of "go test std cmd",
-	// even if they are also registered separately by dist, because users often
-	// run go test directly. Use skips or build tags in preference to expanding
-	// this list.
-	registerStdTestSpecially := map[string]bool{
-		// testdir can run normally as part of "go test std cmd", but because
-		// it's a very large test, we register is specially as several shards to
-		// enable better load balancing on sharded builders. Ideally the build
-		// system would know how to shard any large test package.
-		"cmd/internal/testdir": true,
-	}
-
 	// Fast path to avoid the ~1 second of `go list std cmd` when
 	// the caller lists specific tests to run. (as the continuous
 	// build coordinator does).
@@ -666,9 +656,6 @@ func (t *tester) registerTests() {
 		}
 		pkgs := strings.Fields(string(all))
 		for _, pkg := range pkgs {
-			if registerStdTestSpecially[pkg] {
-				continue
-			}
 			if t.short && (strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "cmd/vendor/")) {
 				// Vendored code has no tests, and we don't care too much about vet errors
 				// since we can't modify the code, so skip the tests in short mode.
@@ -989,11 +976,8 @@ func (t *tester) registerTests() {
 	// To help developers avoid trybot-only failures, we try to run on typical developer machines
 	// which is darwin,linux,windows/amd64 and darwin/arm64.
 	//
-	// The same logic applies to the release notes that correspond to each api/next file.
-	//
 	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
 	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
-		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", testFlags: []string{"-check"}})
 	}
 
@@ -1020,31 +1004,16 @@ func (t *tester) registerTests() {
 		t.registerRaceTests()
 	}
 
-	if goos != "android" && !t.iOS() {
-		// Only start multiple test dir shards on builders,
-		// where they get distributed to multiple machines.
-		// See issues 20141 and 31834.
-		nShards := 1
-		if os.Getenv("GO_BUILDER_NAME") != "" {
-			nShards = 10
-		}
-		if n, err := strconv.Atoi(os.Getenv("GO_TEST_SHARDS")); err == nil {
-			nShards = n
-		}
-		for shard := 0; shard < nShards; shard++ {
-			id := fmt.Sprintf("%d_%d", shard, nShards)
-			t.registerTest("../test",
-				&goTest{
-					// Include the variant even though there's no overlap in test names.
-					// This makes the test target more clearly distinct in our build
-					// results and is important for load-balancing test shards.
-					variant:   id,
-					pkg:       "cmd/internal/testdir",
-					testFlags: []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
-					runOnHost: true,
-				},
-			)
-		}
+	// These tests will be skipped as part of the initial go test std cmd invocation for
+	// js and wasip1 and need to be run on the host. Register them specially here.
+	if goos == "js" || goos == "wasip1" {
+		t.registerTest("../test",
+			&goTest{
+				variant:   "host",
+				pkg:       "cmd/internal/testdir",
+				runOnHost: true,
+			},
+		)
 	}
 }
 
@@ -1458,7 +1427,14 @@ func (t *tester) runPending(nextTest *distTest) {
 		}(w)
 	}
 
-	maxbg := maxbg
+	var maxbg = 4 /* maximum number of jobs to run at once */
+	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
+		maxbg = min(maxbg, runtime.NumCPU())
+	}
+	if runtime.GOMAXPROCS(0) == 1 {
+		maxbg = 1
+	}
+
 	// for runtime.NumCPU() < 4 ||  runtime.GOMAXPROCS(0) == 1, do not change maxbg.
 	// Because there is not enough CPU to parallel the testing of multiple packages.
 	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
@@ -1804,7 +1780,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
 			"darwin/amd64", "darwin/arm64",
 			"ios/amd64", "ios/arm64",
 			"aix/ppc64",
-			"openbsd/arm64",
+			"openbsd/amd64", "openbsd/arm64",
 			"windows/386", "windows/amd64", "windows/arm64":
 			return true
 		}
@@ -1883,13 +1859,6 @@ func fips140Versions() []string {
 	}
 	for _, zip := range zips {
 		versions = append(versions, strings.TrimSuffix(filepath.Base(zip), ".zip"))
-	}
-	txts, err := filepath.Glob(filepath.Join(goroot, "lib/fips140/*.txt"))
-	if err != nil {
-		fatalf("%v", err)
-	}
-	for _, txt := range txts {
-		versions = append(versions, strings.TrimSuffix(filepath.Base(txt), ".txt"))
 	}
 	return versions
 }

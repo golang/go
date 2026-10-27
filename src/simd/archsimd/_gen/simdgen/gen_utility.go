@@ -99,6 +99,7 @@ const (
 	OneKmaskOut               // mask output
 	OneVregOutAtIn            // the first input is also the output
 	OneVregOutScalar          // (one) vector register output scalar in lane 0, other lanes zeroed
+	OneFpregOut               // (one) floating-point scalar register output
 )
 
 const (
@@ -147,6 +148,8 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 			if op.Out[0].TreatLikeAScalarOfSize != nil {
 				shapeOut = OneVregOutScalar
 			}
+		} else if op.Out[0].Class == "fpreg" {
+			shapeOut = OneFpregOut
 		} else if op.Out[0].Class == "mask" {
 			shapeOut = OneKmaskOut
 		} else {
@@ -282,13 +285,15 @@ func (op *Operation) shape() (shapeIn inShape, shapeOut outShape, maskType maskS
 func (op *Operation) regShape(mem memShape) (string, error) {
 	_, _, _, _, gOp, _ := op.shape()
 	var regInfo, fixedName string
-	var vRegInCnt, gRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
+	var vRegInCnt, gRegInCnt, fpRegInCnt, kMaskInCnt, vRegOutCnt, gRegOutCnt, fpRegOutCnt, kMaskOutCnt, memInCnt, memOutCnt int
 	for i, in := range gOp.In {
 		switch in.Class {
 		case "vreg":
 			vRegInCnt++
 		case "greg":
 			gRegInCnt++
+		case "fpreg":
+			fpRegInCnt++
 		case "mask":
 			kMaskInCnt++
 		case "mem":
@@ -308,6 +313,8 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 			vRegOutCnt++
 		} else if out.Class == "greg" {
 			gRegOutCnt++
+		} else if out.Class == "fpreg" {
+			fpRegOutCnt++
 		} else if out.Class == "mask" {
 			kMaskOutCnt++
 		} else if out.Class == "mem" {
@@ -336,13 +343,15 @@ func (op *Operation) regShape(mem memShape) (string, error) {
 
 	inRegs = rmAbbrev("v", vRegInCnt)
 	inRegs += rmAbbrev("gp", gRegInCnt)
+	inRegs += rmAbbrev("fp", fpRegInCnt)
 	inMasks = rmAbbrev("k", kMaskInCnt)
 
 	outRegs = rmAbbrev("v", vRegOutCnt)
 	outRegs += rmAbbrev("gp", gRegOutCnt)
+	outRegs += rmAbbrev("fp", fpRegOutCnt)
 	outMasks = rmAbbrev("k", kMaskOutCnt)
 
-	if kMaskInCnt == 0 && kMaskOutCnt == 0 && gRegInCnt == 0 && gRegOutCnt == 0 {
+	if kMaskInCnt == 0 && kMaskOutCnt == 0 && gRegInCnt == 0 && gRegOutCnt == 0 && fpRegInCnt == 0 && fpRegOutCnt == 0 {
 		// For pure v we can abbreviate it as v%d%d.
 		regInfo = fmt.Sprintf("v%d%d", vRegInCnt, vRegOutCnt)
 	} else if kMaskInCnt == 0 && kMaskOutCnt == 0 {
@@ -450,6 +459,9 @@ func (op Operation) goNormalType() string {
 func (op Operation) SSAType() string {
 	if op.Out[0].Class == "greg" {
 		return fmt.Sprintf("types.Types[types.T%s]", strings.ToUpper(op.goNormalType()))
+	}
+	if op.Out[0].Class == "fpreg" {
+		return fmt.Sprintf("types.Types[types.T%s]", strings.ToUpper(*op.Out[0].Go))
 	}
 	if op.Out[0].Class == "mask" && CurrentArch().isSVE() {
 		// SVE predicates are represented as-is (a real mask/P-register value),
@@ -639,6 +651,12 @@ func rewriteVecAsScalarRegInfo(op Operation, regInfo string) (string, error) {
 	idx, err := checkVecAsScalar(op)
 	if err != nil {
 		return "", err
+	}
+	if idx != -1 && CurrentArch().isSVE() {
+		// SVE has no form that takes a scalar register in place of a vector
+		// operand; the lowering broadcasts the scalar (see sveBroadcastScalarArgs),
+		// so the machine op's registers are all vectors.
+		return regInfo, nil
 	}
 	if idx != -1 {
 		if regInfo == "v21" {

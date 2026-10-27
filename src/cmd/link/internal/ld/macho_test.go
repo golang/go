@@ -7,6 +7,8 @@
 package ld
 
 import (
+	"bytes"
+	imacho "cmd/internal/macho"
 	"debug/macho"
 	"fmt"
 	"internal/testenv"
@@ -154,5 +156,96 @@ func TestMachoSectionsReadOnly(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMachoSplitDWARF(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+
+	const prog = `package main; func main() {}`
+
+	uuid := func(f *macho.File) []byte {
+		for _, l := range f.Loads {
+			raw := l.Raw()
+			if len(raw) >= 24 && f.ByteOrder.Uint32(raw[:4]) == imacho.LC_UUID {
+				return raw[8:24]
+			}
+		}
+		return nil
+	}
+
+	for _, linkmode := range []string{"internal", "external"} {
+		for _, split := range []bool{true, false} {
+			name := fmt.Sprintf("%s_split_%v", linkmode, split)
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				if linkmode == "internal" {
+					testenv.MustInternalLink(t, testenv.SpecialBuildTypes{})
+				} else {
+					testenv.MustHaveCGO(t)
+				}
+
+				dir := t.TempDir()
+				src := filepath.Join(dir, "main.go")
+				if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+					t.Fatal(err)
+				}
+				binFile := filepath.Join(dir, "main")
+				ldflags := fmt.Sprintf("-linkmode=%s -splitdwarf=%v", linkmode, split)
+				cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", binFile, "-ldflags", ldflags, src)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Fatalf("build failed: %v\n%s", err, out)
+				}
+
+				mf, err := macho.Open(binFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer mf.Close()
+
+				if _, err := mf.DWARF(); err != nil {
+					t.Errorf("expected DWARF from executable (or its dSYM), got error: %v", err)
+				}
+
+				hasDWARFSeg := mf.Segment("__DWARF") != nil
+				dsymPath := filepath.Join(binFile+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(binFile))
+				_, dsymStatErr := os.Stat(dsymPath)
+
+				if split {
+					if hasDWARFSeg {
+						t.Errorf("expected no __DWARF segment in executable, but found one")
+					}
+					if dsymStatErr != nil {
+						t.Fatalf("expected dSYM file at %s, got error: %v", dsymPath, dsymStatErr)
+					}
+					df, err := macho.Open(dsymPath)
+					if err != nil {
+						t.Fatalf("failed to open dSYM file: %v", err)
+					}
+					defer df.Close()
+					u1, u2 := uuid(mf), uuid(df)
+					if len(u1) == 0 || !bytes.Equal(u1, u2) {
+						t.Errorf("UUID mismatch: executable=%x, dSYM=%x", u1, u2)
+					}
+					if _, err := df.DWARF(); err != nil {
+						t.Errorf("expected DWARF in dSYM file, got error: %v", err)
+					}
+					if df.Symtab == nil || len(df.Symtab.Syms) == 0 {
+						t.Errorf("expected symbol table in dSYM file")
+					}
+					if df.Section("__zdebug_aranges") == nil && df.Section("__debug_aranges") == nil {
+						t.Errorf("expected debug_aranges section in dSYM file")
+					}
+				} else {
+					if !hasDWARFSeg {
+						t.Errorf("expected __DWARF segment in executable with -splitdwarf=false, but found none")
+					}
+					if !os.IsNotExist(dsymStatErr) {
+						t.Errorf("expected no dSYM file with -splitdwarf=false, but stat returned: %v", dsymStatErr)
+					}
+				}
+			})
+		}
 	}
 }

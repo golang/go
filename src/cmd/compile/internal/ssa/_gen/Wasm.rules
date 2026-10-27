@@ -423,6 +423,24 @@
 (I64Extend16S x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int16(c)) == c => x
 (I64Extend8S  x:(I64And _ (I64Const [c]))) && c >= 0 && int64(int8(c))  == c => x
 
+// Narrow loads already extend their results.
+(I64Extend32S x:(I64Load32S _ _)) => x
+(I64Extend16S x:(I64Load16S _ _)) => x
+(I64Extend8S  x:(I64Load8S  _ _)) => x
+(I64And x:(I64Load32U _ _) (I64Const [0xffffffff])) => x
+(I64And x:(I64Load16U _ _) (I64Const [0xffff]))     => x
+(I64And x:(I64Load8U  _ _) (I64Const [0xff]))       => x
+
+// genssa sign-extends signed arguments of 32 bits or less.
+(I64Extend32S x:(Arg <t>)) && t.Size() == 4 && t.IsSigned() => x
+(I64Extend16S x:(Arg <t>)) && t.Size() == 2 && t.IsSigned() => x
+(I64Extend8S  x:(Arg <t>)) && t.Size() == 1 && t.IsSigned() => x
+
+// Fold sign extensions of constants.
+(I64Extend32S (I64Const [c])) => (I64Const [int64(int32(c))])
+(I64Extend16S (I64Const [c])) => (I64Const [int64(int16(c))])
+(I64Extend8S  (I64Const [c])) => (I64Const [int64(int8(c))])
+
 // TODO: declare these operations as commutative and get rid of these rules?
 (I64Add (I64Const [x]) y) && y.Op != ssaop.OpWasmI64Const => (I64Add y (I64Const [x]))
 (I64Mul (I64Const [x]) y) && y.Op != ssaop.OpWasmI64Const => (I64Mul y (I64Const [x]))

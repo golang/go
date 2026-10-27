@@ -75,7 +75,17 @@ func TestFill(t *testing.T) {
 				t.Errorf("checking %s: %v", relPath, err)
 			} else if !bytes.Equal(src, filled) {
 				diff := gentools.Diff(relPath, src, relPath, filled)
-				t.Errorf("%s diverges from internal/spec:\n%s", relPath, diff)
+				var fix string
+				switch {
+				case isGen:
+					// Just the regenerate.
+				case filepath.ToSlash(relPath) == "src/simd/simd_emulated.go":
+					// Currently the only file with spec-filled docs.
+					fix = "\tgo run ./cmd/specfill -w ../../simd_emulated.go\n"
+				default:
+					fix = "\tgo run ./cmd/specfill -no-fill-doc -w\n"
+				}
+				t.Errorf("%s diverges from internal/spec:\n%s\nTo fix:\n\tcd $GOROOT/src/simd/archsimd/_gen\n%s\tgo run . -w", relPath, diff, fix)
 			}
 		}
 	}

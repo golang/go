@@ -75,10 +75,12 @@ type tplSSAHeader struct {
 func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 	if archInfo.isSVE() {
 		// SVE machine op names end in a single element-size letter (ZADD -> ZADDB,
-		// ZSQADD -> ZSQADDD). Match the suffix, not any occurrence: "ZSQADDD"
-		// contains "S" (from SQADD) but its arrangement is the trailing "D".
+		// ZSQADD -> ZSQADDD), then the ssaVariant if any (ZLSLBconst). Match the
+		// suffix, not any occurrence: "ZSQADDD" contains "S" (from SQADD) but its
+		// arrangement is the trailing "D".
+		name := strings.TrimSuffix(caseStr, "const")
 		for _, a := range archInfo.Arrangements {
-			if strings.HasSuffix(caseStr, a) {
+			if strings.HasSuffix(name, a) {
 				return archInfo.Arch + ".ARNG_" + a
 			}
 		}
@@ -134,6 +136,9 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		}
 		if shapeIn == VlistIn {
 			regShape += "List"
+		}
+		if sveWideElements(op) {
+			regShape += "Wide"
 		}
 		regShape, err = rewriteVecAsScalarRegInfo(op, regShape)
 		if err != nil {

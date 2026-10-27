@@ -14,12 +14,6 @@ type riscvHWProbePairs = struct {
 	value uint64
 }
 
-// TODO: Consider whether to use the VDSO entry for riscv_hwprobe.
-// There is a VDSO entry for riscv_hwprobe that should allow us to avoid the syscall
-// entirely as it can handle the case where the caller only requests extensions that are
-// supported on all cores, which is what we're doing here. However, as we're only calling
-// this syscall once, it may not be worth the added effort to implement the VDSO call.
-
 //go:linkname internal_cpu_riscvHWProbe internal/cpu.riscvHWProbe
 func internal_cpu_riscvHWProbe(pairs []riscvHWProbePairs, flags uint) bool {
 	// sys_RISCV_HWPROBE is copied from golang.org/x/sys/unix/zsysnum_linux_riscv64.go.
@@ -28,8 +22,21 @@ func internal_cpu_riscvHWProbe(pairs []riscvHWProbePairs, flags uint) bool {
 	if len(pairs) == 0 {
 		return false
 	}
-	// Passing in a cpuCount of 0 and a cpu of nil ensures that only extensions supported by all the
-	// cores are returned, which is the behaviour we want in internal/cpu.
-	_, _, e1 := linux.Syscall6(sys_RISCV_HWPROBE, uintptr(unsafe.Pointer(&pairs[0])), uintptr(len(pairs)), uintptr(0), uintptr(unsafe.Pointer(nil)), uintptr(flags), 0)
-	return e1 == 0
+	// Passing a cpuCount of 0 and a cpu of nil queries the extensions supported
+	// on all cores, which is what internal/cpu wants.
+	//
+	// Prefer the vDSO entry: it answers from its data page without a syscall,
+	// so it works even when a seccomp filter blocks the riscv_hwprobe syscall.
+	// Use the syscall only when the vDSO entry is absent (older kernels).
+	if vdsoRiscvHWProbeSym != 0 {
+		return vdsoRiscvHWProbe(&pairs[0], uintptr(len(pairs)), 0, nil, flags) == 0
+	}
+	_, _, e := linux.Syscall6(sys_RISCV_HWPROBE, uintptr(unsafe.Pointer(&pairs[0])), uintptr(len(pairs)), 0, 0, uintptr(flags), 0)
+	return e == 0
 }
+
+// vdsoRiscvHWProbe calls the __vdso_riscv_hwprobe vDSO entry. It must only be
+// called when vdsoRiscvHWProbeSym is non-zero. Implemented in sys_linux_riscv64.s.
+//
+//go:noescape
+func vdsoRiscvHWProbe(pairs *riscvHWProbePairs, pairCount, cpusetsize uintptr, cpus *uint, flags uint) uintptr

@@ -60,6 +60,12 @@ stdout .
 go doc Method
 stdout .
 
+# Issue 82419: module with only external test files
+cd xtestonly
+go doc
+! go doc nonExisting
+stderr '^doc: no symbol nonExisting in package panic.example$'
+
 -- go.mod --
 module p/v2
 
@@ -73,3 +79,12 @@ type Symbol struct{}
 func (Symbol) Method() error {
 	return nil
 }
+
+-- xtestonly/go.mod --
+module panic.example
+
+go 1.27
+
+-- xtestonly/main_test.go --
+package main_test
+

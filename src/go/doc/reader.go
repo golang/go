@@ -396,7 +396,7 @@ func (r *reader) readType(decl *ast.GenDecl, spec *ast.TypeSpec) {
 
 // isPredeclared reports whether n denotes a predeclared type.
 func (r *reader) isPredeclared(n string) bool {
-	return predeclaredTypes[n] && r.types[n] == nil
+	return predeclaredTypes[n] && (r.types[n] == nil || r.types[n].decl == nil)
 }
 
 // readFunc processes a func or method declaration.

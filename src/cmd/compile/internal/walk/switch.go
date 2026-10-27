@@ -747,6 +747,8 @@ func (w *walkState) walkSwitchType(sw *ir.SwitchStmt) {
 	// Use a similar strategy for non-empty interfaces.
 	ifNil := ir.NewIfStmt(base.Pos, nil, nil, nil)
 	ifNil.Cond = ir.NewBinaryExpr(base.Pos, ir.OEQ, srcItab, typecheck.NodNil())
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	base.Pos = base.Pos.WithNotStmt() // disable statement marks after the first check.
 	ifNil.Cond = typecheck.Expr(w.curfunc, ifNil.Cond)
 	ifNil.Cond = typecheck.DefaultLit(ifNil.Cond, nil)

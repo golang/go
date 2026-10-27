@@ -47,7 +47,7 @@ var codeJSON []byte
 var codeStruct codeResponse
 
 func codeInit() {
-	f, err := os.Open("internal/jsontest/testdata/golang_source.json.zst")
+	f, err := os.Open("internal/jsontest/_embed/golang_source.json.zst")
 	if err != nil {
 		panic(err)
 	}

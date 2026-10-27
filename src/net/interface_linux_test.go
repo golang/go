@@ -7,6 +7,8 @@ package net
 import (
 	"fmt"
 	"os/exec"
+	"reflect"
+	"syscall"
 	"testing"
 )
 
@@ -129,5 +131,55 @@ func TestParseProcNet(t *testing.T) {
 	}
 	if len(ifmat6) != numOfTestIPv6MCAddrs {
 		t.Fatalf("got %d; want %d", len(ifmat6), numOfTestIPv6MCAddrs)
+	}
+}
+
+// TestNetlinkAddrMessages checks that the filtered per-family address
+// dumps return the same addresses as a single unfiltered AF_UNSPEC
+// dump.
+func TestNetlinkAddrMessages(t *testing.T) {
+	ift, err := Interfaces()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+	if err != nil {
+		t.Fatal(err)
+	}
+	all, err := syscall.ParseNetlinkMessage(tab)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(ifi *Interface) {
+		t.Helper()
+		index := 0
+		if ifi != nil {
+			index = ifi.Index
+		}
+		msgs, err := netlinkAddrMessages(index)
+		if err != nil {
+			t.Skipf("filtered address dumps not supported: %v", err)
+		}
+		got, err := addrTable(ifi, msgs)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := addrTable(ifi, all)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("index %d: got %v; want %v", index, got, want)
+		}
+	}
+	check(nil)
+	for i := range ift {
+		check(&ift[i])
+	}
+
+	// A nonexistent interface has no addresses.
+	msgs, err := netlinkAddrMessages(1<<31 - 1)
+	if err != nil || len(msgs) != 0 {
+		t.Errorf("nonexistent interface: got %d messages, %v; want none", len(msgs), err)
 	}
 }

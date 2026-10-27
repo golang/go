@@ -6,6 +6,7 @@ package net
 
 import (
 	"os"
+	"slices"
 	"syscall"
 	"unsafe"
 )
@@ -121,19 +122,154 @@ func linkFlags(rawFlags uint32) Flags {
 // network interfaces. Otherwise it returns addresses for a specific
 // interface.
 func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
-	tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
-	if err != nil {
-		return nil, os.NewSyscallError("netlinkrib", err)
+	index := 0
+	if ifi != nil {
+		index = ifi.Index
 	}
-	msgs, err := syscall.ParseNetlinkMessage(tab)
+	msgs, err := netlinkAddrMessages(index)
 	if err != nil {
-		return nil, os.NewSyscallError("parsenetlinkmessage", err)
+		// The kernel is older than Linux 4.20 or doesn't support
+		// filtered dumps for some other reason. Fall back to dumping
+		// every address on the host.
+		tab, err := syscall.NetlinkRIB(syscall.RTM_GETADDR, syscall.AF_UNSPEC)
+		if err != nil {
+			return nil, os.NewSyscallError("netlinkrib", err)
+		}
+		msgs, err = syscall.ParseNetlinkMessage(tab)
+		if err != nil {
+			return nil, os.NewSyscallError("parsenetlinkmessage", err)
+		}
 	}
 	ifat, err := addrTable(ifi, msgs)
 	if err != nil {
 		return nil, err
 	}
 	return ifat, nil
+}
+
+const (
+	sysSOL_NETLINK            = 270 // see linux/socket.h
+	sysNETLINK_GET_STRICT_CHK = 12  // see linux/netlink.h
+)
+
+// netlinkAddrMessages returns the RTM_NEWADDR messages for the
+// interface with the given index, or for all interfaces if index is
+// zero.
+//
+// Rather than a single AF_UNSPEC dump of every address on the host,
+// it makes one dump request each for AF_INET and AF_INET6 with
+// NETLINK_GET_STRICT_CHK enabled and the interface index set in the
+// request. Since Linux 4.20, the kernel then walks only that
+// interface's addresses, so calling Addrs on each of N interfaces is
+// O(N) rather than O(N^2) kernel work, which older kernels do while
+// holding the global RTNL lock. Since Linux 6.9, per-family address
+// dumps don't take the RTNL lock at all, but AF_UNSPEC dumps still do.
+func netlinkAddrMessages(index int) ([]syscall.NetlinkMessage, error) {
+	s, err := syscall.Socket(syscall.AF_NETLINK, syscall.SOCK_RAW|syscall.SOCK_CLOEXEC, syscall.NETLINK_ROUTE)
+	if err != nil {
+		return nil, err
+	}
+	defer syscall.Close(s)
+	if err := syscall.SetsockoptInt(s, sysSOL_NETLINK, sysNETLINK_GET_STRICT_CHK, 1); err != nil {
+		return nil, err
+	}
+	sa := &syscall.SockaddrNetlink{Family: syscall.AF_NETLINK}
+	if err := syscall.Bind(s, sa); err != nil {
+		return nil, err
+	}
+	lsa, err := syscall.Getsockname(s)
+	if err != nil {
+		return nil, err
+	}
+	lsanl, ok := lsa.(*syscall.SockaddrNetlink)
+	if !ok {
+		return nil, syscall.EINVAL
+	}
+
+	var msgs []syscall.NetlinkMessage
+	rb := make([]byte, syscall.Getpagesize())
+	for i, family := range [...]uint8{syscall.AF_INET, syscall.AF_INET6} {
+		seq := uint32(i + 1)
+		req := struct {
+			hdr  syscall.NlMsghdr
+			ifam syscall.IfAddrmsg
+		}{
+			hdr: syscall.NlMsghdr{
+				Type:  syscall.RTM_GETADDR,
+				Flags: syscall.NLM_F_DUMP | syscall.NLM_F_REQUEST,
+				Seq:   seq,
+			},
+			ifam: syscall.IfAddrmsg{Family: family, Index: uint32(index)},
+		}
+		req.hdr.Len = uint32(unsafe.Sizeof(req))
+		wb := unsafe.Slice((*byte)(unsafe.Pointer(&req)), unsafe.Sizeof(req))
+		if err := syscall.Sendto(s, wb, 0, sa); err != nil {
+			return nil, err
+		}
+	recv:
+		for {
+			nr, _, err := syscall.Recvfrom(s, rb, 0)
+			if err != nil {
+				return nil, err
+			}
+			if nr < syscall.NLMSG_HDRLEN {
+				return nil, syscall.EINVAL
+			}
+			// Copy the batch, as the parsed messages refer to it.
+			batch, err := syscall.ParseNetlinkMessage(slices.Clone(rb[:nr]))
+			if err != nil {
+				return nil, err
+			}
+			for _, m := range batch {
+				if m.Header.Seq != seq || m.Header.Pid != lsanl.Pid {
+					return nil, syscall.EINVAL
+				}
+				switch m.Header.Type {
+				case syscall.NLMSG_DONE:
+					err := netlinkErrno(&m)
+					if err == syscall.ENODEV && index != 0 {
+						// The interface went away, so it has
+						// no addresses.
+						return nil, nil
+					}
+					if err != nil {
+						return nil, err
+					}
+					break recv
+				case syscall.NLMSG_ERROR:
+					if err := netlinkErrno(&m); err != nil {
+						return nil, err
+					}
+					return nil, syscall.EINVAL
+				case syscall.RTM_NEWADDR:
+					if len(m.Data) < syscall.SizeofIfAddrmsg {
+						return nil, syscall.EINVAL
+					}
+					// If the kernel has no handler for the
+					// requested family (for example, IPv6 is
+					// disabled), it answers with an AF_UNSPEC
+					// dump instead, so skip other families.
+					ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+					if ifam.Family == family {
+						msgs = append(msgs, m)
+					}
+				}
+			}
+		}
+	}
+	return msgs, nil
+}
+
+// netlinkErrno returns the error, if any, carried in the payload of an
+// NLMSG_DONE or NLMSG_ERROR message.
+func netlinkErrno(m *syscall.NetlinkMessage) error {
+	if len(m.Data) < 4 {
+		return nil
+	}
+	if errno := *(*int32)(unsafe.Pointer(&m.Data[0])); errno < 0 {
+		return syscall.Errno(-errno)
+	}
+	return nil
 }
 
 func addrTable(ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {

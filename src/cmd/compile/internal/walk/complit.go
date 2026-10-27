@@ -325,6 +325,8 @@ func (w *walkState) slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 
 	// put dynamics into array (5)
 	var index int64
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	for _, value := range n.List {
 		if value.Op() == ir.OKEY {
 			kv := value.(*ir.KeyExpr)
@@ -380,6 +382,8 @@ func (w *walkState) maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
 
 	// The order pass already removed any dynamic (runtime-computed) entries.
 	// All remaining entries are static. Double-check that.
+	lno := base.Pos
+	defer func() { base.Pos = lno }()
 	for _, r := range entries {
 		r := r.(*ir.KeyExpr)
 		if !isStaticCompositeLiteral(r.Key) || !isStaticCompositeLiteral(r.Value) {

@@ -4,134 +4,194 @@
 
 package archsimd
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Int8x16) Masked(mask Mask8x16) Int8x16 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int8x16) Masked(mask Mask8x16) (z Int8x16) {
 	im := mask.ToInt8x16()
 	return im.And(x)
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Int8x16) IfElse(mask Mask8x16, y Int8x16) Int8x16 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int8x16) IfElse(mask Mask8x16, y Int8x16) (z Int8x16) {
 	return x.bitSelect(y, mask.ToInt8x16())
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Int16x8) Masked(mask Mask16x8) Int16x8 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int16x8) Masked(mask Mask16x8) (z Int16x8) {
 	im := mask.ToInt16x8()
 	return im.And(x)
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Int16x8) IfElse(mask Mask16x8, y Int16x8) Int16x8 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int16x8) IfElse(mask Mask16x8, y Int16x8) (z Int16x8) {
 	im := mask.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
 	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint16s().BitsToInt16()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Int32x4) Masked(mask Mask32x4) Int32x4 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int32x4) Masked(mask Mask32x4) (z Int32x4) {
 	im := mask.ToInt32x4()
 	return im.And(x)
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Int32x4) IfElse(mask Mask32x4, y Int32x4) Int32x4 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int32x4) IfElse(mask Mask32x4, y Int32x4) (z Int32x4) {
 	im := mask.ToInt32x4().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
 	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint32s().BitsToInt32()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Int64x2) Masked(mask Mask64x2) Int64x2 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Int64x2) Masked(mask Mask64x2) (z Int64x2) {
 	im := mask.ToInt64x2()
 	return im.And(x)
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Int64x2) IfElse(mask Mask64x2, y Int64x2) Int64x2 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Int64x2) IfElse(mask Mask64x2, y Int64x2) (z Int64x2) {
 	im := mask.ToInt64x2().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
 	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint64s().BitsToInt64()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Uint8x16) Masked(mask Mask8x16) Uint8x16 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint8x16) Masked(mask Mask8x16) (z Uint8x16) {
 	im := mask.ToInt8x16()
 	return im.And(x.BitsToInt8()).ToBits()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Uint8x16) IfElse(mask Mask8x16, y Uint8x16) Uint8x16 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint8x16) IfElse(mask Mask8x16, y Uint8x16) (z Uint8x16) {
 	return x.BitsToInt8().bitSelect(y.BitsToInt8(), mask.ToInt8x16()).ToBits()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Uint16x8) Masked(mask Mask16x8) Uint16x8 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint16x8) Masked(mask Mask16x8) (z Uint16x8) {
 	im := mask.ToInt16x8()
 	return im.And(x.BitsToInt16()).ToBits()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Uint16x8) IfElse(mask Mask16x8, y Uint16x8) Uint16x8 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint16x8) IfElse(mask Mask16x8, y Uint16x8) (z Uint16x8) {
 	im := mask.ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ReshapeToUint8s().BitsToInt8()
 	iy := y.ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint16s()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Uint32x4) Masked(mask Mask32x4) Uint32x4 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint32x4) Masked(mask Mask32x4) (z Uint32x4) {
 	im := mask.ToInt32x4()
 	return im.And(x.BitsToInt32()).ToBits()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Uint32x4) IfElse(mask Mask32x4, y Uint32x4) Uint32x4 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint32x4) IfElse(mask Mask32x4, y Uint32x4) (z Uint32x4) {
 	im := mask.ToInt32x4().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ReshapeToUint8s().BitsToInt8()
 	iy := y.ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint32s()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Uint64x2) Masked(mask Mask64x2) Uint64x2 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Uint64x2) Masked(mask Mask64x2) (z Uint64x2) {
 	im := mask.ToInt64x2()
 	return im.And(x.BitsToInt64()).ToBits()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Uint64x2) IfElse(mask Mask64x2, y Uint64x2) Uint64x2 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Uint64x2) IfElse(mask Mask64x2, y Uint64x2) (z Uint64x2) {
 	im := mask.ToInt64x2().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ReshapeToUint8s().BitsToInt8()
 	iy := y.ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint64s()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Float32x4) Masked(mask Mask32x4) Float32x4 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float32x4) Masked(mask Mask32x4) (z Float32x4) {
 	im := mask.ToInt32x4()
 	return im.And(x.ToBits().BitsToInt32()).ToBits().BitsToFloat32()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Float32x4) IfElse(mask Mask32x4, y Float32x4) Float32x4 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float32x4) IfElse(mask Mask32x4, y Float32x4) (z Float32x4) {
 	im := mask.ToInt32x4().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
 	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()
 	return ix.bitSelect(iy, im).ToBits().ReshapeToUint32s().BitsToFloat32()
 }
 
-// Masked returns x but with elements zeroed where mask is false.
-func (x Float64x2) Masked(mask Mask64x2) Float64x2 {
+// Masked returns a vector with elements from x where mask is true, and zero
+// elsewhere.
+//
+//	z[i] = if mask[i] { x[i] } else { 0 }
+func (x Float64x2) Masked(mask Mask64x2) (z Float64x2) {
 	im := mask.ToInt64x2()
 	return im.And(x.ToBits().BitsToInt64()).ToBits().BitsToFloat64()
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-func (x Float64x2) IfElse(mask Mask64x2, y Float64x2) Float64x2 {
+// IfElse returns a vector with elements from x where mask is true, and y where
+// mask is false.
+//
+//	z[i] = if mask[i] { x[i] } else { y[i] }
+func (x Float64x2) IfElse(mask Mask64x2, y Float64x2) (z Float64x2) {
 	im := mask.ToInt64x2().ToBits().ReshapeToUint8s().BitsToInt8()
 	ix := x.ToBits().ReshapeToUint8s().BitsToInt8()
 	iy := y.ToBits().ReshapeToUint8s().BitsToInt8()

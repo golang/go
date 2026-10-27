@@ -507,9 +507,11 @@
 // Lowered Short cases do not generate loops, and as a result don't clobber
 // the address registers or flags.
 (Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 && s < 64 => (LoweredZeroShort [s] ptr mem)
-(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 => (LoweredZero [s] ptr mem)
-(Zero [s] ptr mem) && s < 128 && buildcfg.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr mem)
-(Zero [s] ptr mem) && buildcfg.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr mem)
+(Zero [s] ptr mem) && buildcfg.GOPPC64 <= 8 => (LoweredZero [s] ptr (Zero128 <typ.Vec128>) mem)
+// Add check so that sizes below 16 are cleared with scalar stores only and not Zero128
+(Zero [s] ptr mem) && s < 16 && buildcfg.GOPPC64 >= 9 => (LoweredZeroShort [s] ptr mem)
+(Zero [s] ptr mem) && s < 128 && buildcfg.GOPPC64 >= 9 => (LoweredQuadZeroShort [s] ptr (Zero128 <typ.Vec128>) mem)
+(Zero [s] ptr mem) && buildcfg.GOPPC64 >= 9 => (LoweredQuadZero [s] ptr (Zero128 <typ.Vec128>) mem)
 
 // moves
 (Move [0] _ _ mem) => mem

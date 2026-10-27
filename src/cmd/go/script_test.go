@@ -15,6 +15,7 @@ import (
 	"context"
 	_ "embed"
 	"flag"
+	"fmt"
 	"internal/testenv"
 	"internal/txtar"
 	"net/url"
@@ -86,7 +87,8 @@ func TestScript(t *testing.T) {
 		timeout -= 2 * gracePeriod
 
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, timeout)
+		cause := fmt.Errorf("%s timeout %v: %w", t.Name(), timeout.Round(time.Second), context.DeadlineExceeded)
+		ctx, cancel = context.WithTimeoutCause(ctx, timeout, cause)
 		t.Cleanup(cancel)
 	}
 

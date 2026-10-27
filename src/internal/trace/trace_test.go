@@ -269,6 +269,13 @@ func TestTraceFutileWakeup(t *testing.T) {
 				continue
 			}
 			_, new := st.Goroutine()
+			if new == trace.GoWaiting && st.Reason == "preempted" {
+				// suspendG (from the GC, or the tracer advancing a generation)
+				// parks a running goroutine this way. That's not the goroutine
+				// blocking, so it's neither a block nor a futile wakeup.
+				gs[id] = entered
+				continue
+			}
 			switch state {
 			case entered:
 				if new == trace.GoWaiting {
@@ -290,7 +297,7 @@ func TestTraceFutileWakeup(t *testing.T) {
 				}
 			case running:
 				if new == trace.GoWaiting {
-					t.Fatalf("found futile wakeup on goroutine %d", id)
+					t.Fatalf("found futile wakeup on goroutine %d (block reason %q)", id, st.Reason)
 				} else {
 					state = entered
 				}
@@ -658,9 +665,9 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
 		v.GoVersion = version.Current
 		if runtime.GOOS == "windows" && stress {
 			// Under stress mode we're constantly advancing trace generations.
-			// Windows' clock granularity is too coarse to guarantee monotonic
-			// timestamps for monotonic and wall clock time in this case, so
-			// skip the checks.
+			// Windows' wall clock can return the same value for successive
+			// generations even when monotonic time advances, so skip the
+			// clock snapshot checks.
 			v.SkipClockSnapshotChecks()
 		}
 		testReader(t, bytes.NewReader(tb), v, testtrace.ExpectSuccess())

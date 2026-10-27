@@ -138,7 +138,7 @@ func http2RoundTrip(req *Request, rt func(*http2.ClientRequest) (*http2.ClientRe
 }
 
 // http2AddConn adds nc to the HTTP/2 connection pool.
-func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
+func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (genericClientConn, error) {
 	if t.h2Transport == nil {
 		return nil, errors.ErrUnsupported
 	}
@@ -146,7 +146,7 @@ func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTr
 	if err != nil {
 		return nil, err
 	}
-	return http2RoundTripper{t.h2Transport, false}, nil
+	return &altClientConn{rt: http2RoundTripper{t.h2Transport, false}}, nil
 }
 
 // http2NewClientConn creates an HTTP/2 genericClientConn (used to implement ClientConn) from nc.
@@ -159,7 +159,7 @@ func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (g
 	if err != nil {
 		return nil, err
 	}
-	return http2ClientConn{cc}, nil
+	return externalConn{http2ClientConn{cc}}, nil
 }
 
 // http2NewClientConnFromContext creates a *ClientConn from a net.Conn.
@@ -205,7 +205,7 @@ func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientC
 // If the RoundTrip needs to create a new connection,
 // the historical behavior is for it to use the http2.Transport's DialTLS or DialTLSContext
 // functions, and not any dial functions on the http.Transport.
-func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (RoundTripper, error) {
+func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (genericClientConn, error) {
 	if t.h2Config == nil {
 		return nil, errors.ErrUnsupported
 	}

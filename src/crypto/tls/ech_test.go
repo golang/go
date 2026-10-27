@@ -6,6 +6,9 @@ package tls
 
 import (
 	"bytes"
+	"crypto/ecdh"
+	"crypto/hpke"
+	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"strings"
@@ -287,6 +290,92 @@ func TestPickECHConfigWithIPPublicName(t *testing.T) {
 			config, _, _, _ := pickECHConfig([]echConfig{invalid, valid})
 			if config == nil || !bytes.Equal(config.PublicName, valid.PublicName) {
 				t.Error("did not select the subsequent config with a DNS public name")
+			}
+		})
+	}
+}
+
+func TestECHServerCipherSuite(t *testing.T) {
+	key, err := ecdh.X25519().GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publicKey, err := hpke.NewDHKEMPublicKey(key.PublicKey())
+	if err != nil {
+		t.Fatal(err)
+	}
+	makeConfig := func(suite echCipher) []byte {
+		var b cryptobyte.Builder
+		b.AddUint16(extensionEncryptedClientHello)
+		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+			b.AddUint8(1)
+			b.AddUint16(0x0020)
+			b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(key.PublicKey().Bytes()) })
+			b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddUint16(suite.KDFID); b.AddUint16(suite.AEADID) })
+			b.AddUint8(0)
+			b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes([]byte("public.example")) })
+			b.AddUint16(0)
+		})
+		raw, err := b.Bytes()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return raw
+	}
+	for _, tc := range []struct {
+		name            string
+		kdf             hpke.KDF
+		aead            hpke.AEAD
+		advertised      bool
+		precedingConfig bool
+	}{
+		{"advertised", hpke.HKDFSHA256(), hpke.AES128GCM(), true, false},
+		{"unadvertised AEAD", hpke.HKDFSHA256(), hpke.AES256GCM(), false, false},
+		{"unadvertised KDF", hpke.HKDFSHA384(), hpke.AES128GCM(), false, false},
+		{"later matching config", hpke.HKDFSHA256(), hpke.AES256GCM(), true, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := makeConfig(echCipher{1, 1})
+			if tc.advertised {
+				raw = makeConfig(echCipher{tc.kdf.ID(), tc.aead.ID()})
+			}
+			_, config, err := parseECHConfig(raw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			enc, sender, err := hpke.NewSender(publicKey, tc.kdf, tc.aead, append([]byte("tls ech\x00"), raw...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			inner := &clientHelloMsg{vers: VersionTLS12, random: make([]byte, 32), cipherSuites: []uint16{TLS_AES_128_GCM_SHA256}, compressionMethods: []uint8{0}, supportedVersions: []uint16{VersionTLS13}, serverName: "secret.example", encryptedClientHello: []byte{uint8(innerECHExt)}}
+			outer := *inner
+			outer.serverName = "public.example"
+			ctx := &echClientContext{config: &config, kdfID: tc.kdf.ID(), aeadID: tc.aead.ID(), encapsulatedKey: enc, hpkeContext: sender}
+			if err := computeAndUpdateOuterECHExtension(&outer, inner, ctx, true); err != nil {
+				t.Fatal(err)
+			}
+			outer.original, err = outer.marshal()
+			if err != nil {
+				t.Fatal(err)
+			}
+			keys := []EncryptedClientHelloKey{{Config: raw, PrivateKey: key.Bytes()}}
+			if tc.precedingConfig {
+				keys = append([]EncryptedClientHelloKey{{Config: makeConfig(echCipher{1, 1}), PrivateKey: key.Bytes()}}, keys...)
+			}
+			c := &Conn{}
+			hello, server, err := c.processECHClientHello(&outer, keys)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.echAccepted != tc.advertised || (server != nil) != tc.advertised {
+				t.Fatalf("ECH accepted = %v, want %v", c.echAccepted, tc.advertised)
+			}
+			if tc.advertised {
+				if hello.serverName != inner.serverName {
+					t.Fatalf("inner server name = %q", hello.serverName)
+				}
+			} else if hello != &outer {
+				t.Fatal("rejection did not preserve outer ClientHello")
 			}
 		})
 	}

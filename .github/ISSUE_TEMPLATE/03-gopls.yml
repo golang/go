@@ -5,12 +5,20 @@ labels: ["gopls", "Tools"]
 body:
   - type: markdown
     attributes:
-      value: "Please answer these questions before submitting your issue. Thanks!"
+      value: "Please answer these questions before submitting your issue. Be concise in your descriptions. Thanks!"
   - type: textarea
     id: gopls-version
     attributes:
       label: "gopls version"
       description: "Output of `gopls -v version` on the command line"
+      value: |
+        <details><summary>Details</summary>
+
+        ```
+        PASTE OUTPUT HERE
+        ```
+
+        </details>
     validations:
       required: true
   - type: textarea
@@ -18,7 +26,14 @@ body:
     attributes:
       label: "go env"
       description: "Output of `go env` on the command line in your workspace directory"
-      render: shell
+      value: |
+        <details><summary>Details</summary>
+
+        ```shell
+        PASTE OUTPUT HERE
+        ```
+
+        </details>
     validations:
       required: true
   - type: textarea

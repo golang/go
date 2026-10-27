@@ -24,8 +24,7 @@ type Conn struct {
 	endpoint  *Endpoint
 	config    *Config
 	testHooks connTestHooks
-	peerAddr  netip.AddrPort
-	localAddr netip.AddrPort
+	path      pathAddrs
 	prng      *rand.Rand
 
 	msgc  chan any
@@ -38,7 +37,7 @@ type Conn struct {
 	connIDState connIDState
 	loss        lossState
 	streams     streamsState
-	path        pathState
+	pstate      pathState
 	skip        skipState
 
 	// Packet protection keys, CRYPTO streams, and TLS state.
@@ -90,7 +89,6 @@ func newConn(now time.Time, side connSide, cids newServerConnIDs, peerHostname s
 		side:                 side,
 		endpoint:             e,
 		config:               config,
-		peerAddr:             unmapAddrPort(peerAddr),
 		donec:                make(chan struct{}),
 		peerAckDelayExponent: -1,
 	}
@@ -103,6 +101,15 @@ func newConn(now time.Time, side connSide, cids newServerConnIDs, peerHostname s
 		}
 	}()
 
+	localAddr, err := e.packetConn.LocalAddrFor(peerAddr)
+	if err != nil {
+		return nil, err
+	}
+	c.path = pathAddrs{
+		local: unmapAddrPort(localAddr),
+		peer:  unmapAddrPort(peerAddr),
+	}
+
 	// A one-element buffer allows us to wake a Conn's event loop as a
 	// non-blocking operation.
 	c.msgc = make(chan any, 1)
@@ -114,16 +121,16 @@ func newConn(now time.Time, side connSide, cids newServerConnIDs, peerHostname s
 	// initialConnID is the connection ID used to generate Initial packet protection keys.
 	var initialConnID []byte
 	if c.side == clientSide {
-		if err := c.connIDState.initClient(c); err != nil {
+		if err := c.connIDState.initClient(c, c.path); err != nil {
 			return nil, err
 		}
-		initialConnID, _ = c.connIDState.dstConnID()
+		initialConnID, _ = c.connIDState.dstConnIDForPath(c.path)
 	} else {
 		initialConnID = cids.originalDstConnID
 		if cids.retrySrcConnID != nil {
 			initialConnID = cids.retrySrcConnID
 		}
-		if err := c.connIDState.initServer(c, cids); err != nil {
+		if err := c.connIDState.initServer(c, c.path, cids); err != nil {
 			return nil, err
 		}
 	}
@@ -172,17 +179,17 @@ func newConn(now time.Time, side connSide, cids newServerConnIDs, peerHostname s
 }
 
 func (c *Conn) String() string {
-	return fmt.Sprintf("quic.Conn(%v,->%v)", c.side, c.peerAddr)
+	return fmt.Sprintf("quic.Conn(%v,->%v)", c.side, c.path.peer)
 }
 
 // LocalAddr returns the local network address, if known.
 func (c *Conn) LocalAddr() netip.AddrPort {
-	return c.localAddr
+	return c.path.local
 }
 
 // RemoteAddr returns the remote network address, if known.
 func (c *Conn) RemoteAddr() netip.AddrPort {
-	return c.peerAddr
+	return c.path.peer
 }
 
 // ConnectionState returns basic TLS details about the connection.

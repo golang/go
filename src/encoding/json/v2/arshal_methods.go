@@ -165,8 +165,8 @@ type UnmarshalerFrom interface {
 	UnmarshalJSONFrom(*jsontext.Decoder) error
 }
 
-func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
-	// Avoid injecting method arshaler on the pointer or interface version
+func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
+	// Avoid injecting method marshaler on the pointer or interface version
 	// to avoid ever calling the method on a nil pointer or interface receiver.
 	// Let it be injected on the value receiver (which is always addressable).
 	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
@@ -175,12 +175,14 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if needAddr, ok := implements(t, textMarshalerType); ok {
 		fncs.nonDefault = true
-		prevMarshal := fncs.marshal
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		prevMarshal := fncs.fnc
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) ||
-					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+					(va.forcedAddr && export.Encoder(enc).Tokens.Last.NeedObjectName() && t.Kind() == reflect.String)) {
 				// Do not call MarshalText on unaddressable values and map keys of string kind.
+				// A map key of pointer kind is dereferenced before reaching here,
+				// in which case va.forcedAddr is false and MarshalText is still called.
 				return prevMarshal(enc, va, mo)
 			}
 			marshaler, _ := reflect.TypeAssert[encoding.TextMarshaler](va.Addr())
@@ -203,12 +205,14 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if needAddr, ok := implements(t, textAppenderType); ok {
 		fncs.nonDefault = true
-		prevMarshal := fncs.marshal
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
+		prevMarshal := fncs.fnc
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) ||
-					(export.Encoder(enc).Tokens.Last.NeedObjectName()) && t.Kind() == reflect.String) {
+					(va.forcedAddr && export.Encoder(enc).Tokens.Last.NeedObjectName() && t.Kind() == reflect.String)) {
 				// Do not call AppendText on unaddressable values and map keys of string kind.
+				// A map key of pointer kind is dereferenced before reaching here,
+				// in which case va.forcedAddr is false and AppendText is still called.
 				return prevMarshal(enc, va, mo)
 			}
 			appender, _ := reflect.TypeAssert[encoding.TextAppender](va.Addr())
@@ -228,8 +232,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if needAddr, ok := implements(t, jsonMarshalerType); ok {
 		fncs.nonDefault = true
-		prevMarshal := fncs.marshal
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		prevMarshal := fncs.fnc
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
 				// Do not call MarshalJSON on unaddressable values and map keys.
@@ -260,8 +264,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if needAddr, ok := implements(t, jsonMarshalerToType); ok {
 		fncs.nonDefault = true
-		prevMarshal := fncs.marshal
-		fncs.marshal = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		prevMarshal := fncs.fnc
+		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
 			if mo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				((needAddr && va.forcedAddr) || export.Encoder(enc).Tokens.Last.NeedObjectName()) {
 				// Do not call MarshalJSONTo on unaddressable values and map keys.
@@ -296,9 +300,20 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 		}
 	}
 
+	return fncs
+}
+
+func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
+	// Avoid injecting method unmarshaler on the pointer or interface version
+	// to avoid ever calling the method on a nil pointer or interface receiver.
+	// Let it be injected on the value receiver (which is always addressable).
+	if t.Kind() == reflect.Pointer || t.Kind() == reflect.Interface {
+		return fncs
+	}
+
 	if _, ok := implements(t, textUnmarshalerType); ok {
 		fncs.nonDefault = true
-		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			var flags jsonwire.ValueFlags
 			val, err := xd.ReadValue(&flags)
@@ -332,8 +347,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if _, ok := implements(t, jsonUnmarshalerType); ok {
 		fncs.nonDefault = true
-		prevUnmarshal := fncs.unmarshal
-		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		prevUnmarshal := fncs.fnc
+		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
 				// Do not call UnmarshalJSON on map keys.
@@ -358,8 +373,8 @@ func makeMethodArshaler(fncs *arshaler, t reflect.Type) *arshaler {
 
 	if _, ok := implements(t, jsonUnmarshalerFromType); ok {
 		fncs.nonDefault = true
-		prevUnmarshal := fncs.unmarshal
-		fncs.unmarshal = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		prevUnmarshal := fncs.fnc
+		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
 				export.Decoder(dec).Tokens.Last.NeedObjectName() {
 				// Do not call UnmarshalJSONFrom on map keys.

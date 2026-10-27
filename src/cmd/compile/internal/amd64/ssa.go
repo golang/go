@@ -1954,6 +1954,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		x86.ParseSuffix(p, "Z")             // must be zero if not in mask
 
 	case ssaop.OpAMD64KANDB, ssaop.OpAMD64KANDW, ssaop.OpAMD64KANDD, ssaop.OpAMD64KANDQ,
+		ssaop.OpAMD64KANDNB, ssaop.OpAMD64KANDNW, ssaop.OpAMD64KANDND, ssaop.OpAMD64KANDNQ,
 		ssaop.OpAMD64KORB, ssaop.OpAMD64KORW, ssaop.OpAMD64KORD, ssaop.OpAMD64KORQ,
 		ssaop.OpAMD64KXORB, ssaop.OpAMD64KXORW, ssaop.OpAMD64KXORD, ssaop.OpAMD64KXORQ,
 		ssaop.OpAMD64KXNORB, ssaop.OpAMD64KXNORW, ssaop.OpAMD64KXNORD, ssaop.OpAMD64KXNORQ: // XNOR == EQ
@@ -2016,7 +2017,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = v.Reg()
 
 	case ssaop.OpAMD64KMOVQk, ssaop.OpAMD64KMOVDk, ssaop.OpAMD64KMOVWk, ssaop.OpAMD64KMOVBk,
-		ssaop.OpAMD64KMOVQi, ssaop.OpAMD64KMOVDi, ssaop.OpAMD64KMOVWi, ssaop.OpAMD64KMOVBi:
+		ssaop.OpAMD64KMOVQi, ssaop.OpAMD64KMOVDi, ssaop.OpAMD64KMOVWi, ssaop.OpAMD64KMOVBi,
+		ssaop.OpAMD64KNOTB, ssaop.OpAMD64KNOTW, ssaop.OpAMD64KNOTD, ssaop.OpAMD64KNOTQ:
 		// See also ssa.OpAMD64KMOVQload
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG

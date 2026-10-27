@@ -510,7 +510,10 @@ var splitTests = []struct {
 	{"", ".*", -1, []string{""}},
 	{"", ".+", -1, []string{""}},
 	{"", "", -1, []string{}},
+	{"", "", 2, []string{}},
 	{"foobar", "", -1, []string{"f", "o", "o", "b", "a", "r"}},
+	{"foobar", "", 3, []string{"f", "o", "obar"}},
+	{"abc", "x*", 2, []string{"a", "bc"}},
 	{"abaabaccadaaae", "a*", 5, []string{"", "b", "b", "c", "cadaaae"}},
 	{":x:y:z:", ":", -1, []string{"", "x", "y", "z", ""}},
 }
@@ -524,8 +527,8 @@ func TestSplit(t *testing.T) {
 		}
 
 		split := re.Split(test.s, test.n)
-		if !slices.Equal(split, test.out) {
-			t.Errorf("#%d: %q: got %q; want %q", i, test.r, split, test.out)
+		if !slices.Equal(split, test.out) || (split == nil) != (test.out == nil) {
+			t.Errorf("#%d: %q: got %#v; want %#v", i, test.r, split, test.out)
 		}
 
 		if QuoteMeta(test.r) == test.r {

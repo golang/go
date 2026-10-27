@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -151,6 +152,47 @@ func TestRequestWithoutRemotePort(t *testing.T) {
 	}
 	if e, g := "5.6.7.8:0", req.RemoteAddr; e != g {
 		t.Errorf("RemoteAddr: got %q; want %q", g, e)
+	}
+}
+
+func TestRequestWithInvalidHost(t *testing.T) {
+	env := map[string]string{
+		"SERVER_PROTOCOL": "HTTP/1.1",
+		"HTTP_HOST":       "a.tld@b.tld",
+		"REQUEST_METHOD":  "GET",
+		"REQUEST_URI":     "/path",
+	}
+	req, err := RequestFromMap(env)
+	if err != nil {
+		t.Fatalf("RequestFromMap: %v", err)
+	}
+	if got, want := req.URL.String(), "http://a.tld%40b.tld/path"; got != want {
+		t.Errorf("req.URL = %q, want %q", got, want)
+	}
+	if got, want := *req.URL, (url.URL{
+		Scheme: "http",
+		Host:   "a.tld@b.tld",
+		Path:   "/path",
+	}); got != want {
+		t.Errorf("req.URL = %#v, want %#v", got, want)
+	}
+}
+
+func TestRequestWithInvalidRequestURI(t *testing.T) {
+	testCases := []string{
+		"@other.com/path",
+		"relative/path",
+	}
+	for _, uri := range testCases {
+		env := map[string]string{
+			"SERVER_PROTOCOL": "HTTP/1.1",
+			"HTTP_HOST":       "example.com",
+			"REQUEST_METHOD":  "GET",
+			"REQUEST_URI":     uri,
+		}
+		if req, err := RequestFromMap(env); err == nil {
+			t.Errorf("RequestFromMap with REQUEST_URI %q: got req %#v, want error", uri, req)
+		}
 	}
 }
 

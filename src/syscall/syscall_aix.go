@@ -536,7 +536,7 @@ func ptracePeek(pid int, addr uintptr, out []byte) (count int, err error) {
 		}
 		addr += uintptr(bsize)
 		n += bsize
-		out = out[n:]
+		out = out[bsize:]
 	}
 	return n, nil
 }
@@ -562,7 +562,7 @@ func ptracePoke(pid int, addr uintptr, data []byte) (count int, err error) {
 		}
 		addr += uintptr(bsize)
 		n += bsize
-		data = data[n:]
+		data = data[bsize:]
 	}
 	return n, nil
 }

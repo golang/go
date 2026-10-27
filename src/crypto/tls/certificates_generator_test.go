@@ -20,6 +20,7 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"go/format"
 	"internal/testenv"
 	"math/big"
 	"os"
@@ -467,8 +468,13 @@ func newTestCertPool(certPEM string) *x509.CertPool {
 }
 `)
 
+	src, err := format.Source(buf.Bytes())
+	if err != nil {
+		t.Fatalf("error formatting: %v", err)
+	}
+
 	if *generate {
-		if err := os.WriteFile("certificates_test.go", buf.Bytes(), 0644); err != nil {
+		if err := os.WriteFile("certificates_test.go", src, 0644); err != nil {
 			t.Fatal(err)
 		}
 		t.Log("wrote certificates_test.go")
@@ -478,7 +484,7 @@ func newTestCertPool(certPEM string) *x509.CertPool {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(existing, buf.Bytes()) {
+		if !bytes.Equal(existing, src) {
 			t.Fatal("certificates_test.go is out of date; run go generate to update it")
 		}
 	}

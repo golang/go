@@ -4,7 +4,7 @@
   commutative: false
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
-    // of y's corresponding element: positive values shift left, negative values shift right.
+    // of shift's corresponding element: positive values shift left, negative values shift right.
 - go: ScaleSaturated
   signed: true
   commutative: false
@@ -91,20 +91,20 @@
 - go: ShiftLeft
   commutative: false
   documentation: !string |-
-    // NAME shifts x[i] left by y[i] bits.
-    // If y[i] is greater than the element width, the result is 0.
+    // NAME shifts x[i] left by shift[i] bits.
+    // If shift[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: false
   commutative: false
   documentation: !string |-
-    // NAME logically shifts x[i] right by y[i] bits.
-    // If y[i] is greater than the element width, the result is 0.
+    // NAME logically shifts x[i] right by shift[i] bits.
+    // If shift[i] is greater than the element width, the result is 0.
 - go: ShiftRight
   signed: true
   commutative: false
   documentation: !string |-
-    // NAME arithmetically shifts x[i] right by y[i] bits.
-    // If y[i] is greater than the element width, the result is 0 or -1.
+    // NAME arithmetically shifts x[i] right by shift[i] bits.
+    // If shift[i] is greater than the element width, the result is 0 or -1.
 - go: RotateAllLeft
   commutative: false
   documentation: !string |-
@@ -117,7 +117,7 @@
 - go: RotateLeft
   commutative: false
   documentation: !string |-
-    // NAME rotates each element in x to the left by the number of bits specified by y's corresponding elements.
+    // NAME rotates each element in x to the left by the number of bits specified by shift's corresponding elements.
 - go: RotateAllRight
   commutative: false
   documentation: !string |-
@@ -130,7 +130,7 @@
 - go: RotateRight
   commutative: false
   documentation: !string |-
-    // NAME rotates each element in x to the right by the number of bits specified by y's corresponding elements.
+    // NAME rotates each element in x to the right by the number of bits specified by shift's corresponding elements.
 # Bizzare shifts
 - go: ShiftAllLeftConcatMod16
   commutative: false

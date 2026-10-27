@@ -323,9 +323,13 @@ func (v Value) SetIterKey(iter *MapIter) {
 	ktype := t.Key
 
 	iter.m.mustBeExported() // do not let unexported m leak
-	key := Value{ktype, iterkey, iter.m.flag | flag(ktype.Kind()) | flagIndir}
+	key := Value{ktype, iterkey, flag(ktype.Kind()) | flagIndir | flagAddr}
 	key = key.assignTo("reflect.MapIter.SetKey", v.typ(), target)
-	typedmemmove(v.typ(), v.ptr, key.ptr)
+	if key.flag&flagIndir != 0 {
+		typedmemmove(v.typ(), v.ptr, key.ptr)
+	} else {
+		*(*unsafe.Pointer)(v.ptr) = key.ptr
+	}
 }
 
 // Value returns the value of iter's current map entry.
@@ -367,9 +371,13 @@ func (v Value) SetIterValue(iter *MapIter) {
 	vtype := t.Elem
 
 	iter.m.mustBeExported() // do not let unexported m leak
-	elem := Value{vtype, iterelem, iter.m.flag | flag(vtype.Kind()) | flagIndir}
+	elem := Value{vtype, iterelem, flag(vtype.Kind()) | flagIndir | flagAddr}
 	elem = elem.assignTo("reflect.MapIter.SetValue", v.typ(), target)
-	typedmemmove(v.typ(), v.ptr, elem.ptr)
+	if elem.flag&flagIndir != 0 {
+		typedmemmove(v.typ(), v.ptr, elem.ptr)
+	} else {
+		*(*unsafe.Pointer)(v.ptr) = elem.ptr
+	}
 }
 
 // Next advances the map iterator and reports whether there is another

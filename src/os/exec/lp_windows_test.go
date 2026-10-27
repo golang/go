@@ -25,8 +25,11 @@ func init() {
 	registerHelperCommand("printpath", cmdPrintPath)
 }
 
-func cmdPrintPath(_ ...string) {
+func cmdPrintPath(args ...string) {
 	fmt.Println(testenv.Executable(nil))
+	if len(args) > 0 {
+		fmt.Println(strings.Join(args, " "))
+	}
 }
 
 // makePATH returns a PATH variable referring to the
@@ -53,6 +56,7 @@ func makePATH(root string, dirs []string) string {
 // multiple destination paths. It uses root as prefix for all destination files.
 func installProgs(t *testing.T, root string, files []string) {
 	for _, f := range files {
+		f, forceExe := strings.CutSuffix(f, ":exe")
 		dstPath := filepath.Join(root, f)
 
 		dir := filepath.Dir(dstPath)
@@ -63,7 +67,8 @@ func installProgs(t *testing.T, root string, files []string) {
 		if os.IsPathSeparator(f[len(f)-1]) {
 			continue // directory and PATH entry only.
 		}
-		if strings.EqualFold(filepath.Ext(f), ".bat") {
+		ext := filepath.Ext(f)
+		if !forceExe && (strings.EqualFold(ext, ".bat") || strings.EqualFold(ext, ".cmd")) {
 			installBat(t, dstPath)
 		} else {
 			installExe(t, dstPath)
@@ -112,7 +117,8 @@ func installBat(t *testing.T, dstPath string) {
 		}
 	}()
 
-	if _, err := fmt.Fprintf(dst, "@echo %s\r\n", dstPath); err != nil {
+	escapedPath := strings.ReplaceAll(dstPath, "%", "%%")
+	if _, err := fmt.Fprintf(dst, "@echo %s\r\n@if not \"%%~2\"==\"\" echo %%~2\r\n", escapedPath); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -359,9 +365,11 @@ func TestLookPathWindows(t *testing.T) {
 type commandTest struct {
 	name       string
 	PATH       []string
+	env        map[string]string
 	files      []string
 	dir        string
 	arg0       string
+	moreArgs   []string
 	want       string
 	wantPath   string // the resolved c.Path, if different from want
 	wantErrDot bool
@@ -489,6 +497,64 @@ var commandTests = []commandTest{
 		arg0:  `a.exe`,
 		want:  `p2\a.exe`,
 	},
+	{
+		name:  "from PATH with bat in Dir",
+		files: []string{`p\a.bat`, `p2\a.bat`},
+		PATH:  []string{".", "p2", "p"},
+		dir:   `p`,
+		arg0:  `a.bat`,
+		want:  `p2\a.bat`,
+	},
+	{
+		name:  "from PATH with bat and exe in Dir and no extension",
+		files: []string{`p\a.exe`, `p\a.bat`, `p2\a.bat`},
+		PATH:  []string{".", "p2", "p"},
+		dir:   `p`,
+		arg0:  `a`,
+		want:  `p2\a.bat`,
+	},
+	{
+		name:     "from PATH with bat in space and paren dir and quoted arg",
+		files:    []string{`p\a.exe`, `p\a.bat`, `Program Files (x86)\a.bat`},
+		PATH:     []string{".", `Program Files (x86)`, "p"},
+		dir:      `p`,
+		arg0:     `a`,
+		moreArgs: []string{"arg with spaces"},
+		want:     `Program Files (x86)\a.bat`,
+	},
+	{
+		name:     "from PATH with cmd in space dir and quoted arg",
+		files:    []string{`p\a.exe`, `p\a.cmd`, `Program Files\a.cmd`},
+		PATH:     []string{".", `Program Files`, "p"},
+		dir:      `p`,
+		arg0:     `a`,
+		moreArgs: []string{"arg with spaces"},
+		want:     `Program Files\a.cmd`,
+	},
+	{
+		name:     "with dir and bat in space and paren dir and quoted arg",
+		files:    []string{`Program Files (x86)\a.bat`},
+		PATH:     []string{"."},
+		arg0:     `Program Files (x86)\a.bat`,
+		moreArgs: []string{"arg with spaces"},
+		want:     `Program Files (x86)\a.bat`,
+	},
+	{
+		name:     "executable with bat extension in space dir and quoted arg",
+		files:    []string{`Program Files (x86)\a.bat:exe`},
+		PATH:     []string{"."},
+		arg0:     `Program Files (x86)\a.bat`,
+		moreArgs: []string{"arg with spaces"},
+		want:     `Program Files (x86)\a.bat`,
+	},
+	{
+		name:  "bat in PATH dir with percent variable",
+		files: []string{`%TESTVAR%\a.bat`, `expanded\a.bat`},
+		PATH:  []string{`%TESTVAR%`},
+		env:   map[string]string{"TESTVAR": "expanded"},
+		arg0:  `a.bat`,
+		want:  `%TESTVAR%\a.bat`,
+	},
 	// tests commands, like `.\a.exe`, with c.Dir set
 	{
 		// should use dir when command is path, like ".\a.exe"
@@ -548,10 +614,14 @@ func TestCommand(t *testing.T) {
 			pathVar := makePATH(root, tt.PATH)
 			t.Setenv("PATH", pathVar)
 			t.Logf("set PATH=%s", pathVar)
+			for k, v := range tt.env {
+				t.Setenv(k, v)
+			}
 
 			t.Chdir(root)
 
-			cmd := exec.Command(tt.arg0, "printpath")
+			args := append([]string{"printpath"}, tt.moreArgs...)
+			cmd := exec.Command(tt.arg0, args...)
 			cmd.Dir = filepath.Join(root, tt.dir)
 			if tt.wantErrDot {
 				if errors.Is(cmd.Err, exec.ErrDot) {
@@ -574,7 +644,8 @@ func TestCommand(t *testing.T) {
 				return
 			}
 
-			got := strings.TrimSpace(string(out))
+			got, gotArgs, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+			got = strings.TrimSpace(got)
 			if filepath.IsAbs(got) {
 				got, err = filepath.Rel(root, got)
 				if err != nil {
@@ -583,6 +654,9 @@ func TestCommand(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("\nran  %#q\nwant %#q", got, tt.want)
+			}
+			if wantArgs := strings.Join(tt.moreArgs, " "); gotArgs != wantArgs {
+				t.Errorf("\nargs %#q\nwant %#q", gotArgs, wantArgs)
 			}
 
 			gotPath := cmd.Path

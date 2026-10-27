@@ -76,6 +76,11 @@ func preassignSymIdxs(symABIs *ssagen.SymABIs) {
 				visit(dcl.Type())
 			}
 		}
+		for _, cv := range fn.ClosureVars {
+			if cv.Used() {
+				visit(cv.Type())
+			}
+		}
 	}
 
 	reflectdata.ForEachRuntimeType(visit)

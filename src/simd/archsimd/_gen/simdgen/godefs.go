@@ -205,7 +205,7 @@ func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {
 		return out.Bits.N()
-	} else if out.Class == "greg" || out.Class == "mask" {
+	} else if out.Class == "greg" || out.Class == "fpreg" || out.Class == "mask" {
 		for i := range o.In {
 			if o.In[i].Class == "vreg" {
 				return o.In[i].Bits.N()
@@ -245,6 +245,22 @@ func sveMaskSuffix(gOp Operation) string {
 		}
 	}
 	return "Masked"
+}
+
+// sveWideElements reports whether gOp is an SVE "wide elements" form, whose
+// last vector input has 64-bit elements while its result has narrower ones,
+// e.g. LSL <Zd>.<T>, <Zn>.<T>, <Zm>.D: each element is combined with the
+// 64-bit element of the last input that overlaps it.
+func sveWideElements(gOp Operation) bool {
+	if !CurrentArch().isSVE() || len(gOp.Out) != 1 || gOp.Out[0].ElemBits == nil || *gOp.Out[0].ElemBits == 64 {
+		return false
+	}
+	for i := len(gOp.In) - 1; i >= 0; i-- {
+		if gOp.In[i].Class == "vreg" {
+			return gOp.In[i].ElemBits != nil && *gOp.In[i].ElemBits == 64
+		}
+	}
+	return false
 }
 
 // sveArrangementLetter returns the SVE element-size arrangement letter
@@ -734,6 +750,10 @@ func writeGoDefs(cl unify.Closure) error {
 
 	// Sorting again, just in case.
 	slices.SortFunc(deduped, compareOperations)
+
+	if err := resolveSVEImmRanges(deduped); err != nil {
+		return err
+	}
 
 	typeMap := parseSIMDTypes(deduped)
 

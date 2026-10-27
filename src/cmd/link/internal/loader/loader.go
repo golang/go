@@ -2488,7 +2488,6 @@ var blockedLinknames = map[string][]string{
 	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
 	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
 	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
-	"internal/synctest.IsInBubble":                   {"internal/synctest"},
 	"internal/synctest.associate":                    {"internal/synctest"},
 	"internal/synctest.disassociate":                 {"internal/synctest"},
 	"internal/synctest.isAssociated":                 {"internal/synctest"},

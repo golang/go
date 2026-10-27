@@ -215,6 +215,21 @@ func Append17(n int) []int {
 	return r
 }
 
+func Append21(n int) []int {
+	var r []int
+	for i := range n {
+		// amd64:`.*growsliceNoAlias\b`
+		r = append(r, i)
+	}
+	// amd64:`.*moveSliceNoCapNoScan\b`
+	return r
+}
+
+func Append22(n int) int {
+	// amd64:-`.*moveSlice`
+	return Append21(n)[0]
+}
+
 //go:noinline
 func useSlice(s []int) {
 }

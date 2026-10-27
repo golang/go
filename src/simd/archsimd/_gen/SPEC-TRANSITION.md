@@ -342,7 +342,8 @@ decay.
   tolerated-miss list converge: all three `ops_internal_*.go` files (amd64,
   arm64, sve) contain zero exported declarations, so every compiler-only
   operation falls outside `specfill`'s view without needing a category. The
-  permanent residue is small and enumerable: the `String` and `Len` methods.
+  permanent residue is small and enumerable: the `String`, `Len`, `ToArch`
+  methods and `xFromArch` functions.
 
 ## 1.8 Named results
 
@@ -452,7 +453,7 @@ wherever its prerequisites and track allow.
 
 | ✓ | T | Task | What it is | Needs | Prefers |
 |---|---|---|---|---|---|
-| [ ] | A | `width` | Resolve scalable width | — | — |
+| [x] | A | `width` | Resolve scalable width | — | — |
 | [ ] | A | `compiler-ops` | Compiler-only ops decision | — | — |
 | [ ] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
@@ -462,16 +463,16 @@ wherever its prerequisites and track allow.
 | [x] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
 | [x] | B | `gen-docs` | Inject spec docs into generated output | `fill-gen` | `named-results` |
 | [x] | B | `fill-enforce` | Signature + name mismatch becomes an error | `named-results` | — |
-| [ ] | C | `ci-audit` | CI/hardware audit | — | — |
+| [x] | C | `ci-audit` | CI/hardware audit | — | — |
 | [ ] | C | `conform-fixed` | Conformance harness, fixed-width types | `ci-audit` | `specfill` |
 | [ ] | C | `conform-scalable` | Conformance harness, scalable types | `width`, `conform-fixed` | — |
 | [x] | D | `doc-explore` | Doc-mechanism exploration on a hard family | — | — |
-| [ ] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
+| [x] | D | `spec-common` | Spec the common operations | `width`, `doc-explore` | `specfill` |
 | [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common`, `impl-defined` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
 | [ ] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
-| [ ] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
+| [x] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
 | [ ] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
 | [ ] | E | `template-docs` | Retire generator-supplied API docs | `gen-docs`, `spec-all` | — |
 | [ ] | E | `cat-rehome` | Re-home `categories.yaml` non-doc fields | `template-docs` | — |
@@ -565,7 +566,7 @@ Human judgment calls. None has prerequisites, and each blocks downstream work �
 which is why they lead. Each is small in code and large in consequence.
 
 ### `width` — Resolve scalable width
-**Done:** [ ] · **Needs:** — · **Blocks:** `spec-common`, `conform-scalable` · **Risk:** `risk-concrete-width`
+**Done:** [x] · **Needs:** — · **Blocks:** `spec-common`, `conform-scalable` · **Risk:** `risk-concrete-width`
 
 `simd/internal/spec/types.go` hardcodes `scalableWidth = 4096`, and `simdref` is
 built at that width, while `archsimd`'s SVE uses the runtime `vl()`. A
@@ -967,7 +968,7 @@ Behavioral testing against `simdref`. Parallel to everything else; shares only
 the spec-coverage bottleneck.
 
 ### `ci-audit` — CI/hardware audit
-**Done:** [ ] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-conformance-env`
+**Done:** [x] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-conformance-env`
 
 Determine what can actually execute tests for amd64, arm64, wasm, and SVE —
 natively or emulated. The conformance suite's value for other architectures
@@ -982,6 +983,53 @@ wasm needs a runtime.
 today, on what, how fast, and what it would take if not — marking each runnable,
 runnable-with-work (with the work named), or not runnable, so `conform-fixed`
 knows which targets it is writing tests for.
+
+**Results**
+
+| amd64            | gotip-linux-amd64 | gotip-linux-amd64_avx512 |
+| ---------------- | ----------------- | ------------------------ |
+| AVX              | ✔                 | ✔                        |
+| AVX2             | ✔                 | ✔                        |
+| AVX512           | ✘                 | ✔                        |
+| AVX512BITALG     | ✘                 | ✔                        |
+| AVX512GFNI       | ✘                 | ✔                        |
+| AVX512VAES       | ✘                 | ✔                        |
+| AVX512VBMI       | ✘                 | ✔                        |
+| AVX512VBMI2      | ✘                 | ✔                        |
+| AVX512VNNI       | ✘                 | ✔                        |
+| AVX512VPCLMULQDQ | ✘                 | ✔                        |
+| AVX512VPOPCNTDQ  | ✘                 | ✔                        |
+| AVXAES           | ✔                 | ✔                        |
+| AVXPCLMULQDQ     | ✔                 | ✔                        |
+| AVXVNNI          | ✘                 | ✔                        |
+| FMA              | ✔                 | ✔                        |
+| SHA              | ✘                 | ✔                        |
+| VAES             | ✘                 | ✔                        |
+| VPCLMULQDQ       | ✘                 | ✔                        |
+
+For amd64, use the gotip-linux-amd64_avx512 gomote for testing.
+
+| arm64           | gotip-linux-arm64 | qemu-aarch64 -cpu neoverse-n2 | qemu-aarch64 -cpu neoverse-v1 |
+| --------------- | ----------------- | ----------------------------- | ----------------------------- |
+| PMULL           | ✔                 | ✔                             | ✔                             |
+| SVE             | ✘                 | ✔                             | ✔                             |
+| SVE2            | ✘                 | ✔                             | ✔                             |
+| SVE vector size | n/a               | 128                           | 256                           |
+
+`qemu-aarch64 -cpu neoverse-n1` (which matches the capabilities of
+gotip-linux-arm64) is roughly 7x slower than `gotip-linux-arm64`, so well within
+the range of practical conformance testing.
+
+For NEON, use the gotip-linux-arm64 gomote for testing. For SVE, use
+`qemu-aarch64 -cpu neoverse-v1`.
+
+| wasm    | js-node | wasip1-wazero |
+| ------- | ------- | ------------- |
+| SIMD128 | ✔       | ✔             |
+
+`node` is about 3x faster than `wazero`.
+
+For wasm, use `node` for testing.
 
 ### `conform-fixed` — Conformance harness, fixed-width types
 **Done:** [ ] · **Needs:** `ci-audit` · **Blocks:** `validate-amd64`, `conform-scalable` · **Prefers:** `specfill`
@@ -1080,7 +1128,7 @@ and you want a sterner test.
 families, or the doc mechanism has been extended so that it can.
 
 ### `spec-common` — Spec the common operations
-**Done:** [ ] · **Needs:** `width`, `doc-explore` · **Blocks:** `validate-amd64`, `comments-yaml`, `spec-all` · **Prefers:** `specfill` · **Risk:** `risk-ref-impl-effort`
+**Done:** [x] · **Needs:** `width`, `doc-explore` · **Blocks:** `validate-amd64`, `comments-yaml`, `spec-all` · **Prefers:** `specfill` · **Risk:** `risk-ref-impl-effort`
 
 The method set `midway/comments.yaml` documents: its `.common_methods` block
 less `String` and `Len` — `Add`, `Sub`, `Min`, `Max`, `And`, `Or`, `MulAdd`, the
@@ -1092,8 +1140,8 @@ package), and they are exactly what a new architecture implements first.
 
 The file's keys are not all operations: besides the method docs, it documents
 vector *types*, functions and templates, and carries receiver names keyed to the
-shared block. Only the methods are in scope here, and `String` and `Len` stay
-with midway as the non-spec names (§1.7).
+shared block. Only the methods/functions are in scope here, and this excludes
+non-spec residue (`String`, etc, §1.7).
 
 **Commits.** Start by sampling ~10 operations at random and timing how long it
 takes to implement them, to calibrate `risk-ref-impl-effort` before committing
@@ -1101,9 +1149,8 @@ to the rest. Then one commit per family (arithmetic, bitwise, min/max, compares,
 multiply-accumulate), each adding the spec functions with docs and bodies and
 confirming `cmd/specls` output.
 
-**Done when** every *method* name in `midway/comments.yaml` other than `String`
-and `Len` resolves to a spec
-function, with a real body or an explicit `panic("not implemented")`, unblocking
+**Done when** every *method* name in `midway/comments.yaml` other than non-spec
+residue  resolves to a spec function, with a real body, unblocking
 `comments-yaml`.
 
 ### `spec-all` — Bulk spec migration
@@ -1177,20 +1224,18 @@ of them documents `LoadUint32x4Part` as loading "a Int32x4".
 zero check (a) violations.
 
 ### `comments-yaml` — Drop spec-covered docs from `midway/comments.yaml`
-**Done:** [ ] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`
+**Done:** [x] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`
 
 Every method or function-template entry spec covers is dropped from
 `comments.yaml`. At the time of this task (after `spec-common`) that is the
-portable core less `String` and `Len`, plus the Load/LoadPart/Broadcast
-templates. Entries spec gains afterwards (in `spec-all`) are dropped when spec
-gains them. As of CL 831485, `simd_stubs.go` and `simd_emulated.go` mirror each
-other by hand and have already drifted (§1.5), so expect a real diff on the
-hand-written side, not a no-op.
+portable core less non-spec residue (`String`, etc, §1.7), plus the
+Load/LoadPart/Broadcast templates. Entries spec gains afterwards (in `spec-all`)
+are dropped when spec gains them.
 
 **Commits.** (1) Confirm spec covers the portable core; fill gaps. (2) Delete
 the covered entries from `comments.yaml`. (3) Run `specfill -w` over
-`simd/simd_emulated.go` and `simd/internal/bridge/simd_emulated.go` — this
-overlaps `handwritten-fill`; sequence whichever lands first.
+`simd/simd_emulated.go` — this overlaps `handwritten-fill`; sequence whichever
+lands first.
 
 **Done when** `comments.yaml` has no entry for any operation spec covers, midway
 sources those docs through `specfill`, and `simd_stubs.go` and
@@ -1348,11 +1393,11 @@ each is far cheaper to settle before the bodies are written than after.
 | | Risk | What it is | Owner |
 |---|---|---|---|
 | **[ ]** | `risk-spec-defects` | Known spec defects | `convert-lo`, `mask-bits` |
-| **[ ]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
+| **[x]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
 | **[ ]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
 | **[x]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
-| **[ ]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
+| **[x]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
 | **[ ]** | `risk-sig-refactor-convergence` | `sig-refactor` may not converge — if it does not, §1.1 needs revisiting | `sig-refactor` |
 | **[ ]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
 | **[ ]** | `risk-cat-unknowns` | Unknown unknowns in `categories.yaml` — the field audit was static | `cat-rehome` |

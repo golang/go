@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -69,13 +70,29 @@ type structField struct {
 	index0  int   // 0th index into a struct according to [reflect.Type.FieldByIndex]
 	index   []int // 1st index and remainder according to [reflect.Type.FieldByIndex]
 	typ     reflect.Type
-	fncs    *arshaler
 	isZero  func(addressableValue) bool
 	isEmpty func(addressableValue) bool
 	fieldOptions
 }
 
 var errNoExportedFields = errors.New("Go struct has no exported fields")
+
+type structFieldsCacheEntry struct {
+	once   sync.Once
+	fields structFields
+	err    *SemanticError
+}
+
+var structFieldsCache sync.Map // map[reflect.Type]*structFieldsCacheEntry
+
+func lookupStructFields(t reflect.Type) (*structFields, *SemanticError) {
+	entry, _ := structFieldsCache.LoadOrStore(t, new(structFieldsCacheEntry))
+	cached := entry.(*structFieldsCacheEntry)
+	cached.once.Do(func() {
+		cached.fields, cached.err = makeStructFields(t)
+	})
+	return &cached.fields, cached.err
+}
 
 func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) {
 	orErrorf := func(serr *SemanticError, t reflect.Type, f string, a ...any) *SemanticError {
@@ -169,15 +186,13 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				// Handle an embedded field that serializes to/from any number of
 				// JSON object members back by a Go map or jsontext.Value.
 				switch {
-				case tf == jsontextValueType:
-					f.fncs = nil // specially handled in arshal_embedded.go
+				case tf == jsontextValueType: // specially handled in arshal_embedded.go
 				case tf.Kind() == reflect.Map && tf.Key().Kind() == reflect.String:
 					if implementsAny(tf.Key(), allMethodTypes...) {
 						serr = orErrorf(serr, t, "embedded map field %s of type %s must have a string key that does not implement marshal or unmarshal methods", sf.Name, tf)
 						handleField()
 						return // invalid embedded field; treat as regular field
 					}
-					f.fncs = lookupArshaler(tf.Elem())
 				default:
 					serr = orErrorf(serr, t, "embedded Go struct field %s of type %s must be a Go struct, Go map of string key, or jsontext.Value", sf.Name, tf)
 					handleField()
@@ -251,9 +266,7 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 					// check for a dominant field before returning.
 				}
 				namesIndex[f.name] = i
-
 				f.id = len(allFields)
-				f.fncs = lookupArshaler(sf.Type)
 				allFields = append(allFields, f)
 				if f.format != "" && fs.errUnsupportedFormat == nil {
 					fs.errUnsupportedFormat = &SemanticError{GoType: t, Err: fmt.Errorf("Go struct field %s has unsupported `format` tag option", sf.Name)}

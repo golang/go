@@ -1294,7 +1294,7 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			ldr.SetSymValue(p, v+off)
 			ldr.SetSymSect(p, ldr.SymSect(s))
 			if ctxt.IsDarwin() {
-				ld.AddMachoSym(ldr, p)
+				ld.AddMachoSym(ctxt, p)
 			} else if ctxt.IsWindows() {
 				ld.AddPELabelSym(ldr, p)
 			} else {
@@ -1326,8 +1326,8 @@ func gensymlate(ctxt *ld.Link, ldr *loader.Loader) {
 			// We don't target the middle of a function.
 			continue
 		}
-		if t >= sym.SDWARFSECT {
-			continue // no need to add label for DWARF symbols
+		if t >= sym.SFirstUnallocated {
+			continue // no need to add label for unallocated symbols
 		}
 		if ldr.AttrSpecial(s) || !ldr.TopLevelSym(s) {
 			// no need to add label for special symbols and non-top-level symbols

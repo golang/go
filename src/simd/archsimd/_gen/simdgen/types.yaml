@@ -63,6 +63,11 @@ in: !repeat
   - {class: greg, go: uint16,     base: "uint",  bits:  16, lanes:  1}
   - {class: greg, go: uint8,      base: "uint",  bits:   8, lanes:  1}
 
+# Floating-point scalar registers: a float in the FP/SIMD register bank, where
+# Go keeps floats, such as the result of an SVE reduction (FADDV <V><d>).
+  - {class: fpreg, go: float64,   base: "float", bits:  64, lanes:  1}
+  - {class: fpreg, go: float32,   base: "float", bits:  32, lanes:  1}
+
 # Special shapes just to make INSERT[IF]128 work.
 # The elemBits field of these shapes are wrong, it would be overwritten by overwriteElemBits.
   - {class: vreg, go: Int8x16,    base: "int",   elemBits: 128, bits: 128, lanes: 16}

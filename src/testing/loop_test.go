@@ -13,9 +13,9 @@ import (
 // See also TestBenchmarkBLoop* in other files.
 
 func TestBenchmarkBLoop(t *T) {
-	var initialStart highPrecisionTime
-	var firstStart highPrecisionTime
-	var scaledStart highPrecisionTime
+	var initialStart time.Time
+	var firstStart time.Time
+	var scaledStart time.Time
 	var runningEnd bool
 	runs := 0
 	iters := 0

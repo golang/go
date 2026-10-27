@@ -6,7 +6,6 @@
 #include "go_tls.h"
 #include "textflag.h"
 #include "funcdata.h"
-#include "time_windows.h"
 #include "cgo/abi_arm64.h"
 
 // Offsets into Thread Environment Block (pointer in R18)
@@ -144,11 +143,21 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$96-0
 	MOVD	$0, R0
 	RET
 
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-	MOVD	$_INTERRUPT_TIME, R3
-	MOVD	time_lo(R3), R0
+TEXT runtime·nanotime2<ABIInternal>(SB),NOSPLIT,$40-0
+	NO_LOCAL_POINTERS
+	// asmcgocall passes the result pointer in R0 using the Windows ABI.
+	// Save LastError outside the call's argument and result slots.
+	MOVWU	TEB_error(R18_PLATFORM), R1
+	MOVW	R1, 40(RSP)
+	MOVD	runtime·_QueryInterruptTimePrecise(SB), R0
+	MOVD	R0, 8(RSP)
+	MOVD	$32(RSP), R0
+	MOVD	R0, 16(RSP)
+	BL	runtime·asmcgocall(SB)
+	MOVWU	40(RSP), R1
+	MOVW	R1, TEB_error(R18_PLATFORM)
+	MOVD	32(RSP), R0
 	MOVD	$100, R1
 	MUL	R1, R0
-	MOVD	R0, ret+0(FP)
 	RET
 

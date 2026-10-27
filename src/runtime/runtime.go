@@ -50,16 +50,14 @@ func (t *ticksType) init() {
 // converting durations, not timestamps. Durations are usually going to be much larger, and so
 // the tiny error doesn't matter. The error is definitely going to be a problem when trying to
 // use this for timestamps, as it'll make those timestamps much less likely to line up.
-const minTimeForTicksPerSecond = 5_000_000*(1-osHasLowResClockInt) + 100_000_000*osHasLowResClockInt
+const minTimeForTicksPerSecond = 5_000_000
 
 // ticksPerSecond returns a conversion rate between the cputicks clock and the nanotime clock.
 //
 // Note: Clocks are hard. Using this as an actual conversion rate for timestamps is ill-advised
 // and should be avoided when possible. Use only for durations, where a tiny error term isn't going
 // to make a meaningful difference in even a 1ms duration. If an accurate timestamp is needed,
-// use nanotime instead. (The entire Windows platform is a broad exception to this rule, where nanotime
-// produces timestamps on such a coarse granularity that the error from this conversion is actually
-// preferable.)
+// use nanotime instead.
 //
 // The strategy for computing the conversion rate is to write down nanotime and cputicks as
 // early in process startup as possible. From then, we just need to wait until we get values

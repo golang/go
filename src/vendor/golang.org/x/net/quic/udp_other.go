@@ -40,6 +40,10 @@ func (c *netUDPConn) LocalAddr() netip.AddrPort {
 	return a.AddrPort()
 }
 
+func (c *netUDPConn) LocalAddrFor(remote netip.AddrPort) (netip.AddrPort, error) {
+	return localAddrFor(c.LocalAddr(), remote)
+}
+
 func (c *netUDPConn) Read(f func(*datagram)) error {
 	for {
 		dgram := newDatagram()
@@ -50,13 +54,13 @@ func (c *netUDPConn) Read(f func(*datagram)) error {
 		if n == 0 {
 			continue
 		}
-		dgram.peerAddr = unmapAddrPort(peerAddr)
+		dgram.path = pathAddrs{peer: unmapAddrPort(peerAddr)}
 		dgram.b = dgram.b[:n]
 		f(dgram)
 	}
 }
 
 func (c *netUDPConn) Write(dgram datagram) error {
-	_, err := c.c.WriteToUDPAddrPort(dgram.b, dgram.peerAddr)
+	_, err := c.c.WriteToUDPAddrPort(dgram.b, dgram.path.peer)
 	return err
 }

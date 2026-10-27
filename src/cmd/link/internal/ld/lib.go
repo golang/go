@@ -1526,9 +1526,6 @@ func (ctxt *Link) hostlink() {
 		}
 	case objabi.Hopenbsd:
 		argv = append(argv, "-pthread")
-		if ctxt.BuildMode != BuildModePIE {
-			argv = append(argv, "-Wl,-nopie")
-		}
 		if linkerFlagSupported(ctxt.Arch, ctxt.extld(), "", "-Wl,-z,nobtcfi") {
 			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
 			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
@@ -2116,8 +2113,8 @@ func (ctxt *Link) hostlink() {
 	}
 
 	if ctxt.IsDarwin() && !combineDwarf && len(buildinfo) > 0 {
-		// If we're not combinding DWARF, update UUID now.
-		// Otherwise the code below takes care of it when combinding DWARF.
+		// If we're not combining DWARF, update UUID now.
+		// Otherwise the code below takes care of it when combining DWARF.
 		updateMachoOutFile("rewriting uuid",
 			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
 				return machoRewriteUuid(ctxt, exef, exem, outexe)

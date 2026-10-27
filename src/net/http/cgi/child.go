@@ -97,6 +97,9 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 	if uriStr == "" {
 		// Fallback to SCRIPT_NAME, PATH_INFO and QUERY_STRING.
 		uriStr = params["SCRIPT_NAME"] + params["PATH_INFO"]
+		if uriStr == "" {
+			uriStr = "/"
+		}
 		s := params["QUERY_STRING"]
 		if s != "" {
 			uriStr += "?" + s
@@ -109,28 +112,21 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
 		r.TLS = &tls.ConnectionState{HandshakeComplete: true}
 	}
 
-	if r.Host != "" {
-		// Hostname is provided, so we can reasonably construct a URL.
-		rawurl := r.Host + uriStr
-		if r.TLS == nil {
-			rawurl = "http://" + rawurl
-		} else {
-			rawurl = "https://" + rawurl
-		}
-		url, err := url.Parse(rawurl)
-		if err != nil {
-			return nil, errors.New("cgi: failed to parse host and REQUEST_URI into a URL: " + rawurl)
-		}
-		r.URL = url
+	var err error
+	r.URL, err = url.ParseRequestURI(uriStr)
+	if err != nil {
+		return nil, errors.New("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
 	}
-	// Fallback logic if we don't have a Host header or the URL
-	// failed to parse
-	if r.URL == nil {
-		url, err := url.Parse(uriStr)
-		if err != nil {
-			return nil, errors.New("cgi: failed to parse REQUEST_URI into a URL: " + uriStr)
+	if r.Host != "" {
+		// Historical behavior: Scheme is only set if there is a host.
+		// (We could probably change this.)
+		if r.TLS == nil {
+			r.URL.Scheme = "http"
+		} else {
+			r.URL.Scheme = "https"
 		}
-		r.URL = url
+		r.URL.Host = r.Host
+		r.URL.User = nil
 	}
 
 	// Request.RemoteAddr has its port set by Go's standard http

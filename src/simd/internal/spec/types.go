@@ -5,6 +5,8 @@
 package spec
 
 import (
+	"internal/strconv"
+	"sync/atomic"
 	"unsafe"
 )
 
@@ -89,22 +91,61 @@ type Width512 struct{}
 
 func (Width512) bits() int { return 512 }
 
-// scalableWidth is the bit width to use for scalable vectors when executing the
-// spec. This is intentionally set to be large and different from any hardware
-// platform we support.
+// maxScalableWidth is the maximum bit width allowed for scalable vectors.
+// This matches the architectural maximum of ARM SVE (2048 bits) and ensures
+// that 8-bit unsigned element indices (values 0..255) can address all lanes
+// of a byte vector (256 * 8 = 2048 bits) without overflow.
+const maxScalableWidth = 2048
+
+// scalableWidth is the active scalable vector bit width. If 0, it's unset and
+// [ScalableWidth] panics.
+var scalableWidth atomic.Int64
+
+// ScalableWidth returns the current bit width used for scalable vectors when
+// executing the spec, or panics if it has not been set via [SetScalableWidth].
+func ScalableWidth() int {
+	w := int(scalableWidth.Load())
+	if w == 0 {
+		panic("spec: scalable vector width has not been set (use SetScalableWidth)")
+	}
+	return w
+}
+
+// SetScalableWidth sets the bit width to use for scalable vectors when
+// executing the spec (for example, to match the runtime vector length of a
+// target hardware architecture during conformance testing).
 //
-// TODO: For testing against the spec, do we need a way to match this to the
-// hardware we're testing on?
-const scalableWidth = 4096
+// bits must be a positive multiple of 128 and at most 2048 bits.
+//
+// SetScalableWidth returns a restore function that clears the scalable width.
+//
+// Since the scalable width is global state, this panics if there are
+// overlapping attempts to set the width.
+func SetScalableWidth(bits int) (restore func()) {
+	if bits <= 0 || bits > maxScalableWidth || bits%128 != 0 {
+		panic("invalid scalable width " + strconv.Itoa(bits))
+	}
+
+	if !scalableWidth.CompareAndSwap(0, int64(bits)) {
+		panic("SetScalableWidth called concurrently or without restoring previous width")
+	}
+
+	return func() {
+		if !scalableWidth.CompareAndSwap(int64(bits), 0) {
+			panic("restore called out of sequence or more than once")
+		}
+	}
+}
 
 // WidthScalable is the width representing scalable vectors. At a spec level,
 // the actual width this represents is completely symbolic, but when executing
-// the spec, we concretely interpret this as [scalableWidth] bits.
+// the spec, we concretely interpret this as [ScalableWidth] bits (which must be
+// configured via [SetScalableWidth]).
 //
 // This type is known to specgen.
 type WidthScalable struct{}
 
-func (WidthScalable) bits() int { return scalableWidth }
+func (WidthScalable) bits() int { return ScalableWidth() }
 
 // Vectors
 

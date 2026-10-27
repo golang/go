@@ -4,152 +4,202 @@
 
 package archsimd
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Int8x16) Less(y Int8x16) Mask8x16 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int8x16) Less(y Int8x16) (z Mask8x16) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Int16x8) Less(y Int16x8) Mask16x8 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int16x8) Less(y Int16x8) (z Mask16x8) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Int32x4) Less(y Int32x4) Mask32x4 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int32x4) Less(y Int32x4) (z Mask32x4) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Int64x2) Less(y Int64x2) Mask64x2 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Int64x2) Less(y Int64x2) (z Mask64x2) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Uint8x16) Less(y Uint8x16) Mask8x16 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8x16) Less(y Uint8x16) (z Mask8x16) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Uint16x8) Less(y Uint16x8) Mask16x8 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint16x8) Less(y Uint16x8) (z Mask16x8) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Uint32x4) Less(y Uint32x4) Mask32x4 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint32x4) Less(y Uint32x4) (z Mask32x4) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Uint64x2) Less(y Uint64x2) Mask64x2 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Float32x4) Less(y Float32x4) Mask32x4 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float32x4) Less(y Float32x4) (z Mask32x4) {
 	return y.Greater(x)
 }
 
-// Less returns a mask whose elements indicate whether x < y.
-func (x Float64x2) Less(y Float64x2) Mask64x2 {
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Float64x2) Less(y Float64x2) (z Mask64x2) {
 	return y.Greater(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Int8x16) LessEqual(y Int8x16) Mask8x16 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int8x16) LessEqual(y Int8x16) (z Mask8x16) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Int16x8) LessEqual(y Int16x8) Mask16x8 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int16x8) LessEqual(y Int16x8) (z Mask16x8) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Int32x4) LessEqual(y Int32x4) Mask32x4 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int32x4) LessEqual(y Int32x4) (z Mask32x4) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Int64x2) LessEqual(y Int64x2) Mask64x2 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Int64x2) LessEqual(y Int64x2) (z Mask64x2) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8x16) LessEqual(y Uint8x16) (z Mask8x16) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Uint16x8) LessEqual(y Uint16x8) Mask16x8 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint16x8) LessEqual(y Uint16x8) (z Mask16x8) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Uint32x4) LessEqual(y Uint32x4) Mask32x4 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint32x4) LessEqual(y Uint32x4) (z Mask32x4) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Uint64x2) LessEqual(y Uint64x2) Mask64x2 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Float32x4) LessEqual(y Float32x4) Mask32x4 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float32x4) LessEqual(y Float32x4) (z Mask32x4) {
 	return y.GreaterEqual(x)
 }
 
-// LessEqual returns a mask whose elements indicate whether x <= y.
-func (x Float64x2) LessEqual(y Float64x2) Mask64x2 {
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2) {
 	return y.GreaterEqual(x)
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Int8x16) NotEqual(y Int8x16) Mask8x16 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int8x16) NotEqual(y Int8x16) (z Mask8x16) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Int16x8) NotEqual(y Int16x8) Mask16x8 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int16x8) NotEqual(y Int16x8) (z Mask16x8) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Int32x4) NotEqual(y Int32x4) Mask32x4 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int32x4) NotEqual(y Int32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Int64x2) NotEqual(y Int64x2) Mask64x2 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Int64x2) NotEqual(y Int64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Uint8x16) NotEqual(y Uint8x16) Mask8x16 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint8x16) NotEqual(y Uint8x16) (z Mask8x16) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Uint16x8) NotEqual(y Uint16x8) Mask16x8 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint16x8) NotEqual(y Uint16x8) (z Mask16x8) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Uint32x4) NotEqual(y Uint32x4) Mask32x4 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint32x4) NotEqual(y Uint32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Uint64x2) NotEqual(y Uint64x2) Mask64x2 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Uint64x2) NotEqual(y Uint64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Float32x4) NotEqual(y Float32x4) Mask32x4 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float32x4) NotEqual(y Float32x4) (z Mask32x4) {
 	return x.Equal(y).Not()
 }
 
-// NotEqual returns a mask whose elements indicate whether x != y.
-func (x Float64x2) NotEqual(y Float64x2) Mask64x2 {
+// NotEqual returns a mask indicating which elements of x and y are not equal.
+func (x Float64x2) NotEqual(y Float64x2) (z Mask64x2) {
 	return x.Equal(y).Not()
 }

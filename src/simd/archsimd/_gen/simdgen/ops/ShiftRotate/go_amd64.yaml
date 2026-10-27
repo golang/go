@@ -164,7 +164,8 @@
   asm: "VPROLV[DQ]"
   in:
   - *uint
-  - *uint
+  - base: uint
+    name: shift
   out:
   - *uint
 - go: RotateRight
@@ -172,7 +173,8 @@
   asm: "VPRORV[DQ]"
   in:
   - *uint
-  - *uint
+  - base: uint
+    name: shift
   out:
   - *uint
 

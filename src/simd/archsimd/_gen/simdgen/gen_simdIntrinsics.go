@@ -102,10 +102,18 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var loadStore = templateNamed("loadStore", `	addF(simdPackage, "Load{{.Name}}Array", simdLoad(), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.StoreArray", simdStore(), {{GetSysArch}})`)
 
+	// TODO the operand order for AndNot on amd64 is cursed and should instead happen at the generic-to-architecture SSA rewrite (or later?)
 	var mask = templateNamed("mask", `	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- if eq GetSysArch "sys.AMD64"}}
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2_21(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- else}}
+	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+{{- end}}
+	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXor{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}.Equal", opLen2(ssaop.OpEqual{{.VectorCounterpart}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- if eq GetSysArch "sys.ARM64"}}
 	addF(simdPackage, "{{.Name}}.Not", opLen1(ssaop.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- else}}
@@ -114,6 +122,7 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 {{- end}}`)
 
 	var sveMask = templateNamed("sveMask", `	addF(simdPackage, "{{.Name}}AllTrue", opLen0(ssaop.Op{{.Name}}AllTrue, types.TypeMask), {{GetSysArch}})
+	addF(simdPackage, "{{.Name}}FromCount", opLen1(ssaop.Op{{.Name}}FromCount, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.First", opLen1(ssaop.Op{{.Name}}First, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Next", opLen1(ssaop.Op{{.Name}}Next, types.TypeMask), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.All", opLen1(ssaop.Op{{.Name}}All, types.Types[types.TBOOL]), {{GetSysArch}})

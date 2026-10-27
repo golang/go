@@ -209,6 +209,84 @@ type TCPInfo struct {
 	Total_retrans  uint32
 }
 
+// Ptrace structures for z/OS
+
+type PtraceRegs struct {
+	Psw                      PtracePsw
+	Gprs                     [16]uint64
+	Acrs                     [16]uint32
+	Orig_gpr2                uint64
+	Fp_regs                  PtraceFpregs
+	Per_info                 PtracePer
+	Ieee_instruction_pointer uint64
+}
+
+type PtracePsw struct {
+	Mask uint64
+	Addr uint64
+}
+
+type PtraceFpregs struct {
+	Fpc  uint32
+	Fprs [16]float64
+}
+
+type PtracePer struct {
+	Control_regs  [3]uint64
+	_             [8]byte
+	Starting_addr uint64
+	Ending_addr   uint64
+	Perc_atmid    uint16
+	Address       uint64
+	Access_id     uint8
+	_             [7]byte
+}
+
+// PT_BLOCKREQ structures for block ptrace requests
+// Layout matches BPXYPTRC HLASM macro (PtBR_GPR + PtBR_GPR_EXT):
+//
+//	Offset 0-1:    Writebitflags (PtBR_GPR_CntlGPR, 2 bytes)
+//	Offset 2-3:    Wpsw (PtBR_GPR_CntlMisc, 2 bytes with WPSW bit flag)
+//	Offset 4-15:   Reserved (12 bytes)
+//	Offset 16-79:  Gpr (64 bytes, 16 GPRs)
+//	Offset 80-143: Ctl (64 bytes, 16 CRs)
+//	Offset 144-151: Psw old format (8 bytes, PtBR_GPR_PSW)
+//	Offset 152-167: Pswg extended (16 bytes, PtBR_GPR_PSWG for 64-bit)
+//	Total: 168 bytes (base 152 + extended 16)
+type PtraceBlkGpr struct {
+	Writebitflags uint16     // 2 bytes at offset 0 (PtBR_GPR_CntlGPR)
+	Wpsw          uint16     // 2 bytes at offset 2 (PtBR_GPR_CntlMisc with WPSW flag)
+	_             [12]byte   // 12 bytes reserved (offset 4-15)
+	Gpr           [16]uint32 // 64 bytes at offset 16 (GPRs)
+	Ctl           [16]uint32 // 64 bytes at offset 80 (CRs)
+	Psw           [8]byte    // 8 bytes at offset 144 (old PSW format)
+	Pswg          [16]byte   // 16 bytes at offset 152 (extended PSWG)
+	// Total: 2+2+12+64+64+8+16 = 168 bytes
+}
+
+type PtraceBlkReqReq struct {
+	Reqtype int32
+	Reqstat int32
+	Reqdata uint32
+	_       [4]byte
+}
+
+type PtraceBlkReq struct {
+	Numreq int32
+	_      [12]byte
+}
+
+// PT_READ_U structures for reading user area (control info)
+type PtraceBlkUarOcw struct {
+	Ofs uint32 // Control information offset
+	Ctl uint32 // Control information
+}
+
+type PtraceBlkUar struct {
+	Num uint32 // Number of entries
+	_   [4]byte
+}
+
 type _Gid_t uint32
 
 type rusage_zos struct {

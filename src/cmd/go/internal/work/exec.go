@@ -1560,6 +1560,7 @@ type exportConfig struct {
 	ImportMap   map[string]string // maps import path to package path
 	PackageFile map[string]string // maps package path to file of type information
 	Output      string            // where to write file of type information
+	TrimPath    string            // rewrites for source file paths, as in -trimpath
 }
 
 // analysisModuleFromModulePublic converts a modinfo.ModulePublic to a analysis.Module.
@@ -1739,6 +1740,12 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// changed here.
 		vetFlags = []string{"-unsafeptr=false"}
 
+		// Unlike go test, go vet has no analyzer flags in VetFlags here,
+		// only its own flags for the tool, such as -json and -fix. Keep them.
+		if cfg.CmdName != "test" {
+			vetFlags = append(vetFlags, VetFlags...)
+		}
+
 		// Also turn off -unreachable checks during go test.
 		// During testing it is very common to make changes
 		// like hard-coded forced returns or panics that make
@@ -1779,9 +1786,9 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		// We need to retrieve them all, or none:
 		// the effect must be transactional.
 		var (
-			vetxFile   string                           // name of cached .vetx file
-			fixArchive string                           // name of cached .fix.zip file
-			stdout     io.Reader = bytes.NewReader(nil) // cached stdout stream
+			vetxFile   string    // name of cached .vetx file
+			fixArchive string    // name of cached .fix.zip file
+			stdout     io.Reader // cached stdout stream
 		)
 
 		// Obtain location of cached .vetx file.
@@ -1800,14 +1807,16 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
 		}
 
 		// Copy cached .stdout file to stdout.
-		if file, _, err := cache.GetFile(c, stdoutKey); err == nil {
-			f, err := os.Open(file)
-			if err != nil {
-				goto cachemiss
-			}
-			defer f.Close() // ignore error (can't fail)
-			stdout = f
+		file, _, err := cache.GetFile(c, stdoutKey)
+		if err != nil {
+			goto cachemiss
 		}
+		f, err := os.Open(file)
+		if err != nil {
+			goto cachemiss
+		}
+		defer f.Close() // ignore error (can't fail)
+		stdout = f
 
 		// Cache hit: commit transaction.
 		a.built = vetxFile
@@ -1855,12 +1864,10 @@ cachemiss:
 	// The principled fix is for 'go test' to run vet in -json mode (like
 	// 'go vet' does), where exit code 0 unambiguously indicates a clean
 	// run (with diagnostics in stdout), while non-zero indicates tool failure.
-	if f, err := os.Open(vcfg.VetxOutput); err == nil {
-		defer f.Close() // ignore error
+	vetx, vetxErr := os.Open(vcfg.VetxOutput)
+	if vetxErr == nil {
+		defer vetx.Close() // ignore error
 		a.built = vcfg.VetxOutput
-		if runErr == nil {
-			cache.Default().Put(id, f) // ignore error
-		}
 	}
 
 	if runErr != nil {
@@ -1884,6 +1891,12 @@ cachemiss:
 		}
 		f.Seek(0, io.SeekStart)           // ignore error
 		cache.Default().Put(stdoutKey, f) // ignore error
+	}
+
+	// Save facts last so that a cache hit on id implies fixArchiveKey
+	// and stdoutKey have already been written.
+	if vetxErr == nil {
+		cache.Default().Put(id, vetx) // ignore error
 	}
 
 	return nil
@@ -1949,7 +1962,8 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 	}
 
 	// Careful, a.Package.GoFiles can be relative or absolute paths (see #82042).
-	srcs := mkAbsFiles(a.Package.Dir, a.Package.GoFiles)
+	// Also, the path may point to a virtual file system (e.g. for overlays).
+	srcs := actualFiles(mkAbsFiles(a.Package.Dir, a.Package.GoFiles))
 	// Collect output source files from any cgo dependencies.
 	if a.Package.UsesCgo() {
 		for _, dep := range a.Deps {
@@ -1966,6 +1980,7 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 		ImportMap:   make(map[string]string),
 		PackageFile: make(map[string]string),
 		Output:      a.Target,
+		TrimPath:    a.trimpath(),
 	}
 	for i, s := range a.Package.Internal.RawImports {
 		if s != "C" {
@@ -1993,6 +2008,11 @@ func (b *Builder) exportActionID(a *Action, ecfg *exportConfig) cache.ActionID {
 	// Flags.
 	fmt.Fprintf(h, "importPath %s\n", ecfg.ImportPath)
 	fmt.Fprintf(h, "goVersion %s\n", ecfg.GoVersion)
+	// The type checker's sizes depend on the target architecture.
+	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	if cfg.BuildTrimpath {
+		fmt.Fprintln(h, "trimpath")
+	}
 	// Source file contents.
 	for _, file := range ecfg.GoFiles {
 		fmt.Fprintf(h, "goFile %s %s\n", file, b.fileHash(file))
@@ -2519,7 +2539,31 @@ func BuildInstallFunc(b *Builder, ctx context.Context, a *Action) (err error) {
 		defer b.cleanup(a1)
 	}
 
-	return sh.moveOrCopyFile(a.Target, a1.built, perm, false)
+	if err := sh.moveOrCopyFile(a.Target, a1.built, perm, false); err != nil {
+		return err
+	}
+
+	// Move the split DWARF file to the output directory, except for "go install"
+	// (so we don't clutter the install directory).
+	if a1.Mode == "link" && cfg.CmdName != "install" && a.Target != os.DevNull {
+		dsym := filepath.Join(a1.built+".dSYM", "Contents", "Resources", "DWARF", filepath.Base(a1.built))
+		if _, err := os.Stat(dsym); err == nil {
+			hdr := filepath.Join(a.Target+".dSYM", "Contents", "Resources", "DWARF")
+			if err := sh.Mkdir(hdr); err != nil {
+				return err
+			}
+			if err := sh.moveOrCopyFile(filepath.Join(hdr, filepath.Base(a.Target)), dsym, 0666, false); err != nil {
+				return err
+			}
+		} else if !cfg.BuildN {
+			// If the build does not produce a dSYM directory, delete it.
+			if err := sh.RemoveAll(a.Target + ".dSYM"); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // AllowInstall returns a non-nil error if this invocation of the go command is

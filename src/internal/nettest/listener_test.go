@@ -80,6 +80,28 @@ func TestListenerInterruptAccept(t *testing.T) {
 	})
 }
 
+func TestListenerCloseAbortsConns(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		li := nettest.NewListener()
+		conn1 := li.NewConn()
+		li.Close()
+		conn2 := li.NewConn()
+
+		check := func(name string, conn net.Conn) {
+			if n, err := conn.Read(make([]byte, 1)); err == nil {
+				t.Errorf("%v: conn.Read() = %v, %v; want error", name, n, err)
+			}
+			if n, err := conn.Write(make([]byte, 1)); err == nil {
+				t.Errorf("%v: conn.Write() = %v, %v; want error", name, n, err)
+			}
+		}
+		check("pre-close client conn", conn1)
+		check("pre-close server conn", conn1.Peer())
+		check("post-close client conn", conn2)
+		check("post-close server conn", conn2.Peer())
+	})
+}
+
 func TestListenerAddresses(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		srvaddr := netip.MustParseAddrPort("10.0.0.1:80")

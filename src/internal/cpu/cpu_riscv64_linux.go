@@ -8,43 +8,17 @@ package cpu
 
 import _ "unsafe"
 
-// RISC-V extension discovery code for Linux.
+// RISC-V extension discovery for Linux uses the riscv_hwprobe interface, which
+// reports explicitly versioned extensions
+// See https://docs.kernel.org/arch/riscv/hwprobe.html.
 //
-// A note on detection of the Vector extension using HWCAP.
+// hwprobe is queried through the vDSO when available: that answers this query
+// from the vDSO data page without a syscall, so it still works under a seccomp
+// filter that blocks the syscall. Otherwise the riscv_hwprobe syscall is used.
+// Both paths are in runtime.internal_cpu_riscvHWProbe.
 //
-// Support for the Vector extension version 1.0 was added to the Linux kernel in release 6.5.
-// Support for the riscv_hwprobe syscall was added in 6.4. It follows that if the riscv_hwprobe
-// syscall is not available then neither is the Vector extension (which needs kernel support).
-// The riscv_hwprobe syscall should then be all we need to detect the Vector extension.
-// However, some RISC-V board manufacturers ship boards with an older kernel on top of which
-// they have back-ported various versions of the Vector extension patches but not the riscv_hwprobe
-// patches. These kernels advertise support for the Vector extension using HWCAP. Falling
-// back to HWCAP to detect the Vector extension, if riscv_hwprobe is not available, or simply not
-// bothering with riscv_hwprobe at all and just using HWCAP may then seem like an attractive option.
-//
-// Unfortunately, simply checking the 'V' bit in AT_HWCAP will not work as this bit is used by
-// RISC-V board and cloud instance providers to mean different things. The Lichee Pi 4A board
-// and the Scaleway RV1 cloud instances use the 'V' bit to advertise their support for the unratified
-// 0.7.1 version of the Vector Specification. The Banana Pi BPI-F3 and the CanMV-K230 board use
-// it to advertise support for 1.0 of the Vector extension. Versions 0.7.1 and 1.0 of the Vector
-// extension are binary incompatible. HWCAP can then not be used in isolation to populate the
-// HasV field as this field indicates that the underlying CPU is compatible with RVV 1.0.
-// Go will only support the ratified versions >= 1.0 and so any vector code it might generate
-// would crash on a Scaleway RV1 instance or a Lichee Pi 4a, if allowed to run.
-//
-// There is a way at runtime to distinguish between versions 0.7.1 and 1.0 of the Vector
-// specification by issuing a RVV 1.0 vsetvli instruction and checking the vill bit of the vtype
-// register. This check would allow us to safely detect version 1.0 of the Vector extension
-// with HWCAP, if riscv_hwprobe were not available. However, the check cannot
-// be added until the assembler supports the Vector instructions.
-//
-// Note the riscv_hwprobe syscall does not suffer from these ambiguities by design as all of the
-// extensions it advertises support for are explicitly versioned. It's also worth noting that
-// the riscv_hwprobe syscall is the only way to detect multi-letter RISC-V extensions, e.g., Zvbb.
-// These cannot be detected using HWCAP and so riscv_hwprobe must be used to detect the majority
-// of RISC-V extensions.
-//
-// Please see https://docs.kernel.org/arch/riscv/hwprobe.html for more information.
+// On kernels predating riscv_hwprobe, no extensions are detected and vector
+// code degrades to scalar.
 
 const (
 	// Copied from golang.org/x/sys/unix/ztypes_linux_riscv64.go.

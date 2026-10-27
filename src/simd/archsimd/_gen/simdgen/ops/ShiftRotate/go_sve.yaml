@@ -1,0 +1,47 @@
+!sum
+# ShiftAllLeft — shift every element left by one amount. The amount is a
+# scalar in the API, which the lowering broadcasts into the 64-bit lanes of the
+# vector LSL (wide elements) shifts each narrower element by. LSL gives 0 for
+# an amount of the element width or more, as the API does, so the amount needs
+# no clamping. A constant amount below the element width becomes the immediate
+# form, shiftAllLeftConst (sftimm).
+- go: ShiftAllLeft
+  asm: "ZLSL"
+  specialLower: sftimm
+  in:
+  - &int
+    go: $t
+    base: int|uint
+  - &wideShift
+    class: vreg
+    elemBits: 64
+    treatLikeAScalarOfSize: 64
+    name: shift
+  out:
+  - *int
+
+# LSL has no wide form for 64-bit elements; LSL (vectors) takes the amount
+# from each element of a vector instead, and gives 0 for 64 or more.
+- go: ShiftAllLeft
+  asm: "ZLSL"
+  specialLower: sftimm
+  in:
+  - &int64
+    go: $t
+    base: int|uint
+    elemBits: 64
+  - *wideShift
+  - class: mask # governing predicate
+  out:
+  - *int64
+
+# shiftAllLeftConst — LSL (immediate, unpredicated), a shift by an amount
+# below the element width. No API; sftimm lowers ShiftAllLeft to it.
+- go: shiftAllLeftConst
+  asm: "ZLSL"
+  ssaVariant: "const"
+  in:
+  - class: immediate
+  - *int
+  out:
+  - *int

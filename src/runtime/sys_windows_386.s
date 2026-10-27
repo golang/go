@@ -5,7 +5,7 @@
 #include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
-#include "time_windows.h"
+#include "funcdata.h"
 
 // faster get/set last error
 TEXT runtime·getlasterror(SB),NOSPLIT,$0
@@ -169,13 +169,15 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT,$0
 	XORL	AX, AX			// return 0 == success
 
 	RET
-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
-loop:
-	MOVL	(_INTERRUPT_TIME+time_hi1), AX
-	MOVL	(_INTERRUPT_TIME+time_lo), CX
-	MOVL	(_INTERRUPT_TIME+time_hi2), DI
-	CMPL	AX, DI
-	JNE	loop
+TEXT runtime·nanotime2(SB),NOSPLIT,$24-8
+	NO_LOCAL_POINTERS
+	LEAL	nanotime_trampoline<>(SB), AX
+	MOVL	AX, 0(SP)
+	LEAL	16(SP), AX
+	MOVL	AX, 4(SP)
+	CALL	runtime·asmcgocall(SB)
+	MOVL	16(SP), CX
+	MOVL	20(SP), DI
 
 	// wintime = DI:CX, multiply by 100
 	MOVL	$100, AX
@@ -185,5 +187,19 @@ loop:
 	// wintime*100 = DX:AX
 	MOVL	AX, ret_lo+0(FP)
 	MOVL	DX, ret_hi+4(FP)
+	RET
+
+// Called on the system stack using the C calling convention. Adapt the
+// stdcall callee's stack cleanup and preserve the caller's LastError.
+TEXT nanotime_trampoline<>(SB),NOSPLIT,$8-4
+	MOVL	arg+0(FP), AX
+	MOVL	0x34(FS), CX
+	MOVL	CX, 4(SP)
+	MOVL	AX, 0(SP)
+	MOVL	runtime·_QueryInterruptTimePrecise(SB), AX
+	CALL	AX
+	SUBL	$4, SP // QueryInterruptTimePrecise popped its argument.
+	MOVL	4(SP), CX
+	MOVL	CX, 0x34(FS)
 	RET
 

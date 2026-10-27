@@ -172,6 +172,8 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			} else {
 				outType = fmt.Sprintf("Vec%d", gOp.Out[0].Bits.N())
 			}
+		} else if shapeOut == OneFpregOut {
+			outType = fmt.Sprintf("Float%d", gOp.Out[0].Bits.N())
 		} else if shapeOut == OneGregOut {
 			outType = gOp.GoType() // this is a straight Go type, not a VecNNN type
 		} else if shapeOut == OneKmaskOut {
@@ -241,29 +243,10 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			}
 		}
 
-		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
-			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
-			if memOpData != nil {
-				if *op.MemFeatures != "vbcst" {
-					panic("simdgen only knows vbcst for mem ops for now")
-				}
-				opsDataImmLoad = append(opsDataImmLoad, *memOpData)
-			}
-			if avxHasMerging {
-				mergingLen := len(gOp.In)
-				if !resultInArg0 {
-					mergingLen++
-				}
-				opsDataImmMerging = append(opsDataImmMerging, opData{asm, gOp.Asm, mergingLen, avxRegInfoMerging, gOp.Commutative, outType, resultInArg0})
-			}
-		} else {
-			if !sveSeenUnpred[asm] {
-				sveSeenUnpred[asm] = true
-				opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
-			}
-			// The inVariant implies machine ops only: one predicated instruction
-			// per governing-predicate qualifier the encoding supports, reached by
-			// peephole rather than by any API of its own.
+		// The inVariant implies machine ops only: one predicated instruction
+		// per governing-predicate qualifier the encoding supports, reached by
+		// peephole rather than by any API of its own.
+		appendSVEPredicated := func(target *[]opData) {
 			for _, pred := range gOp.svePredicatedOps() {
 				predRegInfo, err := makeRegInfo(pred, NoMem)
 				if err != nil {
@@ -287,7 +270,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 					panic(fmt.Errorf("simdgen: %s overwrites input %d; only the first input is supported: %s",
 						pred.Asm, idx, pred))
 				}
-				opsData = append(opsData, opData{machineOpName(OneMask, pred), pred.Asm, len(pred.In),
+				*target = append(*target, opData{machineOpName(OneMask, pred), pred.Asm, len(pred.In),
 					predRegInfo, predComm, outType, predResultInArg0})
 				// There is no zeroing machine op here for Masked to fold into:
 				// every ARM64 instruction that has both an unpredicated and a
@@ -301,10 +284,33 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 					}
 					// The extra input is the value the destination starts out
 					// holding, so the destination must share its register.
-					opsData = append(opsData, opData{machineOpName(OneMask, *prefixed), prefixed.Asm, len(prefixed.In),
+					*target = append(*target, opData{machineOpName(OneMask, *prefixed), prefixed.Asm, len(prefixed.In),
 						prefixedRegInfo, false, outType, true})
 				}
 			}
+		}
+		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
+			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+			appendSVEPredicated(&opsDataImm)
+			if memOpData != nil {
+				if *op.MemFeatures != "vbcst" {
+					panic("simdgen only knows vbcst for mem ops for now")
+				}
+				opsDataImmLoad = append(opsDataImmLoad, *memOpData)
+			}
+			if avxHasMerging {
+				mergingLen := len(gOp.In)
+				if !resultInArg0 {
+					mergingLen++
+				}
+				opsDataImmMerging = append(opsDataImmMerging, opData{asm, gOp.Asm, mergingLen, avxRegInfoMerging, gOp.Commutative, outType, resultInArg0})
+			}
+		} else {
+			if !sveSeenUnpred[asm] {
+				sveSeenUnpred[asm] = true
+				opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+			}
+			appendSVEPredicated(&opsData)
 			if memOpData != nil {
 				if *op.MemFeatures != "vbcst" {
 					panic("simdgen only knows vbcst for mem ops for now")

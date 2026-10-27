@@ -137,6 +137,12 @@ var hardwareAddrJSONTests = []struct {
 		`"AABeAFMB"`,
 		`"00:00:5e:00:53:01"`,
 	},
+	{
+		// Invalid-length addresses are base64 encoded.
+		HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53},
+		`"AABeAFM="`,
+		`"AABeAFM="`,
+	},
 }
 
 // TestMACJSON tests JSON marshaling for HardwareAddr.
@@ -193,6 +199,11 @@ func TestMACJSON(t *testing.T) {
 					testReadable(tt.out)
 				}
 			}
+
+			// Historically we have permitted an invalid-length
+			// HardwareAddr to round trip through JSON encoding.
+			// Test that that is the case.
+			testReadable(HardwareAddr{0x00, 0x00, 0x5e, 0x00, 0x53})
 		})
 	}
 }

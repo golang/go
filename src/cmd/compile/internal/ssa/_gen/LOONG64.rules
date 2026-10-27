@@ -514,6 +514,7 @@
 (If cond yes no) => (NEZ (MOVBUreg <typ.UInt64> cond) yes no)
 (MOVBUreg x:((SGT|SGTU) _ _)) => x
 (MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
+(MOVBUreg x:(FPFlag(True|False) _)) => x
 
 (JumpTable idx) => (JUMPTABLE {ssa.MakeJumpTableSym(b)} idx (MOVVaddr <typ.Uintptr> {ssa.MakeJumpTableSym(b)} (SB)))
 
@@ -762,6 +763,9 @@
 (XORconst [-1] x) => (NORconst [0] x)
 (MASKEQZ (MOVVconst [0]) cond) => (MOVVconst [0])
 (MASKNEZ (MOVVconst [0]) cond) => (MOVVconst [0])
+// The mask instructions only test whether the condition is zero.
+(MASK(EQZ|NEZ) x (SGTU c (MOVVconst [0]))) => (MASK(EQZ|NEZ) x c)
+(MASK(EQZ|NEZ) x (SGTUconst [1] c)) => (MASK(NEZ|EQZ) x c)
 (MASKEQZ x (MOVVconst [c])) && c == 0 => (MOVVconst [0])
 (MASKEQZ x (MOVVconst [c])) && c != 0 => x
 

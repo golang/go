@@ -411,6 +411,12 @@ var ipMaskJSONTests = []struct {
 		`"////gAAAAAAAAAAAAAAAAA=="`,
 		`"ffff:ff80::"`,
 	},
+	{
+		// Invalid values are base64 encoded.
+		IPMask{255, 255, 255, 0, 1},
+		`"////AAE="`,
+		`"////AAE="`,
+	},
 }
 
 func TestIPMaskJSON(t *testing.T) {
@@ -471,6 +477,12 @@ func TestIPMaskJSON(t *testing.T) {
 			for _, tt := range ipMaskStringTests {
 				testReadable(tt.in)
 			}
+
+			// Historically we have permitted an invalid
+			// IPMask to round trip through JSON encoding.
+			// Test that that is the case.
+			// Issue 81749.
+			testReadable(IPMask{255, 255, 255, 0, 1})
 		})
 	}
 }

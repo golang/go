@@ -103,7 +103,7 @@ type state struct {
 }
 
 func (st *state) inline() (*Result, error) {
-	logf, caller, callee := st.opts.Logf, st.caller, st.callee
+	logf, caller := st.opts.Logf, st.caller
 
 	logf("inline %s @ %v",
 		debugFormatNode(caller.Fset, caller.Call),
@@ -260,13 +260,8 @@ func (st *state) inline() (*Result, error) {
 	// analysis driver) clean it up since it must remove unused
 	// imports anyway.
 	for _, imp := range res.newImports {
-		// Check that the new imports are accessible.
-		if !packagepath.CanImport(caller.Types.Path(), imp.path) {
-			return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", callee, imp.path)
-		}
-
-		// We've already validated the import, so we call
-		// AddImportEdits directly to compute the edit.
+		// We've already validated the import (in inlineCall),
+		// so we call AddImportEdits directly to compute the edit.
 		name := ""
 		if imp.explicit {
 			name = imp.name
@@ -588,15 +583,6 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 			callee.Name, callee.Unexported[0])
 	}
 
-	// Reject cross-file inlining if callee requires a newer dialect of Go (#75726).
-	// (Versions default to types.Config.GoVersion, which is unset in many tests,
-	// though should be populated by an analysis driver.)
-	callerGoVersion := caller.Info.FileVersions[caller.File]
-	if callerGoVersion != "" && callee.GoVersion != "" && versions.Before(callerGoVersion, callee.GoVersion) {
-		return nil, fmt.Errorf("cannot inline call to %s (declared using %s) into a file using %s",
-			callee.Name, callee.GoVersion, callerGoVersion)
-	}
-
 	// -- analyze callee's free references in caller context --
 
 	// Compute syntax path enclosing Call, innermost first (Path[0]=Call),
@@ -609,21 +595,6 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 		}
 	}
 
-	// If call is within a function, analyze all its
-	// local vars for the "single assignment" property.
-	// (Taking the address &v counts as a potential assignment.)
-	var assign1 func(v *types.Var) bool // reports whether v a single-assignment local var
-	{
-		updatedLocals := make(map[*types.Var]bool)
-		if caller.enclosingFunc != nil {
-			escape(caller.Info, caller.enclosingFunc, func(v *types.Var, _ bool) {
-				updatedLocals[v] = true
-			})
-			logf("multiple-assignment vars: %v", updatedLocals)
-		}
-		assign1 = func(v *types.Var) bool { return !updatedLocals[v] }
-	}
-
 	// Extract information about the caller's imports.
 	istate := newImportState(logf, caller, callee)
 
@@ -631,6 +602,27 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 	objRenames, err := st.renameFreeObjs(istate)
 	if err != nil {
 		return nil, err
+	}
+
+	// Check that the new imports are accessible.
+	for _, imp := range istate.newImports {
+		if !packagepath.CanImport(caller.Types.Path(), imp.path) {
+			return nil, fmt.Errorf("can't inline function %v as its body refers to inaccessible package %q", st.callee, imp.path)
+		}
+	}
+
+	// Reject cross-file inlining if callee requires a newer dialect of Go (#75726).
+	// (Versions default to types.Config.GoVersion, which is unset in many tests,
+	// though should be populated by an analysis driver.)
+	//
+	// This check is done after the accessibility check so that,
+	// when both apply, we report the error the user cannot fix
+	// (e.g. a reference to an inaccessible package) rather than
+	// suggest upgrading the file's Go version, which would not help.
+	callerGoVersion := caller.Info.FileVersions[caller.File]
+	if callerGoVersion != "" && callee.GoVersion != "" && versions.Before(callerGoVersion, callee.GoVersion) {
+		return nil, fmt.Errorf("cannot inline call to %s (declared using %s) into a file using %s",
+			callee.Name, callee.GoVersion, callerGoVersion)
 	}
 
 	res := &inlineCallResult{
@@ -674,6 +666,21 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 		}
 	}
 
+	// If call is within a function, analyze all its
+	// local vars for the "single assignment" property.
+	// (Taking the address &v counts as a potential assignment.)
+	var assign1 func(v *types.Var) bool // reports whether v a single-assignment local var
+	{
+		updatedLocals := make(map[*types.Var]bool)
+		if caller.enclosingFunc != nil {
+			escape(caller.Info, caller.enclosingFunc, func(v *types.Var, _ bool) {
+				updatedLocals[v] = true
+			})
+			logf("multiple-assignment vars: %v", updatedLocals)
+		}
+		assign1 = func(v *types.Var) bool { return !updatedLocals[v] }
+	}
+
 	// Gather the effective call arguments, including the receiver.
 	// Later, elements will be eliminated (=> nil) by parameter substitution.
 	args, err := st.arguments(caller, calleeDecl, assign1)
@@ -687,6 +694,11 @@ func (st *state) inlineCall() (*inlineCallResult, error) {
 	{
 		sig := calleeSymbol.Type().(*types.Signature)
 		if sig.Recv() != nil {
+			// Defensively guard against mismatched caller and callee where a
+			// method call was passed with a function declaration (see https://golang.org/issue/80834).
+			if calleeDecl.Recv == nil || len(calleeDecl.Recv.List) == 0 {
+				return nil, fmt.Errorf("cannot inline method call: callee declaration has no receiver")
+			}
 			params = append(params, &parameter{
 				obj:       sig.Recv(),
 				fieldType: calleeDecl.Recv.List[0].Type,
@@ -1878,7 +1890,7 @@ next:
 					logf("param %q (offset %d): adding explicit %s -> %s conversion around argument",
 						param.info.Name, ref.Offset, arg.typ, param.obj.Type())
 				}
-				replace(ref.Offset, internalastutil.CloneNode(argExpr).(ast.Expr), arg.variadic)
+				replace(ref.Offset, internalastutil.CloneNode(argExpr), arg.variadic)
 			}
 			params[i] = nil // substituted
 			args[i] = nil   // substituted

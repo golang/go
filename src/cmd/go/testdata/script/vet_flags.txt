@@ -1,21 +1,59 @@
 [short] skip 'runs test'
 
+# The go vet -n commands below use -a, because a cached vet result
+# means no vet command is printed.
+
 # Issue 35837: "go vet -<analyzer> <std package>" should use the requested
 # analyzers, not the default analyzers for 'go test'.
-go vet -n -buildtags=false runtime
+go vet -a -n -buildtags=false runtime
 stderr '-buildtags=false'
 ! stderr '-unsafeptr=false'
 
 # Issue 37030: "go vet <std package>" without other flags should disable the
 # unsafeptr check by default.
-go vet -n runtime
+go vet -a -n runtime
 stderr '-unsafeptr=false'
 ! stderr '-unreachable=false'
 
 # However, it should be enabled if requested explicitly.
-go vet -n -unsafeptr runtime
+go vet -a -n -unsafeptr runtime
 stderr '-unsafeptr'
 ! stderr '-unsafeptr=false'
+
+# Issue 82020: disabling unsafeptr should keep the flags that go vet
+# adds for the tool itself.
+go vet -a -n runtime
+stderr '-unsafeptr=false -json'
+go vet -a -n -fix runtime
+stderr '-unsafeptr=false -fix'
+
+# Flags that the go command also has do not select analyzers, so they
+# should not turn the unsafeptr check back on. The tool's -tags and -v
+# have no effect, so they are not passed to it at all.
+go vet -a -n -tags=x runtime
+stderr '-unsafeptr=false -json'
+! stderr '[/\\]vet'$GOEXE'["]? .* -tags'
+go vet -a -n -v runtime
+stderr '-unsafeptr=false -json'
+! stderr '[/\\]vet'$GOEXE'["]? .* -v '
+go vet -a -n -json runtime
+stderr '-unsafeptr=false -json'
+go vet -a -n -fix -diff runtime
+stderr '-unsafeptr=false .*-diff'
+env GOFLAGS=-tags=x
+go vet -a -n runtime
+stderr '-unsafeptr=false -json'
+! stderr '[/\\]vet'$GOEXE'["]? .* -tags'
+env GOFLAGS=-json
+go vet -a -n runtime
+stderr '-unsafeptr=false -json'
+
+# An analyzer flag from GOFLAGS should still turn the unsafeptr check on.
+env GOFLAGS=-unsafeptr
+go vet -a -n runtime
+stderr '-unsafeptr'
+! stderr '-unsafeptr=false'
+env GOFLAGS=
 
 # -unreachable is disabled during test but on during plain vet.
 # The -a makes sure the vet result is not cached, or else we won't print the command line.

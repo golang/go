@@ -162,17 +162,36 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 	c := ctxt0{ctxt: ctxt, newprog: newprog, cursym: cursym}
-
 	p := c.cursym.Func().Text
+
+	if p == nil || p.Link == nil {
+		return
+	}
+
+	if p.As != obj.ATEXT {
+		c.ctxt.Diag("preprocess: found symbol that does not start with TEXT directive")
+		return
+	}
+
 	textstksiz := p.To.Offset
+	if textstksiz == -ctxt.Arch.FixedFrameSize {
+		// Historical way to mark NOFRAME.
+		p.From.Sym.Set(obj.AttrNoFrame, true)
+		textstksiz = 0
+	}
 
 	if textstksiz < 0 {
 		c.ctxt.Diag("negative frame size %d - did you mean NOFRAME?", textstksiz)
 	}
+
 	if p.From.Sym.NoFrame() {
 		if textstksiz != 0 {
 			c.ctxt.Diag("NOFRAME functions must have a frame size of 0, not %d", textstksiz)
 		}
+	}
+
+	if textstksiz%8 != 0 {
+		c.ctxt.Diag("frame size %d not a multiple of 8", textstksiz)
 	}
 
 	c.cursym.Func().Args = p.To.Val.(int32)
@@ -180,88 +199,24 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 
 	/*
 	 * find leaf subroutines
-	 * expand RET
 	 */
-
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case obj.ATEXT:
-			p.Mark |= LABEL | LEAF | SYNC
-			if p.Link != nil {
-				p.Link.Mark |= LABEL
-			}
-
-		case AMOVW,
-			AMOVV:
-			if p.To.Type == obj.TYPE_REG && p.To.Reg >= REG_SPECIAL {
-				p.Mark |= LABEL | SYNC
-				break
-			}
-			if p.From.Type == obj.TYPE_REG && p.From.Reg >= REG_SPECIAL {
-				p.Mark |= LABEL | SYNC
-			}
-
-		case ASYSCALL,
-			AWORD:
-			p.Mark |= LABEL | SYNC
-
-		case ANOR:
-			if p.To.Type == obj.TYPE_REG {
-				if p.To.Reg == REGZERO {
-					p.Mark |= LABEL | SYNC
-				}
-			}
+			p.Mark |= LEAF
 
 		case AJAL:
 			c.cursym.Func().Text.Mark &^= LEAF
-			fallthrough
-
-		case AJMP,
-			ABEQ,
-			ABGEU,
-			ABLTU,
-			ABLTZ,
-			ABNE,
-			ABFPT, ABFPF:
-			p.Mark |= BRANCH
-			q1 := p.To.Target()
-			if q1 != nil {
-				for q1.As == obj.ANOP {
-					q1 = q1.Link
-					p.To.SetTarget(q1)
-				}
-
-				if q1.Mark&LEAF == 0 {
-					q1.Mark |= LABEL
-				}
-			}
-			q1 = p.Link
-			if q1 != nil {
-				q1.Mark |= LABEL
-			}
-
-		case ARET:
-			if p.Link != nil {
-				p.Link.Mark |= LABEL
-			}
 		}
 	}
 
-	var mov, add obj.As
-
-	add = AADDV
-	mov = AMOVV
-
-	var q *obj.Prog
-	var q1 *obj.Prog
-	autosize := int32(0)
+	var q, q1 *obj.Prog
 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
 		o := p.As
 		switch o {
 		case obj.ATEXT:
-			autosize = int32(textstksiz)
-
-			if p.Mark&LEAF != 0 && autosize == 0 {
+			c.autosize = int32(textstksiz)
+			if p.Mark&LEAF != 0 && c.autosize == 0 {
 				// A leaf function with no locals has no frame.
 				p.From.Sym.Set(obj.AttrNoFrame, true)
 			}
@@ -269,20 +224,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if !p.From.Sym.NoFrame() {
 				// If there is a stack frame at all, it includes
 				// space to save the LR.
-				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+				c.autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
-			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
+			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
 				// A leaf function with a small stack can be marked
 				// NOSPLIT, avoiding a stack check.
 				p.From.Sym.Set(obj.AttrNoSplit, true)
 			}
 
-			if autosize&4 != 0 {
-				autosize += 4
-			}
-
-			if autosize == 0 && c.cursym.Func().Text.Mark&LEAF == 0 {
+			if c.autosize == 0 && c.cursym.Func().Text.Mark&LEAF == 0 {
 				if c.cursym.Func().Text.From.Sym.NoSplit() {
 					if ctxt.Debugvlog {
 						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
@@ -292,7 +243,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
-			p.To.Offset = int64(autosize) - ctxt.Arch.FixedFrameSize
+			p.To.Offset = int64(c.autosize) - ctxt.Arch.FixedFrameSize
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
@@ -302,12 +253,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			if !p.From.Sym.NoSplit() {
-				p = c.stacksplit(p, autosize) // emit split check
+				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
 			q = p
 
-			if autosize != 0 {
+			if c.autosize != 0 {
 				// Make sure to save link register for non-empty frame, even if
 				// it is a leaf function, so that traceback works.
 				// Store link register before decrement SP, so if a signal comes
@@ -317,24 +268,26 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// at the current SP, it will clobber the saved LR.
 				q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
+				// MOVV  REGLINK, -c.autosize(REGSP)
 				q = obj.Appendp(q, newprog)
-				q.As = mov
+				q.As = AMOVV
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK
 				q.To.Type = obj.TYPE_MEM
-				q.To.Offset = int64(-autosize)
+				q.To.Offset = int64(-c.autosize)
 				q.To.Reg = REGSP
 
+				// ADDV  -c.autosize, REGSP
 				q = obj.Appendp(q, newprog)
-				q.As = add
+				q.As = AADDV
 				q.Pos = p.Pos
 				q.Pos = q.Pos.WithXlogue(src.PosPrologueEnd)
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(-autosize)
+				q.From.Offset = int64(-c.autosize)
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
-				q.Spadj = +autosize
+				q.Spadj = +c.autosize
 
 				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
 
@@ -343,8 +296,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				// SIGSETXID. So a signal may land on the current stack and clobber
 				// the content below the SP. We store the LR again after the SP is
 				// decremented.
+				//
+				// MOVV  REGLINK, (REGSP)
 				q = obj.Appendp(q, newprog)
-				q.As = mov
+				q.As = AMOVV
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_REG
 				q.From.Reg = REGLINK
@@ -368,7 +323,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			p.To.Reg = obj.REG_NONE
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
-				if autosize == 0 {
+				if c.autosize == 0 {
 					p.As = AJMP
 					p.From = obj.Addr{}
 					if retSym != nil { // retjmp
@@ -380,16 +335,15 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 						p.To.Reg = retReg
 						p.To.Offset = 0
 					}
-					p.Mark |= BRANCH
 					break
 				}
 
-				p.As = add
+				p.As = AADDV
 				p.From.Type = obj.TYPE_CONST
-				p.From.Offset = int64(autosize)
+				p.From.Offset = int64(c.autosize)
 				p.To.Type = obj.TYPE_REG
 				p.To.Reg = REGSP
-				p.Spadj = -autosize
+				p.Spadj = -c.autosize
 
 				q = c.newprog()
 				q.As = AJMP
@@ -403,30 +357,29 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 					q.To.Offset = 0
 					q.To.Reg = retReg
 				}
-				q.Mark |= BRANCH
-				q.Spadj = +autosize
+				q.Spadj = +c.autosize
 
 				q.Link = p.Link
 				p.Link = q
 				break
 			}
 
-			p.As = mov
+			p.As = AMOVV
 			p.From.Type = obj.TYPE_MEM
 			p.From.Offset = 0
 			p.From.Reg = REGSP
 			p.To.Type = obj.TYPE_REG
 			p.To.Reg = REGLINK
 
-			if autosize != 0 {
+			if c.autosize != 0 {
 				q = c.newprog()
-				q.As = add
+				q.As = AADDV
 				q.Pos = p.Pos
 				q.From.Type = obj.TYPE_CONST
-				q.From.Offset = int64(autosize)
+				q.From.Offset = int64(c.autosize)
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
-				q.Spadj = -autosize
+				q.Spadj = -c.autosize
 
 				q.Link = p.Link
 				p.Link = q
@@ -444,15 +397,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q1.To.Offset = 0
 				q1.To.Reg = retReg
 			}
-			q1.Mark |= BRANCH
-			q1.Spadj = +autosize
+			q1.Spadj = +c.autosize
 
 			q1.Link = q.Link
 			q.Link = q1
 
-		case AADD,
-			AADDV,
-			AADDVU:
+		case AADD, AADDV, AADDVU:
 			if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.From.Type == obj.TYPE_CONST {
 				p.Spadj = int32(-p.From.Offset)
 			}
@@ -460,12 +410,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 		case obj.AGETCALLERPC:
 			if cursym.Leaf() {
 				// MOV LR, Rd
-				p.As = mov
+				p.As = AMOVV
 				p.From.Type = obj.TYPE_REG
 				p.From.Reg = REGLINK
 			} else {
 				// MOV (RSP), Rd
-				p.As = mov
+				p.As = AMOVV
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
 			}
@@ -536,7 +486,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 		p.To.Type = obj.TYPE_BRANCH
 		// See ../x86/obj6.go
 		p.To.Sym = c.ctxt.LookupABI(c.ctxt.Flag_maymorestack, c.cursym.ABI())
-		p.Mark |= BRANCH
 
 		// Restore LR and REGCTXT.
 
@@ -634,7 +583,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 			p.From.Type = obj.TYPE_REG
 			p.From.Reg = REGRT2
 			p.To.Type = obj.TYPE_BRANCH
-			p.Mark |= BRANCH
 		}
 
 		p = obj.Appendp(p, c.newprog)
@@ -663,7 +611,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.From.Type = obj.TYPE_REG
 	p.From.Reg = REGRT1
 	p.To.Type = obj.TYPE_BRANCH
-	p.Mark |= BRANCH
 
 	end := c.ctxt.EndUnsafePoint(p, c.newprog, -1)
 
@@ -697,7 +644,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	p.To.Reg = REG_R31
 	if q != nil {
 		q.To.SetTarget(p)
-		p.Mark |= LABEL
 	}
 
 	// JAL runtime.morestack(SB)
@@ -712,7 +658,6 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
 	} else {
 		call.To.Sym = c.ctxt.Lookup("runtime.morestack")
 	}
-	call.Mark |= BRANCH
 
 	// The instructions which unspill regs should be preemptible.
 	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)

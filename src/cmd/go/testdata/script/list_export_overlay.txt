@@ -1,0 +1,15 @@
+# Test that "go list -export" succeeds for overlay packages with source
+# files that don't exist on disk.
+
+env GOEXPERIMENT=golistexportnewformat
+
+go list -overlay overlay.json -export a.go
+
+-- overlay.json --
+{
+    "Replace": {
+        "a.go": "b.go"
+    }
+}
+-- b.go --
+package p

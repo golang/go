@@ -1,0 +1,13 @@
+!sum
+# ConvertToInt32 — float32 to int32, rounding toward zero (ZFCVTZS).
+# Predicated-only, the same shape as Sqrt.
+- go: ConvertToInt32
+  asm: "ZFCVTZS"
+  in:
+  - go: $t
+    base: float
+    elemBits: 32
+  - class: mask # governing predicate
+  out:
+  - base: int
+    elemBits: 32

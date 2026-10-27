@@ -719,8 +719,8 @@ type common struct {
 	creator    []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
 	modulePath string
 	importPath string
-	name       string            // Name of test or benchmark.
-	start      highPrecisionTime // Time test or benchmark started
+	name       string    // Name of test or benchmark.
+	start      time.Time // Time test or benchmark started
 	duration   time.Duration
 	barrier    chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
 	signal     chan bool // To signal a test is done.
@@ -1940,7 +1940,7 @@ func (t *T) Parallel() {
 	// We don't want to include the time we spend waiting for serial tests
 	// in the test duration. Record the elapsed time thus far and reset the
 	// timer afterwards.
-	t.duration += highPrecisionTimeSince(t.start)
+	t.duration += time.Since(t.start)
 
 	// Add to the list of tests to be released by the parent.
 	t.parent.sub = append(t.parent.sub, t)
@@ -1970,8 +1970,8 @@ func (t *T) Parallel() {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
 	}
-	running.Store(t.name, highPrecisionTimeNow())
-	t.start = highPrecisionTimeNow()
+	running.Store(t.name, time.Now())
+	t.start = time.Now()
 
 	// Reset the local race counter to ignore any races that happened while this
 	// goroutine was blocked, such as in the parent test or in other parallel
@@ -2118,7 +2118,7 @@ func tRunner(t *T, fn func(t *T)) {
 			// Skip this if this *T is a synctest bubble, because we're not a subtest.
 			for root := &t.common; !root.isSynctest && root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += highPrecisionTimeSince(root.start)
+				root.duration += time.Since(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				// Output buffered logs.
@@ -2135,7 +2135,7 @@ func tRunner(t *T, fn func(t *T)) {
 			doPanic(err)
 		}
 
-		t.duration += highPrecisionTimeSince(t.start)
+		t.duration += time.Since(t.start)
 
 		if len(t.sub) > 0 {
 			// Run parallel subtests.
@@ -2153,10 +2153,10 @@ func tRunner(t *T, fn func(t *T)) {
 
 			// Run any cleanup callbacks, marking the test as running
 			// in case the cleanup hangs.
-			cleanupStart := highPrecisionTimeNow()
+			cleanupStart := time.Now()
 			running.Store(t.name, cleanupStart)
 			err := t.runCleanup(recoverAndReturnPanic)
-			t.duration += highPrecisionTimeSince(cleanupStart)
+			t.duration += time.Since(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -2197,7 +2197,7 @@ func tRunner(t *T, fn func(t *T)) {
 		}
 	}()
 
-	t.start = highPrecisionTimeNow()
+	t.start = time.Now()
 	t.resetRaces()
 	fn(t)
 
@@ -2257,7 +2257,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
 	if t.chatty != nil {
 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
 	}
-	running.Store(t.name, highPrecisionTimeNow())
+	running.Store(t.name, time.Now())
 
 	// Instead of reducing the running count of this test before calling the
 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
@@ -2974,7 +2974,7 @@ func (m *M) startAlarm() time.Time {
 func runningList() []string {
 	var list []string
 	running.Range(func(k, v any) bool {
-		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
+		list = append(list, fmt.Sprintf("%s (%v)", k.(string), time.Since(v.(time.Time)).Round(time.Second)))
 		return true
 	})
 	slices.Sort(list)

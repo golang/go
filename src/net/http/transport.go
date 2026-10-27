@@ -11,7 +11,6 @@ package http
 
 import (
 	"bufio"
-	"container/list"
 	"context"
 	"crypto/tls"
 	"errors"
@@ -96,19 +95,10 @@ const DefaultMaxIdleConnsPerHost = 2
 // value is a zero-length slice, the request is treated as idempotent but the
 // header is not sent on the wire.
 type Transport struct {
-	idleMu       sync.Mutex
-	closeIdle    bool                                // user has requested to close all idle conns
-	idleConn     map[connectMethodKey][]*persistConn // most recently used at end
-	idleConnWait map[connectMethodKey]wantConnQueue  // waiting getConns
-	idleLRU      connLRU
+	pool clientConnPool
 
 	altMu    sync.Mutex   // guards changing altProto only
 	altProto atomic.Value // of nil or map[string]RoundTripper, key is URI scheme
-
-	connsPerHostMu   sync.Mutex
-	connsPerHost     map[connectMethodKey]int
-	connsPerHostWait map[connectMethodKey]wantConnQueue // waiting getConns
-	dialsInProgress  wantConnQueue
 
 	// Proxy specifies a function to return a proxy for a given
 	// Request. If the function returns a non-nil error, the
@@ -292,8 +282,8 @@ type Transport struct {
 	closeIdleFunc      closeIdleConnectionser // non-nil if http2 wired up
 	h2Transport        *http2Transport
 	h2Config           http2ExternalTransportConfig
-	h3Transport        dialClientConner // non-nil if http3 wired up
-	tlsNextProtoWasNil bool             // whether TLSNextProto was nil when the Once fired
+	h3Transport        http3Transport // non-nil if http3 wired up
+	tlsNextProtoWasNil bool           // whether TLSNextProto was nil when the Once fired
 
 	// ForceAttemptHTTP2 controls whether HTTP/2 is enabled when a non-zero
 	// Dial, DialTLS, or DialContext func or TLSClientConfig is provided.
@@ -382,35 +372,6 @@ func (t *Transport) Clone() *Transport {
 		t2.TLSNextProto = npm
 	}
 	return t2
-}
-
-type dialClientConner interface {
-	// DialClientConn creates a new client connection to address.
-	//
-	// If proxy is non-nil, the connection should use the provided proxy.
-	// If HTTP/3 proxies are not supported, DialClientConn should return
-	// an error wrapping [errors.ErrUnsupported].
-	//
-	// The RoundTripper returned by DialClientConn must also implement the
-	// following methods to support [ClientConn] methods of the same name:
-	//	Close() error
-	//	Err() error
-	// 	Reserve() error
-	//	Release() error
-	//	Available() int
-	//	InFlight() int
-	//
-	// The client connection should arrange to call internalStateHook
-	// when the connection closes, when requests complete, and when the
-	// connection concurrency limit changes.
-	//
-	// The client connection must call the internal state hook when
-	// the connection state changes asynchronously, such as when a request completes.
-	//
-	// The internal state hook need not be called after synchronous changes
-	// to the state: Close, Reserve, Release, and RoundTrip calls
-	// which don't start a request do not need to call the hook.
-	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func()) (RoundTripper, error)
 }
 
 type closeIdleConnectionser interface {
@@ -610,7 +571,6 @@ func validateHeaders(hdrs Header) string {
 func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
 	ctx := req.Context()
-	trace := httptrace.ContextClientTrace(ctx)
 
 	if req.URL == nil {
 		req.closeBody()
@@ -664,13 +624,9 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 
 	// Transport request context.
 	//
-	// If RoundTrip returns an error, it cancels this context before returning.
-	//
-	// If RoundTrip returns no error:
-	//   - For an HTTP/1 request, persistConn.readLoop cancels this context
-	//     after reading the request body.
-	//   - For an HTTP/2 request, RoundTrip cancels this context after the HTTP/2
-	//     RoundTripper returns.
+	// RoundTrip cancels this context before returning.
+	// On the HTTP/1 path, persistConn.RoundTrip creates its own context
+	// that persistConn.readLoop cancels after reading the response body.
 	ctx, cancel := context.WithCancelCause(req.Context())
 
 	// Convert Request.Cancel into context cancellation.
@@ -681,6 +637,8 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	defer func() {
 		if err != nil {
 			cancel(err)
+		} else {
+			cancel(errRequestDone)
 		}
 	}()
 
@@ -692,9 +650,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		default:
 		}
 
-		// treq gets modified by roundTrip, so we need to recreate for each retry.
-		treq := &transportRequest{Request: req, trace: trace, ctx: ctx, cancel: cancel}
-		cm, err := t.connectMethodForRequest(treq)
+		cm, err := t.connectMethodForRequest(req)
 		if err != nil {
 			req.closeBody()
 			return nil, err
@@ -704,37 +660,22 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		// host (for http or https), the http proxy, or the http proxy
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
-		pconn, err := t.getConn(treq, cm)
+		pconn, err := t.getConn(ctx, cm)
 		if err != nil {
 			req.closeBody()
 			return nil, err
 		}
 
-		var resp *Response
-		if pconn.alt != nil {
-			// HTTP/2 path.
-			resp, err = pconn.alt.RoundTrip(req)
-		} else {
-			resp, err = pconn.roundTrip(treq)
-		}
+		resp, err := pconn.cc.RoundTrip(req)
 		if err == nil {
-			if pconn.alt != nil {
-				// We have no further need for the request context.
-				//
-				// On the HTTP/1 path, roundTrip takes responsibility for
-				// canceling the context after the response body is read.
-				cancel(errRequestDone)
-			}
 			resp.Request = origReq
 			return resp, nil
 		}
 
 		// Failed. Clean up and determine whether to retry.
 		if http2isNoCachedConnError(err) {
-			if t.removeIdleConn(pconn) {
-				t.decConnsPerHost(pconn.cacheKey)
-			}
-		} else if !pconn.shouldRetryRequest(req, err) {
+			t.poolRemoveConn(pconn)
+		} else if !shouldRetryRequest(pconn, req, err) {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(nothingWrittenError); ok {
@@ -833,7 +774,7 @@ func rewindBody(req *Request) (rewound *Request, err error) {
 // shouldRetryRequest reports whether we should retry sending a failed
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
-func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+func shouldRetryRequest(pconn *poolConn, req *Request, err error) bool {
 	if http2isNoCachedConnError(err) {
 		// Issue 16582: if the user started a bunch of
 		// requests at once, they can all pick the same conn
@@ -847,7 +788,7 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
 		// User error.
 		return false
 	}
-	if !pc.isReused() {
+	if !pconn.cc.IsReused() {
 		// This was a fresh connection. There's no reason the server
 		// should've hung up on us.
 		//
@@ -919,7 +860,7 @@ func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 			panic("http: HTTP/3 Transport already registered")
 		}
 		var ok bool
-		if t.h3Transport, ok = rt.(dialClientConner); !ok {
+		if t.h3Transport, ok = rt.(http3Transport); !ok {
 			panic("http: HTTP/3 RoundTripper does not implement DialClientConn")
 		}
 		// Notify the HTTP/3 transport of successful registration.
@@ -951,24 +892,8 @@ func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 // in use.
 func (t *Transport) CloseIdleConnections() {
 	t.nextProtoOnce.Do(t.onceSetNextProtoDefaults)
-	t.idleMu.Lock()
-	m := t.idleConn
-	t.idleConn = nil
-	t.closeIdle = true // close newly idle connections
-	t.idleLRU = connLRU{}
-	t.idleMu.Unlock()
-	for _, conns := range m {
-		for _, pconn := range conns {
-			pconn.close(errCloseIdleConns)
-		}
-	}
-	t.connsPerHostMu.Lock()
-	t.dialsInProgress.all(func(w *wantConn) {
-		if w.cancelCtx != nil && !w.waiting() {
-			w.cancelCtx()
-		}
-	})
-	t.connsPerHostMu.Unlock()
+
+	t.poolCloseIdleConnections()
 
 	// Tell various associated transports to close their connections.
 
@@ -1020,13 +945,13 @@ func resetProxyConfig() {
 	envProxyFuncValue = nil
 }
 
-func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectMethod, err error) {
-	cm.targetScheme = treq.URL.Scheme
-	cm.targetAddr = canonicalAddr(treq.URL)
+func (t *Transport) connectMethodForRequest(req *Request) (cm connectMethod, err error) {
+	cm.targetScheme = req.URL.Scheme
+	cm.targetAddr = canonicalAddr(req.URL)
 	if t.Proxy != nil {
-		cm.proxyURL, err = t.Proxy(treq.Request)
+		cm.proxyURL, err = t.Proxy(req)
 	}
-	cm.onlyH1 = treq.requiresHTTP1()
+	cm.onlyH1 = req.requiresHTTP1()
 	return cm, err
 }
 
@@ -1051,6 +976,7 @@ var (
 	errCloseIdle          = errors.New("http: putIdleConn: CloseIdleConnections was called")
 	errTooManyIdle        = errors.New("http: putIdleConn: too many idle connections")
 	errTooManyIdleHost    = errors.New("http: putIdleConn: too many idle connections for host")
+	errNotInPool          = errors.New("http: putIdleConn: connection is not in a pool")
 	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
@@ -1080,12 +1006,6 @@ func (e transportReadFromServerError) Error() string {
 	return fmt.Sprintf("net/http: Transport failed to read from server: %v", e.err)
 }
 
-func (t *Transport) putOrCloseIdleConn(pconn *persistConn) {
-	if err := t.tryPutIdleConn(pconn); err != nil {
-		pconn.close(err)
-	}
-}
-
 func (t *Transport) maxIdleConnsPerHost() int {
 	if v := t.MaxIdleConnsPerHost; v != 0 {
 		return v
@@ -1094,14 +1014,14 @@ func (t *Transport) maxIdleConnsPerHost() int {
 }
 
 func (t *Transport) keepAlivesDisabled() bool {
-	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0
+	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 || t.MaxIdleConns < 0
 }
 
 // tryPutIdleConn adds pconn to the list of idle persistent connections awaiting
 // a new request.
 // If pconn is no longer needed or not in a good state, tryPutIdleConn returns
 // an error explaining why it wasn't registered.
-// tryPutIdleConn does not close pconn. Use putOrCloseIdleConn instead for that.
+// tryPutIdleConn does not close pconn.
 func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 	if t.keepAlivesDisabled() {
 		return errKeepAlivesDisabled
@@ -1126,221 +1046,12 @@ func (t *Transport) tryPutIdleConn(pconn *persistConn) error {
 		}
 		return nil
 	}
-
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-
-	// HTTP/2 (pconn.alt != nil) connections do not come out of the idle list,
-	// because multiple goroutines can use them simultaneously.
-	// If this is an HTTP/2 connection being “returned,” we're done.
-	if pconn.alt != nil && t.idleLRU.m[pconn] != nil {
-		return nil
-	}
-
-	// Deliver pconn to goroutine waiting for idle connection, if any.
-	// (They may be actively dialing, but this conn is ready first.
-	// Chrome calls this socket late binding.
-	// See https://www.chromium.org/developers/design-documents/network-stack#TOC-Connection-Management.)
-	key := pconn.cacheKey
-	if q, ok := t.idleConnWait[key]; ok {
-		done := false
-		if pconn.alt == nil {
-			// HTTP/1.
-			// Loop over the waiting list until we find a w that isn't done already, and hand it pconn.
-			for q.len() > 0 {
-				w := q.popFront()
-				if w.tryDeliver(pconn, nil, time.Time{}) {
-					done = true
-					break
-				}
-			}
-		} else {
-			// HTTP/2.
-			// Can hand the same pconn to everyone in the waiting list,
-			// and we still won't be done: we want to put it in the idle
-			// list unconditionally, for any future clients too.
-			for q.len() > 0 {
-				w := q.popFront()
-				w.tryDeliver(pconn, nil, time.Time{})
-			}
-		}
-		if q.len() == 0 {
-			delete(t.idleConnWait, key)
-		} else {
-			t.idleConnWait[key] = q
-		}
-		if done {
-			return nil
-		}
-	}
-
-	if t.closeIdle {
-		return errCloseIdle
-	}
-	if t.idleConn == nil {
-		t.idleConn = make(map[connectMethodKey][]*persistConn)
-	}
-	idles := t.idleConn[key]
-	if len(idles) >= t.maxIdleConnsPerHost() {
-		return errTooManyIdleHost
-	}
-	for _, exist := range idles {
-		if exist == pconn {
-			log.Fatalf("dup idle pconn %p in freelist", pconn)
-		}
-	}
-	t.idleConn[key] = append(idles, pconn)
-	t.idleLRU.add(pconn)
-	if t.MaxIdleConns != 0 && t.idleLRU.len() > t.MaxIdleConns {
-		oldest := t.idleLRU.removeOldest()
-		oldest.close(errTooManyIdle)
-		t.removeIdleConnLocked(oldest)
-	}
-
-	// Set idle timer, but only for HTTP/1 (pconn.alt == nil).
-	// The HTTP/2 implementation manages the idle timer itself
-	// (see idleConnTimeout in h2_bundle.go).
-	if t.IdleConnTimeout > 0 && pconn.alt == nil {
-		if pconn.idleTimer != nil {
-			pconn.idleTimer.Reset(t.IdleConnTimeout)
-		} else {
-			pconn.idleTimer = time.AfterFunc(t.IdleConnTimeout, pconn.closeConnIfStillIdle)
-		}
-	}
-	pconn.idleAt = time.Now()
-	return nil
-}
-
-// queueForIdleConn queues w to receive the next idle connection for w.cm.
-// As an optimization hint to the caller, queueForIdleConn reports whether
-// it successfully delivered an already-idle connection.
-func (t *Transport) queueForIdleConn(w *wantConn) (delivered bool) {
-	if t.DisableKeepAlives {
-		return false
-	}
-
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-
-	// Stop closing connections that become idle - we might want one.
-	// (That is, undo the effect of t.CloseIdleConnections.)
-	t.closeIdle = false
-
-	if w == nil {
-		// Happens in test hook.
-		return false
-	}
-
-	// If IdleConnTimeout is set, calculate the oldest
-	// persistConn.idleAt time we're willing to use a cached idle
-	// conn.
-	var oldTime time.Time
-	if t.IdleConnTimeout > 0 {
-		oldTime = time.Now().Add(-t.IdleConnTimeout)
-	}
-
-	// Look for most recently-used idle connection.
-	if list, ok := t.idleConn[w.key]; ok {
-		stop := false
-		delivered := false
-		for len(list) > 0 && !stop {
-			pconn := list[len(list)-1]
-
-			// See whether this connection has been idle too long, considering
-			// only the wall time (the Round(0)), in case this is a laptop or VM
-			// coming out of suspend with previously cached idle connections.
-			tooOld := !oldTime.IsZero() && pconn.idleAt.Round(0).Before(oldTime)
-			if tooOld {
-				// Async cleanup. Launch in its own goroutine (as if a
-				// time.AfterFunc called it); it acquires idleMu, which we're
-				// holding, and does a synchronous net.Conn.Close.
-				go pconn.closeConnIfStillIdle()
-			}
-			if pconn.isBroken() || tooOld {
-				// If either persistConn.readLoop has marked the connection
-				// broken, but Transport.removeIdleConn has not yet removed it
-				// from the idle list, or if this persistConn is too old (it was
-				// idle too long), then ignore it and look for another. In both
-				// cases it's already in the process of being closed.
-				list = list[:len(list)-1]
-				continue
-			}
-			delivered = w.tryDeliver(pconn, nil, pconn.idleAt)
-			if delivered {
-				if pconn.alt != nil {
-					// HTTP/2: multiple clients can share pconn.
-					// Leave it in the list.
-				} else {
-					// HTTP/1: only one client can use pconn.
-					// Remove it from the list.
-					t.idleLRU.remove(pconn)
-					list = list[:len(list)-1]
-				}
-			}
-			stop = true
-		}
-		if len(list) > 0 {
-			t.idleConn[w.key] = list
-		} else {
-			delete(t.idleConn, w.key)
-		}
-		if stop {
-			return delivered
-		}
-	}
-
-	// Register to receive next connection that becomes idle.
-	if t.idleConnWait == nil {
-		t.idleConnWait = make(map[connectMethodKey]wantConnQueue)
-	}
-	q := t.idleConnWait[w.key]
-	q.cleanFrontNotWaiting()
-	q.pushBack(w)
-	t.idleConnWait[w.key] = q
-	return false
+	return t.poolPutIdleConn(pconn.poolConn)
 }
 
 // removeIdleConn marks pconn as dead.
-func (t *Transport) removeIdleConn(pconn *persistConn) bool {
-	if pconn.isClientConn {
-		return true
-	}
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	return t.removeIdleConnLocked(pconn)
-}
-
-// t.idleMu must be held.
-func (t *Transport) removeIdleConnLocked(pconn *persistConn) bool {
-	if pconn.idleTimer != nil {
-		pconn.idleTimer.Stop()
-	}
-	t.idleLRU.remove(pconn)
-	key := pconn.cacheKey
-	pconns := t.idleConn[key]
-	var removed bool
-	switch len(pconns) {
-	case 0:
-		// Nothing
-	case 1:
-		if pconns[0] == pconn {
-			delete(t.idleConn, key)
-			removed = true
-		}
-	default:
-		for i, v := range pconns {
-			if v != pconn {
-				continue
-			}
-			// Slide down, keeping most recently-used
-			// conns at the end.
-			copy(pconns[i:], pconns[i+1:])
-			t.idleConn[key] = pconns[:len(pconns)-1]
-			removed = true
-			break
-		}
-	}
-	return removed
+func (t *Transport) removeIdleConn(pconn *persistConn) {
+	t.poolRemoveConn(pconn.poolConn)
 }
 
 var zeroDialer net.Dialer
@@ -1363,183 +1074,6 @@ func (t *Transport) dial(ctx context.Context, network, addr string) (net.Conn, e
 	return zeroDialer.DialContext(ctx, network, addr)
 }
 
-// A wantConn records state about a wanted connection
-// (that is, an active call to getConn).
-// The conn may be gotten by dialing or by finding an idle connection,
-// or a cancellation may make the conn no longer wanted.
-// These three options are racing against each other and use
-// wantConn to coordinate and agree about the winning outcome.
-type wantConn struct {
-	cm  connectMethod
-	key connectMethodKey // cm.key()
-
-	// hooks for testing to know when dials are done
-	// beforeDial is called in the getConn goroutine when the dial is queued.
-	// afterDial is called when the dial is completed or canceled.
-	beforeDial func()
-	afterDial  func()
-
-	mu        sync.Mutex      // protects ctx, done and sending of the result
-	ctx       context.Context // context for dial, cleared after delivered or canceled
-	cancelCtx context.CancelFunc
-	done      bool             // true after delivered or canceled
-	result    chan connOrError // channel to deliver connection or error
-}
-
-type connOrError struct {
-	pc     *persistConn
-	err    error
-	idleAt time.Time
-}
-
-// waiting reports whether w is still waiting for an answer (connection or error).
-func (w *wantConn) waiting() bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	return !w.done
-}
-
-// getCtxForDial returns context for dial or nil if connection was delivered or canceled.
-func (w *wantConn) getCtxForDial() context.Context {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	return w.ctx
-}
-
-// tryDeliver attempts to deliver pc, err to w and reports whether it succeeded.
-func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if w.done {
-		return false
-	}
-	if (pc == nil) == (err == nil) {
-		panic("net/http: internal error: misuse of tryDeliver")
-	}
-	w.ctx = nil
-	w.done = true
-
-	w.result <- connOrError{pc: pc, err: err, idleAt: idleAt}
-	close(w.result)
-
-	return true
-}
-
-// cancel marks w as no longer wanting a result (for example, due to cancellation).
-// If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
-func (w *wantConn) cancel(t *Transport) {
-	w.mu.Lock()
-	var pc *persistConn
-	if w.done {
-		if r, ok := <-w.result; ok {
-			pc = r.pc
-		}
-	} else {
-		close(w.result)
-	}
-	w.ctx = nil
-	w.done = true
-	w.mu.Unlock()
-
-	// HTTP/2 connections (pc.alt != nil) aren't removed from the idle pool on use,
-	// and should not be added back here. If the pconn isn't in the idle pool,
-	// it's because we removed it due to an error.
-	if pc != nil && pc.alt == nil {
-		t.putOrCloseIdleConn(pc)
-	}
-}
-
-// A wantConnQueue is a queue of wantConns.
-type wantConnQueue struct {
-	// This is a queue, not a deque.
-	// It is split into two stages - head[headPos:] and tail.
-	// popFront is trivial (headPos++) on the first stage, and
-	// pushBack is trivial (append) on the second stage.
-	// If the first stage is empty, popFront can swap the
-	// first and second stages to remedy the situation.
-	//
-	// This two-stage split is analogous to the use of two lists
-	// in Okasaki's purely functional queue but without the
-	// overhead of reversing the list when swapping stages.
-	head    []*wantConn
-	headPos int
-	tail    []*wantConn
-}
-
-// len returns the number of items in the queue.
-func (q *wantConnQueue) len() int {
-	return len(q.head) - q.headPos + len(q.tail)
-}
-
-// pushBack adds w to the back of the queue.
-func (q *wantConnQueue) pushBack(w *wantConn) {
-	q.tail = append(q.tail, w)
-}
-
-// popFront removes and returns the wantConn at the front of the queue.
-func (q *wantConnQueue) popFront() *wantConn {
-	if q.headPos >= len(q.head) {
-		if len(q.tail) == 0 {
-			return nil
-		}
-		// Pick up tail as new head, clear tail.
-		q.head, q.headPos, q.tail = q.tail, 0, q.head[:0]
-	}
-	w := q.head[q.headPos]
-	q.head[q.headPos] = nil
-	q.headPos++
-	return w
-}
-
-// peekFront returns the wantConn at the front of the queue without removing it.
-func (q *wantConnQueue) peekFront() *wantConn {
-	if q.headPos < len(q.head) {
-		return q.head[q.headPos]
-	}
-	if len(q.tail) > 0 {
-		return q.tail[0]
-	}
-	return nil
-}
-
-// cleanFrontNotWaiting pops any wantConns that are no longer waiting from the head of the
-// queue, reporting whether any were popped.
-func (q *wantConnQueue) cleanFrontNotWaiting() (cleaned bool) {
-	for {
-		w := q.peekFront()
-		if w == nil || w.waiting() {
-			return cleaned
-		}
-		q.popFront()
-		cleaned = true
-	}
-}
-
-// cleanFrontCanceled pops any wantConns with canceled dials from the head of the queue.
-func (q *wantConnQueue) cleanFrontCanceled() {
-	for {
-		w := q.peekFront()
-		if w == nil || w.cancelCtx != nil {
-			return
-		}
-		q.popFront()
-	}
-}
-
-// all iterates over all wantConns in the queue.
-// The caller must not modify the queue while iterating.
-func (q *wantConnQueue) all(f func(*wantConn)) {
-	for _, w := range q.head[q.headPos:] {
-		f(w)
-	}
-	for _, w := range q.tail {
-		f(w)
-	}
-}
-
 func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (conn net.Conn, err error) {
 	if t.DialTLSContext != nil {
 		conn, err = t.DialTLSContext(ctx, network, addr)
@@ -1552,207 +1086,32 @@ func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (co
 	return
 }
 
-// getConn dials and creates a new persistConn to the target as
+// getConn dials and creates a new connection to the target as
 // specified in the connectMethod. This includes doing a proxy CONNECT
-// and/or setting up TLS.  If this doesn't return an error, the persistConn
+// and/or setting up TLS. If this doesn't return an error, the connection
 // is ready to write requests to.
-func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persistConn, err error) {
-	req := treq.Request
-	trace := treq.trace
-	ctx := req.Context()
+func (t *Transport) getConn(ctx context.Context, cm connectMethod) (_ *poolConn, err error) {
+	trace := httptrace.ContextClientTrace(ctx)
 	if trace != nil && trace.GetConn != nil {
 		trace.GetConn(cm.addr())
 	}
 
-	// Detach from the request context's cancellation signal.
-	// The dial should proceed even if the request is canceled,
-	// because a future request may be able to make use of the connection.
-	//
-	// We retain the request context's values.
-	dialCtx, dialCancel := context.WithCancel(context.WithoutCancel(ctx))
-
-	w := &wantConn{
-		cm:         cm,
-		key:        cm.key(),
-		ctx:        dialCtx,
-		cancelCtx:  dialCancel,
-		result:     make(chan connOrError, 1),
-		beforeDial: testHookPrePendingDial,
-		afterDial:  testHookPostPendingDial,
-	}
-	defer func() {
-		if err != nil {
-			w.cancel(t)
-		}
-	}()
-
-	// Queue for idle connection.
-	if delivered := t.queueForIdleConn(w); !delivered {
-		t.queueForDial(w)
-	}
-
-	// Wait for completion or cancellation.
-	select {
-	case r := <-w.result:
-		// Trace success but only for HTTP/1.
-		// HTTP/2 calls trace.GotConn itself.
-		if r.pc != nil && r.pc.alt == nil && trace != nil && trace.GotConn != nil {
-			info := httptrace.GotConnInfo{
-				Conn:   r.pc.conn,
-				Reused: r.pc.isReused(),
-			}
-			if !r.idleAt.IsZero() {
-				info.WasIdle = true
-				info.IdleTime = time.Since(r.idleAt)
-			}
-			trace.GotConn(info)
-		}
-		if r.err != nil {
-			// If the request has been canceled, that's probably
-			// what caused r.err; if so, prefer to return the
-			// cancellation error (see golang.org/issue/16049).
-			select {
-			case <-treq.ctx.Done():
-				err := context.Cause(treq.ctx)
-				if err == errRequestCanceled {
-					err = errRequestCanceledConn
-				}
-				return nil, err
-			default:
-				// return below
-			}
-		}
-		return r.pc, r.err
-	case <-treq.ctx.Done():
-		err := context.Cause(treq.ctx)
-		if err == errRequestCanceled {
-			err = errRequestCanceledConn
-		}
+	pconn, err := t.poolGetConn(ctx, cm)
+	if err != nil {
 		return nil, err
 	}
-}
-
-// queueForDial queues w to wait for permission to begin dialing.
-// Once w receives permission to dial, it will do so in a separate goroutine.
-func (t *Transport) queueForDial(w *wantConn) {
-	w.beforeDial()
-
-	t.connsPerHostMu.Lock()
-	defer t.connsPerHostMu.Unlock()
-
-	if t.MaxConnsPerHost <= 0 {
-		t.startDialConnForLocked(w)
-		return
-	}
-
-	if n := t.connsPerHost[w.key]; n < t.MaxConnsPerHost {
-		if t.connsPerHost == nil {
-			t.connsPerHost = make(map[connectMethodKey]int)
+	if !pconn.cc.IsAlt() && trace != nil && trace.GotConn != nil {
+		info := httptrace.GotConnInfo{
+			Conn:   pconn.cc.NetConn(),
+			Reused: pconn.cc.IsReused(),
 		}
-		t.connsPerHost[w.key] = n + 1
-		t.startDialConnForLocked(w)
-		return
-	}
-
-	if t.connsPerHostWait == nil {
-		t.connsPerHostWait = make(map[connectMethodKey]wantConnQueue)
-	}
-	q := t.connsPerHostWait[w.key]
-	q.cleanFrontNotWaiting()
-	q.pushBack(w)
-	t.connsPerHostWait[w.key] = q
-}
-
-// startDialConnFor calls dialConn in a new goroutine.
-// t.connsPerHostMu must be held.
-func (t *Transport) startDialConnForLocked(w *wantConn) {
-	t.dialsInProgress.cleanFrontCanceled()
-	t.dialsInProgress.pushBack(w)
-	go func() {
-		t.dialConnFor(w)
-		t.connsPerHostMu.Lock()
-		defer t.connsPerHostMu.Unlock()
-		w.cancelCtx = nil
-	}()
-}
-
-// dialConnFor dials on behalf of w and delivers the result to w.
-// dialConnFor has received permission to dial w.cm and is counted in t.connCount[w.cm.key()].
-// If the dial is canceled or unsuccessful, dialConnFor decrements t.connCount[w.cm.key()].
-func (t *Transport) dialConnFor(w *wantConn) {
-	defer w.afterDial()
-	ctx := w.getCtxForDial()
-	if ctx == nil {
-		t.decConnsPerHost(w.key)
-		return
-	}
-
-	const isClientConn = false
-	pc, err := t.dialConn(ctx, w.cm, isClientConn, nil)
-	if err == nil && pc.alt != nil {
-		// HTTP/2 and HTTP/3 connections can be shared.
-		// Add to the idle connection pool before trying to deliver to w.
-		t.putOrCloseIdleConn(pc)
-	}
-	delivered := w.tryDeliver(pc, err, time.Time{})
-	if err == nil && !delivered && pc.alt == nil {
-		// HTTP/1 pconn was not passed to w.
-		// Add to the idle connection pool.
-		t.putOrCloseIdleConn(pc)
-	}
-	if err != nil {
-		t.decConnsPerHost(w.key)
-	}
-}
-
-// decConnsPerHost decrements the per-host connection count for key,
-// which may in turn give a different waiting goroutine permission to dial.
-func (t *Transport) decConnsPerHost(key connectMethodKey) {
-	if t.MaxConnsPerHost <= 0 {
-		return
-	}
-
-	t.connsPerHostMu.Lock()
-	defer t.connsPerHostMu.Unlock()
-	n := t.connsPerHost[key]
-	if n == 0 {
-		// Shouldn't happen, but if it does, the counting is buggy and could
-		// easily lead to a silent deadlock, so report the problem loudly.
-		panic("net/http: internal error: connCount underflow")
-	}
-
-	// Can we hand this count to a goroutine still waiting to dial?
-	// (Some goroutines on the wait list may have timed out or
-	// gotten a connection another way. If they're all gone,
-	// we don't want to kick off any spurious dial operations.)
-	if q := t.connsPerHostWait[key]; q.len() > 0 {
-		done := false
-		for q.len() > 0 {
-			w := q.popFront()
-			if w.waiting() {
-				t.startDialConnForLocked(w)
-				done = true
-				break
-			}
+		if !pconn.idleAt.IsZero() {
+			info.WasIdle = true
+			info.IdleTime = time.Since(pconn.idleAt)
 		}
-		if q.len() == 0 {
-			delete(t.connsPerHostWait, key)
-		} else {
-			// q is a value (like a slice), so we have to store
-			// the updated q back into the map.
-			t.connsPerHostWait[key] = q
-		}
-		if done {
-			return
-		}
+		trace.GotConn(info)
 	}
-
-	// Otherwise, decrement the recorded count.
-	if n--; n == 0 {
-		delete(t.connsPerHost, key)
-	} else {
-		t.connsPerHost[key] = n
-	}
+	return pconn, nil
 }
 
 func (t *Transport) tlsConfigForDial(host string) (*tls.Config, error) {
@@ -1825,7 +1184,7 @@ type erringRoundTripper interface {
 
 var testHookProxyConnectTimeout = context.WithTimeout
 
-func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (pconn *persistConn, err error) {
+func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, poolConn *poolConn, internalStateHook func()) (_ genericClientConn, err error) {
 	// TODO: actually support HTTP/3. Among other things:
 	// - make HTTP/3 play well with proxy.
 	// - implement happy eyeball between HTTP/3 and HTTP/1 & HTTP/2.
@@ -1846,16 +1205,14 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if err != nil {
 			return nil, err
 		}
-		return &persistConn{
-			t:        t,
-			cacheKey: cm.key(),
-			alt:      rt,
-		}, nil
+		return rt.(genericClientConn), nil
 	}
 
-	pconn = &persistConn{
+	// TODO: Don't allocate persistConn until we know that we're using HTTP/1.
+	pconn := &persistConn{
 		t:                 t,
 		cacheKey:          cm.key(),
+		poolConn:          poolConn,
 		reqch:             make(chan requestAndChan, 1),
 		writech:           make(chan writeRequest, 1),
 		closech:           make(chan struct{}),
@@ -1873,11 +1230,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		return err
 	}
 
-	if rt, err := t.http2ExternalDial(ctx, cm); err != errors.ErrUnsupported {
+	if cc, err := t.http2ExternalDial(ctx, cm); err != errors.ErrUnsupported {
 		if err != nil {
 			return nil, err
 		}
-		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: rt}, nil
+		return cc, nil
 	}
 
 	if cm.scheme() == "https" && t.hasCustomTLSDialer() {
@@ -2052,18 +1409,23 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		(pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")
 
 	if http2 && t.h2Transport != nil {
+		// HTTP/2, backed by internal/http2.
 		if isClientConn {
+			// NewClientConn, creating a connection.
 			cc, err := t.http2NewClientConn(pconn.conn, internalStateHook)
 			if err == nil {
-				return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: cc, isClientConn: true}, nil
+				return cc, nil
 			}
 			if err != errors.ErrUnsupported {
 				return nil, err
 			}
 		} else {
-			rt, err := t.http2AddConn(cm.targetScheme, cm.targetAddr, pconn.conn)
+			// RoundTrip, adding a net.Conn to internal/http2.Transport's pool.
+			// The "connection" returned by http2AddConn is just a reference
+			// to the http2.Transport.
+			cc, err := t.http2AddConn(cm.targetScheme, cm.targetAddr, pconn.conn)
 			if err == nil {
-				return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: rt}, nil
+				return cc, nil
 			}
 			if err != errors.ErrUnsupported {
 				return nil, err
@@ -2072,44 +1434,56 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 	}
 
 	if isClientConn && (unencryptedHTTP2 || (pconn.tlsState != nil && pconn.tlsState.NegotiatedProtocol == "h2")) {
+		// NewClientConn, using an HTTP/2 implementation installed via the legacy
+		// RegisterProtocol path. This shouldn't really be used by anything any more.
 		altProto, _ := t.altProto.Load().(map[string]RoundTripper)
 		h2, ok := altProto["https"].(newClientConner)
 		if !ok {
 			return nil, errors.New("http: HTTP/2 implementation does not support NewClientConn (update golang.org/x/net?)")
 		}
-		alt, err := h2.NewClientConn(pconn.conn, internalStateHook)
+		rt, err := h2.NewClientConn(pconn.conn, internalStateHook)
 		if err != nil {
 			pconn.conn.Close()
 			return nil, err
 		}
-		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt, isClientConn: true}, nil
+		cc, ok := rt.(externalClientConn)
+		if !ok {
+			return nil, errors.New("http: NewClientConn returned something that is not a ClientConn")
+		}
+		return externalConn{cc}, nil
 	}
 
+	wrapTLSNextProtoRoundTripper := func(rt RoundTripper) (genericClientConn, error) {
+		if e, ok := rt.(erringRoundTripper); ok {
+			// pconn.conn was closed by next (http2configureTransports.upgradeFn).
+			return nil, e.RoundTripErr()
+		}
+		return &altClientConn{rt: rt}, nil
+	}
 	if unencryptedHTTP2 {
+		// Unencrypted HTTP/2 using the legacy TLSNextProto.
 		next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
 		if !ok {
 			return nil, errors.New("http: Transport does not support unencrypted HTTP/2")
 		}
 		alt := next(cm.targetAddr, unencryptedTLSConn(pconn.conn))
-		if e, ok := alt.(erringRoundTripper); ok {
-			// pconn.conn was closed by next (http2configureTransports.upgradeFn).
-			return nil, e.RoundTripErr()
-		}
-		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+		return wrapTLSNextProtoRoundTripper(alt)
 	}
 
 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+		// Encrypted HTTP/2 using the legacy TLSNextProto.
 		tlsConn, tlsConnOK := pconn.conn.(*tls.Conn)
 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; tlsConnOK && ok {
 			alt := next(cm.targetAddr, tlsConn)
-			if e, ok := alt.(erringRoundTripper); ok {
-				// pconn.conn was closed by next (http2configureTransports.upgradeFn).
-				return nil, e.RoundTripErr()
-			}
-			return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
+			return wrapTLSNextProtoRoundTripper(alt)
 		}
 	}
 
+	// All HTTP/1 connections.
+	if isClientConn {
+		pconn.availch = make(chan struct{}, 1)
+		pconn.availch <- struct{}{}
+	}
 	pconn.br = bufio.NewReaderSize(pconn, t.readBufferSize())
 	pconn.bw = bufio.NewWriterSize(persistConnWriter{pconn}, t.writeBufferSize())
 
@@ -2222,13 +1596,10 @@ func (k connectMethodKey) String() string {
 	return fmt.Sprintf("%s|%s%s|%s", k.proxy, k.scheme, h1, k.addr)
 }
 
-// persistConn wraps a connection, usually a persistent one
-// (but may be used for non-keep-alive requests as well)
+// persistConn wraps an HTTP/1 client connection, usually a persistent one
+// (but may be used for non-keep-alive requests as well).
 type persistConn struct {
-	// alt optionally specifies the TLS NextProto RoundTripper.
-	// This is used for HTTP/2 today and future protocols later.
-	// If it's non-nil, the rest of the fields are unused.
-	alt RoundTripper
+	poolConn *poolConn
 
 	t            *Transport
 	cacheKey     connectMethodKey
@@ -2252,10 +1623,6 @@ type persistConn struct {
 	writeErrCh chan error
 
 	writeLoopDone chan struct{} // closed when write loop ends
-
-	// Both guarded by Transport.idleMu:
-	idleAt    time.Time   // time it last become idle
-	idleTimer *time.Timer // holding an AfterFunc to close it
 
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
@@ -2306,8 +1673,8 @@ func (pc *persistConn) canceled() error {
 	return pc.canceledErr
 }
 
-// isReused reports whether this connection has been used before.
-func (pc *persistConn) isReused() bool {
+// IsReused reports whether this connection has been used before.
+func (pc *persistConn) IsReused() bool {
 	pc.mu.Lock()
 	r := pc.reused
 	pc.mu.Unlock()
@@ -2319,21 +1686,6 @@ func (pc *persistConn) cancelRequest(err error) {
 	defer pc.mu.Unlock()
 	pc.canceledErr = err
 	pc.closeLocked(errRequestCanceled)
-}
-
-// closeConnIfStillIdle closes the connection if it's still sitting idle.
-// This is what's called by the persistConn's idleTimer, and is run in its
-// own goroutine.
-func (pc *persistConn) closeConnIfStillIdle() {
-	t := pc.t
-	t.idleMu.Lock()
-	defer t.idleMu.Unlock()
-	if _, ok := t.idleLRU.m[pc]; !ok {
-		// Not idle.
-		return
-	}
-	t.removeIdleConnLocked(pc)
-	pc.close(errIdleConnTimeout)
 }
 
 // mapRoundTripError returns the appropriate error value for
@@ -2443,7 +1795,7 @@ const (
 func (pc *persistConn) readLoop() {
 	closeErr := errReadLoopExiting // default value, if not changed below
 	defer func() {
-		pc.close(closeErr)
+		pc.CloseWithError(closeErr)
 		pc.t.removeIdleConn(pc)
 		if pc.internalStateHook != nil {
 			pc.internalStateHook()
@@ -2965,11 +2317,14 @@ var (
 	testHookEnterRoundTrip   = nop
 	testHookWaitResLoop      = nop
 	testHookRoundTripRetried = nop
-	testHookPrePendingDial   = nop
-	testHookPostPendingDial  = nop
 
 	testHookMu                     sync.Locker = fakeLocker{} // guards following
 	testHookReadLoopBeforeNextRead             = nop
+)
+
+var (
+	testHookPrePendingDial  func()
+	testHookPostPendingDial func()
 )
 
 func (pc *persistConn) waitForAvailability(ctx context.Context) error {
@@ -3101,7 +2456,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 				//
 				// See #11745.
 				if _, ok := errors.AsType[*net.OpError](err); !ok {
-					pc.close(fmt.Errorf("write error: %w", err))
+					pc.CloseWithError(fmt.Errorf("write error: %w", err))
 					return nil, pc.mapRoundTripError(req, startBytesWritten, err)
 				}
 				writeErr = err
@@ -3138,10 +2493,10 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 			if writeErr != nil {
 				// Error writing request body, and we haven't read response
 				// headers within postRequestWriteErrorWaitTime.
-				pc.close(fmt.Errorf("write error: %w", writeErr))
+				pc.CloseWithError(fmt.Errorf("write error: %w", writeErr))
 				return nil, pc.mapRoundTripError(req, startBytesWritten, writeErr)
 			}
-			pc.close(errTimeout)
+			pc.CloseWithError(errTimeout)
 			return nil, errTimeout
 		case re := <-resc:
 			return handleResponse(re)
@@ -3177,12 +2532,12 @@ func (pc *persistConn) markReused() {
 	pc.mu.Unlock()
 }
 
-// close closes the underlying TCP connection and closes
+// CloseWithError closes the underlying TCP connection and closes
 // the pc.closech channel.
 //
 // The provided err is only for testing and debugging; in normal
 // circumstances it should never be seen by users.
-func (pc *persistConn) close(err error) {
+func (pc *persistConn) CloseWithError(err error) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	pc.closeLocked(err)
@@ -3194,20 +2549,10 @@ func (pc *persistConn) closeLocked(err error) {
 	}
 	if pc.closed == nil {
 		pc.closed = err
-		pc.t.decConnsPerHost(pc.cacheKey)
-		// Close HTTP/1 (pc.alt == nil) connection.
-		// HTTP/2 closes its connection itself.
-		// Close HTTP/3 connection if it implements io.Closer.
-		if pc.alt == nil {
-			if err != errCallerOwnsConn {
-				pc.conn.Close()
-			}
-			close(pc.closech)
-		} else {
-			if cc, ok := pc.alt.(io.Closer); ok {
-				cc.Close()
-			}
+		if err != errCallerOwnsConn {
+			pc.conn.Close()
 		}
+		close(pc.closech)
 	}
 	pc.mutateHeaderFunc = nil
 }
@@ -3352,43 +2697,4 @@ func cloneTLSConfig(cfg *tls.Config) *tls.Config {
 		return &tls.Config{}
 	}
 	return cfg.Clone()
-}
-
-type connLRU struct {
-	ll *list.List // list.Element.Value type is of *persistConn
-	m  map[*persistConn]*list.Element
-}
-
-// add adds pc to the head of the linked list.
-func (cl *connLRU) add(pc *persistConn) {
-	if cl.ll == nil {
-		cl.ll = list.New()
-		cl.m = make(map[*persistConn]*list.Element)
-	}
-	ele := cl.ll.PushFront(pc)
-	if _, ok := cl.m[pc]; ok {
-		panic("persistConn was already in LRU")
-	}
-	cl.m[pc] = ele
-}
-
-func (cl *connLRU) removeOldest() *persistConn {
-	ele := cl.ll.Back()
-	pc := ele.Value.(*persistConn)
-	cl.ll.Remove(ele)
-	delete(cl.m, pc)
-	return pc
-}
-
-// remove removes pc from cl.
-func (cl *connLRU) remove(pc *persistConn) {
-	if ele, ok := cl.m[pc]; ok {
-		cl.ll.Remove(ele)
-		delete(cl.m, pc)
-	}
-}
-
-// len returns the number of items in the cache.
-func (cl *connLRU) len() int {
-	return len(cl.m)
 }

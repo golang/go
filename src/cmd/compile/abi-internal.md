@@ -735,6 +735,14 @@ implementation of reflection so that float32 arguments are passed correctly.
 
 Registers R18 - R29 and F13 - F31 are considered scratch registers.
 
+The floating-point registers F0 - F31 alias the lower VSX registers VS0 - VS31,
+and the vector registers V0 - V31 (the VMX/Altivec registers) alias the upper VSX
+registers VS32 - VS63. Together they form the 64-entry VSX register file used for
+SIMD operations. Currently ppc64 doesn't yet expose SIMD types (so vector args
+don't arise today). This is future work and when they do they'll follow the FP-arg
+convention (F1–F12 = low VSX bank VS1–VS12). None of V0 - V31 are preserved across
+a call; like F0 - F31 they are all caller-saved.
+
 #### Stack layout
 
 The stack pointer, R1, grows down and is aligned to 8 bytes in Go, but changed

@@ -17,7 +17,7 @@ func (m *metrics) report(w *bytes.Buffer) {
 	fmt.Fprintf(w, "Every fraction heads for 100%%; every count heads for zero. Bracketed\n")
 	fmt.Fprintf(w, "names are SPEC-TRANSITION.md tasks that move the figure. Indented,\n")
 	fmt.Fprintf(w, "untagged numbers are context breaking down the figure above them.\n")
-	fmt.Fprintf(w, "String and Len are excluded throughout (§2.7).\n")
+	fmt.Fprintf(w, "String, Len, ToArch, and FromArch are excluded throughout (§2.7).\n")
 
 	m.summary(w)
 	m.coverage(w)

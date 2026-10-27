@@ -316,7 +316,6 @@ func (fs *testFileSystem) Open(name string) (File, error) {
 }
 
 func TestFileServerCleans(t *testing.T) {
-	defer afterTest(t)
 	ch := make(chan string, 1)
 	fs := FileServer(&testFileSystem{func(name string) (File, error) {
 		ch <- name
@@ -1327,8 +1326,7 @@ func testFileServerErrorMessages(t *testing.T, mode testMode, keepHeaders bool) 
 
 // verifies that sendfile is being used on Linux
 func TestLinuxSendfile(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
+	t.Parallel()
 	if runtime.GOOS != "linux" {
 		t.Skip("skipping; linux-only test")
 	}

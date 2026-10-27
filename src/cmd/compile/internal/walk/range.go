@@ -575,7 +575,9 @@ func (w *walkState) arrayRangeClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.No
 	// Get constant number of iterations for int and array cases.
 	n := int64(-1)
 	if ir.IsConst(a, constant.Int) {
-		n = ir.Int64Val(a)
+		if v, ok := constant.Int64Val(a.Val()); ok {
+			n = v
+		}
 	} else if a.Type().IsArray() {
 		n = a.Type().NumElem()
 	} else if a.Type().IsPtr() && a.Type().Elem().IsArray() {

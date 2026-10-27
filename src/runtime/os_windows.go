@@ -129,6 +129,10 @@ var (
 	// Use ProcessPrng to generate cryptographically random data.
 	_ProcessPrng stdFunction
 
+	// Initialized by osinit before schedinit calls nanotime. Used without
+	// the per-M state or LastError changes made by stdcall.
+	_QueryInterruptTimePrecise stdFunction
+
 	// Load ntdll.dll manually during startup, otherwise Mingw
 	// links wrong printf function to cgo executable (see issue
 	// 12030 for details).
@@ -149,6 +153,7 @@ var (
 	ntdlldll            = [...]uint16{'n', 't', 'd', 'l', 'l', '.', 'd', 'l', 'l', 0}
 	powrprofdll         = [...]uint16{'p', 'o', 'w', 'r', 'p', 'r', 'o', 'f', '.', 'd', 'l', 'l', 0}
 	winmmdll            = [...]uint16{'w', 'i', 'n', 'm', 'm', '.', 'd', 'l', 'l', 0}
+	realtimeapisetdll   = [...]uint16{'a', 'p', 'i', '-', 'm', 's', '-', 'w', 'i', 'n', '-', 'c', 'o', 'r', 'e', '-', 'r', 'e', 'a', 'l', 't', 'i', 'm', 'e', '-', 'l', '1', '-', '1', '-', '1', '.', 'd', 'l', 'l', 0}
 )
 
 // Function to be called by windows CreateThread
@@ -235,6 +240,28 @@ func windows_QueryPerformanceFrequency() int64 {
 	return frequency
 }
 
+// nanotime1 uses a dedicated system-stack call that leaves the per-M stdcall
+// state and LastError untouched. Record the interrupted Go stack so profiling
+// samples inside the Windows clock implementation can be attributed to its caller.
+//
+//go:nosplit
+func nanotime1() int64 {
+	gp := getg()
+	if gp == nil || gp.m == nil || gp.m.profilehz == 0 || gp.m.libcallsp != 0 {
+		return nanotime2()
+	}
+	mp := gp.m
+	mp.libcallg.set(gp)
+	mp.libcallpc = sys.GetCallerPC()
+	// Publish the stack pointer last, as in stdcall.
+	mp.libcallsp = sys.GetCallerSP()
+	now := nanotime2()
+	mp.libcallsp = 0
+	return now
+}
+
+func nanotime2() int64
+
 //go:linknamestd cpu_isProcessorFeaturePresent internal/cpu.isProcessorFeaturePresent
 func cpu_isProcessorFeaturePresent(processorFeature uint32) bool {
 	ret := stdcall(_IsProcessorFeaturePresent, uintptr(processorFeature))
@@ -242,6 +269,18 @@ func cpu_isProcessorFeaturePresent(processorFeature uint32) bool {
 }
 
 func loadOptionalSyscalls() {
+	// QueryInterruptTimePrecise is available on all supported Windows versions,
+	// but it is not exported from kernel32.dll on every architecture.
+	// Resolve it before schedinit calls nanotime to initialize the clocks.
+	realtime := windowsLoadSystemLib(realtimeapisetdll[:])
+	if realtime == 0 {
+		throw("could not load realtime API set")
+	}
+	_QueryInterruptTimePrecise = windowsFindfunc(realtime, []byte("QueryInterruptTimePrecise\000"))
+	if _QueryInterruptTimePrecise == nil {
+		throw("QueryInterruptTimePrecise not found")
+	}
+
 	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll[:])
 	if bcryptPrimitives == 0 {
 		throw("bcryptprimitives.dll not found")
@@ -1190,12 +1229,32 @@ func setProcessCPUProfiler(hz int32) {
 		var timer uintptr
 		if haveHighResTimer {
 			timer = createHighResTimer()
-		} else {
+			if timer != 0 && !profileTimerSupportsPeriod(timer) {
+				// Some Windows builds (10 1803/1809, Server 2019) create
+				// CREATE_WAITABLE_TIMER_HIGH_RESOLUTION timers but reject
+				// a periodic SetWaitableTimer on them with
+				// ERROR_INVALID_PARAMETER. setThreadCPUProfiler needs a
+				// periodic timer; without the fallback profileLoop never
+				// wakes and CPU profiles contain no samples.
+				stdcall(_CloseHandle, timer)
+				timer = 0
+			}
+		}
+		if timer == 0 {
 			timer = stdcall(_CreateWaitableTimerA, 0, 0, 0)
 		}
 		atomic.Storeuintptr(&profiletimer, timer)
 		newm(profileLoop, nil, -1)
 	}
+}
+
+// profileTimerSupportsPeriod reports whether timer accepts a periodic
+// SetWaitableTimer, which the CPU profiler relies on. On success the
+// timer is left armed with a 1ms period; setThreadCPUProfiler re-arms
+// it with the real period right after.
+func profileTimerSupportsPeriod(timer uintptr) bool {
+	due := int64(-10000) // 1ms, relative
+	return stdcall(_SetWaitableTimer, timer, uintptr(unsafe.Pointer(&due)), 1, 0, 0, 0) != 0
 }
 
 func setThreadCPUProfiler(hz int32) {

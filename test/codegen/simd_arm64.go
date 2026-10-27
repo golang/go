@@ -236,15 +236,79 @@ func sveAbsMaskedFoldsToMerging(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Ui
 	return x.Abs().Masked(m)
 }
 
+func sveCeilIfElseFoldsToMerging(x, z archsimd.Float32s, m archsimd.Mask32s) archsimd.Float32s {
+	// FRINTP is predicated-only, like ABS, and folds the same way.
+	// arm64:`ZFRINTP.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`
+	return x.Ceil().IfElse(m, z)
+}
+
 func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64s {
 	// arm64:`ZFADD.*P[0-9]+\.M` -`ZSEL`
 	return x.Add(y).IfElse(m, x)
 }
 
+// A reduction leaves its result in the SIMD&FP scalar register that a float
+// is returned in.
+func sveReduceSum(x archsimd.Float32s) float32 {
+	// arm64:`ZFADDVS\s+Z[0-9]+\.S, P[0-9]+, V[0-9]+` -`FMOV`
+	return x.ReduceSum()
+}
+
+func sveReduceMax(x archsimd.Float64s) float64 {
+	// arm64:`ZFMAXVD\s+Z[0-9]+\.D, P[0-9]+, V[0-9]+` -`FMOV`
+	return x.ReduceMax()
+}
+
+// ShiftAllLeft by a constant below the element width is LSL (immediate), and
+// by a larger constant the zero vector. A variable amount is broadcast to
+// 64-bit lanes and shifts by wide elements, which gives zero for an amount of
+// the element width or more, so the amount needs no clamping.
+
+func sveShiftAllLeftConst(x archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZLSL\s+\$23, Z[0-9]+\.S, Z[0-9]+\.S` -`ZDUP`
+	return x.ShiftAllLeft(23)
+}
+
+func sveShiftAllLeftConst64(x archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZLSL\s+\$63, Z[0-9]+\.D, Z[0-9]+\.D` -`ZDUP` -`PWHILELT`
+	return x.ShiftAllLeft(63)
+}
+
+func sveShiftAllLeftConstTooBig(x archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZDUP\s+\$0,` -`ZLSL`
+	return x.ShiftAllLeft(32)
+}
+
+func sveShiftAllLeftConstHuge(x archsimd.Uint64s) archsimd.Uint64s {
+	// arm64:`ZDUP\s+\$0,` -`ZLSL` -`PWHILELT`
+	return x.ShiftAllLeft(1 << 40)
+}
+
+func sveShiftAllLeftConstTooBigIfElse(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// arm64:`ZCPY\s+\$0, P[0-9]+\.M, Z[0-9]+\.B` -`ZLSL` -`ZSEL`
+	return x.ShiftAllLeft(8).IfElse(m, x)
+}
+
+func sveShiftAllLeftConstIfElse(x archsimd.Int16s, m archsimd.Mask16s) archsimd.Int16s {
+	// arm64:`ZLSL\s+\$3, Z[0-9]+\.H, P[0-9]+\.M, Z[0-9]+\.H` -`ZSEL`
+	return x.ShiftAllLeft(3).IfElse(m, x)
+}
+
+func sveShiftAllLeftVar(x archsimd.Int16s, s uint64) archsimd.Int16s {
+	// arm64:`ZDUP\s+R[0-9]+, Z[0-9]+\.D` `ZLSL\s+Z[0-9]+\.D, Z[0-9]+\.H, Z[0-9]+\.H` -`CSEL`
+	return x.ShiftAllLeft(s)
+}
+
+func sveShiftAllLeftVar64(x archsimd.Uint64s, s uint64) archsimd.Uint64s {
+	// LSL has no wide form for 64-bit elements; LSL (vectors) is predicated.
+	// arm64:`ZLSL\s+Z[0-9]+\.D, Z[0-9]+\.D, P[0-9]+\.M, Z[0-9]+\.D`
+	return x.ShiftAllLeft(s)
+}
+
 // The zero value of a mask is an all-false predicate.
 func sveZeroMask() archsimd.Mask8s {
-	// arm64:`PPFALSE` -`ZDUP`
 	var m archsimd.Mask8s
+	// arm64:`PPFALSE` -`ZDUP`
 	return m
 }
 
@@ -286,3 +350,30 @@ func sveMaxBothSourcesLive(x, y archsimd.Int8s) archsimd.Int8s {
 	sinkInt8s(y)
 	return r
 }
+
+func sveMaskToInt(m archsimd.Mask8s) archsimd.Int8s {
+	// Broadcast(-1).Masked(m) folds into a single zeroing CPY.
+	// arm64:`ZCPY\s+\$-1, P[0-9]+\.Z, Z[0-9]+\.B` -`ZDUP` -`ZSEL`
+	return m.ToInt8s()
+}
+
+func sveBroadcastConstIfElse(m archsimd.Mask16s, z archsimd.Int16s) archsimd.Int16s {
+	// arm64:`ZCPY\s+\$5, P[0-9]+\.M, Z[0-9]+\.H` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt16s(5).IfElse(m, z)
+}
+
+func sveBroadcastGpIfElse32(x int32, m archsimd.Mask32s, z archsimd.Int32s) archsimd.Int32s {
+	// arm64:`ZCPYW\s+R[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt32s(x).IfElse(m, z)
+}
+
+func sveBroadcastGpIfElse64(x int64, m archsimd.Mask64s, z archsimd.Int64s) archsimd.Int64s {
+	// arm64:`ZCPY\s+R[0-9]+, P[0-9]+\.M, Z[0-9]+\.D` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastInt64s(x).IfElse(m, z)
+}
+
+func sveBroadcastFloatIfElse(x float32, m archsimd.Mask32s, z archsimd.Float32s) archsimd.Float32s {
+	// arm64:`ZCPYS\s+V[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
+	return archsimd.BroadcastFloat32s(x).IfElse(m, z)
+}
+

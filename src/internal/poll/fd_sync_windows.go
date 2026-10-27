@@ -84,7 +84,12 @@ func (fd *FD) cancelIO() {
 			// Also cancel overlapped and externally issued I/O, including I/O
 			// blocking lazy initialization, even if no worker is published.
 			// Target workers first so their cancellation is known separately.
-			if err := syscall.CancelIoEx(fd.Sysfd, nil); err != nil && err != syscall.ERROR_NOT_FOUND {
+			switch err := syscall.CancelIoEx(fd.Sysfd, nil); err {
+			case nil, syscall.ERROR_NOT_FOUND:
+			case windows.ERROR_INVALID_HANDLE:
+				// The handle may have been closed outside this FD.
+				// Let destroy report the error from CloseHandle.
+			default:
 				panic(err)
 			}
 		}

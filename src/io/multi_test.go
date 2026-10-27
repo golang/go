@@ -375,3 +375,31 @@ func TestInterleavedMultiReader(t *testing.T) {
 		t.Errorf(`ReadFull(mr1) = (%q, %v), want ("5678", nil)`, got, err)
 	}
 }
+
+func TestInterleavedMultiReaderWriteTo(t *testing.T) {
+	r1 := strings.NewReader("123")
+	r2 := strings.NewReader("45678")
+
+	mr1 := MultiReader(r1, r2)
+	mr2 := MultiReader(mr1)
+
+	// Have mr2 use mr1's []Readers.
+	buf := make([]byte, 1)
+	n, err := mr2.Read(buf)
+	if got := string(buf[:n]); got != "1" || err != nil {
+		t.Errorf(`mr2.Read = (%q, %v), want ("1", nil)`, got, err)
+	}
+
+	// Consume the rest via mr2's WriteTo.
+	var sb strings.Builder
+	n64, err := Copy(&sb, mr2)
+	if got := sb.String(); n64 != 7 || got != "2345678" || err != nil {
+		t.Errorf(`Copy(mr2) = (%d, %q, %v), want (7, "2345678", nil)`, n64, got, err)
+	}
+
+	// This should not panic even though mr2 cleared the shared readers.
+	n, err = mr1.Read(buf)
+	if n != 0 || err != EOF {
+		t.Errorf("mr1.Read = (%d, %v), want (0, EOF)", n, err)
+	}
+}

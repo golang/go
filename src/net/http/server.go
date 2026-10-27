@@ -1476,19 +1476,10 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		setHeader.contentLength = strconv.AppendInt(cw.res.clenBuf[:0], int64(len(p)), 10)
 	}
 
-	// If this was an HTTP/1.0 request with keep-alive and we sent a
-	// Content-Length back, we can make this a keep-alive response ...
-	if w.wants10KeepAlive && keepAlivesEnabled {
-		sentLength := header.get("Content-Length") != ""
-		if sentLength && header.get("Connection") == "keep-alive" {
-			w.closeAfterReply = false
-		}
-	}
-
 	// Check for an explicit (and valid) Content-Length header.
 	hasCL := w.contentLength != -1
 
-	if w.wants10KeepAlive && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
+	if w.wants10KeepAlive && !w.wantsClose && (isHEAD || hasCL || !bodyAllowedForStatus(w.status)) {
 		_, connectionHeaderSet := header["Connection"]
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
@@ -1497,7 +1488,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
-	if header.get("Connection") == "close" || !keepAlivesEnabled {
+	if hasToken(header.get("Connection"), "close") || !keepAlivesEnabled {
 		w.closeAfterReply = true
 	}
 

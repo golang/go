@@ -216,7 +216,7 @@ func (inst *Instruction) goOpPrefix() string {
 // Every other instruction is uniform, i.e. all lanes the same type.
 func (inst *Instruction) laneIsFloat(op *Operand) bool {
 	switch op.Class {
-	case "vreg", "greg":
+	case "vreg", "greg", "fpreg":
 		// has a lane
 	default:
 		// mask lanes are always integer; mem/immediate/special have no lane.
@@ -298,7 +298,7 @@ func (inst *Instruction) integerSignedness(ops []Operand) []string {
 		return []string{"uint"}
 	}
 	for i := range ops {
-		if c := ops[i].Class; (c == "vreg" || c == "greg") && !inst.laneIsFloat(&ops[i]) {
+		if c := ops[i].Class; (c == "vreg" || c == "greg" || c == "fpreg") && !inst.laneIsFloat(&ops[i]) {
 			return []string{"int", "uint"}
 		}
 	}
@@ -346,6 +346,17 @@ func (inst *Instruction) symbolIsGoverning(name string) (governing, found bool) 
 	return false, found
 }
 
+// explanationText returns the text of the explanation named link, with its
+// whitespace collapsed, e.g. "Is the immediate shift amount, in the range 0 to
+// number of bits per element minus 1, encoded in "tszh:tszl:imm3"."
+func (inst *Instruction) explanationText(link string) string {
+	e := inst.findExplanation(link)
+	if e == nil {
+		return ""
+	}
+	return strings.Join(strings.Fields(e.Account.Intro), " ")
+}
+
 // arngRow is one row of an arrangement size table: the encoding value of the
 // size field and the resulting element width in bits.
 type arngRow struct {
@@ -369,12 +380,18 @@ func (inst *Instruction) resolveArrangementTable(link string) []arngRow {
 	}
 	var rows []arngRow
 	for i, row := range exp.Definition.Table.TGroup.TBody.Row {
+		// A row is keyed by all of its encoding fields: shifts by an
+		// immediate encode the element size in tszh:tszl, where the S row
+		// (01:xx) and the D row (1x:xx) agree on tszl alone.
 		var size string
 		bits := 0
 		for _, entry := range row.Entries {
 			switch entry.Class {
 			case "bitfield":
-				size = strings.TrimSpace(entry.Value)
+				if size != "" {
+					size += ":"
+				}
+				size += strings.TrimSpace(entry.Value)
 			case "symbol":
 				bits = elemLetterBits(strings.TrimSpace(entry.Value))
 			}

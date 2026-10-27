@@ -355,7 +355,7 @@ func (w *writer) Sym(s *LSym) {
 	if s.ReflectMethod() {
 		flag |= goobj.SymFlagReflectMethod
 	}
-	if strings.HasPrefix(s.Name, "type:") && s.Name[5] != '.' && s.Type == objabi.SRODATA {
+	if s.IsGoType() && s.Type == objabi.SRODATA {
 		flag |= goobj.SymFlagGoType
 	}
 	if s.WeakDef() {

@@ -459,6 +459,19 @@ func analyze(fn *ir.Func) {
 			continue
 		}
 
+		escapes := false
+		for _, a := range i.appends {
+			if a.Esc() != ir.EscNone {
+				escapes = true
+				break
+			}
+		}
+		if !escapes {
+			// Escape analysis already decided that no backing store here escapes,
+			// so the transition is between variables in the same frame, see #82126.
+			continue
+		}
+
 		// Commit point - at this point we've decided we *should*
 		// do the optimization.
 

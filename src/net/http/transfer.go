@@ -708,6 +708,16 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 		t.RealBodyLength = -1
 		t.ContentLength = -1
 		t.Close = true
+		if hasContentLength && parsedContentLength == 0 {
+			// This is not particularly principled, but avoids breaking some
+			// users depending on past behavior. If a 2xx CONNECT response contains
+			// a "Content-Length: 0" header, we leave the header in place and
+			// set the content length to 0 (so Response.Body is NoBody).
+			// We still set t.Close to close the connection.
+			t.RealBodyLength = 0
+			t.ContentLength = 0
+			t.Header["Content-Length"] = contentLength
+		}
 		return nil
 	}
 

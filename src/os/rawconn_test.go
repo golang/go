@@ -9,6 +9,7 @@
 package os_test
 
 import (
+	"errors"
 	"os"
 	"syscall"
 	"testing"
@@ -62,5 +63,34 @@ func TestRawConnReadWrite(t *testing.T) {
 	}
 	if buf[0] != 'b' {
 		t.Errorf("read %q, expected %q", buf, "b")
+	}
+}
+
+func TestRawConnClosed(t *testing.T) {
+	t.Parallel()
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer w.Close()
+
+	rc, err := r.SyscallConn()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rc.Control(func(uintptr) {}); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("Control error = %v, want ErrClosed", err)
+	}
+	if err := rc.Read(func(uintptr) bool { return true }); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("Read error = %v, want ErrClosed", err)
+	}
+	if err := rc.Write(func(uintptr) bool { return true }); !errors.Is(err, os.ErrClosed) {
+		t.Errorf("Write error = %v, want ErrClosed", err)
 	}
 }

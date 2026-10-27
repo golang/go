@@ -180,6 +180,18 @@ func ParseMediaType(v string) (mediatype string, params map[string]string, err e
 
 		pmap := params
 		if baseName, _, ok := strings.Cut(key, "*"); ok {
+			if strings.HasPrefix(mediatype, "multipart/") ||
+				baseName == "charset" ||
+				baseName == "boundary" {
+				// Continuations/non-ASCII values are not permitted in multipart
+				// Content-Type headers.
+				//
+				// Also ignore *-encoded parameters for charset (always ASCII)
+				// and any boundary field, which are only useful for creating
+				// parser differentials.
+				v = rest
+				continue
+			}
 			if continuation == nil {
 				continuation = make(map[string]map[string]string)
 			}

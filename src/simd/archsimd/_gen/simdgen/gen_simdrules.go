@@ -193,6 +193,126 @@ func expandFormatSpecifiers(s string, elemBits int) string {
 	return s
 }
 
+// sveBroadcastScalarArgs returns the machine-op arguments for the generic-op
+// arguments args of an SVE op: its scalar operand (treatLikeAScalarOfSize), if
+// any, is broadcast into the vector operand the instruction takes, e.g.
+// "x y" becomes "x (ZDUPD y)" for a shift by 64-bit elements.
+func sveBroadcastScalarArgs(gOp Operation, args string) string {
+	idx, err := checkVecAsScalar(gOp)
+	if err != nil {
+		panic(err)
+	}
+	if idx < 0 || !CurrentArch().isSVE() {
+		return args
+	}
+	scalar := gOp.In[idx]
+	if *scalar.Base == "float" {
+		panic(fmt.Errorf("simdgen: SVE broadcasts only integer scalar operands: %s", gOp))
+	}
+	// The scalar is the k-th vector argument; immediates are written as [a].
+	k := 0
+	for i := 0; i < idx; i++ {
+		if gOp.In[i].Class == "vreg" {
+			k++
+		}
+	}
+	fields := strings.Fields(args)
+	for i, f := range fields {
+		if strings.HasPrefix(f, "[") {
+			continue
+		}
+		if k == 0 {
+			fields[i] = fmt.Sprintf("(%s %s)", sveBroadcastOp(*scalar.ElemBits), f)
+			break
+		}
+		k--
+	}
+	return strings.Join(fields, " ")
+}
+
+// sveBroadcastOp returns the machine op that broadcasts a general register
+// into every element of a vector with elemBits-bit elements.
+func sveBroadcastOp(elemBits int) string {
+	return "ZDUP" + map[int]string{8: "B", 16: "H", 32: "S", 64: "D"}[elemBits]
+}
+
+// sveSftimmRule returns the rule that turns an SVE shift by a broadcast
+// constant amount into the instruction's immediate form, the <asm>const
+// machine op, when the amount is in the immediate's range:
+//
+//	(ZLSLH x (ZDUPDconst [c])) && c >= 0 && c <= 15 => (ZLSLHconst [uint8(c)] x)
+//
+// The range is the immediate op's, which constImmRange maps its machine op name
+// to (see sveImmRanges). A constant that small is broadcast by ZDUPDconst (see
+// ARM64.rules); any other keeps the vector form, which handles it. pred is the
+// op's synthesized all-true governing predicate, or "" when it has none.
+//
+// A select can fold the shift into its merging form first, so each merging
+// form whose immediate form also has one gets the same rule:
+//
+//	(ZLSLMergingH x (ZDUPDconst [c]) mask) && ... => (ZLSLMergingHconst [uint8(c)] x mask)
+func sveSftimmRule(gOp Operation, asm, pred string, constImmRange map[string][2]int) string {
+	r, ok := constImmRange[asm+"const"]
+	if !ok {
+		panic(fmt.Errorf("simdgen: SVE sftimm needs an immediate form %sconst with a known range: %s", asm, gOp))
+	}
+	idx, err := checkVecAsScalar(gOp)
+	if err != nil || idx < 0 {
+		panic(fmt.Errorf("simdgen: SVE sftimm needs a scalar shift operand: %s", gOp))
+	}
+	bcast := sveBroadcastOp(*gOp.In[idx].ElemBits)
+	args := strings.Replace(sveBroadcastScalarArgs(gOp, "x y"), "("+bcast+" y)", "("+bcast+"const [c])", 1)
+	if pred != "" {
+		args += " " + pred
+	}
+	rules := fmt.Sprintf("(%s %s) && c >= %d && c <= %d => (%sconst [uint8(c)] x) // sftimm\n", asm, args, r[0], r[1], asm)
+	for _, p := range gOp.svePredicatedOps() {
+		merging := machineOpName(OneMask, p)
+		if _, ok := constImmRange[merging+"const"]; !ok {
+			continue
+		}
+		mArgs := strings.Replace(sveBroadcastScalarArgs(gOp, "x y"), "("+bcast+" y)", "("+bcast+"const [c])", 1)
+		rules += fmt.Sprintf("(%s %s mask) && c >= %d && c <= %d => (%sconst [uint8(c)] x mask) // sftimm\n", merging, mArgs, r[0], r[1], merging)
+	}
+	if gOp.Go == "ShiftAllLeft" {
+		rules += sveShiftLeftPastRangeRules(gOp, asm, pred, bcast, r[1])
+	}
+	return rules
+}
+
+// sveShiftLeftPastRangeRules returns the rules for a left shift by a constant
+// amount past the immediate's range, max: every bit is shifted out, so the
+// result is the zero vector, and under a select it is zero in the active
+// lanes. A negative ZDUPDconst is a 64-bit amount of 2**63 or more.
+//
+//	(ZLSLH x (ZDUPDconst [c])) && (c < 0 || c > 15) => (ZDUPBconst [0])
+//	(ZLSLH x (ZDUPD (MOVDconst [c]))) && uint64(c) > 15 => (ZDUPBconst [0])
+//	(ZLSLMergingH x (ZDUPDconst [c]) mask) && (c < 0 || c > 15) => (ZSELH (ZDUPBconst [0]) x mask)
+//
+// (A logical right shift past its range is zero too; an arithmetic one is the
+// sign, which its immediate form reaches at its maximum.)
+func sveShiftLeftPastRangeRules(gOp Operation, asm, pred, bcast string, max int) string {
+	args := func(c string) string {
+		return strings.Replace(sveBroadcastScalarArgs(gOp, "x y"), "("+bcast+" y)", c, 1)
+	}
+	small, large := "("+bcast+"const [c])", "("+bcast+" (MOVDconst [c]))"
+	smallCond := fmt.Sprintf("(c < 0 || c > %d)", max)
+	largeCond := fmt.Sprintf("uint64(c) > %d", max)
+	p := ""
+	if pred != "" {
+		p = " " + pred
+	}
+	rules := fmt.Sprintf("(%s %s%s) && %s => (ZDUPBconst [0]) // sftimm\n", asm, args(small), p, smallCond)
+	rules += fmt.Sprintf("(%s %s%s) && %s => (ZDUPBconst [0]) // sftimm\n", asm, args(large), p, largeCond)
+	sel := "ZSEL" + sveArrangementLetter(gOp)
+	for _, pr := range gOp.svePredicatedOps() {
+		merging := machineOpName(OneMask, pr)
+		rules += fmt.Sprintf("(%s %s mask) && %s => (%s (ZDUPBconst [0]) x mask) // sftimm\n", merging, args(small), smallCond, sel)
+		rules += fmt.Sprintf("(%s %s mask) && %s => (%s (ZDUPBconst [0]) x mask) // sftimm\n", merging, args(large), largeCond, sel)
+	}
+	return rules
+}
+
 // sveImplicitPredRule returns the lowering rule for an SVE op whose governing
 // predicate is implicit-all-true: the unpredicated generic op lowers straight to
 // the predicated machine op with a synthesized all-true predicate.
@@ -211,7 +331,7 @@ func sveImplicitPredRule(gOp Operation, asm, args string) string {
 	letter := sveArrangementLetter(gOp)
 	lanes := types.MaxVectorBits / elemBits
 	return fmt.Sprintf("(%s %s) => (%s %s (Select0 <types.TypeMask> (PWHILELT%s (MOVDconst [0]) (MOVDconst [%d]))))\n",
-		gOp.GenericName(), args, asm, args, letter, lanes)
+		gOp.GenericName(), args, asm, sveBroadcastScalarArgs(gOp, args), letter, lanes)
 }
 
 // sveFeatureConst maps a def's cpuFeature string to the ssa.CPUfeatures
@@ -307,7 +427,12 @@ func sveImplicitPredPeepholes(gOp Operation, asm, args string) string {
 //
 // It is emitted last so the two rules above win where they apply and save the
 // prefix. See [Operation.sveMergingPrefixedOp] for why it needs commutativity.
-func sveMergingPeephole(gOp Operation) string {
+//
+// imm reports that the operation also takes an immediate, which shape has
+// moved out of gOp's inputs into the machine op's aux, e.g.
+//
+//	(ZSELB (ZLSLBconst [a] x) x mask) => (ZLSLMergingBconst [a] x mask)
+func sveMergingPeephole(gOp Operation, imm bool) string {
 	var pred *types.Operand
 	vregs := 0
 	for i := range gOp.In {
@@ -318,12 +443,20 @@ func sveMergingPeephole(gOp Operation) string {
 			vregs++
 		}
 	}
-	if pred == nil || *pred.Predication != "M" || vregs != 2 {
+	if pred == nil || *pred.Predication != "M" {
 		return ""
 	}
 	sel := "ZSEL" + sveArrangementLetter(gOp)
 	unpred := machineOpName(NoMask, gOp)
 	merging := machineOpName(OneMask, gOp)
+	if vregs == 1 && imm {
+		// An operation on one vector and an immediate, e.g. a shift by an
+		// immediate: the vector is the destructive source.
+		return fmt.Sprintf("(%s (%s [a] x) x mask) => (%s [a] x mask)\n", sel, unpred, merging)
+	}
+	if vregs != 2 {
+		return ""
+	}
 	rules := fmt.Sprintf("(%s (%s x y) x mask) => (%s x y mask)\n", sel, unpred, merging)
 	if gOp.Commutative {
 		rules += fmt.Sprintf("(%s (%s x y) y mask) => (%s y x mask)\n", sel, unpred, merging)
@@ -354,6 +487,24 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 	ruleDone := make(map[string]struct{})
 
 	var sveRules []string // SVE implicit-all-true predicated ops, emitted separately.
+
+	// constImmRange maps the machine op of each SVE immediate form (ssaVariant
+	// "const") to its immediate's range, for the sftimm rules.
+	constImmRange := map[string][2]int{}
+	if CurrentArch().isSVE() {
+		for _, op := range ops {
+			_, _, maskType, _, gOp, _ := op.shape()
+			imm := op.In[0]
+			if op.SSAVariant == nil || *op.SSAVariant != "const" || imm.Class != "immediate" || imm.ImmMin == nil || imm.ImmMax == nil {
+				continue
+			}
+			r := [2]int{*imm.ImmMin, *imm.ImmMax}
+			constImmRange[machineOpName(maskType, gOp)] = r
+			for _, p := range gOp.svePredicatedOps() {
+				constImmRange[machineOpName(OneMask, p)] = r
+			}
+		}
+	}
 
 	for _, opr := range ops {
 		opInShape, opOutShape, maskType, immType, gOp, _ := opr.shape()
@@ -391,6 +542,8 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 			data.Args = fmt.Sprintf("[a] %s", data.Args)
 			data.ArgsOut = fmt.Sprintf("[a+%s] %s", *opr.In[0].Const, data.ArgsOut)
 		}
+
+		data.ArgsOut = sveBroadcastScalarArgs(gOp, data.ArgsOut)
 
 		// An SVE operation whose unpredicated encoding needs a higher feature
 		// level than the operation itself lowers through its merging-predicated
@@ -432,6 +585,9 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		// machine op, synthesizing an all-true predicate. This bypasses the AVX
 		// mask-conversion machinery below (SVE predicates are represented as-is).
 		if opr.implicitPredCount() > 0 {
+			if gOp.SpecialLower != nil && *gOp.SpecialLower == "sftimm" {
+				sveRules = append(sveRules, sveSftimmRule(gOp, asm, sveAllTruePattern(gOp), constImmRange))
+			}
 			sveRules = append(sveRules, sveImplicitPredRule(gOp, asm, data.Args))
 			if r := sveImplicitPredPeepholes(gOp, asm, data.Args); r != "" {
 				sveRules = append(sveRules, r)
@@ -473,7 +629,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 			case PureKmaskIn:
 				panic(fmt.Errorf("simdgen does not support pure k mask instructions, they should be generated by compiler optimizations"))
 			}
-		} else if opOutShape == OneGregOut {
+		} else if opOutShape == OneGregOut || opOutShape == OneFpregOut {
 			tplName = "pureVreg" // TODO this will be wrong
 			data.GoType = goType(gOp)
 		} else {
@@ -498,7 +654,9 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 
 		if gOp.SpecialLower != nil {
-			if *gOp.SpecialLower == "sftimm" {
+			if *gOp.SpecialLower == "sftimm" && CurrentArch().isSVE() {
+				sveRules = append(sveRules, sveSftimmRule(gOp, asm, "", constImmRange))
+			} else if *gOp.SpecialLower == "sftimm" {
 				if !sftimmCheck[data.Asm] {
 					sftimmCheck[data.Asm] = true
 					sftImmData := data
@@ -660,7 +818,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 		data.TplName = tplName
 		for _, pred := range gOp.svePredicatedOps() {
-			if r := sveMergingPeephole(pred); r != "" {
+			if r := sveMergingPeephole(pred, immType != NoImm); r != "" {
 				sveRules = append(sveRules, r)
 			}
 		}

@@ -143,13 +143,6 @@ func main() {
 		}
 	}
 
-	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
-		maxbg = min(maxbg, runtime.NumCPU())
-	}
-	if runtime.GOMAXPROCS(0) == 1 {
-		maxbg = 1
-	}
-
 	if len(os.Args) > 1 && os.Args[1] == "-check-goarm" {
 		useVFPv1() // might fail with SIGILL
 		println("VFPv1 OK.")

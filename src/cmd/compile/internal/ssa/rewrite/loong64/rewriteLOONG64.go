@@ -2469,6 +2469,35 @@ func rewriteValue_OpLOONG64MASKEQZ(v *ssa.Value) bool {
 		v.AuxInt = ssa.Int64ToAuxInt(0)
 		return true
 	}
+	// match: (MASKEQZ x (SGTU c (MOVVconst [0])))
+	// result: (MASKEQZ x c)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpLOONG64SGTU {
+			break
+		}
+		_ = v_1.Args[1]
+		c := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != ssaop.OpLOONG64MOVVconst || ssa.AuxIntToInt64(v_1_1.AuxInt) != 0 {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64MASKEQZ)
+		v.AddArg2(x, c)
+		return true
+	}
+	// match: (MASKEQZ x (SGTUconst [1] c))
+	// result: (MASKNEZ x c)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpLOONG64SGTUconst || ssa.AuxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		c := v_1.Args[0]
+		v.Reset(ssaop.OpLOONG64MASKNEZ)
+		v.AddArg2(x, c)
+		return true
+	}
 	// match: (MASKEQZ x (MOVVconst [c]))
 	// cond: c == 0
 	// result: (MOVVconst [0])
@@ -2502,6 +2531,7 @@ func rewriteValue_OpLOONG64MASKEQZ(v *ssa.Value) bool {
 	return false
 }
 func rewriteValue_OpLOONG64MASKNEZ(v *ssa.Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (MASKNEZ (MOVVconst [0]) cond)
 	// result: (MOVVconst [0])
@@ -2511,6 +2541,35 @@ func rewriteValue_OpLOONG64MASKNEZ(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpLOONG64MOVVconst)
 		v.AuxInt = ssa.Int64ToAuxInt(0)
+		return true
+	}
+	// match: (MASKNEZ x (SGTU c (MOVVconst [0])))
+	// result: (MASKNEZ x c)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpLOONG64SGTU {
+			break
+		}
+		_ = v_1.Args[1]
+		c := v_1.Args[0]
+		v_1_1 := v_1.Args[1]
+		if v_1_1.Op != ssaop.OpLOONG64MOVVconst || ssa.AuxIntToInt64(v_1_1.AuxInt) != 0 {
+			break
+		}
+		v.Reset(ssaop.OpLOONG64MASKNEZ)
+		v.AddArg2(x, c)
+		return true
+	}
+	// match: (MASKNEZ x (SGTUconst [1] c))
+	// result: (MASKEQZ x c)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpLOONG64SGTUconst || ssa.AuxIntToInt64(v_1.AuxInt) != 1 {
+			break
+		}
+		c := v_1.Args[0]
+		v.Reset(ssaop.OpLOONG64MASKEQZ)
+		v.AddArg2(x, c)
 		return true
 	}
 	return false
@@ -2756,6 +2815,26 @@ func rewriteValue_OpLOONG64MOVBUreg(v *ssa.Value) bool {
 			return true
 		}
 		break
+	}
+	// match: (MOVBUreg x:(FPFlagTrue _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64FPFlagTrue {
+			break
+		}
+		v.CopyOf(x)
+		return true
+	}
+	// match: (MOVBUreg x:(FPFlagFalse _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpLOONG64FPFlagFalse {
+			break
+		}
+		v.CopyOf(x)
+		return true
 	}
 	// match: (MOVBUreg (SLLVconst [lc] x))
 	// cond: lc >= 8

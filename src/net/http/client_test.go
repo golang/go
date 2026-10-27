@@ -103,8 +103,7 @@ func (t *recordingTransport) RoundTrip(req *Request) (resp *Response, err error)
 }
 
 func TestGetRequestFormat(t *testing.T) {
-	setParallel(t)
-	defer afterTest(t)
+	t.Parallel()
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	url := "http://dummy.faketld/"
@@ -121,7 +120,6 @@ func TestGetRequestFormat(t *testing.T) {
 }
 
 func TestPostRequestFormat(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -148,7 +146,6 @@ func TestPostRequestFormat(t *testing.T) {
 }
 
 func TestPostFormRequestFormat(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -360,7 +357,7 @@ func TestPostRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "POST", postRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func TestDeleteRedirects(t *testing.T) {
@@ -399,7 +396,7 @@ func TestDeleteRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "DELETE", deleteRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func TestQueryRedirects(t *testing.T) {
@@ -436,7 +433,7 @@ func TestQueryRedirects(t *testing.T) {
 	want := strings.Join(wantSegments, "\n")
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		testRedirectsByMethod(t, mode, "QUERY", queryRedirectTests, want)
-	}, http3SkippedMode)
+	})
 }
 
 func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []redirectTest, want string) {
@@ -449,7 +446,11 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 		log.Lock()
 		slurp, _ := io.ReadAll(r.Body)
 		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
-		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
+		wantCL := int64(0)
+		if mode == http3Mode {
+			wantCL = -1
+		}
+		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != wantCL || cl != "") {
 			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
 		}
 		log.WriteByte('\n')
@@ -658,7 +659,6 @@ func testHostMismatchCookies(t *testing.T, mode testMode) {
 }
 
 func TestClientSendsCookieFromJar(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 	client.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
@@ -926,7 +926,6 @@ func testClientInsecureTransport(t *testing.T, mode testMode) {
 }
 
 func TestClientErrorWithRequestURI(t *testing.T) {
-	defer afterTest(t)
 	req, _ := NewRequest("GET", "http://localhost:1234/", nil)
 	req.RequestURI = "/this/field/is/illegal/and/should/error/"
 	_, err := DefaultClient.Do(req)
@@ -939,7 +938,7 @@ func TestClientErrorWithRequestURI(t *testing.T) {
 }
 
 func TestClientWithCorrectTLSServerName(t *testing.T) {
-	runSynctest(t, testClientWithCorrectTLSServerName, []testMode{https1Mode, http2Mode})
+	runSynctest(t, testClientWithCorrectTLSServerName, []testMode{https1Mode, http2Mode, http3Mode})
 }
 func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 	const serverName = "example.com"
@@ -1125,7 +1124,6 @@ func testEmptyPasswordAuth(t *testing.T, mode testMode) {
 }
 
 func TestBasicAuth(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -1159,7 +1157,6 @@ func TestBasicAuth(t *testing.T) {
 }
 
 func TestBasicAuthHeadersPreserved(t *testing.T) {
-	defer afterTest(t)
 	tr := &recordingTransport{}
 	client := &Client{Transport: tr}
 
@@ -1238,7 +1235,7 @@ func TestStripPasswordFromError(t *testing.T) {
 	}
 }
 
-func TestClientTimeout(t *testing.T) { runSynctest(t, testClientTimeout, http3SkippedMode) }
+func TestClientTimeout(t *testing.T) { runSynctest(t, testClientTimeout) }
 func testClientTimeout(t *testing.T, mode testMode) {
 	sawSlow := false
 	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
@@ -1290,10 +1287,7 @@ func testClientTimeout(t *testing.T, mode testMode) {
 
 // Client.Timeout firing before getting to the body
 func TestClientTimeout_Headers(t *testing.T) {
-	// Leaves lingering goroutine that fails the test when tested with -race
-	// flag for HTTP/3. The lingering goroutine will eventually exit, which can
-	// make this test deceptively pass when ran together with many other tests.
-	runSynctest(t, testClientTimeout_Headers, http3SkippedMode)
+	runSynctest(t, testClientTimeout_Headers)
 }
 func testClientTimeout_Headers(t *testing.T, mode testMode) {
 	donec := make(chan bool, 1)
@@ -1504,7 +1498,7 @@ func TestClientRedirectResponseWithoutRequest(t *testing.T) {
 // but different ports, sensitive headers like Cookie and Authorization
 // are preserved.
 func TestClientCopyHeadersOnRedirect(t *testing.T) {
-	runSynctest(t, testClientCopyHeadersOnRedirect, http3SkippedMode)
+	runSynctest(t, testClientCopyHeadersOnRedirect)
 }
 func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 	const (
@@ -1577,7 +1571,7 @@ func testClientCopyHeadersOnRedirect(t *testing.T, mode testMode) {
 // Issue #70530: Once we strip a header on a redirect to a different host,
 // the header should stay stripped across any further redirects.
 func TestClientStripHeadersOnRepeatedRedirect(t *testing.T) {
-	runSynctest(t, testClientStripHeadersOnRepeatedRedirect, http3SkippedMode)
+	runSynctest(t, testClientStripHeadersOnRepeatedRedirect)
 }
 func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	var proto string
@@ -1607,15 +1601,11 @@ func testClientStripHeadersOnRepeatedRedirect(t *testing.T, mode testMode) {
 	})).ts
 	proto, _, _ = strings.Cut(ts.URL, ":")
 
-	c := ts.Client()
-	c.Transport.(*Transport).Dial = func(_ string, _ string) (net.Conn, error) {
-		return net.Dial("tcp", ts.Listener.Addr().String())
-	}
-
 	req, _ := NewRequest("GET", proto+"://a.example.com/", nil)
 	req.Header.Add("Cookie", "foo=bar")
 	req.Header.Add("Authorization", "secretpassword")
 	req.Header.Add("Proxy-Authorization", "secretpassword")
+	c := ts.Client()
 	res, err := c.Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -1697,6 +1687,15 @@ func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
 			}
 			w.Header().Set("Location", tsURL+"/final")
 			w.WriteHeader(302)
+		case "/scheme-relative":
+			// Scheme-relative redirect.
+			if r.Host != virtualHost {
+				t.Errorf("Serving /scheme-relative: Request.Host = %#v; want %#v", r.Host, virtualHost)
+				w.WriteHeader(404)
+				return
+			}
+			w.Header().Set("Location", "//"+tsHost+"/final")
+			w.WriteHeader(302)
 		case "/final":
 			if r.Host != tsHost {
 				t.Errorf("Serving /final: Request.Host = %#v; want %#v", r.Host, tsHost)
@@ -1716,18 +1715,20 @@ func testClientCopyHostOnRedirect(t *testing.T, mode testMode) {
 	t.Logf("Server host is %v", tsHost)
 
 	c := ts.Client()
-	req, _ := NewRequest("GET", ts.URL, nil)
-	req.Host = virtualHost
-	resp, err := c.Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		t.Fatal(resp.Status)
-	}
-	if got, err := io.ReadAll(resp.Body); err != nil || string(got) != wantBody {
-		t.Errorf("body = %q; want %q", got, wantBody)
+	for _, path := range []string{"/", "/scheme-relative"} {
+		req, _ := NewRequest("GET", ts.URL+path, nil)
+		req.Host = virtualHost
+		resp, err := c.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			t.Fatal(resp.Status)
+		}
+		if got, err := io.ReadAll(resp.Body); err != nil || string(got) != wantBody {
+			t.Errorf("body = %q; want %q", got, wantBody)
+		}
 	}
 }
 

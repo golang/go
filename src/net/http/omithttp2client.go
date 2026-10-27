@@ -20,13 +20,13 @@ const omitHTTP2Client = true
 const noHTTP2 = "no bundled HTTP/2" // should never see this
 
 func (t *Transport) configureHTTP2(protocols Protocols) {}
-func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (RoundTripper, error) {
+func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (genericClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
-func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (RoundTripper, error) {
+func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (genericClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
-func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (RoundTripper, error) {
+func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (genericClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
 func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientConn, error) {

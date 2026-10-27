@@ -64,6 +64,10 @@ func (c *netUDPConn) LocalAddr() netip.AddrPort {
 	return a.AddrPort()
 }
 
+func (c *netUDPConn) LocalAddrFor(remote netip.AddrPort) (netip.AddrPort, error) {
+	return localAddrFor(c.LocalAddr(), remote)
+}
+
 func (c *netUDPConn) Read(f func(*datagram)) error {
 	// We shouldn't ever see all of these messages at the same time,
 	// but the total is small so just allocate enough space for everything we use.
@@ -88,8 +92,10 @@ func (c *netUDPConn) Read(f func(*datagram)) error {
 		if n == 0 {
 			continue
 		}
-		d.localAddr = c.localAddr
-		d.peerAddr = unmapAddrPort(peerAddr)
+		d.path = pathAddrs{
+			local: c.localAddr,
+			peer:  unmapAddrPort(peerAddr),
+		}
 		d.b = d.b[:n]
 		parseControl(d, control[:controlLen])
 		f(d)
@@ -110,7 +116,7 @@ func (c *netUDPConn) Write(dgram datagram) error {
 		cmsgPool.Put(controlp)
 	}()
 
-	localIP := dgram.localAddr.Addr()
+	localIP := dgram.path.local.Addr()
 	if localIP.IsValid() {
 		if localIP.Is4() {
 			control = appendCmsgIPSourceAddrV4(control, localIP)
@@ -119,14 +125,14 @@ func (c *netUDPConn) Write(dgram datagram) error {
 		}
 	}
 	if dgram.ecn != ecnNotECT {
-		if dgram.peerAddr.Addr().Is4() {
+		if dgram.path.peer.Addr().Is4() {
 			control = appendCmsgECNv4(control, dgram.ecn)
 		} else {
 			control = appendCmsgECNv6(control, dgram.ecn)
 		}
 	}
 
-	_, _, err := c.c.WriteMsgUDPAddrPort(dgram.b, control, dgram.peerAddr)
+	_, _, err := c.c.WriteMsgUDPAddrPort(dgram.b, control, dgram.path.peer)
 	return err
 }
 
@@ -147,7 +153,7 @@ func parseControl(d *datagram, control []byte) {
 				}
 			case syscall.IP_PKTINFO:
 				if a, ok := parseInPktinfo(m.Data); ok {
-					d.localAddr = netip.AddrPortFrom(a, d.localAddr.Port())
+					d.path.local = netip.AddrPortFrom(a, d.path.local.Port())
 				}
 			}
 		case syscall.IPPROTO_IPV6:
@@ -160,7 +166,7 @@ func parseControl(d *datagram, control []byte) {
 				}
 			case ipv6_pktinfo:
 				if a, ok := parseIn6Pktinfo(m.Data); ok {
-					d.localAddr = netip.AddrPortFrom(a, d.localAddr.Port())
+					d.path.local = netip.AddrPortFrom(a, d.path.local.Port())
 				}
 			}
 		}

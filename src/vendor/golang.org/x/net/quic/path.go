@@ -4,7 +4,27 @@
 
 package quic
 
-import "time"
+import (
+	"fmt"
+	"net/netip"
+	"time"
+)
+
+// pathAddrs is a network path, defined from the view of an endpoint.
+type pathAddrs struct {
+	peer  netip.AddrPort
+	local netip.AddrPort
+}
+
+func (p pathAddrs) String() string {
+	addrStr := func(a netip.AddrPort) string {
+		if !a.IsValid() {
+			return "unknown"
+		}
+		return a.String()
+	}
+	return fmt.Sprintf("{peer:%v local:%v}", addrStr(p.peer), addrStr(p.local))
+}
 
 type pathState struct {
 	// Response to a peer's PATH_CHALLENGE.
@@ -44,11 +64,11 @@ func (c *Conn) handlePathChallenge(_ time.Time, dgram *datagram, data pathChalle
 	// and permit it to send a followup PATH_CHALLENGE in an expanded datagram.
 	// https://www.rfc-editor.org/rfc/rfc9000.html#section-8.2.1
 	if len(dgram.b) >= smallestMaxDatagramSize {
-		c.path.sendPathResponse = pathResponseExpanded
+		c.pstate.sendPathResponse = pathResponseExpanded
 	} else {
-		c.path.sendPathResponse = pathResponseSmall
+		c.pstate.sendPathResponse = pathResponseSmall
 	}
-	c.path.data = data
+	c.pstate.data = data
 }
 
 func (c *Conn) handlePathResponse(now time.Time, _ pathChallengeData) {
@@ -67,7 +87,7 @@ func (c *Conn) handlePathResponse(now time.Time, _ pathChallengeData) {
 // appendPathFrames appends path validation related frames to the current packet.
 // If the return value pad is true, then the packet should be padded to 1200 bytes.
 func (c *Conn) appendPathFrames() (pad, ok bool) {
-	if c.path.sendPathResponse == pathResponseNotNeeded {
+	if c.pstate.sendPathResponse == pathResponseNotNeeded {
 		return pad, true
 	}
 	// We're required to send the PATH_RESPONSE on the path where the
@@ -76,12 +96,12 @@ func (c *Conn) appendPathFrames() (pad, ok bool) {
 	// At the moment, we don't support path migration and reject packets if
 	// the peer changes its source address, so just sending the PATH_RESPONSE
 	// in a regular datagram is fine.
-	if !c.w.appendPathResponseFrame(c.path.data) {
+	if !c.w.appendPathResponseFrame(c.pstate.data) {
 		return pad, false
 	}
-	if c.path.sendPathResponse == pathResponseExpanded {
+	if c.pstate.sendPathResponse == pathResponseExpanded {
 		pad = true
 	}
-	c.path.sendPathResponse = pathResponseNotNeeded
+	c.pstate.sendPathResponse = pathResponseNotNeeded
 	return pad, true
 }

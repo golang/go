@@ -8,7 +8,8 @@
   - &int
     go: $t
     base: int
-  - *int
+  - go: $t
+    name: shift
   out:
   - *int
 
@@ -19,10 +20,10 @@
   - &uint
     go: $t
     base: uint
-  - &uintAsInt
-    go: $t
+  - go: $t
     base: uint
     overwriteBase: int
+    name: shift
   out:
   - *uint
 

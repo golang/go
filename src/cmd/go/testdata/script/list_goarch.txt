@@ -1,3 +1,4 @@
+[GOOS:aix] env GOOS=linux  # aix/amd64 is not a supported platform
 env GOARCH=amd64
 env GOAMD64=
 go env GOAMD64

@@ -331,8 +331,8 @@ func TestTypesInfo(t *testing.T) {
 		{`package issue47243_f; var x int32; var _ = 1 << 2`, `2`, `untyped int`},
 		{`package issue47243_g; var x int32; var _ = int(1) << 2`, `2`, `untyped int`},
 		{`package issue47243_h; var x int32; var _ = 1 << (2 << x)`, `1`, `int`},
-		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `untyped int`},
-		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `untyped int`},
+		{`package issue47243_i; var x int32; var _ = 1 << (2 << x)`, `(2 << x)`, `uint`},
+		{`package issue47243_j; var x int32; var _ = 1 << (2 << x)`, `2`, `uint`},
 
 		// tests for broken code that doesn't type-check
 		{broken + `x0; func _() { var x struct {f string}; x.f := 0 }`, `x.f`, `string`},

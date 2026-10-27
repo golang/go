@@ -688,7 +688,7 @@ func fRunner(f *F, fn func(*F)) {
 			}
 			for root := &f.common; root.parent != nil; root = root.parent {
 				root.mu.Lock()
-				root.duration += highPrecisionTimeSince(root.start)
+				root.duration += time.Since(root.start)
 				d := root.duration
 				root.mu.Unlock()
 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
@@ -701,7 +701,7 @@ func fRunner(f *F, fn func(*F)) {
 		}
 
 		// No panic or inappropriate Goexit.
-		f.duration += highPrecisionTimeSince(f.start)
+		f.duration += time.Since(f.start)
 
 		if len(f.sub) > 0 {
 			// Unblock inputs that called T.Parallel while running the seed corpus.
@@ -714,9 +714,9 @@ func fRunner(f *F, fn func(*F)) {
 			for _, sub := range f.sub {
 				<-sub.signal
 			}
-			cleanupStart := highPrecisionTimeNow()
+			cleanupStart := time.Now()
 			err := f.runCleanup(recoverAndReturnPanic)
-			f.duration += highPrecisionTimeSince(cleanupStart)
+			f.duration += time.Since(cleanupStart)
 			if err != nil {
 				doPanic(err)
 			}
@@ -733,7 +733,7 @@ func fRunner(f *F, fn func(*F)) {
 		}
 	}()
 
-	f.start = highPrecisionTimeNow()
+	f.start = time.Now()
 	f.resetRaces()
 	fn(f)
 

@@ -58,7 +58,9 @@ func (mr *multiReader) writeToWithBuffer(w Writer, buf []byte) (sum int64, err e
 			mr.readers = mr.readers[i:] // permit resume / retry after error
 			return sum, err
 		}
-		mr.readers[i] = nil // permit early GC
+		// Use eofReader instead of nil to avoid nil panic
+		// after performing flatten (Issue 18232).
+		mr.readers[i] = eofReader{} // permit early GC
 	}
 	mr.readers = nil
 	return sum, nil

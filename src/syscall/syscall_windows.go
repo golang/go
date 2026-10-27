@@ -40,16 +40,23 @@ func StringToUTF16(s string) []uint16 {
 // location, it returns (nil, [EINVAL]). Unpaired surrogates
 // are encoded using WTF-8.
 func UTF16FromString(s string) ([]uint16, error) {
-	if bytealg.IndexByteString(s, 0) != -1 {
-		return nil, EINVAL
-	}
 	// Valid UTF-8 characters between 1 and 3 bytes require one uint16.
 	// Valid UTF-8 characters of 4 bytes require two uint16.
 	// Bytes with invalid UTF-8 encoding require maximum one uint16 per byte.
 	// So the number of UTF-8 code units (len(s)) is always greater or
 	// equal than the number of UTF-16 code units.
 	// Also account for the terminating NUL character.
-	buf := make([]uint16, 0, len(s)+1)
+	return utf16FromString(s, make([]uint16, 0, len(s)+1))
+}
+
+// utf16FromString requires buf to have length zero and capacity at least len(s)+1.
+// The exported wrappers allocate buf so it can be stack allocated after inlining.
+//
+//go:noinline
+func utf16FromString(s string, buf []uint16) ([]uint16, error) {
+	if bytealg.IndexByteString(s, 0) != -1 {
+		return nil, EINVAL
+	}
 	buf = encodeWTF16(s, buf)
 	return append(buf, 0), nil
 }
@@ -111,11 +118,8 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
 // contains a NUL byte at any location, it returns (nil, EINVAL).
 // Unpaired surrogates are encoded using WTF-8.
 func UTF16PtrFromString(s string) (*uint16, error) {
-	a, err := UTF16FromString(s)
-	if err != nil {
-		return nil, err
-	}
-	return &a[0], nil
+	a, err := utf16FromString(s, make([]uint16, 0, len(s)+1))
+	return unsafe.SliceData(a), err
 }
 
 // Errno is the Windows error number.
@@ -123,7 +127,7 @@ func UTF16PtrFromString(s string) (*uint16, error) {
 // Errno values can be tested against error values using [errors.Is].
 // For example:
 //
-//	_, _, err := syscall.Syscall(...)
+//	_, _, err := syscall.SyscallN(...)
 //	if errors.Is(err, fs.ErrNotExist) ...
 type Errno uintptr
 
@@ -184,6 +188,7 @@ const (
 	_ERROR_NOT_SUPPORTED        = Errno(50)
 	_ERROR_BAD_NETPATH          = Errno(53)
 	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
+	_ERROR_BAD_EXE_FORMAT       = Errno(193)
 )
 
 func (e Errno) Is(target error) bool {
@@ -351,6 +356,7 @@ func NewCallbackCDecl(fn any) uintptr {
 //sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
 //sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
 //sys	getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) [n == 0 || n >= filePathSize] = kernel32.GetFinalPathNameByHandleW
+//sys	getBinaryType(applicationName *uint16, binaryType *uint32) (err error) = GetBinaryTypeW
 
 // syscall interface implementation for other packages
 
@@ -551,10 +557,10 @@ const ptrSize = unsafe.Sizeof(uintptr(0))
 func setFilePointerEx(handle Handle, distToMove int64, newFilePointer *int64, whence uint32) error {
 	var e1 Errno
 	if unsafe.Sizeof(uintptr(0)) == 8 {
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 4, uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0, 0)
+		_, _, e1 = SyscallN(procSetFilePointerEx.Addr(), uintptr(handle), uintptr(distToMove), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 	} else {
 		// distToMove is a LARGE_INTEGER, which is 64 bits.
-		_, _, e1 = Syscall6(procSetFilePointerEx.Addr(), 5, uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence), 0)
+		_, _, e1 = SyscallN(procSetFilePointerEx.Addr(), uintptr(handle), uintptr(distToMove), uintptr(distToMove>>32), uintptr(unsafe.Pointer(newFilePointer)), uintptr(whence))
 	}
 	if e1 != 0 {
 		return errnoErr(e1)
@@ -1042,7 +1048,7 @@ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32
 			return err
 		}
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1058,7 +1064,7 @@ func wsaSendtoInet4(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
 	if err != nil {
 		return err
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1074,7 +1080,7 @@ func wsaSendtoInet6(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags u
 	if err != nil {
 		return err
 	}
-	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	r1, _, e1 := SyscallN(procWSASendTo.Addr(), uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
 	if r1 == socket_error {
 		if e1 != 0 {
 			err = errnoErr(e1)
@@ -1116,7 +1122,7 @@ func LoadConnectEx() error {
 }
 
 func connectEx(s Handle, name unsafe.Pointer, namelen int32, sendBuf *byte, sendDataLen uint32, bytesSent *uint32, overlapped *Overlapped) (err error) {
-	r1, _, e1 := Syscall9(connectExFunc.addr, 7, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)), 0, 0)
+	r1, _, e1 := SyscallN(connectExFunc.addr, uintptr(s), uintptr(name), uintptr(namelen), uintptr(unsafe.Pointer(sendBuf)), uintptr(sendDataLen), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)))
 	if r1 == 0 {
 		if e1 != 0 {
 			err = error(e1)

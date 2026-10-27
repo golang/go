@@ -383,7 +383,15 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
 		// still must check that it is representable as the specific
 		// int type requested (was go.dev/issue/22969). Fall through here.
 	}
-	if old.val != nil {
+
+	// A parenthesized expression is the only expression for which updateExprType
+	// is called recursively when old.val != nil (the only other expressions where
+	// updateExprType recurses are unary and binary expressions, and there we don't
+	// recurse if old.val != nil). Thus, if we reach here, the constant value of a
+	// parenthesized expression was checked already and we don't need to check it again.
+	// Exclude them here. This avoids duplicate errors if the constant value of such
+	// an expression is not representable in the new type (was go.dev/issue/82087).
+	if _, isParen := x.(*syntax.ParenExpr); !isParen && old.val != nil {
 		// If x is a constant, it must be representable as a value of typ.
 		c := operand{old.mode, x, old.typ, old.val, 0}
 		check.convertUntyped(&c, typ)
@@ -634,9 +642,11 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 		xval = constant.ToInt(x.val)
 	}
 
-	if allInteger(x.typ()) || isUntyped(x.typ()) && xval != nil && xval.Kind() == constant.Int {
-		// The lhs is of integer type or an untyped constant representable
-		// as an integer. Nothing to do.
+	if allInteger(x.typ()) ||
+		isUntyped(x.typ()) && (xval != nil && xval.Kind() == constant.Int || xval == nil && isNumeric(x.typ())) {
+		// The lhs is of integer type, or it is an untyped constant
+		// representable as an integer, or a non-constant untyped
+		// numeric value. Nothing to do.
 	} else {
 		// shift has no chance
 		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
@@ -671,16 +681,21 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 	} else {
 		// Check that RHS is otherwise at least of integer type.
 		switch {
-		case allInteger(y.typ()):
-			if !allUnsigned(y.typ()) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
+		case isUntyped(y.typ()):
+			// Non-constant untyped shift counts are converted to uint
+			// (go.dev/issue/77117, go.dev/issue/79252, go.dev/issue/80983).
+			// Note: If we change our opinion on go.dev/issue/77177 and
+			//       decide a different type for the RHS (say int) is
+			//       correct, update RHStype accordingly.
+			RHStype := Typ[Uint]
+			check.convertUntyped(y, RHStype)
+			if !y.isValid() {
 				x.invalidate()
 				return
 			}
-		case isUntyped(y.typ()):
-			// This is incorrect, but preserves pre-existing behavior.
-			// See also go.dev/issue/47410.
-			check.convertUntyped(y, Typ[Uint])
-			if !y.isValid() {
+			fallthrough
+		case allInteger(y.typ()):
+			if !allUnsigned(y.typ()) && !check.verifyVersionf(y, go1_13, invalidOp+"signed shift count %s", y) {
 				x.invalidate()
 				return
 			}
@@ -734,7 +749,16 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// Delay operand checking until we know the final type
 			// by marking the lhs expression as lhs shift operand.
 			//
-			// Usually (in correct programs), the lhs expression
+			// Note 1 (subtle!): Mark info.isLhs on the unparenthesized
+			// expression, rather than the expression. Otherwise, in
+			// a case like "var _ float32 = (1 << 200) << s",
+			// updateExprType visits 1 << 200 (where isLhs is false)
+			// before (1 << 200) (where isLhs would be true) reporting
+			// two errors: "1 << 200 overflows float32" and "shifted
+			// operand must be integer". With this we only get the
+			// 2nd error.
+			//
+			// Note 2: Usually (in correct programs), the lhs expression
 			// is in the untyped map. However, it is possible to
 			// create incorrect programs where the same expression
 			// is evaluated twice (via a declaration cycle) such
@@ -745,21 +769,15 @@ func (check *Checker) shift(x, y *operand, e syntax.Expr, op syntax.Operator) {
 			// that node, and it can only be deleted once).
 			// Be cautious and check for presence of entry.
 			// Example: var e, f = int(1<<""[f]) // go.dev/issue/11347
-			if info, found := check.untyped[x.expr]; found {
+			lhs := syntax.Unparen(x.expr) // see Note 1
+			if info, found := check.untyped[lhs]; found {
 				info.isLhs = true
-				check.untyped[x.expr] = info
+				check.untyped[lhs] = info
 			}
 			// keep x's type
 			x.mode_ = value
 			return
 		}
-	}
-
-	// non-constant shift - lhs must be an integer
-	if !allInteger(x.typ()) {
-		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
-		x.invalidate()
-		return
 	}
 
 	x.mode_ = value

@@ -67,8 +67,8 @@ func Clean(path string) string {
 	volLen := volumeNameLen(path)
 	path = path[volLen:]
 	if path == "" {
-		if volLen > 1 && IsPathSeparator(originalPath[0]) && IsPathSeparator(originalPath[1]) {
-			// should be UNC
+		if volLen > 1 && IsPathSeparator(originalPath[0]) {
+			// should be UNC or a device path
 			return FromSlash(originalPath)
 		}
 		return originalPath + "."

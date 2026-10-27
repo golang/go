@@ -8,17 +8,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"net/netip"
 	"time"
 )
 
 func (c *Conn) handleDatagram(now time.Time, dgram *datagram) (handled bool) {
-	if !c.localAddr.IsValid() {
-		// We don't have any way to tell in the general case what address we're
-		// sending packets from. Set our address from the destination address of
-		// the first packet received from the peer.
-		c.localAddr = dgram.localAddr
-	}
-	if dgram.peerAddr.IsValid() && dgram.peerAddr != c.peerAddr {
+	if dgram.path.peer.IsValid() && dgram.path.peer != c.path.peer {
 		if c.side == clientSide {
 			// "If a client receives packets from an unknown server address,
 			// the client MUST discard these packets."
@@ -29,6 +24,13 @@ func (c *Conn) handleDatagram(now time.Time, dgram *datagram) (handled bool) {
 		// so for now the server also drops packets from an unknown address.
 		return false
 	}
+
+	// Servers can't change their local address.
+	// We don't support connection migration in the client yet.
+	// Therefore, the local address of our path can never change;
+	// override the datagram's value with what we expect.
+	dgram.path.local = c.path.local
+
 	buf := dgram.b
 	c.loss.datagramReceived(now, len(buf))
 	if c.isDraining() {
@@ -71,7 +73,7 @@ func (c *Conn) handleDatagram(now time.Time, dgram *datagram) (handled bool) {
 			if len(buf) == len(dgram.b) && len(buf) > statelessResetTokenLen {
 				var token statelessResetToken
 				copy(token[:], buf[len(buf)-len(token):])
-				if c.handleStatelessReset(now, token) {
+				if c.handleStatelessReset(now, token, dgram.path.peer) {
 					return true
 				}
 			}
@@ -621,8 +623,8 @@ func (c *Conn) handleHandshakeDoneFrame(now time.Time, space numberSpace, payloa
 
 var errStatelessReset = errors.New("received stateless reset")
 
-func (c *Conn) handleStatelessReset(now time.Time, resetToken statelessResetToken) (valid bool) {
-	if !c.connIDState.isValidStatelessResetToken(resetToken) {
+func (c *Conn) handleStatelessReset(now time.Time, resetToken statelessResetToken, peer netip.AddrPort) (valid bool) {
+	if !c.connIDState.isValidStatelessResetToken(resetToken, peer) {
 		return false
 	}
 	c.setFinalError(errStatelessReset)

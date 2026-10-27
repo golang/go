@@ -9,7 +9,6 @@ import (
 	"internal/cpu"
 	"internal/goarch"
 	"internal/goexperiment"
-	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/exithook"
 	"internal/runtime/maps"
@@ -1115,19 +1114,9 @@ func (mp *m) hasCgoOnStack() bool {
 	return mp.ncgo > 0 || mp.isextra
 }
 
-const (
-	// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
-	// typically on the order of 1 ms or more.
-	osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd" || GOOS == "plan9"
-
-	// osHasLowResClockInt is osHasLowResClock but in integer form, so it can be used to create
-	// constants conditionally.
-	osHasLowResClockInt = goos.IsWindows
-
-	// osHasLowResClock indicates that timestamps produced by nanotime on the platform have a
-	// low resolution, typically on the order of 1 ms or more.
-	osHasLowResClock = osHasLowResClockInt > 0
-)
+// osHasLowResTimer indicates that the platform's internal timer system has a low resolution,
+// typically on the order of 1 ms or more.
+const osHasLowResTimer = GOOS == "windows" || GOOS == "openbsd" || GOOS == "netbsd" || GOOS == "plan9"
 
 // Mark gp ready to run.
 func ready(gp *g, traceskip int, next bool) {
@@ -3397,6 +3386,16 @@ func execute(gp *g, inheritTime bool) {
 	if trace.ok() {
 		trace.GoStart()
 		traceRelease(trace)
+	}
+
+	// A safe-point request may have arrived after findRunnable checked
+	// for it, while this M had no running G for preemptone to preempt.
+	// Handle it before executing gp instead of waiting for a retry.
+	//
+	// Keep this after trace.GoStart: the safe-point function may itself
+	// emit trace events that assume gp has already been traced as running.
+	if mp.p.ptr().runSafePointFn != 0 {
+		runSafePointFn()
 	}
 
 	gogo(&gp.sched)

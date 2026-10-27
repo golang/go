@@ -222,7 +222,7 @@ func newosproc(mp *m) {
 	}
 
 	if pthread_attr_setstacksize(&attr, threadStackSize) != 0 {
-		throw("pthread_attr_getstacksize")
+		throw("pthread_attr_setstacksize")
 	}
 
 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {

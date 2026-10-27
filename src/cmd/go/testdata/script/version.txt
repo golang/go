@@ -76,6 +76,10 @@ stderr 'with -json flag requires -m flag'
 # Repeat the test with -buildmode=pie and default linking.
 [!buildmode:pie] stop
 [pielinkext] [!cgo] stop
+# On AIX, -buildmode=pie always requires external linking, and the resulting
+# XCOFF binaries use a section layout that prevents 'go version' from finding
+# the embedded build info.
+[GOOS:aix] stop 'go version cannot read build info from externally-linked PIE on AIX; See golang.org/issue/82208'
 go build -buildmode=pie -o external.exe rsc.io/fortune
 go version external.exe
 stdout '^external.exe: .+'

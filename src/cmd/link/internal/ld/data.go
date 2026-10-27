@@ -3325,6 +3325,28 @@ func (ctxt *Link) address() []*sym.Segment {
 		}
 	}
 
+	if ctxt.IsDarwin() {
+		// Now that we have symbol addresses, write the Mach-O symbol table.
+		// This goes to the LINKEDIT segment, which is before the DWARF segment
+		// when split DWARF is used. See also asmbMacho in macho.go.
+		machosymtab(ctxt)
+		if *FlagSplitDWARF && ctxt.IsInternal() {
+			// Shift the DWARF segment's Vaddr to after the LINKEDIT segment.
+			symtabSz := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+			symstrSz := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+			off := Rnd(symtabSz+symstrSz, *FlagRound)
+			Segdwarf.Vaddr += uint64(off)
+			for _, s := range Segdwarf.Sections {
+				s.Vaddr += uint64(off)
+			}
+			for _, si := range dwarfp {
+				for _, s := range si.syms {
+					ldr.AddToSymValue(s, off)
+				}
+			}
+		}
+	}
+
 	return order
 }
 
@@ -3334,8 +3356,13 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
 	var prev *sym.Segment
 	for _, seg := range order {
 		if seg == &Segdwarf && *FlagSplitDWARF && ctxt.IsInternal() {
-			// Segdwarf is written to a separate file, starting after the Mach-O header.
-			seg.Fileoff = uint64(Rnd(int64(HEADR), *FlagRound))
+			// Segdwarf is written to a separate file, starting after the Mach-O header
+			// and the __LINKEDIT segment (symbol table).
+			ldr := ctxt.loader
+			symtabSz := ldr.SymSize(ldr.Lookup(".machosymtab", 0))
+			symstrSz := ldr.SymSize(ldr.Lookup(".machosymstr", 0))
+			off := Rnd(int64(HEADR), *FlagRound)
+			seg.Fileoff = uint64(Rnd(off+symtabSz+symstrSz, *FlagRound))
 			seg.Filelen = seg.Length
 			continue
 		}

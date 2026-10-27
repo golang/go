@@ -81,6 +81,15 @@ func (op *Operand) encode() types.Operand {
 	if op.ElemBits > 0 {
 		out.ElemBits = new(op.ElemBits)
 	}
+	if op.Class == "immediate" {
+		// An immediate's range is stated in prose, which is passed on for
+		// simdgen to resolve.
+		out.EncodeBits = &types.VectorSize{NRaw: 8}
+		out.ImmOffset = new("0")
+		if op.immDesc != "" {
+			out.ImmDesc = new(op.immDesc)
+		}
+	}
 	if op.Predication != "" {
 		// "M" (merging) or "Z" (zeroing) for a governing predicate. Some SVE
 		// instructions support only one; this records which.
@@ -331,6 +340,11 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 					}
 				}
 				for i := range variant {
+					if variant[i].Type == OperandImm && variant[i].immLink != "" {
+						variant[i].immDesc = inst.explanationText(variant[i].immLink)
+					}
+				}
+				for i := range variant {
 					if variant[i].Class != "mask" {
 						continue
 					}
@@ -359,10 +373,52 @@ func (inst *Instruction) emitVariants(template []Operand) []*unify.Value {
 							}
 						}
 					}
-					defs = append(defs, inst.emitOne(asm, v, widthAgnostic))
+					defs = append(defs, inst.emitOne(goOpcode(asm, v), v, widthAgnostic))
 				}
 			}
 		}
 	}
 	return defs
+}
+
+// goOpcode returns the Go opcode of an encoding, base is the mnemonic
+// and ops are the operands of the encoding. The opcode is the mnemonic
+// In Go assembler, if a <V> register is present, the opcode is suffixed
+// with the size letter of the <V> register:
+// <V><d> => <d> is taken as the suffix, e.g. ZFADDV[HSD]
+// <Wn> => W is taken as the suffix, e.g. ZDUPW
+// <Dd> => D is taken as the suffix, e.g. ZUADDVD
+func goOpcode(base string, ops []Operand) string {
+	for _, op := range ops {
+		if op.Type != OperandVFP {
+			continue
+		}
+		switch {
+		case op.fixedBits == 0:
+			return base + sizeLetter(op.Bits)
+		case op.fixedBits == 64:
+			return base + "D"
+		}
+	}
+	for _, op := range ops {
+		if op.Type == OperandGReg && op.Bits == 32 {
+			return base + "W"
+		}
+	}
+	return base
+}
+
+// sizeLetter returns the arrangement letter of an element width.
+func sizeLetter(bits int) string {
+	switch bits {
+	case 8:
+		return "B"
+	case 16:
+		return "H"
+	case 32:
+		return "S"
+	case 64:
+		return "D"
+	}
+	panic(fmt.Sprintf("sve: no size letter for %d-bit elements", bits))
 }

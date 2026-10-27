@@ -154,9 +154,27 @@
 //
 // Pointer and slice types translate directly to the API.
 //
+// ### Vector widths and scalable execution
+//
+// Fixed vector widths are represented by [Width128], [Width256], and [Width512].
+// Scalable vectors are represented by [WidthScalable]. At the specification level,
+// scalable vector width is symbolic. To execute scalable operations in the spec
+// (for example, as an oracle or via simdref), the concrete bit width must be
+// configured via [SetScalableWidth] (up to 2048 bits, matching the architectural
+// maximum of ARM SVE); executing without setting the width panics.
+//
+// Calls to [SetScalableWidth] return a restore function and must follow a
+// strict set/restore sequence. Concurrency or nested sets panic.
+//
 // ## Documentation conventions
 //
 // Look at other functions in this package and try to follow their example.
+//
+// Be sure to document behavior in corner cases such as overflow, rounding, or
+// unusual floating-point values. The default assumed oveflow behavior for ints
+// and uints is that they wrap like in Go. Any deviation must be documented. If
+// rounding is possible, document the type of rounding (e.g., rounding toward
+// +/-∞, rounding toward 0, rounding ties to even, rounding ties away from 0).
 //
 // When feasible, doc comments should include a mathematical statement of the
 // operation. This should balance precision and clarity. We follow various

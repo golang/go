@@ -752,10 +752,12 @@ const (
 	CLONE_ARGS_SIZE_VER0                        = 0x40
 	CLONE_ARGS_SIZE_VER1                        = 0x50
 	CLONE_ARGS_SIZE_VER2                        = 0x58
+	CLONE_AUTOREAP                              = 0x400000000
 	CLONE_CHILD_CLEARTID                        = 0x200000
 	CLONE_CHILD_SETTID                          = 0x1000000
 	CLONE_CLEAR_SIGHAND                         = 0x100000000
 	CLONE_DETACHED                              = 0x400000
+	CLONE_EMPTY_MNTNS                           = 0x2000000000
 	CLONE_FILES                                 = 0x400
 	CLONE_FS                                    = 0x200
 	CLONE_INTO_CGROUP                           = 0x200000000
@@ -768,9 +770,11 @@ const (
 	CLONE_NEWTIME                               = 0x80
 	CLONE_NEWUSER                               = 0x10000000
 	CLONE_NEWUTS                                = 0x4000000
+	CLONE_NNP                                   = 0x800000000
 	CLONE_PARENT                                = 0x8000
 	CLONE_PARENT_SETTID                         = 0x100000
 	CLONE_PIDFD                                 = 0x1000
+	CLONE_PIDFD_AUTOKILL                        = 0x1000000000
 	CLONE_PTRACE                                = 0x2000
 	CLONE_SETTLS                                = 0x80000
 	CLONE_SIGHAND                               = 0x800
@@ -803,12 +807,15 @@ const (
 	DEVLINK_GENL_MCGRP_CONFIG_NAME              = "config"
 	DEVLINK_GENL_NAME                           = "devlink"
 	DEVLINK_GENL_VERSION                        = 0x1
+	DEVLINK_INDEX_BUS_NAME                      = "devlink_index"
 	DEVLINK_PORT_FN_CAP_IPSEC_CRYPTO            = 0x4
 	DEVLINK_PORT_FN_CAP_IPSEC_PACKET            = 0x8
 	DEVLINK_PORT_FN_CAP_MIGRATABLE              = 0x2
 	DEVLINK_PORT_FN_CAP_ROCE                    = 0x1
 	DEVLINK_RATE_TCS_MAX                        = 0x8
 	DEVLINK_RATE_TC_INDEX_MAX                   = 0x7
+	DEVLINK_RESOURCE_SCOPE_DEV                  = 0x1
+	DEVLINK_RESOURCE_SCOPE_PORT                 = 0x2
 	DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX           = 0x14
 	DEVLINK_SUPPORTED_FLASH_OVERWRITE_SECTIONS  = 0x3
 	DEVMEM_MAGIC                                = 0x454d444d
@@ -1127,6 +1134,7 @@ const (
 	ETHTOOL_SWOL                                = 0x6
 	ETHTOOL_TEST                                = 0x1a
 	ETH_P_1588                                  = 0x88f7
+	ETH_P_8021AC                                = 0x8870
 	ETH_P_8021AD                                = 0x88a8
 	ETH_P_8021AH                                = 0x88e7
 	ETH_P_8021Q                                 = 0x8100
@@ -1170,6 +1178,7 @@ const (
 	ETH_P_ETHERCAT                              = 0x88a4
 	ETH_P_FCOE                                  = 0x8906
 	ETH_P_FIP                                   = 0x8914
+	ETH_P_GRE_OSI                               = 0xfe
 	ETH_P_HDLC                                  = 0x19
 	ETH_P_HSR                                   = 0x892f
 	ETH_P_IBOE                                  = 0x8915
@@ -1198,6 +1207,7 @@ const (
 	ETH_P_MXLGSW                                = 0x88c3
 	ETH_P_NCSI                                  = 0x88f8
 	ETH_P_NSH                                   = 0x894f
+	ETH_P_NXP_NETC                              = 0xfd3a
 	ETH_P_PAE                                   = 0x888e
 	ETH_P_PAUSE                                 = 0x8808
 	ETH_P_PHONET                                = 0xf5
@@ -1359,6 +1369,7 @@ const (
 	FAN_UNLIMITED_MARKS                         = 0x20
 	FAN_UNLIMITED_QUEUE                         = 0x10
 	FD_CLOEXEC                                  = 0x1
+	FD_NSFS_ROOT                                = -0x2713
 	FD_PIDFS_ROOT                               = -0x2712
 	FD_SETSIZE                                  = 0x400
 	FF0                                         = 0x0
@@ -1427,6 +1438,8 @@ const (
 	FS_POLICY_FLAGS_PAD_8                       = 0x1
 	FS_POLICY_FLAGS_PAD_MASK                    = 0x3
 	FS_POLICY_FLAGS_VALID                       = 0x7
+	FS_SHUTDOWN_FLAGS_LOGFLUSH                  = 0x1
+	FS_SHUTDOWN_FLAGS_NOLOGFLUSH                = 0x2
 	FS_VERITY_FL                                = 0x100000
 	FS_VERITY_HASH_ALG_SHA256                   = 0x1
 	FS_VERITY_HASH_ALG_SHA512                   = 0x2
@@ -1441,6 +1454,7 @@ const (
 	F_DUPFD_CLOEXEC                             = 0x406
 	F_DUPFD_QUERY                               = 0x403
 	F_EXLCK                                     = 0x4
+	F_GETDELEG                                  = 0x40f
 	F_GETFD                                     = 0x1
 	F_GETFL                                     = 0x3
 	F_GETLEASE                                  = 0x401
@@ -1462,6 +1476,7 @@ const (
 	F_SEAL_SEAL                                 = 0x1
 	F_SEAL_SHRINK                               = 0x2
 	F_SEAL_WRITE                                = 0x8
+	F_SETDELEG                                  = 0x410
 	F_SETFD                                     = 0x2
 	F_SETFL                                     = 0x4
 	F_SETLEASE                                  = 0x400
@@ -1632,6 +1647,7 @@ const (
 	IN_UNMOUNT                                  = 0x2000
 	IOCTL_MEI_CONNECT_CLIENT                    = 0xc0104801
 	IOCTL_MEI_CONNECT_CLIENT_VTAG               = 0xc0144804
+	IPPROTO_AGGFRAG                             = 0x90
 	IPPROTO_AH                                  = 0x33
 	IPPROTO_BEETPH                              = 0x5e
 	IPPROTO_COMP                                = 0x6c
@@ -1913,10 +1929,14 @@ const (
 	LANDLOCK_ACCESS_FS_REFER                    = 0x2000
 	LANDLOCK_ACCESS_FS_REMOVE_DIR               = 0x10
 	LANDLOCK_ACCESS_FS_REMOVE_FILE              = 0x20
+	LANDLOCK_ACCESS_FS_RESOLVE_UNIX             = 0x10000
 	LANDLOCK_ACCESS_FS_TRUNCATE                 = 0x4000
 	LANDLOCK_ACCESS_FS_WRITE_FILE               = 0x2
 	LANDLOCK_ACCESS_NET_BIND_TCP                = 0x1
+	LANDLOCK_ACCESS_NET_BIND_UDP                = 0x4
+	LANDLOCK_ACCESS_NET_CONNECT_SEND_UDP        = 0x8
 	LANDLOCK_ACCESS_NET_CONNECT_TCP             = 0x2
+	LANDLOCK_ADD_RULE_QUIET                     = 0x1
 	LANDLOCK_CREATE_RULESET_ERRATA              = 0x2
 	LANDLOCK_CREATE_RULESET_VERSION             = 0x1
 	LANDLOCK_RESTRICT_SELF_LOG_NEW_EXEC_ON      = 0x2
@@ -3408,6 +3428,7 @@ const (
 	SCHED_FLAG_UTIL_CLAMP                       = 0x60
 	SCHED_FLAG_UTIL_CLAMP_MAX                   = 0x40
 	SCHED_FLAG_UTIL_CLAMP_MIN                   = 0x20
+	SCHED_GETATTR_FLAG_DL_DYNAMIC               = 0x1
 	SCHED_IDLE                                  = 0x5
 	SCHED_NORMAL                                = 0x0
 	SCHED_RESET_ON_FORK                         = 0x40000000
@@ -3790,6 +3811,14 @@ const (
 	TCPOPT_TIMESTAMP                            = 0x8
 	TCPOPT_TSTAMP_HDR                           = 0x101080a
 	TCPOPT_WINDOW                               = 0x3
+	TCP_ACCECN_ACE_FAIL_RECV                    = 0x2
+	TCP_ACCECN_ACE_FAIL_SEND                    = 0x1
+	TCP_ACCECN_OPT_COUNTER_SEEN                 = 0x2
+	TCP_ACCECN_OPT_EMPTY_SEEN                   = 0x1
+	TCP_ACCECN_OPT_FAIL_RECV                    = 0x8
+	TCP_ACCECN_OPT_FAIL_SEEN                    = 0x3
+	TCP_ACCECN_OPT_FAIL_SEND                    = 0x4
+	TCP_ACCECN_OPT_NOT_SEEN                     = 0x0
 	TCP_AO_KEYF_EXCLUDE_OPT                     = 0x2
 	TCP_AO_KEYF_IFINDEX                         = 0x1
 	TCP_AO_MAXKEYLEN                            = 0x50
@@ -3804,6 +3833,7 @@ const (
 	TCP_COOKIE_TRANSACTIONS                     = 0xf
 	TCP_CORK                                    = 0x3
 	TCP_DEFER_ACCEPT                            = 0x9
+	TCP_DELACK_MAX_US                           = 0x2e
 	TCP_FASTOPEN                                = 0x17
 	TCP_FASTOPEN_CONNECT                        = 0x1e
 	TCP_FASTOPEN_KEY                            = 0x21
@@ -3836,6 +3866,8 @@ const (
 	TCP_REPAIR_OPTIONS                          = 0x16
 	TCP_REPAIR_QUEUE                            = 0x14
 	TCP_REPAIR_WINDOW                           = 0x1d
+	TCP_RTO_MAX_MS                              = 0x2c
+	TCP_RTO_MIN_US                              = 0x2d
 	TCP_SAVED_SYN                               = 0x1c
 	TCP_SAVE_SYN                                = 0x1b
 	TCP_SYNCNT                                  = 0x7
