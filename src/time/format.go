@@ -1023,6 +1023,11 @@ func skip(value, prefix string) (string, error) {
 // same layout losslessly, but the exact instant used in the representation will
 // differ by the actual zone offset. To avoid such problems, prefer time layouts
 // that use a numeric zone offset, or use [ParseInLocation].
+//
+// A zone abbreviation may also be numeric, such as "+03" or "-0930", as used
+// in the IANA Time Zone database for zones without a common abbreviation.
+// If such an abbreviation is unknown, Parse uses the offset it denotes
+// rather than a zero offset.
 func Parse(layout, value string) (Time, error) {
 	// Optimize for RFC3339 as it accounts for over half of all representations.
 	if layout == RFC3339 || layout == RFC3339Nano {
@@ -1423,6 +1428,15 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
 		if len(zoneName) > 3 && zoneName[:3] == "GMT" {
 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
 			offset *= 3600
+		} else if zoneName[0] == '+' || zoneName[0] == '-' {
+			// A numeric abbreviation (±h, ±hh or ±hhmm) denotes its offset.
+			offset, _ = atoi(zoneName) // Guaranteed OK by parseNumericZone.
+			if len(zoneName) == 5 {
+				offset = offset/100*3600 + offset%100*60
+			} else {
+				offset *= 3600
+			}
+			t.addSec(-int64(offset))
 		}
 		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
 		t.setLoc(FixedZone(zoneNameCopy, offset))
@@ -1456,10 +1470,11 @@ func parseTimeZone(value string) (length int, ok bool) {
 		length = parseGMT(value)
 		return length, true
 	}
-	// Special Case 3: Some time zones are not named, but have +/-00 format
+	// Special Case 3: Some time zones are not named, but have a
+	// numeric abbreviation such as +03 or -0930.
 	if value[0] == '+' || value[0] == '-' {
-		length = parseSignedOffset(value)
-		ok := length > 0 // parseSignedOffset returns 0 in case of bad input
+		length = parseNumericZone(value)
+		ok := length > 0 // parseNumericZone returns 0 in case of bad input
 		return length, ok
 	}
 	// How many upper-case letters are there? Need at least three, at most five.
@@ -1520,6 +1535,31 @@ func parseSignedOffset(value string) int {
 		return 0
 	}
 	return len(value) - len(rem)
+}
+
+// parseNumericZone parses a numeric time zone abbreviation, such as "+03"
+// or "-0930", as used in the IANA Time Zone database for zones without a
+// common abbreviation: a sign followed by one or two digits of hours, or by
+// four digits of hours and minutes, with hours at most 23 and minutes at
+// most 59. Unlike an offset following GMT (see parseGMT), it may include
+// minutes. The input is known to start with a sign.
+// It returns the length of the abbreviation, or 0 if there is none.
+func parseNumericZone(value string) int {
+	x, rem, err := leadingInt(value[1:])
+	if err != nil {
+		return 0
+	}
+	switch n := len(value) - 1 - len(rem); n {
+	case 1, 2:
+		if x <= 23 {
+			return 1 + n
+		}
+	case 4:
+		if x/100 <= 23 && x%100 <= 59 {
+			return 5
+		}
+	}
+	return 0
 }
 
 func commaOrPeriod(b byte) bool {
