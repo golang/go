@@ -552,10 +552,10 @@ func init() {
 		{
 			name:      "LoweredZero",
 			aux:       "Int64",
-			argLength: 3,
+			argLength: 2,
 			reg: regInfo{
-				inputs:   []regMask{buildReg("R20"), vmxReg},
-				clobbers: buildReg("R20"),
+				inputs:   []regMask{buildReg("R20")},
+				clobbers: buildReg("R20 V0"),
 			},
 			clobberFlags:   true,
 			typ:            "Mem",

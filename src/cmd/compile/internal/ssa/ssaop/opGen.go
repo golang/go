@@ -101616,17 +101616,16 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:           "LoweredZero",
 		AuxType:        AuxTypeInt64,
-		ArgLen:         3,
+		ArgLen:         2,
 		ClobberFlags:   true,
 		FaultOnNilArg0: true,
 		AddrSinkArg0:   true,
 		unsafePoint:    true,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
-				{0, RegMask{V1: 1048576, V2: 0}},    // R20
-				{1, RegMask{V1: 0, V2: 4294967295}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31
+				{0, RegMask{V1: 1048576, V2: 0}}, // R20
 			},
-			Clobbers: RegMask{V1: 1048576, V2: 0}, // R20
+			Clobbers: RegMask{V1: 1048576, V2: 1}, // R20 V0
 		},
 	},
 	{
