@@ -304,7 +304,11 @@ var parseTests = []ParseTest{
 
 	// GMT with offset.
 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
-	{"GMT-0800", UnixDate, "Fri Feb  5 05:00:57 GMT-0800 2010", true, true, 1, 0},
+	// GMT followed by a numeric zone offset.
+	{"GMT-0800", "Mon Jan _2 15:04:05 MST-0700 2006", "Thu Feb  4 21:00:57 GMT-0800 2010", true, true, 1, 0},
+	// A numeric zone abbreviation denotes its offset; see issue 26032.
+	{"numeric abbreviation", "Mon Jan _2 15:04:05 MST 2006", "Thu Feb  4 21:00:57 -08 2010", true, true, 1, 0},
+	{"RFC1123 numeric zone", RFC1123, "Thu, 04 Feb 2010 21:00:57 -0800", true, true, 1, 0},
 
 	// Accept any number of fractional second digits (including none) for .999...
 	// In Go 1, .999... was completely ignored in the format, meaning the first two
@@ -620,18 +624,23 @@ var parseTimeZoneTests = []ParseTimeZoneTest{
 	{"+24", 0, false},
 	{"+0000", 5, true},
 	{"+0430", 5, true},
-	{"-0930", 5, true},
-	{"-2359", 5, true},
+	{"-0930 hi", 5, true},
+	{"+2359", 5, true},
+	{"-2400", 0, false},
+	{"+2530", 0, false},
+	{"+0060", 0, false},
+	{"-0099", 0, false},
 	{"+000", 0, false},
 	{"+001", 0, false},
-	{"-2400", 0, false},
-	{"+2400", 0, false},
-	{"+2530", 0, false},
 	{"+00451", 0, false},
 	{"+09999", 0, false},
 	{"+999999", 0, false},
 	{"-000999999", 0, false},
 	{"0bbb", 0, false},
+	// GMT takes only an hour offset, leaving a four-digit
+	// offset for a following numeric offset element.
+	{"GMT+0530", 3, true},
+	{"GMT-0800 hi", 3, true},
 }
 
 func TestParseTimeZone(t *testing.T) {
@@ -645,36 +654,42 @@ func TestParseTimeZone(t *testing.T) {
 	}
 }
 
-func TestParseGMTHHMMOffset(t *testing.T) {
-	// A GMT zone may carry an hour or hour-minute offset; the resulting
-	// fixed zone must record the correct number of seconds east of UTC,
-	// and malformed offsets must be rejected. See #26032.
+func TestParseNumericZoneAbbreviation(t *testing.T) {
+	// A numeric zone abbreviation that the location does not define
+	// denotes its offset. See issue 26032.
 	for _, tt := range []struct {
-		zone    string
+		name    string
+		value   string
+		loc     *Location
 		offset  int
 		wantErr bool
 	}{
-		{zone: "GMT+7", offset: 7 * 3600},
-		{zone: "GMT-5", offset: -5 * 3600},
-		{zone: "GMT+0630", offset: 6*3600 + 30*60},
-		{zone: "GMT-0930", offset: -(9*3600 + 30*60)},
-		{zone: "GMT+09999", wantErr: true},
-		{zone: "GMT-000999999", wantErr: true},
-		{zone: "GMT+999999", wantErr: true},
+		{name: "hours", value: "+03", loc: UTC, offset: 3 * 60 * 60},
+		{name: "hours and minutes", value: "-0930", loc: UTC, offset: -(9*60*60 + 30*60)},
+		{name: "unknown", value: "+0545", loc: UTC, offset: 5*60*60 + 45*60},
+		{name: "known", value: "+0545", loc: FixedZone("+0545", 5*60*60+45*60), offset: 5*60*60 + 45*60},
+		{name: "defined by location", value: "+0545", loc: FixedZone("+0545", 60*60), offset: 60 * 60},
+		{name: "three digits", value: "+055", loc: UTC, wantErr: true},
+		{name: "five digits", value: "+05450", loc: UTC, wantErr: true},
+		{name: "hours out of range", value: "-2400", loc: UTC, wantErr: true},
+		{name: "minutes out of range", value: "+0560", loc: UTC, wantErr: true},
 	} {
-		t.Run(tt.zone, func(t *testing.T) {
-			tm, err := Parse("2006 MST", "2010 "+tt.zone)
+		t.Run(tt.name, func(t *testing.T) {
+			tm, err := ParseInLocation("2006 MST", "2010 "+tt.value, tt.loc)
 			if tt.wantErr {
 				if err == nil {
-					t.Fatalf("Parse(%q) = %v, want error", tt.zone, tm)
+					t.Fatalf("ParseInLocation(%q) = %v, want error", tt.value, tm)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("Parse(%q) failed: %v", tt.zone, err)
+				t.Fatalf("ParseInLocation(%q): %v", tt.value, err)
 			}
-			if _, offset := tm.Zone(); offset != tt.offset {
-				t.Errorf("offset = %d, want %d", offset, tt.offset)
+			if name, offset := tm.Zone(); name != tt.value || offset != tt.offset {
+				t.Errorf("ParseInLocation(%q) zone = %q, %d; want %q, %d", tt.value, name, offset, tt.value, tt.offset)
+			}
+			if want := Date(2010, January, 1, 0, 0, 0, 0, FixedZone("", tt.offset)); !tm.Equal(want) {
+				t.Errorf("ParseInLocation(%q) = %v, want %v", tt.value, tm, want)
 			}
 		})
 	}
