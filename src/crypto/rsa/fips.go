@@ -245,15 +245,18 @@ func encryptOAEP(hash hash.Hash, mgfHash hash.Hash, random io.Reader, pub *Publi
 	boring.UnreachableExceptTests()
 
 	hash = fips140hash.Unwrap(hash)
+	mgfHash = fips140hash.Unwrap(mgfHash)
 
 	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
 		return nil, err
 	}
-	if fips140only.Enforced() && !fips140only.ApprovedHash(hash) {
-		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
-	}
-	if fips140only.Enforced() && !fips140only.ApprovedRandomReader(random) {
-		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+	if fips140only.Enforced() {
+		if !fips140only.ApprovedHash(hash) || !fips140only.ApprovedHash(mgfHash) {
+			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+		}
+		if !fips140only.ApprovedRandomReader(random) {
+			return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+		}
 	}
 
 	k, err := fipsPublicKey(pub)
