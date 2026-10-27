@@ -25,6 +25,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
 	if bits < 32 {
 		return nil, errors.New("rsa: key too small")
 	}
+	fipsSelfTest()
 	fips140.RecordApproved()
 	if bits < 2048 || bits%2 == 1 {
 		fips140.RecordNonApproved()

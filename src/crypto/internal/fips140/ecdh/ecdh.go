@@ -137,6 +137,7 @@ var p521Order = []byte{0x01, 0xff,
 
 // GenerateKey generates a new ECDSA private key pair for the specified curve.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+	fipsSelfTest()
 	fips140.RecordApproved()
 	// This procedure is equivalent to Key Pair Generation by Testing
 	// Candidates, specified in NIST SP 800-56A Rev. 3, Section 5.6.1.2.2.
@@ -187,6 +188,8 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
 }
 
 func NewPrivateKey[P Point[P]](c *Curve[P], key []byte) (*PrivateKey, error) {
+	fipsSelfTest()
+
 	// SP 800-56A Rev. 3, Section 5.6.1.2.2 checks that c <= n – 2 and then
 	// returns d = c + 1. Note that it follows that 0 < d < n. Equivalently,
 	// we check that 0 < d < n, and return d.
