@@ -27,7 +27,6 @@ func Extract[H hash.Hash](h func() H, secret, salt []byte) []byte {
 func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLen int) []byte {
 	out := make([]byte, 0, keyLen)
 	expander := hmac.New(h, pseudorandomKey)
-	hmac.MarkAsUsedInKDF(expander)
 	var counter uint8
 	var buf []byte
 
