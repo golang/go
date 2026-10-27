@@ -1331,18 +1331,29 @@ func (re *Regexp) Split(s string, n int) []string {
 	return collect(re.splitSeq(s, n), n)
 }
 
+// collect returns the elements of seq, which yields at most n of them
+// if n >= 0, or nil if there are none.
+// collect inlines, so seq does not escape, and it allocates only
+// once seq yields an element.
 func collect[T any](seq iter.Seq[T], n int) []T {
-	if n < 0 {
-		n = 8
-	} else if n > 256 {
-		n = 256
-	}
-	s := make([]T, 0, n)
-	s = slices.AppendSeq(s, seq)
-	if len(s) == 0 {
-		return nil
+	var s []T
+	for v := range seq {
+		if s == nil {
+			s = make([]T, 0, collectCap(n))
+		}
+		s = append(s, v)
 	}
 	return s
+}
+
+// collectCap returns the initial capacity for collect.
+// It is bounded because n may be far larger than the number of elements.
+// collectCap is split out to keep collect inlineable.
+func collectCap(n int) int {
+	if n < 0 {
+		return 8
+	}
+	return min(n, 256)
 }
 
 // AppendText implements [encoding.TextAppender]. The output

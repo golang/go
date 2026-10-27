@@ -6,6 +6,8 @@ package regexp
 
 import (
 	"bytes"
+	"internal/race"
+	"internal/testenv"
 	"reflect"
 	"regexp/syntax"
 	"slices"
@@ -629,6 +631,40 @@ func BenchmarkFind(b *testing.B) {
 		if string(subs) != wantSubs {
 			b.Fatalf("Find(%q) = %q; want %q", s, subs, wantSubs)
 		}
+	}
+}
+
+func TestFindAllNoMatchAllocs(t *testing.T) {
+	if race.Enabled {
+		t.Skip("The race detector randomly drops pooled objects.")
+	}
+	if testenv.OptimizationOff() {
+		t.Skip("skipping test with optimizations disabled")
+	}
+	re := MustCompile("a+b+")
+	text := "acddee"
+	data := []byte(text)
+	for _, test := range []struct {
+		name string
+		find func() bool
+	}{
+		{"FindAll", func() bool { return re.FindAll(data, -1) == nil }},
+		{"FindAllString", func() bool { return re.FindAllString(text, -1) == nil }},
+		{"FindAllIndex", func() bool { return re.FindAllIndex(data, -1) == nil }},
+		{"FindAllStringIndex", func() bool { return re.FindAllStringIndex(text, -1) == nil }},
+		{"FindAllSubmatch", func() bool { return re.FindAllSubmatch(data, -1) == nil }},
+		{"FindAllStringSubmatch", func() bool { return re.FindAllStringSubmatch(text, -1) == nil }},
+		{"FindAllSubmatchIndex", func() bool { return re.FindAllSubmatchIndex(data, -1) == nil }},
+		{"FindAllStringSubmatchIndex", func() bool { return re.FindAllStringSubmatchIndex(text, -1) == nil }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if !test.find() {
+				t.Fatal("got non-nil result, want nil")
+			}
+			if n := testing.AllocsPerRun(100, func() { test.find() }); n != 0 {
+				t.Errorf("got %v allocs, want 0", n)
+			}
+		})
 	}
 }
 
