@@ -60216,7 +60216,7 @@ func rewriteValue_OpAMD64VPANDN128(v *ssa.Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (VPANDN128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec8x16 (KANDNW x y))
+	// result: (VPMOVMToVec8x16 (KANDNW y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec8x16 {
 			break
@@ -60231,13 +60231,13 @@ func rewriteValue_OpAMD64VPANDN128(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec8x16)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNW, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec16x8 (KANDNB x y))
+	// result: (VPMOVMToVec16x8 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec16x8 {
 			break
@@ -60252,13 +60252,13 @@ func rewriteValue_OpAMD64VPANDN128(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec16x8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec32x4 (KANDNB x y))
+	// result: (VPMOVMToVec32x4 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec32x4 {
 			break
@@ -60273,13 +60273,13 @@ func rewriteValue_OpAMD64VPANDN128(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec32x4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec64x2 (KANDNB x y))
+	// result: (VPMOVMToVec64x2 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec64x2 {
 			break
@@ -60294,7 +60294,7 @@ func rewriteValue_OpAMD64VPANDN128(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec64x2)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
@@ -60329,7 +60329,7 @@ func rewriteValue_OpAMD64VPANDN256(v *ssa.Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (VPANDN256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec8x32 (KANDND x y))
+	// result: (VPMOVMToVec8x32 (KANDND y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec8x32 {
 			break
@@ -60344,13 +60344,13 @@ func rewriteValue_OpAMD64VPANDN256(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec8x32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDND, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec16x16 (KANDNW x y))
+	// result: (VPMOVMToVec16x16 (KANDNW y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec16x16 {
 			break
@@ -60365,13 +60365,13 @@ func rewriteValue_OpAMD64VPANDN256(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec16x16)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNW, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec32x8 (KANDNB x y))
+	// result: (VPMOVMToVec32x8 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec32x8 {
 			break
@@ -60386,13 +60386,13 @@ func rewriteValue_OpAMD64VPANDN256(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec32x8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDN256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec64x4 (KANDNB x y))
+	// result: (VPMOVMToVec64x4 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec64x4 {
 			break
@@ -60407,7 +60407,7 @@ func rewriteValue_OpAMD64VPANDN256(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec64x4)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
@@ -60442,7 +60442,7 @@ func rewriteValue_OpAMD64VPANDND512(v *ssa.Value) bool {
 	typ := &b.Func.Config.Types
 	// match: (VPANDND512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec8x64 (KANDNQ x y))
+	// result: (VPMOVMToVec8x64 (KANDNQ y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec8x64 {
 			break
@@ -60457,13 +60457,13 @@ func rewriteValue_OpAMD64VPANDND512(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec8x64)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNQ, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDND512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec16x32 (KANDND x y))
+	// result: (VPMOVMToVec16x32 (KANDND y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec16x32 {
 			break
@@ -60478,13 +60478,13 @@ func rewriteValue_OpAMD64VPANDND512(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec16x32)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDND, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDND512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec32x16 (KANDNW x y))
+	// result: (VPMOVMToVec32x16 (KANDNW y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec32x16 {
 			break
@@ -60499,13 +60499,13 @@ func rewriteValue_OpAMD64VPANDND512(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec32x16)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNW, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}
 	// match: (VPANDND512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
-	// result: (VPMOVMToVec64x8 (KANDNB x y))
+	// result: (VPMOVMToVec64x8 (KANDNB y x))
 	for {
 		if v_0.Op != ssaop.OpAMD64VPMOVMToVec64x8 {
 			break
@@ -60520,7 +60520,7 @@ func rewriteValue_OpAMD64VPANDND512(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64VPMOVMToVec64x8)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDNB, typ.Mask)
-		v0.AddArg2(x, y)
+		v0.AddArg2(y, x)
 		v.AddArg(v0)
 		return true
 	}

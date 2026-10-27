@@ -1541,10 +1541,11 @@ func init() {
 		{name: "KANDD", argLength: 2, reg: k2k, asm: "KANDD", typ: "Mask"},
 		{name: "KANDQ", argLength: 2, reg: k2k, asm: "KANDQ", typ: "Mask"},
 
-		{name: "KANDNB", argLength: 2, reg: k2k, asm: "KANDNB", typ: "Mask"},
-		{name: "KANDNW", argLength: 2, reg: k2k, asm: "KANDNW", typ: "Mask"},
-		{name: "KANDND", argLength: 2, reg: k2k, asm: "KANDND", typ: "Mask"},
-		{name: "KANDNQ", argLength: 2, reg: k2k, asm: "KANDNQ", typ: "Mask"},
+		// Like ANDNQ, and unlike VPANDN, KANDN computes arg0 &^ arg1.
+		{name: "KANDNB", argLength: 2, reg: k2k, asm: "KANDNB", typ: "Mask"}, // arg0 &^ arg1
+		{name: "KANDNW", argLength: 2, reg: k2k, asm: "KANDNW", typ: "Mask"}, // arg0 &^ arg1
+		{name: "KANDND", argLength: 2, reg: k2k, asm: "KANDND", typ: "Mask"}, // arg0 &^ arg1
+		{name: "KANDNQ", argLength: 2, reg: k2k, asm: "KANDNQ", typ: "Mask"}, // arg0 &^ arg1
 
 		{name: "KORB", argLength: 2, reg: k2k, asm: "KORB", typ: "Mask"},
 		{name: "KORW", argLength: 2, reg: k2k, asm: "KORW", typ: "Mask"},

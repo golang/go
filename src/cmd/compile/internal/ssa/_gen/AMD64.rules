@@ -1800,14 +1800,16 @@
 (KANDW (VCMPPS512 [3] x x) (VCMPPS512 [3] y y)) => (VCMPPS512 [3] x y) // 512 = 32x16 -> KANDW
 
 // These larger simplifying rules must come before the smaller simplifying rules that might break them).
+// Note that (VPANDN x y) computes ^x & y, while (KANDN x y) computes x & ^y,
+// so the AndNot rules swap the operands.
 // Rewrite rules for binary logical mask operations that apply to 8-bit elements (B, for bytes) of 128, 256, and 512-bit vectors
 (VPAND128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDW x y))
 (VPAND256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDD x y))
 (VPANDD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDQ x y))
 
-(VPANDN128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDNW x y))
-(VPANDN256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDND x y))
-(VPANDND512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDNQ x y))
+(VPANDN128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDNW y x))
+(VPANDN256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDND y x))
+(VPANDND512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDNQ y x))
 
 (VPOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KORW x y))
 (VPOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KORD x y))
@@ -1826,9 +1828,9 @@
 (VPAND256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDW x y))
 (VPANDD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDD x y))
 
-(VPANDN128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDNW x y))
-(VPANDND512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDND x y))
+(VPANDN128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDNW y x))
+(VPANDND512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDND y x))
 
 (VPOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KORB x y))
 (VPOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KORW x y))
@@ -1847,9 +1849,9 @@
 (VPAND256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDB x y))
 (VPANDD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDW x y))
 
-(VPANDN128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDNB x y))
-(VPANDND512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDNW x y))
+(VPANDN128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDNB y x))
+(VPANDND512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDNW y x))
 
 (VPOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KORB x y))
 (VPOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KORB x y))
@@ -1868,9 +1870,9 @@
 (VPAND256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDB x y))
 (VPANDD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDB x y))
 
-(VPANDN128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDNB x y))
-(VPANDND512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDNB x y))
+(VPANDN128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDNB y x))
+(VPANDND512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDNB y x))
 
 (VPOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KORB x y))
 (VPOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KORB x y))
