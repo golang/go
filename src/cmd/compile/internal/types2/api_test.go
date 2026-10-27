@@ -3200,6 +3200,52 @@ func (recv T) f(param int) (result int) {
 	}
 }
 
+func TestIssue73871(t *testing.T) {
+	t.Parallel()
+	const src = `package p
+
+func f[T ~[]byte](y T) []byte { return append([]byte(nil), y...) }
+
+type B []byte
+var _ = f[B]
+`
+	f := mustParse(src)
+
+	pkg := NewPackage("p", "p")
+	info := &Info{Types: make(map[syntax.Expr]TypeAndValue)}
+	check := NewChecker(&Config{}, pkg, info)
+	if err := check.Files([]*syntax.File{f}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check type inferred for 'append'.
+	//
+	// Before CL 688815, the inferred type of append's y parameter
+	// was T. When a client such as x/tools/go/ssa instantiated T=B,
+	// it would result in the Signature "func([]byte, B)" with the
+	// variadic flag set, an invalid combination that caused
+	// NewSignatureType to panic.
+	append := f.DeclList[0].(*syntax.FuncDecl).Body.List[0].(*syntax.ReturnStmt).Results.(*syntax.CallExpr).Fun
+	tAppend := info.TypeOf(append).(*Signature)
+	if got, want := fmt.Sprint(tAppend), "func([]byte, ...byte) []byte"; got != want {
+		// Before CL 688815, tAppend was func([]byte, T) []byte,
+		// where T prints as "<expected string type>".
+		t.Errorf("append: got type %s, want %s", got, want)
+	}
+
+	// Instantiate the type inferred for append(...) at T=B.
+	// Before the fix in CL 689277, NewSignatureType would panic.
+	params := make([]*Var, tAppend.Params().Len())
+	for i := range params {
+		params[i] = tAppend.Params().At(i)
+	}
+	params[1] = NewVar(nopos, pkg, "", pkg.Scope().Lookup("B").Type())
+	sig := NewSignatureType(nil, nil, nil, NewTuple(params...), tAppend.Results(), true)
+	if got, want := fmt.Sprint(sig), "func([]byte, p.B...) []byte"; got != want {
+		t.Errorf("instantiated: got type %s, want %s", got, want)
+	}
+}
+
 func TestIssue79657(t *testing.T) {
 	t.Parallel()
 	src := `package p
