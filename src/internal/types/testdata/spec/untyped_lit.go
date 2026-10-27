@@ -475,9 +475,8 @@ func _() {
 	_ = { /* ERROR "missing type in composite literal" */ 1} == s
 
 	// switch cases
-	// TODO(gri) these should work
 	switch s {
-	case { /* ERROR "missing type in composite literal" */ 1}:
+	case {1}:
 	}
 
 	// built-in functions where untyped composite literals are allowed

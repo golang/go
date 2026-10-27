@@ -234,10 +234,14 @@ type (
 )
 
 func (check *Checker) caseValues(x *operand, values []syntax.Expr, seen valueMap) {
+	var T *target
+	if x.isValid() {
+		T = newTarget(x.typ(), "case")
+	}
 L:
 	for _, e := range values {
 		var v operand
-		check.expr(nil, &v, e)
+		check.expr(T, &v, e)
 		if !x.isValid() || !v.isValid() {
 			continue L
 		}
