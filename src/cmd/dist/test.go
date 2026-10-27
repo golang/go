@@ -1416,30 +1416,7 @@ func (t *tester) runPending(nextTest *distTest) {
 		}(w)
 	}
 
-	var maxbg = 4 /* maximum number of jobs to run at once */
-	if gohostarch == "arm" || gohostarch == "mips64" || gohostarch == "mips64le" {
-		maxbg = min(maxbg, runtime.NumCPU())
-	}
-	if runtime.GOMAXPROCS(0) == 1 {
-		maxbg = 1
-	}
-
-	// for runtime.NumCPU() < 4 ||  runtime.GOMAXPROCS(0) == 1, do not change maxbg.
-	// Because there is not enough CPU to parallel the testing of multiple packages.
-	if runtime.NumCPU() > 4 && runtime.GOMAXPROCS(0) != 1 {
-		for _, w := range worklist {
-			// See go.dev/issue/65164
-			// because GOMAXPROCS=2 runtime CPU usage is low,
-			// so increase maxbg to avoid slowing down execution with low CPU usage.
-			// This makes testing a single package slower,
-			// but testing multiple packages together faster.
-			if strings.Contains(w.dt.heading, "GOMAXPROCS=2 runtime") {
-				maxbg = runtime.NumCPU()
-				break
-			}
-		}
-	}
-
+	maxbg := runtime.GOMAXPROCS(0)
 	started := 0
 	ended := 0
 	var last *distTest
