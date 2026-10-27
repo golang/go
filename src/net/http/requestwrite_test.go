@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -777,6 +778,42 @@ func TestRequestWrite(t *testing.T) {
 				continue
 			}
 		}
+	}
+}
+
+// Header values for Host, Content-Length, Transfer-Encoding and Trailer
+// are not used, regardless of the case of their keys. Issue 81208.
+func TestRequestWriteNonCanonicalDerivedHeaders(t *testing.T) {
+	header := Header{
+		"host":              {"other.example"},
+		"content-length":    {"0"},
+		"TRANSFER-ENCODING": {"chunked"},
+		"trailer":           {"X-Trailer"},
+		"x-foo":             {"bar"}, // other keys are written as they are
+	}
+	req := &Request{
+		Method:        "POST",
+		URL:           mustParseURL("/"),
+		Host:          "example.com",
+		Header:        header.Clone(),
+		ContentLength: 5,
+		Body:          io.NopCloser(strings.NewReader("abcde")),
+	}
+	var buf strings.Builder
+	if err := req.Write(&buf); err != nil {
+		t.Fatal(err)
+	}
+	want := "POST / HTTP/1.1\r\n" +
+		"Host: example.com\r\n" +
+		"User-Agent: Go-http-client/1.1\r\n" +
+		"Content-Length: 5\r\n" +
+		"x-foo: bar\r\n\r\n" +
+		"abcde"
+	if got := buf.String(); got != want {
+		t.Errorf("Write:\n%s\nwant:\n%s", got, want)
+	}
+	if !reflect.DeepEqual(req.Header, header) {
+		t.Errorf("Write changed Header to %v, want %v", req.Header, header)
 	}
 }
 
