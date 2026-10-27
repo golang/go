@@ -142,6 +142,7 @@ func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
 }
 
 func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKey1024, error) {
+	fipsSelfTest()
 	if len(seed) != SeedSize {
 		return nil, errors.New("mlkem: invalid seed length")
 	}
