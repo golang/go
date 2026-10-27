@@ -789,7 +789,7 @@ func (re *Regexp) matches(s string, b []byte, max, ncap int) iter.Seq[[]int] {
 			prevMatchEnd = matches[1]
 
 			if accept {
-				if !yield(re.pad(matches)) {
+				if !yield(matches) {
 					return
 				}
 				if max > 0 {
@@ -971,6 +971,7 @@ func (re *Regexp) allStringIndex(s string, n int) iter.Seq[[]int] {
 func (re *Regexp) allSubmatch(b []byte, n int) iter.Seq[[][]byte] {
 	return func(yield func([][]byte) bool) {
 		for m := range re.matches("", b, n, re.prog.NumCap) {
+			m = re.pad(m)
 			sub := make([][]byte, len(m)/2)
 			for i := range sub {
 				if m[2*i] >= 0 {
@@ -989,6 +990,7 @@ func (re *Regexp) allSubmatch(b []byte, n int) iter.Seq[[][]byte] {
 func (re *Regexp) allStringSubmatch(s string, n int) iter.Seq[[]string] {
 	return func(yield func([]string) bool) {
 		for m := range re.matches(s, nil, n, re.prog.NumCap) {
+			m = re.pad(m)
 			sub := make([]string, len(m)/2)
 			for i := range sub {
 				if m[2*i] >= 0 {
@@ -1007,6 +1009,7 @@ func (re *Regexp) allStringSubmatch(s string, n int) iter.Seq[[]string] {
 func (re *Regexp) allSubmatchIndex(b []byte, n int) iter.Seq[[]int] {
 	return func(yield func([]int) bool) {
 		for m := range re.matches("", b, n, re.prog.NumCap) {
+			m = re.pad(m)
 			if !yield(slices.Clone(m)) {
 				break
 			}
@@ -1019,6 +1022,7 @@ func (re *Regexp) allSubmatchIndex(b []byte, n int) iter.Seq[[]int] {
 func (re *Regexp) allStringSubmatchIndex(s string, n int) iter.Seq[[]int] {
 	return func(yield func([]int) bool) {
 		for m := range re.matches(s, nil, n, re.prog.NumCap) {
+			m = re.pad(m)
 			if !yield(slices.Clone(m)) {
 				break
 			}
