@@ -31,8 +31,8 @@ import (
 //
 // The buffer content is terminated at buf[e] with the sentinel
 // character utf8.RuneSelf. This makes it possible to test for
-// the common case of ASCII characters with a single 'if' (see
-// nextch method).
+// the common case of non-NUL ASCII characters and end of buffer
+// with a simple 'if' condition (see nextch method).
 //
 //                +------ content in use -------+
 //                v                             v
@@ -118,14 +118,10 @@ redo:
 		s.col = 0
 	}
 
-	// fast common case: at least one ASCII character
-	if s.ch = rune(s.buf[s.r]); s.ch < sentinel {
+	// fast common case: at least one non-NUL ASCII character
+	if s.ch = rune(s.buf[s.r]); 0 < s.ch && s.ch < sentinel {
 		s.r++
 		s.chw = 1
-		if s.ch == 0 {
-			s.error("invalid NUL character")
-			goto redo
-		}
 		return
 	}
 
@@ -154,7 +150,8 @@ redo:
 		goto redo
 	}
 
-	// after buffer refill, the first byte may be NUL (go.dev/issue/81632)
+	// NUL characters are not allowed
+	// (slow case, or first character after buffer refill, go.dev/issue/81632)
 	if s.ch == 0 {
 		s.error("invalid NUL character")
 		goto redo
