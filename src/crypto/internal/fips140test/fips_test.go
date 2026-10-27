@@ -224,6 +224,15 @@ func TestFIPS140(t *testing.T) {
 		t.Logf("HMAC output: %x", out)
 	})
 
+	t.Run("HMAC w/ Keccak-256 [NOT APPROVED]", func(t *testing.T) {
+		cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+		ensureServiceIndicatorFalse(t)
+		h := hmac.New(sha3.NewLegacyKeccak256, plaintext)
+		h.Write(plaintext)
+		out := h.Sum(nil)
+		t.Logf("HMAC w/ Keccak-256 output: %x", out)
+	})
+
 	t.Run("ML-KEM KeyGen, Encap, Decap", func(t *testing.T) {
 		ensureServiceIndicator(t)
 		k, err := mlkem.GenerateKey768()
@@ -267,6 +276,14 @@ func TestFIPS140(t *testing.T) {
 
 		err = rsa.VerifyPSS(rsaKey.PublicKey(), sha256.New(), plaintextSHA256, sig)
 		fatalIfErr(t, err)
+	})
+
+	t.Run("RSA SigGen PSS w/ Keccak-256 [NOT APPROVED]", func(t *testing.T) {
+		cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+		ensureServiceIndicatorFalse(t)
+		sig, err := rsa.SignPSS(rand.Reader, rsaKey, sha3.NewLegacyKeccak256(), plaintextSHA256, 16)
+		fatalIfErr(t, err)
+		t.Logf("RSA PSS w/ Keccak-256 signature: %x", sig)
 	})
 
 	t.Run("RSA KeyGen w/ small key [NOT APPROVED]", func(t *testing.T) {
@@ -404,6 +421,15 @@ func TestFIPS140(t *testing.T) {
 		out := make([]byte, 16)
 		h.Read(out)
 		t.Logf("cSHAKE-256 output: %x", out)
+	})
+
+	t.Run("Keccak-256 [NOT APPROVED]", func(t *testing.T) {
+		cryptotest.MustMinimumFIPS140ModuleVersion(t, "v1.28.0")
+		ensureServiceIndicatorFalse(t)
+		h := sha3.NewLegacyKeccak256()
+		h.Write(plaintext)
+		out := h.Sum(nil)
+		t.Logf("Keccak-256 output: %x", out)
 	})
 
 	t.Run("KDA HKDF", func(t *testing.T) {
