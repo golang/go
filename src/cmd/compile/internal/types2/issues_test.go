@@ -19,6 +19,7 @@ import (
 )
 
 func TestIssue5770(t *testing.T) {
+	t.Parallel()
 	_, err := typecheck(`package p; type S struct{T}`, nil, nil)
 	const want = "undefined: T"
 	if err == nil || !strings.Contains(err.Error(), want) {
@@ -27,6 +28,7 @@ func TestIssue5770(t *testing.T) {
 }
 
 func TestIssue5849(t *testing.T) {
+	t.Parallel()
 	src := `
 package p
 var (
@@ -69,6 +71,7 @@ var (
 }
 
 func TestIssue6413(t *testing.T) {
+	t.Parallel()
 	src := `
 package p
 func f() int {
@@ -97,6 +100,7 @@ func f() int {
 }
 
 func TestIssue7245(t *testing.T) {
+	t.Parallel()
 	src := `
 package p
 func (T) m() (res bool) { return }
@@ -124,6 +128,7 @@ type T struct{} // receiver type after method declaration
 // are Uses, not Defs; and also that the (illegal) use of a non-var on
 // the LHS of an assignment is a Use nonetheless.
 func TestIssue7827(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 func _() {
@@ -252,6 +257,7 @@ func main() {
 }
 
 func TestIssue22525(t *testing.T) {
+	t.Parallel()
 	const src = `package p; func f() { var a, b, c, d, e int }`
 
 	got := "\n"
@@ -269,6 +275,7 @@ func TestIssue22525(t *testing.T) {
 }
 
 func TestIssue25627(t *testing.T) {
+	t.Parallel()
 	const prefix = `package p; import "unsafe"; type P *struct{}; type I interface{}; type T `
 	// The src strings (without prefix) are constructed such that the number of semicolons
 	// plus one corresponds to the number of fields expected in the respective struct.
@@ -297,6 +304,7 @@ func TestIssue25627(t *testing.T) {
 }
 
 func TestIssue28005(t *testing.T) {
+	t.Parallel()
 	// method names must match defining interface name for this test
 	// (see last comment in this function)
 	sources := [...]string{
@@ -360,6 +368,7 @@ func TestIssue28005(t *testing.T) {
 }
 
 func TestIssue28282(t *testing.T) {
+	t.Parallel()
 	// create type interface { error }
 	et := Universe.Lookup("error").Type()
 	it := NewInterfaceType(nil, []Type{et})
@@ -383,6 +392,7 @@ func TestIssue28282(t *testing.T) {
 }
 
 func TestIssue29029(t *testing.T) {
+	t.Parallel()
 	f1 := mustParse(`package p; type A interface { M() }`)
 	f2 := mustParse(`package p; var B interface { A }`)
 
@@ -427,6 +437,7 @@ func TestIssue29029(t *testing.T) {
 }
 
 func TestIssue34151(t *testing.T) {
+	t.Parallel()
 	const asrc = `package a; type I interface{ M() }; type T struct { F interface { I } }`
 	const bsrc = `package b; import "a"; type T struct { F interface { a.I } }; var _ = a.T(T{})`
 
@@ -458,6 +469,7 @@ func (h importHelper) Import(path string) (*Package, error) {
 // a race condition if package b is imported elsewhere, in a package that is
 // concurrently type-checked.
 func TestIssue34921(t *testing.T) {
+	t.Parallel()
 	defer func() {
 		if r := recover(); r != nil {
 			t.Error(r)
@@ -477,6 +489,7 @@ func TestIssue34921(t *testing.T) {
 }
 
 func TestIssue43088(t *testing.T) {
+	t.Parallel()
 	// type T1 struct {
 	//         _ T2
 	// }
@@ -502,6 +515,7 @@ func TestIssue43088(t *testing.T) {
 }
 
 func TestIssue44515(t *testing.T) {
+	t.Parallel()
 	typ := Unsafe.Scope().Lookup("Pointer").Type()
 
 	got := TypeString(typ, nil)
@@ -590,6 +604,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
 }
 
 func TestIssue50646(t *testing.T) {
+	t.Parallel()
 	anyType := Universe.Lookup("any").Type().Underlying()
 	comparableType := Universe.Lookup("comparable").Type()
 
@@ -616,6 +631,7 @@ func TestIssue50646(t *testing.T) {
 }
 
 func TestIssue55030(t *testing.T) {
+	t.Parallel()
 	// makeSig makes the signature func(typ...)
 	// If valid is not set, making that signature is expected to panic.
 	makeSig := func(typ Type, valid bool) {
@@ -681,6 +697,7 @@ func TestIssue55030(t *testing.T) {
 }
 
 func TestIssue51093(t *testing.T) {
+	t.Parallel()
 	// Each test stands for a conversion of the form P(val)
 	// where P is a type parameter with typ as constraint.
 	// The test ensures that P(val) has the correct type P
@@ -734,6 +751,7 @@ func TestIssue51093(t *testing.T) {
 }
 
 func TestIssue54258(t *testing.T) {
+	t.Parallel()
 	tests := []struct{ main, b, want string }{
 		{ //---------------------------------------------------------------
 			`package main
@@ -916,6 +934,7 @@ func _cgoCheckResult(interface{})
 }
 
 func TestIssue61931(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -936,6 +955,7 @@ func _() {
 }
 
 func TestIssue61938(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -952,6 +972,7 @@ func _()        { f() }
 }
 
 func TestIssue63260(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -996,6 +1017,7 @@ func f[I *T, T any]() {
 }
 
 func TestIssue44410(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -1018,6 +1040,7 @@ type S struct{ A }
 }
 
 func TestIssue59831(t *testing.T) {
+	t.Parallel()
 	// Package a exports a type S with an unexported method m;
 	// the tests check the error messages when m is not found.
 	const asrc = `package a; type S struct{}; func (S) m() {}`
@@ -1091,6 +1114,7 @@ func TestIssue59831(t *testing.T) {
 }
 
 func TestIssue64759(t *testing.T) {
+	t.Parallel()
 	const src = `
 //go:build go1.18
 package p
@@ -1108,6 +1132,7 @@ func _() {
 }
 
 func TestIssue68334(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -1137,6 +1162,7 @@ func f(x int) {
 }
 
 func TestIssue68877(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -1156,6 +1182,7 @@ type (
 }
 
 func TestIssue69092(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -1182,6 +1209,7 @@ var _ = T{{x}}
 }
 
 func TestIssue72978(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -1213,6 +1241,7 @@ var f = genericF[string, float64]
 }
 
 func TestIssue47410(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 

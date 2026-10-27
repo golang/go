@@ -27,6 +27,7 @@ var assignOps = map[token.Token]token.Token{
 }
 
 func TestZeroTok(t *testing.T) {
+	t.Parallel()
 	// zero value for token.Token must be token.ILLEGAL
 	var zero token.Token
 	if token.ILLEGAL != zero {
@@ -35,6 +36,7 @@ func TestZeroTok(t *testing.T) {
 }
 
 func TestAssignOp(t *testing.T) {
+	t.Parallel()
 	// there are fewer than 256 tokens
 	for i := 0; i < 256; i++ {
 		tok := token.Token(i)

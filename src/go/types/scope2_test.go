@@ -19,6 +19,7 @@ import (
 // TestScopeLookupParent ensures that (*Scope).LookupParent returns
 // the correct result at various positions with the source.
 func TestScopeLookupParent(t *testing.T) {
+	t.Parallel()
 	fset := token.NewFileSet()
 	imports := make(testImporter)
 	conf := Config{Importer: imports}

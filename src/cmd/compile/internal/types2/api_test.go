@@ -64,6 +64,7 @@ func pkgName(src string) string {
 }
 
 func TestValuesInfo(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		src  string
 		expr string // constant expression
@@ -182,6 +183,7 @@ func TestValuesInfo(t *testing.T) {
 }
 
 func TestTypesInfo(t *testing.T) {
+	t.Parallel()
 	// Test sources that are not expected to typecheck must start with the broken prefix.
 	const broken = "package broken_"
 
@@ -575,6 +577,7 @@ func unparen(s string) string {
 }
 
 func TestInstanceInfo(t *testing.T) {
+	t.Parallel()
 	const lib = `package lib
 
 func F[P any](P) {}
@@ -834,6 +837,7 @@ func sortedInstances(m map[*syntax.Name]Instance) (instances []recordedInstance)
 }
 
 func TestDefsInfo(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		src  string
 		obj  string
@@ -883,6 +887,7 @@ func TestDefsInfo(t *testing.T) {
 }
 
 func TestUsesInfo(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		src  string
 		obj  string
@@ -956,6 +961,7 @@ func TestUsesInfo(t *testing.T) {
 }
 
 func TestGenericMethodInfo(t *testing.T) {
+	t.Parallel()
 	src := `package p
 
 type N[A any] int
@@ -1395,6 +1401,7 @@ func TestScopesInfo(t *testing.T) {
 }
 
 func TestInitOrderInfo(t *testing.T) {
+	t.Parallel()
 	var tests = []struct {
 		src   string
 		inits []string
@@ -1553,6 +1560,7 @@ func TestInitOrderInfo(t *testing.T) {
 }
 
 func TestMultiFileInitOrder(t *testing.T) {
+	t.Parallel()
 	fileA := mustParse(`package main; var a = 1`)
 	fileB := mustParse(`package main; var b = 2`)
 
@@ -1577,6 +1585,7 @@ func TestMultiFileInitOrder(t *testing.T) {
 }
 
 func TestFiles(t *testing.T) {
+	t.Parallel()
 	var sources = []string{
 		"package p; type T struct{}; func (T) m1() {}",
 		"package p; func (T) m2() {}; var x interface{ m1(); m2() } = T{}",
@@ -1617,6 +1626,7 @@ func (m testImporter) Import(path string) (*Package, error) {
 }
 
 func TestSelection(t *testing.T) {
+	t.Parallel()
 	selections := make(map[*syntax.SelectorExpr]*Selection)
 
 	imports := make(testImporter)
@@ -1802,6 +1812,7 @@ func indexFor(s string, pos syntax.Pos) int {
 }
 
 func TestIssue8518(t *testing.T) {
+	t.Parallel()
 	imports := make(testImporter)
 	conf := Config{
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
@@ -1830,6 +1841,7 @@ var _ = a.C2
 }
 
 func TestIssue59603(t *testing.T) {
+	t.Parallel()
 	imports := make(testImporter)
 	conf := Config{
 		Error:    func(err error) { t.Log(err) }, // don't exit after first error
@@ -1855,6 +1867,7 @@ const _ = a.C
 }
 
 func TestLookupFieldOrMethodOnNil(t *testing.T) {
+	t.Parallel()
 	// LookupFieldOrMethod on a nil type is expected to produce a run-time panic.
 	defer func() {
 		const want = "LookupFieldOrMethod on nil type"
@@ -1867,6 +1880,7 @@ func TestLookupFieldOrMethodOnNil(t *testing.T) {
 }
 
 func TestLookupFieldOrMethod(t *testing.T) {
+	t.Parallel()
 	// Test cases assume a lookup of the form a.f or x.f, where a stands for an
 	// addressable value, and x for a non-addressable value (even though a variable
 	// for ease of test case writing).
@@ -1948,6 +1962,7 @@ func TestLookupFieldOrMethod(t *testing.T) {
 
 // Test for go.dev/issue/52715
 func TestLookupFieldOrMethod_RecursiveGeneric(t *testing.T) {
+	t.Parallel()
 	const src = `
 package pkg
 
@@ -1977,6 +1992,7 @@ func newDefined(underlying Type) *Named {
 }
 
 func TestConvertibleTo(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		v, t Type
 		want bool
@@ -2004,6 +2020,7 @@ func TestConvertibleTo(t *testing.T) {
 }
 
 func TestAssignableTo(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		v, t Type
 		want bool
@@ -2027,6 +2044,7 @@ func TestAssignableTo(t *testing.T) {
 }
 
 func TestIdentical(t *testing.T) {
+	t.Parallel()
 	// For each test, we compare the types of objects X and Y in the source.
 	tests := []struct {
 		src  string
@@ -2073,6 +2091,7 @@ func TestIdentical(t *testing.T) {
 }
 
 func TestIdentical_issue15173(t *testing.T) {
+	t.Parallel()
 	// Identical should allow nil arguments and be symmetric.
 	for _, test := range []struct {
 		x, y Type
@@ -2090,6 +2109,7 @@ func TestIdentical_issue15173(t *testing.T) {
 }
 
 func TestIdenticalUnions(t *testing.T) {
+	t.Parallel()
 	tname := NewTypeName(nopos, nil, "myInt", nil)
 	myInt := NewNamed(tname, Typ[Int], nil)
 	tmap := map[string]*Term{
@@ -2132,6 +2152,7 @@ func TestIdenticalUnions(t *testing.T) {
 }
 
 func TestIssue61737(t *testing.T) {
+	t.Parallel()
 	// This test verifies that it is possible to construct invalid interfaces
 	// containing duplicate methods using the go/types API.
 	//
@@ -2155,6 +2176,7 @@ func TestIssue61737(t *testing.T) {
 }
 
 func TestNewAlias_Issue65455(t *testing.T) {
+	t.Parallel()
 	obj := NewTypeName(nopos, nil, "A", nil)
 	alias := NewAlias(obj, Typ[Int])
 	alias.Underlying() // must not panic
@@ -2171,6 +2193,7 @@ func shouldPanic(t *testing.T, msg string, f func()) {
 }
 
 func TestIncompleteAlias(t *testing.T) {
+	t.Parallel()
 	obj := NewTypeName(nopos, nil, "A", nil)
 	alias := NewAlias(obj, nil)
 
@@ -2186,6 +2209,7 @@ func TestIncompleteAlias(t *testing.T) {
 }
 
 func TestIncompleteTypeParam(t *testing.T) {
+	t.Parallel()
 	tname := NewTypeName(nopos, nil, "P", nil)
 	tparam := NewTypeParam(tname, nil)
 
@@ -2196,6 +2220,7 @@ func TestIncompleteTypeParam(t *testing.T) {
 }
 
 func TestIncompletePackageObjects(t *testing.T) {
+	t.Parallel()
 	const src = `package p
 type A = undeclared
 type B undeclared
@@ -2230,6 +2255,7 @@ func F(undeclared)
 }
 
 func TestIssue15305(t *testing.T) {
+	t.Parallel()
 	const src = "package p; func f() int16; var _ = f(undef)"
 	info := &Info{
 		Types: make(map[syntax.Expr]TypeAndValue),
@@ -2250,6 +2276,7 @@ func TestIssue15305(t *testing.T) {
 // types for composite literal expressions and composite literal type
 // expressions.
 func TestCompositeLitTypes(t *testing.T) {
+	t.Parallel()
 	for i, test := range []struct {
 		lit, typ string
 	}{
@@ -2305,6 +2332,7 @@ func TestCompositeLitTypes(t *testing.T) {
 // TestObjectParents verifies that objects have parent scopes or not
 // as specified by the Object interface.
 func TestObjectParents(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -2369,6 +2397,7 @@ func f(x int) { y := x; print(y) }
 // elsewhere in a package due to failing to import a package.
 func TestFailedImport(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	const src = `
 package p
@@ -2431,6 +2460,7 @@ func f(x T) T { return foo.F(x) }
 }
 
 func TestInstantiate(t *testing.T) {
+	t.Parallel()
 	// eventually we like more tests but this is a start
 	const src = "package p; type T[P any] *T[P]"
 	pkg := mustTypecheck(src, nil, nil)
@@ -2455,6 +2485,7 @@ func TestInstantiate(t *testing.T) {
 }
 
 func TestInstantiateConcurrent(t *testing.T) {
+	t.Parallel()
 	const src = `package p
 
 type I[P any] interface {
@@ -2531,6 +2562,7 @@ type GI = G[int]
 }
 
 func TestInstantiateErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		src    string // by convention, T must be the type being instantiated
 		targs  []Type
@@ -2565,6 +2597,7 @@ func TestInstantiateErrors(t *testing.T) {
 }
 
 func TestArgumentErrorUnwrapping(t *testing.T) {
+	t.Parallel()
 	var err error = &ArgumentError{
 		Index: 1,
 		Err:   Error{Msg: "test"},
@@ -2579,6 +2612,7 @@ func TestArgumentErrorUnwrapping(t *testing.T) {
 }
 
 func TestInstanceIdentity(t *testing.T) {
+	t.Parallel()
 	imports := make(testImporter)
 	conf := Config{Importer: imports}
 	makePkg := func(src string) {
@@ -2597,6 +2631,7 @@ func TestInstanceIdentity(t *testing.T) {
 
 // TestInstantiatedObjects verifies properties of instantiated objects.
 func TestInstantiatedObjects(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -2717,6 +2752,7 @@ func originObject(obj Object) Object {
 }
 
 func TestImplements(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -2827,6 +2863,7 @@ type Bad Bad // invalid type
 }
 
 func TestMissingMethodAlternative(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 type T interface {
@@ -2882,6 +2919,7 @@ func (V4) M()
 }
 
 func TestErrorURL(t *testing.T) {
+	t.Parallel()
 	conf := Config{ErrorURL: " [go.dev/e/%s]"}
 
 	// test case for a one-line error
@@ -2907,6 +2945,7 @@ var _ = f(1, 2)
 }
 
 func TestModuleVersion(t *testing.T) {
+	t.Parallel()
 	// version go1.dd must be able to typecheck go1.dd.0, go1.dd.1, etc.
 	goversion := fmt.Sprintf("go1.%d", goversion.Version)
 	for _, v := range []string{
@@ -2924,6 +2963,7 @@ func TestModuleVersion(t *testing.T) {
 }
 
 func TestFileVersions(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		goVersion   string
 		fileVersion string
@@ -3001,6 +3041,7 @@ func TestFileVersions(t *testing.T) {
 // TestTooNew ensures that "too new" errors are emitted when the file
 // or module is tagged with a newer version of Go than this go/types.
 func TestTooNew(t *testing.T) {
+	t.Parallel()
 	for _, test := range []struct {
 		goVersion   string // package's Go version (as if derived from go.mod file)
 		fileVersion string // file's Go version (becomes a build tag)
@@ -3048,6 +3089,7 @@ func TestTooNew(t *testing.T) {
 
 // This is a regression test for #66704.
 func TestUnaliasTooSoonInCycle(t *testing.T) {
+	t.Parallel()
 	const src = `package a
 
 var x T[B] // this appears to cause Unalias to be called on B while still Invalid
@@ -3066,6 +3108,7 @@ type B = T[A]
 }
 
 func TestAlias_Rhs(t *testing.T) {
+	t.Parallel()
 	const src = `package p
 
 type A = B
@@ -3095,6 +3138,7 @@ type C = int
 //
 // The Checker now holds the effective version in a state variable.
 func TestVersionWithoutPos(t *testing.T) {
+	t.Parallel()
 	f := mustParse("//go:build go1.22\n\npackage p; var _ int")
 
 	// Splice in a decl from another file. Its pos will be wrong.
@@ -3115,6 +3159,7 @@ func TestVersionWithoutPos(t *testing.T) {
 }
 
 func TestVarKind(t *testing.T) {
+	t.Parallel()
 	const src = `package p
 
 var global int
@@ -3156,6 +3201,7 @@ func (recv T) f(param int) (result int) {
 }
 
 func TestIssue79657(t *testing.T) {
+	t.Parallel()
 	src := `package p
 
 type T[P any] struct{}

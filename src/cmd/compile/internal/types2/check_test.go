@@ -365,6 +365,7 @@ func TestManual(t *testing.T) {
 }
 
 func TestLongConstants(t *testing.T) {
+	t.Parallel()
 	format := `package longconst; const _ = %s /* ERROR "constant overflow" */; const _ = %s // ERROR "excessively long constant"`
 	src := fmt.Sprintf(format, strings.Repeat("1", 9999), strings.Repeat("1", 10001))
 	testFiles(t, []string{"longconst.go"}, [][]byte{[]byte(src)}, 0, false)
@@ -380,11 +381,13 @@ func withSizes(sizes Sizes) func(*Config) {
 // be representable as int even if they already have a type that can
 // represent larger values.
 func TestIndexRepresentability(t *testing.T) {
+	t.Parallel()
 	const src = `package index; var s []byte; var _ = s[int64 /* ERRORx "int64\\(1\\) << 40 \\(.*\\) overflows int" */ (1) << 40]`
 	testFiles(t, []string{"index.go"}, [][]byte{[]byte(src)}, 0, false, withSizes(&StdSizes{4, 4}))
 }
 
 func TestIssue47243_TypedRHS(t *testing.T) {
+	t.Parallel()
 	// The RHS of the shift expression below overflows uint on 32bit platforms,
 	// but this is OK as it is explicitly typed.
 	const src = `package issue47243; var a uint64; var _ = a << uint64(4294967296)` // uint64(1<<32)

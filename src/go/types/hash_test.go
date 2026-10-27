@@ -15,6 +15,7 @@ import (
 )
 
 func TestHasher(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 

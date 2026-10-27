@@ -34,6 +34,7 @@ func TestStdlib(t *testing.T) {
 	}
 
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Collect non-test files.
 	dirFiles := make(map[string][]string)

@@ -57,6 +57,7 @@ func testEval(t *testing.T, fset *token.FileSet, pkg *Package, pos token.Pos, ex
 }
 
 func TestEvalBasic(t *testing.T) {
+	t.Parallel()
 	fset := token.NewFileSet()
 	for _, typ := range Typ[Bool : String+1] {
 		testEval(t, fset, nil, nopos, typ.Name(), typ, "", "")
@@ -64,6 +65,7 @@ func TestEvalBasic(t *testing.T) {
 }
 
 func TestEvalComposite(t *testing.T) {
+	t.Parallel()
 	fset := token.NewFileSet()
 	for _, test := range independentTestTypes {
 		testEval(t, fset, nil, nopos, test.src, nil, test.str, "")
@@ -71,6 +73,7 @@ func TestEvalComposite(t *testing.T) {
 }
 
 func TestEvalArith(t *testing.T) {
+	t.Parallel()
 	var tests = []string{
 		`true`,
 		`false == false`,
@@ -89,6 +92,7 @@ func TestEvalArith(t *testing.T) {
 
 func TestEvalPos(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// The contents of /*-style comments are of the form
 	//	expr => value, type
@@ -208,6 +212,7 @@ func split(s, sep string) (string, string) {
 
 func TestCheckExpr(t *testing.T) {
 	testenv.MustHaveGoBuild(t)
+	t.Parallel()
 
 	// Each comment has the form /* expr => object */:
 	// expr is an identifier or selector expression that is passed
@@ -299,6 +304,7 @@ func f(a int, s string) S {
 }
 
 func TestIssue65898(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 func _[A any](A) {}

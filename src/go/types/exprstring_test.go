@@ -119,6 +119,7 @@ var testExprs = []testEntry{
 }
 
 func TestExprString(t *testing.T) {
+	t.Parallel()
 	for _, test := range testExprs {
 		x, err := parser.ParseExpr(test.src)
 		if err != nil {

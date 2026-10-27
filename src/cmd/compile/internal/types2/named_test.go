@@ -73,6 +73,7 @@ func mustInstantiate(tb testing.TB, orig Type, targs ...Type) Type {
 
 // Test that types do not expand infinitely, as in go.dev/issue/52715.
 func TestFiniteTypeExpansion(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 
@@ -112,6 +113,7 @@ type Inst = *Tree[int]
 // a named type remain the same as long as the same source and AddMethod calls
 // are presented to the type checker in the same order (go.dev/issue/61298).
 func TestMethodOrdering(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 

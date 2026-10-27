@@ -15,6 +15,7 @@ import (
 )
 
 func TestNewMethodSet(t *testing.T) {
+	t.Parallel()
 	type method struct {
 		name     string
 		index    []int
@@ -128,6 +129,7 @@ func TestNewMethodSet(t *testing.T) {
 
 // Test for go.dev/issue/52715
 func TestNewMethodSet_RecursiveGeneric(t *testing.T) {
+	t.Parallel()
 	const src = `
 package pkg
 
@@ -155,6 +157,7 @@ type Instance = *Tree[int]
 }
 
 func TestIssue60634(t *testing.T) {
+	t.Parallel()
 	const src = `
 package p
 type T *int
@@ -248,6 +251,7 @@ func (T) d() {}
 // Id and that Lookup finds each one, for pairs of methods whose
 // packages and names exercise the corner cases of Id ordering.
 func TestMethodSetLookupOrder(t *testing.T) {
+	t.Parallel()
 	var pkgs []*Package
 	for _, path := range []string{"", "_", "a", "a/b", "a-b", "a.b", "ab", "A", "Z", "~", "é", "example.com/p"} {
 		pkgs = append(pkgs, NewPackage(path, "p"))

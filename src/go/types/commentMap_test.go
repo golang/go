@@ -67,6 +67,7 @@ func commentMap(src []byte, rx *regexp.Regexp) (res map[int][]comment) {
 }
 
 func TestCommentMap(t *testing.T) {
+	t.Parallel()
 	const src = `/* ERROR "0:0" */ /* ERROR "0:0" */ // ERROR "0:0"
 // ERROR "0:0"
 x /* ERROR "3:1" */                // ignore automatically inserted semicolon here
