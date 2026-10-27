@@ -50,7 +50,7 @@ type source struct {
 	buf       []byte // source buffer
 	ioerr     error  // pending I/O error, or nil
 	b, r, e   int    // buffer indices (see comment above)
-	line, col uint   // source position of ch (0-based)
+	line, col uint   // source position of ch
 	ch        rune   // most recently read character
 	chw       int    // width of ch
 }
@@ -67,7 +67,7 @@ func (s *source) init(in io.Reader, errh func(line, col uint, msg string)) {
 	s.buf[0] = sentinel
 	s.ioerr = nil
 	s.b, s.r, s.e = -1, 0, 0
-	s.line, s.col = 0, 0
+	s.line, s.col = linebase, colbase
 	s.ch = ' '
 	s.chw = 0
 }
@@ -77,15 +77,10 @@ const linebase = 1
 const colbase = 1
 
 // pos returns the (line, col) source position of s.ch.
-func (s *source) pos() (line, col uint) {
-	return linebase + s.line, colbase + s.col
-}
+func (s *source) pos() (line, col uint) { return s.line, s.col }
 
 // error reports the error msg at source position s.pos().
-func (s *source) error(msg string) {
-	line, col := s.pos()
-	s.errh(line, col, msg)
-}
+func (s *source) error(msg string) { s.errh(s.line, s.col, msg) }
 
 // start starts a new active source segment (including s.ch).
 // As long as stop has not been called, the active segment's
@@ -115,7 +110,7 @@ redo:
 	s.col += uint(s.chw)
 	if s.ch == '\n' {
 		s.line++
-		s.col = 0
+		s.col = colbase
 	}
 
 	// fast common case: at least one non-NUL ASCII character
@@ -160,7 +155,7 @@ redo:
 	// BOM's are only allowed as the first character in a file
 	const BOM = 0xfeff
 	if s.ch == BOM {
-		if s.line > 0 || s.col > 0 {
+		if s.line > linebase || s.col > colbase {
 			s.error("invalid BOM in the middle of the file")
 		}
 		goto redo
