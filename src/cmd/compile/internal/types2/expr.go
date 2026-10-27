@@ -875,7 +875,7 @@ checked:
 		// (otherwise we had an error reported elsewhere already)
 		if isValid(x.typ()) && isValid(y.typ()) {
 			if e != nil {
-				check.errorf(x, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ(), y.typ())
+				check.errorf(e, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ(), y.typ())
 			} else {
 				check.errorf(x, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ(), y.typ())
 			}

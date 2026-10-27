@@ -585,7 +585,7 @@ Error:
 			}
 			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ(), op)
 		} else {
-			// catch-all neither x nor y is a type parameter
+			// catch-all: neither x nor y is a type parameter
 			what := compositeKind(errOp.typ())
 			if what == "" {
 				what = check.sprintf("%s", errOp.typ())
@@ -792,7 +792,7 @@ func isUntypedCompLit(e ast.Expr) bool {
 
 // If e != nil, it must be the binary expression; it may be nil for non-constant expressions
 // (when invoked for an assignment operation where the binary expression is implicit).
-func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
+func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token) {
 	var y operand
 	if isComparison(op) {
 		if l := isUntypedCompLit(lhs); l != isUntypedCompLit(rhs) {
@@ -849,14 +849,10 @@ checked:
 		// only report an error if we have valid types
 		// (otherwise we had an error reported elsewhere already)
 		if isValid(x.typ()) && isValid(y.typ()) {
-			var posn positioner = x
 			if e != nil {
-				posn = e
-			}
-			if e != nil {
-				check.errorf(posn, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ(), y.typ())
+				check.errorf(e, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ(), y.typ())
 			} else {
-				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ(), y.typ())
+				check.errorf(x, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ(), y.typ())
 			}
 		}
 		x.invalidate()
@@ -895,13 +891,14 @@ checked:
 			// x.typ is unchanged
 			return
 		}
-		// force integer division of integer operands
+		// force integer division for integer operands
+		tok := op
 		if op == token.QUO && isInteger(x.typ()) {
-			op = token.QUO_ASSIGN
+			tok = token.QUO_ASSIGN
 		}
-		x.val = constant.BinaryOp(x.val, op, y.val)
+		x.val = constant.BinaryOp(x.val, tok, y.val)
 		x.expr = e
-		check.overflow(x, opPos)
+		check.overflow(x, opPos(x.expr))
 		return
 	}
 
@@ -1187,7 +1184,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr) exprKind {
 		}
 
 	case *ast.BinaryExpr:
-		check.binary(x, e, e.X, e.Y, e.Op, e.OpPos)
+		check.binary(x, e, e.X, e.Y, e.Op)
 		if !x.isValid() {
 			goto Error
 		}
@@ -1314,7 +1311,6 @@ func nth(n int, what string) string {
 	return fmt.Sprintf("%d%s %s", n, ext, what)
 }
 
-// exprOrType typechecks expression or type e and initializes x with the expression value or type.
 // exprOrType typechecks expression or type e and initializes x with the expression value or type.
 // If allowGeneric is set, the operand type may be an uninstantiated parameterized type or function
 // value.
