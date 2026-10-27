@@ -25,7 +25,10 @@
 // See https://golang.org/s/go1.4-syscall for more information.
 package syscall
 
-import "internal/bytealg"
+import (
+	"internal/bytealg"
+	"unsafe"
+)
 
 //go:generate go run ./mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
 
@@ -46,12 +49,19 @@ func StringByteSlice(s string) []byte {
 // containing the text of s. If s contains a NUL byte at any
 // location, it returns (nil, [EINVAL]).
 func ByteSliceFromString(s string) ([]byte, error) {
+	return byteSliceFromString(s, make([]byte, len(s)+1))
+}
+
+// byteSliceFromString requires buf to have length len(s)+1.
+// The exported wrappers allocate buf so it can be stack allocated after inlining.
+//
+//go:noinline
+func byteSliceFromString(s string, buf []byte) ([]byte, error) {
 	if bytealg.IndexByteString(s, 0) != -1 {
 		return nil, EINVAL
 	}
-	a := make([]byte, len(s)+1)
-	copy(a, s)
-	return a, nil
+	copy(buf, s)
+	return buf, nil
 }
 
 // StringBytePtr returns a pointer to a NUL-terminated array of bytes.
@@ -65,11 +75,8 @@ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
 // bytes containing the text of s. If s contains a NUL byte at any
 // location, it returns (nil, [EINVAL]).
 func BytePtrFromString(s string) (*byte, error) {
-	a, err := ByteSliceFromString(s)
-	if err != nil {
-		return nil, err
-	}
-	return &a[0], nil
+	a, err := byteSliceFromString(s, make([]byte, len(s)+1))
+	return unsafe.SliceData(a), err
 }
 
 // Single-word zero for use when we need a valid pointer to 0 bytes.

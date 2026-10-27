@@ -59,3 +59,23 @@ func TestGettimeofday(t *testing.T) {
 		t.Fatal("Sec and Usec both zero")
 	}
 }
+
+func TestByteSliceFromStringAlloc(t *testing.T) {
+	allocsPerRun := func(want int, f func()) {
+		t.Helper()
+		got := int(testing.AllocsPerRun(5, f))
+		if got != want {
+			t.Errorf("got %d allocs, want %d", got, want)
+		}
+	}
+	want := 0
+	if testenv.OptimizationOff() {
+		want = 1
+	}
+	allocsPerRun(want, func() {
+		syscall.ByteSliceFromString("abc")
+	})
+	allocsPerRun(want, func() {
+		syscall.BytePtrFromString("abc")
+	})
+}
