@@ -23,8 +23,7 @@ import (
 // - If b >= 0, it points to the beginning of a segment of most
 //   recently read characters (typically a Go literal).
 //
-// - r points to the byte immediately following the most recently
-//   read character ch, which starts at r-chw.
+// - r points to the most recently read character ch, of width chw.
 //
 // - e points to the byte immediately following the last byte that
 //   was read into the buffer.
@@ -39,9 +38,9 @@ import (
 // buf [...read...|...segment...|ch|...unread...|s|...free...]
 //                ^             ^  ^            ^
 //                |             |  |            |
-//                b         r-chw  r            e
+//                b             r  r+chw        e
 //
-// Invariant: -1 <= b < r <= e < len(buf) && buf[e] == sentinel
+// Invariant: -1 <= b <= r <= e < len(buf) && buf[e] == sentinel
 
 type source struct {
 	in   io.Reader
@@ -85,9 +84,9 @@ func (s *source) error(msg string) { s.errh(s.line, s.col, msg) }
 // start starts a new active source segment (including s.ch).
 // As long as stop has not been called, the active segment's
 // bytes (excluding s.ch) may be retrieved by calling segment.
-func (s *source) start()          { s.b = s.r - s.chw }
+func (s *source) start()          { s.b = s.r }
 func (s *source) stop()           { s.b = -1 }
-func (s *source) segment() string { return string(s.buf[s.b : s.r-s.chw]) }
+func (s *source) segment() string { return string(s.buf[s.b:s.r]) }
 
 // rewind rewinds the scanner's read position and character s.ch
 // to the start of the currently active segment, which must not
@@ -102,11 +101,14 @@ func (s *source) rewind() {
 	}
 	s.col -= uint(s.r - s.b)
 	s.r = s.b
+	s.ch, s.chw = ' ', 0
 	s.nextch()
 }
 
 func (s *source) nextch() {
 redo:
+	// advance to next character
+	s.r += s.chw
 	s.col += uint(s.chw)
 	if s.ch == '\n' {
 		s.line++
@@ -115,7 +117,6 @@ redo:
 
 	// fast common case: at least one non-NUL ASCII character
 	if s.ch = rune(s.buf[s.r]); 0 < s.ch && s.ch < sentinel {
-		s.r++
 		s.chw = 1
 		return
 	}
@@ -138,23 +139,22 @@ redo:
 	}
 
 	s.ch, s.chw = utf8.DecodeRune(s.buf[s.r:s.e])
-	s.r += s.chw
 
-	if s.ch == utf8.RuneError && s.chw == 1 {
-		s.error("invalid UTF-8 encoding")
-		goto redo
-	}
+	switch s.ch {
+	case utf8.RuneError:
+		if s.chw == 1 {
+			s.error("invalid UTF-8 encoding")
+			goto redo
+		}
 
-	// NUL characters are not allowed
-	// (slow case, or first character after buffer refill, go.dev/issue/81632)
-	if s.ch == 0 {
+	case 0:
+		// NUL characters are not allowed
+		// (slow case, or first character after buffer refill, go.dev/issue/81632)
 		s.error("invalid NUL character")
 		goto redo
-	}
 
-	// BOM's are only allowed as the first character in a file
-	const BOM = 0xfeff
-	if s.ch == BOM {
+	case 0xfeff: // BOM
+		// BOM's are only allowed as the first character in a file
 		if s.line > linebase || s.col > colbase {
 			s.error("invalid BOM in the middle of the file")
 		}
@@ -176,15 +176,13 @@ func (s *source) fill() {
 	// grow buffer or move content down
 	if len(content)*2 > len(s.buf) {
 		s.buf = make([]byte, nextSize(len(s.buf)))
-		copy(s.buf, content)
-	} else if b > 0 {
-		copy(s.buf, content)
 	}
+	copy(s.buf, content)
 	s.r -= b
 	s.e -= b
 
 	// read more data: try a limited number of times
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		var n int
 		n, s.ioerr = s.in.Read(s.buf[s.e : len(s.buf)-1]) // -1 to leave space for sentinel
 		if n < 0 {
