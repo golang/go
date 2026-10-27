@@ -986,50 +986,17 @@ knows which targets it is writing tests for.
 
 **Results**
 
-| amd64            | gotip-linux-amd64 | gotip-linux-amd64_avx512 |
-| ---------------- | ----------------- | ------------------------ |
-| AVX              | ✔                 | ✔                        |
-| AVX2             | ✔                 | ✔                        |
-| AVX512           | ✘                 | ✔                        |
-| AVX512BITALG     | ✘                 | ✔                        |
-| AVX512GFNI       | ✘                 | ✔                        |
-| AVX512VAES       | ✘                 | ✔                        |
-| AVX512VBMI       | ✘                 | ✔                        |
-| AVX512VBMI2      | ✘                 | ✔                        |
-| AVX512VNNI       | ✘                 | ✔                        |
-| AVX512VPCLMULQDQ | ✘                 | ✔                        |
-| AVX512VPOPCNTDQ  | ✘                 | ✔                        |
-| AVXAES           | ✔                 | ✔                        |
-| AVXPCLMULQDQ     | ✔                 | ✔                        |
-| AVXVNNI          | ✘                 | ✔                        |
-| FMA              | ✔                 | ✔                        |
-| SHA              | ✘                 | ✔                        |
-| VAES             | ✘                 | ✔                        |
-| VPCLMULQDQ       | ✘                 | ✔                        |
+Every configuration can be tested fully and practically: amd64 including
+AVX512 on the gotip-linux-amd64 gomote, NEON on the gotip-linux-arm64
+gomote (or `qemu-aarch64 -cpu neoverse-n1`), SVE with `qemu-aarch64 -cpu
+neoverse-n2` (128-bit) and `-cpu neoverse-v1` (256-bit), and wasm with `node`.
+See "Testing on other platforms" in [README.md](README.md) for the per-builder
+feature tables, commands, and known emulator limitations.
 
-For amd64, use the gotip-linux-amd64_avx512 gomote for testing.
-
-| arm64           | gotip-linux-arm64 | qemu-aarch64 -cpu neoverse-n2 | qemu-aarch64 -cpu neoverse-v1 |
-| --------------- | ----------------- | ----------------------------- | ----------------------------- |
-| PMULL           | ✔                 | ✔                             | ✔                             |
-| SVE             | ✘                 | ✔                             | ✔                             |
-| SVE2            | ✘                 | ✔                             | ✔                             |
-| SVE vector size | n/a               | 128                           | 256                           |
-
-`qemu-aarch64 -cpu neoverse-n1` (which matches the capabilities of
-gotip-linux-arm64) is roughly 7x slower than `gotip-linux-arm64`, so well within
-the range of practical conformance testing.
-
-For NEON, use the gotip-linux-arm64 gomote for testing. For SVE, use
-`qemu-aarch64 -cpu neoverse-v1`.
-
-| wasm    | js-node | wasip1-wazero |
-| ------- | ------- | ------------- |
-| SIMD128 | ✔       | ✔             |
-
-`node` is about 3x faster than `wazero`.
-
-For wasm, use `node` for testing.
+Emulation is fast enough for the conformance suite: each package's conformance
+tests take seconds under `qemu-aarch64`. `qemu-aarch64 -cpu neoverse-n1` is
+roughly 7x slower than the gotip-linux-arm64 builder, and node is about 3x
+faster than wazero.
 
 ### `conform-fixed` — Conformance harness, fixed-width types
 **Done:** [ ] · **Needs:** `ci-audit` · **Blocks:** `validate-amd64`, `conform-scalable` · **Prefers:** `specfill`
