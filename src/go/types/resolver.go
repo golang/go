@@ -547,7 +547,7 @@ func (check *Checker) unpackRecv(rtyp ast.Expr, unpackParams bool) (ptr bool, ba
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
-					par = &ast.Ident{NamePos: arg.Pos(), Name: "_"}
+					par = newIdent(arg.Pos(), "_")
 				}
 				tparams = append(tparams, par)
 			}

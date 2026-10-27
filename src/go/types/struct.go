@@ -127,8 +127,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
 			name := embeddedFieldIdent(f.Type)
 			if name == nil {
 				check.errorf(f.Type, InvalidSyntaxTree, "embedded field type %s has no name", f.Type)
-				name = ast.NewIdent("_")
-				name.NamePos = pos
+				name = newIdent(pos, "_")
 				addInvalid(name)
 				continue
 			}

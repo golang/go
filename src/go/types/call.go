@@ -100,8 +100,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
 			// or the result type in a return statement. Create a pseudo-expression for that operand
 			// that makes sense when reported in error messages from infer, below.
-			expr := ast.NewIdent(T.desc)
-			expr.NamePos = x.Pos() // correct position
+			expr := newIdent(x.Pos(), T.desc)
 			args = []*operand{{mode_: value, expr: expr, typ_: Tsig}}
 			reverse = true
 		}

@@ -1272,8 +1272,7 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 		list = make([]*operand, t.Len())
 		for i, v := range t.vars {
 			// create a dummy expression (in place of e) for better error messages
-			dummy := ast.NewIdent(nth(i+1, "function result"))
-			dummy.NamePos = e.Pos() // fix position
+			dummy := newIdent(startPos(e), nth(i+1, "function result"))
 			list[i] = &operand{mode_: value, expr: dummy, typ_: v.typ}
 		}
 		return
@@ -1289,8 +1288,7 @@ func (check *Checker) multiExpr(e ast.Expr, allowCommaOk bool) (list []*operand,
 			typ = universeError
 		}
 		// create a dummy expression (in place of e) for better error messages
-		dummy := ast.NewIdent(what)
-		dummy.NamePos = e.Pos() // fix position
+		dummy := newIdent(startPos(e), what)
 		x2 := &operand{mode_: value, expr: dummy, typ_: typ}
 		list = append(list, x2)
 		commaOk = true

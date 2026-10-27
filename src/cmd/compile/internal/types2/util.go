@@ -82,3 +82,8 @@ func splitOr(e syntax.Expr) (x, y syntax.Expr) {
 	}
 	return nil, nil
 }
+
+// newIdent returns a new identifier with the given position and name.
+func newIdent(pos syntax.Pos, name string) *syntax.Name {
+	return syntax.NewName(pos, name)
+}

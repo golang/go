@@ -560,7 +560,7 @@ func (check *Checker) unpackRecv(rtyp syntax.Expr, unpackParams bool) (ptr bool,
 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 				}
 				if par == nil {
-					par = syntax.NewName(arg.Pos(), "_")
+					par = newIdent(arg.Pos(), "_")
 				}
 				tparams = append(tparams, par)
 			}

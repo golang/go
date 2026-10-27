@@ -745,7 +745,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
 		if len(s.Body) > 0 {
 			pos = s.Body[0].Pos()
 		}
-		x.expr = syntax.NewName(pos, "true")
+		x.expr = newIdent(pos, "true")
 	}
 
 	check.multipleSwitchDefaults(s.Body)

@@ -655,7 +655,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			x.mode_ = constant_
 			x.typ_ = Typ[Bool]
 			x.val = constant.MakeBool(true)
-			x.expr = &ast.Ident{NamePos: s.Body.Lbrace, Name: "true"}
+			x.expr = newIdent(s.Body.Lbrace, "true")
 		}
 
 		check.multipleDefaults(s.Body.List)

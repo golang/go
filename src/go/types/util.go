@@ -72,3 +72,8 @@ func splitOr(e ast.Expr) (x, y ast.Expr) {
 	}
 	return nil, nil
 }
+
+// newIdent returns a new identifier with the given position and name.
+func newIdent(pos token.Pos, name string) *ast.Ident {
+	return &ast.Ident{NamePos: pos, Name: name}
+}
