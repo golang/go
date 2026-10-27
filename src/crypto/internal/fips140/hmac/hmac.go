@@ -47,7 +47,7 @@ type HMAC struct {
 func (h *HMAC) Sum(in []byte) []byte {
 	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
 	// legacy use (i.e. verification only) and we don't support that. However,
-	// HKDF uses the HMAC key for the salt, which is allowed to be shorter.
+	// HKDF-Extract uses the HMAC key for the salt, which is allowed to be shorter.
 	if h.keyLen < 112/8 && !h.forHKDF {
 		fips140.RecordNonApproved()
 	}
