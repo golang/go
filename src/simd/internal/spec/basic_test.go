@@ -283,3 +283,19 @@ func TestConvertFloatToInt(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want32)
 	}
 }
+
+func TestReduceSumFloats(t *testing.T) {
+	// These values round differently depending on the summation order.
+	x := vecOf[float32, Width256](1, 0x1p24, 1, -0x1p24, 1, 1, 0x1p-30, 3)
+	want := ((x[0] + x[1]) + (x[2] + x[3])) + ((x[4] + x[5]) + (x[6] + x[7]))
+	var seq float32
+	for _, xi := range x {
+		seq += xi
+	}
+	if want == seq {
+		t.Fatalf("test values don't distinguish pairwise from sequential summation")
+	}
+	if got := ReduceSumFloats(x); got != want {
+		t.Errorf("ReduceSumFloats(%v) = %v, want %v", x, got, want)
+	}
+}

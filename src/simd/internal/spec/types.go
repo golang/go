@@ -115,14 +115,14 @@ func ScalableWidth() int {
 // executing the spec (for example, to match the runtime vector length of a
 // target hardware architecture during conformance testing).
 //
-// bits must be a positive multiple of 128 and at most 2048 bits.
+// bits must be a power of two between 128 and 2048, inclusive.
 //
 // SetScalableWidth returns a restore function that clears the scalable width.
 //
 // Since the scalable width is global state, this panics if there are
 // overlapping attempts to set the width.
 func SetScalableWidth(bits int) (restore func()) {
-	if bits <= 0 || bits > maxScalableWidth || bits%128 != 0 {
+	if bits < 128 || bits > maxScalableWidth || bits&(bits-1) != 0 {
 		panic(fmt.Sprintf("invalid scalable width %d", bits))
 	}
 

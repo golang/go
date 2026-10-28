@@ -1487,7 +1487,10 @@ func (x Float32s) NotEqual(y Float32s) (z Mask32s)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 func (x Float32s) ReduceSum() (z float32)
 
 // Sqrt returns the elementwise square root of x.
@@ -1650,7 +1653,10 @@ func (x Float64s) NotEqual(y Float64s) (z Mask64s)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 func (x Float64s) ReduceSum() (z float64)
 
 // Sqrt returns the elementwise square root of x.

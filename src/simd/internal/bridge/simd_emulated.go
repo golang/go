@@ -3439,11 +3439,7 @@ func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
 //
 //	z = x[0] + x[1] + ...
 func (x Float64s) ReduceSum() (z float64) {
-	var res float64
-	for i := 0; i < 2; i++ {
-		res += x.get(i)
-	}
-	return res
+	return x.get(0) + x.get(1)
 }
 
 // Sqrt returns the elementwise square root of x.

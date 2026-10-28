@@ -16371,281 +16371,302 @@ func (x Float64s) Neg() (z Float64s) {
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
-func (x Float32x4) ReduceSum() (z float32) {
-	return spec.ReduceSum[float32, spec.Width128](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float32x8) ReduceSum() (z float32) {
-	return spec.ReduceSum[float32, spec.Width256](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float32x16) ReduceSum() (z float32) {
-	return spec.ReduceSum[float32, spec.Width512](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float32s) ReduceSum() (z float32) {
-	return spec.ReduceSum[float32, spec.WidthScalable](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float64x2) ReduceSum() (z float64) {
-	return spec.ReduceSum[float64, spec.Width128](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float64x4) ReduceSum() (z float64) {
-	return spec.ReduceSum[float64, spec.Width256](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float64x8) ReduceSum() (z float64) {
-	return spec.ReduceSum[float64, spec.Width512](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-func (x Float64s) ReduceSum() (z float64) {
-	return spec.ReduceSum[float64, spec.WidthScalable](x.v)
-}
-
-// ReduceSum returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
 func (x Int8x16) ReduceSum() (z int8) {
-	return spec.ReduceSum[int8, spec.Width128](x.v)
+	return spec.ReduceSumInts[int8, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int8x32) ReduceSum() (z int8) {
-	return spec.ReduceSum[int8, spec.Width256](x.v)
+	return spec.ReduceSumInts[int8, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int8x64) ReduceSum() (z int8) {
-	return spec.ReduceSum[int8, spec.Width512](x.v)
+	return spec.ReduceSumInts[int8, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int8s) ReduceSum() (z int8) {
-	return spec.ReduceSum[int8, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[int8, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int16x8) ReduceSum() (z int16) {
-	return spec.ReduceSum[int16, spec.Width128](x.v)
+	return spec.ReduceSumInts[int16, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int16x16) ReduceSum() (z int16) {
-	return spec.ReduceSum[int16, spec.Width256](x.v)
+	return spec.ReduceSumInts[int16, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int16x32) ReduceSum() (z int16) {
-	return spec.ReduceSum[int16, spec.Width512](x.v)
+	return spec.ReduceSumInts[int16, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int16s) ReduceSum() (z int16) {
-	return spec.ReduceSum[int16, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[int16, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int32x4) ReduceSum() (z int32) {
-	return spec.ReduceSum[int32, spec.Width128](x.v)
+	return spec.ReduceSumInts[int32, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int32x8) ReduceSum() (z int32) {
-	return spec.ReduceSum[int32, spec.Width256](x.v)
+	return spec.ReduceSumInts[int32, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int32x16) ReduceSum() (z int32) {
-	return spec.ReduceSum[int32, spec.Width512](x.v)
+	return spec.ReduceSumInts[int32, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int32s) ReduceSum() (z int32) {
-	return spec.ReduceSum[int32, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[int32, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int64x2) ReduceSum() (z int64) {
-	return spec.ReduceSum[int64, spec.Width128](x.v)
+	return spec.ReduceSumInts[int64, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int64x4) ReduceSum() (z int64) {
-	return spec.ReduceSum[int64, spec.Width256](x.v)
+	return spec.ReduceSumInts[int64, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int64x8) ReduceSum() (z int64) {
-	return spec.ReduceSum[int64, spec.Width512](x.v)
+	return spec.ReduceSumInts[int64, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Int64s) ReduceSum() (z int64) {
-	return spec.ReduceSum[int64, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[int64, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint8x16) ReduceSum() (z uint8) {
-	return spec.ReduceSum[uint8, spec.Width128](x.v)
+	return spec.ReduceSumInts[uint8, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint8x32) ReduceSum() (z uint8) {
-	return spec.ReduceSum[uint8, spec.Width256](x.v)
+	return spec.ReduceSumInts[uint8, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint8x64) ReduceSum() (z uint8) {
-	return spec.ReduceSum[uint8, spec.Width512](x.v)
+	return spec.ReduceSumInts[uint8, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint8s) ReduceSum() (z uint8) {
-	return spec.ReduceSum[uint8, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[uint8, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint16x8) ReduceSum() (z uint16) {
-	return spec.ReduceSum[uint16, spec.Width128](x.v)
+	return spec.ReduceSumInts[uint16, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint16x16) ReduceSum() (z uint16) {
-	return spec.ReduceSum[uint16, spec.Width256](x.v)
+	return spec.ReduceSumInts[uint16, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint16x32) ReduceSum() (z uint16) {
-	return spec.ReduceSum[uint16, spec.Width512](x.v)
+	return spec.ReduceSumInts[uint16, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint16s) ReduceSum() (z uint16) {
-	return spec.ReduceSum[uint16, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[uint16, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint32x4) ReduceSum() (z uint32) {
-	return spec.ReduceSum[uint32, spec.Width128](x.v)
+	return spec.ReduceSumInts[uint32, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint32x8) ReduceSum() (z uint32) {
-	return spec.ReduceSum[uint32, spec.Width256](x.v)
+	return spec.ReduceSumInts[uint32, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint32x16) ReduceSum() (z uint32) {
-	return spec.ReduceSum[uint32, spec.Width512](x.v)
+	return spec.ReduceSumInts[uint32, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint32s) ReduceSum() (z uint32) {
-	return spec.ReduceSum[uint32, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[uint32, spec.WidthScalable](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint64x2) ReduceSum() (z uint64) {
-	return spec.ReduceSum[uint64, spec.Width128](x.v)
+	return spec.ReduceSumInts[uint64, spec.Width128](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint64x4) ReduceSum() (z uint64) {
-	return spec.ReduceSum[uint64, spec.Width256](x.v)
+	return spec.ReduceSumInts[uint64, spec.Width256](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint64x8) ReduceSum() (z uint64) {
-	return spec.ReduceSum[uint64, spec.Width512](x.v)
+	return spec.ReduceSumInts[uint64, spec.Width512](x.v)
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
 //	z = x[0] + x[1] + ...
 func (x Uint64s) ReduceSum() (z uint64) {
-	return spec.ReduceSum[uint64, spec.WidthScalable](x.v)
+	return spec.ReduceSumInts[uint64, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = (x[0] + x[1]) + (x[2] + x[3])
+func (x Float32x4) ReduceSum() (z float32) {
+	return spec.ReduceSumFloats[float32, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
+func (x Float32x8) ReduceSum() (z float32) {
+	return spec.ReduceSumFloats[float32, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
+func (x Float32x16) ReduceSum() (z float32) {
+	return spec.ReduceSumFloats[float32, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
+func (x Float32s) ReduceSum() (z float32) {
+	return spec.ReduceSumFloats[float32, spec.WidthScalable](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1]
+func (x Float64x2) ReduceSum() (z float64) {
+	return spec.ReduceSumFloats[float64, spec.Width128](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = (x[0] + x[1]) + (x[2] + x[3])
+func (x Float64x4) ReduceSum() (z float64) {
+	return spec.ReduceSumFloats[float64, spec.Width256](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
+func (x Float64x8) ReduceSum() (z float64) {
+	return spec.ReduceSumFloats[float64, spec.Width512](x.v)
+}
+
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
+func (x Float64s) ReduceSum() (z float64) {
+	return spec.ReduceSumFloats[float64, spec.WidthScalable](x.v)
 }
 
 // ReduceMax returns the largest element of x.

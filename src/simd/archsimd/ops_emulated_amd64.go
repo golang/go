@@ -300,28 +300,41 @@ func (x Float64x2) ReduceSum() (z float64) {
 //
 // Emulated, CPU Feature: AVX
 func (x Float32x8) ReduceSum() (z float32) {
-	return x.GetLo().Add(x.GetHi()).ReduceSum()
+	// Sum adjacent pairs within each 128-bit half before combining the halves,
+	// to match the pairwise summation order of the other platforms.
+	x = x.ConcatAddPairsGrouped(x) // [x0+x1, x2+x3, ... | x4+x5, x6+x7, ...]
+	x = x.ConcatAddPairsGrouped(x) // [(x0+x1)+(x2+x3), ... | (x4+x5)+(x6+x7), ...]
+	return x.GetLo().Add(x.GetHi()).GetElem(0)
 }
 
 // ReduceSum returns the sum of all elements in x.
 //
 // Emulated, CPU Feature: AVX
 func (x Float64x4) ReduceSum() (z float64) {
-	return x.GetLo().Add(x.GetHi()).ReduceSum()
+	x = x.ConcatAddPairsGrouped(x) // [x0+x1, x0+x1 | x2+x3, x2+x3]
+	return x.GetLo().Add(x.GetHi()).GetElem(0)
 }
 
 // ReduceSum returns the sum of all elements in x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Float32x16) ReduceSum() (z float32) {
-	return x.GetLo().Add(x.GetHi()).ReduceSum()
+	// There is no 512-bit horizontal add, so start with the 256-bit halves.
+	lo, hi := x.GetLo(), x.GetHi()
+	y := lo.ConcatAddPairsGrouped(hi) // [x0+x1, x2+x3, x8+x9, x10+x11 | x4+x5, x6+x7, x12+x13, x14+x15]
+	y = y.ConcatAddPairsGrouped(y)    // [x0..3, x8..11, ... | x4..7, x12..15, ...]
+	w := y.GetLo().Add(y.GetHi())     // [x0..7, x8..15, ...]
+	return w.ConcatAddPairs(w).GetElem(0)
 }
 
 // ReduceSum returns the sum of all elements in x.
 //
 // Emulated, CPU Feature: AVX512
 func (x Float64x8) ReduceSum() (z float64) {
-	return x.GetLo().Add(x.GetHi()).ReduceSum()
+	lo, hi := x.GetLo(), x.GetHi()
+	y := lo.ConcatAddPairsGrouped(hi) // [x0+x1, x4+x5 | x2+x3, x6+x7]
+	w := y.GetLo().Add(y.GetHi())     // [x0..3, x4..7]
+	return w.ConcatAddPairs(w).GetElem(0)
 }
 
 // ReduceSum returns the sum of all elements in x.

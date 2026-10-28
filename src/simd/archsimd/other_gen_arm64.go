@@ -518,7 +518,7 @@ func (x Uint64x2) ReduceSum() (z uint64) {
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+//	z = x[0] + x[1]
 //
 // Emulated
 func (x Float64x2) ReduceSum() (z float64) {

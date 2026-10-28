@@ -1171,14 +1171,20 @@ func (x Float64s) ReduceMax() (z float64)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 //
 // Asm: ZFADDVS, CPU Feature: SVE
 func (x Float32s) ReduceSum() (z float32)
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 //
 // Asm: ZFADDVD, CPU Feature: SVE
 func (x Float64s) ReduceSum() (z float64)
