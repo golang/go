@@ -52,6 +52,42 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	MOVD	$fn(SB), R9; \
 	BL	(R9)
 
+TEXT _cgo_wait_runtime_init_done(SB),NOSPLIT|NOFRAME,$0-0
+	// Save R27 in caller-saved R9: global accesses below clobber R27
+	// (callee-saved in the C ABI) under -dynlink.
+	MOVD	R27, R9
+	MOVD	$·runtime_init_done(SB), R1
+	LDARW	(R1), R1
+	CMPW	$2, R1
+	BNE	slow
+	MOVD	$·cgo_context_function(SB), R0
+	LDAR	(R0), R0
+	CBNZ	R0, slow
+	MOVD	R9, R27
+	RET
+slow:
+	MOVD	R9, R27
+	CGO_PROLOGUE
+	CALL_GO(·cgoWaitRuntimeInitDone)
+	MOVD	8(RSP), R0
+	CGO_EPILOGUE
+	RET
+
+TEXT _cgo_release_context(SB),NOSPLIT|NOFRAME,$0-0
+	CBZ	R0, done
+	CGO_PROLOGUE
+	MOVD	R0, 8(RSP)
+	CALL_GO(·cgoReleaseContext)
+	CGO_EPILOGUE
+done:
+	RET
+
+TEXT ·pthreadKeyDestructor(SB),NOSPLIT|NOFRAME,$0-0
+	MOVD	R0, R1
+	MOVD	$0, R0
+	MOVD	$0, R3
+	JMP	crosscall2(SB)
+
 TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 	CGO_PROLOGUE
 	CALL_GO(·threadentry<ABIInternal>)

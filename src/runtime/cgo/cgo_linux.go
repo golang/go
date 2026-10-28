@@ -301,6 +301,8 @@ func cgoGetStackBound() (uintptr, uintptr) {
 //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libpthread.so.0"
 //go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "libpthread.so.0"
 //go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "libpthread.so.0"
+//go:cgo_import_dynamic libc_pthread_key_create pthread_key_create "libpthread.so.0"
+//go:cgo_import_dynamic libc_pthread_setspecific pthread_setspecific "libpthread.so.0"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "libpthread.so.0"
 //go:cgo_import_dynamic libc_pthread_getattr_np pthread_getattr_np "libpthread.so.0"
 //go:cgo_import_dynamic libc_pthread_attr_getstack pthread_attr_getstack "libpthread.so.0"

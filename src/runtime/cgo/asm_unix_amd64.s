@@ -34,6 +34,45 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	POPQ	BP
 	RET
 
+TEXT _cgo_wait_runtime_init_done(SB),NOSPLIT|NOFRAME,$0-0
+	// Use LEAQ to avoid clobbering R15 (callee-saved in the C ABI)
+	// when dynamic linking rewrites global accesses via the GOT.
+	LEAQ	·runtime_init_done(SB), AX
+	MOVL	(AX), AX
+	CMPL	AX, $2
+	JNE	slow
+	LEAQ	·cgo_context_function(SB), AX
+	MOVQ	(AX), AX
+	TESTQ	AX, AX
+	JNE	slow
+	RET
+slow:
+	PUSH_REGS_HOST_TO_ABI0()
+	ADJSP	$8
+	CALL	·cgoWaitRuntimeInitDone(SB)
+	MOVQ	0(SP), AX
+	ADJSP	$-8
+	POP_REGS_HOST_TO_ABI0()
+	RET
+
+TEXT _cgo_release_context(SB),NOSPLIT|NOFRAME,$0-0
+	TESTQ	DI, DI
+	JEQ	done
+	PUSH_REGS_HOST_TO_ABI0()
+	ADJSP	$8
+	MOVQ	DI, 0(SP)
+	CALL	·cgoReleaseContext(SB)
+	ADJSP	$-8
+	POP_REGS_HOST_TO_ABI0()
+done:
+	RET
+
+TEXT ·pthreadKeyDestructor(SB),NOSPLIT|NOFRAME,$0-0
+	MOVQ	DI, SI
+	XORL	DI, DI
+	XORL	CX, CX
+	JMP	crosscall2(SB)
+
 TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 	PUSH_REGS_HOST_TO_ABI0()
 	XORPS	X15, X15

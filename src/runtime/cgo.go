@@ -53,6 +53,15 @@ var cgoThreadStart func(gp *g) (errno int32, msg string)
 //go:linknamestd cgoSysThreadCreate
 var cgoSysThreadCreate func(fn unsafe.Pointer) int32
 
+//go:linknamestd cgoNotifyRuntimeInitDone
+var cgoNotifyRuntimeInitDone func()
+
+//go:linknamestd cgoSetContextFunction
+var cgoSetContextFunction func(context uintptr)
+
+//go:linknamestd cgoBindM
+var cgoBindM func(g uintptr)
+
 // iscgo is set to true by the runtime/cgo package
 //
 // iscgo should be an internal detail,
