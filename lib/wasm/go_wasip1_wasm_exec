@@ -14,7 +14,11 @@ case "$GOWASIRUNTIME" in
 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	"wasmtime" | "")
-		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=8388608 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+		WASMTIME_ARGS="-W max-wasm-stack=8388608"
+		if [[ ",$GOWASM," == *",stackswitch,"* ]]; then
+			WASMTIME_ARGS="$WASMTIME_ARGS -W stack-switching=y,function-references=y,gc=y"
+		fi
+		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" $WASMTIME_ARGS ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
 		;;
 	*)
 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"
