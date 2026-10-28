@@ -470,9 +470,11 @@ func _() {
 	fv(0, { /* ERROR "invalid composite literal type int" */ 1, 2, 3}...)
 
 	// comparisons
-	// TODO(gri) these should work
-	_ = s == { /* ERROR "missing type in composite literal" */ 1}
-	_ = { /* ERROR "missing type in composite literal" */ 1} == s
+	_ = s == {1}
+	_ = s == ({ /* ERROR "missing type in composite literal" */ 1})
+	_ = {1} == s
+	_ = ({ /* ERROR "missing type in composite literal" */ 1}) == s
+	_ = { /* ERROR "missing type in composite literal" */ 1} == { /* ERROR "missing type in composite literal" */ 1}
 
 	// switch cases
 	switch s {
