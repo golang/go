@@ -1042,6 +1042,8 @@ func regAddr(reg int16) obj.Addr {
 
 // Most of the Go functions have a single parameter (PC_B) in the
 // Wasm ABI. This is a list of exceptions.
+// Keep in sync with the special cases in assemble and with
+// wasmFuncTypes in cmd/link/internal/wasm.
 var notUsePC_B = map[string]bool{
 	"_rt0_wasm_js":            true,
 	"_rt0_wasm_wasip1":        true,
@@ -1068,6 +1070,10 @@ var notUsePC_B = map[string]bool{
 	"memeqbody":               true,
 	"memcmp":                  true,
 	"memchr":                  true,
+	"runtime.wasm_goentry":    true,
+	"runtime.wasm_g0entry":    true,
+	"wasm_scheduler_loop":     true,
+	"wasm_resume":             true,
 }
 
 func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
@@ -1101,10 +1107,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 	// Function starts with declaration of locals: numbers and types.
 	// Some functions use a special calling convention.
+	// Keep in sync with notUsePC_B and with wasmFuncTypes in cmd/link/internal/wasm.
 	switch s.Name {
 	case "_rt0_wasm_js", "_rt0_wasm_wasip1", "_rt0_wasm_wasip1_lib",
 		"wasm_export_run", "wasm_export_resume", "wasm_export_getsp",
-		"wasm_pc_f_loop", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+		"wasm_pc_f_loop", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody",
+		"runtime.wasm_goentry", "runtime.wasm_g0entry", "wasm_scheduler_loop", "wasm_resume":
 		varDecls = []*varDecl{}
 		useAssemblyRegMap()
 	case "wasm_pc_f_loop_export":

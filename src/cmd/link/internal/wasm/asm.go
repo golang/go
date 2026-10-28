@@ -70,6 +70,9 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
 	return wi
 }
 
+// wasmFuncTypes gives the Wasm signatures of functions that do not use the
+// Go calling convention. Keep in sync with notUsePC_B and the special cases
+// in assemble in cmd/internal/obj/wasm.
 var wasmFuncTypes = map[string]*wasmFuncType{
 	"_rt0_wasm_js":            {Params: []byte{}},                                         //
 	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
@@ -97,6 +100,10 @@ var wasmFuncTypes = map[string]*wasmFuncType{
 	"memeqbody":               {Params: []byte{I64, I64, I64}, Results: []byte{I64}},      // a, b, len -> 0/1
 	"memcmp":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // a, b, len -> <0/0/>0
 	"memchr":                  {Params: []byte{I32, I32, I32}, Results: []byte{I32}},      // s, c, len -> index
+	"wasm_scheduler_loop":     {Params: []byte{}},                                         //
+	"wasm_resume":             {Params: []byte{I32}, Results: []byte{contRef}},            // slot -> cont
+	"runtime.wasm_goentry":    {Params: []byte{}},                                         //
+	"runtime.wasm_g0entry":    {Params: []byte{}},                                         //
 }
 
 // pcBase is the base value for PCs on Wasm.
