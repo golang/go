@@ -433,21 +433,39 @@ func MulAddInts[E Ints | Uints, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 //specgen:name MulAdd
-func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[Variation[E], W]) {
+	// Every platform that can reasonably implement SIMD has fused vector
+	// multiply-add instructions, except WASM: SIMD128 has none, so WASM
+	// implements MulAdd as a multiply followed by an add. (Relaxed SIMD's
+	// relaxed_madd may or may not fuse, depending on the host, and not all
+	// runtimes support it.)
+	//
 	// Go has the option of compiling x*y + z using FMA, but only does so if FMA
 	// support is guaranteed by the hardware version (e.g., GOAMD64>=3). To
 	// guarantee the right result, we have to do it ourself.
-	w = makeVec[E, W]()
+	w = makeVec[Variation[E], W]()
 	for i := range x {
+		var fused E
 		switch xi := any(x[i]).(type) {
 		case float32:
-			w[i] = E(fma32(xi, float32(y[i]), float32(z[i])))
+			fused = E(fma32(xi, float32(y[i]), float32(z[i])))
 		case float64:
-			w[i] = E(math.FMA(xi, float64(y[i]), float64(z[i])))
+			fused = E(math.FMA(xi, float64(y[i]), float64(z[i])))
 		}
+		// The explicit conversion prevents the Go compiler from fusing the
+		// multiply and add.
+		unfused := E(x[i]*y[i]) + z[i]
+		if equalExact(fused, unfused) {
+			w[i] = exact(fused)
+			continue
+		}
+		w[i] = perPlatformDefault(fused, map[Platform]E{
+			PlatformWASM: unfused,
+		})
 	}
 	return w
 }

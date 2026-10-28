@@ -363,3 +363,22 @@ func TestULPs(t *testing.T) {
 		checkPermitsAll(t, ulps(1.0, math.MaxUint64), []float64{0, minSub64, math.MaxFloat64}, []float64{negZero64, -1, inf64, qnan64})
 	})
 }
+
+func TestPerPlatformDefault(t *testing.T) {
+	v := perPlatformDefault[int32](1, map[Platform]int32{PlatformWASM: 2})
+	for p := range numPlatforms {
+		want := int32(1)
+		if p == PlatformWASM {
+			want = 2
+		}
+		if !v.Permits(want, p) || v.Permits(3-want, p) {
+			t.Errorf("on %v: want only %d to be permitted", p, want)
+		}
+	}
+	if !v.Permits(1, PlatformAny) || !v.Permits(2, PlatformAny) || v.Permits(3, PlatformAny) {
+		t.Errorf("on %v: want only 1 and 2 to be permitted", PlatformAny)
+	}
+	if v.Canon() != 1 {
+		t.Errorf("Canon() = %d, want 1", v.Canon())
+	}
+}

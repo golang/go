@@ -111,6 +111,21 @@ func perPlatform[E EltOrMask](vals map[Platform]E) Variation[E] {
 	return Variation[E]{canon: canon, v: pp}
 }
 
+// perPlatformDefault is like [perPlatform], but every platform not in vals
+// gets value def. Unlike perPlatform, this extends to platforms added in the
+// future, so use it only when def is known to be right for any reasonable
+// platform.
+func perPlatformDefault[E EltOrMask](def E, vals map[Platform]E) Variation[E] {
+	all := make(map[Platform]E, numPlatforms)
+	for p := range numPlatforms {
+		all[p] = def
+	}
+	for p, val := range vals {
+		all[p] = val
+	}
+	return perPlatform(all)
+}
+
 type perPlatformVar[E EltOrMask] struct {
 	values  [numPlatforms]E
 	present uint8 // Bit mask over 1<<Platform

@@ -5126,7 +5126,8 @@ func (x Uint64x8) Mul(y Uint64x8) (z Uint64x8)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PS, CPU Feature: FMA
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4)
@@ -5136,7 +5137,8 @@ func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PS, CPU Feature: FMA
 func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8)
@@ -5146,7 +5148,8 @@ func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PS, CPU Feature: AVX512
 func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16)
@@ -5156,7 +5159,8 @@ func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PD, CPU Feature: FMA
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2)
@@ -5166,7 +5170,8 @@ func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PD, CPU Feature: FMA
 func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4)
@@ -5176,7 +5181,8 @@ func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4)
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Asm: VFMADD213PD, CPU Feature: AVX512
 func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8)

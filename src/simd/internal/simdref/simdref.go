@@ -16125,9 +16125,10 @@ func (x Uint64s) MulAdd(y Uint64s, z Uint64s) (w Uint64s) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
-	return Float32x4{spec.MulAddFloats[float32, spec.Width128](x.v, y.v, z.v)}
+	return Float32x4{canonVec(spec.MulAddFloats[float32, spec.Width128](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16135,9 +16136,10 @@ func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
-	return Float32x8{spec.MulAddFloats[float32, spec.Width256](x.v, y.v, z.v)}
+	return Float32x8{canonVec(spec.MulAddFloats[float32, spec.Width256](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16145,9 +16147,10 @@ func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
-	return Float32x16{spec.MulAddFloats[float32, spec.Width512](x.v, y.v, z.v)}
+	return Float32x16{canonVec(spec.MulAddFloats[float32, spec.Width512](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16155,9 +16158,10 @@ func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
-	return Float32s{spec.MulAddFloats[float32, spec.WidthScalable](x.v, y.v, z.v)}
+	return Float32s{canonVec(spec.MulAddFloats[float32, spec.WidthScalable](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16165,9 +16169,10 @@ func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
-	return Float64x2{spec.MulAddFloats[float64, spec.Width128](x.v, y.v, z.v)}
+	return Float64x2{canonVec(spec.MulAddFloats[float64, spec.Width128](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16175,9 +16180,10 @@ func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
-	return Float64x4{spec.MulAddFloats[float64, spec.Width256](x.v, y.v, z.v)}
+	return Float64x4{canonVec(spec.MulAddFloats[float64, spec.Width256](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16185,9 +16191,10 @@ func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
-	return Float64x8{spec.MulAddFloats[float64, spec.Width512](x.v, y.v, z.v)}
+	return Float64x8{canonVec(spec.MulAddFloats[float64, spec.Width512](x.v, y.v, z.v))}
 }
 
 // MulAdd returns x * y + z elementwise.
@@ -16195,9 +16202,10 @@ func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
 //	w[i] = x[i] * y[i] + z[i]
 //
 // This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
-// rounding rather than two and no intermediate overflow.
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
-	return Float64s{spec.MulAddFloats[float64, spec.WidthScalable](x.v, y.v, z.v)}
+	return Float64s{canonVec(spec.MulAddFloats[float64, spec.WidthScalable](x.v, y.v, z.v))}
 }
 
 // Neg returns the elementwise negation of x.
