@@ -6,12 +6,25 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/goexperiment"
+	"unsafe"
+)
 
 var _cgo_clearenv unsafe.Pointer // pointer to C function
 
+// cgoClearenv is the Go equivalent of _cgo_clearenv, used on platforms
+// where runtime/cgo implements it in Go.
+//
+//go:linknamestd cgoClearenv
+var cgoClearenv func()
+
 // Clear the C environment if cgo is loaded.
 func clearenv_c() {
+	if goexperiment.CgoBindings && cgoClearenv != nil {
+		cgoClearenv()
+		return
+	}
 	if _cgo_clearenv == nil {
 		return
 	}

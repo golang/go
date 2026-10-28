@@ -29,6 +29,8 @@ func cgoGetStackBound() (uintptr, uintptr) {
 	return high - size, high
 }
 
+//go:cgo_import_dynamic libc_setenv setenv "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic libc_unsetenv unsetenv "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_get_stackaddr_np pthread_get_stackaddr_np "/usr/lib/libSystem.B.dylib"
 //go:cgo_import_dynamic libc_pthread_get_stacksize_np pthread_get_stacksize_np "/usr/lib/libSystem.B.dylib"

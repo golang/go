@@ -20,6 +20,14 @@ var _cgo_tsan_release_fn uintptr
 //go:linkname _cgo_msan_unpoison_fn _cgo_msan_unpoison_fn
 var _cgo_msan_unpoison_fn uintptr
 
+//go:linkname _libc_setenv libc_setenv
+var _libc_setenv byte
+var libc_setenv = unsafe.Pointer(&_libc_setenv)
+
+//go:linkname _libc_unsetenv libc_unsetenv
+var _libc_unsetenv byte
+var libc_unsetenv = unsafe.Pointer(&_libc_unsetenv)
+
 //go:linkname _libc_pthread_self libc_pthread_self
 var _libc_pthread_self byte
 var libc_pthread_self = unsafe.Pointer(&_libc_pthread_self)
@@ -166,6 +174,26 @@ func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {
 			asmcgocall(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
 		}
 	}
+}
+
+//go:linknamestd _cgoSetenv runtime.cgoSetenv
+var _cgoSetenv = cgoSetenv
+
+//go:norace
+func cgoSetenv(k, v unsafe.Pointer) {
+	tsanAcquire()
+	asmcgocall(uintptr(libc_setenv), uintptr(k), uintptr(v), 1, 0, 0, 0)
+	tsanRelease()
+}
+
+//go:linknamestd _cgoUnsetenv runtime.cgoUnsetenv
+var _cgoUnsetenv = cgoUnsetenv
+
+//go:norace
+func cgoUnsetenv(k unsafe.Pointer) {
+	tsanAcquire()
+	asmcgocall(uintptr(libc_unsetenv), uintptr(k), 0, 0, 0, 0, 0)
+	tsanRelease()
 }
 
 //go:linknamestd _cgoGetStackBound runtime.cgoGetStackBound

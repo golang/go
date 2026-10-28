@@ -4,7 +4,10 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/goexperiment"
+	"unsafe"
+)
 
 func gogetenv(key string) string {
 	env := environ()
@@ -64,8 +67,24 @@ var _cgo_setenv unsafe.Pointer // pointer to C function
 //go:linkname _cgo_unsetenv
 var _cgo_unsetenv unsafe.Pointer // pointer to C function
 
+// cgoSetenv and cgoUnsetenv are Go equivalents of _cgo_setenv and _cgo_unsetenv,
+// used on platforms where runtime/cgo implements them in Go.
+//
+//go:linknamestd cgoSetenv
+var cgoSetenv func(k, v unsafe.Pointer)
+
+//go:linknamestd cgoUnsetenv
+var cgoUnsetenv func(k unsafe.Pointer)
+
 // Update the C environment if cgo is loaded.
 func setenv_c(k string, v string) {
+	if goexperiment.CgoBindings && cgoSetenv != nil {
+		kc, vc := cstring(k), cstring(v)
+		cgoSetenv(noescape(kc), noescape(vc))
+		KeepAlive(kc)
+		KeepAlive(vc)
+		return
+	}
 	if _cgo_setenv == nil {
 		return
 	}
@@ -75,6 +94,12 @@ func setenv_c(k string, v string) {
 
 // Update the C environment if cgo is loaded.
 func unsetenv_c(k string) {
+	if goexperiment.CgoBindings && cgoUnsetenv != nil {
+		kc := cstring(k)
+		cgoUnsetenv(noescape(kc))
+		KeepAlive(kc)
+		return
+	}
 	if _cgo_unsetenv == nil {
 		return
 	}

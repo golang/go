@@ -102,12 +102,31 @@ type argset struct {
 	retval uintptr
 }
 
+// cgoSyscall is populated by runtime/cgo on platforms where libc setxid
+// syscall wrappers are implemented in Go.
+//
+//go:linknamestd cgoSyscall
+var cgoSyscall func(fn unsafe.Pointer, a0, a1, a2 uintptr) uintptr
+
 // wrapper for syscall package to call cgocall for libc (cgo) calls.
 //
 //go:linkname syscall_cgocaller syscall.cgocaller
 //go:nosplit
 //go:uintptrescapes
 func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
+	if goexperiment.CgoBindings && cgoSyscall != nil {
+		var a0, a1, a2 uintptr
+		if len(args) > 0 {
+			a0 = args[0]
+		}
+		if len(args) > 1 {
+			a1 = args[1]
+		}
+		if len(args) > 2 {
+			a2 = args[2]
+		}
+		return cgoSyscall(noescape(fn), a0, a1, a2)
+	}
 	as := argset{args: unsafe.Pointer(&args[0])}
 	cgocall(fn, unsafe.Pointer(&as))
 	return as.retval

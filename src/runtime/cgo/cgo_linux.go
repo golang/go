@@ -6,7 +6,10 @@
 
 package cgo
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 //go:linkname _libc_pthread_attr_init libc_pthread_attr_init
 var _libc_pthread_attr_init byte
@@ -43,6 +46,55 @@ var libc_sigfillset = unsafe.Pointer(&_libc_sigfillset)
 //go:linkname _libc_errno_location libc_errno_location
 var _libc_errno_location byte
 var libc_errno_location = unsafe.Pointer(&_libc_errno_location)
+
+//go:linkname _libc_clearenv libc_clearenv
+var _libc_clearenv byte
+var libc_clearenv = unsafe.Pointer(&_libc_clearenv)
+
+//go:linkname _libc_setegid libc_setegid
+//go:linkname cgo_libc_setegid syscall.cgo_libc_setegid
+var _libc_setegid byte
+var cgo_libc_setegid = unsafe.Pointer(&_libc_setegid)
+
+//go:linkname _libc_seteuid libc_seteuid
+//go:linkname cgo_libc_seteuid syscall.cgo_libc_seteuid
+var _libc_seteuid byte
+var cgo_libc_seteuid = unsafe.Pointer(&_libc_seteuid)
+
+//go:linkname _libc_setgid libc_setgid
+//go:linkname cgo_libc_setgid syscall.cgo_libc_setgid
+var _libc_setgid byte
+var cgo_libc_setgid = unsafe.Pointer(&_libc_setgid)
+
+//go:linkname _libc_setgroups libc_setgroups
+//go:linkname cgo_libc_setgroups syscall.cgo_libc_setgroups
+var _libc_setgroups byte
+var cgo_libc_setgroups = unsafe.Pointer(&_libc_setgroups)
+
+//go:linkname _libc_setregid libc_setregid
+//go:linkname cgo_libc_setregid syscall.cgo_libc_setregid
+var _libc_setregid byte
+var cgo_libc_setregid = unsafe.Pointer(&_libc_setregid)
+
+//go:linkname _libc_setresgid libc_setresgid
+//go:linkname cgo_libc_setresgid syscall.cgo_libc_setresgid
+var _libc_setresgid byte
+var cgo_libc_setresgid = unsafe.Pointer(&_libc_setresgid)
+
+//go:linkname _libc_setresuid libc_setresuid
+//go:linkname cgo_libc_setresuid syscall.cgo_libc_setresuid
+var _libc_setresuid byte
+var cgo_libc_setresuid = unsafe.Pointer(&_libc_setresuid)
+
+//go:linkname _libc_setreuid libc_setreuid
+//go:linkname cgo_libc_setreuid syscall.cgo_libc_setreuid
+var _libc_setreuid byte
+var cgo_libc_setreuid = unsafe.Pointer(&_libc_setreuid)
+
+//go:linkname _libc_setuid libc_setuid
+//go:linkname cgo_libc_setuid syscall.cgo_libc_setuid
+var _libc_setuid byte
+var cgo_libc_setuid = unsafe.Pointer(&_libc_setuid)
 
 //go:linknamestd _cgoMmap runtime.cgoMmap
 var _cgoMmap = cgoMmap
@@ -162,6 +214,43 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 	return ret
 }
 
+//go:linknamestd _cgoClearenv runtime.cgoClearenv
+var _cgoClearenv = cgoClearenv
+
+//go:norace
+func cgoClearenv() {
+	tsanAcquire()
+	asmcgocall(uintptr(libc_clearenv), 0, 0, 0, 0, 0, 0)
+	tsanRelease()
+}
+
+// cgoSyscallFrame holds the target libc syscall function, the errno location
+// function, up to 3 arguments, and the result (0 on success, or errno on
+// failure) for cgoSyscallTrampoline.
+type cgoSyscallFrame struct {
+	fn         uintptr
+	a0, a1, a2 uintptr
+	r1         uintptr
+}
+
+func cgoSyscallTrampoline()
+
+//go:linknamestd _cgoSyscall runtime.cgoSyscall
+var _cgoSyscall = cgoSyscall
+
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func cgoSyscall(fn unsafe.Pointer, a0, a1, a2 uintptr) uintptr {
+	var f cgoSyscallFrame
+	f.fn = uintptr(fn)
+	f.a0 = a0
+	f.a1 = a1
+	f.a2 = a2
+	runtime_cgocall(unsafe.Pointer(abi.FuncPCABI0(cgoSyscallTrampoline)), unsafe.Pointer(&f))
+	return f.r1
+}
+
 // pthreadAttr corresponds to pthread_attr_t.
 type pthreadAttr struct {
 	data [8]uintptr
@@ -201,8 +290,20 @@ func cgoGetStackBound() (uintptr, uintptr) {
 //go:cgo_import_dynamic libc_sigaction sigaction "libc.so.6"
 //go:cgo_import_dynamic libc_sigfillset sigfillset "libc.so.6"
 //go:cgo_import_dynamic libc_errno_location __errno_location "libc.so.6"
+//go:cgo_import_dynamic libc_setenv setenv "libc.so.6"
+//go:cgo_import_dynamic libc_unsetenv unsetenv "libc.so.6"
+//go:cgo_import_dynamic libc_clearenv clearenv "libc.so.6"
 //go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "libc.so.6"
 //go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "libc.so.6"
 //go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so.6"
 //go:cgo_import_dynamic libc_pthread_getattr_np pthread_getattr_np "libc.so.6"
 //go:cgo_import_dynamic libc_pthread_attr_getstack pthread_attr_getstack "libc.so.6"
+//go:cgo_import_dynamic libc_setegid setegid "libc.so.6"
+//go:cgo_import_dynamic libc_seteuid seteuid "libc.so.6"
+//go:cgo_import_dynamic libc_setgid setgid "libc.so.6"
+//go:cgo_import_dynamic libc_setgroups setgroups "libc.so.6"
+//go:cgo_import_dynamic libc_setregid setregid "libc.so.6"
+//go:cgo_import_dynamic libc_setresgid setresgid "libc.so.6"
+//go:cgo_import_dynamic libc_setresuid setresuid "libc.so.6"
+//go:cgo_import_dynamic libc_setreuid setreuid "libc.so.6"
+//go:cgo_import_dynamic libc_setuid setuid "libc.so.6"

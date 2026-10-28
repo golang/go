@@ -233,10 +233,10 @@ func main() {
 			if _cgo_thread_start == nil {
 				throw("_cgo_thread_start missing")
 			}
-			if _cgo_setenv == nil {
+			if _cgo_setenv == nil && (!goexperiment.CgoBindings || cgoSetenv == nil) {
 				throw("_cgo_setenv missing")
 			}
-			if _cgo_unsetenv == nil {
+			if _cgo_unsetenv == nil && (!goexperiment.CgoBindings || cgoUnsetenv == nil) {
 				throw("_cgo_unsetenv missing")
 			}
 		}
