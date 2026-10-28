@@ -16,6 +16,15 @@ import (
 	"strings"
 )
 
+const (
+	TypeCertificate        = "CERTIFICATE"
+	TypeRSAPrivateKey      = "RSA PRIVATE KEY"
+	TypeECPrivateKey       = "EC PRIVATE KEY"
+	TypePrivateKey         = "PRIVATE KEY"
+	TypePublicKey          = "PUBLIC KEY"
+	TypeCertificateRequest = "CERTIFICATE REQUEST"
+)
+
 // A Block represents a PEM encoded structure.
 //
 // The encoded form is:
