@@ -457,7 +457,7 @@ wherever its prerequisites and track allow.
 | [ ] | A | `compiler-ops` | Compiler-only ops decision | — | — |
 | [ ] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
-| [ ] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
+| [x] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
 | [x] | B | `specfill` | API walker + report mode | — | — |
 | [x] | B | `fill-gen` | Wire `specfill` into the generators | `specfill` | — |
 | [x] | B | `named-results` | Reconcile parameter and result names with spec | `fill-gen` | — |
@@ -694,7 +694,7 @@ the API name changes, land the rename through the generators as its own CL.
 recorded in `internal/spec/doc.go`.
 
 ### `impl-defined` — Implementation-defined behavior policy
-**Done:** [ ] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-impl-defined-behavior`
+**Done:** [x] · **Needs:** — · **Blocks:** `conform-fixed` · **Risk:** `risk-impl-defined-behavior`
 
 Decide what counts as implementation-defined behavior in the SIMD API, and how
 spec expresses it so conformance testing stays meaningful. Architectures
@@ -1362,7 +1362,7 @@ each is far cheaper to settle before the bodies are written than after.
 |---|---|---|---|
 | **[ ]** | `risk-spec-defects` | Known spec defects | `convert-lo`, `mask-bits` |
 | **[x]** | `risk-concrete-width` | Executing spec at a concrete width | `width` |
-| **[ ]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
+| **[x]** | `risk-impl-defined-behavior` | Implementation-defined behavior | `impl-defined` |
 | **[x]** | `risk-doc-template-ceiling` | Doc-template ceiling — the fallback is a mechanism change affecting every doc written so far | `doc-explore` |
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
 | **[x]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
