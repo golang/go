@@ -17901,324 +17901,428 @@ func (x Uint64s) ReshapeToUint32s() (z Uint32s) {
 	return Uint32s{spec.ReshapeToUints[uint64, spec.WidthScalable, uint32](x.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x16) ScaleSaturated(scale Int8x16) (z Int8x16) {
-	return Int8x16{canonVec(spec.ScaleSaturated[int8, spec.Width128, int8](x.v, scale.v))}
+	return Int8x16{spec.ScaleSaturated[int8, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x32) ScaleSaturated(scale Int8x32) (z Int8x32) {
-	return Int8x32{canonVec(spec.ScaleSaturated[int8, spec.Width256, int8](x.v, scale.v))}
+	return Int8x32{spec.ScaleSaturated[int8, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8x64) ScaleSaturated(scale Int8x64) (z Int8x64) {
-	return Int8x64{canonVec(spec.ScaleSaturated[int8, spec.Width512, int8](x.v, scale.v))}
+	return Int8x64{spec.ScaleSaturated[int8, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Int8s) ScaleSaturated(scale Int8s) (z Int8s) {
-	return Int8s{canonVec(spec.ScaleSaturated[int8, spec.WidthScalable, int8](x.v, scale.v))}
+	return Int8s{spec.ScaleSaturated[int8, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int16x8) ScaleSaturated(scale Int16x8) (z Int16x8) {
-	return Int16x8{canonVec(spec.ScaleSaturated[int16, spec.Width128, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int16x8) ScaleSaturated(scale Int8x16) (z Int16x8) {
+	return Int16x8{spec.ScaleSaturated[int16, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int16x16) ScaleSaturated(scale Int16x16) (z Int16x16) {
-	return Int16x16{canonVec(spec.ScaleSaturated[int16, spec.Width256, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int16x16) ScaleSaturated(scale Int8x32) (z Int16x16) {
+	return Int16x16{spec.ScaleSaturated[int16, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int16x32) ScaleSaturated(scale Int16x32) (z Int16x32) {
-	return Int16x32{canonVec(spec.ScaleSaturated[int16, spec.Width512, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int16x32) ScaleSaturated(scale Int8x64) (z Int16x32) {
+	return Int16x32{spec.ScaleSaturated[int16, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int16s) ScaleSaturated(scale Int16s) (z Int16s) {
-	return Int16s{canonVec(spec.ScaleSaturated[int16, spec.WidthScalable, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int16s) ScaleSaturated(scale Int8s) (z Int16s) {
+	return Int16s{spec.ScaleSaturated[int16, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int32x4) ScaleSaturated(scale Int32x4) (z Int32x4) {
-	return Int32x4{canonVec(spec.ScaleSaturated[int32, spec.Width128, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int32x4) ScaleSaturated(scale Int8x16) (z Int32x4) {
+	return Int32x4{spec.ScaleSaturated[int32, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int32x8) ScaleSaturated(scale Int32x8) (z Int32x8) {
-	return Int32x8{canonVec(spec.ScaleSaturated[int32, spec.Width256, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int32x8) ScaleSaturated(scale Int8x32) (z Int32x8) {
+	return Int32x8{spec.ScaleSaturated[int32, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int32x16) ScaleSaturated(scale Int32x16) (z Int32x16) {
-	return Int32x16{canonVec(spec.ScaleSaturated[int32, spec.Width512, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int32x16) ScaleSaturated(scale Int8x64) (z Int32x16) {
+	return Int32x16{spec.ScaleSaturated[int32, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int32s) ScaleSaturated(scale Int32s) (z Int32s) {
-	return Int32s{canonVec(spec.ScaleSaturated[int32, spec.WidthScalable, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int32s) ScaleSaturated(scale Int8s) (z Int32s) {
+	return Int32s{spec.ScaleSaturated[int32, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2) {
-	return Int64x2{canonVec(spec.ScaleSaturated[int64, spec.Width128, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int64x2) ScaleSaturated(scale Int8x16) (z Int64x2) {
+	return Int64x2{spec.ScaleSaturated[int64, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int64x4) ScaleSaturated(scale Int64x4) (z Int64x4) {
-	return Int64x4{canonVec(spec.ScaleSaturated[int64, spec.Width256, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int64x4) ScaleSaturated(scale Int8x32) (z Int64x4) {
+	return Int64x4{spec.ScaleSaturated[int64, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int64x8) ScaleSaturated(scale Int64x8) (z Int64x8) {
-	return Int64x8{canonVec(spec.ScaleSaturated[int64, spec.Width512, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int64x8) ScaleSaturated(scale Int8x64) (z Int64x8) {
+	return Int64x8{spec.ScaleSaturated[int64, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Int64s) ScaleSaturated(scale Int64s) (z Int64s) {
-	return Int64s{canonVec(spec.ScaleSaturated[int64, spec.WidthScalable, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Int64s) ScaleSaturated(scale Int8s) (z Int64s) {
+	return Int64s{spec.ScaleSaturated[int64, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x16) ScaleSaturated(scale Int8x16) (z Uint8x16) {
-	return Uint8x16{canonVec(spec.ScaleSaturated[uint8, spec.Width128, int8](x.v, scale.v))}
+	return Uint8x16{spec.ScaleSaturated[uint8, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x32) ScaleSaturated(scale Int8x32) (z Uint8x32) {
-	return Uint8x32{canonVec(spec.ScaleSaturated[uint8, spec.Width256, int8](x.v, scale.v))}
+	return Uint8x32{spec.ScaleSaturated[uint8, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8x64) ScaleSaturated(scale Int8x64) (z Uint8x64) {
-	return Uint8x64{canonVec(spec.ScaleSaturated[uint8, spec.Width512, int8](x.v, scale.v))}
+	return Uint8x64{spec.ScaleSaturated[uint8, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
 //	z[i] = sat(x[i] * 2^scale[i])
 func (x Uint8s) ScaleSaturated(scale Int8s) (z Uint8s) {
-	return Uint8s{canonVec(spec.ScaleSaturated[uint8, spec.WidthScalable, int8](x.v, scale.v))}
+	return Uint8s{spec.ScaleSaturated[uint8, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint16x8) ScaleSaturated(scale Int16x8) (z Uint16x8) {
-	return Uint16x8{canonVec(spec.ScaleSaturated[uint16, spec.Width128, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint16x8) ScaleSaturated(scale Int8x16) (z Uint16x8) {
+	return Uint16x8{spec.ScaleSaturated[uint16, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint16x16) ScaleSaturated(scale Int16x16) (z Uint16x16) {
-	return Uint16x16{canonVec(spec.ScaleSaturated[uint16, spec.Width256, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint16x16) ScaleSaturated(scale Int8x32) (z Uint16x16) {
+	return Uint16x16{spec.ScaleSaturated[uint16, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint16x32) ScaleSaturated(scale Int16x32) (z Uint16x32) {
-	return Uint16x32{canonVec(spec.ScaleSaturated[uint16, spec.Width512, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint16x32) ScaleSaturated(scale Int8x64) (z Uint16x32) {
+	return Uint16x32{spec.ScaleSaturated[uint16, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint16s) ScaleSaturated(scale Int16s) (z Uint16s) {
-	return Uint16s{canonVec(spec.ScaleSaturated[uint16, spec.WidthScalable, int16](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint16s) ScaleSaturated(scale Int8s) (z Uint16s) {
+	return Uint16s{spec.ScaleSaturated[uint16, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint32x4) ScaleSaturated(scale Int32x4) (z Uint32x4) {
-	return Uint32x4{canonVec(spec.ScaleSaturated[uint32, spec.Width128, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint32x4) ScaleSaturated(scale Int8x16) (z Uint32x4) {
+	return Uint32x4{spec.ScaleSaturated[uint32, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint32x8) ScaleSaturated(scale Int32x8) (z Uint32x8) {
-	return Uint32x8{canonVec(spec.ScaleSaturated[uint32, spec.Width256, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint32x8) ScaleSaturated(scale Int8x32) (z Uint32x8) {
+	return Uint32x8{spec.ScaleSaturated[uint32, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint32x16) ScaleSaturated(scale Int32x16) (z Uint32x16) {
-	return Uint32x16{canonVec(spec.ScaleSaturated[uint32, spec.Width512, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint32x16) ScaleSaturated(scale Int8x64) (z Uint32x16) {
+	return Uint32x16{spec.ScaleSaturated[uint32, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint32s) ScaleSaturated(scale Int32s) (z Uint32s) {
-	return Uint32s{canonVec(spec.ScaleSaturated[uint32, spec.WidthScalable, int32](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint32s) ScaleSaturated(scale Int8s) (z Uint32s) {
+	return Uint32s{spec.ScaleSaturated[uint32, spec.WidthScalable](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint64x2) ScaleSaturated(scale Int64x2) (z Uint64x2) {
-	return Uint64x2{canonVec(spec.ScaleSaturated[uint64, spec.Width128, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint64x2) ScaleSaturated(scale Int8x16) (z Uint64x2) {
+	return Uint64x2{spec.ScaleSaturated[uint64, spec.Width128](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint64x4) ScaleSaturated(scale Int64x4) (z Uint64x4) {
-	return Uint64x4{canonVec(spec.ScaleSaturated[uint64, spec.Width256, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint64x4) ScaleSaturated(scale Int8x32) (z Uint64x4) {
+	return Uint64x4{spec.ScaleSaturated[uint64, spec.Width256](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint64x8) ScaleSaturated(scale Int64x8) (z Uint64x8) {
-	return Uint64x8{canonVec(spec.ScaleSaturated[uint64, spec.Width512, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint64x8) ScaleSaturated(scale Int8x64) (z Uint64x8) {
+	return Uint64x8{spec.ScaleSaturated[uint64, spec.Width512](x.v, scale.v)}
 }
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
-func (x Uint64s) ScaleSaturated(scale Int64s) (z Uint64s) {
-	return Uint64s{canonVec(spec.ScaleSaturated[uint64, spec.WidthScalable, int64](x.v, scale.v))}
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+func (x Uint64s) ScaleSaturated(scale Int8s) (z Uint64s) {
+	return Uint64s{spec.ScaleSaturated[uint64, spec.WidthScalable](x.v, scale.v)}
 }
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.

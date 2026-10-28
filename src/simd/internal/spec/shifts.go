@@ -8,25 +8,29 @@ package spec
 
 import "math/bits"
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down ({{if eq .xB "int"}}arithmetic{{else}}logical{{end}} shift right).
 //
+// {{if eq .xN 8}}
+//
 //	z[i] = sat(x[i] * 2^scale[i])
 //
-//specgen:require scale=Int{xN}x{xL}
-func ScaleSaturated[E Ints | Uints, W Width, yE Ints](x Vec[E, W], scale Vec[yE, W]) (z Vec[Variation[E], W]) {
-	// TODO: This is not specified for shifts that don't fit in int8. Figure out
-	// if we emulate those, or use (unzipped) int8 as the shift type. The raw
-	// ARM64 behavior is bad.
-	z = makeVec[Variation[E], W]()
+// {{else}}
+//
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k={{.xN}}/{{.scaleN}}. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
+//
+// {{end}}
+func ScaleSaturated[E Ints | Uints, W Width](x Vec[E, W], scale Vec[int8, W]) (z Vec[E, W]) {
+	k := elemBits[E]() / 8
+	z = makeVec[E, W]()
 	for i := range z {
-		if yE(int8(scale[i])) != scale[i] {
-			z[i] = undef[E]()
-		} else {
-			z[i] = exact(scaleSaturated(x[i], scale[i]))
-		}
+		z[i] = scaleSaturated(x[i], scale[i*k])
 	}
 	return z
 }

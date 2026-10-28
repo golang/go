@@ -26,17 +26,25 @@ func TestShift(t *testing.T) {
 }
 
 func TestScaleSaturated(t *testing.T) {
+	// ScaleSaturated takes an Int8 scale vector and uses the element at the
+	// low byte of each element of x. These tests pass the scale as a vector
+	// of x's shape and reinterpret it, so the reference uses the low byte of
+	// each scale element.
+	s16 := func(s archsimd.Int16x8) archsimd.Int8x16 { return s.ToBits().ReshapeToUint8s().BitsToInt8() }
+	s32 := func(s archsimd.Int32x4) archsimd.Int8x16 { return s.ToBits().ReshapeToUint8s().BitsToInt8() }
+	s64 := func(s archsimd.Int64x2) archsimd.Int8x16 { return s.ToBits().ReshapeToUint8s().BitsToInt8() }
+
 	// Signed — reuse binary helpers
 	testInt8x16Binary(t, archsimd.Int8x16.ScaleSaturated, scaleSaturatingSignedSlice[int8])
-	testInt16x8Binary(t, archsimd.Int16x8.ScaleSaturated, scaleSaturatingSignedSlice[int16])
-	testInt32x4Binary(t, archsimd.Int32x4.ScaleSaturated, scaleSaturatingSignedSlice[int32])
-	testInt64x2Binary(t, archsimd.Int64x2.ScaleSaturated, scaleSaturatingSignedSlice[int64])
+	testInt16x8Binary(t, func(x, s archsimd.Int16x8) archsimd.Int16x8 { return x.ScaleSaturated(s16(s)) }, scaleSaturatingSignedSlice[int16])
+	testInt32x4Binary(t, func(x, s archsimd.Int32x4) archsimd.Int32x4 { return x.ScaleSaturated(s32(s)) }, scaleSaturatingSignedSlice[int32])
+	testInt64x2Binary(t, func(x, s archsimd.Int64x2) archsimd.Int64x2 { return x.ScaleSaturated(s64(s)) }, scaleSaturatingSignedSlice[int64])
 
 	// Unsigned — mixed-type
 	testUint8x16Shift(t, archsimd.Uint8x16.ScaleSaturated, scaleSaturatingUnsignedSlice[uint8, int8])
-	testUint16x8Shift(t, archsimd.Uint16x8.ScaleSaturated, scaleSaturatingUnsignedSlice[uint16, int16])
-	testUint32x4Shift(t, archsimd.Uint32x4.ScaleSaturated, scaleSaturatingUnsignedSlice[uint32, int32])
-	testUint64x2Shift(t, archsimd.Uint64x2.ScaleSaturated, scaleSaturatingUnsignedSlice[uint64, int64])
+	testUint16x8Shift(t, func(x archsimd.Uint16x8, s archsimd.Int16x8) archsimd.Uint16x8 { return x.ScaleSaturated(s16(s)) }, scaleSaturatingUnsignedSlice[uint16, int16])
+	testUint32x4Shift(t, func(x archsimd.Uint32x4, s archsimd.Int32x4) archsimd.Uint32x4 { return x.ScaleSaturated(s32(s)) }, scaleSaturatingUnsignedSlice[uint32, int32])
+	testUint64x2Shift(t, func(x archsimd.Uint64x2, s archsimd.Int64x2) archsimd.Uint64x2 { return x.ScaleSaturated(s64(s)) }, scaleSaturatingUnsignedSlice[uint64, int64])
 }
 
 func TestConcatShiftBytesRight(t *testing.T) {

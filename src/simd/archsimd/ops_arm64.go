@@ -2027,7 +2027,8 @@ func (x Uint64x2) SaturateToUint32() Uint32x4
 
 /* ScaleSaturated */
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
@@ -2037,37 +2038,50 @@ func (x Uint64x2) SaturateToUint32() Uint32x4
 // Asm: VSQSHL
 func (x Int8x16) ScaleSaturated(scale Int8x16) (z Int8x16)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VSQSHL
-func (x Int16x8) ScaleSaturated(scale Int16x8) (z Int16x8)
+func (x Int16x8) ScaleSaturated(scale Int8x16) (z Int16x8)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VSQSHL
-func (x Int32x4) ScaleSaturated(scale Int32x4) (z Int32x4)
+func (x Int32x4) ScaleSaturated(scale Int8x16) (z Int32x4)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (arithmetic shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VSQSHL
-func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2)
+func (x Int64x2) ScaleSaturated(scale Int8x16) (z Int64x2)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
@@ -2077,35 +2091,47 @@ func (x Int64x2) ScaleSaturated(scale Int64x2) (z Int64x2)
 // Asm: VUQSHL
 func (x Uint8x16) ScaleSaturated(scale Int8x16) (z Uint8x16)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=16/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VUQSHL
-func (x Uint16x8) ScaleSaturated(scale Int16x8) (z Uint16x8)
+func (x Uint16x8) ScaleSaturated(scale Int8x16) (z Uint16x8)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=32/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VUQSHL
-func (x Uint32x4) ScaleSaturated(scale Int32x4) (z Uint32x4)
+func (x Uint32x4) ScaleSaturated(scale Int8x16) (z Uint32x4)
 
-// ScaleSaturated multiplies x[i] by 2^scale[i], with saturation.
+// ScaleSaturated multiplies each element of x by a power of two given by scale,
+// with saturation.
 //
 // Positive exponents scale up (shift left with saturation). Negative exponents
 // scale down (logical shift right).
 //
-//	z[i] = sat(x[i] * 2^scale[i])
+// scale has the same total width as x, but its elements are int8. Only every
+// k'th element of scale is used, where k=64/8. The rest are ignored.
+//
+//	z[i] = sat(x[i] * 2^scale[i*k])
 //
 // Asm: VUQSHL
-func (x Uint64x2) ScaleSaturated(scale Int64x2) (z Uint64x2)
+func (x Uint64x2) ScaleSaturated(scale Int8x16) (z Uint64x2)
 
 /* SetElem */
 

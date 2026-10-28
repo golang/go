@@ -27,6 +27,9 @@
   out:
   - *uint
 
+# The scale operand is always an Int8 vector. SQSHL/UQSHL use only the low
+# byte of each element of the scale register, so x[i] is scaled by the int8
+# element that lines up with x[i]'s lowest byte.
 - go: ScaleSaturated
   signed: true
   asm: "VSQSHL"
@@ -34,6 +37,7 @@
   - *int
   - go: $t
     base: int
+    overwriteElementBits: 8
     name: scale
   out:
   - *int
@@ -46,6 +50,7 @@
   - go: $t
     base: uint
     overwriteBase: int
+    overwriteElementBits: 8
     name: scale
   out:
   - *uint
