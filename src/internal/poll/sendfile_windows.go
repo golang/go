@@ -51,7 +51,7 @@ func SendFile(fd *FD, src uintptr, size int64) (written int64, err error, handle
 			// file position after TransmitFile completes.
 			// So just use Seek to set file position.
 			_, serr := syscall.Seek(hsrc, startpos+written, io.SeekStart)
-			if err != nil {
+			if err == nil {
 				err = serr
 			}
 		}
