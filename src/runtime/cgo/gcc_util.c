@@ -48,3 +48,48 @@ x_cgo_yield()
 void(* const _cgo_yield)() = &x_cgo_yield;
 
 #endif  /* GO_TSAN */
+
+// Hide these from the ELF external linker, if we're linking externally.
+#ifdef __ELF__
+#define CGO_HIDDEN __attribute__((visibility("hidden")))
+#else
+#define CGO_HIDDEN
+#endif
+
+#ifdef CGO_TSAN
+static void
+x_cgo_tsan_acquire(void)
+{
+	_cgo_tsan_acquire();
+}
+
+static void
+x_cgo_tsan_release(void)
+{
+	_cgo_tsan_release();
+}
+
+CGO_HIDDEN void (* const _cgo_tsan_acquire_fn)(void) = &x_cgo_tsan_acquire;
+CGO_HIDDEN void (* const _cgo_tsan_release_fn)(void) = &x_cgo_tsan_release;
+#else
+CGO_HIDDEN void (* const _cgo_tsan_acquire_fn)(void) = NULL;
+CGO_HIDDEN void (* const _cgo_tsan_release_fn)(void) = NULL;
+#endif
+
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
+#if __has_feature(memory_sanitizer)
+#include <sanitizer/msan_interface.h>
+
+static void
+x_cgo_msan_unpoison(const volatile void *addr, size_t size)
+{
+	__msan_unpoison(addr, size);
+}
+
+CGO_HIDDEN void (* const _cgo_msan_unpoison_fn)(const volatile void*, size_t) = &x_cgo_msan_unpoison;
+#else
+CGO_HIDDEN void (* const _cgo_msan_unpoison_fn)(const volatile void*, size_t) = NULL;
+#endif

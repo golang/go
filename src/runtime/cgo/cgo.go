@@ -36,9 +36,16 @@ package cgo
 */
 import "C"
 
-import "internal/runtime/sys"
+import (
+	"internal/runtime/sys"
+	_ "unsafe" // for go:cgo_import_static
+)
 
 // Incomplete is used specifically for the semantics of incomplete C types.
 type Incomplete struct {
 	_ sys.NotInHeap
 }
+
+//go:cgo_import_static _cgo_tsan_acquire_fn
+//go:cgo_import_static _cgo_tsan_release_fn
+//go:cgo_import_static _cgo_msan_unpoison_fn
