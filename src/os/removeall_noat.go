@@ -54,13 +54,13 @@ func removeAll(path string) error {
 	// Remove contents & return first error.
 	err = nil
 	for {
-		fd, err := Open(path)
-		if err != nil {
-			if IsNotExist(err) {
+		fd, err1 := Open(path)
+		if err1 != nil {
+			if IsNotExist(err1) {
 				// Already deleted by someone else.
 				return nil
 			}
-			return err
+			return err1
 		}
 
 		const reqSize = 1024
