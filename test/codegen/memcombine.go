@@ -68,6 +68,14 @@ func load_le16(b []byte) uint16 {
 	return binary.LittleEndian.Uint16(b)
 }
 
+// A combined load that is shared by two OR expressions must still be found.
+func load_le16_shared(b []byte, x, y uint16) (uint16, uint16) {
+	// amd64:`MOVWLZX \(.*\),` -`MOVB`
+	// arm64:`MOVHU \(R[0-9]+\),` -`MOVB`
+	v := uint16(b[0]) | uint16(b[1])<<8
+	return v | x, v | y
+}
+
 func load_le16_idx(b []byte, idx int) uint16 {
 	// amd64:`MOVWLZX \(.*\),` -`MOVB` -`OR`
 	// ppc64le:`MOVHZ ` -`MOVBZ`
