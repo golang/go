@@ -85,11 +85,42 @@ func broadcastConstImmFold(k int) {
 func shiftAllImmFold(k int) {
 	switch k {
 	case 100:
-		// arm64:`VMOVI [$]100,` `VSSHL` -`VDUP`
+		// arm64:`VMOVI [$]0,` -`VSSHL` -`VDUP`
 		sinkI8 = sinkI8.ShiftAllLeft(100)
-		// arm64:`VMOVI [$]156,` `VUSHL` -`VDUP`
+		// arm64:`VUSHR [$]8,` -`VUSHL` -`VDUP`
 		sinkU8 = sinkU8.ShiftAllRight(100)
 	}
+}
+
+// Shifts by a constant use the immediate forms.
+func shiftAllLeftConst8(x archsimd.Int8x16) archsimd.Int8x16 {
+	// arm64:`VSHL [$]3, V\d+.B16` -`VSSHL`
+	return x.ShiftAllLeft(3)
+}
+
+func shiftAllRightConst16(x archsimd.Int16x8) archsimd.Int16x8 {
+	// arm64:`VSSHR [$]7, V\d+.H8` -`VSSHL`
+	return x.ShiftAllRight(7)
+}
+
+func shiftAllRightConst32(x archsimd.Int32x4) archsimd.Int32x4 {
+	// arm64:`VSSHR [$]24, V\d+.S4` -`VSSHL`
+	return x.ShiftAllRight(24)
+}
+
+func shiftAllRightConstHuge32(x archsimd.Int32x4) archsimd.Int32x4 {
+	// arm64:`VSSHR [$]32, V\d+.S4` -`VSSHL`
+	return x.ShiftAllRight(1000)
+}
+
+func shiftAllRightConstWidth64(x archsimd.Uint64x2) archsimd.Uint64x2 {
+	// arm64:`VUSHR [$]64, V\d+.D2` -`VUSHL`
+	return x.ShiftAllRight(64)
+}
+
+func shiftAllLeftConst64(x archsimd.Uint64x2) archsimd.Uint64x2 {
+	// arm64:`VSHL [$]63, V\d+.D2` -`VUSHL`
+	return x.ShiftAllLeft(63)
 }
 
 func setHiUint32(x, lo archsimd.Uint32x4) {

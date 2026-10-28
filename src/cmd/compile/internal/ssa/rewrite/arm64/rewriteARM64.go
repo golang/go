@@ -34996,6 +34996,33 @@ func rewriteValue_OpShiftAllLeftInt16x8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftInt16x8 x (MOVDconst [c]))
+	// cond: uint64(c) < 16
+	// result: (VSHL8H [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL8H)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftInt16x8 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftInt16x8 x y)
 	// result: (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35042,6 +35069,33 @@ func rewriteValue_OpShiftAllLeftInt32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftInt32x4 x (MOVDconst [c]))
+	// cond: uint64(c) < 32
+	// result: (VSHL4S [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL4S)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftInt32x4 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftInt32x4 x y)
 	// result: (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35096,6 +35150,33 @@ func rewriteValue_OpShiftAllLeftInt64x2(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftInt64x2 x (MOVDconst [c]))
+	// cond: uint64(c) < 64
+	// result: (VSHL2D [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 64) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL2D)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftInt64x2 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftInt64x2 x y)
 	// result: (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35142,6 +35223,33 @@ func rewriteValue_OpShiftAllLeftInt8x16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftInt8x16 x (MOVDconst [c]))
+	// cond: uint64(c) < 8
+	// result: (VSHL16B [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftInt8x16 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftInt8x16 x y)
 	// result: (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35188,6 +35296,33 @@ func rewriteValue_OpShiftAllLeftUint16x8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftUint16x8 x (MOVDconst [c]))
+	// cond: uint64(c) < 16
+	// result: (VSHL8H [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 16) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL8H)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftUint16x8 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftUint16x8 x y)
 	// result: (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35234,6 +35369,33 @@ func rewriteValue_OpShiftAllLeftUint32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftUint32x4 x (MOVDconst [c]))
+	// cond: uint64(c) < 32
+	// result: (VSHL4S [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 32) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL4S)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftUint32x4 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftUint32x4 x y)
 	// result: (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35288,6 +35450,33 @@ func rewriteValue_OpShiftAllLeftUint64x2(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftUint64x2 x (MOVDconst [c]))
+	// cond: uint64(c) < 64
+	// result: (VSHL2D [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 64) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL2D)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftUint64x2 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftUint64x2 x y)
 	// result: (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35334,6 +35523,33 @@ func rewriteValue_OpShiftAllLeftUint8x16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllLeftUint8x16 x (MOVDconst [c]))
+	// cond: uint64(c) < 8
+	// result: (VSHL16B [uint8(c)] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		if !(uint64(c) < 8) {
+			break
+		}
+		v.Reset(ssaop.OpARM64VSHL16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(c))
+		v.AddArg(x)
+		return true
+	}
+	// match: (ShiftAllLeftUint8x16 x (MOVDconst [c]))
+	// result: (VMOVI16B [0])
+	for {
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		v.Reset(ssaop.OpARM64VMOVI16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		return true
+	}
 	// match: (ShiftAllLeftUint8x16 x y)
 	// result: (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
 	for {
@@ -35363,6 +35579,19 @@ func rewriteValue_OpShiftAllRightInt16x8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightInt16x8 x (MOVDconst [c]))
+	// result: (VSSHR8H [uint8(min(uint64(c), 16))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VSSHR8H)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 16)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightInt16x8 x y)
 	// result: (VSSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35394,6 +35623,19 @@ func rewriteValue_OpShiftAllRightInt32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightInt32x4 x (MOVDconst [c]))
+	// result: (VSSHR4S [uint8(min(uint64(c), 32))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VSSHR4S)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 32)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightInt32x4 x y)
 	// result: (VSSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35425,6 +35667,19 @@ func rewriteValue_OpShiftAllRightInt64x2(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightInt64x2 x (MOVDconst [c]))
+	// result: (VSSHR2D [uint8(min(uint64(c), 64))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VSSHR2D)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 64)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightInt64x2 x y)
 	// result: (VSSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35456,6 +35711,19 @@ func rewriteValue_OpShiftAllRightInt8x16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightInt8x16 x (MOVDconst [c]))
+	// result: (VSSHR16B [uint8(min(uint64(c), 8))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VSSHR16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 8)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightInt8x16 x y)
 	// result: (VSSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35487,6 +35755,19 @@ func rewriteValue_OpShiftAllRightUint16x8(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightUint16x8 x (MOVDconst [c]))
+	// result: (VUSHR8H [uint8(min(uint64(c), 16))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VUSHR8H)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 16)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightUint16x8 x y)
 	// result: (VUSHL8H x (VDUPHbcast [0] (VMOVHins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35518,6 +35799,19 @@ func rewriteValue_OpShiftAllRightUint32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightUint32x4 x (MOVDconst [c]))
+	// result: (VUSHR4S [uint8(min(uint64(c), 32))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VUSHR4S)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 32)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightUint32x4 x y)
 	// result: (VUSHL4S x (VDUPSbcast [0] (VMOVSins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35549,6 +35843,19 @@ func rewriteValue_OpShiftAllRightUint64x2(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightUint64x2 x (MOVDconst [c]))
+	// result: (VUSHR2D [uint8(min(uint64(c), 64))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VUSHR2D)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 64)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightUint64x2 x y)
 	// result: (VUSHL2D x (VDUPDbcast [0] (VMOVDins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {
@@ -35580,6 +35887,19 @@ func rewriteValue_OpShiftAllRightUint8x16(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
 	typ := &b.Func.Config.Types
+	// match: (ShiftAllRightUint8x16 x (MOVDconst [c]))
+	// result: (VUSHR16B [uint8(min(uint64(c), 8))] x)
+	for {
+		x := v_0
+		if v_1.Op != ssaop.OpARM64MOVDconst {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_1.AuxInt)
+		v.Reset(ssaop.OpARM64VUSHR16B)
+		v.AuxInt = ssa.Uint8ToAuxInt(uint8(min(uint64(c), 8)))
+		v.AddArg(x)
+		return true
+	}
 	// match: (ShiftAllRightUint8x16 x y)
 	// result: (VUSHL16B x (VDUPBbcast [0] (VMOVBins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))
 	for {

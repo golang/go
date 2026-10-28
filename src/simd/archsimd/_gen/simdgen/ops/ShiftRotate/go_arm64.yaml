@@ -129,14 +129,17 @@
   - *uint
 
 # Shift all lanes in vector x by the same unsigned scalar amount y.
-# ShiftAll* are lowered to corresponding ShiftConst* if the amount is constant and fits into immediate,
-# otherwise fallback to the Shift intrinsic using sign to specify shift direction, e.g.:
+# ShiftAll* with a constant amount are lowered to the immediate shifts (or to
+# zero for a left shift by at least the element width). Otherwise they fall
+# back to the Shift intrinsic using sign to specify shift direction, e.g.:
 #   x.Shift(Zero.SetElem(0, -y).Broadcast1ToN()) for shift right
 #   x.Shift(Zero.SetElem(0,  y).Broadcast1ToN()) for shift left
 - go: ShiftAllLeft
   signed: true
   asm: "VSSHL"
   lowerRules:
+  - !string "(%g x (MOVDconst [c])) && uint64(c) < %b => (VSHL%a [uint8(c)] x)"
+  - !string "(%g x (MOVDconst [c])) => (VMOVI16B [0])"
   - !string "(%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *int
@@ -152,6 +155,8 @@
   signed: false
   asm: "VUSHL"
   lowerRules:
+  - !string "(%g x (MOVDconst [c])) && uint64(c) < %b => (VSHL%a [uint8(c)] x)"
+  - !string "(%g x (MOVDconst [c])) => (VMOVI16B [0])"
   - !string "(%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *uint
@@ -168,6 +173,7 @@
   signed: true
   asm: "VSSHL"
   lowerRules:
+  - !string "(%g x (MOVDconst [c])) => (VSSHR%a [uint8(min(uint64(c), %b))] x)"
   - !string "(%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *int
@@ -179,6 +185,7 @@
   signed: false
   asm: "VUSHL"
   lowerRules:
+  - !string "(%g x (MOVDconst [c])) => (VUSHR%a [uint8(min(uint64(c), %b))] x)"
   - !string "(%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *uint
