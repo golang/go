@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goos"
 	. "runtime"
 	"testing"
 )
@@ -168,7 +167,8 @@ func TestPageAllocGrow(t *testing.T) {
 	}
 	// Disable these tests on iOS since we have a small address space.
 	// See #46860.
-	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+	// OpenBSD/arm64 has a 39-bit address space.
+	if PageAlloc64Bit != 0 && GOOS != "ios" && !(GOOS == "openbsd" && GOARCH == "arm64") {
 		tests["ExtremelyDiscontiguous"] = test{
 			chunks: []ChunkIdx{
 				BaseChunkIdx,
@@ -577,7 +577,8 @@ func TestPageAllocAlloc(t *testing.T) {
 	}
 	// Disable these tests on iOS since we have a small address space.
 	// See #46860.
-	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+	// OpenBSD/arm64 also has a small address space
+	if PageAlloc64Bit != 0 && GOOS != "ios" && !(GOOS == "openbsd" && GOARCH == "arm64") {
 		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
 
 		// This test attempts to trigger a bug wherein we look at unmapped summary

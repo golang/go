@@ -6,7 +6,6 @@ package runtime_test
 
 import (
 	"fmt"
-	"internal/goos"
 	"internal/runtime/atomic"
 	"math"
 	"math/rand"
@@ -425,7 +424,8 @@ func TestPageAllocScavenge(t *testing.T) {
 	}
 	// Disable these tests on iOS since we have a small address space.
 	// See #46860.
-	if PageAlloc64Bit != 0 && goos.IsIos == 0 {
+	// OpenBSD/arm64 also has a small address space
+	if PageAlloc64Bit != 0 && GOOS != "ios" && !(GOOS == "openbsd" && GOARCH == "arm64") {
 		tests["ScavAllVeryDiscontiguous"] = setup{
 			beforeAlloc: map[ChunkIdx][]BitRange{
 				BaseChunkIdx:          {},
