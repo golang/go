@@ -10,13 +10,24 @@
 
 package runtime
 
-import "unsafe"
+import (
+	"internal/goexperiment"
+	"unsafe"
+)
 
 // _cgo_sigaction is filled in by runtime/cgo when it is linked into the
 // program, so it is only non-nil when using cgo.
 //
 //go:linkname _cgo_sigaction _cgo_sigaction
 var _cgo_sigaction unsafe.Pointer
+
+// cgoSigaction is the Go equivalent of _cgo_sigaction, used on platforms
+// where runtime/cgo implements it in Go. noG reports whether the call must
+// stay on the current stack without touching g or TLS (for example, during
+// libpreinit before runtime initialization or in an async signal handler).
+//
+//go:linknamestd cgoSigaction
+var cgoSigaction func(sig uintptr, new, old *sigactiont, noG bool) int32
 
 //go:nosplit
 //go:nowritebarrierrec
@@ -33,7 +44,13 @@ func sigaction(sig uint32, new, old *sigactiont) {
 	if asanenabled && new != nil {
 		asanwrite(unsafe.Pointer(new), unsafe.Sizeof(*new))
 	}
-	if _cgo_sigaction == nil || inForkedChild {
+	var haveCgoSigaction bool
+	if goexperiment.CgoBindings {
+		haveCgoSigaction = cgoSigaction != nil
+	} else {
+		haveCgoSigaction = _cgo_sigaction != nil
+	}
+	if !haveCgoSigaction || inForkedChild {
 		sysSigaction(sig, new, old)
 	} else {
 		// We need to call _cgo_sigaction, which means we need a big enough stack
@@ -54,12 +71,12 @@ func sigaction(sig uint32, new, old *sigactiont) {
 		switch {
 		case g == nil:
 			// No g: we're on a C stack or a signal stack.
-			ret = callCgoSigaction(uintptr(sig), new, old)
+			ret = doCgoSigaction(uintptr(sig), new, old, true)
 		case sp < g.stack.lo || sp >= g.stack.hi:
 			// We're no longer on g's stack, so we must be handling a signal.  It's
 			// possible that we interrupted the thread during a transition between g
 			// and g0, so we should stay on the current stack to avoid corrupting g0.
-			ret = callCgoSigaction(uintptr(sig), new, old)
+			ret = doCgoSigaction(uintptr(sig), new, old, true)
 		default:
 			// We're running on g's stack, so either we're not in a signal handler or
 			// the signal handler has set the correct g.  If we're on gsignal or g0,
@@ -70,7 +87,7 @@ func sigaction(sig uint32, new, old *sigactiont) {
 			// that's ok: we'll be running on a fresh, clean system stack so the stack
 			// check will always succeed anyway.
 			systemstack(func() {
-				ret = callCgoSigaction(uintptr(sig), new, old)
+				ret = doCgoSigaction(uintptr(sig), new, old, false)
 			})
 		}
 
@@ -89,6 +106,19 @@ func sigaction(sig uint32, new, old *sigactiont) {
 	if asanenabled && old != nil {
 		asanread(unsafe.Pointer(old), unsafe.Sizeof(*old))
 	}
+}
+
+// doCgoSigaction calls the sigaction implementation in runtime/cgo, using the
+// Go cgoSigaction hook when available or falling back to _cgo_sigaction via
+// callCgoSigaction.
+//
+//go:nosplit
+//go:nowritebarrierrec
+func doCgoSigaction(sig uintptr, new, old *sigactiont, noG bool) int32 {
+	if goexperiment.CgoBindings {
+		return cgoSigaction(sig, noEscapePtr(new), noEscapePtr(old), noG)
+	}
+	return callCgoSigaction(sig, new, old)
 }
 
 // callCgoSigaction calls the sigaction function in the runtime/cgo package

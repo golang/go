@@ -38,6 +38,7 @@ func retpolineR13()
 func retpolineR14()
 func retpolineR15()
 
+//go:linknamestd asmcgocall_no_g
 //go:noescape
 func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
