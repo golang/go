@@ -47,6 +47,11 @@ type Operation struct {
 	// For masked operations, this will have the mask operand appended.
 	In []types.Operand
 
+	// Sftimm, AsmRules, LowerRules, and PeepholeRules are the extra SSA
+	// rewrite rules for this operation. See [types.RawOperation].
+	Sftimm                              bool
+	AsmRules, LowerRules, PeepholeRules []string
+
 	// sveMergingPrefixed marks the MOVPRFX-prefixed variant of a merging
 	// predicated operation, built by [Operation.sveMergingPrefixedOp]. It exists
 	// only to give that variant a machine-op name of its own.
@@ -158,6 +163,19 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 	o.In = o.rawOperation.In
 	if !CurrentArch().isSVE() {
 		o.In = append(o.rawOperation.In, o.rawOperation.InVariant...)
+	}
+
+	if o.rawOperation.Sftimm != nil {
+		o.Sftimm = *o.rawOperation.Sftimm
+	}
+	if o.rawOperation.AsmRules != nil {
+		o.AsmRules = *o.rawOperation.AsmRules
+	}
+	if o.rawOperation.LowerRules != nil {
+		o.LowerRules = *o.rawOperation.LowerRules
+	}
+	if o.rawOperation.PeepholeRules != nil {
+		o.PeepholeRules = *o.rawOperation.PeepholeRules
 	}
 
 	// For operations that read only the lower half of input registers (indicated by hiHalfAsm),

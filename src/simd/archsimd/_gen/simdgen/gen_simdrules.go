@@ -6,11 +6,11 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
 	"text/template"
-	"unicode"
 
 	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/types"
@@ -18,6 +18,7 @@ import (
 
 type tplRuleData struct {
 	TplName        string // e.g. "sftimm"
+	RuleIndex      int    // index of the rule in its operation's rule list
 	GoOp           string // e.g. "ShiftAllLeft"
 	GoType         string // e.g. "Uint32x8"
 	Args           string // e.g. "x y"
@@ -69,7 +70,8 @@ var (
 		Add("vregMem", `({{.Asm}} {{.ArgsLoadAddr}}) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("vregMemFeatCheck", `({{.Asm}} {{.ArgsLoadAddr}}) && {{.FeatCheck}} && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => ({{.Asm}}load {{.ArgsAddr}})`).
 		Add("asmRule", `({{.Asm}} {{.Args}}) {{.RuleCond}} => {{.RuleOut}}`).
-		Add("specialLower", `{{.Rule}}`)
+		Add("lowerRule", `{{.Rule}}`).
+		Add("peepholeRule", `{{.Rule}}`)
 )
 
 func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
@@ -118,62 +120,29 @@ func compareTplRuleData(x, y tplRuleData) int {
 	if c := compareNatural(x.Args, y.Args); c != 0 {
 		return c
 	}
-	if x.TplName == y.TplName {
-		return 0
+	if x.TplName != y.TplName {
+		return ruleTemplates.Compare(x.TplName, y.TplName)
 	}
-	return ruleTemplates.Compare(x.TplName, y.TplName)
+	return cmp.Compare(x.RuleIndex, y.RuleIndex)
 }
 
-// parseAsmRule tries to parse given string as it would be asmRule:
-// if <cond> => <out>
-// Return false, "", "" if not matched, otherwise true, condition, rule output.
-// For example:
-// rule:"if a==0 => (VADD4S x y)" can be used to provide addional
-// lowering for an instruction which doesn't support zero immediate encoding:
-// (VUSRA4S [a] x y) && a==0 => (VADD4S x y)
-func parseAsmRule(rule string) (bool, string, string) {
-	before, after, ok := strings.Cut(rule, "=>")
-	if !ok {
-		return false, "", ""
+// parseAsmRule parses an asmRules entry, "<cond> => <result>".
+func parseAsmRule(rule string) (cond, out string) {
+	cond, out, ok := strings.Cut(rule, "=>")
+	cond, out = strings.TrimSpace(cond), strings.TrimSpace(out)
+	if !ok || cond == "" || out == "" {
+		panic(fmt.Errorf("simdgen: asm rule %q is not of the form \"<cond> => <result>\"", rule))
 	}
-
-	condPart := before
-	outPart := after
-
-	// Check if condPart starts with "if" followed by at least one space.
-	cond := strings.TrimPrefix(condPart, "if")
-	if cond == condPart || len(cond) == 0 || !unicode.IsSpace(rune(cond[0])) {
-		return false, "", ""
-	}
-
-	// Trim any spaces around <cond> and <out>.
-	cond = strings.TrimSpace(cond)
-	out := strings.TrimSpace(outPart)
-	if cond == "" || out == "" {
-		return false, "", ""
-	}
-
-	return true, cond, out
+	return cond, out
 }
 
-// parseArgsMatchRule tries to parse given string as it would be asmRule with custom arguments to match:
-// match <args> [&& <cond>] => <out>
-// earlymatch <args> [&& <cond>] => <out>
-// Return false, "", "", "", false if not matched, otherwise true, args, cond, rule output, isEarly.
-// For example:
-// rule:"match [0] (VMOV%sins [0] _ (MOVDconst [c])) && uint64(c)<= 255 => (VMOVI%a [uint8(c)])" can be used to provide addional
-// lowering for a broadcast to use immediate source:
-// (VDUPSbcast [0] (VMOVSins [0] _ (MOVDconst [c]))) && uint64(c)<= 255 => (VMOVI4S [uint8(c)])
-// The specifiers currently supported are only arm64-specific, it may be generalized in the expandFormatSpecifiers function in future.
-// The "earlymatch" variant uses GoOp instead of Asm on the left-hand side, replacing the default lowering rule.
-func parseArgsMatchRule(rule string) (bool, bool, string) {
-	if strings.HasPrefix(rule, "earlymatch ") {
-		return true, true, rule[len("earlymatch "):]
-	} else if strings.HasPrefix(rule, "match ") {
-		return true, false, rule[len("match "):]
-	} else {
-		return false, false, rule
-	}
+// expandRule expands the format specifiers in a lowerRules or peepholeRules
+// entry. See [types.RawOperation].
+func expandRule(rule string, data tplRuleData, elemBits int) string {
+	rule = expandFormatSpecifiers(rule, elemBits)
+	rule = strings.ReplaceAll(rule, "%g", data.GoOp+data.GoType)
+	rule = strings.ReplaceAll(rule, "%h", data.Asm)
+	return rule
 }
 
 // expandFormatSpecifiers replaces format specifiers in s with concrete values
@@ -487,7 +456,11 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 	var optData []tplRuleData    // for mask peephole optimizations, and other misc
 	var memOptData []tplRuleData // for memory peephole optimizations
 	memOpSeen := make(map[string]bool)
-	ruleDone := make(map[string]struct{})
+	// Deduplicate rules shared by operations. Asm and peephole rules are
+	// keyed by machine op, lower rules by generic op.
+	asmRulesDone := make(map[string]bool)
+	peepholeRulesDone := make(map[string]bool)
+	lowerRulesDone := make(map[string]bool)
 
 	var sveRules []string // SVE implicit-all-true predicated ops, emitted separately.
 
@@ -588,7 +561,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		// machine op, synthesizing an all-true predicate. This bypasses the AVX
 		// mask-conversion machinery below (SVE predicates are represented as-is).
 		if opr.implicitPredCount() > 0 {
-			if gOp.SpecialLower != nil && *gOp.SpecialLower == "sftimm" {
+			if gOp.Sftimm {
 				sveRules = append(sveRules, sveSftimmRule(gOp, asm, sveAllTruePattern(gOp), constImmRange))
 			}
 			sveRules = append(sveRules, sveImplicitPredRule(gOp, asm, data.Args))
@@ -656,79 +629,64 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 			}
 		}
 
-		if gOp.SpecialLower != nil {
-			// specialLower may carry several rules, one per line.
-			early := false
-			for _, part := range strings.Split(*gOp.SpecialLower, "\n") {
-				part = strings.TrimSpace(part)
-				if part == "" {
-					continue
-				}
-				if part == "sftimm" && CurrentArch().isSVE() {
-					sveRules = append(sveRules, sveSftimmRule(gOp, asm, "", constImmRange))
-				} else if part == "sftimm" {
-					if !sftimmCheck[data.Asm] {
-						sftimmCheck[data.Asm] = true
-						sftImmData := data
-						if tplName == "maskIn" {
-							sftImmData.TplName = "masksftimm"
-						} else {
-							sftImmData.TplName = "sftimm"
-						}
-						allData = append(allData, sftImmData)
-						asmCheck[sftImmData.Asm+"const"] = true
-					}
-				} else if ok, cond, out := parseAsmRule(part); ok {
-					key := data.Asm + "|" + part
-					if _, done := ruleDone[key]; !done {
-						ruleDone[key] = struct{}{}
-						optData := data
-						optData.TplName = "asmRule"
-						optData.RuleCond = cond
-						if cond != "" {
-							optData.RuleCond = "&& " + cond
-						}
-						optData.RuleOut = out
-						if maskType == OneMask {
-							optData.Args += " mask"
-						}
-						allData = append(allData, optData)
-					}
-				} else if ok, isEarly, rest := parseArgsMatchRule(part); ok {
-					key := data.Asm
-					if isEarly {
-						key = data.GoOp + data.GoType
-					}
-					key += "|" + part
-					if _, done := ruleDone[key]; !done {
-						ruleDone[key] = struct{}{}
-						// Get elemBits from the operation's inputs.
-						elemBits := 0
-						for _, in := range gOp.In {
-							if in.ElemBits != nil {
-								elemBits = *in.ElemBits
-								break
-							}
-						}
-						optData := data
-						optData.Rule = rest
-						optData.Rule = expandFormatSpecifiers(optData.Rule, elemBits)
-						optData.TplName = "specialLower"
-						// %g is the generic operation name
-						optData.Rule = strings.ReplaceAll(optData.Rule, "%g", optData.GoOp+optData.GoType)
-						// %h is the hardware operation name
-						optData.Rule = strings.ReplaceAll(optData.Rule, "%h", optData.Asm)
-
-						allData = append(allData, optData)
-					}
-					if isEarly {
-						early = true
-					}
+		if gOp.Sftimm && CurrentArch().isSVE() {
+			sveRules = append(sveRules, sveSftimmRule(gOp, asm, "", constImmRange))
+		} else if gOp.Sftimm {
+			if !sftimmCheck[data.Asm] {
+				sftimmCheck[data.Asm] = true
+				sftImmData := data
+				if tplName == "maskIn" {
+					sftImmData.TplName = "masksftimm"
 				} else {
-					panic("simdgen sees unknown special lower " + part + ", maybe implement it?")
+					sftImmData.TplName = "sftimm"
+				}
+				allData = append(allData, sftImmData)
+				asmCheck[sftImmData.Asm+"const"] = true
+			}
+		}
+		if len(gOp.AsmRules) > 0 && !asmRulesDone[data.Asm] {
+			asmRulesDone[data.Asm] = true
+			for i, rule := range gOp.AsmRules {
+				cond, out := parseAsmRule(rule)
+				optData := data
+				optData.TplName = "asmRule"
+				optData.RuleIndex = i
+				optData.RuleCond = "&& " + cond
+				optData.RuleOut = out
+				if maskType == OneMask {
+					optData.Args += " mask"
+				}
+				allData = append(allData, optData)
+			}
+		}
+		if len(gOp.LowerRules) > 0 || len(gOp.PeepholeRules) > 0 {
+			// Get elemBits from the operation's inputs.
+			elemBits := 0
+			for _, in := range gOp.In {
+				if in.ElemBits != nil {
+					elemBits = *in.ElemBits
+					break
 				}
 			}
-			if early {
+			addRules := func(rules []string, tplName string) {
+				for i, rule := range rules {
+					optData := data
+					optData.TplName = tplName
+					optData.RuleIndex = i
+					optData.Rule = expandRule(rule, data, elemBits)
+					allData = append(allData, optData)
+				}
+			}
+			if len(gOp.PeepholeRules) > 0 && !peepholeRulesDone[data.Asm] {
+				peepholeRulesDone[data.Asm] = true
+				addRules(gOp.PeepholeRules, "peepholeRule")
+			}
+			if len(gOp.LowerRules) > 0 {
+				if key := data.GoOp + data.GoType; !lowerRulesDone[key] {
+					lowerRulesDone[key] = true
+					addRules(gOp.LowerRules, "lowerRule")
+				}
+				// The lower rules replace the default lowering rule.
 				continue
 			}
 		}

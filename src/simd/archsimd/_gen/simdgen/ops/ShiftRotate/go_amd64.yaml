@@ -2,7 +2,7 @@
 # Integers
 # ShiftAll*
 - go: ShiftAllLeft
-  specialLower: sftimm
+  sftimm: true
   asm: "VPSLL[WDQ]"
   in:
   - &any
@@ -15,7 +15,7 @@
   - *any
 - go: ShiftAllRight
   signed: false
-  specialLower: sftimm
+  sftimm: true
   asm: "VPSRL[WDQ]"
   in:
   - &uint
@@ -26,7 +26,7 @@
   - *uint
 - go: ShiftAllRight
   signed: true
-  specialLower: sftimm
+  sftimm: true
   asm: "VPSRA[WDQ]"
   in:
   - &int
@@ -39,7 +39,8 @@
 - go: shiftAllLeftConst
   ssaVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   asm: "VPSLL[WDQ]"
   in:
   - &imm
@@ -51,7 +52,8 @@
 - go: shiftAllRightConst
   ssaVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   asm: "VPSRA[WDQ]"
   in:
   - *imm
@@ -61,7 +63,8 @@
 - go: shiftAllRightConst
   ssaVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
   nameAndSizeCheck: true
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   asm: "VPSRL[WDQ]"
   in:
   - *imm

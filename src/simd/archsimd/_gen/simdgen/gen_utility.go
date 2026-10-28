@@ -975,15 +975,10 @@ func reportXEDInconsistency(ops []Operation) error {
 }
 
 func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool {
-	if o.SpecialLower != nil {
-		// asmRule and argsMatchRule/earlyMatchRule should not affect masked merging
-		ok, _, _ := parseAsmRule(*o.SpecialLower)
-		if !ok {
-			ok, _, _ = parseArgsMatchRule(*o.SpecialLower)
-			if !ok {
-				return false
-			}
-		}
+	if o.Sftimm {
+		// Asm, lower, and peephole rules don't affect masked merging, but
+		// sftimm does.
+		return false
 	}
 	if CurrentArch().isSVE() {
 		// AMD64 merging takes the merge source as an extra destination operand.

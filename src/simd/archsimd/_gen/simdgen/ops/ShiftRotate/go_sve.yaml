@@ -7,7 +7,7 @@
 # form, shiftAllLeftConst (sftimm).
 - go: ShiftAllLeft
   asm: "ZLSL"
-  specialLower: sftimm
+  sftimm: true
   in:
   - &int
     go: $t
@@ -24,7 +24,7 @@
 # from each element of a vector instead, and gives 0 for 64 or more.
 - go: ShiftAllLeft
   asm: "ZLSL"
-  specialLower: sftimm
+  sftimm: true
   in:
   - &int64
     go: $t

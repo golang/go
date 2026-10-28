@@ -59,7 +59,8 @@
 - go: shiftAllRightConst
   signed: true
   asm: "VSSHR"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - &imm
     class: immediate
@@ -71,7 +72,8 @@
 - go: shiftAllRightConst
   signed: false
   asm: "VUSHR"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - *imm
   - *uint
@@ -82,7 +84,8 @@
 - go: shiftAllLeftConst
   signed: true
   asm: "VSHL"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - *imm
   - *int
@@ -92,7 +95,8 @@
 - go: shiftAllLeftConst
   signed: false
   asm: "VSHL"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - *imm
   - *uint
@@ -104,7 +108,8 @@
   signed: true
   asm: "VSQSHL"
   ssaVariant: "const"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - *imm
   - *int
@@ -115,7 +120,8 @@
   signed: false
   asm: "VUQSHL"
   ssaVariant: "const"
-  specialLower: "if a==0 => x"
+  asmRules:
+  - !string "a==0 => x"
   in:
   - *imm
   - *uint
@@ -130,9 +136,8 @@
 - go: ShiftAllLeft
   signed: true
   asm: "VSSHL"
-  specialLower: !string |-
-    earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))
-
+  lowerRules:
+  - !string "(%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *int
   - &scalarShiftSigned
@@ -146,7 +151,8 @@
 - go: ShiftAllLeft
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
+  lowerRules:
+  - !string "(%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y)))))"
   in:
   - *uint
   - &scalarShiftUnsigned
@@ -161,7 +167,8 @@
 - go: ShiftAllRight
   signed: true
   asm: "VSSHL"
-  specialLower: !string "earlymatch (%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  lowerRules:
+  - !string "(%g x y) => (VSSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *int
   - *scalarShiftSigned
@@ -171,7 +178,8 @@
 - go: ShiftAllRight
   signed: false
   asm: "VUSHL"
-  specialLower: !string "earlymatch (%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
+  lowerRules:
+  - !string "(%g x y) => (VUSHL%a x (VDUP%sbcast [0] (VMOV%sins [0] x (NEG <typ.Int64> (CSEL <typ.UInt64> [ssaop.OpARM64LessThanU] y (MOVDconst [127]) (CMPconst [127] y))))))"
   in:
   - *uint
   - *scalarShiftUnsigned
@@ -181,7 +189,8 @@
 - go: shiftRightNarrowConst
   asm: "VSHRN"
   hiHalfAsm: "VSHRN2"
-  specialLower: !string "match (%h [0] x) => (VXTN%a x)"
+  peepholeRules:
+  - !string "(%h [0] x) => (VXTN%a x)"
   in:
   - *imm
   - go: $t
