@@ -52,6 +52,8 @@ const (
 	ALocalTee
 	AGlobalGet
 	AGlobalSet
+	ATableGet // opcode 0x25
+	ATableSet
 
 	AI32Load // opcode 0x28
 	AI64Load

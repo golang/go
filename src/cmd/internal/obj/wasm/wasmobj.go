@@ -1415,6 +1415,9 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case ACurrentMemory, AGrowMemory, AMemoryFill:
 			w.WriteByte(0x00)
 
+		case ATableGet, ATableSet, ATableGrow, ATableSize:
+			writeUleb128(w, uint64(p.From.Offset))
+
 		case ARefNull:
 			// Note this is the type index of the one type we use this
 			// instruction for.
