@@ -903,6 +903,10 @@ func TestNilMarshal(t *testing.T) {
 		{Name(""), struct{ M encoding.TextMarshaler }{}, `{"M":null}`},
 		{Name(""), struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
 		{Name(""), struct{ M any }{(*nilTextMarshaler)(nil)}, `{"M":null}`},
+		{Name(""), struct{ M interface{ Marshaler } }{(*nilJSONMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct {
+			M interface{ encoding.TextMarshaler }
+		}{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {

@@ -1978,7 +1978,7 @@ func makeInterfaceMarshaler(t reflect.Type) *marshaler {
 	var whichMarshaler reflect.Type
 	for _, iface := range allMarshalerTypes {
 		if t.Implements(iface) {
-			whichMarshaler = t
+			whichMarshaler = iface
 			break
 		}
 	}
