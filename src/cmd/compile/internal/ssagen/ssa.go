@@ -345,7 +345,7 @@ func buildssa(compiler ssa.Compiler, fn *ir.Func, worker int, isPgoHot bool) (*s
 	}
 	s.checkPtrEnabled = ir.ShouldCheckPtr(fn, 1)
 
-	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.Linksym().ABIWrapper() {
+	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace == 0 && !fn.ABIWrapper() {
 		if !base.Flag.Race || !objabi.LookupPkgSpecial(fn.Sym().Pkg.Path).NoRaceFunc {
 			s.instrumentMemory = true
 			if base.Flag.Race {
