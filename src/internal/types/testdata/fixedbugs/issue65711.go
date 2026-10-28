@@ -10,6 +10,11 @@ type B[P any] A[P]
 
 type C /* ERROR "invalid recursive type" */ B[C]
 
+type D /* ERROR "invalid recursive type" */ struct {
+	_ B[int]
+	_ B[D]
+}
+
 // test case from issue
 
 type Foo[T any] struct {

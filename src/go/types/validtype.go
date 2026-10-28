@@ -11,23 +11,34 @@ import "go/token"
 
 // validType verifies that the given type does not "expand" indefinitely
 // producing a cycle in the type graph.
-// (Cycles involving alias types, as in "type A = [10]A" are detected
-// earlier, via the objDecl cycle detection mechanism.)
+// (Cycles involving only alias types, as in "type A = [10]A", are detected
+// earlier, via the directCycles and objDecl cycle detection mechanisms.)
 func (check *Checker) validType(typ *Named) {
 	check.validType0(nopos, typ, nil, nil)
 }
 
 // validType0 checks if the given type is valid. If typ is a type parameter
-// its value is looked up in the type argument list of the instantiated
-// (enclosing) type, if it exists. Otherwise the type parameter must be from
-// an enclosing function and can be ignored.
+// defined by the enclosing named type in nest, its value is looked up in the
+// enclosing type's type argument list if instantiated (otherwise typ's validity
+// depends on that uninstantiated enclosing type). Any other type parameter must
+// be from an enclosing function or method and can be ignored.
+//
 // The nest list describes the stack (the "nest in memory") of types which
 // contain (or embed in the case of interfaces) other types. For instance, a
 // struct named S which contains a field of named type F contains (the memory
 // of) F in S, leading to the nest S->F. If a type appears in its own nest
 // (say S->F->S) we have an invalid recursive type. The path list is the full
-// path of named types in a cycle, it is only needed for error reporting.
-func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) bool {
+// path of visited named types; it is only needed for error reporting if a cycle
+// is found.
+//
+// validType0 returns a negative result if the argument type is invalid
+// and a cycle error is reported.
+// If 0 <= result < len(nest), nest[result] is the outermost type which
+// binds (instantiates or declares) a type parameter of the argument type;
+// i.e., the validity of the argument type depends on the type arguments
+// provided at that level.
+// If result == len(nest), the type argument is unconditionally valid.
+func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) int {
 	typ = Unalias(typ)
 
 	if check.conf._Trace {
@@ -41,6 +52,8 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		}()
 	}
 
+	res := len(nest) // assume typ is valid
+
 	switch t := typ.(type) {
 	case nil:
 		// We should never see a nil type but be conservative and panic
@@ -50,49 +63,64 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		}
 
 	case *Array:
+		// An array type is valid if the element type is valid.
 		return check.validType0(pos, t.elem, nest, path)
 
 	case *Struct:
+		// A struct type is valid if all its field types are valid.
 		for _, f := range t.fields {
-			if !check.validType0(pos, f.typ, nest, path) {
-				return false
+			d := check.validType0(pos, f.typ, nest, path)
+			if d < 0 {
+				return d
 			}
+			// Different fields may depend on type arguments from different
+			// depths in nest. Return the nest index of the outermost enclosing
+			// type (i.e., the smallest index) which binds (instantiates or declares)
+			// a type parameter used by this struct.
+			//
+			// For example:
+			//
+			//   type Mid[Q, R any] struct { q Q; r R }
+			//   type Outer[P any] Mid[P, int]
+			//
+			// When checking Mid's struct in nest Outer->Mid[P, int]:
+			// field q resolves Q -> P (d == 0, bound at Outer), while
+			// field r resolves R -> int (d == 1, bound at Mid[P, int]).
+			// Taking min(0, 1) yields 0 for Mid[P, int] indicating that
+			// Mid[P, Q] is only conditionally valid (based on how P is
+			// ultimately instantiated).
+			// Because Mid[P, int] is only conditionally valid, it is
+			// also not added to check.valids.
+			res = min(res, d)
 		}
 
 	case *Union:
+		// A union is valid if all its terms are valid.
 		for _, t := range t.terms {
-			if !check.validType0(pos, t.typ, nest, path) {
-				return false
+			d := check.validType0(pos, t.typ, nest, path)
+			if d < 0 {
+				return d
 			}
+			res = min(res, d) // see *Struct case
 		}
 
 	case *Interface:
+		// An interface is valid if all its embedded types are valid.
 		for _, etyp := range t.embeddeds {
-			if !check.validType0(pos, etyp, nest, path) {
-				return false
+			d := check.validType0(pos, etyp, nest, path)
+			if d < 0 {
+				return d
 			}
+			res = min(res, d) // see *Struct case
 		}
 
 	case *Named:
-		// TODO(gri) The optimization below is incorrect (see go.dev/issue/65711):
-		//           in that issue `type A[P any] [1]P` is a valid type on its own
-		//           and the (uninstantiated) A is recorded in check.valids. As a
-		//           consequence, when checking the remaining declarations, which
-		//           are not valid, the validity check ends prematurely because A
-		//           is considered valid, even though its validity depends on the
-		//           type argument provided to it.
-		//
-		//           A correct optimization is important for pathological cases.
-		//           Keep code around for reference until we found an optimization.
-		//
-		// // Exit early if we already know t is valid.
-		// // This is purely an optimization but it prevents excessive computation
-		// // times in pathological cases such as testdata/fixedbugs/issue6977.go.
-		// // (Note: The valids map could also be allocated locally, once for each
-		// // validType call.)
-		// if check.valids.lookup(t) != nil {
-		// 	break
-		// }
+		// Exit early if we already know t is valid for any nest.
+		// This is purely an optimization but it prevents excessive computation
+		// times in pathological cases such as testdata/fixedbugs/issue6977.go.
+		if check.valids.lookup(t) != nil {
+			break
+		}
 
 		// If the current type t is also found in nest, (the memory of) t is
 		// embedded in itself, indicating an invalid recursive type.
@@ -103,37 +131,36 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 				// occur within the definition (RHS) of the generic type t.Origin(),
 				// directly or indirectly, after expansion of the RHS.
 				// Therefore t.Origin() must be invalid, no matter how it is
-				// instantiated since the instantiation t of t.Origin() happens
+				// instantiated, since the instantiation t of t.Origin() happens
 				// inside t.Origin()'s RHS and thus is always the same and always
 				// present.
-				// Therefore we can mark the underlying of both t and t.Origin()
-				// as invalid. If t is not an instance of a generic type, t and
-				// t.Origin() are the same.
+				// Therefore we can mark t.Origin()'s RHS as invalid. If t is not an
+				// instance of a generic type, t and t.Origin() are the same; otherwise
+				// t (and any other instance of t.Origin()) will become invalid when
+				// unpacked.
 				// Furthermore, because we check all types in a package for validity
 				// before type checking is complete, any exported type that is invalid
-				// will have an invalid underlying type and we can't reach here with
-				// such a type (invalid types are excluded above).
+				// is loaded with fromRHS == Typ[Invalid], so checking its RHS terminates
+				// immediately and cannot reach here in a cycle.
 				// Thus, if we reach here with a type t, both t and t.Origin() (if
 				// different in the first place) must be from the current package;
 				// they cannot have been imported.
-				// Therefore it is safe to change their underlying types; there is
-				// no chance for a race condition (the types of the current package
+				// Therefore it is safe to mutate t.Origin().fromRHS; there is no
+				// chance for a race condition (the types of the current package
 				// are not yet available to other goroutines).
 				assert(t.obj.pkg == check.pkg)
 				assert(t.Origin().obj.pkg == check.pkg)
-
-				// let t become invalid when it is unpacked
 				t.Origin().fromRHS = Typ[Invalid]
 
 				// Find the starting point of the cycle and report it.
 				// Because each type in nest must also appear in path (see invariant below),
-				// type t must be in path since it was found in nest. But not every type in path
-				// is in nest. Specifically t may appear in path with an earlier index than the
-				// index of t in nest. Search again.
+				// type t must be in path since it was found in nest. But not every type in
+				// path is in nest: because nest is a pruned subsequence of path, t appears
+				// in path at a later (larger or equal) index than in nest. Search again.
 				for start, p := range path {
 					if Identical(p, t) {
 						check.cycleError(makeObjList(path[start:]), false) // TODO(gri) should last argument be true?
-						return false
+						return -1
 					}
 				}
 				panic("cycle start not found")
@@ -145,44 +172,62 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
 		// must also be in path (invariant). But not every type in path is in nest, since
 		// nest may be pruned (see below, *TypeParam case).
 		t.Origin().unpack()
-		if !check.validType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)) {
-			return false
+		if d := check.validType0(pos, t.Origin().rhs(), append(nest, t), append(path, t)); d < len(nest) {
+			// d < 0             : t is invalid
+			// 0 <= d < len(nest): t's validity depends on nest[d], which defines a type parameter used by t
+			return d
 		}
 
-		// see TODO above
-		// check.valids.add(t) // t is valid
+		// d >= len(nest): t's validity does not depend on any type parameters in nest.
+		check.valids.add(t) // t is valid for any nest
 
 	case *TypeParam:
 		// A type parameter stands for the type (argument) it was instantiated with.
 		// Check the corresponding type argument for validity if we are in an
 		// instantiated type.
 		if d := len(nest) - 1; d >= 0 {
-			inst := nest[d] // the type instance
-			// Find the corresponding type argument for the type parameter
+			inst := nest[d] // the current enclosing named type
+			// Find the corresponding type argument targ for the type parameter
 			// and proceed with checking that type argument.
 			for i, tparam := range inst.TypeParams().list() {
-				// The type parameter and type argument lists should
-				// match in length but be careful in case of errors.
-				if t == tparam && i < inst.TypeArgs().Len() {
-					targ := inst.TypeArgs().At(i)
-					// The type argument must be valid in the enclosing
-					// type (where inst was instantiated), hence we must
-					// check targ's validity in the type nest excluding
-					// the current (instantiated) type (see the example
-					// at the end of this file).
-					// For error reporting we keep the full path.
-					res := check.validType0(pos, targ, nest[:d], path)
-					// The check.validType0 call with nest[:d] may have
-					// overwritten the entry at the current depth d.
-					// Restore the entry (was issue go.dev/issue/66323).
-					nest[d] = inst
-					return res
+				if t == tparam {
+					// The type parameter tparam is found, but inst may be an uninstantiated
+					// generic type (in which case we have inst.TypeArgs().Len() == 0).
+					// Less likely, there may be an unrelated error and type parameter
+					// and type argument lists may not match in length.
+					// Cover both cases with the if-condition below.
+					if i < inst.TypeArgs().Len() {
+						targ := inst.TypeArgs().At(i)
+						// targ is the type argument with which type parameter tparam
+						// was instantiated. targ must be valid in the enclosing
+						// type (where inst was instantiated), hence we must check
+						// targ's validity in the type nest excluding the current
+						// (instantiated) type (see the example at the end of this file).
+						// For error reporting we keep the full path.
+						res := check.validType0(pos, targ, nest[:d], path)
+						// The check.validType0 call with nest[:d] may have
+						// overwritten the entry at the current depth d.
+						// Restore the entry (was issue go.dev/issue/66323).
+						nest[d] = inst
+						return res
+					}
+					// i >= inst.TypeArgs().Len()
+					// There is no type argument for tparam; inst is not (or not fully)
+					// instantiated (perhaps due to an unrelated error).
+					// Example: type T[P any] struct { a P; b ... } // T is not instantiated, there is no targ for P
+					// t (== tparam) is valid and defined at nest[d]; per validType0 contract, the result is d.
+					return d
 				}
 			}
 		}
+
+	default:
+		// Everything else (*Basic, *Pointer, *Slice, *Map, *Chan, *Signature, *Tuple)
+		// is either basic or introduces an indirection and thus cannot contribute to
+		// an in-memory size/embedding cycle. Nothing to do.
 	}
 
-	return true
+	return res
 }
 
 // makeObjList returns the list of type name objects for the given
@@ -199,7 +244,7 @@ func makeObjList(tlist []*Named) []Object {
 // instantiated type from nest when evaluating the validity of
 // a type parameter. Given the declarations
 //
-//   var _ A[A[string]]
+//   type _ = A[A[string]]
 //
 //   type A[P any] struct { _ B[P] }
 //   type B[P any] struct { _ P }
@@ -242,8 +287,8 @@ func makeObjList(tlist []*Named) []Object {
 //         nest = A[A[string]]        <== type nest at B's instantiation time
 //         path = A[A[string]]->B[P]
 //
-// If we'd use the current nest it would correspond to the path
-// which will be wrong as we will see shortly. P's type argument
+// If we used the current nest it would correspond to the path
+// which would be wrong as we will see shortly. P₁'s type argument
 // is A[string], which again must be evaluated in the type nest
 // that existed when A was instantiated with A[string]. That type
 // nest is empty:
@@ -283,4 +328,4 @@ func makeObjList(tlist []*Named) []Object {
 //         nest =
 //         path = A[A[string]]->B[P]->A[string]->B[P]
 //
-// At this point we're done and A[A[string]] and is valid.
+// At this point we're done and A[A[string]] is valid.
