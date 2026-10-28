@@ -147,7 +147,8 @@ func IndexRune(s string, r rune) int {
 		next:
 			fails++
 			i++
-			if (haveFastIndex && fails > bytealg.Cutover(i)) && i < len(s) {
+			if (haveFastIndex && fails > bytealg.Cutover(i)) && i < len(s) ||
+				(!haveFastIndex && fails >= 4+i>>4 && i < len(s)) {
 				goto fallback
 			}
 		}
