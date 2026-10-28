@@ -184,8 +184,8 @@ type ServeConnOpts struct {
 	// which is serving this connection.
 	BaseConfig ServerConfig
 
-	// Handler specifies which handler to use for processing requests.
-	Handler Handler
+	// HandleRequest specifies which function to use for processing requests.
+	HandleRequest func(*ResponseWriter, *ServerRequest) error
 
 	// Settings is the decoded contents of the HTTP2-Settings header
 	// in an h2c upgrade request.
@@ -267,7 +267,7 @@ func (s *Server) serveConn(c net.Conn, opts *ServeConnOpts, newf func(*serverCon
 		onClose:                     opts.OnClose,
 		remoteAddrStr:               c.RemoteAddr().String(),
 		bw:                          newBufferedWriter(c, conf.WriteByteTimeout),
-		handler:                     opts.Handler,
+		handleRequest:               opts.HandleRequest,
 		streams:                     make(map[uint32]*stream),
 		readFrameCh:                 make(chan readFrameResult),
 		wantWriteFrameCh:            make(chan FrameWriteRequest, 8),
@@ -440,7 +440,7 @@ type serverConn struct {
 	hs            ServerConfig
 	conn          net.Conn
 	bw            *bufferedWriter // writing to conn
-	handler       Handler
+	handleRequest func(*ResponseWriter, *ServerRequest) error
 	baseCtx       context.Context
 	baseCtxCancel context.CancelFunc
 	onClose       func() // or nil; from ServeConnOpts.OnClose, called by teardown
@@ -2247,19 +2247,19 @@ func (sc *serverConn) processHeaders(f *MetaHeadersFrame) error {
 	st.body = st.reqBody.pipe // may be nil
 	st.declBodyBytes = req.ContentLength
 
-	handler := sc.handler.ServeHTTP
+	handleRequest := sc.handleRequest
 	if f.Truncated {
 		// Their header list was too long. Send a 431 error.
-		handler = handleHeaderListTooLong
+		handleRequest = handleHeaderListTooLong
 	} else if err := checkValidHTTP2RequestHeaders(req.Header); err != nil {
-		handler = serve400Handler{err}.ServeHTTP
+		handleRequest = serve400Handler(err)
 	}
 
 	if sc.hs.ReadTimeout() > 0 {
 		st.readDeadline = time.AfterFunc(sc.hs.ReadTimeout(), st.onReadTimeout)
 	}
 
-	return sc.scheduleHandler(st, rw, req, handler)
+	return sc.scheduleHandler(st, rw, req, handleRequest)
 }
 
 func (sc *serverConn) upgradeRequest(req *ServerRequest) {
@@ -2279,7 +2279,7 @@ func (sc *serverConn) upgradeRequest(req *ServerRequest) {
 	// so start the handler directly rather than going
 	// through scheduleHandler.
 	sc.curHandlers++
-	go sc.runHandler(rw, req, sc.handler.ServeHTTP)
+	go sc.runHandler(rw, req, sc.handleRequest)
 }
 
 func (st *stream) processTrailerHeaders(f *MetaHeadersFrame) error {
@@ -2525,32 +2525,32 @@ func (sc *serverConn) newResponseWriter(st *stream) *responseWriter {
 }
 
 type unstartedHandler struct {
-	streamID uint32
-	rw       *responseWriter
-	req      *ServerRequest
-	handler  func(*ResponseWriter, *ServerRequest)
-	body     *pipe
+	streamID      uint32
+	rw            *responseWriter
+	req           *ServerRequest
+	handleRequest func(*ResponseWriter, *ServerRequest) error
+	body          *pipe
 }
 
 // scheduleHandler starts a handler goroutine,
 // or schedules one to start as soon as an existing handler finishes.
-func (sc *serverConn) scheduleHandler(st *stream, rw *responseWriter, req *ServerRequest, handler func(*ResponseWriter, *ServerRequest)) error {
+func (sc *serverConn) scheduleHandler(st *stream, rw *responseWriter, req *ServerRequest, handleRequest func(*ResponseWriter, *ServerRequest) error) error {
 	sc.serveG.check()
 	maxHandlers := sc.advMaxStreams
 	if sc.curHandlers < maxHandlers {
 		sc.curHandlers++
-		go sc.runHandler(rw, req, handler)
+		go sc.runHandler(rw, req, handleRequest)
 		return nil
 	}
 	if len(sc.unstartedHandlers) > int(4*sc.advMaxStreams) {
 		return sc.countError("too_many_early_resets", ConnectionError(ErrCodeEnhanceYourCalm))
 	}
 	sc.unstartedHandlers = append(sc.unstartedHandlers, unstartedHandler{
-		streamID: st.id,
-		rw:       rw,
-		req:      req,
-		handler:  handler,
-		body:     st.body,
+		streamID:      st.id,
+		rw:            rw,
+		req:           req,
+		handleRequest: handleRequest,
+		body:          st.body,
 	})
 	return nil
 }
@@ -2574,7 +2574,7 @@ func (sc *serverConn) handlerDone() {
 			break
 		}
 		sc.curHandlers++
-		go sc.runHandler(u.rw, u.req, u.handler)
+		go sc.runHandler(u.rw, u.req, u.handleRequest)
 		sc.unstartedHandlers[i] = unstartedHandler{} // don't retain references
 	}
 	sc.unstartedHandlers = sc.unstartedHandlers[i:]
@@ -2584,39 +2584,27 @@ func (sc *serverConn) handlerDone() {
 }
 
 // Run on its own goroutine.
-func (sc *serverConn) runHandler(rw *responseWriter, req *ServerRequest, handler func(*ResponseWriter, *ServerRequest)) {
+func (sc *serverConn) runHandler(rw *responseWriter, req *ServerRequest, handleRequest func(*ResponseWriter, *ServerRequest) error) {
 	defer sc.sendServeMsg(handlerDoneMsg)
-	didPanic := true
-	defer func() {
-		rw.rws.stream.cancelCtx()
-		if b := rw.rws.stream.reqBody; b != nil {
-			// Closing the body refunds flow control credit for any unconsumed data.
-			// (reqBody is nil for Upgrade: h2c requests, but those do not use flow
-			// control for the request body.)
-			b.Close()
-		}
-		if didPanic {
-			e := recover()
-			sc.writeFrameFromHandler(FrameWriteRequest{
-				write:  handlerPanicRST{rw.rws.stream.id},
-				stream: rw.rws.stream,
-			})
-			// Same as net/http:
-			if e != nil && e != ErrAbortHandler {
-				const size = 64 << 10
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-				sc.logf("http2: panic serving %v: %v\n%s", sc.conn.RemoteAddr(), e, buf)
-			}
-			return
-		}
-		rw.handlerDone()
-	}()
-	handler(rw, req)
-	didPanic = false
+	err := handleRequest(rw, req)
+	rw.rws.stream.cancelCtx()
+	if b := rw.rws.stream.reqBody; b != nil {
+		// Closing the body refunds flow control credit for any unconsumed data.
+		// (reqBody is nil for Upgrade: h2c requests, but those do not use flow
+		// control for the request body.)
+		b.Close()
+	}
+	if err != nil {
+		sc.writeFrameFromHandler(FrameWriteRequest{
+			write:  handlerPanicRST{rw.rws.stream.id},
+			stream: rw.rws.stream,
+		})
+		return
+	}
+	rw.handlerDone()
 }
 
-func handleHeaderListTooLong(w *ResponseWriter, r *ServerRequest) {
+func handleHeaderListTooLong(w *ResponseWriter, r *ServerRequest) error {
 	// 10.5.1 Limits on Header Block Size:
 	// .. "A server that receives a larger header block than it is
 	// willing to handle can send an HTTP 431 (Request Header Fields Too
@@ -2624,6 +2612,7 @@ func handleHeaderListTooLong(w *ResponseWriter, r *ServerRequest) {
 	const statusRequestHeaderFieldsTooLarge = 431 // only in Go 1.6+
 	w.WriteHeader(statusRequestHeaderFieldsTooLarge)
 	io.WriteString(w, "<h1>HTTP Error 431</h1><p>Request Header Field(s) Too Large</p>")
+	return nil // nil because non-nil error is only used for panic.
 }
 
 // called from handler goroutines.
@@ -3445,7 +3434,7 @@ func (sc *serverConn) startPush(msg *startPushRequest) {
 		}
 
 		sc.curHandlers++
-		go sc.runHandler(rw, req, sc.handler.ServeHTTP)
+		go sc.runHandler(rw, req, sc.handleRequest)
 		return promisedID, nil
 	}
 
@@ -3505,20 +3494,19 @@ func checkValidHTTP2RequestHeaders(h Header) error {
 	return nil
 }
 
-type serve400Handler struct {
-	err error
-}
+func serve400Handler(err error) func(*ResponseWriter, *ServerRequest) error {
+	return func(w *ResponseWriter, r *ServerRequest) error {
+		const statusBadRequest = 400
 
-func (handler serve400Handler) ServeHTTP(w *ResponseWriter, r *ServerRequest) {
-	const statusBadRequest = 400
-
-	// TODO: Dedup with http.Error?
-	h := w.Header()
-	h.Del("Content-Length")
-	h.Set("Content-Type", "text/plain; charset=utf-8")
-	h.Set("X-Content-Type-Options", "nosniff")
-	w.WriteHeader(statusBadRequest)
-	fmt.Fprintln(w, handler.err.Error())
+		// TODO: Dedup with http.Error?
+		h := w.Header()
+		h.Del("Content-Length")
+		h.Set("Content-Type", "text/plain; charset=utf-8")
+		h.Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(statusBadRequest)
+		fmt.Fprintln(w, err.Error())
+		return nil // nil because non-nil error is only used for panic.
+	}
 }
 
 // h1ServerKeepAlivesDisabled reports whether hs has its keep-alives

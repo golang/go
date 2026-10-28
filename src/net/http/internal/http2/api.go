@@ -96,10 +96,6 @@ type ServerConfig interface {
 	IdleTimeout() time.Duration
 }
 
-type Handler interface {
-	ServeHTTP(*ResponseWriter, *ServerRequest)
-}
-
 type ResponseWriter = responseWriter
 
 type PushOptions struct {

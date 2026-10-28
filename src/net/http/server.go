@@ -2030,12 +2030,6 @@ func (c *conn) serve(ctx context.Context) {
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
 	var inFlightResponse *response
 	defer func() {
-		if err := recover(); err != nil && err != ErrAbortHandler {
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
-			c.server.logf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
-		}
 		if inFlightResponse != nil {
 			inFlightResponse.cancelCtx()
 			inFlightResponse.disableWriteContinue(true)
@@ -2235,7 +2229,9 @@ func (c *conn) serve(ctx context.Context) {
 		// But we're not going to implement HTTP pipelining because it
 		// was never deployed in the wild and the answer is HTTP/2.
 		inFlightResponse = w
-		serverHandler{c.server}.ServeHTTP(w, w.req)
+		if err := c.server.HandleRequest(w, w.req); err != nil {
+			return
+		}
 		inFlightResponse = nil
 		w.cancelCtx()
 		if c.hijacked() {
@@ -2411,7 +2407,7 @@ func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
 		c.bufr = nil
 	}
 
-	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
+	c.server.serveHTTP2Conn(ctx, c.rwc, c.server.Handler, sawClientPreface, nil, nil, func() {
 		c.close()
 		c.setState(c.rwc, StateClosed, runHooks)
 	})
@@ -3570,20 +3566,7 @@ type serverHandler struct {
 //
 //go:linkname badServeHTTP net/http.serverHandler.ServeHTTP
 func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
-	handler := sh.srv.Handler
-	if handler == nil {
-		handler = DefaultServeMux
-	}
-	if !sh.srv.DisableGeneralOptionsHandler && req.RequestURI == "*" && req.Method == "OPTIONS" {
-		handler = globalOptionsHandler{}
-	}
-
-	defer func() {
-		if req.MultipartForm != nil {
-			req.MultipartForm.RemoveAll()
-		}
-	}()
-	handler.ServeHTTP(rw, req)
+	sh.srv.serveHTTP(rw, req, sh.srv.Handler)
 }
 
 func badServeHTTP(serverHandler, ResponseWriter, *Request)
@@ -3820,6 +3803,60 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 
 	tlsListener := tls.NewListener(l, config)
 	return s.Serve(tlsListener)
+}
+
+// HandleRequest handles a request as if it was received by the server.
+//
+//   - If Server.DisableGeneralOptionsHandler is not true,
+//     it responds to "OPTIONS *" requests with 200 OK and Content-Length: 0.
+//   - If Server.Handler is nil, it uses [DefaultServeMux].
+//   - Panics in the handler are recovered.
+//     If the panic is not [ErrAbortHandler], the panic is logged.
+//
+// HandleRequest returns a non-nil error if the handler panics.
+// It returns [ErrAbortHandler] if the handler panicked with that value.
+func (s *Server) HandleRequest(w ResponseWriter, req *Request) error {
+	return s.handleRequest(w, req, s.Handler)
+}
+
+func (s *Server) handleRequest(w ResponseWriter, req *Request, h Handler) (err error) {
+	didPanic := true
+	defer func() {
+		if !didPanic {
+			return
+		}
+		e := recover()
+		if e == ErrAbortHandler {
+			err = ErrAbortHandler
+			return
+		}
+		if e != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			s.logf("http: panic serving %v: %v\n%s", req.RemoteAddr, e, buf)
+		}
+		err = fmt.Errorf("http: panic serving %v: %v", req.RemoteAddr, e)
+	}()
+	s.serveHTTP(w, req, h)
+	didPanic = false
+	return nil
+}
+
+func (s *Server) serveHTTP(rw ResponseWriter, req *Request, handler Handler) {
+	if handler == nil {
+		handler = DefaultServeMux
+	}
+	if !s.DisableGeneralOptionsHandler && req.RequestURI == "*" && req.Method == "OPTIONS" {
+		handler = globalOptionsHandler{}
+	}
+
+	defer func() {
+		if req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
+	handler.ServeHTTP(rw, req)
 }
 
 func (s *Server) protocols() Protocols {
