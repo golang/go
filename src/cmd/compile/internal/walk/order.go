@@ -469,6 +469,14 @@ func orderMakeSliceCopy(curfunc *ir.Func, s []ir.Node) {
 		return
 	}
 
+	// The rewrite evaluates s as an operand of the allocation, before the
+	// length check of the make, which can panic. Evaluating s or m early
+	// must not be observable, so neither may have side effects (calls,
+	// receives, or operations that can panic). See issue 82708.
+	if ir.AnySideEffects(as.X) || ir.AnySideEffects(cp.Y) {
+		return
+	}
+
 	safe := false
 	if dst := nonAddrTakenName(as.X); dst != nil {
 		safe = !containsName(cp.Y, dst)

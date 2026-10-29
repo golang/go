@@ -199,11 +199,12 @@ func SliceMakeCopySrcStructField(s struct{ data []*int }) []*int {
 	return a
 }
 
-func SliceMakeCopySrcIndex(s [][]*int) []*int {
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+func SliceMakeCopyNoOptSrcIndex(s [][]*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	a := make([]*int, len(s[0]))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(a, s[0])
 	return a
 }
@@ -218,41 +219,45 @@ func SliceMakeCopyNoOptBlank(s []*int) []*int {
 	return a
 }
 
-func SliceMakeCopyOptSrcMethod(h interface{ Slice() []*int }) []*int {
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+func SliceMakeCopyNoOptSrcMethod(h interface{ Slice() []*int }) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	a := make([]*int, len(h.Slice()))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(a, h.Slice())
 	return a
 }
 
-func SliceMakeCopyOptSrcDeref(p *[]*int) []*int {
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+func SliceMakeCopyNoOptSrcDeref(p *[]*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	a := make([]*int, len(*p))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(a, *p)
 	return a
 }
 
-func SliceMakeCopyOptSrcSliceExpr(s []*int) []*int {
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+func SliceMakeCopyNoOptSrcSliceExpr(s []*int) []*int {
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	a := make([]*int, len(s[:]))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(a, s[:])
 	return a
 }
 
-func SliceMakeCopyOptDstDeref(s []*int) []*int {
+func SliceMakeCopyNoOptDstDeref(s []*int) []*int {
 	var dst []*int
 	p := &dst
 
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	*p = make([]*int, len(s))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(*p, s)
 
 	return *p
@@ -273,13 +278,14 @@ func SliceMakeCopyOptDstStructField(s []*int) []*int {
 	return h.data
 }
 
-func SliceMakeCopyOptDstIndex(s []*int) []*int {
+func SliceMakeCopyNoOptDstIndex(s []*int) []*int {
 	h := make([][]*int, 1)
 
-	// amd64:`.*runtime\.makeslicecopy`
-	// amd64:-`.*runtime\.makeslice\(`
-	// amd64:-`.*runtime\.typedslicecopy`
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.makeslice\(`
 	h[0] = make([]*int, len(s))
+	// amd64:-`.*runtime\.makeslicecopy`
+	// amd64:`.*runtime\.typedslicecopy`
 	copy(h[0], s)
 	return h[0]
 }
