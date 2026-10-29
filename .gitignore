@@ -33,6 +33,7 @@ _testmain.go
 /src/_artifacts/
 /src/cmd/cgo/zdefaultcc.go
 /src/cmd/dist/dist
+/src/cmd/dist/dist.dSYM/
 /src/cmd/go/internal/cfg/zdefaultcc.go
 /src/cmd/internal/objabi/zbootstrap.go
 /src/go/build/zcgo.go
