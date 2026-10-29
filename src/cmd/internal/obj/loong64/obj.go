@@ -227,23 +227,16 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				c.autosize += int32(c.ctxt.Arch.FixedFrameSize)
 			}
 
-			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
-				// A leaf function with a small stack can be marked
-				// NOSPLIT, avoiding a stack check.
-				p.From.Sym.Set(obj.AttrNoSplit, true)
-			}
+			p.To.Offset = int64(c.autosize) - ctxt.Arch.FixedFrameSize
 
 			if c.autosize == 0 && c.cursym.Func().Text.Mark&LEAF == 0 {
 				if c.cursym.Func().Text.From.Sym.NoSplit() {
 					if ctxt.Debugvlog {
 						ctxt.Logf("save suppressed in: %s\n", c.cursym.Name)
 					}
-
 					c.cursym.Func().Text.Mark |= LEAF
 				}
 			}
-
-			p.To.Offset = int64(c.autosize) - ctxt.Arch.FixedFrameSize
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				c.cursym.Set(obj.AttrLeaf, true)
@@ -252,22 +245,34 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				}
 			}
 
+			if p.Mark&LEAF != 0 && c.autosize < abi.StackSmall {
+				// A leaf function with a small stack can be marked
+				// NOSPLIT, avoiding a stack check.
+				p.From.Sym.Set(obj.AttrNoSplit, true)
+			}
+
 			if !p.From.Sym.NoSplit() {
 				p = c.stacksplit(p, c.autosize) // emit split check
 			}
 
+			if c.autosize == 0 {
+				break
+			}
+
+			resaveLR := false
 			q = p
 
-			if c.autosize != 0 {
-				// Make sure to save link register for non-empty frame, even if
-				// it is a leaf function, so that traceback works.
-				// Store link register before decrement SP, so if a signal comes
-				// during the execution of the function prologue, the traceback
-				// code will not see a half-updated stack frame.
-				// This sequence is not async preemptible, as if we open a frame
-				// at the current SP, it will clobber the saved LR.
-				q = c.ctxt.StartUnsafePoint(q, c.newprog)
+			// Make sure to save link register for non-empty frame, even if
+			// it is a leaf function, so that traceback works.
+			// Store link register before decrement SP, so if a signal comes
+			// during the execution of the function prologue, the traceback
+			// code will not see a half-updated stack frame.
+			// This sequence is not async preemptible, as if we open a frame
+			// at the current SP, it will clobber the saved LR.
+			q = c.ctxt.StartUnsafePoint(q, c.newprog)
 
+			if c.autosize <= BIG_12 {
+				resaveLR = true
 				// MOVV  REGLINK, -c.autosize(REGSP)
 				q = obj.Appendp(q, newprog)
 				q.As = AMOVV
@@ -288,9 +293,42 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				q.To.Type = obj.TYPE_REG
 				q.To.Reg = REGSP
 				q.Spadj = +c.autosize
+			} else {
+				// ADDV  -c.autosize, REGSP, REGRT2
+				q = obj.Appendp(q, newprog)
+				q.As = AADDV
+				q.Pos = p.Pos
+				q.From.Type = obj.TYPE_CONST
+				q.From.Offset = int64(-c.autosize)
+				q.Reg = REGSP
+				q.To.Type = obj.TYPE_REG
+				q.To.Reg = REGRT2
 
-				q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+				// MOVV  REGLINK, (REGRT2)
+				q = obj.Appendp(q, newprog)
+				q.As = AMOVV
+				q.Pos = p.Pos
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REGLINK
+				q.To.Type = obj.TYPE_MEM
+				q.To.Offset = 0
+				q.To.Reg = REGRT2
 
+				// MOVV  REGRT2, REGSP
+				q = obj.Appendp(q, newprog)
+				q.As = AMOVV
+				q.Pos = p.Pos
+				q.Pos = q.Pos.WithXlogue(src.PosPrologueEnd)
+				q.From.Type = obj.TYPE_REG
+				q.From.Reg = REGRT2
+				q.To.Type = obj.TYPE_REG
+				q.To.Reg = REGSP
+				q.Spadj = +c.autosize
+			}
+
+			q = c.ctxt.EndUnsafePoint(q, c.newprog, -1)
+
+			if resaveLR {
 				// On Linux, in a cgo binary we may get a SIGSETXID signal early on
 				// before the signal stack is set, as glibc doesn't allow us to block
 				// SIGSETXID. So a signal may land on the current stack and clobber
