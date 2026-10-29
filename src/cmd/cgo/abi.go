@@ -5,9 +5,11 @@
 package main
 
 import (
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"slices"
 	"strconv"
 )
@@ -24,6 +26,7 @@ type BindingType struct {
 // BindingFunc describes a bound C function declared with //cgo:binding.
 type BindingFunc struct {
 	Name   string   // Internal cgo function identifier (used in _Cfunc_<Name>, _cgo_arg_<Name>, and _cgo_trampoline_<Name>)
+	CName  string   // Target C symbol name
 	Params []string // Declared parameter types (Go type expressions, e.g. "int32", "*byte", "_Ctype_S")
 	Ret    string   // Return type expression, or "" for void
 }
@@ -81,7 +84,40 @@ type typeInfo struct {
 	fieldsOK  bool
 }
 
-// ABIConfig defines the C calling convention rules
+// regSlot describes a single register piece of a parameter or return value.
+type regSlot struct {
+	reg     string
+	offset  int64 // Byte offset relative to ParamLoc.GoOffset or RetLoc.GoOffset
+	size    int64 // Byte size of this piece (1..8)
+	isFloat bool
+	signed  bool
+}
+
+// asmOps defines the assembly mnemonics and format templates for
+// an architecture's load, store, arithmetic, and stack-pointer operations.
+// All fields must be populated.
+type asmOps struct {
+	mov    string // Pointer-sized integer load/store/reg-move (e.g. "MOVQ", "MOVD")
+	loadB  string // Signed 1-byte load
+	loadBU string // Unsigned 1-byte load
+	loadH  string // Signed 2-byte load
+	loadHU string // Unsigned 2-byte load
+	loadW  string // Signed 4-byte load
+	loadWU string // Unsigned 4-byte load
+	storeB string // 1-byte store
+	storeH string // 2-byte store
+	storeW string // 4-byte store
+	fmovS  string // 32-bit float load/store
+	fmovD  string // 64-bit float load/store
+	shl    string // Format for in-place left shift; args: (bits, reg)
+	shr    string // Format for in-place logical right shift; args: (bits, reg)
+	or     string // Format for bitwise OR dst |= src; args: (src, dst)
+	addr   string // Format for effective address reg = base+off; args: (base, off, reg)
+	subSP  string // Format for decrementing SP; args: (size, spReg)
+	addSP  string // Format for incrementing SP; args: (size, spReg)
+}
+
+// ABIConfig defines the C calling convention rules and assembly primitives
 // for a target OS/architecture. OS, PtrSize, CLongSize, StackAlign, and AssignParam must always be set.
 type ABIConfig struct {
 	Arch       string
@@ -103,8 +139,23 @@ type ABIConfig struct {
 	AssignParam func(cfg *ABIConfig, fn BindingFunc, idx int, info typeInfo, st *abiState) ParamLoc
 
 	// Optional platform-specific ABI hooks. Returning handled=false falls back
-	// to defaultAssignRet.
-	AssignRet func(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) (RetLoc, bool)
+	// to defaultAssignRet or default GPR chunking.
+	AssignRet         func(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) (RetLoc, bool)
+	CompositeRegSlots func(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool)
+
+	// Trampoline assembly generation parameters:
+	SPReg          string // Hardware stack pointer register in asm (e.g. "SP", "RSP", "R1", "X2")
+	CalleeSavedReg string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
+	TmpReg         string // Primary caller-saved scratch register for stack/memory copies and address math
+	TmpReg2        string // Secondary caller-saved scratch register for multi-chunk loads and copies
+
+	asm     asmOps
+	PreCall func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
+}
+
+// isFloatReg reports whether reg is an architecture floating-point register.
+func (cfg *ABIConfig) isFloatReg(reg string) bool {
+	return slices.Contains(cfg.FloatRegs, reg) || slices.Contains(cfg.FloatRetRegs, reg)
 }
 
 // alignUp rounds off up to the next multiple of power-of-two align.
@@ -457,6 +508,385 @@ func (cfg *ABIConfig) assignStackParam(size int64, isFloat bool, st *abiState) P
 	return ParamLoc{Size: size, IsFloat: isFloat, StackOff: off}
 }
 
+// decomposePow2 splits a byte size (1..8) into descending power-of-two chunks
+// (8, 4, 2, 1) so odd-sized struct pieces can be loaded or stored without
+// reading or writing past the bounds of the Go argument struct.
+func decomposePow2(size int64) []int64 {
+	var chunks []int64
+	for rem := size; rem > 0; {
+		switch {
+		case rem >= 8:
+			chunks = append(chunks, 8)
+			rem -= 8
+		case rem >= 4:
+			chunks = append(chunks, 4)
+			rem -= 4
+		case rem >= 2:
+			chunks = append(chunks, 2)
+			rem -= 2
+		default:
+			chunks = append(chunks, 1)
+			rem -= 1
+		}
+	}
+	return chunks
+}
+
+// maxPow2Chunk returns the largest power-of-two byte width (1, 2, 4, or 8)
+// that fits within both rem and ptrSize.
+func maxPow2Chunk(rem, ptrSize int64) int64 {
+	if ptrSize >= 8 && rem >= 8 {
+		return 8
+	}
+	if rem >= 4 {
+		return 4
+	}
+	if rem >= 2 {
+		return 2
+	}
+	return 1
+}
+
+// emitScalarLoadInt emits a single power-of-two (1, 2, 4, or 8 byte) integer
+// load from off(base) into reg, sign- or zero-extending narrow loads.
+func (cfg *ABIConfig) emitScalarLoadInt(w io.Writer, base string, off, size int64, signed bool, reg string) {
+	a := &cfg.asm
+	var op string
+	switch {
+	case size == 1 && signed:
+		op = a.loadB
+	case size == 1:
+		op = a.loadBU
+	case size == 2 && signed:
+		op = a.loadH
+	case size == 2:
+		op = a.loadHU
+	case size == 4 && signed:
+		op = a.loadW
+	case size == 4:
+		op = a.loadWU
+	default:
+		op = a.mov
+	}
+	fmt.Fprintf(w, "\t%s\t%d(%s), %s\n", op, off, base, reg)
+}
+
+// emitScalarStoreInt emits a single power-of-two (1, 2, 4, or 8 byte) integer
+// store from reg into off(base).
+func (cfg *ABIConfig) emitScalarStoreInt(w io.Writer, reg, base string, off, size int64) {
+	a := &cfg.asm
+	var op string
+	switch size {
+	case 1:
+		op = a.storeB
+	case 2:
+		op = a.storeH
+	case 4:
+		op = a.storeW
+	default:
+		op = a.mov
+	}
+	fmt.Fprintf(w, "\t%s\t%s, %d(%s)\n", op, reg, off, base)
+}
+
+// emitShiftLeft shifts reg left in place by bits.
+func (cfg *ABIConfig) emitShiftLeft(w io.Writer, bits int64, reg string) {
+	fmt.Fprintf(w, "\t"+cfg.asm.shl+"\n", bits, reg)
+}
+
+// emitShiftRight logically shifts reg right in place by bits.
+func (cfg *ABIConfig) emitShiftRight(w io.Writer, bits int64, reg string) {
+	fmt.Fprintf(w, "\t"+cfg.asm.shr+"\n", bits, reg)
+}
+
+// emitOrReg bitwise-ORs src into dst.
+func (cfg *ABIConfig) emitOrReg(w io.Writer, src, dst string) {
+	fmt.Fprintf(w, "\t"+cfg.asm.or+"\n", src, dst)
+}
+
+// emitLoadInt loads an integer or struct register chunk of 1..8 bytes from
+// off(base) into reg, decomposing non-power-of-two sizes into exact sub-loads
+// combined with shifts and ORs.
+func (cfg *ABIConfig) emitLoadInt(w io.Writer, base string, off, size int64, signed bool, reg string) {
+	switch size {
+	case 1, 2, 4, 8:
+		cfg.emitScalarLoadInt(w, base, off, size, signed, reg)
+		return
+	}
+	chunks := decomposePow2(size)
+	scratch := cfg.TmpReg2
+	if reg == scratch || base == scratch {
+		scratch = cfg.TmpReg
+	}
+	cfg.emitScalarLoadInt(w, base, off, chunks[0], false, reg)
+	curOff := chunks[0]
+	for _, ck := range chunks[1:] {
+		cfg.emitScalarLoadInt(w, base, off+curOff, ck, false, scratch)
+		cfg.emitShiftLeft(w, curOff*8, scratch)
+		cfg.emitOrReg(w, scratch, reg)
+		curOff += ck
+	}
+}
+
+// emitStoreInt stores an integer or struct register chunk of 1..8 bytes from
+// reg into off(base), decomposing non-power-of-two sizes into exact sub-stores.
+func (cfg *ABIConfig) emitStoreInt(w io.Writer, reg, base string, off, size int64) {
+	switch size {
+	case 1, 2, 4, 8:
+		cfg.emitScalarStoreInt(w, reg, base, off, size)
+		return
+	}
+	chunks := decomposePow2(size)
+	curOff := int64(0)
+	for i, ck := range chunks {
+		cfg.emitScalarStoreInt(w, reg, base, off+curOff, ck)
+		curOff += ck
+		if i+1 < len(chunks) {
+			cfg.emitShiftRight(w, ck*8, reg)
+		}
+	}
+}
+
+// emitLoadFloat loads a 4-byte or 8-byte floating-point value from off(base)
+// into floating-point register reg.
+func (cfg *ABIConfig) emitLoadFloat(w io.Writer, base string, off, size int64, reg string) {
+	op := cfg.asm.fmovD
+	if size == 4 {
+		op = cfg.asm.fmovS
+	}
+	fmt.Fprintf(w, "\t%s\t%d(%s), %s\n", op, off, base, reg)
+}
+
+// emitStoreFloat stores a 4-byte or 8-byte floating-point value from
+// floating-point register reg into off(base).
+func (cfg *ABIConfig) emitStoreFloat(w io.Writer, reg, base string, off, size int64) {
+	op := cfg.asm.fmovD
+	if size == 4 {
+		op = cfg.asm.fmovS
+	}
+	fmt.Fprintf(w, "\t%s\t%s, %d(%s)\n", op, reg, off, base)
+}
+
+// emitAddr computes the effective address base+off into reg.
+func (cfg *ABIConfig) emitAddr(w io.Writer, base string, off int64, reg string) {
+	fmt.Fprintf(w, "\t"+cfg.asm.addr+"\n", base, off, reg)
+}
+
+// emitMovReg copies pointer-sized register src into dst.
+func (cfg *ABIConfig) emitMovReg(w io.Writer, src, dst string) {
+	fmt.Fprintf(w, "\t%s\t%s, %s\n", cfg.asm.mov, src, dst)
+}
+
+// emitSubSP decrements the architecture stack pointer by size bytes.
+func (cfg *ABIConfig) emitSubSP(w io.Writer, size int64) {
+	fmt.Fprintf(w, "\t"+cfg.asm.subSP+"\n", size, cfg.SPReg)
+}
+
+// emitAddSP increments the architecture stack pointer by size bytes.
+func (cfg *ABIConfig) emitAddSP(w io.Writer, size int64) {
+	fmt.Fprintf(w, "\t"+cfg.asm.addSP+"\n", size, cfg.SPReg)
+}
+
+// emitCallSymbol emits a call to external or runtime symbol sym.
+func (cfg *ABIConfig) emitCallSymbol(w io.Writer, sym string) {
+	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
+}
+
+// emitCopyMem copies size bytes from srcOff(srcBase) to dstOff(dstBase) using
+// TmpReg-sized power-of-two loads and stores.
+func (cfg *ABIConfig) emitCopyMem(w io.Writer, srcBase string, srcOff int64, dstBase string, dstOff, size int64, tmpReg string) {
+	ptrSize := cfg.PtrSize
+	for off := int64(0); off < size; {
+		chunk := maxPow2Chunk(size-off, ptrSize)
+		cfg.emitLoadInt(w, srcBase, srcOff+off, chunk, false, tmpReg)
+		cfg.emitStoreInt(w, tmpReg, dstBase, dstOff+off, chunk)
+		off += chunk
+	}
+}
+
+// paramRegSlots decomposes register-passed parameter p into per-register
+// load/store descriptors.
+func (cfg *ABIConfig) paramRegSlots(fn BindingFunc, idx int, p ParamLoc, types map[string]BindingType) []regSlot {
+	if len(p.Regs) == 0 {
+		return nil
+	}
+	var pt string
+	if paramTypes := fn.Params; idx < len(paramTypes) {
+		pt = paramTypes[idx]
+	}
+	return cfg.valueRegSlots(pt, p.Size, p.IsFloat, p.Regs, types)
+}
+
+// retRegSlots decomposes register-returned result ret into per-register
+// load/store descriptors.
+func (cfg *ABIConfig) retRegSlots(fn BindingFunc, ret RetLoc, types map[string]BindingType) []regSlot {
+	if len(ret.Regs) == 0 || ret.Indirect {
+		return nil
+	}
+	return cfg.valueRegSlots(fn.Ret, ret.Size, ret.IsFloat, ret.Regs, types)
+}
+
+// valueRegSlots maps a value of typeName (with total size and assigned regs)
+// onto individual register pieces, delegating composite register layouts to
+// cfg.CompositeRegSlots when present and otherwise slicing into PtrSize chunks.
+func (cfg *ABIConfig) valueRegSlots(typeName string, size int64, isFloat bool, regs []string, types map[string]BindingType) []regSlot {
+	ptrSize := cfg.PtrSize
+	info := cfg.inspectType(typeName, types)
+	if info.composite && cfg.CompositeRegSlots != nil {
+		if slots, ok := cfg.CompositeRegSlots(cfg, info, isFloat, regs); ok {
+			return slots
+		}
+	}
+	slots := make([]regSlot, len(regs))
+	for k, r := range regs {
+		fl := cfg.isFloatReg(r)
+		chunkSz := min(ptrSize, size-int64(k)*ptrSize)
+		if len(regs) == 1 {
+			chunkSz = size
+		}
+		slots[k] = regSlot{
+			reg:     r,
+			offset:  int64(k) * ptrSize,
+			size:    chunkSz,
+			isFloat: fl,
+			signed:  !info.composite && !fl && info.signed,
+		}
+	}
+	return slots
+}
+
+// paramTransfer describes a single register or stack move needed to marshal a
+// parameter from the Go argument struct into its C ABI location.
+type paramTransfer struct {
+	offset    int64
+	reg       string
+	stackOff  int64
+	storeSize int64
+	load      func(w io.Writer, base string, off int64, dstReg string)
+}
+
+// paramTransfers decomposes parameter p into register or C-stack transfers.
+func (cfg *ABIConfig) paramTransfers(fn BindingFunc, idx int, p ParamLoc, types map[string]BindingType) []paramTransfer {
+	ptrSize := cfg.PtrSize
+	loadInt := func(size int64, signed bool) func(io.Writer, string, int64, string) {
+		return func(w io.Writer, base string, off int64, dstReg string) {
+			cfg.emitLoadInt(w, base, off, size, signed, dstReg)
+		}
+	}
+	loadFloat := func(size int64) func(io.Writer, string, int64, string) {
+		return func(w io.Writer, base string, off int64, dstReg string) {
+			cfg.emitLoadFloat(w, base, off, size, dstReg)
+		}
+	}
+
+	if slots := cfg.paramRegSlots(fn, idx, p, types); len(slots) > 0 {
+		ops := make([]paramTransfer, len(slots))
+		for k, slot := range slots {
+			ld := loadInt(slot.size, slot.signed)
+			if slot.isFloat {
+				ld = loadFloat(slot.size)
+			}
+			ops[k] = paramTransfer{offset: slot.offset, reg: slot.reg, load: ld}
+		}
+		return ops
+	}
+
+	var pt string
+	if paramTypes := fn.Params; idx < len(paramTypes) {
+		pt = paramTypes[idx]
+	}
+	info := cfg.inspectType(pt, types)
+	if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
+		return []paramTransfer{{
+			stackOff:  p.StackOff,
+			storeSize: max(ptrSize, p.Size),
+			load:      loadInt(p.Size, info.signed),
+		}}
+	}
+
+	var ops []paramTransfer
+	for off := int64(0); off < p.Size; {
+		chunk := maxPow2Chunk(p.Size-off, ptrSize)
+		ops = append(ops, paramTransfer{
+			offset:    off,
+			stackOff:  p.StackOff + off,
+			storeSize: chunk,
+			load:      loadInt(chunk, false),
+		})
+		off += chunk
+	}
+	return ops
+}
+
+// emitStoreSlot stores a register return piece into off(base).
+func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off int64) {
+	if slot.isFloat {
+		cfg.emitStoreFloat(w, slot.reg, base, off+slot.offset, slot.size)
+		return
+	}
+	cfg.emitStoreInt(w, slot.reg, base, off+slot.offset, slot.size)
+}
+
+// writeTrampoline emits the Go-to-C assembly trampoline for fn.
+// Go callers pack parameters into a _cgo_arg_<Name> struct and pass its address
+// to runtime.cgocall, which enters a syscall, switches to the OS-allocated g0
+// system stack via asmcgocall, and invokes this trampoline using the platform C
+// ABI for void fn(void *arg) (passing the struct pointer in IntRegs[0], or
+// 0(SP) on 386). The trampoline unpacks arguments into C ABI registers and
+// stack slots, calls the target C function, and writes any result back to the
+// _cgo_arg_<Name> struct.
+func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[string]BindingType) {
+	lay := cfg.layout(fn, types)
+
+	fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT, $0-0\n", cPrefix, fn.Name)
+	// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
+	// the C callee preserves it per the C ABI, and our caller (runtime.asmcgocall)
+	// does not keep a live value in CalleeSavedReg, so we need not save/restore it.
+	cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+
+	if lay.StackSize > 0 {
+		cfg.emitSubSP(w, lay.StackSize)
+	}
+
+	base := cfg.CalleeSavedReg
+
+	if lay.Ret.Indirect {
+		cfg.emitAddr(w, base, lay.Ret.GoOffset, cfg.IndirectRetReg)
+	}
+
+	for i, p := range lay.Params {
+		for _, op := range cfg.paramTransfers(fn, i, p, types) {
+			if op.reg != "" {
+				op.load(w, base, p.GoOffset+op.offset, op.reg)
+			} else {
+				op.load(w, base, p.GoOffset+op.offset, cfg.TmpReg)
+				cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, op.stackOff, op.storeSize)
+			}
+		}
+	}
+
+	if cfg.PreCall != nil {
+		cfg.PreCall(cfg, w, fn, lay)
+	}
+
+	if fn.CName == "" {
+		panic("BindingFunc.CName must be set")
+	}
+	cfg.emitCallSymbol(w, fn.CName)
+
+	if fn.Ret != "" && lay.Ret.Size > 0 && !lay.Ret.Indirect {
+		for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
+			cfg.emitStoreSlot(w, slot, base, lay.Ret.GoOffset)
+		}
+	}
+
+	if lay.StackSize > 0 {
+		cfg.emitAddSP(w, lay.StackSize)
+	}
+
+	fmt.Fprintf(w, "\tRET\n\n")
+}
+
 // System V AMD64 C calling convention (used on Linux, macOS/iOS, Android,
 // Solaris/Illumos, and the BSDs).
 //
@@ -600,20 +1030,63 @@ func amd64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *a
 	return cfg.assignIntParam(info, st)
 }
 
+// amd64CompositeRegSlots maps each eightbyte of a register-passed or
+// register-returned SysV AMD64 struct to its integer or SSE register piece.
+func amd64CompositeRegSlots(_ *ABIConfig, info typeInfo, _ bool, regs []string) ([]regSlot, bool) {
+	ebs, ok := classifySysVStruct(info)
+	if !ok || len(ebs) != len(regs) {
+		return nil, false
+	}
+	slots := make([]regSlot, len(regs))
+	for k, r := range regs {
+		slots[k] = regSlot{reg: r, offset: int64(k) * 8, size: ebs[k].size, isFloat: ebs[k].isFloat}
+	}
+	return slots, true
+}
+
 var amd64ABI = &ABIConfig{
-	Arch:             "amd64",
-	PtrSize:          8,
-	CLongSize:        8,
-	StackAlign:       16,
-	IntRegs:          []string{"DI", "SI", "DX", "CX", "R8", "R9"},
-	FloatRegs:        []string{"X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7"},
-	IntRetRegs:       []string{"AX", "DX"},
-	FloatRetRegs:     []string{"X0", "X1"},
-	MaxRegStructSize: 16,
-	IndirectRetReg:   "DI",
-	IndirectRetInArg: true,
-	AssignParam:      amd64AssignParam,
-	AssignRet:        amd64AssignRet,
+	Arch:              "amd64",
+	PtrSize:           8,
+	CLongSize:         8,
+	StackAlign:        16,
+	IntRegs:           []string{"DI", "SI", "DX", "CX", "R8", "R9"},
+	FloatRegs:         []string{"X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7"},
+	IntRetRegs:        []string{"AX", "DX"},
+	FloatRetRegs:      []string{"X0", "X1"},
+	MaxRegStructSize:  16,
+	IndirectRetReg:    "DI",
+	IndirectRetInArg:  true,
+	AssignParam:       amd64AssignParam,
+	AssignRet:         amd64AssignRet,
+	CompositeRegSlots: amd64CompositeRegSlots,
+	SPReg:             "SP",
+	CalleeSavedReg:    "R12",
+	TmpReg:            "R11",
+	TmpReg2:           "R10",
+	asm: asmOps{
+		mov:   "MOVQ",
+		loadB: "MOVBLSX", loadBU: "MOVBLZX", loadH: "MOVWLSX", loadHU: "MOVWLZX", loadW: "MOVL", loadWU: "MOVL",
+		storeB: "MOVB", storeH: "MOVW", storeW: "MOVL",
+		fmovS: "MOVSS", fmovD: "MOVSD",
+		shl:   "SHLQ\t$%[1]d, %[2]s",
+		shr:   "SHRQ\t$%[1]d, %[2]s",
+		or:    "ORQ\t%[1]s, %[2]s",
+		addr:  "LEAQ\t%[2]d(%[1]s), %[3]s",
+		subSP: "SUBQ\t$%[1]d, %[2]s",
+		addSP: "ADDQ\t$%[1]d, %[2]s",
+	},
+	// System V AMD64 psABI Section 3.5.7 requires AL to hold an upper bound
+	// (0..8) on the number of vector registers used to pass arguments to a
+	// variadic (or unprototyped) C function. Always set AX—clearing it when
+	// FloatRegCount == 0—since a bound C function (such as open, fcntl, or
+	// ioctl) may be variadic in C.
+	PreCall: func(cfg *ABIConfig, w io.Writer, _ BindingFunc, lay FuncLayout) {
+		if lay.FloatRegCount == 0 {
+			fmt.Fprintf(w, "\tXORL\tAX, AX\n")
+		} else {
+			fmt.Fprintf(w, "\tMOVL\t$%d, AX\n", min(lay.FloatRegCount, len(cfg.FloatRegs)))
+		}
+	},
 }
 
 // getABI returns the ABIConfig for the given targetOS/targetArch.

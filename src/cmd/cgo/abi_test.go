@@ -5,8 +5,10 @@
 package main
 
 import (
+	"bytes"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -284,4 +286,63 @@ func TestLayoutSysVStructsAMD64(t *testing.T) {
 			}
 		})
 	}
+}
+
+func checkOdd5No8ByteMoves(t *testing.T, arch string) {
+	t.Helper()
+	typeMap := map[string]BindingType{
+		"Odd5": {Name: "Odd5", Def: "struct {\n\tb [5]uint8\n}", Size: 5, Align: 1},
+	}
+	cfg := getABI("linux", arch)
+	var buf bytes.Buffer
+	cfg.writeTrampoline(&buf, BindingFunc{
+		Name:   "AbiOdd5Bounce",
+		CName:  "c_abi_odd5_bounce",
+		Params: []string{"Odd5"},
+		Ret:    "Odd5",
+	}, typeMap)
+	asm := buf.String()
+	for _, line := range strings.Split(asm, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "MOVQ\t") || strings.HasPrefix(trimmed, "MOVD\t") {
+			for _, bad := range []string{"(R12)", "(R19)", "(AX)", "(CX)", "(DX)", "(BX)", "(SI)", "(DI)", "(R8)", "(R9)", "(R10)", "(R11)", "(R0)", "(R1)", "(R2)", "(R3)", "(R4)"} {
+				if strings.Contains(trimmed, bad) {
+					t.Errorf("%s Odd5 trampoline has 8-byte memory move %q in:\n%s", arch, trimmed, asm)
+				}
+			}
+		}
+	}
+}
+
+func TestWriteTrampolineAMD64(t *testing.T) {
+	fn := BindingFunc{
+		Name:   "_Add",
+		CName:  "Add",
+		Params: []string{"int32", "int32"},
+		Ret:    "int32",
+	}
+
+	sysv := getABI("linux", "amd64")
+	var amdBuf bytes.Buffer
+	sysv.writeTrampoline(&amdBuf, fn, nil)
+	amdAsm := amdBuf.String()
+	for _, want := range []string{
+		"TEXT _cgo_trampoline__Add(SB), NOSPLIT, $0-0",
+		"MOVQ\tDI, R12",
+		"MOVL\t0(R12), DI",
+		"MOVL\t4(R12), SI",
+		"XORL\tAX, AX",
+		"CALL\tAdd(SB)",
+		"MOVL\tAX, 8(R12)",
+	} {
+		if !strings.Contains(amdAsm, want) {
+			t.Errorf("amd64 trampoline missing %q in:\n%s", want, amdAsm)
+		}
+	}
+	if strings.Contains(amdAsm, "(SP)") {
+		t.Errorf("amd64 register-only trampoline unexpectedly touches stack:\n%s", amdAsm)
+	}
+
+	// Odd-sized struct loads/stores must decompose without 8-byte overreads.
+	checkOdd5No8ByteMoves(t, "amd64")
 }
