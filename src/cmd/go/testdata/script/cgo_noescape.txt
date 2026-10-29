@@ -1,0 +1,80 @@
+# Test #cgo noescape and #cgo nocallback directives with Go-syntax bindings.
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+[!GOOS:darwin] [!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+[!exec:cc] skip
+
+cd p
+cc -fPIC -shared -o libtest.so ../c/lib.c
+
+env CGO_ENABLED=bindings
+env CC=/bin/false
+go build -gcflags=-m -o app.exe .
+stderr 'noesc does not escape'
+stderr 'leaking param: esc'
+
+[GOOS:linux] env LD_LIBRARY_PATH=.
+exec ./app.exe
+stdout 'Add=15'
+stdout 'Esc=25'
+cd ..
+
+cd errpkg
+! go build -o app_err.exe .
+stderr '#cgo noescape NoSuchFunc: no matched C function'
+stderr '#cgo nocallback AnotherNoSuchFunc: no matched C function'
+
+-- c/lib.c --
+int Add(int *p, int b) { return *p + b; }
+int Esc(int *p, int b) { return *p + b; }
+-- p/go.mod --
+module p
+go 1.28
+-- p/binding.go --
+package main
+
+// #cgo LDFLAGS: ./libtest.so
+// #cgo noescape Add
+// #cgo nocallback Add
+import "C"
+
+//cgo:func Add C.Add "libtest.so"
+//cgo:func Esc C.Esc "libtest.so"
+
+func Add(p *int32, b int32) int32
+func Esc(p *int32, b int32) int32
+-- p/main.go --
+package main
+
+import "fmt"
+
+import "C"
+
+func testNoEscape(noesc *int32) int32 { return C.Add(noesc, 10) }
+func testEscape(esc *int32) int32     { return C.Esc(esc, 10) }
+
+func main() {
+	var v1, v2 int32 = 5, 15
+	fmt.Printf("Add=%d\n", testNoEscape(&v1))
+	fmt.Printf("Esc=%d\n", testEscape(&v2))
+}
+-- errpkg/go.mod --
+module errpkg
+go 1.28
+-- errpkg/binding.go --
+package main
+
+// #cgo LDFLAGS: ./libtest.so
+import "C"
+
+//cgo:func Add C.Add "libtest.so"
+func Add(p *int32, b int32) int32
+-- errpkg/main.go --
+package main
+
+// #cgo noescape NoSuchFunc
+// #cgo nocallback AnotherNoSuchFunc
+import "C"
+
+func main() {}

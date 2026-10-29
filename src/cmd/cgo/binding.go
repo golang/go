@@ -618,6 +618,12 @@ func (p *Package) parseBinding(bindingPath string, data []byte) *Bindings {
 }
 
 func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
+	if p.noCallbacks == nil {
+		p.noCallbacks = make(map[string]bool)
+	}
+	if p.noEscapes == nil {
+		p.noEscapes = make(map[string]bool)
+	}
 	entry := &Bindings{
 		LdFlags:      append([]string(nil), p.LdFlags...),
 		TypeGoToC:    make(map[string]string),
@@ -641,11 +647,12 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		}
 		pragmas = append(pragmas, parseCgoPragmas(p.fset, src.file)...)
 
-		// Collect #cgo LDFLAGS directives from the import "C" preamble,
-		// honoring their build constraints. When cmd/go passes -ldflags,
-		// it has already collected (and checked against CGO_LDFLAGS_ALLOW)
-		// the package's flags, so the preamble is not consulted.
-		if ldflagsSet {
+		// Collect #cgo noescape and nocallback directives, and #cgo LDFLAGS
+		// directives (honoring their build constraints), from the import "C"
+		// preamble. When cmd/go passes -ldflags, it has already collected
+		// (and checked against CGO_LDFLAGS_ALLOW) the package's flags, so the
+		// preamble is not consulted for them.
+		if !hasImportCFile(src.file) {
 			continue
 		}
 		origPath := src.origPath
@@ -660,6 +667,19 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 			for line := range strings.SplitSeq(commentText(doc), "\n") {
 				cgoLine := strings.TrimSpace(line)
 				if !strings.HasPrefix(cgoLine, "#cgo") || len(cgoLine) < 5 || (cgoLine[4] != ' ' && cgoLine[4] != '\t') {
+					continue
+				}
+				if fields := strings.Fields(cgoLine); len(fields) == 3 {
+					switch fields[1] {
+					case "nocallback":
+						p.noCallbacks[fields[2]] = true
+						continue
+					case "noescape":
+						p.noEscapes[fields[2]] = true
+						continue
+					}
+				}
+				if ldflagsSet {
 					continue
 				}
 				verb, raw, matched, ok := parseCgoDirective(cgoLine)
@@ -1086,14 +1106,34 @@ func (p *Package) processBinding(goFiles []string) {
 	cFuncMap := make(map[string]BindingFunc)
 	goFuncMap := make(map[string]BindingFunc)
 	boundGoFuncs := make(map[string]bool)
+	boundCFuncs := make(map[string]bool)
 	for _, fn := range entry.Funcs {
 		if fn.BindC {
 			cFuncMap[fn.CName] = fn
 		}
 		boundGoFuncs[fn.GoName] = true
 		goFuncMap[fn.GoName] = fn
+		boundCFuncs[fn.CName] = true
 		knownBoundNames[fn.Name] = true
 		knownBoundNames[fn.GoName] = true
+	}
+
+	for _, cName := range slices.Sorted(maps.Keys(p.noEscapes)) {
+		if !boundCFuncs[cName] {
+			error_(token.NoPos, "#cgo noescape %s: no matched C function", cName)
+		}
+	}
+	for _, cName := range slices.Sorted(maps.Keys(p.noCallbacks)) {
+		if !boundCFuncs[cName] {
+			error_(token.NoPos, "#cgo nocallback %s: no matched C function", cName)
+		}
+	}
+	if nerrors > 0 {
+		os.Exit(2)
+	}
+	for i := range entry.Funcs {
+		fn := &entry.Funcs[i]
+		fn.MayCallback = !p.noCallbacks[fn.CName]
 	}
 
 	rewriter := &bindingRewriter{
@@ -1447,6 +1487,28 @@ func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *Bindings, imp fileIm
 		return buf.String()
 	}
 }
+
+const bindingRuntimeProlog = `//go:linkname _cgo_runtime_cgocall runtime.cgocall
+func _cgo_runtime_cgocall(fn unsafe.Pointer, arg uintptr) int32
+
+//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse
+var _Cgo_always_false bool
+
+//go:linkname _Cgo_use runtime.cgoUse
+func _Cgo_use(interface{})
+
+//go:linkname _Cgo_keepalive runtime.cgoKeepAlive
+//go:noescape
+func _Cgo_keepalive(interface{})
+
+//go:linkname _cgoCheckPointer runtime.cgoCheckPointer
+//go:noescape
+func _cgoCheckPointer(interface{}, interface{})
+
+//go:linkname _Cgo_no_callback runtime.cgoNoCallback
+func _Cgo_no_callback(bool)
+
+`
 
 // cTypeError reports why values of the Go type expression t cannot be passed
 // to or returned from C, or "" if they can. Go strings, slices, maps,
@@ -2007,18 +2069,7 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		fmt.Fprintf(f, "var _Cvar_%s *%s = (*%s)(unsafe.Pointer(&%s))\n\n", v.Name, v.Type, v.Type, goSym)
 	}
 
-	fmt.Fprintf(f, "//go:linkname _cgo_runtime_cgocall runtime.cgocall\n")
-	fmt.Fprintf(f, "func _cgo_runtime_cgocall(fn unsafe.Pointer, arg uintptr) int32\n\n")
-	fmt.Fprintf(f, "//go:linkname _Cgo_always_false runtime.cgoAlwaysFalse\n")
-	fmt.Fprintf(f, "var _Cgo_always_false bool\n\n")
-	fmt.Fprintf(f, "//go:linkname _Cgo_use runtime.cgoUse\n")
-	fmt.Fprintf(f, "func _Cgo_use(interface{})\n\n")
-	fmt.Fprintf(f, "//go:linkname _Cgo_keepalive runtime.cgoKeepAlive\n")
-	fmt.Fprintf(f, "//go:noescape\n")
-	fmt.Fprintf(f, "func _Cgo_keepalive(interface{})\n\n")
-	fmt.Fprintf(f, "//go:linkname _cgoCheckPointer runtime.cgoCheckPointer\n")
-	fmt.Fprintf(f, "//go:noescape\n")
-	fmt.Fprintf(f, "func _cgoCheckPointer(interface{}, interface{})\n\n")
+	fmt.Fprint(f, bindingRuntimeProlog)
 
 	emittedAlias := make(map[string]bool)
 	if len(bf.TypeGoToC) > 0 {
@@ -2067,13 +2118,46 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 			retSig = " " + fn.Ret
 			retPrefix = "return "
 		}
-		fmt.Fprintf(f, "func _Cfunc_%s(%s)%s {\n", fn.Name, strings.Join(paramDecls, ", "), retSig)
+		noCallback := p.noCallbacks[fn.CName]
+		noEscape := p.noEscapes[fn.CName]
 		hasArgs := len(fn.Params) > 0 || fn.Ret != ""
-		if !hasArgs {
-			fmt.Fprintf(f, "\t_cgo_runtime_cgocall(unsafe.Pointer(&_cgo_trampoline_%s), 0)\n", fn.Name)
-		} else {
-			fmt.Fprintf(f, "\targs := _cgo_arg_%s{%s}\n", fn.Name, strings.Join(paramPass, ", "))
+		// When a C call with a return value may invoke Go callbacks, the
+		// trampoline relocates &args by the _cgo_topofstack delta if the
+		// goroutine stack grows. Pass args as a value parameter to a
+		// //go:cgo_unsafe_args helper so the compiler always places it on
+		// the goroutine stack (never heap-allocating even if > MaxStackVarSize).
+		pinArgsOnStack := hasArgs && !noCallback && fn.Ret != ""
+
+		if pinArgsOnStack {
+			fmt.Fprintf(f, "//go:cgo_unsafe_args\n")
+			fmt.Fprintf(f, "func _cgo_call_%s(args _cgo_arg_%s)%s {\n", fn.Name, fn.Name, retSig)
 			fmt.Fprintf(f, "\t_cgo_runtime_cgocall(unsafe.Pointer(&_cgo_trampoline_%s), uintptr(unsafe.Pointer(&args)))\n", fn.Name)
+			fmt.Fprintf(f, "\tif _Cgo_always_false {\n")
+			fmt.Fprintf(f, "\t\t_Cgo_keepalive(&args)\n")
+			fmt.Fprintf(f, "\t}\n")
+			fmt.Fprintf(f, "\treturn args.ret\n")
+			fmt.Fprintf(f, "}\n\n")
+		}
+		fmt.Fprintf(f, "func _Cfunc_%s(%s)%s {\n", fn.Name, strings.Join(paramDecls, ", "), retSig)
+		if pinArgsOnStack {
+			fmt.Fprintf(f, "\tr := _cgo_call_%s(_cgo_arg_%s{%s})\n", fn.Name, fn.Name, strings.Join(paramPass, ", "))
+		} else {
+			if noCallback {
+				fmt.Fprintf(f, "\t_Cgo_no_callback(true)\n")
+			}
+			if !hasArgs {
+				fmt.Fprintf(f, "\t_cgo_runtime_cgocall(unsafe.Pointer(&_cgo_trampoline_%s), 0)\n", fn.Name)
+			} else {
+				fmt.Fprintf(f, "\targs := _cgo_arg_%s{%s}\n", fn.Name, strings.Join(paramPass, ", "))
+				fmt.Fprintf(f, "\t_cgo_runtime_cgocall(unsafe.Pointer(&_cgo_trampoline_%s), uintptr(unsafe.Pointer(&args)))\n", fn.Name)
+			}
+			if noCallback {
+				fmt.Fprintf(f, "\t_Cgo_no_callback(false)\n")
+			}
+		}
+		touchFunc := "_Cgo_use"
+		if noEscape && noCallback {
+			touchFunc = "_Cgo_keepalive"
 		}
 		var touchParams []string
 		for i, name := range paramNames {
@@ -2081,21 +2165,23 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 				touchParams = append(touchParams, name)
 			}
 		}
-		// The trampoline reads and writes args through the uintptr passed
-		// to _cgo_runtime_cgocall, so keep args alive (and on the stack)
-		// until the call returns, even if the function returns no result.
-		if len(touchParams) > 0 || hasArgs {
+		keepArgsHere := hasArgs && !pinArgsOnStack
+		if len(touchParams) > 0 || keepArgsHere {
 			fmt.Fprintf(f, "\tif _Cgo_always_false {\n")
 			for _, name := range touchParams {
-				fmt.Fprintf(f, "\t\t_Cgo_use(%s)\n", name)
+				fmt.Fprintf(f, "\t\t%s(%s)\n", touchFunc, name)
 			}
-			if hasArgs {
+			if keepArgsHere {
 				fmt.Fprintf(f, "\t\t_Cgo_keepalive(&args)\n")
 			}
 			fmt.Fprintf(f, "\t}\n")
 		}
 		if fn.Ret != "" {
-			fmt.Fprintf(f, "\treturn args.ret\n")
+			if pinArgsOnStack {
+				fmt.Fprintf(f, "\treturn r\n")
+			} else {
+				fmt.Fprintf(f, "\treturn args.ret\n")
+			}
 		}
 		fmt.Fprintf(f, "}\n\n")
 

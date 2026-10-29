@@ -36,6 +36,9 @@ type BindingFunc struct {
 	Params []string // Declared parameter types
 	Ret    string   // Return type expression, or "" for void
 
+	// Calling convention modifiers (used by ABI layout and trampoline generation):
+	MayCallback bool // C call may re-enter Go; spills pointer-passed args/returns to g0 stack and tracks _cgo_topofstack
+
 	// Go wrapper and import metadata (used by binding.go):
 	Library string // Shared library or DLL name for dynamic import directives; empty for libc and static
 	LibC    bool   // The symbol comes from the platform C runtime (libc)
@@ -50,6 +53,7 @@ type ParamLoc struct {
 	Regs      []string // Register(s) if passed in register(s)
 	StackOff  int64    // Byte offset in C stack frame when passed on the stack (len(Regs) == 0)
 	PassByPtr bool     // True if passed by hidden reference (pointer in Regs[0] or on stack)
+	G0Off     int64    // Scratch offset on g0 stack when MayCallback && PassByPtr
 }
 
 // RetLoc describes how a function return value is returned in the C ABI.
@@ -59,6 +63,7 @@ type RetLoc struct {
 	IsFloat  bool     // Floating-point return
 	Indirect bool     // True if caller passes a hidden sret return buffer pointer
 	Regs     []string // Register(s) holding the return value upon C return (e.g. AX, X0)
+	G0Off    int64    // Scratch offset on g0 stack when MayCallback
 }
 
 // FuncLayout describes the complete Go argument struct and C ABI layout for a call.
@@ -67,6 +72,7 @@ type FuncLayout struct {
 	Ret           RetLoc
 	StackSize     int64 // C stack frame size in bytes (aligned to ABIConfig.StackAlign)
 	FloatRegCount int   // Number of floating-point argument registers allocated (for SysV AMD64 AX)
+	StkTopOff     int64 // Saved _cgo_topofstack slot on g0 stack when MayCallback
 }
 
 // hasStackArgs reports whether any argument is passed on the C stack.
@@ -482,12 +488,14 @@ func (cfg *ABIConfig) layout(fn BindingFunc, types map[string]BindingType) FuncL
 	if fn.Ret != "" {
 		ret.GoOffset = alignUp(goOff, retAlign)
 	}
+	stkTopOff := cfg.assignG0Scratch(fn, params, &ret, &st)
 
 	return FuncLayout{
 		Params:        params,
 		Ret:           ret,
 		StackSize:     alignUp(st.stackOff, cfg.StackAlign),
 		FloatRegCount: st.floatIdx,
+		StkTopOff:     stkTopOff,
 	}
 }
 
@@ -611,6 +619,47 @@ func (cfg *ABIConfig) assignStackParam(size int64, isFloat bool, st *abiState) P
 	off := alignUp(st.stackOff, cfg.PtrSize)
 	st.stackOff = off + alignUp(size, cfg.PtrSize)
 	return ParamLoc{Size: size, IsFloat: isFloat, StackOff: off}
+}
+
+// assignG0Scratch reserves scratch space on the g0 stack frame when MayCallback
+// is true so pointer-passed arguments, indirect return buffers, and the saved
+// _cgo_topofstack pointer survive Go stack growth during C-to-Go callbacks.
+func (cfg *ABIConfig) assignG0Scratch(fn BindingFunc, params []ParamLoc, ret *RetLoc, st *abiState) int64 {
+	if !fn.MayCallback {
+		return 0
+	}
+	needsScratch := fn.Ret != "" && ret.Size > 0
+	for i := range params {
+		if params[i].PassByPtr {
+			needsScratch = true
+			break
+		}
+	}
+	if !needsScratch {
+		return 0
+	}
+	if cfg.LRReserve > 0 && st.stackOff == 0 {
+		// Leave 0..LRReserve-1(SP) free for the trampoline's saved LR slot
+		// when no C stack arguments or ABI shadow space occupy 0(SP).
+		st.stackOff = cfg.LRReserve
+	}
+	ptrSize := cfg.PtrSize
+	for i := range params {
+		if params[i].PassByPtr {
+			st.stackOff = alignUp(st.stackOff, ptrSize)
+			params[i].G0Off = st.stackOff
+			st.stackOff += alignUp(params[i].Size, ptrSize)
+		}
+	}
+	var stkTopOff int64
+	if fn.Ret != "" && ret.Size > 0 {
+		st.stackOff = alignUp(st.stackOff, ptrSize)
+		ret.G0Off = st.stackOff
+		st.stackOff += alignUp(ret.Size, ptrSize)
+		stkTopOff = st.stackOff
+		st.stackOff += ptrSize
+	}
+	return stkTopOff
 }
 
 // decomposePow2 splits a byte size (1..8) into descending power-of-two chunks
@@ -984,29 +1033,49 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 
 	base := cfg.CalleeSavedReg
 
+	if fn.MayCallback {
+		if fn.Ret != "" && lay.Ret.Size > 0 {
+			cfg.emitCallRuntime(w, "_cgo_topofstack")
+			cfg.emitStoreInt(w, cfg.IntRetRegs[0], cfg.SPReg, lay.StkTopOff, ptrSize)
+		}
+		for _, p := range lay.Params {
+			if p.PassByPtr {
+				cfg.emitCopyMem(w, base, p.GoOffset, cfg.SPReg, p.G0Off, p.Size, cfg.TmpReg)
+			}
+		}
+	}
+
 	if lay.Ret.Indirect {
-		cfg.emitAddr(w, base, lay.Ret.GoOffset, cfg.IndirectRetReg)
+		retBase, retOff := base, lay.Ret.GoOffset
+		if fn.MayCallback {
+			retBase, retOff = cfg.SPReg, lay.Ret.G0Off
+		}
+		cfg.emitAddr(w, retBase, retOff, cfg.IndirectRetReg)
 	}
 
 	for i, p := range lay.Params {
+		srcBase, srcOff := base, p.GoOffset
+		if fn.MayCallback && p.PassByPtr {
+			srcBase, srcOff = cfg.SPReg, p.G0Off
+		}
 		if p.PassByPtr {
 			if len(p.Regs) > 0 {
-				cfg.emitAddr(w, base, p.GoOffset, p.Regs[0])
+				cfg.emitAddr(w, srcBase, srcOff, p.Regs[0])
 			} else {
-				cfg.emitAddr(w, base, p.GoOffset, cfg.TmpReg)
+				cfg.emitAddr(w, srcBase, srcOff, cfg.TmpReg)
 				cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, p.StackOff, ptrSize)
 			}
 			continue
 		}
 		if slots := cfg.paramRegSlots(fn, i, p, types); len(slots) > 0 {
 			for _, slot := range slots {
-				cfg.emitLoadSlot(w, base, p.GoOffset, slot)
+				cfg.emitLoadSlot(w, srcBase, srcOff, slot)
 			}
 			continue
 		}
 		info := cfg.paramTypeInfo(fn, i, types)
 		if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
-			cfg.emitLoadInt(w, base, p.GoOffset, p.Size, info.signed, cfg.TmpReg)
+			cfg.emitLoadInt(w, srcBase, srcOff, p.Size, info.signed, cfg.TmpReg)
 			storeSize := ptrSize
 			if cfg.PackStackArgs {
 				storeSize = p.Size
@@ -1014,7 +1083,7 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 			cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, p.StackOff, storeSize)
 			continue
 		}
-		cfg.emitCopyMem(w, base, p.GoOffset, cfg.SPReg, p.StackOff, p.Size, cfg.TmpReg)
+		cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, p.StackOff, p.Size, cfg.TmpReg)
 	}
 
 	if cfg.PreCall != nil {
@@ -1026,9 +1095,22 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	}
 	cfg.emitCallSymbol(w, fn.CName, fn.Static)
 
-	if fn.Ret != "" && lay.Ret.Size > 0 && !lay.Ret.Indirect {
-		for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
-			cfg.emitStoreSlot(w, slot, base, lay.Ret.GoOffset)
+	if fn.Ret != "" && lay.Ret.Size > 0 {
+		retDstBase, retDstOff := base, lay.Ret.GoOffset
+		if fn.MayCallback {
+			retDstBase, retDstOff = cfg.SPReg, lay.Ret.G0Off
+		}
+		if !lay.Ret.Indirect {
+			for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
+				cfg.emitStoreSlot(w, slot, retDstBase, retDstOff)
+			}
+		}
+		if fn.MayCallback {
+			cfg.emitCallRuntime(w, "_cgo_topofstack")
+			cfg.emitLoadInt(w, cfg.SPReg, lay.StkTopOff, ptrSize, false, cfg.TmpReg)
+			cfg.emitSubReg(w, cfg.TmpReg, cfg.IntRetRegs[0])
+			cfg.emitAddReg(w, cfg.IntRetRegs[0], base)
+			cfg.emitCopyMem(w, cfg.SPReg, lay.Ret.G0Off, base, lay.Ret.GoOffset, lay.Ret.Size, cfg.TmpReg)
 		}
 	}
 

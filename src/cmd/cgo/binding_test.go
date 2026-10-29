@@ -32,6 +32,7 @@ import "structs"
 //cgo:func Add C.Add "libx.so"
 //cgo:func _AddFloat AddFloat "./libx.so"
 //cgo:func Puts puts libc
+//cgo:func Strlen strlen libc
 //cgo:func Helper helper static
 //cgo:func _PassS PassS "libx.so"
 
@@ -62,6 +63,8 @@ func Add(a int32, b int32) int32
 func _AddFloat(a float32, b float64) float64
 
 func Puts(s *int8) int32
+
+func Strlen(s *int8) uintptr
 
 func Helper()
 
@@ -95,8 +98,8 @@ func _PassS(s S, t T) S
 			t.Errorf("GoOnlyCNames[%q] = false, want true", name)
 		}
 	}
-	if len(entry.Funcs) != 5 {
-		t.Fatalf("len(Funcs) = %d, want 5", len(entry.Funcs))
+	if len(entry.Funcs) != 6 {
+		t.Fatalf("len(Funcs) = %d, want 6", len(entry.Funcs))
 	}
 	if fn := entry.Funcs[0]; fn.Name != "Add" || fn.CName != "Add" || !fn.BindC || fn.Library != "libx.so" || fn.Ret != "int32" {
 		t.Errorf("Funcs[0] = %+v", fn)
@@ -107,8 +110,8 @@ func _PassS(s S, t T) S
 	if fn := entry.Funcs[2]; fn.GoName != "Puts" || fn.CName != "puts" || !fn.LibC || fn.Library != "" || fn.Static {
 		t.Errorf("Funcs[2] = %+v", fn)
 	}
-	if fn := entry.Funcs[3]; fn.GoName != "Helper" || fn.CName != "helper" || !fn.Static || fn.Library != "" || fn.LibC {
-		t.Errorf("Funcs[3] = %+v", fn)
+	if fn := entry.Funcs[4]; fn.GoName != "Helper" || fn.CName != "helper" || !fn.Static || fn.Library != "" || fn.LibC {
+		t.Errorf("Funcs[4] = %+v", fn)
 	}
 
 	tmpDir := t.TempDir()
@@ -119,6 +122,8 @@ func _PassS(s S, t T) S
 	mainFile := filepath.Join(tmpDir, "main.go")
 	mainSrc := `package p
 
+// #cgo noescape puts
+// #cgo nocallback puts
 import "C"
 
 func Call(x int32) int32 {
@@ -167,6 +172,9 @@ func Call(x int32) int32 {
 		`func Add(p0 int32, p1 int32) int32`,
 		`func _AddFloat(p0 float32, p1 float64) float64`,
 		`_Cgo_use(p0)`,
+		`_Cgo_no_callback(true)`,
+		`_Cgo_keepalive(p0)`,
+		`//go:cgo_unsafe_args`,
 	} {
 		if !strings.Contains(gotypes, want) {
 			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
@@ -211,6 +219,7 @@ func Call(x int32) int32 {
 	tramp := string(trampBytes)
 	for _, want := range []string{
 		"_trampoline_Add(SB), NOSPLIT|NOFRAME, $0-0",
+		"CALL\t_cgo_topofstack(SB)",
 		"CALL\tAdd(SB)",
 		"_trampoline__AddFloat(SB), NOSPLIT|NOFRAME, $0-0",
 		"CALL\tAddFloat(SB)",
