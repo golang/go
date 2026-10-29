@@ -57,6 +57,22 @@ var libc_pthread_sigmask = unsafe.Pointer(&_libc_pthread_sigmask)
 var _libc_sigfillset byte
 var libc_sigfillset = unsafe.Pointer(&_libc_sigfillset)
 
+// libc_dlopen, libc_dlsym, and libc_dlerror are imported only when the
+// cgobindings experiment is enabled (see library_linux.go and
+// library_darwin.go), for Open.
+
+//go:linkname _libc_dlopen libc_dlopen
+var _libc_dlopen byte
+var libc_dlopen = unsafe.Pointer(&_libc_dlopen)
+
+//go:linkname _libc_dlsym libc_dlsym
+var _libc_dlsym byte
+var libc_dlsym = unsafe.Pointer(&_libc_dlsym)
+
+//go:linkname _libc_dlerror libc_dlerror
+var _libc_dlerror byte
+var libc_dlerror = unsafe.Pointer(&_libc_dlerror)
+
 //go:linknamestd runtime_setg runtime.setg
 func runtime_setg(gg uintptr)
 

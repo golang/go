@@ -25,7 +25,10 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ	cgoCallFrame_a0(CX), CX
 	CALL	AX
 	MOVQ	AX, cgoCallFrame_r1(BX)
-	XORL	AX, AX
+	// Capture TEB.LastErrorValue before returning to runtime.cgocall,
+	// so runtime.exitsyscall cannot clobber GetLastError.
+	MOVQ	0x30(GS), AX
+	MOVL	0x68(AX), AX
 	ADJSP	$-40
 	POPQ	BX
 	POPQ	BP

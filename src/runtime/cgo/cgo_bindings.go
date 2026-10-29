@@ -95,6 +95,17 @@ func cgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	return f.r1
 }
 
+// cgocallErr is like cgocall and also returns the int32 result from
+// runtime.cgocall (on Windows, GetLastError captured before exitsyscall).
+//
+//go:norace
+//go:nocheckptr
+func cgocallErr(fn, a0, a1, a2, a3, a4, a5 uintptr) (uintptr, uint32) {
+	f := cgoCallFrame{fn: fn, a0: a0, a1: a1, a2: a2, a3: a3, a4: a4, a5: a5}
+	errno := runtime_cgocall(unsafe.Pointer(abi.FuncPCABI0(cgoCallTrampoline)), unsafe.Pointer(&f))
+	return f.r1, uint32(errno)
+}
+
 //go:nosplit
 //go:norace
 func tsanAcquire() {}
