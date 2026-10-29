@@ -310,13 +310,16 @@ func main() {
 						continue
 					}
 
-					if sizeForType[recvType] == 128 {
+					// The bridge adapts mask ToBits to caller-owned storage
+					// and emulates the 16-bit-lane operation without AVX512.
+					maskToBits := methodName == "ToBits" && recvType[0] == 'M'
+					if sizeForType[recvType] == 128 && !maskToBits {
 						if s := funcDecl.Doc.Text(); strings.Contains(s, "AVX512") || strings.Contains(s, "AVX2") {
 							pv("Skipping 128-bit %s.%s because AVX2/AVX512\n", recvType, methodName)
 							continue
 						}
 					}
-					if sizeForType[recvType] == 256 {
+					if sizeForType[recvType] == 256 && !maskToBits {
 						if s := funcDecl.Doc.Text(); strings.Contains(s, "AVX512") {
 							pv("Skipping 256-bit %s.%s because AVX512\n", recvType, methodName)
 							continue
@@ -341,10 +344,6 @@ func main() {
 						}
 						if methodName == "StoreArray" || methodName == "StoreMasked" {
 							pv("Skipping fixed-size Store method method %s.%s\n", recvType, methodName)
-							continue
-						}
-						if methodName == "ToBits" && recvType[0] == 'M' {
-							pv("Skipping Mask ToBits method (has varying return type) %s.%s\n", recvType, methodName)
 							continue
 						}
 						if lastChar := methodName[len(methodName)-1]; unicode.IsDigit(rune(lastChar)) && lastChar != eltType[len(eltType)-1] {
@@ -520,6 +519,14 @@ package simd
 			}
 
 			for _, m := range intersection {
+				if elem[0] == 'M' && m == "ToBits" {
+					// Fixed-width masks return a scalar bitmap. Portable
+					// masks write words into caller-owned storage instead.
+					checkSpec(elem+"s", m)
+					pf("func (x %ss) ToBits(dst []uint) int\n", elem)
+					delete(emulated, TypeMethod{elem + "s", m})
+					continue
+				}
 				fd := signatureByElemMethod[ElemMethod{elem, m}]
 				elems := elem + "s"
 				methodComment := ""
@@ -730,6 +737,27 @@ package simd
 						}
 						if t.v != nil && t.v.Emulated[m] {
 							// for this variant, emulate the method, do not supply
+							continue
+						}
+						if elem[0] == 'M' && m == "ToBits" {
+							// Every currently supported fixed-width mask fits
+							// in a uint on its target architecture.
+							pf("func (x %s) ToBits(dst []uint) int {\n", vt)
+							if arch == "amd64" && (at == "Mask16x8" || at == "Mask16x16") {
+								// Extract one bit per byte, then gather alternate
+								// bits. The direct operation requires AVX512.
+								lanes := sizeForType[at] / 16
+								pf("\tw := uint32(archsimd.%s(x).ToInt16x%d().ToBits().ReshapeToUint8s().BitsToInt8().ToMask().ToBits())\n", at, lanes)
+								pf("\tw &= 0x55555555\n")
+								pf("\tw = (w | w>>1) & 0x33333333\n")
+								pf("\tw = (w | w>>2) & 0x0f0f0f0f\n")
+								pf("\tw = (w | w>>4) & 0x00ff00ff\n")
+								pf("\tw = (w | w>>8) & 0x0000ffff\n")
+								pf("\tdst[0] = uint(w)\n")
+							} else {
+								pf("\tdst[0] = uint(archsimd.%s(x).ToBits())\n", at)
+							}
+							pf("\treturn 1\n}\n\n")
 							continue
 						}
 						fd := methodsByType[combine(arch, at)][m]

@@ -1627,6 +1627,15 @@ func (x Mask8s) Or(y Mask8s) (z Mask8s)
 // means true.
 func (x Mask8s) String() string
 
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask8s) ToBits(dst []uint) int
+
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8s) ToInt8s() (z Int8s)
@@ -1675,6 +1684,15 @@ func (x Mask16s) Or(y Mask16s) (z Mask16s)
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
 func (x Mask16s) String() string
+
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask16s) ToBits(dst []uint) int
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
@@ -1725,6 +1743,15 @@ func (x Mask32s) Or(y Mask32s) (z Mask32s)
 // means true.
 func (x Mask32s) String() string
 
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask32s) ToBits(dst []uint) int
+
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32s) ToInt32s() (z Int32s)
@@ -1773,6 +1800,15 @@ func (x Mask64s) Or(y Mask64s) (z Mask64s)
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
 func (x Mask64s) String() string
+
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask64s) ToBits(dst []uint) int
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.

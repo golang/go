@@ -4048,6 +4048,21 @@ func (x Mask8x64) String() string {
 	return (archsimd.Mask8x64(x)).String()
 }
 
+func (x Mask8x16) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask8x16(x).ToBits())
+	return 1
+}
+
+func (x Mask8x32) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask8x32(x).ToBits())
+	return 1
+}
+
+func (x Mask8x64) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask8x64(x).ToBits())
+	return 1
+}
+
 func (x Mask8x16) ToInt8s() Int8x16 {
 	return Int8x16((archsimd.Mask8x16(x)).ToInt8x16())
 }
@@ -4190,6 +4205,33 @@ func (x Mask16x16) String() string {
 
 func (x Mask16x32) String() string {
 	return (archsimd.Mask16x32(x)).String()
+}
+
+func (x Mask16x8) ToBits(dst []uint) int {
+	w := uint32(archsimd.Mask16x8(x).ToInt16x8().ToBits().ReshapeToUint8s().BitsToInt8().ToMask().ToBits())
+	w &= 0x55555555
+	w = (w | w>>1) & 0x33333333
+	w = (w | w>>2) & 0x0f0f0f0f
+	w = (w | w>>4) & 0x00ff00ff
+	w = (w | w>>8) & 0x0000ffff
+	dst[0] = uint(w)
+	return 1
+}
+
+func (x Mask16x16) ToBits(dst []uint) int {
+	w := uint32(archsimd.Mask16x16(x).ToInt16x16().ToBits().ReshapeToUint8s().BitsToInt8().ToMask().ToBits())
+	w &= 0x55555555
+	w = (w | w>>1) & 0x33333333
+	w = (w | w>>2) & 0x0f0f0f0f
+	w = (w | w>>4) & 0x00ff00ff
+	w = (w | w>>8) & 0x0000ffff
+	dst[0] = uint(w)
+	return 1
+}
+
+func (x Mask16x32) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask16x32(x).ToBits())
+	return 1
 }
 
 func (x Mask16x8) ToInt16s() Int16x8 {
@@ -4336,6 +4378,21 @@ func (x Mask32x16) String() string {
 	return (archsimd.Mask32x16(x)).String()
 }
 
+func (x Mask32x4) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask32x4(x).ToBits())
+	return 1
+}
+
+func (x Mask32x8) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask32x8(x).ToBits())
+	return 1
+}
+
+func (x Mask32x16) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask32x16(x).ToBits())
+	return 1
+}
+
 func (x Mask32x4) ToInt32s() Int32x4 {
 	return Int32x4((archsimd.Mask32x4(x)).ToInt32x4())
 }
@@ -4478,6 +4535,21 @@ func (x Mask64x4) String() string {
 
 func (x Mask64x8) String() string {
 	return (archsimd.Mask64x8(x)).String()
+}
+
+func (x Mask64x2) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask64x2(x).ToBits())
+	return 1
+}
+
+func (x Mask64x4) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask64x4(x).ToBits())
+	return 1
+}
+
+func (x Mask64x8) ToBits(dst []uint) int {
+	dst[0] = uint(archsimd.Mask64x8(x).ToBits())
+	return 1
 }
 
 func (x Mask64x2) ToInt64s() Int64x2 {

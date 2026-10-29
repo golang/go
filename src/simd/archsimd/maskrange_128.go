@@ -8,6 +8,45 @@ package archsimd
 
 import "math/bits"
 
+// ToBits returns x as a bitmap, where bit i is set if mask element i is true.
+//
+// Emulated
+func (x Mask8x16) ToBits() uint16 {
+	v := x.ToInt8x16().ToBits().ReshapeToUint64s()
+	// Keep one bit per byte, then gather the eight bits into the high byte.
+	a := (v.GetElem(0) & 0x0101010101010101) * 0x0102040810204080 >> 56
+	b := (v.GetElem(1) & 0x0101010101010101) * 0x0102040810204080 >> 56
+	return uint16(a | b<<8)
+}
+
+// ToBits returns x as a bitmap, where bit i is set if mask element i is true.
+//
+// Emulated
+func (x Mask16x8) ToBits() uint8 {
+	v := x.ToInt16x8().ToBits().ReshapeToUint64s()
+	a := (v.GetElem(0) & 0x0001000100010001) * 0x0001000200040008 >> 48
+	b := (v.GetElem(1) & 0x0001000100010001) * 0x0001000200040008 >> 48
+	return uint8(a | b<<4)
+}
+
+// ToBits returns x as a bitmap, where bit i is set if mask element i is true.
+//
+// Emulated
+func (x Mask32x4) ToBits() uint8 {
+	v := x.ToInt32x4().ToBits().ReshapeToUint64s()
+	a := (v.GetElem(0) & 0x0000000100000001) * 0x0000000100000002 >> 32
+	b := (v.GetElem(1) & 0x0000000100000001) * 0x0000000100000002 >> 32
+	return uint8(a | b<<2)
+}
+
+// ToBits returns x as a bitmap, where bit i is set if mask element i is true.
+//
+// Emulated
+func (x Mask64x2) ToBits() uint8 {
+	v := x.ToInt64x2().ToBits()
+	return uint8(v.GetElem(0)&1 | (v.GetElem(1)&1)<<1)
+}
+
 // All returns true when all positions in mask x are true.
 //
 // Emulated
