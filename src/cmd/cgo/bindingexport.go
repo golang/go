@@ -292,3 +292,151 @@ func isUnsupportedExportType(expr ast.Expr, typeSpecs map[string]*ast.TypeSpec, 
 	}
 	return false
 }
+
+func bindingExportCType(expr ast.Expr, entry *Bindings, imp fileImports, seen map[string]bool) (string, bool) {
+	switch t := expr.(type) {
+	case *ast.ParenExpr:
+		return bindingExportCType(t.X, entry, imp, seen)
+	case *ast.StarExpr:
+		if at, ok := t.X.(*ast.ArrayType); ok && at.Len != nil {
+			if bl, ok := at.Len.(*ast.BasicLit); ok && bl.Value == "0" {
+				return "void*", true
+			}
+		}
+		if sel, ok := t.X.(*ast.SelectorExpr); ok {
+			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" && sel.Sel.Name == "void" {
+				return "void*", true
+			}
+		}
+		elem, ok := bindingExportCType(t.X, entry, imp, seen)
+		if !ok {
+			return "", false
+		}
+		return elem + "*", true
+	case *ast.SelectorExpr:
+		if id, ok := t.X.(*ast.Ident); ok {
+			if imp.unsafe[id.Name] && t.Sel.Name == "Pointer" {
+				return "void*", true
+			}
+			if id.Name == "C" {
+				switch t.Sel.Name {
+				case "int8_t":
+					return "GoInt8", true
+				case "uint8_t":
+					return "GoUint8", true
+				case "int16_t":
+					return "GoInt16", true
+				case "uint16_t":
+					return "GoUint16", true
+				case "int32_t":
+					return "GoInt32", true
+				case "uint32_t":
+					return "GoUint32", true
+				case "int64_t":
+					return "GoInt64", true
+				case "uint64_t":
+					return "GoUint64", true
+				case "uintptr_t":
+					return "GoUintptr", true
+				case "intptr_t", "ssize_t":
+					return "ptrdiff_t", true
+				case "bool":
+					return "_Bool", true
+				default:
+					return cname(t.Sel.Name), true
+				}
+			}
+		}
+	case *ast.Ident:
+		if imp.unsafe["."] && t.Name == "Pointer" {
+			return "void*", true
+		}
+		if cName, ok := entry.TypeGoToAnyC[t.Name]; ok && cName != "" {
+			return cname(cName), true
+		}
+		if t.Name == "uintptr" {
+			return "GoUintptr", true
+		}
+		if gt, ok := goTypes[t.Name]; ok {
+			return gt.C.String(), true
+		}
+		if ts, ok := entry.typeSpecs[t.Name]; ok && !seen[t.Name] {
+			seen[t.Name] = true
+			res, ok := bindingExportCType(ts.Type, entry, imp, seen)
+			delete(seen, t.Name)
+			return res, ok
+		}
+	}
+	return "", false
+}
+
+func (p *Package) writeBindingExportHeader(headerPath string, entry *Bindings, expFuncs []ExportFunc, sources []bindingSource) {
+	var preamble strings.Builder
+	for _, bs := range sources {
+		if bs.file == nil {
+			continue
+		}
+		forEachImportC(bs.file, func(_ *ast.GenDecl, _ *ast.ImportSpec, doc *ast.CommentGroup) {
+			if doc == nil {
+				return
+			}
+			for line := range strings.SplitSeq(commentText(doc), "\n") {
+				l := strings.TrimSpace(line)
+				if (len(l) >= 5 && l[:4] == "#cgo" && (l[4] == ' ' || l[4] == '\t')) || isCgoPragmaComment("//"+l) {
+					preamble.WriteByte('\n')
+					continue
+				}
+				preamble.WriteString(line)
+				preamble.WriteByte('\n')
+			}
+		})
+	}
+	origPreamble := p.Preamble
+	if p.Preamble == "" {
+		p.Preamble = preamble.String()
+	}
+	defer func() { p.Preamble = origPreamble }()
+
+	formatCType := func(expr ast.Expr, imp fileImports) string {
+		ct, ok := bindingExportCType(expr, entry, imp, make(map[string]bool))
+		if !ok {
+			var tb bytes.Buffer
+			noSourceConf.Fprint(&tb, p.fset, expr)
+			fatalf("%s: cannot represent Go type %s in _cgo_export.h (bind it with //cgo:type)", p.fset.Position(expr.Pos()), tb.String())
+		}
+		return ct
+	}
+
+	var hdr bytes.Buffer
+	p.writeExportHeader(&hdr)
+	for _, ef := range expFuncs {
+		if ef.Func == nil {
+			continue
+		}
+		fntype := ef.Func.Type
+		cRet := "void"
+		if fntype.Results != nil && len(fntype.Results.List) > 0 {
+			cRet = formatCType(fntype.Results.List[0].Type, ef.Imp)
+		}
+		var s strings.Builder
+		fmt.Fprintf(&s, "%s %s(", cRet, ef.Name)
+		if fntype.Params != nil && len(fntype.Params.List) > 0 {
+			forFieldList(fntype.Params, func(i int, aname string, atype ast.Expr) {
+				if i > 0 {
+					s.WriteString(", ")
+				}
+				cParamType := formatCType(atype, ef.Imp)
+				fmt.Fprintf(&s, "%s %s", cParamType, exportParamName(aname, i))
+			})
+		} else {
+			s.WriteString("void")
+		}
+		s.WriteByte(')')
+		fmt.Fprintf(&hdr, "extern %s;\n", s.String())
+	}
+	fmt.Fprintf(&hdr, "%s", gccExportHeaderEpilog)
+
+	if err := os.WriteFile(headerPath, hdr.Bytes(), 0666); err != nil {
+		fatalf("%s", err)
+	}
+}

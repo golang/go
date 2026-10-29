@@ -1,0 +1,502 @@
+# Test cgo callbacks (//export) in packages that use cgo binding pragmas.
+
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+[!GOOS:darwin] [!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+[!exec:cc] skip
+
+cd p
+cc -fPIC -shared -o libcb.so ../c/cb.c
+
+# Generate the binding file with cgo -gen-binding.
+go tool cgo -gen-binding ../gen/bind.go
+stdout '^import "C"$'
+stdout '^//cgo:type cb_fn C\.cb_fn$'
+stdout '^//cgo:func CallMeBack C\.CallMeBack "libcb\.so"$'
+stdout '^type cb_fn \*\[0\]byte$'
+stdout '^func CallMeBack\(p0 \*\[0\]byte, p1 int32, p2 int32\) int32$'
+! stdout 'GoCallback'
+cp stdout binding.go
+
+# Verify go run works without a C compiler using generated and handwritten bindings.
+env CGO_ENABLED=bindings
+env CC=/bin/false
+[GOOS:linux] env LD_LIBRARY_PATH=.
+go run .
+stdout 'Callback=300'
+
+# Verify GODEBUG=cgocheck=1 panic message preserves the full //export function name.
+env GODEBUG=cgocheck=1
+! go run . badptr
+stderr 'result of Go function GoPtrCallback called from cgo is unpinned Go unsafe pointer'
+! go run . badptr_direct
+stderr 'result of Go function GoPtrCallback called from cgo is unpinned Go unsafe pointer'
+! go run . badarg_direct
+stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
+go run . goodarg_direct
+stdout '^GoodArg=99$'
+env GODEBUG=
+
+# Test calling //export functions via C.<name>(...) and passing bound C
+# functions (shared library and libc) as C function pointers.
+go run . direct_and_fp
+stdout '^DirectExp=300,30,555$'
+stdout '^CFuncPtr=15,15,42$'
+
+# Test Go stack growth during a callback invoked from a MayCallback C call
+# with a large PassByPtr struct arg and large struct return (exercising
+# _cgo_topofstack relocation and G0Off scratch copies).
+go run . growstack
+stdout 'GrowStack=555'
+
+# Test packed stack arguments (narrow scalars, float32 HFAs, small/medium
+# non-HFA structs, and >16B PassByPtr structs) in both Go->C and C->Go directions.
+go run . packed
+stdout '^Packed=100,200$'
+
+# Replace the generated binding with a handwritten one and re-run.
+cp ../handwritten.go binding.go
+go run .
+stdout 'Callback=300'
+
+# Verify C.<export> and C.<cfunc> in non-call context are neither assignable
+# nor addressable (issue #7757).
+cd ../badfp
+! go build .
+stderr 'badfp\.go:17:.*cannot assign to'
+stderr 'badfp\.go:18:.*cannot take address of'
+stderr 'badfp\.go:19:.*cannot assign to'
+stderr 'badfp\.go:20:.*cannot take address of'
+
+# Test static (.syso) bound C function used in both call and non-call context.
+cd ../staticfp
+cc -fPIC -c -o static.syso ../c/static.c
+[!cgolinkext] go run -ldflags=-linkmode=internal .
+[!cgolinkext] stdout '^StaticFP=42,42$'
+
+# Test -buildmode=c-archive export header generation (preamble + prototype).
+cd ../exp_archive
+go build -buildmode=c-archive -o libexp.a .
+grep 'typedef struct { int x; } ExpPair;' libexp.h
+grep 'extern ExpPair GoDoublePair\(ExpPair p\);' libexp.h
+
+-- c/cb.c --
+#include <stdbool.h>
+#include <stdint.h>
+
+typedef int (*cb_fn)(int, int);
+typedef int (*unary_fn)(int);
+typedef void* (*ptr_cb_fn)(void);
+typedef struct { long long a, b, c, d; } Big4;
+typedef struct { uint8_t a, b; } Small2;
+typedef struct { int32_t a, b, c; } Medium;
+typedef struct { float a, b, c; } Float3;
+typedef struct { float a, b; } Float2;
+typedef void (*grow_cb_fn)(int);
+typedef int64_t (*packed_cb_fn)(
+	int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+	int8_t, int16_t, int8_t, bool, int32_t, Small2, int16_t, Medium, int8_t, Big4, uint8_t
+);
+typedef int64_t (*packed_hfa_cb_fn)(
+	int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t, int64_t,
+	double, double, double, double, double, double,
+	Float3, float, int8_t, Float2
+);
+
+int CallMeBack(cb_fn cb, int a, int b) {
+	return cb(a, b);
+}
+
+int CAdd(int a, int b) {
+	return a + b;
+}
+
+int CallUnary(unary_fn fn, int x) {
+	return fn(x);
+}
+
+void* CallPtrBack(ptr_cb_fn cb) {
+	return cb();
+}
+
+Big4 CallGrowStack(grow_cb_fn cb, Big4 in) {
+	cb(64);
+	Big4 out = { in.a + 1, in.b + 2, in.c + 3, in.d + 4 };
+	return out;
+}
+
+int64_t CallPackedBack(
+	packed_cb_fn cb,
+	int64_t r1, int64_t r2, int64_t r3, int64_t r4, int64_t r5, int64_t r6, int64_t r7,
+	int8_t a, int16_t b, int8_t c, bool d, int32_t e, Small2 sm, int16_t f, Medium med, int8_t g, Big4 big, uint8_t h
+) {
+	if (r1 != 1 || r2 != 2 || r3 != 3 || r4 != 4 || r5 != 5 || r6 != 6 || r7 != 7)
+		return -1;
+	if (a != -5 || b != -1234 || c != 42 || !d || e != -100000)
+		return -2;
+	if (sm.a != 0x12 || sm.b != 0x34 || f != 5678)
+		return -3;
+	if (med.a != 1001 || med.b != -2002 || med.c != 3003 || g != -99)
+		return -4;
+	if (big.a != 10 || big.b != 20 || big.c != 30 || big.d != 40 || h != 250)
+		return -5;
+	Small2 sm2 = { (uint8_t)(sm.a + 1), (uint8_t)(sm.b + 2) };
+	Medium med2 = { med.a + 1, med.b + 2, med.c + 3 };
+	Big4 big2 = { big.a + 1, big.b + 2, big.c + 3, big.d + 4 };
+	return cb(
+		10, r1, r2, r3, r4, r5, r6, r7,
+		(int8_t)(a + 1), (int16_t)(b + 2), (int8_t)(c + 3), !d, e + 4,
+		sm2, (int16_t)(f + 5), med2, (int8_t)(g + 6), big2, (uint8_t)(h - 7)
+	);
+}
+
+int64_t CallPackedHFABack(
+	packed_hfa_cb_fn cb,
+	int64_t r1, int64_t r2, int64_t r3, int64_t r4, int64_t r5, int64_t r6, int64_t r7,
+	double f0, double f1, double f2, double f3, double f4, double f5,
+	Float3 h3, float fl, int8_t b, Float2 h2
+) {
+	if (r1 != 1 || r2 != 2 || r3 != 3 || r4 != 4 || r5 != 5 || r6 != 6 || r7 != 7)
+		return -1;
+	if (f0 != 1.0 || f1 != 2.0 || f2 != 3.0 || f3 != 4.0 || f4 != 5.0 || f5 != 6.0)
+		return -2;
+	if (h3.a != 1.5f || h3.b != 2.5f || h3.c != 3.5f || fl != 4.5f || b != -17 || h2.a != 5.5f || h2.b != 6.5f)
+		return -3;
+	Float3 h3b = { h3.a + 1.0f, h3.b + 1.0f, h3.c + 1.0f };
+	Float2 h2b = { h2.a + 1.0f, h2.b + 1.0f };
+	return cb(10, r1, r2, r3, r4, r5, r6, r7, f0, f1, f2, f3, f4, f5, h3b, fl + 1.0f, (int8_t)(b + 1), h2b);
+}
+
+-- gen/bind.go --
+package main
+
+// #cgo LDFLAGS: ./libcb.so
+// typedef int (*cb_fn)(int, int);
+// extern int CallMeBack(cb_fn cb, int a, int b);
+import "C"
+
+//cgo:type cb_fn C.cb_fn
+//cgo:func CallMeBack C.CallMeBack "libcb.so"
+
+-- handwritten.go --
+package main
+
+// #cgo LDFLAGS: ./libcb.so
+import "C"
+
+//cgo:type cb_fn C.cb_fn
+//cgo:func CallMeBack C.CallMeBack "libcb.so"
+
+type cb_fn *[0]byte
+
+func CallMeBack(p0 cb_fn, p1, p2 int32) int32
+
+-- p/go.mod --
+module p
+
+go 1.28
+
+-- p/extra.go --
+package main
+
+import "C"
+import "structs"
+import "unsafe"
+
+//cgo:type ptr_cb_fn C.ptr_cb_fn
+//cgo:type unary_fn C.unary_fn
+//cgo:type grow_cb_fn C.grow_cb_fn
+//cgo:type packed_cb_fn C.packed_cb_fn
+//cgo:type packed_hfa_cb_fn C.packed_hfa_cb_fn
+//cgo:type Big4 C.Big4
+//cgo:type Small2 C.Small2
+//cgo:type Medium C.Medium
+//cgo:type Float3 C.Float3
+//cgo:type Float2 C.Float2
+//cgo:func CAdd C.CAdd "libcb.so"
+//cgo:func CallUnary C.CallUnary "libcb.so"
+//cgo:func Abs C.abs libc
+//cgo:func CallPtrBack CallPtrBack "libcb.so"
+//cgo:func CallGrowStack CallGrowStack "libcb.so"
+//cgo:func CallPackedBack CallPackedBack "libcb.so"
+//cgo:func CallPackedHFABack CallPackedHFABack "libcb.so"
+
+type ptr_cb_fn *[0]byte
+type unary_fn *[0]byte
+type grow_cb_fn *[0]byte
+type packed_cb_fn *[0]byte
+type packed_hfa_cb_fn *[0]byte
+type Big4 struct {
+	_          structs.HostLayout
+	a, b, c, d int64
+}
+type Small2 struct {
+	_    structs.HostLayout
+	a, b uint8
+}
+type Medium struct {
+	_       structs.HostLayout
+	a, b, c int32
+}
+type Float3 struct {
+	_       structs.HostLayout
+	a, b, c float32
+}
+type Float2 struct {
+	_    structs.HostLayout
+	a, b float32
+}
+
+func CAdd(a, b int32) int32
+func CallUnary(fn unary_fn, x int32) int32
+func Abs(x int32) int32
+func CallPtrBack(p0 ptr_cb_fn) unsafe.Pointer
+func CallGrowStack(cb grow_cb_fn, in Big4) Big4
+func CallPackedBack(
+	cb packed_cb_fn,
+	r1, r2, r3, r4, r5, r6, r7 int64,
+	a int8, b int16, c int8, d bool, e int32, sm Small2, f int16, med Medium, g int8, big Big4, h uint8,
+) int64
+func CallPackedHFABack(
+	cb packed_hfa_cb_fn,
+	r1, r2, r3, r4, r5, r6, r7 int64,
+	f0, f1, f2, f3, f4, f5 float64,
+	h3 Float3, fl float32, b int8, h2 Float2,
+) int64
+
+-- p/main.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"unsafe"
+)
+
+import "C"
+
+//export GoCallback
+func GoCallback(a, b int32) int32 {
+	return a + b
+}
+
+//export GoPtrCallback
+func GoPtrCallback() unsafe.Pointer {
+	x := 42
+	return unsafe.Pointer(&x)
+}
+
+func recurseStack(n int32) int32 {
+	var buf [1024]byte
+	buf[0] = byte(n)
+	if n <= 0 {
+		return int32(buf[0])
+	}
+	return int32(buf[0]) + recurseStack(n-1)
+}
+
+//export GoGrowStack
+func GoGrowStack(n int32) {
+	_ = recurseStack(n)
+}
+
+//export GoGrowStackRet
+func GoGrowStackRet(in Big4) Big4 {
+	_ = recurseStack(64)
+	return Big4{a: in.a + 1, b: in.b + 2, c: in.c + 3, d: in.d + 4}
+}
+
+//export GoTakePtr
+func GoTakePtr(p unsafe.Pointer) int32 {
+	if p == nil {
+		return -1
+	}
+	return *(*int32)(p)
+}
+
+//export GoPackedCallback
+func GoPackedCallback(
+	r0, r1, r2, r3, r4, r5, r6, r7 int64,
+	a int8, b int16, c int8, d bool, e int32, sm Small2, f int16, med Medium, g int8, big Big4, h uint8,
+) int64 {
+	if r0 != 10 || r1 != 1 || r2 != 2 || r3 != 3 || r4 != 4 || r5 != 5 || r6 != 6 || r7 != 7 {
+		return -11
+	}
+	if a != -4 || b != -1232 || c != 45 || d || e != -99996 {
+		return -12
+	}
+	if sm != (Small2{a: 0x13, b: 0x36}) || f != 5683 {
+		return -13
+	}
+	if med != (Medium{a: 1002, b: -2000, c: 3006}) || g != -93 {
+		return -14
+	}
+	if big != (Big4{a: 11, b: 22, c: 33, d: 44}) || h != 243 {
+		return -15
+	}
+	return 100
+}
+
+//export GoPackedHFACallback
+func GoPackedHFACallback(
+	r0, r1, r2, r3, r4, r5, r6, r7 int64,
+	f0, f1, f2, f3, f4, f5 float64,
+	h3 Float3, fl float32, b int8, h2 Float2,
+) int64 {
+	if r0 != 10 || r1 != 1 || r2 != 2 || r3 != 3 || r4 != 4 || r5 != 5 || r6 != 6 || r7 != 7 {
+		return -21
+	}
+	if f0 != 1 || f1 != 2 || f2 != 3 || f3 != 4 || f4 != 5 || f5 != 6 {
+		return -22
+	}
+	if h3 != (Float3{a: 2.5, b: 3.5, c: 4.5}) || fl != 5.5 || b != -16 || h2 != (Float2{a: 6.5, b: 7.5}) {
+		return -23
+	}
+	return 200
+}
+
+func main() {
+	if len(os.Args) > 1 && os.Args[1] == "badptr" {
+		_ = CallPtrBack(ptr_cb_fn(C.GoPtrCallback))
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "badptr_direct" {
+		_ = C.GoPtrCallback()
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "badarg_direct" {
+		type holder struct {
+			p   *int32
+			val int32
+		}
+		h := &holder{p: new(int32), val: 99}
+		_ = C.GoTakePtr(unsafe.Pointer(h))
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "goodarg_direct" {
+		type holder struct {
+			p   *int32
+			val int32
+		}
+		h := &holder{p: new(int32), val: 99}
+		fmt.Printf("GoodArg=%d\n", C.GoTakePtr(unsafe.Pointer(&h.val)))
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "direct_and_fp" {
+		r1 := C.GoCallback(100, 200)
+		r2 := (C.GoCallback)(10, 20)
+		out := C.GoGrowStackRet(Big4{a: 100, b: 120, c: 150, d: 175})
+		fmt.Printf("DirectExp=%d,%d,%d\n", r1, r2, out.a+out.b+out.c+out.d)
+		c1 := C.CAdd(7, 8)
+		c2 := C.CallMeBack(C.cb_fn(C.CAdd), 7, 8)
+		c3 := C.CallUnary(C.unary_fn(C.abs), -42)
+		fmt.Printf("CFuncPtr=%d,%d,%d\n", c1, c2, c3)
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "growstack" {
+		out := CallGrowStack(grow_cb_fn(C.GoGrowStack), Big4{a: 100, b: 120, c: 150, d: 175})
+		fmt.Printf("GrowStack=%d\n", out.a+out.b+out.c+out.d)
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "packed" {
+		r1 := CallPackedBack(
+			packed_cb_fn(C.GoPackedCallback),
+			1, 2, 3, 4, 5, 6, 7,
+			-5, -1234, 42, true, -100000, Small2{a: 0x12, b: 0x34}, 5678,
+			Medium{a: 1001, b: -2002, c: 3003}, -99, Big4{a: 10, b: 20, c: 30, d: 40}, 250,
+		)
+		r2 := CallPackedHFABack(
+			packed_hfa_cb_fn(C.GoPackedHFACallback),
+			1, 2, 3, 4, 5, 6, 7,
+			1, 2, 3, 4, 5, 6,
+			Float3{a: 1.5, b: 2.5, c: 3.5}, 4.5, -17, Float2{a: 5.5, b: 6.5},
+		)
+		fmt.Printf("Packed=%d,%d\n", r1, r2)
+		return
+	}
+	fmt.Printf("Callback=%d\n", C.CallMeBack(C.cb_fn(C.GoCallback), 100, 200))
+}
+
+-- c/static.c --
+typedef int (*cb_fn)(int, int);
+int StaticAdd(int a, int b) { return a + b; }
+int CallStaticCb(cb_fn cb, int a, int b) { return cb(a, b); }
+
+-- badfp/go.mod --
+module badfp
+
+go 1.28
+
+-- badfp/badfp.go --
+package main
+
+import "C"
+
+//cgo:func CAdd C.CAdd libc
+func CAdd(a, b int32) int32
+
+//export GoCallback
+func GoCallback(a, b int32) int32 {
+	return a + b
+}
+
+func main() {
+	// Lines 17-20 test non-assignability and non-addressability of
+	// C.<export> and C.<cfunc> in non-call context.
+	_ = 0
+	C.GoCallback = nil
+	_ = &C.GoCallback
+	C.CAdd = nil
+	_ = &C.CAdd
+}
+
+-- staticfp/go.mod --
+module staticfp
+
+go 1.28
+
+-- staticfp/main.go --
+package main
+
+import "C"
+import "fmt"
+
+//cgo:type cb_fn C.cb_fn
+//cgo:func StaticAdd C.StaticAdd static
+//cgo:func CallStaticCb C.CallStaticCb static
+
+type cb_fn *[0]byte
+
+func StaticAdd(a, b int32) int32
+func CallStaticCb(cb cb_fn, a, b int32) int32
+
+func main() {
+	fmt.Printf("StaticFP=%d,%d\n", C.StaticAdd(20, 22), C.CallStaticCb(C.cb_fn(C.StaticAdd), 20, 22))
+}
+
+-- exp_archive/go.mod --
+module exp_archive
+
+go 1.28
+
+-- exp_archive/exp.go --
+package main
+
+// typedef struct { int x; } ExpPair;
+import "C"
+import "structs"
+
+//cgo:type ExpPair ExpPair
+
+type ExpPair struct {
+	_ structs.HostLayout
+	x int32
+}
+
+//export GoDoublePair
+func GoDoublePair(p ExpPair) ExpPair {
+	return ExpPair{x: p.x * 2}
+}
+
+func main() {}

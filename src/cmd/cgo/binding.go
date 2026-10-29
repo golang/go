@@ -56,6 +56,7 @@ type Bindings struct {
 	Funcs           []BindingFunc
 	UsedBuiltins    map[string]bool   // cgo builtins (such as CString) referenced as C.name
 	TypeGoToC       map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
+	TypeGoToAnyC    map[string]string // Go type name -> C name, for all //cgo:type pragmas
 	ConstCToGo      map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
 	GoOnlyCNames    map[string]bool   // C names bound by pragmas without the C. prefix
 	DynloadTypes    []string          // //cgo:dynload types, in pragma order
@@ -741,6 +742,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		LdFlags:         append([]string(nil), p.LdFlags...),
 		UsedBuiltins:    make(map[string]bool),
 		TypeGoToC:       make(map[string]string),
+		TypeGoToAnyC:    make(map[string]string),
 		ConstCToGo:      make(map[string]string),
 		GoOnlyCNames:    make(map[string]bool),
 		DynloadCounts:   make(map[string]int),
@@ -974,6 +976,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		if st, ok := ts.Type.(*ast.StructType); ok && !structHasHostLayoutOrIncomplete(st, typeImports[pr.GoName]) {
 			fatalf("%s: //cgo:type struct %s must embed structs.HostLayout", p.fset.Position(ts.Pos()), pr.GoName)
 		}
+		entry.TypeGoToAnyC[pr.GoName] = pr.CName
 		if pr.BindC {
 			entry.TypeGoToC[pr.GoName] = pr.CName
 			cToGoType[pr.CName] = pr.GoName
@@ -1533,6 +1536,10 @@ func (p *Package) processBinding(goFiles []string) {
 	p.writeGoTypes(entry, expFuncs)
 	p.writeTrampolines(entry, expFuncs)
 	cPrefix = origCPrefix
+
+	if *exportHeader != "" && len(expFuncs) > 0 {
+		p.writeBindingExportHeader(*exportHeader, entry, expFuncs, sources)
+	}
 
 	if len(p.LdFlags) > 0 {
 		fflg := creat("_cgo_flags")
