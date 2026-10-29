@@ -452,7 +452,7 @@ func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[Variation[E], W])
 		var fused E
 		switch xi := any(x[i]).(type) {
 		case float32:
-			fused = E(fma32(xi, float32(y[i]), float32(z[i])))
+			fused = E(math.FMA32(xi, float32(y[i]), float32(z[i])))
 		case float64:
 			fused = E(math.FMA(xi, float64(y[i]), float64(z[i])))
 		}

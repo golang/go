@@ -2163,6 +2163,95 @@ var fmaC = []struct{ x, y, z, want float64 }{
 	{1, Copysign(0, -1), 0, 0},
 }
 
+// Test cases were generated with Berkeley TestFloat-3e/testfloat_gen,
+// except where noted.
+// http://www.jhauser.us/arithmetic/TestFloat.html.
+// The default rounding mode is selected (nearest/even), and exception flags are ignored.
+var fma32C = []struct{ x, y, z, want float32 }{
+	// Large exponent spread
+	{-0x1.dfffep-97, 0x1.2001fcp-5, -0x1.ffff88p+1, -0x1.ffff88p+1},
+	{0x1.1cac9ep-2, 0x1.fffff8p-127, -0x1.2b9cdep+29, -0x1.2b9cdep+29},
+	{-0x1.000002p+1, 0x1.00007cp+15, -0x1.fbf7fcp+127, -0x1.fbf7fcp+127},
+	{-0x1.fffffep+1, 0x1.281c14p-126, 0x1.000002p-2, 0x1.000002p-2},
+
+	// Effective addition
+	{0x1.fc7ffep-3, 0x1.00107ep+27, 0x1.00023cp+26, 0x1.7f2a6cp+26},
+	{0x1.fbfdfep+7, -0x1.000002p+0, -0x1.ffdffcp-3, -0x1.fc7dfap+7},
+	{0x1.fffdp+2, -0x1.b23d68p-4, -0x1.ffddfep+3, -0x1.0d80d6p+4},
+	{0x1.000002p+2, -0x1.58b738p-3, -0x1.fffffcp+24, -0x1.fffffcp+24},
+
+	// Effective subtraction
+	{0x1.80002p+7, -0x1.02fffep-3, 0x1.fffffep+6, 0x1.9edff6p+6},
+	{-0x1.dp+2, -0x1.541052p+7, -0x1.20008p-2, 0x1.341ccap+10},
+	{-0x1.000002p+0, -0x1.fd981cp-1, -0x1.fffffep-2, 0x1.fb3042p-2},
+	{0x1.017ffep+2, 0x1.fffffcp-47, -0x1.0611bep-47, 0x1.c17b88p-45},
+
+	// Double rounding
+	// float32(float64(x)*float64(y) + float64(z)) is incorrect because the
+	// float64 sum rounds to exactly a float32 midpoint. The true result can be
+	// either closer to zero than the midpoint or farther from it.
+	//
+	// For example (hand-written):
+	//   x * y = (1 + 2^-12)^2 = 1 + 2^-11 + 2^-24 = 0x1.002001p0,
+	// which is the exact midpoint between float32 0x1.002000p0 (even) and
+	// 0x1.002002p0 (odd; remember 23 bit mantissa). Adding z = 2^-53 (half
+	// a float64 ULP) puts the true sum strictly above the midpoint, so
+	// single rounding must round up to 0x1.002002p0, whereas naive float64
+	// addition rounds-to-even back to 0x1.002001p0 and then float32
+	// rounds-to-even down to 0x1.002000p0.
+	{0x1.001p0, 0x1.001p0, 0x1p-53, 0x1.002002p0}, // Hand-written case
+	{-0x1.fffffcp-24, -0x1.000002p-1, 0x1.000002p+0, 0x1.000002p+0},
+	{-0x1.cp-3, -0x1.000204p+84, -0x1.001002p+1, 0x1.c00386p+81},
+	{-0x1.8p-142, 0x1.dfbffcp+127, -0x1.cd9cp-125, -0x1.67cffep-14},
+	{0x1.cp-12, 0x1.0feffcp-8, 0x1.fffffcp-127, 0x1.dbe3fap-20},
+
+	// Subnormal result
+	{0x1.fffefcp-125, -0x1p-24, -0x1p-149, -0x1.8p-148},
+	{0x1.fffffcp-1, 0x1.000002p-126, -0x1.fffff8p-127, 0x1p-148},
+	{0x1.fffff8p-127, -0x1.fffffcp-24, 0x1.fffbcp-131, 0x1.fffb8p-131},
+	{-0x1.0003bep-24, -0x1.fffffcp-127, 0x1.fffff8p-127, 0x1.fffffcp-127},
+
+	// Intermediate overflow
+	// x*y overflows float32, but x*y + z does not, or z is infinite.
+	{0x1.7d847cp+127, 0x1.000002p+1, -0x1.fffffcp+126, 0x1.fb09p+127},
+	{0x1.29ef4ep+63, -0x1.fffe4p+64, 0x1.bffffep+126, -0x1.73dc94p+127},
+	{-0x1.fffffep+1, -0x1.00014p+126, float32(Inf(1)), float32(Inf(1))},
+	{0x1p+127, -0x1.fffffep+1, float32(Inf(1)), float32(Inf(1))},
+
+	// Overflow
+	{0x1.1fffp+4, -0x1.e008p+127, 0x1.102436p+32, float32(Inf(-1))},
+	{0x1.fffffep+1, -0x1.fffffep+126, 0x1p+2, float32(Inf(-1))},
+	{0x1p+127, -0x1.200002p+62, 0x1.fd7ffep-15, float32(Inf(-1))},
+	{0x1p+127, 0x1.f801fcp+64, -0x1.000002p-1, float32(Inf(1))},
+
+	// Finite x and y, but non-finite z
+	{0x1.fdffcp-1, 0x1p+0, float32(Inf(1)), float32(Inf(1))},
+	{0x1.000002p+0, -0x1.ffefbep+21, float32(Inf(-1)), float32(Inf(-1))},
+	{0x1.55a78cp+3, 0x1.1ffffcp+2, float32(Inf(1)), float32(Inf(1))},
+	{0x1.1fffbcp-5, -0x1.fffffep+2, float32(Inf(-1)), float32(Inf(-1))},
+
+	// Special
+	{float32(Copysign(0, -1)), 0x1.fffffcp-127, 0, 0},
+	{float32(Copysign(0, -1)), 0x1p+24, float32(Copysign(0, -1)), float32(Copysign(0, -1))},
+	{float32(Copysign(0, -1)), -0x1.b4272cp-2, -0x1.fe0006p-107, -0x1.fe0006p-107},
+	{0x1.0bfffep-14, 0x1.001fdep+3, float32(Copysign(0, -1)), 0x1.0c215ap-11},
+	{-0x1.effff6p-2, 0x1.fffffep+127, 0, -0x1.effff4p+126},
+	{0x1.fffffcp-2, 0x1p+1, -0x1.fffffcp-1, 0},
+	{-0x1.fffffep-2, 0x1.fffffcp-126, 0x1.fffffcp-127, 0},
+	{-0x1.fffffep-126, 0x1.000002p-1, 0x1p-126, float32(Copysign(0, -1))},
+	{float32(Inf(-1)), float32(Copysign(0, -1)), 0x1.fffffcp+127, float32(NaN())},
+	{float32(Inf(1)), 0x1.fffffep+2, float32(Inf(-1)), float32(NaN())},
+	{-0x1.fffffep+126, float32(Inf(1)), 0x1.07ffeep-24, float32(Inf(-1))},
+	{0x1.203ffep+1, 0, float32(Inf(1)), float32(Inf(1))},
+	{0x1.ffffc2p-21, -0x1p+1, float32(NaN()), float32(NaN())},
+
+	// Random
+	{0x1.3ffffcp+3, -0x1.803ffep-118, 0x1.16b032p+1, 0x1.16b032p+1},
+	{-0x1.000002p-126, -0x1p+2, -0x1.fffffep-126, 0x1.000004p-125},
+	{-0x1.000002p-2, 0x1.fffffep+2, 0x1.02004p-3, -0x1.dfbffap+0},
+	{-0x1.fffffep-126, -0x1.effefep+2, float32(NaN()), float32(NaN())},
+}
+
 var sqrt32 = []float32{
 	0,
 	float32(Copysign(0, -1)),
@@ -3173,7 +3262,10 @@ func TestYn(t *testing.T) {
 	}
 }
 
-var PortableFMA = FMA // hide call from compiler intrinsic; falls back to portable code
+var (
+	PortableFMA   = FMA // hide call from compiler intrinsic; falls back to portable code
+	PortableFMA32 = FMA32
+)
 
 func TestFMA(t *testing.T) {
 	for _, c := range fmaC {
@@ -3184,6 +3276,20 @@ func TestFMA(t *testing.T) {
 		got = PortableFMA(c.x, c.y, c.z)
 		if !alike(got, c.want) {
 			t.Errorf("PortableFMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+	}
+}
+
+func TestFMA32(t *testing.T) {
+	for _, c := range fma32C {
+		got := FMA32(c.x, c.y, c.z)
+		// Float32 to float64 conversion is exact, so it's okay to convert for alike.
+		if !alike(float64(got), float64(c.want)) {
+			t.Errorf("FMA32(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+		}
+		got = PortableFMA32(c.x, c.y, c.z)
+		if !alike(float64(got), float64(c.want)) {
+			t.Errorf("PortableFMA32(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
 		}
 	}
 }
