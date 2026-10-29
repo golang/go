@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build (linux && (amd64 || arm64 || loong64 || riscv64)) || (freebsd && amd64)
+//go:build (!goexperiment.cgobindings && ((linux && (amd64 || arm64 || loong64 || riscv64)) || (freebsd && amd64))) || (goexperiment.cgobindings && ((linux && (loong64 || riscv64 || (android && (amd64 || arm64)))) || (freebsd && amd64)))
 
 package cgo
 
@@ -14,6 +14,9 @@ import _ "unsafe"
 // sanitizer with Go programs. The memory sanitizer only applies to
 // C/C++ code; this permits that code to see the Go code as normal
 // program addresses that have been initialized.
+
+// On linux/amd64 and linux/arm64 we use the cgoMmapFn and cgoMunmapFn
+// functions defined in the runtime.
 
 // To support interceptors that look for both mmap and munmap,
 // also call the C library for munmap.
