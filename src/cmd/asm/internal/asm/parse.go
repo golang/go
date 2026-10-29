@@ -21,6 +21,7 @@ import (
 	"cmd/asm/internal/lex"
 	"cmd/internal/obj"
 	"cmd/internal/obj/arm64"
+	"cmd/internal/obj/loong64"
 	"cmd/internal/obj/riscv"
 	"cmd/internal/obj/x86"
 	"cmd/internal/objabi"
@@ -868,7 +869,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
 			p.errorf("%v", err)
 		}
 	case sys.Loong64:
-		err := arch.Loong64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+		err := loong64.EncodeRegisterExtension(a, ext, reg, num, isAmount, isIndex)
 		if err != nil {
 			p.errorf("%v", err)
 		}
