@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"hash"
+	"internal/race"
 	"internal/testenv"
 	"io"
 	"math/bits"
@@ -502,6 +503,9 @@ func TestZip64LargeDirectory(t *testing.T) {
 	}
 	if bits.UintSize == 32 {
 		t.Skip("skipping on 32-bit platforms")
+	}
+	if race.Enabled {
+		t.Skip("skipping in race mode") // uses ~50 GiB of RAM, causing OOMs on builders (#82557)
 	}
 	t.Parallel()
 	// gen returns a func that writes a zip with a wantLen bytes
