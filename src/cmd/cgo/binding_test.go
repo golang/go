@@ -126,10 +126,16 @@ func _PassS(s S, t T) S
 // #cgo nocallback puts
 import "C"
 
+//export MyExport
+func MyExport(a int32) int32 {
+	return a + 1
+}
+
 func Call(x int32) int32 {
 	C.GlobalX = C.MY_CONST
 	cs := C.CString("hi")
 	_ = cs
+	_ = C.MyExport
 	staticY = Other
 	_ = C.OTHER
 	return Add(x, 1) + int32(C.Add(C.int(x), 2))
@@ -159,6 +165,13 @@ func Call(x int32) int32 {
 	}
 	gotypes := string(gotypesBytes)
 	for _, want := range []string{
+		`func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }`,
+		`//go:cgo_export_dynamic MyExport`,
+		`//go:cgo_export_static MyExport`,
+		`//go:linkname __cgofn_MyExport MyExport`,
+		`var _Cfpvar_fp_MyExport unsafe.Pointer = unsafe.Pointer(&__cgofn_MyExport)`,
+		`//go:linkname _cgoexp_`,
+		`_MyExport(a unsafe.Pointer)`,
 		`//go:cgo_import_dynamic _ _ "libx.so"`,
 		`//go:cgo_import_dynamic Add Add`,
 		`//go:cgo_import_dynamic AddFloat AddFloat`,
@@ -209,6 +222,7 @@ func Call(x int32) int32 {
 		`(*_Cvar__GlobalX) = MY_CONST`,
 		`(*_Cvar_staticY) = Other`,
 		`_Cundef_OTHER`,
+		`_ = _Cgo_ptr(_Cfpvar_fp_MyExport)`,
 		`_Cfunc_Add(int32(x), 2)`,
 		`_Cfunc_CString("hi")`,
 	} {
@@ -229,6 +243,8 @@ func Call(x int32) int32 {
 		"_trampoline__AddFloat(SB), NOSPLIT|NOFRAME, $0-0",
 		"CALL\tAddFloat(SB)",
 		"_trampoline_Helper(SB), NOSPLIT|NOFRAME, $0-0",
+		"TEXT MyExport(SB)",
+		"CALL\tcrosscall2(SB)",
 		"CALL\thelper(SB)",
 		"_trampoline__PassS(SB), NOSPLIT|NOFRAME, $0-0",
 		"CALL\tPassS(SB)",
@@ -1130,8 +1146,12 @@ func use(c *conn, s []*int32, b []byte) {
 	go Get(&s[0])
 	Fill(unsafe.Pointer(c), C.int(Len(&b[0])))
 	_ = C.len(&b[0])
+	_ = C.fill(nil, 1)
+	_ = (C.fill)(unsafe.Pointer(&c.outLen), 4)
 	f := C.fill
 	_ = f
+	g := Fill
+	_ = g
 }
 `)
 	shadow := write("shadow.go", `package p
@@ -1188,8 +1208,14 @@ func g(c *conn, Get func(**int32)) {
 		// rewritten too.
 		"func() { var _cgoa _cgo_arg_Fill; _cgoa.p0 = unsafe.Pointer(c); _cgoa.p1 = int32(Len(&b[0])); _cgoCheckPointer(_cgoa.p0, nil); _Cfunc_Fill(_cgoa.p0, _cgoa.p1) }()\n",
 		"_ = _Cfunc_Len(&b[0])\n",
-		// A C function used as a value checks its arguments.
-		"f := _Cgocheck_Fill\n",
+		// A C call with only nil pointer args stays a direct call to _Cgocheck_.
+		"_ = _Cgocheck_Fill(nil, 1)\n",
+		// A parenthesized C call is still rewritten as a call.
+		"_ = func() (_cgoa _cgo_arg_Fill) { _cgoBase0 := &c.outLen; _cgoa.p0 = unsafe.Pointer(_cgoBase0); _cgoa.p1 = 4; _cgoCheckPointer(_cgoBase0, 0 == 0); _cgoa.ret = _Cfunc_Fill(_cgoa.p0, _cgoa.p1); return }().ret\n",
+		// A C function used in non-call context is a non-assignable C function pointer.
+		"f := _Cgo_ptr(_Cfpvar_fp_fill)\n",
+		// The bound Go function used as a value checks its arguments via func Fill.
+		"g := Fill\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("bindings.cgobinding.go missing %q:\n%s", want, got)
@@ -1255,5 +1281,189 @@ func TestIsAnonCtype(t *testing.T) {
 		if got := isAnonCtype(name); got != want {
 			t.Errorf("isAnonCtype(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+func TestBindingFuncPtrAndExportCall(t *testing.T) {
+	origGoos, origGoarch, origObjDir := goos, goarch, *objDir
+	defer func() { goos, goarch, *objDir = origGoos, origGoarch, origObjDir }()
+
+	src := `package p
+
+import "C"
+import "unsafe"
+
+//cgo:func DynFn C.dyn_fn "libx.so"
+//cgo:func StaticFn C.static_fn static
+//cgo:func UnusedFn C.unused_fn static
+
+func DynFn(a int32) int32
+func StaticFn(a int32) int32
+func UnusedFn(a int32) int32
+
+//export ExpBoth
+func ExpBoth(a int32) int32 { return a + 1 }
+
+//export ExpPtr
+func ExpPtr(p unsafe.Pointer) int32 { return 0 }
+
+//export ExpFPOnly
+func ExpFPOnly(a int32) int32 { return a + 2 }
+
+type box struct{ x int32 }
+
+func Use(b *box) {
+	_ = C.dyn_fn(1)
+	_ = C.dyn_fn
+	_ = C.static_fn
+	_ = C.ExpBoth
+	_ = C.ExpBoth(2)
+	_ = (C.ExpBoth)(3)
+	_ = C.ExpPtr(unsafe.Pointer(&b.x))
+	_ = C.ExpPtr(nil)
+	_ = C.ExpFPOnly
+}
+`
+	run := func(targetOS, targetArch string) (gotypes, rewritten, tramp string) {
+		t.Helper()
+		tmpDir := t.TempDir()
+		srcFile := filepath.Join(tmpDir, "p.go")
+		if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
+			t.Fatal(err)
+		}
+		*objDir = tmpDir + string(filepath.Separator)
+		goos, goarch = targetOS, targetArch
+		t.Setenv("GOOS", targetOS)
+		t.Setenv("GOARCH", targetArch)
+
+		p := newPackage(nil, token.NewFileSet())
+		p.processBinding([]string{srcFile})
+
+		read := func(name string) string {
+			b, err := os.ReadFile(filepath.Join(tmpDir, name))
+			if err != nil {
+				t.Fatalf("%s/%s: reading %s: %v", targetOS, targetArch, name, err)
+			}
+			return string(b)
+		}
+		return read("_cgo_gotypes.go"), read("p.cgobinding.go"), read("_cgo_trampolines.s")
+	}
+
+	gotypes, rewritten, tramp := run("linux", "amd64")
+	for _, want := range []string{
+		`func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }`,
+		`//go:cgo_import_static static_fn`,
+		`//go:linkname __cgo_fp_dyn_fn dyn_fn`,
+		`var _Cfpvar_fp_dyn_fn unsafe.Pointer = unsafe.Pointer(&__cgo_fp_dyn_fn)`,
+		`//go:linkname __cgo_fp_static_fn static_fn`,
+		`var _Cfpvar_fp_static_fn unsafe.Pointer = unsafe.Pointer(&__cgo_fp_static_fn)`,
+		`var _Cfpvar_fp_ExpBoth unsafe.Pointer = unsafe.Pointer(&__cgofn_ExpBoth)`,
+		`func _cgo_call_ExpBoth(args _cgo_arg_ExpBoth) int32`,
+		`func _Cfunc_ExpBoth(p0 int32) int32`,
+		`func _Cfunc_ExpPtr(p0 unsafe.Pointer) int32`,
+		`func _Cgocheck_ExpPtr(p0 unsafe.Pointer) int32`,
+		`var _Cfpvar_fp_ExpFPOnly unsafe.Pointer = unsafe.Pointer(&__cgofn_ExpFPOnly)`,
+	} {
+		if !strings.Contains(gotypes, want) {
+			t.Errorf("linux/amd64 _cgo_gotypes.go missing %q:\n%s", want, gotypes)
+		}
+	}
+	if strings.Count(gotypes, "type _cgo_arg_ExpBoth struct") != 1 {
+		t.Errorf("linux/amd64 _cgo_gotypes.go has %d definitions of _cgo_arg_ExpBoth, want 1:\n%s",
+			strings.Count(gotypes, "type _cgo_arg_ExpBoth struct"), gotypes)
+	}
+	for _, notWant := range []string{
+		`_Cfpvar_fp_unused_fn`,
+		`cgo_import_static unused_fn`,
+		`func _Cfunc_ExpFPOnly`,
+		`func ExpBoth(`,
+		`func ExpPtr(`,
+	} {
+		if strings.Contains(gotypes, notWant) {
+			t.Errorf("linux/amd64 _cgo_gotypes.go contains unexpected %q:\n%s", notWant, gotypes)
+		}
+	}
+	for _, want := range []string{
+		`_ = _Cfunc_DynFn(1)`,
+		`_ = _Cgo_ptr(_Cfpvar_fp_dyn_fn)`,
+		`_ = _Cgo_ptr(_Cfpvar_fp_static_fn)`,
+		`_ = _Cgo_ptr(_Cfpvar_fp_ExpBoth)`,
+		`_ = _Cfunc_ExpBoth(2)`,
+		`_ = (_Cfunc_ExpBoth)(3)`,
+		`_cgoBase0 := &b.x; _cgoa.p0 = unsafe.Pointer(_cgoBase0); _cgoCheckPointer(_cgoBase0, 0 == 0); _cgoa.ret = _Cfunc_ExpPtr(_cgoa.p0)`,
+		`_ = _Cgocheck_ExpPtr(nil)`,
+		`_ = _Cgo_ptr(_Cfpvar_fp_ExpFPOnly)`,
+	} {
+		if !strings.Contains(rewritten, want) {
+			t.Errorf("linux/amd64 p.cgobinding.go missing %q:\n%s", want, rewritten)
+		}
+	}
+	for _, want := range []string{
+		"TEXT ExpBoth(SB)",
+		"_trampoline_ExpBoth(SB)",
+		"CALL\tExpBoth(SB)",
+		"TEXT ExpPtr(SB)",
+		"_trampoline_ExpPtr(SB)",
+		"CALL\tExpPtr(SB)",
+		"TEXT ExpFPOnly(SB)",
+	} {
+		if !strings.Contains(tramp, want) {
+			t.Errorf("linux/amd64 _cgo_trampolines.s missing %q:\n%s", want, tramp)
+		}
+	}
+	if strings.Contains(tramp, "_trampoline_ExpFPOnly") {
+		t.Errorf("linux/amd64 _cgo_trampolines.s emitted unused trampoline for ExpFPOnly:\n%s", tramp)
+	}
+
+	// On Windows, a dynamically imported function symbol is an IAT slot holding
+	// the function pointer, whereas a static symbol and an //export symbol are
+	// direct code symbols.
+	winTypes, _, winTramp := run("windows", "amd64")
+	for _, want := range []string{
+		"//go:linkname _Cfpvar_fp_dyn_fn dyn_fn\nvar _Cfpvar_fp_dyn_fn unsafe.Pointer\n",
+		"//go:cgo_import_static static_fn\n",
+		"//go:linkname __cgo_fp_static_fn static_fn\nvar __cgo_fp_static_fn byte\nvar _Cfpvar_fp_static_fn unsafe.Pointer = unsafe.Pointer(&__cgo_fp_static_fn)\n",
+		"var _Cfpvar_fp_ExpBoth unsafe.Pointer = unsafe.Pointer(&__cgofn_ExpBoth)\n",
+	} {
+		if !strings.Contains(winTypes, want) {
+			t.Errorf("windows/amd64 _cgo_gotypes.go missing %q:\n%s", want, winTypes)
+		}
+	}
+	if strings.Contains(winTypes, "__cgo_fp_dyn_fn") {
+		t.Errorf("windows/amd64 _cgo_gotypes.go should link _Cfpvar_fp_dyn_fn directly to IAT slot:\n%s", winTypes)
+	}
+	if !strings.Contains(winTramp, "CALL\tExpBoth(SB)") {
+		t.Errorf("windows/amd64 _cgo_trampolines.s should call //export ExpBoth directly:\n%s", winTramp)
+	}
+
+	// On AIX, a dynamically imported function symbol is an XCOFF TOC slot
+	// (__cgo_imp_<sym>) holding the pointer to the function descriptor.
+	aixDir := t.TempDir()
+	*objDir = aixDir + string(filepath.Separator)
+	goos, goarch = "aix", "ppc64"
+	t.Setenv("GOOS", "aix")
+	t.Setenv("GOARCH", "ppc64")
+	aixPkg := newPackage(nil, token.NewFileSet())
+	aixEntry := aixPkg.parseBinding("p.go", []byte(src))
+	aixEntry.UsedFuncPtrs["dyn_fn"] = true
+	aixEntry.UsedFuncPtrs["static_fn"] = true
+	aixPkg.writeGoTypes(aixEntry, nil)
+	aixBytes, err := os.ReadFile(filepath.Join(aixDir, "_cgo_gotypes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	aixTypes := string(aixBytes)
+	for _, want := range []string{
+		"//go:cgo_import_dynamic __cgo_imp_dyn_fn dyn_fn",
+		"//go:linkname _Cfpvar_fp_dyn_fn __cgo_imp_dyn_fn\nvar _Cfpvar_fp_dyn_fn unsafe.Pointer\n",
+		"//go:cgo_import_static static_fn\n",
+		"//go:linkname __cgo_fp_static_fn static_fn\nvar __cgo_fp_static_fn byte\nvar _Cfpvar_fp_static_fn unsafe.Pointer = unsafe.Pointer(&__cgo_fp_static_fn)\n",
+	} {
+		if !strings.Contains(aixTypes, want) {
+			t.Errorf("aix/ppc64 _cgo_gotypes.go missing %q:\n%s", want, aixTypes)
+		}
+	}
+	if strings.Contains(aixTypes, "__cgo_fp_dyn_fn") {
+		t.Errorf("aix/ppc64 _cgo_gotypes.go should link _Cfpvar_fp_dyn_fn directly to TOC slot:\n%s", aixTypes)
 	}
 }

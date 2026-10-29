@@ -18,6 +18,9 @@ stderr 'leaking param: esc'
 exec ./app.exe
 stdout 'Add=15'
 stdout 'Esc=25'
+
+! exec ./app.exe cb
+stderr 'runtime: function marked with #cgo nocallback called back into Go'
 cd ..
 
 cd errpkg
@@ -28,6 +31,8 @@ stderr '#cgo nocallback AnotherNoSuchFunc: no matched C function'
 -- c/lib.c --
 int Add(int *p, int b) { return *p + b; }
 int Esc(int *p, int b) { return *p + b; }
+typedef int (*cb_fn)(int, int);
+int CallMeBack(cb_fn cb, int a, int b) { return cb(a, b); }
 -- p/go.mod --
 module p
 go 1.28
@@ -37,24 +42,40 @@ package main
 // #cgo LDFLAGS: ./libtest.so
 // #cgo noescape Add
 // #cgo nocallback Add
+// #cgo nocallback CallMeBack
 import "C"
 
+//cgo:type cb_fn C.cb_fn
 //cgo:func Add C.Add "libtest.so"
 //cgo:func Esc C.Esc "libtest.so"
+//cgo:func CallMeBack C.CallMeBack "libtest.so"
+
+type cb_fn *[0]byte
 
 func Add(p *int32, b int32) int32
 func Esc(p *int32, b int32) int32
+func CallMeBack(cb cb_fn, a, b int32) int32
 -- p/main.go --
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 import "C"
+
+//export GoCallback
+func GoCallback(a, b int32) int32 { return a + b }
 
 func testNoEscape(noesc *int32) int32 { return C.Add(noesc, 10) }
 func testEscape(esc *int32) int32     { return C.Esc(esc, 10) }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "cb" {
+		C.CallMeBack(C.cb_fn(C.GoCallback), 10, 20)
+		return
+	}
 	var v1, v2 int32 = 5, 15
 	fmt.Printf("Add=%d\n", testNoEscape(&v1))
 	fmt.Printf("Esc=%d\n", testEscape(&v2))

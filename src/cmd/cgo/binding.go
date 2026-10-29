@@ -49,26 +49,30 @@ type BindingVar struct {
 // Bindings holds the parsed declarations and linker flags collected
 // from the //cgo: pragmas in a package.
 type Bindings struct {
-	mu            sync.Mutex
-	Package       string
-	LdFlags       []string
-	Vars          []BindingVar
-	Funcs         []BindingFunc
-	UsedBuiltins  map[string]bool   // cgo builtins (such as CString) referenced as C.name
-	TypeGoToC     map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
-	ConstCToGo    map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
-	GoOnlyCNames  map[string]bool   // C names bound by pragmas without the C. prefix
-	DynloadTypes  []string          // //cgo:dynload types, in pragma order
-	DynloadCounts map[string]int    // number of symbols bound for each //cgo:dynload type
-	DynloadVars   []BindingVar      // //cgo:var LibT.GoName methods
-	TypeMap       map[string]BindingType
+	mu              sync.Mutex
+	Package         string
+	LdFlags         []string
+	Vars            []BindingVar
+	Funcs           []BindingFunc
+	UsedBuiltins    map[string]bool   // cgo builtins (such as CString) referenced as C.name
+	TypeGoToC       map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
+	ConstCToGo      map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
+	GoOnlyCNames    map[string]bool   // C names bound by pragmas without the C. prefix
+	DynloadTypes    []string          // //cgo:dynload types, in pragma order
+	DynloadCounts   map[string]int    // number of symbols bound for each //cgo:dynload type
+	DynloadVars     []BindingVar      // //cgo:var LibT.GoName methods
+	TypeMap         map[string]BindingType
+	UsedFuncPtrs    map[string]bool // bound C function names referenced in non-call context
+	UsedExportCalls map[string]bool // //export function names called via C.<name>(...)
 
-	tpkg         *types.Package
-	typeInfo     *types.Info
-	constPkg     *types.Package
-	constFset    *token.FileSet
-	constFilePos map[string]token.Pos
-	constSources []bindingSource
+	typeSpecs             map[string]*ast.TypeSpec
+	resolveUsedTypeInFile func(expr ast.Expr, inPtr bool, imp fileImports)
+	tpkg                  *types.Package
+	typeInfo              *types.Info
+	constPkg              *types.Package
+	constFset             *token.FileSet
+	constFilePos          map[string]token.Pos
+	constSources          []bindingSource
 }
 
 // bindingSource holds the raw bytes and parsed AST of a source file inspected
@@ -734,13 +738,15 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		p.noEscapes = make(map[string]bool)
 	}
 	entry := &Bindings{
-		LdFlags:       append([]string(nil), p.LdFlags...),
-		UsedBuiltins:  make(map[string]bool),
-		TypeGoToC:     make(map[string]string),
-		ConstCToGo:    make(map[string]string),
-		GoOnlyCNames:  make(map[string]bool),
-		DynloadCounts: make(map[string]int),
-		constSources:  sources,
+		LdFlags:         append([]string(nil), p.LdFlags...),
+		UsedBuiltins:    make(map[string]bool),
+		TypeGoToC:       make(map[string]string),
+		ConstCToGo:      make(map[string]string),
+		GoOnlyCNames:    make(map[string]bool),
+		DynloadCounts:   make(map[string]int),
+		UsedFuncPtrs:    make(map[string]bool),
+		UsedExportCalls: make(map[string]bool),
+		constSources:    sources,
 	}
 
 	var pragmas []cgoPragma
@@ -857,6 +863,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 			}
 		}
 	}
+	entry.typeSpecs = typeSpecs
 
 	// Check that each pragma names a declaration of the right kind, and
 	// that no Go or C. name is bound twice.
@@ -1094,6 +1101,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 			fatalf("%s: //cgo:type %s cannot be shared with C: %s", p.fset.Position(typeSpecs[goName].Pos()), goName, why)
 		}
 	}
+	entry.resolveUsedTypeInFile = validateUsedTypeExpr
 
 	allocDynSym := func(recvType, goName string) (string, int) {
 		dynName := fmt.Sprintf("_dyn%d_%s_%s", len(recvType), recvType, goName)
@@ -1281,13 +1289,25 @@ func (p *Package) processBinding(goFiles []string) {
 
 	h := hash.New32()
 	io.WriteString(h, *importPath)
+	var rawExports []rawBindingExport
+	expMap := make(map[string]bool)
 	for _, pf := range parsedFiles {
 		h.Write(pf.data)
+		if pf.hasImportC {
+			rawExports = append(rawExports, p.collectBindingExports(pf.parsed, expMap)...)
+		}
+	}
+	if nerrors > 0 {
+		os.Exit(2)
 	}
 
 	entry := p.parseBindingFiles(sources)
 	p.PackageName = entry.Package
 	p.LdFlags = entry.LdFlags
+	expFuncs := p.resolveBindingExports(entry, rawExports)
+	if nerrors > 0 {
+		os.Exit(2)
+	}
 
 	// knownBoundNames are names that must not be referred to as C.name:
 	// Go names bound by pragmas, and C names bound without the C. prefix.
@@ -1353,6 +1373,11 @@ func (p *Package) processBinding(goFiles []string) {
 		fn.MayCallback = !p.noCallbacks[fn.CName]
 	}
 
+	expFuncMap := make(map[string]BindingFunc, len(expFuncs))
+	for _, ef := range expFuncs {
+		expFuncMap[ef.Name] = exportBindingFunc(ef)
+	}
+
 	rewriter := &bindingRewriter{
 		p:               p,
 		tpkg:            entry.tpkg,
@@ -1363,6 +1388,7 @@ func (p *Package) processBinding(goFiles []string) {
 		cFuncMap:        cFuncMap,
 		goFuncMap:       goFuncMap,
 		knownBoundNames: knownBoundNames,
+		expFuncMap:      expFuncMap,
 	}
 
 	outGoFiles := make([]string, len(parsedFiles))
@@ -1504,8 +1530,8 @@ func (p *Package) processBinding(goFiles []string) {
 
 	origCPrefix := cPrefix
 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
-	p.writeGoTypes(entry)
-	p.writeTrampolines(entry)
+	p.writeGoTypes(entry, expFuncs)
+	p.writeTrampolines(entry, expFuncs)
 	cPrefix = origCPrefix
 
 	if len(p.LdFlags) > 0 {
@@ -1542,6 +1568,7 @@ type bindingRewriter struct {
 	cFuncMap        map[string]BindingFunc
 	goFuncMap       map[string]BindingFunc
 	knownBoundNames map[string]bool
+	expFuncMap      map[string]BindingFunc
 }
 
 func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file *ast.File, src []byte, hasImportC bool) {
@@ -1580,6 +1607,20 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 			}
 		}
 	}
+	// Record selector expressions in call position (CallExpr.Fun, ignoring
+	// enclosing parentheses) so C.<func> and C.<export> are rewritten as calls
+	// there and as non-assignable C function pointers elsewhere.
+	callFuns := make(map[*ast.SelectorExpr]bool)
+	if hasImportC {
+		ast.Inspect(file, func(node ast.Node) bool {
+			if call, ok := node.(*ast.CallExpr); ok {
+				if sel, ok := unparen(call.Fun).(*ast.SelectorExpr); ok {
+					callFuns[sel] = true
+				}
+			}
+			return true
+		})
+	}
 	ast.Inspect(file, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.SelectorExpr:
@@ -1599,13 +1640,29 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 				repl = goConst
 			} else if v, isVar := r.varMap[name]; isVar {
 				repl = cVarExpr(v)
+			} else if ef, isExp := r.expFuncMap[name]; isExp {
+				if callFuns[n] {
+					r.entry.mu.Lock()
+					r.entry.UsedExportCalls[name] = true
+					r.entry.mu.Unlock()
+					repl = bindingFuncEntry(ef, r.entry.TypeMap)
+				} else {
+					repl = "_Cgo_ptr(_Cfpvar_fp_" + name + ")"
+				}
 			} else if builtinDefs[name] != "" {
 				r.entry.mu.Lock()
 				r.entry.UsedBuiltins[name] = true
 				r.entry.mu.Unlock()
 				repl = "_Cfunc_" + name
 			} else if fn, isFunc := r.cFuncMap[name]; isFunc {
-				repl = bindingFuncEntry(fn, r.entry.TypeMap)
+				if callFuns[n] {
+					repl = bindingFuncEntry(fn, r.entry.TypeMap)
+				} else {
+					r.entry.mu.Lock()
+					r.entry.UsedFuncPtrs[name] = true
+					r.entry.mu.Unlock()
+					repl = "_Cgo_ptr(_Cfpvar_fp_" + name + ")"
+				}
 			} else if _, isType := r.entry.TypeMap["_Ctype_"+name]; isType {
 				repl = "_Ctype_" + name
 			} else if goType, isPrim := primitiveCtypeToGo("_Ctype_" + name); isPrim {
@@ -1643,11 +1700,13 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 				unused[call] = true
 			}
 		case *ast.CallExpr:
-			switch fun := n.Fun.(type) {
+			switch fun := unparen(n.Fun).(type) {
 			case *ast.SelectorExpr:
 				if id, ok := fun.X.(*ast.Ident); ok && hasImportC && id.Name == "C" && isImportC(id) {
 					if fn, ok := r.cFuncMap[fun.Sel.Name]; ok {
 						calls = append(calls, callSite{n, fn})
+					} else if ef, ok := r.expFuncMap[fun.Sel.Name]; ok {
+						calls = append(calls, callSite{n, ef})
 					}
 				}
 			case *ast.Ident:
@@ -1660,7 +1719,7 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 	})
 	// Rewrite inner calls first so that outer calls include them.
 	for _, c := range slices.Backward(calls) {
-		if repl := r.p.rewriteBindingCall(edits, tf.Offset, c.call, c.fn, r.entry.TypeMap, deferred[c.call], unused[c.call], r.knownBoundNames); repl != "" {
+		if repl := r.p.rewriteBindingCall(edits, tf.Offset, c.call, c.fn, r.entry.TypeMap, deferred[c.call], unused[c.call]); repl != "" {
 			edits.replace(tf.Offset(c.call.Pos()), tf.Offset(c.call.End()), repl)
 		}
 	}
@@ -1738,7 +1797,9 @@ func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *Bindings, imp fileIm
 // the //cgo:dynload types of a package during package initialization.
 const dynloadRegisterDecl = "var _ = _cgo_register_libraries()"
 
-const bindingRuntimeProlog = `//go:linkname _cgo_runtime_cgocall runtime.cgocall
+const bindingRuntimeProlog = `func _Cgo_ptr(ptr unsafe.Pointer) unsafe.Pointer { return ptr }
+
+//go:linkname _cgo_runtime_cgocall runtime.cgocall
 func _cgo_runtime_cgocall(fn unsafe.Pointer, arg uintptr) int32
 
 //go:linkname _Cgo_always_false runtime.cgoAlwaysFalse
@@ -2070,7 +2131,7 @@ func bindingHasPointerName(name string, types map[string]BindingType, top bool, 
 // on a single line. A call whose result is unused discards it. A deferred
 // call or go statement evaluates the arguments immediately and checks and
 // calls when the returned function literal runs.
-func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, call *ast.CallExpr, fn BindingFunc, types map[string]BindingType, deferred, unused bool, knownBoundFuncs map[string]bool) string {
+func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, call *ast.CallExpr, fn BindingFunc, types map[string]BindingType, deferred, unused bool) string {
 	if call.Ellipsis.IsValid() || len(call.Args) != len(fn.Params) {
 		return ""
 	}
@@ -2086,8 +2147,7 @@ func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, c
 	if !anyCheck {
 		return ""
 	}
-	// isType reports whether x is a type in a conversion. A C name that
-	// is not a bound function is a C type.
+	// isType reports whether x is a type in a conversion.
 	var isType func(x ast.Expr) bool
 	isType = func(x ast.Expr) bool {
 		switch t := x.(type) {
@@ -2097,7 +2157,11 @@ func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, c
 			return isType(t.X)
 		case *ast.SelectorExpr:
 			if id, ok := t.X.(*ast.Ident); ok && id.Name == "C" {
-				return !knownBoundFuncs[t.Sel.Name]
+				if _, ok := types["_Ctype_"+t.Sel.Name]; ok {
+					return true
+				}
+				_, isPrim := primitiveCtypeToGo("_Ctype_" + t.Sel.Name)
+				return isPrim
 			}
 		}
 		return p.isType(x)
@@ -2183,7 +2247,7 @@ func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, c
 	return repl
 }
 
-func (p *Package) writeGoTypes(bf *Bindings) {
+func (p *Package) writeGoTypes(bf *Bindings, expFuncs []ExportFunc) {
 	f := creat("_cgo_gotypes.go")
 	defer f.Close()
 
@@ -2207,6 +2271,15 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 	if !needsStructs {
 		for _, v := range bf.DynloadVars {
 			if strings.Contains(v.Type, "structs.HostLayout") {
+				needsStructs = true
+				break
+			}
+		}
+	}
+	if !needsStructs {
+		for _, ef := range expFuncs {
+			if strings.Contains(ef.Ret, "structs.HostLayout") ||
+				slices.ContainsFunc(ef.Params, func(pt string) bool { return strings.Contains(pt, "structs.HostLayout") }) {
 				needsStructs = true
 				break
 			}
@@ -2265,6 +2338,12 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		fmt.Fprintf(f, "func (_cgo_recv *%s) %s() *%s {\n\treturn (*%s)(%s)\n}\n\n", v.RecvType, v.GoName, v.Type, v.Type, resolveDynSym(v.SymIndex))
 	}
 
+	impLocal := func(sym string) string {
+		if goos == "aix" {
+			return "__cgo_imp_" + sym
+		}
+		return sym
+	}
 	if len(bf.Funcs) > 0 || len(bf.Vars) > 0 || len(bf.LdFlags) > 0 || bf.needCMalloc() {
 		importedLibs := make(map[string]bool)
 		for _, fn := range bf.Funcs {
@@ -2314,13 +2393,6 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 				return ""
 			}
 		}
-		impLocal := func(sym string) string {
-			if goos == "aix" {
-				return "__cgo_imp_" + sym
-			}
-			return sym
-		}
-
 		emittedImp := make(map[string]bool)
 		for _, fn := range bf.Funcs {
 			cSym := fn.CName
@@ -2355,12 +2427,19 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 			fmt.Fprintf(f, "\n")
 		}
 
-		emittedStaticVar := make(map[string]bool)
+		emittedStatic := make(map[string]bool)
 		emittedVarImp := false
+		for _, fn := range bf.Funcs {
+			if fn.Static && fn.BindC && bf.UsedFuncPtrs[fn.CName] && !emittedStatic[fn.CName] {
+				emittedStatic[fn.CName] = true
+				emittedVarImp = true
+				fmt.Fprintf(f, "//go:cgo_import_static %s\n", fn.CName)
+			}
+		}
 		for _, v := range bf.Vars {
 			if v.Static {
-				if !emittedStaticVar[v.CName] {
-					emittedStaticVar[v.CName] = true
+				if !emittedStatic[v.CName] {
+					emittedStatic[v.CName] = true
 					emittedVarImp = true
 					// Resolved at link time from a .syso or .a file.
 					fmt.Fprintf(f, "//go:cgo_import_static %s\n", v.CName)
@@ -2410,7 +2489,35 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		fmt.Fprintf(f, "var _Cvar_%s *%s = (*%s)(unsafe.Pointer(&%s))\n\n", v.Name, v.Type, v.Type, goSym)
 	}
 
+	// _Cfpvar_fp_<CName> holds the C function pointer for a bound C function
+	// referenced in a non-call expression. On Windows, a dynamically imported
+	// symbol is a PE IAT slot holding the function's address; on AIX, it is an
+	// XCOFF TOC slot holding the pointer to the function descriptor.
+	for _, fn := range bf.Funcs {
+		if !fn.BindC || fn.Indirect || !bf.UsedFuncPtrs[fn.CName] {
+			continue
+		}
+		if !fn.Static && (goos == "windows" || goos == "aix") {
+			fmt.Fprintf(f, "//go:linkname _Cfpvar_fp_%s %s\n", fn.CName, impLocal(fn.CName))
+			fmt.Fprintf(f, "var _Cfpvar_fp_%s unsafe.Pointer\n\n", fn.CName)
+			continue
+		}
+		target := fn.CName
+		if !fn.Static {
+			target = impLocal(fn.CName)
+		}
+		fmt.Fprintf(f, "//go:linkname __cgo_fp_%s %s\n", fn.CName, target)
+		fmt.Fprintf(f, "var __cgo_fp_%s byte\n", fn.CName)
+		fmt.Fprintf(f, "var _Cfpvar_fp_%s unsafe.Pointer = unsafe.Pointer(&__cgo_fp_%s)\n\n", fn.CName, fn.CName)
+	}
+
+	abiCfg := &ABIConfig{OS: goos, Arch: goarch, PtrSize: targetPtrSize(), CLongSize: targetCLongSize()}
+
 	fmt.Fprint(f, bindingRuntimeProlog)
+	if len(expFuncs) > 0 {
+		fmt.Fprintf(f, "//go:linkname _cgoCheckResult runtime.cgoCheckResult\n//go:noescape\nfunc _cgoCheckResult(interface{})\n\n")
+		p.writeBindingExports(f, expFuncs, bf.TypeMap, abiCfg)
+	}
 
 	emittedAlias := make(map[string]bool)
 	if len(bf.TypeGoToC) > 0 {
@@ -2425,7 +2532,6 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		fmt.Fprintf(f, "\n")
 	}
 
-	abiCfg := &ABIConfig{OS: goos, Arch: goarch, PtrSize: targetPtrSize(), CLongSize: targetCLongSize()}
 	definedCfuncs := make(map[string]bool)
 	if len(bf.UsedBuiltins) > 0 {
 		charGoType, _ := primitiveCtypeToGo("_Ctype_char")
@@ -2453,11 +2559,16 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 	for _, fn := range bf.Funcs {
 		definedCfuncs[fn.Name] = true
 	}
-	for _, fn := range bf.Funcs {
+	for _, ef := range expFuncs {
+		if bf.UsedExportCalls[ef.Name] {
+			definedCfuncs[ef.Name] = true
+		}
+	}
+	emitFuncWrapper := func(fn BindingFunc, emitArgStruct bool) {
 		fmt.Fprintf(f, "//go:linkname _cgo_trampoline_%s _cgo%s_trampoline_%s\n", fn.Name, cPrefix, fn.Name)
 		fmt.Fprintf(f, "var _cgo_trampoline_%s byte\n\n", fn.Name)
 
-		if fn.Indirect || len(fn.Params) > 0 || fn.Ret != "" {
+		if emitArgStruct && (fn.Indirect || len(fn.Params) > 0 || fn.Ret != "") {
 			fmt.Fprintf(f, "type _cgo_arg_%s struct {\n", fn.Name)
 			if fn.Indirect {
 				fmt.Fprintf(f, "\tfn uintptr\n")
@@ -2560,11 +2671,19 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		}
 		emitGoFuncWrapper(f, fn, fnArg, definedCfuncs, bf.TypeMap)
 	}
+	for _, fn := range bf.Funcs {
+		emitFuncWrapper(fn, true)
+	}
+	for _, ef := range expFuncs {
+		if bf.UsedExportCalls[ef.Name] {
+			emitFuncWrapper(exportBindingFunc(ef), false)
+		}
+	}
 }
 
 // emitGoFuncWrapper writes the Go function or //cgo:dynload method wrapper calling _Cfunc_<fn.Name>.
 func emitGoFuncWrapper(f *os.File, fn BindingFunc, fnArg string, definedCfuncs map[string]bool, types map[string]BindingType) {
-	if fn.GoName == "" {
+	if fn.GoName == "" && !fn.BindC {
 		return
 	}
 	var paramDecls []string
@@ -2603,13 +2722,17 @@ func emitGoFuncWrapper(f *os.File, fn BindingFunc, fnArg string, definedCfuncs m
 		}
 	}
 	if checks.Len() > 0 && !fn.Indirect {
-		// Rewritten C.cName references that are not calls use
-		// _Cgocheck_<name>; see bindingFuncEntry.
+		// Calls to C.cName that rewriteBindingCall leaves as direct calls
+		// (such as multi-value argument forwarding) use _Cgocheck_<name>;
+		// see bindingFuncEntry.
 		entry := bindingFuncEntry(fn, types)
 		fmt.Fprintf(f, "func %s(%s)%s {\n%s\t%s%s\n}\n\n",
 			entry, strings.Join(paramDecls, ", "), retSig, &checks, retPrefix, callExpr)
 		checks.Reset()
 		callExpr = fmt.Sprintf("%s(%s)", entry, strings.Join(passArgs, ", "))
+	}
+	if fn.GoName == "" {
+		return
 	}
 	fmt.Fprintf(f, "func %s%s(%s)%s {\n%s\t%s%s\n}\n\n",
 		recv, fn.GoName, strings.Join(paramDecls, ", "), retSig, &checks, retPrefix, callExpr)
@@ -2628,14 +2751,14 @@ func cMallocImportSym(bf *Bindings) string {
 	return "malloc"
 }
 
-func (p *Package) writeTrampolines(bf *Bindings) {
+func (p *Package) writeTrampolines(bf *Bindings, expFuncs []ExportFunc) {
 	f := creat("_cgo_trampolines.s")
 	defer f.Close()
 
 	fmt.Fprintf(f, "// Code generated by cmd/cgo; DO NOT EDIT.\n\n")
 	fmt.Fprintf(f, "#include \"textflag.h\"\n\n")
 
-	if len(bf.Funcs) == 0 && !bf.needCMalloc() {
+	if len(bf.Funcs) == 0 && !bf.needCMalloc() && len(expFuncs) == 0 {
 		return
 	}
 
@@ -2652,5 +2775,15 @@ func (p *Package) writeTrampolines(bf *Bindings) {
 			Ret:    "unsafe.Pointer",
 			LibC:   true,
 		}, bf.TypeMap)
+	}
+	for _, ef := range expFuncs {
+		abi.writeCallbackTrampoline(f, BindingFunc{
+			Name:   ef.Name,
+			Params: ef.Params,
+			Ret:    ef.Ret,
+		}, bf.TypeMap)
+		if bf.UsedExportCalls[ef.Name] {
+			abi.writeTrampoline(f, exportBindingFunc(ef), bf.TypeMap)
+		}
 	}
 }
