@@ -96,6 +96,10 @@ type externalClientConn interface {
 type genericClientConn interface {
 	externalClientConn
 
+	// Proto reports the connection's protocol.
+	// For HTTP/1, /2, /3, this is 1, 2, or 3.
+	Proto() int
+
 	// IsAlt reports whether this "connection" is backed by a RoundTripper returned
 	// from TLSNextProto or a similar source. Historically, this means the "connection"
 	// is backed by an http2.Transport, with its own connection pool.
@@ -487,19 +491,21 @@ func (pc *persistConn) Release() {
 }
 
 func (pc *persistConn) IsAlt() bool       { return false }
+func (pc *persistConn) Proto() int        { return 1 }
 func (pc *persistConn) NetConn() net.Conn { return pc.conn }
 
-// externalConn wraps an externalClientConn to implement genericClientConn.
-type externalConn struct {
+// externalHTTP2Conn wraps an externalClientConn to implement genericClientConn.
+type externalHTTP2Conn struct {
 	externalClientConn
 }
 
-func (cc externalConn) IsAlt() bool          { return false }
-func (cc externalConn) NetConn() net.Conn    { return nil }
-func (cc externalConn) IsReused() bool       { return false }
-func (cc externalConn) CloseWithError(error) { cc.Close() }
+func (cc externalHTTP2Conn) IsAlt() bool          { return false }
+func (cc externalHTTP2Conn) Proto() int           { return 2 }
+func (cc externalHTTP2Conn) NetConn() net.Conn    { return nil }
+func (cc externalHTTP2Conn) IsReused() bool       { return false }
+func (cc externalHTTP2Conn) CloseWithError(error) { cc.Close() }
 
-func (cc externalConn) Ping(ctx context.Context) error {
+func (cc externalHTTP2Conn) Ping(ctx context.Context) error {
 	pinger, ok := cc.externalClientConn.(interface {
 		Ping(context.Context) error
 	})
@@ -516,13 +522,15 @@ func (cc externalConn) Ping(ctx context.Context) error {
 // own connection pool, and is not really a "connection".
 type altClientConn struct {
 	rt     RoundTripper
+	proto  int
 	mu     sync.Mutex
 	closed error
 }
 
 func (cc *altClientConn) IsAlt() bool          { return true }
+func (cc *altClientConn) Proto() int           { return cc.proto }
 func (cc *altClientConn) NetConn() net.Conn    { return nil }
-func (cc *altClientConn) IsReused() bool       { return false }
+func (cc *altClientConn) IsReused() bool       { return true }
 func (cc *altClientConn) CloseWithError(error) { cc.Close() }
 func (cc *altClientConn) Reserve() error       { return nil }
 func (cc *altClientConn) Release()             {}

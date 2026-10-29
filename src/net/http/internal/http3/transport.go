@@ -290,6 +290,10 @@ func (cc *clientConn) Close() error {
 	return err
 }
 
+func (cc *clientConn) Proto() int {
+	return 3
+}
+
 func (cc *clientConn) IsAlt() bool {
 	return true
 }

@@ -11,4 +11,14 @@ var (
 	ErrBodyNotAllowed  = errors.New("http: request method or response status code does not allow body")
 	ErrRequestCanceled = errors.New("net/http: request canceled")
 	ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
+
+	ErrCloseIdleConnections = errors.New("http: CloseIdleConnections called")
 )
+
+// RetryableError is a retryable error condition.
+type RetryableError struct {
+	Err     string
+	Backoff bool // set if we should back off before retrying
+}
+
+func (e RetryableError) Error() string { return e.Err }

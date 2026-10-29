@@ -19,6 +19,7 @@ import (
 	"io"
 	"log"
 	"maps"
+	"math/rand/v2"
 	"net"
 	"net/http/httptrace"
 	"net/http/internal"
@@ -599,11 +600,29 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	origReq := req
 	req = setupRewindBody(req)
 
+	retry := 0
 	if altRT := t.alternateRoundTripper(req); altRT != nil {
-		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
+		_, isInternalH2 := altRT.(http2RoundTripper)
+		resp, err := altRT.RoundTrip(req)
+		switch {
+		case err == nil:
+			// Success.
+			return resp, err
+		case err == ErrSkipAltProtocol:
+			// Dial a connection and try again.
+		case isInternalH2:
+			if _, ok := errors.AsType[internal.RetryableError](err); ok {
+				// Retryable failure (usually a GOAWAY from the server).
+				// (Backoff doesn't matter, we don't backoff on the first retry.)
+				retry++
+				testHookRoundTripRetried()
+			} else {
+				return resp, err
+			}
+		default:
+			// Hard failure.
 			return resp, err
 		}
-		var err error
 		req, err = rewindBody(req)
 		if err != nil {
 			return nil, err
@@ -673,9 +692,16 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		}
 
 		// Failed. Clean up and determine whether to retry.
+		var shouldRetry, backoff bool
 		if http2isNoCachedConnError(err) {
+			// Don't do backoff, because the request was never sent.
+			shouldRetry = true
+			backoff = false
 			t.poolRemoveConn(pconn)
-		} else if !shouldRetryRequest(pconn, req, err) {
+		} else {
+			shouldRetry, backoff = shouldRetryRequest(retry, pconn, req, err)
+		}
+		if !shouldRetry {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
 			// as we've historically done.
 			if e, ok := err.(nothingWrittenError); ok {
@@ -699,6 +725,23 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		if err != nil {
 			return nil, err
 		}
+
+		if !backoff {
+			continue
+		}
+		if pconn.cc.Proto() == 2 && retry > 0 {
+			// After the first retry, do exponential backoff with 10% jitter.
+			backoff := float64(uint(1) << (uint(retry) - 1))
+			backoff += backoff * (0.1 * rand.Float64())
+			d := time.Duration(float64(time.Second) * backoff)
+			select {
+			case <-time.After(d):
+			case <-ctx.Done():
+				req.closeBody()
+				return nil, context.Cause(ctx)
+			}
+		}
+		retry++
 	}
 }
 
@@ -774,7 +817,10 @@ func rewindBody(req *Request) (rewound *Request, err error) {
 // shouldRetryRequest reports whether we should retry sending a failed
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
-func shouldRetryRequest(pconn *poolConn, req *Request, err error) bool {
+func shouldRetryRequest(retry int, pconn *poolConn, req *Request, err error) (shouldRetry, backoff bool) {
+	if retry > 6 {
+		return false, false
+	}
 	if http2isNoCachedConnError(err) {
 		// Issue 16582: if the user started a bunch of
 		// requests at once, they can all pick the same conn
@@ -782,11 +828,20 @@ func shouldRetryRequest(pconn *poolConn, req *Request, err error) bool {
 		// Instead, match the HTTP/1 behavior for now and dial
 		// again to get a new TCP connection, rather than failing
 		// this request.
-		return true
+		return true, false
 	}
 	if err == errMissingHost {
 		// User error.
-		return false
+		return false, false
+	}
+	if e, ok := errors.AsType[internal.RetryableError](err); ok {
+		// This request was never processed by a server, and may be retried.
+		// This comes before the fresh-connection check, because this includes
+		// cases such as an HTTP/2 server sending a GOAWAY for the first batch
+		// of requests sent to it (perhaps because it started shutting down just
+		// as we contacted it, or because we sent requests in excess of its concurrency
+		// limit before processing its initial SETTINGS frame).
+		return true, e.Backoff
 	}
 	if !pconn.cc.IsReused() {
 		// This was a fresh connection. There's no reason the server
@@ -796,29 +851,29 @@ func shouldRetryRequest(pconn *poolConn, req *Request, err error) bool {
 		// creating new connections and retrying if the server
 		// is just hanging up on us because it doesn't like
 		// our request (as opposed to sending an error).
-		return false
+		return false, false
 	}
 	if _, ok := err.(nothingWrittenError); ok {
 		// We never wrote anything, so it's safe to retry, if there's no body or we
 		// can "rewind" the body with GetBody.
-		return req.outgoingLength() == 0 || req.GetBody != nil
+		return req.outgoingLength() == 0 || req.GetBody != nil, false
 	}
 	if !req.isReplayable() {
 		// Don't retry non-idempotent requests.
-		return false
+		return false, false
 	}
 	if _, ok := err.(transportReadFromServerError); ok {
 		// We got some non-EOF net.Conn.Read failure reading
 		// the 1st response byte from the server.
-		return true
+		return true, false
 	}
 	if err == errServerClosedIdle {
 		// The server replied with io.EOF while we were trying to
 		// read the response. Probably an unfortunately keep-alive
 		// timeout, just as the client was writing a request.
-		return true
+		return true, false
 	}
-	return false // conservatively
+	return false, false // conservatively
 }
 
 // ErrSkipAltProtocol is a sentinel error value defined by Transport.RegisterProtocol.
@@ -1450,7 +1505,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if !ok {
 			return nil, errors.New("http: NewClientConn returned something that is not a ClientConn")
 		}
-		return externalConn{cc}, nil
+		return externalHTTP2Conn{cc}, nil
 	}
 
 	wrapTLSNextProtoRoundTripper := func(rt RoundTripper) (genericClientConn, error) {
