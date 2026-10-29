@@ -179,42 +179,40 @@ const (
 )
 
 var predeclaredFuncs = [...]struct {
-	name     string
-	nargs    int
-	variadic bool
-	kind     exprKind
-	builtin  func(*Checker, *operand, *ast.CallExpr)
+	name    string
+	kind    exprKind
+	builtin func(*Checker, *operand, *ast.CallExpr)
 }{
-	_Append:  {"append", 1, true, expression, nil},
-	_Cap:     {"cap", 1, false, expression, nil},
-	_Clear:   {"clear", 1, false, statement, nil},
-	_Close:   {"close", 1, false, statement, nil},
-	_Complex: {"complex", 2, false, expression, nil},
-	_Copy:    {"copy", 2, false, statement, nil},
-	_Delete:  {"delete", 2, false, statement, nil},
-	_Imag:    {"imag", 1, false, expression, nil},
-	_Len:     {"len", 1, false, expression, nil},
-	_Make:    {"make", 1, true, expression, nil},
-	_Max:     {"max", 1, true, expression, nil},
-	_Min:     {"min", 1, true, expression, nil},
-	_New:     {"new", 1, false, expression, nil},
-	_Panic:   {"panic", 1, false, statement, nil},
-	_Print:   {"print", 0, true, statement, nil},
-	_Println: {"println", 0, true, statement, nil},
-	_Real:    {"real", 1, false, expression, nil},
-	_Recover: {"recover", 0, false, statement, nil},
+	_Append:  {"append", expression, nil},
+	_Cap:     {"cap", expression, nil},
+	_Clear:   {"clear", statement, nil},
+	_Close:   {"close", statement, nil},
+	_Complex: {"complex", expression, nil},
+	_Copy:    {"copy", statement, nil},
+	_Delete:  {"delete", statement, nil},
+	_Imag:    {"imag", expression, nil},
+	_Len:     {"len", expression, nil},
+	_Make:    {"make", expression, nil},
+	_Max:     {"max", expression, nil},
+	_Min:     {"min", expression, nil},
+	_New:     {"new", expression, nil},
+	_Panic:   {"panic", statement, nil},
+	_Print:   {"print", statement, nil},
+	_Println: {"println", statement, nil},
+	_Real:    {"real", expression, nil},
+	_Recover: {"recover", statement, nil},
 
-	_Add:        {"Add", 2, false, expression, nil},
-	_Alignof:    {"Alignof", 1, false, expression, nil},
-	_Offsetof:   {"Offsetof", 1, false, expression, nil},
-	_Sizeof:     {"Sizeof", 1, false, expression, nil},
-	_Slice:      {"Slice", 2, false, expression, nil},
-	_SliceData:  {"SliceData", 1, false, expression, nil},
-	_String:     {"String", 2, false, expression, nil},
-	_StringData: {"StringData", 1, false, expression, nil},
+	_Add:        {"Add", expression, nil},
+	_Alignof:    {"Alignof", expression, nil},
+	_Offsetof:   {"Offsetof", expression, nil},
+	_Sizeof:     {"Sizeof", expression, nil},
+	_Slice:      {"Slice", expression, nil},
+	_SliceData:  {"SliceData", expression, nil},
+	_String:     {"String", expression, nil},
+	_StringData: {"StringData", expression, nil},
 
-	_Assert: {"assert", 1, false, statement, nil},
-	_Trace:  {"trace", 0, true, statement, nil},
+	_Assert: {"assert", statement, nil},
+	_Trace:  {"trace", statement, nil},
 }
 
 // Setting the builtin field when initializing predeclaredFuncs above

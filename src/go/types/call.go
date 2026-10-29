@@ -233,30 +233,24 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
 
 	case builtin:
 		// no need to check for non-genericity here
-		id := x.id
-		if builtin := predeclaredFuncs[id].builtin; builtin != nil {
-			x.invalidate()
-			// append is the only built-in that permits the use of ... for the last argument.
-			// Check it here for all built-ins except append.
-			if hasDots(call) && id != _Append {
-				check.errorf(dddErrPos(call),
-					InvalidDotDotDot,
-					invalidOp+"invalid use of ... with built-in %s", predeclaredFuncs[id].name)
-				check.use(call.Args...)
-			} else {
-				builtin(check, x, call)
-			}
+		fdesc := &predeclaredFuncs[x.id]
+		x.invalidate()
+		// append is the only built-in that permits the use of ... for the last argument.
+		// Check it here for all built-ins except append.
+		if hasDots(call) && x.id != _Append {
+			check.errorf(dddErrPos(call),
+				InvalidDotDotDot,
+				invalidOp+"invalid use of ... with built-in %s", fdesc.name)
+			check.use(call.Args...)
 		} else {
-			if !check.builtin(x, call, id) {
-				x.invalidate()
-			}
+			fdesc.builtin(check, x, call)
 		}
 		x.expr = call
-		// a non-constant result implies a function call
+		// a non-constant result implies a function call or receive
 		if x.isValid() && x.mode() != constant_ {
 			check.hasCallOrRecv = true
 		}
-		return predeclaredFuncs[id].kind
+		return fdesc.kind
 	}
 
 	// ordinary function/method call
