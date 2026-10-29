@@ -53,23 +53,71 @@ func maskScanData(density string) [64]uint8 {
 }
 
 // Include the load and comparison: this is the path used by tag-table probes.
+// Keep the probe in a function so it has the same optimization opportunities
+// as an ordinary caller. Benchmarks retain the checksum after the timed loop.
+func maskBitsScan(data []uint8, tag simd.Uint8s) int {
+	mask := simd.LoadUint8s(data).Equal(tag)
+	var dst [simd.MaxMaskBitsLen]uint
+	n := mask.ToBits(dst[:])
+	sum := 0
+	// Every mask has at least one word. Handle that word directly so current
+	// fixed-width targets do not pay for a loop over a one-word bitmap.
+	word := dst[0]
+	for word != 0 {
+		sum += bits.TrailingZeros(word)
+		word &= word - 1
+	}
+	for j, word := range dst[1:n] {
+		for word != 0 {
+			sum += (j+1)*bits.UintSize + bits.TrailingZeros(word)
+			word &= word - 1
+		}
+	}
+	return sum
+}
+
 func BenchmarkMaskBitsScan(b *testing.B) {
 	for _, density := range maskDensities {
 		b.Run(density, func(b *testing.B) {
 			data := maskScanData(density)
 			tag := simd.BroadcastUint8s(1)
-			var dst [simd.MaxMaskBitsLen]uint
 			sum := 0
 			b.ReportAllocs()
-			for b.Loop() {
-				mask := simd.LoadUint8s(data[:]).Equal(tag)
-				n := mask.ToBits(dst[:])
-				for j, word := range dst[:n] {
-					for word != 0 {
-						sum += j*bits.UintSize + bits.TrailingZeros(word)
-						word &= word - 1
-					}
-				}
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				sum += maskBitsScan(data[:], tag)
+			}
+			maskBitsSink = sum
+		})
+	}
+}
+
+// The general loop is a control for the single-word consumption fast path.
+// Use the same function boundary and timing loop for both consumers.
+func maskBitsScanLoop(data []uint8, tag simd.Uint8s) int {
+	mask := simd.LoadUint8s(data).Equal(tag)
+	var dst [simd.MaxMaskBitsLen]uint
+	n := mask.ToBits(dst[:])
+	sum := 0
+	for j, word := range dst[:n] {
+		for word != 0 {
+			sum += j*bits.UintSize + bits.TrailingZeros(word)
+			word &= word - 1
+		}
+	}
+	return sum
+}
+
+func BenchmarkMaskBitsScanLoop(b *testing.B) {
+	for _, density := range maskDensities {
+		b.Run(density, func(b *testing.B) {
+			data := maskScanData(density)
+			tag := simd.BroadcastUint8s(1)
+			sum := 0
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				sum += maskBitsScanLoop(data[:], tag)
 			}
 			maskBitsSink = sum
 		})

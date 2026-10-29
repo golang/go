@@ -14,6 +14,26 @@ import (
 	"testing"
 )
 
+func TestMaskBitsScan(t *testing.T) {
+	for _, density := range maskDensities {
+		t.Run(density, func(t *testing.T) {
+			data := maskScanData(density)
+			want := 0
+			for i, tag := range data[:simd.Uint8s{}.Len()] {
+				if tag == 1 {
+					want += i
+				}
+			}
+			if got := maskBitsScan(data[:], simd.BroadcastUint8s(1)); got != want {
+				t.Fatalf("maskBitsScan = %d, want %d", got, want)
+			}
+			if got := maskBitsScanLoop(data[:], simd.BroadcastUint8s(1)); got != want {
+				t.Fatalf("maskBitsScanLoop = %d, want %d", got, want)
+			}
+		})
+	}
+}
+
 func TestMaskToBits(t *testing.T) {
 	t.Run("Mask8s", func(t *testing.T) {
 		testMaskToBits(t, simd.Int8s{}.Len(), func(s []int8, dst []uint) int {

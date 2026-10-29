@@ -18,9 +18,16 @@ func ExampleMask8s_ToBits() {
 	var storage [simd.MaxMaskBitsLen]uint
 	n := mask.ToBits(storage[:])
 	var selected []int
-	for j, word := range storage[:n] {
+	// A mask always has at least one word. Consume it directly so a
+	// single-word bitmap needs only the loop over its selected bits.
+	word := storage[0]
+	for word != 0 {
+		selected = append(selected, bits.TrailingZeros(word))
+		word &= word - 1
+	}
+	for j, word := range storage[1:n] {
 		for word != 0 {
-			selected = append(selected, j*bits.UintSize+bits.TrailingZeros(word))
+			selected = append(selected, (j+1)*bits.UintSize+bits.TrailingZeros(word))
 			word &= word - 1
 		}
 	}
