@@ -454,7 +454,7 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
 
 	var ofiles []string
 	for _, sfile := range sfiles {
-		ofile := a.Objdir + sfile[:len(sfile)-len(".s")] + ".o"
+		ofile := a.Objdir + strings.TrimSuffix(filepath.Base(sfile), ".s") + ".o"
 		ofiles = append(ofiles, ofile)
 		args1 := append(args, "-o", ofile, fsys.Actual(mkAbs(p.Dir, sfile)))
 		if err := b.Shell(a).run(p.Dir, p.ImportPath, cfgChangedEnv, args1...); err != nil {

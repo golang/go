@@ -727,17 +727,20 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
 }
 
 func (b *Builder) cgoAction(p *load.Package, objdir string, deps []*Action, hasCover bool) *Action {
+	runCgo := b.cacheAction("cgo run", p, func() *Action {
+		return &Action{
+			Package: p,
+			Mode:    "cgo run",
+			Actor:   &runCgoActor{},
+			Objdir:  objdir,
+			Deps:    deps,
+		}
+	})
+	if p.UsesCgoBinding() {
+		return runCgo
+	}
+
 	cgoCollectAction := b.cacheAction("cgo collect", p, func() *Action {
-		// Run cgo
-		runCgo := b.cacheAction("cgo run", p, func() *Action {
-			return &Action{
-				Package: p,
-				Mode:    "cgo run",
-				Actor:   &runCgoActor{},
-				Objdir:  objdir,
-				Deps:    deps,
-			}
-		})
 
 		// Determine which files swig will produce in the cgo run action. We'll need to create
 		// actions to compile the C and C++ files produced by swig, as well as the C file

@@ -305,7 +305,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 		base.Fatalf("buildActionID: unknown build toolchain %q", cfg.BuildToolchainName)
 	case "gc":
 		fmt.Fprintf(h, "compile %s %q %q\n", b.toolID("compile"), forcedGcflags, p.Internal.Gcflags)
-		if len(p.SFiles) > 0 {
+		if len(p.SFiles) > 0 || p.UsesCgoBinding() {
 			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
 		}
 
@@ -430,6 +430,16 @@ func (b *Builder) addPackageOrigin(h io.Writer, p *load.Package) {
 func (b *Builder) addCToolchainIDs(h io.Writer, p *load.Package) {
 	if len(p.CgoFiles)+len(p.SwigFiles)+len(p.SwigCXXFiles) > 0 {
 		fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
+		if p.Error != nil {
+			return
+		}
+		if p.UsesCgoBinding() {
+			fmt.Fprintf(h, "cgobinding %q %q %q %q\n", p.CgoLDFLAGS, cfg.Getenv("CGO_LDFLAGS"), cfg.Getenv("CGO_LDFLAGS_ALLOW"), cfg.Getenv("CGO_LDFLAGS_DISALLOW"))
+			if len(p.CgoPkgConfig) > 0 {
+				fmt.Fprintf(h, "pkgconfig %q %q\n", p.CgoPkgConfig, b.PkgconfigCmd())
+			}
+			return
+		}
 		cppflags, cflags, cxxflags, fflags, ldflags, _ := b.CFlags(p)
 
 		ccExe := b.ccExe()
@@ -745,7 +755,10 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		// cgo and non-cgo worlds, so it necessarily has files in both.
 		// In that case gcc only gets the gcc_* files.
 		cfiles = nil
-		if p.Standard && p.ImportPath == "runtime/cgo" {
+		if p.UsesCgoBinding() {
+			gofiles = nil
+			sfiles = append(slices.Clip(sfiles), objdir+"_cgo_trampolines.s")
+		} else if p.Standard && p.ImportPath == "runtime/cgo" {
 			// filter to the non-gcc files.
 			sfiles = slices.Clone(sfiles)
 			sfiles = slices.DeleteFunc(sfiles, func(f string) bool {
@@ -1321,6 +1334,12 @@ func (b *Builder) cgoRunActionID(a *Action) cache.ActionID {
 	h := cache.NewHash("cgo " + p.ImportPath)
 
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	if key, val, _ := cfg.GetArchEnv(); key != "" {
+		fmt.Fprintf(h, "%s=%s\n", key, val)
+	}
+	if cfg.CleanGOEXPERIMENT != "" {
+		fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
+	}
 
 	fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
 
@@ -1360,6 +1379,11 @@ func (b *Builder) cgoRunActionID(a *Action) cache.ActionID {
 	} else {
 		for _, file := range p.CgoFiles {
 			fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+		}
+		if p.UsesCgoBinding() {
+			for _, file := range p.GoFiles {
+				fmt.Fprintf(h, "gofile %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+			}
 		}
 	}
 	for _, file := range slices.Concat(p.SwigFiles, p.SwigCXXFiles) {
@@ -1408,13 +1432,18 @@ func (b *Builder) cacheRunCgoOutputs(a *Action, pr *runCgoProvider) error {
 		return cgo2
 	}
 
-	_, outC, outCXX := b.swigOutputs(a.Package, a.Objdir)
-	files := slices.Concat(
-		[]string{"_cgo_export.c", "_cgo_export.h", "_cgo_main.c"},
-		trimObjdirPrefix(pr.goFiles),
-		trimObjdirPrefix(cgo2Files(pr.goFiles)),
-		trimObjdirPrefix(outC),
-		trimObjdirPrefix(outCXX))
+	var files []string
+	if a.Package.UsesCgoBinding() {
+		files = append(trimObjdirPrefix(pr.goFiles), "_cgo_trampolines.s")
+	} else {
+		_, outC, outCXX := b.swigOutputs(a.Package, a.Objdir)
+		files = slices.Concat(
+			[]string{"_cgo_export.c", "_cgo_export.h", "_cgo_main.c"},
+			trimObjdirPrefix(pr.goFiles),
+			trimObjdirPrefix(cgo2Files(pr.goFiles)),
+			trimObjdirPrefix(outC),
+			trimObjdirPrefix(outCXX))
+	}
 	for _, name := range []string{"_cgo_install.h", "_cgo_defun.c", "_cgo_flags"} {
 		if _, err := os.Stat(a.Objdir + name); err == nil {
 			files = append(files, name)
@@ -2001,6 +2030,11 @@ func (b *Builder) buildExportConfig(a *Action) *exportConfig {
 	// Careful, a.Package.GoFiles can be relative or absolute paths (see #82042).
 	// Also, the path may point to a virtual file system (e.g. for overlays).
 	srcs := actualFiles(mkAbsFiles(a.Package.Dir, a.Package.GoFiles))
+	if a.Package.UsesCgoBinding() {
+		// cgo -binding rewrites every Go file in the package,
+		// so its outputs replace the original Go files.
+		srcs = nil
+	}
 	// Collect output source files from any cgo dependencies.
 	if a.Package.UsesCgo() {
 		for _, dep := range a.Deps {
@@ -3484,10 +3518,12 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 	}
 
 	a.actionID = b.cgoRunActionID(a)
-	if pr, err := b.loadCachedRunCgoOutputs(a); err == nil {
-		pr.nonGoOverlay = a.nonGoOverlay
-		a.Provider = pr
-		return nil
+	if !cfg.BuildA {
+		if pr, err := b.loadCachedRunCgoOutputs(a); err == nil {
+			pr.nonGoOverlay = a.nonGoOverlay
+			a.Provider = pr
+			return nil
+		}
 	}
 
 	cgofiles := slices.Clip(p.CgoFiles)
@@ -3499,6 +3535,10 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 	pcCFLAGS, pcLDFLAGS, err := b.getPkgConfigFlags(a, p)
 	if err != nil {
 		return err
+	}
+
+	if p.UsesCgoBinding() {
+		return b.runCgoBinding(a, sh, objdir, cgofiles, pcLDFLAGS)
 	}
 
 	// Run SWIG on each .swig and .swigcxx file.
@@ -3515,7 +3555,6 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 		cgofiles = append(cgofiles, outGo...)
 	}
 
-	cgoExe := base.Tool("cgo")
 	cgofiles = mkAbsFiles(p.Dir, cgofiles)
 
 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS, err := b.CFlags(p)
@@ -3583,16 +3622,73 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 	// cgo
 	// TODO: CGO_FLAGS?
 	gofiles := []string{objdir + "_cgo_gotypes.go"}
-	cfiles := []string{objdir + "_cgo_export.c"}
 	for _, fn := range cgofiles {
 		f := strings.TrimSuffix(filepath.Base(fn), ".go")
 		gofiles = append(gofiles, objdir+f+".cgo1.go")
-		cfiles = append(cfiles, objdir+f+".cgo2.c")
 	}
+
+	pr := &runCgoProvider{
+		CFLAGS:                          slices.Concat(cgoCPPFLAGS, cgoCFLAGS),
+		CXXFLAGS:                        slices.Concat(cgoCPPFLAGS, cgoCXXFLAGS),
+		FFLAGS:                          slices.Concat(cgoCPPFLAGS, cgoFFLAGS),
+		LDFLAGS:                         cgoLDFLAGS,
+		notCompatibleForInternalLinking: notCompatibleWithInternalLinking,
+		nonGoOverlay:                    a.nonGoOverlay,
+		goFiles:                         gofiles,
+	}
+	return b.execCgo(a, sh, objdir, nil, cgofiles, pr)
+}
+
+func (b *Builder) runCgoBinding(a *Action, sh *Shell, objdir string, cgofiles, pcLDFLAGS []string) error {
+	p := a.Package
+	srcGoFiles := slices.Clip(p.GoFiles)
+	if p.Internal.Cover.Mode != "" {
+		srcGoFiles = mustGetCoverInfo(a).goSources
+	}
+
+	cgoLDFLAGS, err := buildFlags("LDFLAGS", "", p.CgoLDFLAGS, checkLinkerFlags)
+	if err != nil {
+		return err
+	}
+	if p.Dir != "" && hasGCCSpecFlags(p.CgoLDFLAGS) {
+		if err := checkLinkerSpecDir("#cgo LDFLAGS", p.Dir); err != nil {
+			return err
+		}
+	}
+	cgoLDFLAGS = append(cgoLDFLAGS, pcLDFLAGS...)
+	notCompatibleWithInternalLinking := checkLinkerFlagsForInternalLink("CGO_LDFLAGS", "CGO_LDFLAGS", cgoLDFLAGS) != nil
+
+	// Put the rewritten GoFiles first, followed by _cgo_gotypes.go,
+	// then the rewritten CgoFiles, so that CompiledGoFiles matches
+	// the traditional cgo layout where CompiledGoFiles[len(p.GoFiles)]
+	// is _cgo_gotypes.go (relied on by x/tools/go/packages).
+	var gofiles []string
+	for _, fn := range srcGoFiles {
+		f := strings.TrimSuffix(filepath.Base(fn), ".go")
+		gofiles = append(gofiles, objdir+f+".cgobinding.go")
+	}
+	gofiles = append(gofiles, objdir+"_cgo_gotypes.go")
+	for _, fn := range cgofiles {
+		f := strings.TrimSuffix(filepath.Base(fn), ".go")
+		gofiles = append(gofiles, objdir+f+".cgobinding.go")
+	}
+	cgofiles = mkAbsFiles(p.Dir, slices.Concat(cgofiles, srcGoFiles))
+
+	pr := &runCgoProvider{
+		LDFLAGS:                         cgoLDFLAGS,
+		notCompatibleForInternalLinking: notCompatibleWithInternalLinking,
+		nonGoOverlay:                    a.nonGoOverlay,
+		goFiles:                         gofiles,
+	}
+	return b.execCgo(a, sh, objdir, []string{"-binding"}, cgofiles, pr)
+}
+
+func (b *Builder) execCgo(a *Action, sh *Shell, objdir string, cgoflags, cgofiles []string, pr *runCgoProvider) error {
+	p := a.Package
+	cgoExe := base.Tool("cgo")
 
 	// TODO: make cgo not depend on $GOARCH?
 
-	cgoflags := []string{}
 	if p.Standard && p.ImportPath == "runtime/cgo" {
 		cgoflags = append(cgoflags, "-import_runtime_cgo=false")
 	}
@@ -3600,22 +3696,24 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 		cgoflags = append(cgoflags, "-import_syscall=false")
 	}
 
-	// cgoLDFLAGS, which includes p.CgoLDFLAGS, can be very long.
+	// pr.LDFLAGS, which includes p.CgoLDFLAGS, can be very long.
 	// Pass it to cgo on the command line, so that we use a
 	// response file if necessary.
 	//
 	// These flags are recorded in the generated _cgo_gotypes.go file
 	// using //go:cgo_ldflag directives, the compiler records them in the
 	// object file for the package, and then the Go linker passes them
-	// along to the host linker. At this point in the code, cgoLDFLAGS
+	// along to the host linker. At this point in the code, pr.LDFLAGS
 	// consists of the original $CGO_LDFLAGS (unchecked) and all the
 	// flags put together from source code (checked).
 	cgoenv := b.cCompilerEnv()
 	cgoenv = append(cgoenv, cfgChangedEnv...)
 	var ldflagsOption []string
-	if len(cgoLDFLAGS) > 0 {
-		flags := make([]string, len(cgoLDFLAGS))
-		for i, f := range cgoLDFLAGS {
+	// In binding mode, pr.LDFLAGS may be empty even if $CGO_LDFLAGS is set;
+	// pass -ldflags= and clear CGO_LDFLAGS so cmd/cgo does not inherit it.
+	if len(pr.LDFLAGS) > 0 || p.UsesCgoBinding() {
+		flags := make([]string, len(pr.LDFLAGS))
+		for i, f := range pr.LDFLAGS {
 			flags[i] = strconv.Quote(f)
 		}
 		ldflagsOption = []string{"-ldflags=" + strings.Join(flags, " ")}
@@ -3626,7 +3724,7 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 
 	if cfg.BuildToolchainName == "gccgo" {
 		if b.gccSupportsFlag([]string{BuildToolchain.compiler()}, "-fsplit-stack") {
-			cgoCFLAGS = append(cgoCFLAGS, "-fsplit-stack")
+			pr.CFLAGS = append(pr.CFLAGS, "-fsplit-stack")
 		}
 		cgoflags = append(cgoflags, "-gccgo")
 		if pkgpath := gccgoPkgpath(p); pkgpath != "" {
@@ -3660,22 +3758,13 @@ func (b *Builder) runCgo(_ context.Context, a *Action) error {
 		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
 	}
 
-	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, ldflagsOption, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+	if err := sh.run(p.Dir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, ldflagsOption, "--", pr.CFLAGS, cgofiles); err != nil {
 		return err
 	}
 
-	a.Provider = &runCgoProvider{
-		CFLAGS:                          slices.Concat(cgoCPPFLAGS, cgoCFLAGS),
-		CXXFLAGS:                        slices.Concat(cgoCPPFLAGS, cgoCXXFLAGS),
-		FFLAGS:                          slices.Concat(cgoCPPFLAGS, cgoFFLAGS),
-		LDFLAGS:                         cgoLDFLAGS,
-		notCompatibleForInternalLinking: notCompatibleWithInternalLinking,
-		nonGoOverlay:                    a.nonGoOverlay,
-		goFiles:                         gofiles,
-	}
+	a.Provider = pr
 
 	if !cfg.BuildN {
-		pr := a.Provider.(*runCgoProvider)
 		if err := b.cacheRunCgoOutputs(a, pr); err != nil {
 			return err
 		}
@@ -3706,43 +3795,45 @@ func (b *Builder) processCgoOutputs(a *Action, runCgoProvider *runCgoProvider, c
 		outObj = append(outObj, tokenFile)
 	}
 
-	var collectAction *Action
-	for _, dep := range a.Deps {
-		if dep.Mode == "collect cgo" {
-			collectAction = dep
+	if !a.Package.UsesCgoBinding() {
+		var collectAction *Action
+		for _, dep := range a.Deps {
+			if dep.Mode == "collect cgo" {
+				collectAction = dep
+			}
 		}
-	}
-	if collectAction == nil {
-		base.Fatalf("internal error: no cgo collect action")
-	}
-	for _, dep := range collectAction.Deps {
-		outObj = append(outObj, dep.Target)
-	}
-
-	switch cfg.BuildToolchainName {
-	case "gc":
-		importGo := objdir + "_cgo_import.go"
-		dynOutGo, dynOutObj, err := b.dynimport(a, objdir, importGo, cgoExe, runCgoProvider.CFLAGS, runCgoProvider.LDFLAGS, outObj)
-		if err != nil {
-			return nil, nil, err
+		if collectAction == nil {
+			base.Fatalf("internal error: no cgo collect action")
 		}
-		if dynOutGo != "" {
-			outGo = append(outGo, dynOutGo)
-		}
-		if dynOutObj != "" {
-			outObj = append(outObj, dynOutObj)
+		for _, dep := range collectAction.Deps {
+			outObj = append(outObj, dep.Target)
 		}
 
-	case "gccgo":
-		defunC := objdir + "_cgo_defun.c"
-		defunObj := objdir + "_cgo_defun.o"
-		if err := BuildToolchain.cc(b, a, defunObj, defunC); err != nil {
-			return nil, nil, err
-		}
-		outObj = append(outObj, defunObj)
+		switch cfg.BuildToolchainName {
+		case "gc":
+			importGo := objdir + "_cgo_import.go"
+			dynOutGo, dynOutObj, err := b.dynimport(a, objdir, importGo, cgoExe, runCgoProvider.CFLAGS, runCgoProvider.LDFLAGS, outObj)
+			if err != nil {
+				return nil, nil, err
+			}
+			if dynOutGo != "" {
+				outGo = append(outGo, dynOutGo)
+			}
+			if dynOutObj != "" {
+				outObj = append(outObj, dynOutObj)
+			}
 
-	default:
-		noCompiler()
+		case "gccgo":
+			defunC := objdir + "_cgo_defun.c"
+			defunObj := objdir + "_cgo_defun.o"
+			if err := BuildToolchain.cc(b, a, defunObj, defunC); err != nil {
+				return nil, nil, err
+			}
+			outObj = append(outObj, defunObj)
+
+		default:
+			noCompiler()
+		}
 	}
 
 	// Double check the //go:cgo_ldflag comments in the generated files.

@@ -15,6 +15,7 @@ import (
 	"cmd/go/internal/modload"
 	"cmd/internal/quoted"
 	"fmt"
+	"internal/buildcfg"
 	"internal/platform"
 	"os"
 	"os/exec"
@@ -58,6 +59,21 @@ func BuildInit(ld *modload.Loader) {
 	}
 	buildInitStarted = true
 	base.AtExit(closeBuilders)
+
+	// Check CGO_ENABLED=bindings here rather than at startup, so that
+	// commands like go env, go version, and go help keep working with a
+	// saved CGO_ENABLED=bindings setting.
+	if cfg.BuildContext.CgoEnabled == build.CgoBindings {
+		if cfg.Experiment != nil && !cfg.Experiment.CgoBindings {
+			if exp, err := buildcfg.ParseGOEXPERIMENT(cfg.Goos, cfg.Goarch, "cgobindings"); err != nil || !exp.CgoBindings {
+				base.Fatalf("go: CGO_ENABLED=bindings is not supported on %s/%s", cfg.Goos, cfg.Goarch)
+			}
+			base.Fatalf("go: CGO_ENABLED=bindings requires GOEXPERIMENT=cgobindings")
+		}
+		if cfg.BuildContext.Compiler != "gc" {
+			base.Fatalf("go: CGO_ENABLED=bindings is not supported with -compiler=%s", cfg.BuildContext.Compiler)
+		}
+	}
 
 	modload.Init(ld)
 	instrumentInit()
