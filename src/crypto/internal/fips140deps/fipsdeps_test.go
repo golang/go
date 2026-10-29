@@ -16,11 +16,13 @@ import (
 //
 // DO NOT add new packages here just to make the tests pass.
 var AllowedInternalPackages = map[string]bool{
-	// entropy.Depleted/Seed is the entropy source, and sysrand.Read
-	// is the actual (but uncredited!) random bytes source.
-	"crypto/internal/entropy":        true,
-	"crypto/internal/entropy/v1.0.0": true,
-	"crypto/internal/sysrand":        true,
+	// entropy.Depleted/Seed is the entropy source, scratch.Acquire provides
+	// the memory it accesses, and sysrand.Read is the actual (but uncredited!)
+	// random bytes source.
+	"crypto/internal/entropy":         true,
+	"crypto/internal/entropy/scratch": true,
+	"crypto/internal/entropy/v1.0.0":  true,
+	"crypto/internal/sysrand":         true,
 
 	// impl.Register is how the packages expose their alternative
 	// implementations to tests outside the module.

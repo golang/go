@@ -500,12 +500,16 @@ var depsRules = `
 	crypto/internal/fips140deps/time, errors, math/bits, sync/atomic, unsafe
 	< crypto/internal/entropy/v1.0.0;
 
+	errors, internal/bytealg, sync, syscall
+	< crypto/internal/entropy/scratch;
+
 	STR, hash,
 	crypto/internal/impl,
 	crypto/internal/entropy,
 	crypto/internal/randutil,
 	crypto/internal/constanttime,
 	crypto/internal/entropy/v1.0.0,
+	crypto/internal/entropy/scratch,
 	crypto/internal/fips140deps/byteorder,
 	crypto/internal/fips140deps/cpu,
 	crypto/internal/fips140deps/godebug

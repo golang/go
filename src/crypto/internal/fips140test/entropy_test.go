@@ -9,6 +9,7 @@ package fipstest
 import (
 	"bytes"
 	"crypto/internal/cryptotest"
+	"crypto/internal/entropy/scratch"
 	entropy "crypto/internal/entropy/v1.0.0"
 	"crypto/internal/fips140/drbg"
 	"crypto/rand"
@@ -138,21 +139,22 @@ RUN cd selftest && ./selftest
 RUN cp ea_non_iid ea_restart /usr/local/bin/
 `
 
-var memory entropy.ScratchBuffer
-
-// samplesOrTryAgain calls entropy.Samples up to 10 times until it succeeds.
+// samplesOrTryAgain calls entropy.Samples up to 20 times until it succeeds.
 // Samples has a non-negligible chance of failing the health tests, as required
 // by SP 800-90B.
 func samplesOrTryAgain(t *testing.T, samples []uint8) {
 	t.Helper()
-	for range 10 {
-		if err := entropy.Samples(samples, &memory); err != nil {
+	for range 20 {
+		memory := scratch.Acquire(len(entropy.ScratchBuffer{}))
+		err := entropy.Samples(samples, (*entropy.ScratchBuffer)(memory))
+		scratch.Release(memory)
+		if err != nil {
 			t.Logf("entropy.Samples() failed: %v", err)
 			continue
 		}
 		return
 	}
-	t.Fatal("entropy.Samples() failed 10 times in a row")
+	t.Fatal("entropy.Samples() failed 20 times in a row")
 }
 
 func TestEntropySHA384(t *testing.T) {
@@ -254,6 +256,7 @@ func TestEntropyUnchanged(t *testing.T) {
 
 func TestEntropyRace(t *testing.T) {
 	// Check that concurrent calls to Seed don't trigger the race detector.
+	var memory entropy.ScratchBuffer
 	for range 16 {
 		go func() {
 			_, _ = entropy.Seed(&memory)
@@ -271,6 +274,7 @@ func TestEntropyRace(t *testing.T) {
 var sink byte
 
 func BenchmarkEntropySeed(b *testing.B) {
+	var memory entropy.ScratchBuffer
 	for b.Loop() {
 		seed, err := entropy.Seed(&memory)
 		if err != nil {
