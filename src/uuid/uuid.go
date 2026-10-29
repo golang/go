@@ -40,7 +40,7 @@ type UUID [16]byte
 //	urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6
 //	f81d4fae7dec11d0a76500a0c91e6bf6
 //
-// Alphabetic characters in the hexadecimal digits may be any case.
+// Alphabetic characters may be any case.
 func Parse(s string) (UUID, error) {
 	var u UUID
 	err := u.UnmarshalText([]byte(s))
@@ -125,7 +125,7 @@ func (u *UUID) UnmarshalText(b []byte) error {
 	switch len(b) {
 	case len("urn:uuid:") + 36:
 		// urn:uuid:00000000-0000-0000-0000-000000000000
-		b = bytes.TrimPrefix(b, []byte("urn:uuid:"))
+		b = trimASCIIFoldPrefix(b, []byte("urn:uuid:"))
 	case 2 + 36:
 		// {00000000-0000-0000-0000-000000000000}
 		b = bytes.TrimPrefix(b, []byte("{"))
@@ -264,4 +264,23 @@ func (u *UUID) setVersion(version byte) {
 
 func (u *UUID) setVariant(variant byte) {
 	u[8] = (u[8] & 0b0011_1111) | (variant << 6)
+}
+
+func trimASCIIFoldPrefix(s, prefix []byte) []byte {
+	if len(s) < len(prefix) {
+		return s
+	}
+	for i := range len(prefix) {
+		if asciiLower(s[i]) != asciiLower(prefix[i]) {
+			return s
+		}
+	}
+	return s[len(prefix):]
+}
+
+func asciiLower(b byte) byte {
+	if 'A' <= b && b <= 'Z' {
+		return b + ('a' - 'A')
+	}
+	return b
 }

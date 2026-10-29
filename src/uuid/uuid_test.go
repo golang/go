@@ -159,6 +159,9 @@ func TestParseSuccess(t *testing.T) {
 	}, {
 		s: "urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
 		u: u1,
+	}, {
+		s: "UrN:UuId:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+		u: u1,
 	}} {
 		u, err := uuid.Parse(test.s)
 		if err != nil {
@@ -184,6 +187,7 @@ func TestParseErrors(t *testing.T) {
 		"00000000-0000-0000-0000-x00000000000",
 		"{x0000000-0000-0000-0000-000000000000}",
 		"urn:uuid:x000000-0000-0000-0000-000000000000",
+		"urk:uuid:00000000-0000-0000-0000-000000000000",
 		"x0000000000000000000000000000000",
 		// Some parsers permit hyphens in non-standard locations,
 		// but we currently do not.
