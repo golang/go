@@ -21,12 +21,13 @@ type BindingType struct {
 	Def         string // Underlying Go type expression (e.g. "int32", "struct { a float32 }"); empty if opaque
 	Size        int64  // Size in bytes on the target architecture
 	Align       int64  // Alignment in bytes on the target architecture
-	HasPointers bool   // Whether the type contains pointers (for GC keepalives)
+	HasPointers bool   // Whether the type contains pointers (for GC keepalives and callback return zeroing)
 }
 
 // BindingFunc describes a C function bound with //cgo:func, either a
 // function linked with the program or a method of a //cgo:dynload type that
-// calls a function in a library loaded at run time.
+// calls a function in a library loaded at run time, or an exported Go
+// callback (//export).
 type BindingFunc struct {
 	// Identifier and symbol names:
 	Name   string // Internal cgo function identifier (used in _Cfunc_<Name>, _cgo_arg_<Name>, and _cgo_trampoline_<Name>)
@@ -186,18 +187,23 @@ type ABIConfig struct {
 	// to default GPR chunking.
 	CompositeRegSlots func(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool)
 
-	// Trampoline assembly generation parameters:
+	// Trampoline and callback assembly generation parameters:
 	SPReg           string // Hardware stack pointer register in asm (e.g. "SP", "RSP", "R1", "X2")
 	CalleeSavedReg  string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
 	TmpReg          string // Primary caller-saved scratch register for stack/memory copies and address math
 	TmpReg2         string // Secondary caller-saved scratch register for multi-chunk loads and copies
 	LRReserve       int64  // Bytes reserved at 0(SP) for saved LR when !hasStackArgs and ShadowSpace == 0
+	ZeroVal         string // Zero operand or register for zeroing pointer-containing callback return slots
+	LocalFrameOff   int64  // Byte offset from SPReg to the local Go arg struct in writeCallbackTrampoline
 	IndirectSymCall bool   // External C symbols are PE IAT pointers called indirectly (Windows)
 
 	asm                asmOps
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
 	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
 	CallSymbol         func(w io.Writer, sym string, static bool)
+	StackArgAddr       func(stackOff, callerSPOff int64) (base string, off int64)
+	CallbackPrologue   func(w io.Writer, frameSize int64) (callerSPOff int64)
+	CallbackEpilogue   func(w io.Writer, frameSize int64)
 }
 
 // isFloatReg reports whether reg is an architecture floating-point register.
@@ -902,6 +908,16 @@ func (cfg *ABIConfig) emitAddSP(w io.Writer, size int64) {
 	fmt.Fprintf(w, "\t%s\t$%d, %s\n", cfg.asm.add, size, cfg.SPReg)
 }
 
+// emitLoadStackArg loads a C-caller stack argument at stackOff into reg
+// during a C-to-Go callback trampoline.
+func (cfg *ABIConfig) emitLoadStackArg(w io.Writer, stackOff, callerSPOff, size int64, reg string) {
+	base, off := cfg.SPReg, callerSPOff+stackOff
+	if cfg.StackArgAddr != nil {
+		base, off = cfg.StackArgAddr(stackOff, callerSPOff)
+	}
+	cfg.emitLoadInt(w, base, off, size, false, reg)
+}
+
 // emitCallReg emits an indirect branch-and-link through register reg.
 func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
 	if cfg.asm.lea != "" {
@@ -1032,6 +1048,31 @@ func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off 
 	cfg.emitStoreInt(w, slot.reg, base, off+slot.offset, slot.size)
 }
 
+// emitCallCrosscall2 emits the shared register-ABI callback sequence:
+// _cgo_wait_runtime_init_done -> crosscall2(fn, &frame, frameSize, ctxt) -> _cgo_release_context.
+func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, ctxtOff int64) {
+	ptrSize := cfg.PtrSize
+	arg0, arg1, arg2, arg3 := cfg.IntRegs[0], cfg.IntRegs[1], cfg.IntRegs[2], cfg.IntRegs[3]
+	ret0 := cfg.IntRetRegs[0]
+	cfg.emitCallRuntime(w, "_cgo_wait_runtime_init_done")
+	cfg.emitStoreInt(w, ret0, cfg.SPReg, ctxtOff, ptrSize)
+	cfg.emitMovReg(w, ret0, arg3)
+	if cfg.Arch == "amd64" {
+		// Use LEAQ + double load so -dynlink GOT rewrites do not clobber C callee-saved R15.
+		fmt.Fprintf(w, "\tLEAQ\t·_cgo_fn_%s(SB), %s\n", fnName, arg0)
+		fmt.Fprintf(w, "\tMOVQ\t0(%s), %s\n", arg0, arg0)
+		fmt.Fprintf(w, "\tMOVQ\t0(%s), %s\n", arg0, arg0)
+	} else {
+		fmt.Fprintf(w, "\t%s\t·_cgo_fn_%s(SB), %s\n", cfg.asm.mov, fnName, arg0)
+		cfg.emitLoadInt(w, arg0, 0, ptrSize, false, arg0)
+	}
+	cfg.emitAddr(w, cfg.SPReg, cfg.LocalFrameOff, arg1)
+	fmt.Fprintf(w, "\t%s\t$%d, %s\n", cfg.asm.mov, frameSize, arg2)
+	cfg.emitCallRuntime(w, "crosscall2")
+	cfg.emitLoadInt(w, cfg.SPReg, ctxtOff, ptrSize, false, arg0)
+	cfg.emitCallRuntime(w, "_cgo_release_context")
+}
+
 // writeTrampoline emits the Go-to-C assembly trampoline for fn.
 // Go callers pack parameters into a _cgo_arg_<Name> struct and pass its address
 // to runtime.cgocall, which enters a syscall, switches to the OS-allocated g0
@@ -1155,6 +1196,109 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	}
 
 	fmt.Fprintf(w, "\tRET\n\n")
+}
+
+// writeCallbackTrampoline emits the C-callable export trampoline for an
+// //export Go function. It spills C ABI register and stack arguments into a
+// packed Go argument struct on the C stack, invokes Go via crosscall2, and
+// loads the return value into C ABI return registers or the sret buffer.
+func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types map[string]BindingType) {
+	lay := cfg.layout(fn, types)
+	ptrSize := cfg.PtrSize
+
+	structSize := ptrSize
+	if fn.Ret != "" {
+		structSize = lay.Ret.GoOffset + lay.Ret.Size
+	} else if len(lay.Params) > 0 {
+		last := lay.Params[len(lay.Params)-1]
+		structSize = last.GoOffset + last.Size
+	}
+	retBufOff := int64(-1)
+	if lay.Ret.Indirect {
+		retBufOff = alignUp(structSize, ptrSize)
+		structSize = retBufOff + ptrSize
+	}
+	ctxtOff := alignUp(structSize, ptrSize)
+	structSize = ctxtOff + ptrSize
+	frameSize := max(16, alignUp(structSize, 16))
+
+	var callerSPOff int64
+	if cfg.CallbackPrologue != nil {
+		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT|NOFRAME, $0-0\n", fn.Name)
+		callerSPOff = cfg.CallbackPrologue(w, frameSize)
+	} else {
+		totalFrame := cfg.LocalFrameOff + frameSize
+		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT, $%d-0\n", fn.Name, totalFrame)
+		callerSPOff = totalFrame
+	}
+
+	baseOff := cfg.LocalFrameOff
+
+	if lay.Ret.Indirect {
+		cfg.emitStoreInt(w, cfg.IndirectRetReg, cfg.SPReg, baseOff+retBufOff, ptrSize)
+	}
+
+	for i, p := range lay.Params {
+		slots := cfg.paramRegSlots(fn, i, p, types)
+
+		if p.PassByPtr {
+			ptrReg := cfg.TmpReg
+			copyReg := cfg.TmpReg2
+			if len(slots) > 0 {
+				ptrReg = slots[0].reg
+				copyReg = cfg.TmpReg
+			} else {
+				cfg.emitLoadStackArg(w, p.StackOff, callerSPOff, ptrSize, ptrReg)
+			}
+			cfg.emitCopyMem(w, ptrReg, 0, cfg.SPReg, baseOff+p.GoOffset, p.Size, copyReg)
+		} else if len(slots) > 0 {
+			for _, slot := range slots {
+				cfg.emitStoreSlot(w, slot, cfg.SPReg, baseOff+p.GoOffset)
+			}
+		} else {
+			srcBase, srcOff := cfg.SPReg, callerSPOff+p.StackOff
+			if cfg.StackArgAddr != nil {
+				srcBase, srcOff = cfg.StackArgAddr(p.StackOff, callerSPOff)
+			}
+			cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, baseOff+p.GoOffset, p.Size, cfg.TmpReg)
+		}
+	}
+
+	// Zero pointer-containing return slots on the C stack so Go GC write
+	// barriers in _cgoexp_* never observe uninitialized stack bytes.
+	if fn.Ret != "" && lay.Ret.Size > 0 && cfg.inspectType(fn.Ret, types).hasPointers {
+		for off := int64(0); off < lay.Ret.Size; {
+			sz := maxPow2Chunk(lay.Ret.Size-off, ptrSize)
+			cfg.emitStoreInt(w, cfg.ZeroVal, cfg.SPReg, baseOff+lay.Ret.GoOffset+off, sz)
+			off += sz
+		}
+	}
+
+	cfg.emitCallCrosscall2(w, fn.Name, frameSize, baseOff+ctxtOff)
+
+	if fn.Ret != "" {
+		if lay.Ret.Indirect {
+			bufReg := cfg.TmpReg
+			copyReg := cfg.TmpReg2
+			if cfg.IndirectRetInArg && len(cfg.IntRetRegs) > 0 {
+				bufReg = cfg.IntRetRegs[0]
+				copyReg = cfg.TmpReg
+			}
+			cfg.emitLoadInt(w, cfg.SPReg, baseOff+retBufOff, ptrSize, false, bufReg)
+			cfg.emitCopyMem(w, cfg.SPReg, baseOff+lay.Ret.GoOffset, bufReg, 0, lay.Ret.Size, copyReg)
+		} else {
+			for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
+				cfg.emitLoadSlot(w, cfg.SPReg, baseOff+lay.Ret.GoOffset, slot)
+			}
+		}
+	}
+
+	if cfg.CallbackEpilogue != nil {
+		cfg.CallbackEpilogue(w, frameSize)
+		fmt.Fprintf(w, "\n")
+	} else {
+		fmt.Fprintf(w, "\tRET\n\n")
+	}
 }
 
 // System V AMD64 C calling convention (used on Linux, macOS/iOS, Android,
@@ -1333,6 +1477,7 @@ var amd64ABI = &ABIConfig{
 	CalleeSavedReg:    "R12",
 	TmpReg:            "R11",
 	TmpReg2:           "R10",
+	ZeroVal:           "$0",
 	asm: asmOps{
 		mov:   "MOVQ",
 		loadB: "MOVBLSX", loadBU: "MOVBLZX", loadH: "MOVWLSX", loadHU: "MOVWLZX", loadW: "MOVL", loadWU: "MOVL",
@@ -1352,6 +1497,9 @@ var amd64ABI = &ABIConfig{
 		} else {
 			fmt.Fprintf(w, "\tMOVL\t$%d, AX\n", min(lay.FloatRegCount, len(cfg.FloatRegs)))
 		}
+	},
+	StackArgAddr: func(stackOff, _ int64) (string, int64) {
+		return "BP", 16 + stackOff
 	},
 }
 
@@ -1432,6 +1580,7 @@ func newWin64ABI() *ABIConfig {
 	cfg.OS = "windows"
 	cfg.CLongSize = 4
 	cfg.ShadowSpace = 32
+	cfg.LocalFrameOff = 32
 	cfg.IndirectSymCall = true
 	cfg.IntRegs = []string{"CX", "DX", "R8", "R9"}
 	cfg.FloatRegs = []string{"X0", "X1", "X2", "X3"}
@@ -1629,6 +1778,8 @@ var arm64ABI = &ABIConfig{
 	TmpReg:            "R12",
 	TmpReg2:           "R13",
 	LRReserve:         16,
+	ZeroVal:           "ZR",
+	LocalFrameOff:     16,
 	asm: asmOps{
 		mov:   "MOVD",
 		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
@@ -1637,6 +1788,59 @@ var arm64ABI = &ABIConfig{
 		shl: "LSL", shr: "LSR", or: "ORR", add: "ADD", sub: "SUB",
 	},
 	TrampolinePrologue: emitARM64TrampolinePrologue,
+	CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+		total, small := arm64CallbackFrame(frameSize)
+		fpOff := total - 16
+		if small {
+			fmt.Fprintf(w, "\tSTP.W\t(R30, R27), -%d(RSP)\n", total)
+			fmt.Fprintf(w, "\tSTP\t(R29, R30), %d(RSP)\n", fpOff)
+		} else {
+			// total may not be encodable as an ADD/SUB immediate, in which
+			// case the assembler materializes it in REGTMP (R27), which is
+			// callee-saved in the C ABI. Save the frame record and R27 with
+			// small pre-indexed stores before the large SP adjustment.
+			fmt.Fprintf(w, "\tSTP.W\t(R29, R30), -16(RSP)\n")
+			fmt.Fprintf(w, "\tMOVD.W\tR27, -16(RSP)\n")
+			fmt.Fprintf(w, "\tSUB\t$%d, RSP\n", total-32)
+			fmt.Fprintf(w, "\tMOVD\tR30, 0(RSP)\n")
+		}
+		fmt.Fprintf(w, "\tADD\t$%d, RSP, R29\n", fpOff)
+		return total
+	},
+	CallbackEpilogue: func(w io.Writer, frameSize int64) {
+		total, small := arm64CallbackFrame(frameSize)
+		if small {
+			fmt.Fprintf(w, "\tMOVD\t%d(RSP), R29\n", total-16)
+			fmt.Fprintf(w, "\tLDP.P\t%d(RSP), (R30, R27)\n", total)
+		} else {
+			// Undo the large SP adjustment (possibly via REGTMP) before
+			// restoring R27 and the frame record.
+			fmt.Fprintf(w, "\tADD\t$%d, RSP\n", total-32)
+			fmt.Fprintf(w, "\tMOVD.P\t16(RSP), R27\n")
+			fmt.Fprintf(w, "\tLDP.P\t16(RSP), (R29, R30)\n")
+		}
+		fmt.Fprintf(w, "\tRET\n")
+	},
+}
+
+// arm64CallbackFrame returns the total C stack frame size of an arm64
+// callback trampoline whose local Go argument area is frameSize bytes, and
+// whether it uses the compact frame layout:
+//
+//	0(RSP)          saved LR (Go frame convention)
+//	8(RSP)          saved R27 (compact layout only)
+//	16(RSP)         local Go argument area (frameSize bytes)
+//	total-32(RSP)   saved R27 (large layout only)
+//	total-16(RSP)   frame record (R29, R30)
+//
+// The compact layout is used when total fits the signed, scaled 7-bit
+// immediate of STP.W/LDP.P.
+func arm64CallbackFrame(frameSize int64) (total int64, small bool) {
+	total = 32 + frameSize
+	if total <= 504 {
+		return total, true
+	}
+	return 48 + frameSize, false
 }
 
 // getABI returns the ABIConfig for the given targetOS/targetArch.

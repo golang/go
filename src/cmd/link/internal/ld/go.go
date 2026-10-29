@@ -16,6 +16,7 @@ import (
 	"debug/elf"
 	"encoding/json"
 	"fmt"
+	"internal/buildcfg"
 	"io"
 	"os"
 	"sort"
@@ -473,4 +474,24 @@ func (ctxt *Link) addexport() {
 	for _, lib := range dedupLibraries(ctxt, dynlib) {
 		adddynlib(ctxt, lib)
 	}
+}
+
+// cgoExportSymbolName returns the exported C symbol name for a static cgo export
+// symbol s in PE (.def) or XCOFF (.exp) export files, or ("", false) if s
+// should not be exported.
+func cgoExportSymbolName(ldr *loader.Loader, s loader.Sym) (string, bool) {
+	if ldr.IsFileLocal(s) {
+		return "", false
+	}
+	extname := strings.TrimPrefix(ldr.SymExtname(s), ".")
+	if strings.HasPrefix(extname, "_cgoexp_") {
+		// _cgoexp_hashcode_symname -> symname
+		return strings.SplitN(extname, "_", 4)[3], true
+	}
+	if buildcfg.Experiment.CgoBindings {
+		if pkg := ldr.SymPkg(s); ldr.AttrCgoExportDynamic(s) && pkg != "" && pkg != "runtime" && pkg != "runtime/cgo" {
+			return extname, true
+		}
+	}
+	return "", false
 }

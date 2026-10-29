@@ -2035,19 +2035,9 @@ func peCreateExportFile(ctxt *Link, libName string) (fname string) {
 	ldr := ctxt.loader
 	var exports []string
 	for s := range ldr.ForAllCgoExportStatic() {
-		extname := ldr.SymExtname(s)
-		if !strings.HasPrefix(extname, "_cgoexp_") {
-			continue
+		if name, ok := cgoExportSymbolName(ldr, s); ok {
+			exports = append(exports, name)
 		}
-		if ldr.IsFileLocal(s) {
-			continue // Only export non-static symbols
-		}
-		// Retrieve the name of the initial symbol
-		// exported by cgo.
-		// The corresponding Go symbol is:
-		// _cgoexp_hashcode_symname.
-		name := strings.SplitN(extname, "_", 4)[3]
-		exports = append(exports, name)
 	}
 	if len(exports) == 0 {
 		// See runtime/cgo/windows.go for details.

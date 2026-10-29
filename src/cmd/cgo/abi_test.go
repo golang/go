@@ -6,6 +6,9 @@ package main
 
 import (
 	"bytes"
+	"internal/testenv"
+	"os"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"strings"
@@ -365,6 +368,36 @@ func TestWriteTrampolineAMD64(t *testing.T) {
 
 	// Odd-sized struct loads/stores must decompose without 8-byte overreads.
 	checkOdd5No8ByteMoves(t, "amd64")
+
+	// C-to-Go callback trampoline.
+	var cbBuf bytes.Buffer
+	sysv.writeCallbackTrampoline(&cbBuf, BindingFunc{
+		Name:   "GoCallback",
+		Params: []string{"int32", "int32"},
+		Ret:    "unsafe.Pointer",
+	}, nil)
+	cbAsm := cbBuf.String()
+	for _, want := range []string{
+		"TEXT GoCallback(SB), NOSPLIT, $32-0",
+		"MOVL\tDI, 0(SP)",
+		"MOVL\tSI, 4(SP)",
+		"MOVQ\t$0, 8(SP)",
+		"CALL\t_cgo_wait_runtime_init_done(SB)",
+		"MOVQ\tAX, 16(SP)",
+		"MOVQ\tAX, CX",
+		"LEAQ\t·_cgo_fn_GoCallback(SB), DI",
+		"MOVQ\t0(DI), DI",
+		"LEAQ\t0(SP), SI",
+		"MOVQ\t$32, DX",
+		"CALL\tcrosscall2(SB)",
+		"MOVQ\t16(SP), DI",
+		"CALL\t_cgo_release_context(SB)",
+		"MOVQ\t8(SP), AX",
+	} {
+		if !strings.Contains(cbAsm, want) {
+			t.Errorf("amd64 callback trampoline missing %q in:\n%s", want, cbAsm)
+		}
+	}
 }
 
 func TestLayoutARM64(t *testing.T) {
@@ -554,6 +587,29 @@ func TestLayoutAndTrampolineARM64(t *testing.T) {
 	}
 
 	checkOdd5No8ByteMoves(t, "arm64")
+
+	var cbBuf bytes.Buffer
+	aapcs.writeCallbackTrampoline(&cbBuf, BindingFunc{Name: "GoCallback", Params: []string{"int32", "int32"}, Ret: "unsafe.Pointer"}, nil)
+	for _, want := range []string{
+		"TEXT GoCallback(SB), NOSPLIT|NOFRAME, $0-0",
+		"STP.W\t(R30, R27), -64(RSP)",
+		"STP\t(R29, R30), 48(RSP)",
+		"ADD\t$48, RSP, R29",
+		"MOVW\tR0, 16(RSP)",
+		"MOVW\tR1, 20(RSP)",
+		"MOVD\tZR, 24(RSP)",
+		"CALL\t_cgo_wait_runtime_init_done(SB)",
+		"MOVD\tR0, 32(RSP)",
+		"CALL\tcrosscall2(SB)",
+		"CALL\t_cgo_release_context(SB)",
+		"MOVD\t24(RSP), R0",
+		"MOVD\t48(RSP), R29",
+		"LDP.P\t64(RSP), (R30, R27)",
+	} {
+		if !strings.Contains(cbBuf.String(), want) {
+			t.Errorf("arm64 callback trampoline missing %q in:\n%s", want, cbBuf.String())
+		}
+	}
 }
 
 func TestLayoutAndTrampolineDarwinARM64(t *testing.T) {
@@ -758,6 +814,81 @@ func TestLayoutAndTrampolineDarwinARM64(t *testing.T) {
 	}
 }
 
+// TestCallbackLargeFrameARM64 verifies that arm64 callback trampolines whose
+// frame size is not encodable as an ADD/SUB immediate save the C callee-saved
+// R27 (the assembler's REGTMP) before the large SP adjustment and restore it
+// after undoing that adjustment.
+func TestCallbackLargeFrameARM64(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Big": {Name: "Big", Def: "struct {\n\ta [4096]byte\n}", Size: 4096, Align: 8},
+	}
+	fn := BindingFunc{Name: "GoBig", Params: []string{"Big", "int64"}, Ret: "int32"}
+	for _, goos := range []string{"linux", "darwin"} {
+		t.Run(goos, func(t *testing.T) {
+			var buf bytes.Buffer
+			buf.WriteString("#include \"textflag.h\"\n\n")
+			getABI(goos, "arm64").writeCallbackTrampoline(&buf, fn, typeMap)
+			src := buf.String()
+
+			// Go args: Big at 0, int64 at 4096, ret at 4104, ctxt at 4112;
+			// frameSize = 4128, total = 48 + frameSize = 4176.
+			want := []string{
+				"STP.W\t(R29, R30), -16(RSP)",
+				"MOVD.W\tR27, -16(RSP)",
+				"SUB\t$4144, RSP",
+				"MOVD\tR30, 0(RSP)",
+				"ADD\t$4160, RSP, R29",
+				"MOVD\tR1, 4112(RSP)", // int64 param after the 4KB struct
+				"CALL\tcrosscall2(SB)",
+				"ADD\t$4144, RSP\n",
+				"MOVD.P\t16(RSP), R27",
+				"LDP.P\t16(RSP), (R29, R30)",
+				"RET",
+			}
+			pos := 0
+			for _, w := range want {
+				i := strings.Index(src[pos:], w)
+				if i < 0 {
+					t.Fatalf("arm64 large-frame callback missing %q (in order) in:\n%s", w, src)
+				}
+				pos += i + len(w)
+			}
+			if strings.Contains(src, "R27, 8(RSP)") || strings.Contains(src, "8(RSP), R27") {
+				t.Errorf("arm64 large-frame callback uses compact R27 slot:\n%s", src)
+			}
+
+			// Assemble the trampoline and check the expanded machine code:
+			// the first use of R27 must be the save, and the last its restore.
+			testenv.MustHaveGoBuild(t)
+			dir := t.TempDir()
+			sfile := filepath.Join(dir, "cb.s")
+			ofile := filepath.Join(dir, "cb.o")
+			if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-p", "main",
+				"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+			cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH=arm64")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("go tool asm: %v\n%s", err, out)
+			}
+			out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
+			if err != nil {
+				t.Fatalf("go tool objdump: %v\n%s", err, out)
+			}
+			var r27 []string
+			for _, line := range strings.Split(string(out), "\n") {
+				if strings.Contains(line, "R27") {
+					r27 = append(r27, strings.Join(strings.Fields(line)[3:], " "))
+				}
+			}
+			if len(r27) < 4 || r27[0] != "MOVD.W R27, -16(RSP)" || r27[len(r27)-1] != "MOVD.P 16(RSP), R27" {
+				t.Errorf("R27 uses in assembled arm64 large-frame callback = %q, want save first and restore last\n%s", r27, out)
+			}
+		})
+	}
+}
+
 func TestLayoutWin64(t *testing.T) {
 	typeMap := map[string]BindingType{
 		"Odd3": {Name: "Odd3", Def: "struct {\n\tb [3]uint8\n}", Size: 3, Align: 1},
@@ -779,5 +910,13 @@ func TestLayoutWin64(t *testing.T) {
 	w64Odd3Lay := w64.layout(BindingFunc{Name: "Odd3", Params: []string{"Odd3"}, Ret: "Odd3"}, typeMap)
 	if !w64Odd3Lay.Params[0].PassByPtr || !reflect.DeepEqual(w64Odd3Lay.Params[0].Regs, []string{"DX"}) || !w64Odd3Lay.Ret.Indirect || w64.IndirectRetReg != "CX" {
 		t.Errorf("Win64 Odd3 layout = %+v", w64Odd3Lay)
+	}
+
+	var w64CB bytes.Buffer
+	w64.writeCallbackTrampoline(&w64CB, BindingFunc{Name: "Win64CB", Params: []string{"int32"}, Ret: "int32"}, nil)
+	for _, want := range []string{"MOVL\tCX, 32(SP)", "LEAQ\t32(SP), DX", "CALL\tcrosscall2(SB)", "MOVL\t36(SP), AX"} {
+		if !strings.Contains(w64CB.String(), want) {
+			t.Errorf("windows/amd64 callback missing %q:\n%s", want, w64CB.String())
+		}
 	}
 }
