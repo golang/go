@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"cmd/internal/edit"
 	"cmd/internal/hash"
@@ -44,10 +45,12 @@ type BindingVar struct {
 // Bindings holds the parsed declarations and linker flags collected
 // from the //cgo: pragmas in a package.
 type Bindings struct {
+	mu           sync.Mutex
 	Package      string
 	LdFlags      []string
 	Vars         []BindingVar
 	Funcs        []BindingFunc
+	UsedBuiltins map[string]bool   // cgo builtins (such as CString) referenced as C.name
 	TypeGoToC    map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
 	ConstCToGo   map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
 	GoOnlyCNames map[string]bool   // C names bound by pragmas without the C. prefix
@@ -68,6 +71,10 @@ type bindingSource struct {
 	origPath string // untrimmed path for ${SRCDIR} expansion; defaults to path
 	data     []byte
 	file     *ast.File
+}
+
+func (bf *Bindings) needCMalloc() bool {
+	return bf.UsedBuiltins["CString"] || bf.UsedBuiltins["CBytes"] || bf.UsedBuiltins["_CMalloc"]
 }
 
 func targetPtrSize() int64 {
@@ -112,7 +119,12 @@ func forEachImportC(file *ast.File, fn func(gd *ast.GenDecl, spec *ast.ImportSpe
 
 func primitiveCtypeToGo(name string) (string, bool) {
 	switch name {
-	case "_Ctype_char", "_Ctype_schar", "_Ctype_int8_t":
+	case "_Ctype_char":
+		if targetCCharIsUnsigned(goos, goarch) {
+			return "uint8", true
+		}
+		return "int8", true
+	case "_Ctype_schar", "_Ctype_int8_t":
 		return "int8", true
 	case "_Ctype_uchar", "_Ctype_uint8_t":
 		return "uint8", true
@@ -626,6 +638,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 	}
 	entry := &Bindings{
 		LdFlags:      append([]string(nil), p.LdFlags...),
+		UsedBuiltins: make(map[string]bool),
 		TypeGoToC:    make(map[string]string),
 		ConstCToGo:   make(map[string]string),
 		GoOnlyCNames: make(map[string]bool),
@@ -752,6 +765,9 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		}
 		boundGo[pr.GoName] = true
 		if pr.BindC {
+			if pr.CName == "malloc" || (pr.CName != "_CMalloc" && builtinDefs[pr.CName] != "") {
+				fatalf("%s: C.%s is a cgo builtin and cannot be bound by a //cgo: pragma", pr.Pos, pr.CName)
+			}
 			if boundC[pr.CName] {
 				fatalf("%s: C.%s is bound by more than one //cgo: pragma", pr.Pos, pr.CName)
 			}
@@ -983,8 +999,15 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 			if d.Body != nil {
 				fatalf("%s: //cgo:func function %s cannot have a body", pos, pr.GoName)
 			}
+			fnName := pr.GoName
+			if builtinDefs[fnName] != "" || fnName == "_cgo_malloc" {
+				fnName = "_go_" + fnName
+				for boundGo[fnName] {
+					fnName = "_" + fnName
+				}
+			}
 			fn := BindingFunc{
-				Name:    pr.GoName,
+				Name:    fnName,
 				GoName:  pr.GoName,
 				CName:   pr.CName,
 				BindC:   pr.BindC,
@@ -1353,11 +1376,19 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 				return true
 			}
 			name := n.Sel.Name
+			if name == "malloc" {
+				name = "_CMalloc"
+			}
 			var repl string
 			if goConst, isConst := r.entry.ConstCToGo[name]; isConst {
 				repl = goConst
 			} else if v, isVar := r.varMap[name]; isVar {
 				repl = cVarExpr(v)
+			} else if builtinDefs[name] != "" {
+				r.entry.mu.Lock()
+				r.entry.UsedBuiltins[name] = true
+				r.entry.mu.Unlock()
+				repl = "_Cfunc_" + name
 			} else if fn, isFunc := r.cFuncMap[name]; isFunc {
 				repl = bindingFuncEntry(fn, r.entry.TypeMap)
 			} else if _, isType := r.entry.TypeMap["_Ctype_"+name]; isType {
@@ -1507,6 +1538,34 @@ func _cgoCheckPointer(interface{}, interface{})
 
 //go:linkname _Cgo_no_callback runtime.cgoNoCallback
 func _Cgo_no_callback(bool)
+
+`
+
+const bindingCMallocProlog = `//go:linkname _cgo_runtime_throw runtime.throw
+func _cgo_runtime_throw(string)
+
+//go:linkname _cgo_trampoline__cgo_malloc _cgo%s_trampoline__cgo_malloc
+var _cgo_trampoline__cgo_malloc byte
+
+type _cgo_arg__cgo_malloc struct {
+	p0  _Ctype_size_t
+	ret unsafe.Pointer
+}
+
+func _cgo_cmalloc(n uint64) unsafe.Pointer {
+	if n == 0 {
+		n = 1
+	}
+	args := _cgo_arg__cgo_malloc{p0: _Ctype_size_t(n)}
+	_cgo_runtime_cgocall(unsafe.Pointer(&_cgo_trampoline__cgo_malloc), uintptr(unsafe.Pointer(&args)))
+	if _Cgo_always_false {
+		_Cgo_keepalive(&args)
+	}
+	if args.ret == nil {
+		_cgo_runtime_throw("runtime: C malloc failed")
+	}
+	return args.ret
+}
 
 `
 
@@ -1938,7 +1997,7 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 	}
 	fmt.Fprintf(f, "var _ unsafe.Pointer\n\n")
 
-	if len(bf.Funcs) > 0 || len(bf.Vars) > 0 || len(bf.LdFlags) > 0 {
+	if len(bf.Funcs) > 0 || len(bf.Vars) > 0 || len(bf.LdFlags) > 0 || bf.needCMalloc() {
 		importedLibs := make(map[string]bool)
 		for _, fn := range bf.Funcs {
 			if fn.Library != "" && !isStandardC(fn.Library) {
@@ -2007,6 +2066,20 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 					fmt.Fprintf(f, "//go:cgo_import_dynamic %s %s %q\n", impLocal(cSym), cSym, lib)
 				} else {
 					fmt.Fprintf(f, "//go:cgo_import_dynamic %s %s\n", impLocal(cSym), cSym)
+				}
+			}
+		}
+		if bf.needCMalloc() {
+			// C.CString, C.CBytes, and C.malloc allocate with libc malloc.
+			// Use a package-scoped import symbol if the package binds a
+			// static or non-libc malloc.
+			cMallocSym := cMallocImportSym(bf)
+			if !emittedImp[cMallocSym] {
+				emittedImp[cMallocSym] = true
+				if lib := dynImpLib(""); lib != "" {
+					fmt.Fprintf(f, "//go:cgo_import_dynamic %s malloc %q\n", impLocal(cMallocSym), lib)
+				} else {
+					fmt.Fprintf(f, "//go:cgo_import_dynamic %s malloc\n", impLocal(cMallocSym))
 				}
 			}
 		}
@@ -2086,6 +2159,29 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 
 	abiCfg := &ABIConfig{OS: goos, Arch: goarch, PtrSize: targetPtrSize(), CLongSize: targetCLongSize()}
 	definedCfuncs := make(map[string]bool)
+	if len(bf.UsedBuiltins) > 0 {
+		charGoType, _ := primitiveCtypeToGo("_Ctype_char")
+		sizeGoType, _ := primitiveCtypeToGo("_Ctype_size_t")
+		for _, bType := range []struct{ c, goType string }{
+			{"_Ctype_char", charGoType},
+			{"_Ctype_int", "int32"},
+			{"_Ctype_size_t", sizeGoType},
+		} {
+			if !emittedAlias[bType.c] {
+				emittedAlias[bType.c] = true
+				fmt.Fprintf(f, "type %s = %s\n", bType.c, bType.goType)
+			}
+		}
+		fmt.Fprintf(f, "\n")
+		if bf.needCMalloc() {
+			fmt.Fprintf(f, bindingCMallocProlog, cPrefix)
+		}
+		for _, name := range slices.Sorted(maps.Keys(bf.UsedBuiltins)) {
+			definedCfuncs[name] = true
+			fmt.Fprintf(f, "%s\n\n", strings.TrimSpace(builtinDefs[name]))
+		}
+	}
+
 	for _, fn := range bf.Funcs {
 		definedCfuncs[fn.Name] = true
 	}
@@ -2212,6 +2308,15 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 	}
 }
 
+func cMallocImportSym(bf *Bindings) string {
+	for _, fn := range bf.Funcs {
+		if fn.CName == "malloc" && (fn.Static || !fn.LibC) {
+			return fmt.Sprintf("_cgo%s_libc_malloc", cPrefix)
+		}
+	}
+	return "malloc"
+}
+
 func (p *Package) writeTrampolines(bf *Bindings) {
 	f := creat("_cgo_trampolines.s")
 	defer f.Close()
@@ -2219,10 +2324,22 @@ func (p *Package) writeTrampolines(bf *Bindings) {
 	fmt.Fprintf(f, "// Code generated by cmd/cgo; DO NOT EDIT.\n\n")
 	fmt.Fprintf(f, "#include \"textflag.h\"\n\n")
 
-	if len(bf.Funcs) > 0 {
-		abi := getABI(goos, goarch)
-		for _, fn := range bf.Funcs {
-			abi.writeTrampoline(f, fn, bf.TypeMap)
-		}
+	if len(bf.Funcs) == 0 && !bf.needCMalloc() {
+		return
+	}
+
+	abi := getABI(goos, goarch)
+	for _, fn := range bf.Funcs {
+		abi.writeTrampoline(f, fn, bf.TypeMap)
+	}
+	if bf.needCMalloc() {
+		sizeGoType, _ := primitiveCtypeToGo("_Ctype_size_t")
+		abi.writeTrampoline(f, BindingFunc{
+			Name:   "_cgo_malloc",
+			CName:  cMallocImportSym(bf),
+			Params: []string{sizeGoType},
+			Ret:    "unsafe.Pointer",
+			LibC:   true,
+		}, bf.TypeMap)
 	}
 }

@@ -128,6 +128,8 @@ import "C"
 
 func Call(x int32) int32 {
 	C.GlobalX = C.MY_CONST
+	cs := C.CString("hi")
+	_ = cs
 	staticY = Other
 	_ = C.OTHER
 	return Add(x, 1) + int32(C.Add(C.int(x), 2))
@@ -167,6 +169,8 @@ func Call(x int32) int32 {
 		`//go:linkname __cgo_var_staticY StaticY`,
 		`var _Cvar_staticY *int32 = (*int32)(unsafe.Pointer(&__cgo_var_staticY))`,
 		`type _Ctype_S = S`,
+		`//go:cgo_import_dynamic malloc malloc`,
+		`func _Cfunc_CString`,
 		`var _cgo_trampoline_Add byte`,
 		`func _Cfunc_Add(p0 int32, p1 int32) int32`,
 		`func Add(p0 int32, p1 int32) int32`,
@@ -206,6 +210,7 @@ func Call(x int32) int32 {
 		`(*_Cvar_staticY) = Other`,
 		`_Cundef_OTHER`,
 		`_Cfunc_Add(int32(x), 2)`,
+		`_Cfunc_CString("hi")`,
 	} {
 		if !strings.Contains(string(mainOut), want) {
 			t.Errorf("main.cgobinding.go missing %q:\n%s", want, mainOut)
@@ -227,6 +232,8 @@ func Call(x int32) int32 {
 		"CALL\thelper(SB)",
 		"_trampoline__PassS(SB), NOSPLIT|NOFRAME, $0-0",
 		"CALL\tPassS(SB)",
+		"_trampoline__cgo_malloc(SB), NOSPLIT|NOFRAME, $0-0",
+		"CALL\tmalloc(SB)",
 	} {
 		if !strings.Contains(tramp, want) {
 			t.Errorf("_cgo_trampolines.s missing %q:\n%s", want, tramp)
@@ -276,6 +283,24 @@ func TestBindingLibcAndTargetTypes(t *testing.T) {
 	}
 	if gt, _ := primitiveCtypeToGo("_Ctype_uintptr_t"); gt != "uint64" {
 		t.Errorf("linux/amd64 _Ctype_uintptr_t = %q, want uint64", gt)
+	}
+
+	// C.char is unsigned on linux/arm64 and signed on darwin/arm64 and linux/amd64.
+	for _, tc := range []struct {
+		os, arch string
+		want     string
+	}{
+		{"linux", "arm64", "uint8"},
+		{"linux", "riscv64", "uint8"},
+		{"aix", "ppc64", "uint8"},
+		{"darwin", "arm64", "int8"},
+		{"windows", "arm64", "int8"},
+		{"linux", "amd64", "int8"},
+	} {
+		goos, goarch = tc.os, tc.arch
+		if got, _ := primitiveCtypeToGo("_Ctype_char"); got != tc.want {
+			t.Errorf("%s/%s _Ctype_char = %q, want %q", tc.os, tc.arch, got, tc.want)
+		}
 	}
 
 	tmpDir := t.TempDir()
@@ -637,6 +662,69 @@ func UseMap() MyMap {
 		}
 		if n, ok := p.evalBindingArrayLen(e, nil); !ok || n != tc.want {
 			t.Errorf("evalBindingArrayLen(%q) = (%d, %v), want (%d, true)", tc.expr, n, ok, tc.want)
+		}
+	}
+}
+
+func TestBindingBuiltins(t *testing.T) {
+	origGoos, origGoarch, origObjDir := goos, goarch, *objDir
+	defer func() {
+		goos, goarch, *objDir = origGoos, origGoarch, origObjDir
+	}()
+
+	// Non-C. Go funcs named CString or binding static malloc must not collide
+	// with cgo builtins, and nocallback must still emit _Cgo_keepalive(&args),
+	// while MayCallback with a return value pins args via //go:cgo_unsafe_args.
+	goos, goarch = "linux", "arm64"
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "arm64")
+	tmpDir := t.TempDir()
+	srcFile := filepath.Join(tmpDir, "b.go")
+	input := `package p
+
+// #cgo nocallback fast_fn
+import "C"
+import "unsafe"
+
+//cgo:func CString my_cstr "libfoo.so"
+//cgo:func customMalloc malloc static
+//cgo:func FastFn fast_fn "libfoo.so"
+
+func CString(x int32) int32
+func customMalloc(n uint64) unsafe.Pointer
+func FastFn(x int32) int32
+
+func Use() {
+	_ = C.CString("hi")
+	_ = CString(1)
+	_ = customMalloc(8)
+	_ = FastFn(2)
+}
+`
+	if err := os.WriteFile(srcFile, []byte(input), 0644); err != nil {
+		t.Fatal(err)
+	}
+	*objDir = tmpDir + string(filepath.Separator)
+
+	p := newPackage(nil, token.NewFileSet())
+	p.processBinding([]string{srcFile})
+
+	gotypesBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_gotypes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotypes := string(gotypesBytes)
+	for _, want := range []string{
+		`type _Ctype_char = uint8`,
+		`_libc_malloc malloc`,
+		`func _Cfunc__go_CString(`,
+		`func _Cfunc_CString(`,
+		`//go:cgo_unsafe_args`,
+		`func _cgo_call__go_CString(args _cgo_arg__go_CString) int32`,
+		`_Cgo_keepalive(&args)`,
+	} {
+		if !strings.Contains(gotypes, want) {
+			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
 		}
 	}
 }

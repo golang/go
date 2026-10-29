@@ -358,8 +358,20 @@ type scalarSpec struct {
 	size    int64 // Fixed byte size, or 0 when ptr or cLong is set
 	ptr     bool  // Size equals ABIConfig.PtrSize
 	cLong   bool  // Size equals ABIConfig.CLongSize
+	cChar   bool  // Signedness depends on target C ABI (char)
 	signed  bool
 	isFloat bool
+}
+
+func targetCCharIsUnsigned(os, arch string) bool {
+	if os == "darwin" || os == "ios" || os == "windows" {
+		return false
+	}
+	switch arch {
+	case "arm", "arm64", "ppc64", "ppc64le", "riscv64", "s390x":
+		return true
+	}
+	return false
 }
 
 var scalarTypes = map[string]scalarSpec{
@@ -375,7 +387,7 @@ var scalarTypes = map[string]scalarSpec{
 	"_Ctype_uchar":     {size: 1},
 	"_Ctype__Bool":     {size: 1},
 	"int8":             {size: 1, signed: true},
-	"_Ctype_char":      {size: 1, signed: true},
+	"_Ctype_char":      {size: 1, cChar: true},
 	"_Ctype_schar":     {size: 1, signed: true},
 	"uint16":           {size: 2},
 	"_Ctype_ushort":    {size: 2},
@@ -413,7 +425,11 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 			}
 			sz = cfg.CLongSize
 		}
-		d := typeInfo{size: sz, align: sz, signed: s.signed, isFloat: s.isFloat}
+		signed := s.signed
+		if s.cChar {
+			signed = !targetCCharIsUnsigned(cfg.OS, cfg.Arch)
+		}
+		d := typeInfo{size: sz, align: sz, signed: signed, isFloat: s.isFloat}
 		if sz > 0 {
 			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat}}
 			d.fieldsOK = true
