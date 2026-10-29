@@ -159,6 +159,18 @@ func TestParseSuccess(t *testing.T) {
 	}, {
 		s: "urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
 		u: u1,
+	}, {
+		s: "urn:uuid:F81D4FAE-7DEC-11D0-A765-00A0C91E6BF6",
+		u: u1,
+	}, {
+		s: "URN:UUID:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+		u: u1,
+	}, {
+		s: "urn:UUID:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+		u: u1,
+	}, {
+		s: "uRn:UuId:f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+		u: u1,
 	}} {
 		u, err := uuid.Parse(test.s)
 		if err != nil {
@@ -193,6 +205,8 @@ func TestParseErrors(t *testing.T) {
 		"{00000000000000000000000000000000}",
 		"{urn:uuid:00000000-0000-0000-0000-000000000000}",
 		"urn:uuid:00000000000000000000000000000000",
+		// Unexpected prefix of the expected length.
+		"abc:xxyz:00000000-0000-0000-0000-000000000000",
 	} {
 		got, err := uuid.Parse(test)
 		if err == nil {
