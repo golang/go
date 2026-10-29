@@ -233,8 +233,22 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 	case builtin:
 		// no need to check for non-genericity here
 		id := x.id
-		if !check.builtin(x, call, id) {
+		if builtin := predeclaredFuncs[id].builtin; builtin != nil {
 			x.invalidate()
+			// append is the only built-in that permits the use of ... for the last argument.
+			// Check it here for all built-ins except append.
+			if hasDots(call) && id != _Append {
+				check.errorf(dddErrPos(call),
+					InvalidDotDotDot,
+					invalidOp+"invalid use of ... with built-in %s", predeclaredFuncs[id].name)
+				check.use(call.ArgList...)
+			} else {
+				builtin(check, x, call)
+			}
+		} else {
+			if !check.builtin(x, call, id) {
+				x.invalidate()
+			}
 		}
 		x.expr = call
 		// a non-constant result implies a function call

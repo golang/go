@@ -7,6 +7,7 @@
 package types2
 
 import (
+	"cmd/compile/internal/syntax"
 	"go/constant"
 	"strings"
 )
@@ -179,42 +180,80 @@ var predeclaredFuncs = [...]struct {
 	nargs    int
 	variadic bool
 	kind     exprKind
+	builtin  func(*Checker, *operand, *syntax.CallExpr)
 }{
-	_Append:  {"append", 1, true, expression},
-	_Cap:     {"cap", 1, false, expression},
-	_Clear:   {"clear", 1, false, statement},
-	_Close:   {"close", 1, false, statement},
-	_Complex: {"complex", 2, false, expression},
-	_Copy:    {"copy", 2, false, statement},
-	_Delete:  {"delete", 2, false, statement},
-	_Imag:    {"imag", 1, false, expression},
-	_Len:     {"len", 1, false, expression},
-	_Make:    {"make", 1, true, expression},
-	_Max:     {"max", 1, true, expression},
-	_Min:     {"min", 1, true, expression},
-	_New:     {"new", 1, false, expression},
-	_Panic:   {"panic", 1, false, statement},
-	_Print:   {"print", 0, true, statement},
-	_Println: {"println", 0, true, statement},
-	_Real:    {"real", 1, false, expression},
-	_Recover: {"recover", 0, false, statement},
+	_Append:  {"append", 1, true, expression, nil},
+	_Cap:     {"cap", 1, false, expression, nil},
+	_Clear:   {"clear", 1, false, statement, nil},
+	_Close:   {"close", 1, false, statement, nil},
+	_Complex: {"complex", 2, false, expression, nil},
+	_Copy:    {"copy", 2, false, statement, nil},
+	_Delete:  {"delete", 2, false, statement, nil},
+	_Imag:    {"imag", 1, false, expression, nil},
+	_Len:     {"len", 1, false, expression, nil},
+	_Make:    {"make", 1, true, expression, nil},
+	_Max:     {"max", 1, true, expression, nil},
+	_Min:     {"min", 1, true, expression, nil},
+	_New:     {"new", 1, false, expression, nil},
+	_Panic:   {"panic", 1, false, statement, nil},
+	_Print:   {"print", 0, true, statement, nil},
+	_Println: {"println", 0, true, statement, nil},
+	_Real:    {"real", 1, false, expression, nil},
+	_Recover: {"recover", 0, false, statement, nil},
 
-	_Add:        {"Add", 2, false, expression},
-	_Alignof:    {"Alignof", 1, false, expression},
-	_Offsetof:   {"Offsetof", 1, false, expression},
-	_Sizeof:     {"Sizeof", 1, false, expression},
-	_Slice:      {"Slice", 2, false, expression},
-	_SliceData:  {"SliceData", 1, false, expression},
-	_String:     {"String", 2, false, expression},
-	_StringData: {"StringData", 1, false, expression},
+	_Add:        {"Add", 2, false, expression, nil},
+	_Alignof:    {"Alignof", 1, false, expression, nil},
+	_Offsetof:   {"Offsetof", 1, false, expression, nil},
+	_Sizeof:     {"Sizeof", 1, false, expression, nil},
+	_Slice:      {"Slice", 2, false, expression, nil},
+	_SliceData:  {"SliceData", 1, false, expression, nil},
+	_String:     {"String", 2, false, expression, nil},
+	_StringData: {"StringData", 1, false, expression, nil},
 
-	_Assert: {"assert", 1, false, statement},
-	_Trace:  {"trace", 0, true, statement},
+	_Assert: {"assert", 1, false, statement, nil},
+	_Trace:  {"trace", 0, true, statement, nil},
+}
+
+// Setting the builtin field when initializing predeclaredFuncs above
+// leads to an initialization cycle. Keep the builtins in this table
+// and use it to fix up predeclaredFuncs below.
+var builtins = [...]func(*Checker, *operand, *syntax.CallExpr){
+	_Append:  (*Checker)._Append,
+	_Cap:     (*Checker)._Cap,
+	_Clear:   (*Checker)._Clear,
+	_Close:   (*Checker)._Close,
+	_Complex: (*Checker)._Complex,
+	_Copy:    (*Checker)._Copy,
+	_Delete:  (*Checker)._Delete,
+	_Imag:    (*Checker)._Imag,
+	_Len:     (*Checker)._Len,
+	_Make:    (*Checker)._Make,
+	_Max:     (*Checker)._Max,
+	_Min:     (*Checker)._Min,
+	_New:     (*Checker)._New,
+	_Panic:   (*Checker)._Panic,
+	_Print:   (*Checker)._Print,
+	_Println: (*Checker)._Println,
+	_Real:    (*Checker)._Real,
+	_Recover: (*Checker)._Recover,
+
+	_Add:        (*Checker)._Add,
+	_Alignof:    (*Checker)._Alignof,
+	_Offsetof:   (*Checker)._Offsetof,
+	_Sizeof:     (*Checker)._Sizeof,
+	_Slice:      (*Checker)._Slice,
+	_SliceData:  (*Checker)._SliceData,
+	_String:     (*Checker)._String,
+	_StringData: (*Checker)._StringData,
+
+	_Assert: (*Checker)._Assert,
+	_Trace:  (*Checker)._Trace,
 }
 
 func defPredeclaredFuncs() {
 	for i := range predeclaredFuncs {
 		id := builtinId(i)
+		predeclaredFuncs[id].builtin = builtins[id] // fix up predeclaredFuncs
 		if id == _Assert || id == _Trace {
 			continue // only define these in testing environment
 		}
