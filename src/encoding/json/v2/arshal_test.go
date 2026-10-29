@@ -148,6 +148,14 @@ type (
 		FizzBuzz int
 		*structNestedAddr
 	}
+	structUnexportedEmbeddedPointerMapStringInt struct {
+		A int `json:",omitzero"`
+		*structEmbedMapStringInt
+	}
+	structUnexportedEmbeddedPointerTextValue struct {
+		A int `json:",omitzero"`
+		*structEmbedEmbedPointerTextValue
+	}
 	structNestedAddr struct {
 		Addr netip.Addr
 	}
@@ -7416,6 +7424,32 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `{"FizzBuzz":5,"Addr":"192.168.0.1"}`,
 		inVal:   new(structUnexportedEmbeddedStructPointer{}),
 		wantErr: EU(errNilField).withPos(`{"FizzBuzz":5,"Addr":`, "/Addr").withType(0, T[structUnexportedEmbeddedStructPointer]()),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerMapStringInt),
+		want:    addr(structUnexportedEmbeddedPointerMapStringInt{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerMapStringInt]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: addr(structUnexportedEmbeddedPointerMapStringInt{structEmbedMapStringInt: new(structEmbedMapStringInt)}),
+		want:  addr(structUnexportedEmbeddedPointerMapStringInt{1, &structEmbedMapStringInt{map[string]int{"fizz": 2, "buzz": 3}}}),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerTextValue),
+		want:    addr(structUnexportedEmbeddedPointerTextValue{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerTextValue]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: addr(structUnexportedEmbeddedPointerTextValue{structEmbedEmbedPointerTextValue: new(structEmbedEmbedPointerTextValue)}),
+		want: addr(structUnexportedEmbeddedPointerTextValue{A: 1, structEmbedEmbedPointerTextValue: &structEmbedEmbedPointerTextValue{
+			X: struct {
+				X *jsontext.Value `json:",embed"`
+			}{addr(jsontext.Value(`{"fizz":2,"buzz":3}`))},
+		}}),
 	}, {
 		name:  jsontest.Name("Structs/UnexportedEmbeddedStructPointer/Nil"),
 		inBuf: `{"Bool":true,"FizzBuzz":10,"Addr":"192.168.0.1"}`,
