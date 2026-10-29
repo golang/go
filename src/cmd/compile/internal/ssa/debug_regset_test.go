@@ -14,6 +14,7 @@ import (
 // TestVarLocHighRegister checks that a variable in a register numbered 64 or
 // above (e.g. an arm64 P register) keeps its location.
 func TestVarLocHighRegister(t *testing.T) {
+	t.Parallel()
 	const lo, hi = 3, 70
 
 	loc := VarLoc{Registers: RegisterSet{}.AddReg(hi)}

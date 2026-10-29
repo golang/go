@@ -67,6 +67,7 @@ func testDebugLinesDefault(t *testing.T, gcflags, file, function string, wantStm
 }
 
 func TestDebugLinesSayHi(t *testing.T) {
+	t.Parallel()
 	// This test is potentially fragile, the goal is that debugging should step properly through "sayhi"
 	// If the blocks are reordered in a way that changes the statement order but execution flows correctly,
 	// then rearrange the expected numbers.  Register abi and not-register-abi also have different sequences,
@@ -76,6 +77,7 @@ func TestDebugLinesSayHi(t *testing.T) {
 }
 
 func TestDebugLinesPushback(t *testing.T) {
+	t.Parallel()
 	unixOnly(t)
 
 	switch testGoArch() {
@@ -89,6 +91,7 @@ func TestDebugLinesPushback(t *testing.T) {
 }
 
 func TestDebugLinesConvert(t *testing.T) {
+	t.Parallel()
 	unixOnly(t)
 
 	switch testGoArch() {
@@ -102,6 +105,7 @@ func TestDebugLinesConvert(t *testing.T) {
 }
 
 func TestInlineLines(t *testing.T) {
+	t.Parallel()
 	if runtime.GOARCH != "amd64" && *testGoArchFlag == "" {
 		// As of september 2021, works for everything except mips64, but still potentially fragile
 		t.Skip("only runs for amd64 unless -arch explicitly supplied")
@@ -112,10 +116,12 @@ func TestInlineLines(t *testing.T) {
 }
 
 func TestDebugLines_53456(t *testing.T) {
+	t.Parallel()
 	testDebugLinesDefault(t, "-N -l", "b53456.go", "(*T).Inc", []int{15, 16, 17, 18}, true)
 }
 
 func TestDebugLines_81705(t *testing.T) {
+	t.Parallel()
 	unixOnly(t)
 
 	// A switch with no tag must have a statement on its own line
@@ -124,6 +130,7 @@ func TestDebugLines_81705(t *testing.T) {
 }
 
 func TestDebugLines_81705TypeSwitch(t *testing.T) {
+	t.Parallel()
 	unixOnly(t)
 	switch testGoArch() {
 	default:
@@ -143,12 +150,14 @@ func TestDebugLines_81705TypeSwitch(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			testDebugLines(t, test.gcflags, "i81705b.go", "typeSwitch", test.wantStmts, false)
 		})
 	}
 }
 
 func TestDebugLines_74576(t *testing.T) {
+	t.Parallel()
 	unixOnly(t)
 
 	switch testGoArch() {
@@ -166,7 +175,6 @@ func TestDebugLines_74576(t *testing.T) {
 			{"i74576b.go", []int{12, 13, 13, 14}},
 			{"i74576c.go", []int{12, 13, 13, 14}},
 		}
-		t.Parallel()
 		for _, test := range tests {
 			t.Run(test.file, func(t *testing.T) {
 				t.Parallel()

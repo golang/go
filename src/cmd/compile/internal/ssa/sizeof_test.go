@@ -14,6 +14,7 @@ import (
 // Assert that the size of important structures do not change unexpectedly.
 
 func TestSizeof(t *testing.T) {
+	t.Parallel()
 	const _64bit = unsafe.Sizeof(uintptr(0)) == 8
 
 	var tests = []struct {

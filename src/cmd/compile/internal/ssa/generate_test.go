@@ -24,6 +24,7 @@ const expectedHeader = "// Code generated from _gen/" // this is the common part
 // verifies that they start with the prefix of a generated header,
 // and checks that the only source files with that header were actually generated.
 func TestGeneratedFilesUpToDate(t *testing.T) {
+	t.Parallel()
 	testenv.MustHaveGoRun(t)
 	wd, err := os.Getwd()
 	if err != nil {

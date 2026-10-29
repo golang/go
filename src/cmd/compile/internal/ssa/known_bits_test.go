@@ -34,6 +34,7 @@ func allPossibleValuesRejection(value, known, max int64) func(yield func(v int64
 }
 
 func TestAllPossibleValues(t *testing.T) {
+	t.Parallel()
 	// We can't test too much since it scales exponentially with the number of unknown bits.
 	const tryMask = int64(0b0111_1111)
 	for i := int64(0); uint64(i) <= uint64(tryMask); i++ {

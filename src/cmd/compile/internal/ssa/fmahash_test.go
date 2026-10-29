@@ -17,6 +17,7 @@ import (
 // little in each run.bash.  It does not check or run the generated code.
 // The test file is however a useful example of fused-vs-cascaded multiply-add.
 func TestFmaHash(t *testing.T) {
+	t.Parallel()
 	switch runtime.GOOS {
 	case "linux", "darwin":
 	default:

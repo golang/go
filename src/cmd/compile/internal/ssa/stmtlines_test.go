@@ -56,6 +56,7 @@ type Line struct {
 }
 
 func TestStmtLines(t *testing.T) {
+	t.Parallel()
 	if !platform.ExecutableHasDWARF(runtime.GOOS, runtime.GOARCH) {
 		t.Skipf("skipping on %s/%s: no DWARF symbol table in executables", runtime.GOOS, runtime.GOARCH)
 	}

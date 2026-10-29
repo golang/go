@@ -85,6 +85,7 @@ func BenchmarkIterDomFrontierPlus(b *testing.B) {
 // A def in an unreachable block (u → b3) must not join the merge set,
 // and the header (b2) must be in it.
 func TestIterDomFrontierPlusSeedAtMerge(t *testing.T) {
+	t.Parallel()
 	//
 	//	x := 0
 	// loop:
@@ -119,6 +120,7 @@ func TestIterDomFrontierPlusSeedAtMerge(t *testing.T) {
 }
 
 func TestIterDomFrontierPlusOrigin(t *testing.T) {
+	t.Parallel()
 	f := (&Config{}).NewFunc(nil, &Cache{})
 	entry := f.NewBlock(block.BlockIf)
 	f.Entry = entry

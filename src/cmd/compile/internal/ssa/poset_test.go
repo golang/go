@@ -146,6 +146,7 @@ func testPosetOps(t *testing.T, ops []posetTestOp) {
 }
 
 func TestPoset(t *testing.T) {
+	t.Parallel()
 	testPosetOps(t, []posetTestOp{
 		{Ordered_Fail, 123, 124},
 
@@ -361,6 +362,7 @@ func TestPoset(t *testing.T) {
 }
 
 func TestPosetStrict(t *testing.T) {
+	t.Parallel()
 
 	testPosetOps(t, []posetTestOp{
 		{Checkpoint, 0, 0},
@@ -429,6 +431,7 @@ func TestPosetStrict(t *testing.T) {
 }
 
 func TestPosetCollapse(t *testing.T) {
+	t.Parallel()
 	testPosetOps(t, []posetTestOp{
 		{Checkpoint, 0, 0},
 		// Create a complex graph of <= relations among nodes between 10 and 25.
@@ -539,6 +542,7 @@ func TestPosetCollapse(t *testing.T) {
 }
 
 func TestPosetSetEqual(t *testing.T) {
+	t.Parallel()
 	testPosetOps(t, []posetTestOp{
 		// 10<=20<=30<40,  20<=100<110
 		{Checkpoint, 0, 0},
@@ -613,6 +617,7 @@ func TestPosetSetEqual(t *testing.T) {
 }
 
 func TestPosetNonEqual(t *testing.T) {
+	t.Parallel()
 	testPosetOps(t, []posetTestOp{
 		{Equal_Fail, 10, 20},
 		{NonEqual_Fail, 10, 20},
