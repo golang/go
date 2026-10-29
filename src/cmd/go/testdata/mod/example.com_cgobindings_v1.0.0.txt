@@ -1,0 +1,58 @@
+Module example.com/cgobindings has packages that cgo bindings mode
+(CGO_ENABLED=bindings) loads with and without their import "C" files.
+See cgo_bindings_index.txt.
+-- .mod --
+module example.com/cgobindings
+
+go 1.28
+-- .info --
+{"Version":"v1.0.0"}
+-- go.mod --
+module example.com/cgobindings
+
+go 1.28
+-- withcfiles/bind.go --
+package withcfiles
+
+// #include <stdlib.h>
+import "C"
+
+//cgo:func Abs abs libc
+func Abs(int32) int32
+-- withcfiles/cfile.c --
+int unused;
+-- withc/withc.go --
+package withc
+
+// static int one(void) { return 1; }
+import "C"
+
+func One() int { return int(C.one()) }
+-- withc/fallback.go --
+//go:build !cgo
+
+package withc
+
+func One() int { return 1 }
+-- fallback/bind.go --
+//go:build cgo || cgobindings
+
+package fallback
+
+import "C"
+
+//cgo:func abs abs libc
+func abs(int32) int32
+
+func Abs(x int32) int32 { return abs(x) }
+-- fallback/nocgo.go --
+//go:build !cgo && !cgobindings
+
+package fallback
+
+func Abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}

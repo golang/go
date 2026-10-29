@@ -1,0 +1,479 @@
+# Test building and running a cgo package using //cgo:func pragmas without a
+# C compiler toolchain.
+
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+
+env CGO_ENABLED=bindings
+# Make any use of the C compiler or external linker by the go command fail.
+# Targets that require external linking for cgo (cgolinkext) need the real
+# C toolchain to link, so CC is left alone there. (The script's cc command
+# always runs the test's C compiler, regardless of $CC.)
+[!GOOS:windows] [!cgolinkext] env CC=/bin/false
+[GOOS:windows] env CC=nonexistent-cc
+
+# A binding package is built without a C compiler, so it may not also contain
+# C files (or other sources needing a C compiler), under both
+# CGO_ENABLED=bindings and CGO_ENABLED=1. Without them, a binding package
+# calling libc works.
+cd withcfile
+! go build .
+stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c$'
+env CGO_ENABLED=1
+! go build .
+stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c$'
+rm cfile.c
+go run .
+stdout '^abs=7 cabs=7 strlen=5$'
+env CGO_ENABLED=bindings
+go run .
+stdout '^abs=7 cabs=7 strlen=5$'
+
+# Building with CGO_ENABLED=bindings requires the cgobindings experiment, but
+# commands that do not build, like go env and go version, still work.
+env origGOEXPERIMENT=$GOEXPERIMENT
+env GOEXPERIMENT=nocgobindings
+go env CGO_ENABLED
+stdout '^bindings$'
+go version
+! go build .
+stderr '^go: CGO_ENABLED=bindings requires GOEXPERIMENT=cgobindings$'
+env GOEXPERIMENT=$origGOEXPERIMENT
+
+# Verify build constraints across CGO_ENABLED=bindings, 1, and 0:
+# //go:build cgobindings and cgo || cgobindings files (Go + asm) are selected
+# in bindings and 1 modes, !cgo && !cgobindings fallbacks and their imports
+# are selected only in 0 mode, and the cgo tag is false in bindings mode.
+cd ../dual
+go list -f '{{.CgoFiles}}' .
+stdout '^\[binding\.go\]$'
+go list -deps .
+! stdout 'dual/nocgoonly'
+go list -f '{{.IgnoredGoFiles}}' .
+stdout 'cgo_only\.go'
+go run .
+stdout '^mode=binding-helper abs=128$'
+
+env CGO_ENABLED=1
+go list -f '{{.CgoFiles}}' .
+stdout '^\[binding\.go\]$'
+go list -f '{{.GoFiles}}' .
+stdout 'cgo_only\.go'
+go run .
+stdout '^mode=binding-helper abs=128$'
+
+env CGO_ENABLED=0
+go list -f '{{.CgoFiles}}' .
+stdout '^\[\]$'
+go list -deps .
+stdout 'dual/nocgoonly'
+go run .
+stdout '^mode=nocgo-fallback$'
+env CGO_ENABLED=bindings
+
+# Bound functions may only use types with C equivalents.
+cd ../badtype
+! go build .
+stderr '//cgo:func Puts: parameter type string cannot be passed to C: it contains a Go string'
+
+# Arguments that might contain Go pointers get cgocheck pointer checks, as in
+# traditional cgo. Calls in the package check only the memory that &x, &a[i],
+# and a[i:j] arguments refer to; indirect calls check the whole allocation.
+cd ../checks
+go run . narrow
+stdout '^narrow ok$'
+! go run . unpinned
+stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
+go run . pinned
+stdout '^pinned ok$'
+! go run . indirect
+stderr 'argument of cgo function has Go pointer to unpinned Go pointer'
+env GODEBUG=cgocheck=0
+go run . unpinned
+stdout '^unpinned ok$'
+env GODEBUG=
+
+# The remaining tests compile a C shared library and static object with the
+# script's cc command, which uses the test's C compiler rather than $CC.
+[!GOOS:darwin] [!GOOS:linux] stop
+[!exec:cc] stop
+
+cd ../p
+cc -fPIC -shared -o libx.so ../c/c.c
+[GOOS:linux] env LD_LIBRARY_PATH=.
+go run .
+stdout '^add=30$'
+stdout '^addFloat=6.25$'
+stdout '^sumTen=55$'
+stdout '^packedScalars=-100996$'
+stdout '^packedFloats=-391$'
+stdout '^ptr=42$'
+stdout '^strlen=5$'
+
+# A static symbol is resolved at link time from a .syso file. Host objects
+# in non-standard packages make cmd/link default to external linking, so
+# request internal linking explicitly, which works with CC=/bin/false.
+# Targets that require external linking (cgolinkext) link with the real C
+# toolchain, since CC was not overridden for them above.
+cd ../s
+cc -fPIC -c -o static.syso ../c/static.c
+[!cgolinkext] go run -ldflags=-linkmode=internal .
+[cgolinkext] go run .
+stdout '^static=42$'
+
+-- c/c.c --
+int Add(int a, int b) { return a + b; }
+double AddFloat(float a, double b) { return (double)a + b; }
+long long SumTen(
+	long long a1, long long a2, long long a3, long long a4, long long a5,
+	long long a6, long long a7, long long a8, long long a9, long long a10
+) {
+	return a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10;
+}
+long long PackedScalars(
+	long long r0, long long r1, long long r2, long long r3,
+	long long r4, long long r5, long long r6, long long r7,
+	signed char a, short b, signed char c, _Bool d, int e, long long f, unsigned char g
+) {
+	if (r0 != 1 || r1 != 2 || r2 != 3 || r3 != 4 || r4 != 5 || r5 != 6 || r6 != 7 || r7 != 8)
+		return -1;
+	if (a != -5 || b != -1234 || c != 42 || !d || e != -100000 || f != 0x1122334455667788LL || g != 200)
+		return -2;
+	return (long long)a + (long long)b + (long long)c + (d ? 1 : 0) + (long long)e + (long long)g;
+}
+int PackedFloats(
+	int r0, int r1, int r2, int r3,
+	int r4, int r5, int r6, int r7,
+	float f0, float f1, float f2, float f3,
+	float f4, float f5, float f6, float f7,
+	short s, float f8, signed char b
+) {
+	if (r0 != 1 || r1 != 2 || r2 != 3 || r3 != 4 || r4 != 5 || r5 != 6 || r6 != 7 || r7 != 8)
+		return -1;
+	if (f0 != 1.0f || f1 != 2.0f || f2 != 3.0f || f3 != 4.0f || f4 != 5.0f || f5 != 6.0f || f6 != 7.0f || f7 != 8.0f)
+		return -2;
+	if (s != -321 || f8 != 3.5f || b != -77)
+		return -3;
+	return (int)s + (int)(f8 * 2.0f) + (int)b;
+}
+void WritePtr(int *p, int val) { *p = val; }
+
+-- c/static.c --
+int StaticTwice(int x) { return 2 * x; }
+
+-- p/go.mod --
+module p
+
+go 1.28
+
+-- p/binding.go --
+package main
+
+// #cgo LDFLAGS: ./libx.so
+import "C"
+
+//cgo:func Add C.Add "libx.so"
+//cgo:func AddFloat AddFloat "libx.so"
+//cgo:func SumTen SumTen "libx.so"
+//cgo:func PackedScalars PackedScalars "libx.so"
+//cgo:func PackedFloats PackedFloats "libx.so"
+//cgo:func WritePtr WritePtr "libx.so"
+
+func Add(a int32, b int32) int32
+
+func AddFloat(a float32, b float64) float64
+
+func SumTen(a1, a2, a3, a4, a5, a6, a7, a8, a9, a10 int64) int64
+
+func PackedScalars(
+	r0, r1, r2, r3, r4, r5, r6, r7 int64,
+	a int8, b int16, c int8, d bool, e int32, f int64, g uint8,
+) int64
+
+func PackedFloats(
+	r0, r1, r2, r3, r4, r5, r6, r7 int32,
+	f0, f1, f2, f3, f4, f5, f6, f7 float32,
+	s int16, f8 float32, b int8,
+) int32
+
+func WritePtr(p *int32, val int32)
+
+func Strlen(s *byte) uintptr
+
+-- p/main.go --
+package main
+
+import "fmt"
+import "C"
+
+// Pragmas may appear in any file that imports "C".
+//cgo:func Strlen strlen libc
+
+func main() {
+	fmt.Printf("add=%d\n", Add(10, 20)+int32(C.Add(0, 0)))
+	fmt.Printf("addFloat=%.2f\n", AddFloat(2.5, 3.75))
+	fmt.Printf("sumTen=%d\n", SumTen(1, 2, 3, 4, 5, 6, 7, 8, 9, 10))
+	fmt.Printf("packedScalars=%d\n", PackedScalars(1, 2, 3, 4, 5, 6, 7, 8, -5, -1234, 42, true, -100000, 0x1122334455667788, 200))
+	fmt.Printf("packedFloats=%d\n", PackedFloats(1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8, -321, 3.5, -77))
+	var v int32
+	WritePtr(&v, 42)
+	fmt.Printf("ptr=%d\n", v)
+	fmt.Printf("strlen=%d\n", Strlen(&[]byte("hello\x00")[0]))
+}
+
+-- s/go.mod --
+module s
+
+go 1.28
+
+-- s/main.go --
+package main
+
+import "C"
+import "fmt"
+
+//cgo:func StaticTwice StaticTwice static
+
+func StaticTwice(x int32) int32
+
+func main() {
+	fmt.Printf("static=%d\n", StaticTwice(21))
+}
+
+-- withcfile/go.mod --
+module withcfile
+
+go 1.28
+
+-- withcfile/cfile.c --
+int unused;
+
+-- withcfile/binding.go --
+package main
+
+import "C"
+
+// Pragmas may appear in any file that imports "C".
+//cgo:func Strlen strlen libc
+
+-- withcfile/main.go --
+package main
+
+// #include <stdlib.h>
+import "C"
+import "fmt"
+
+//cgo:func Abs C.abs libc
+func Abs(int32) int32
+
+func Strlen(s *byte) uintptr
+
+func main() {
+	fmt.Printf("abs=%d cabs=%d strlen=%d\n", Abs(-7), C.abs(-7), Strlen(&[]byte("hello\x00")[0]))
+}
+
+-- dual/go.mod --
+module dual
+
+go 1.28
+
+-- dual/nocgoonly/nocgoonly.go --
+//go:build !cgo && !cgobindings
+
+package nocgoonly
+
+func Label() string { return "nocgo" }
+
+-- dual/a_nocgo.go --
+//go:build !cgo && !cgobindings
+
+package main
+
+import "dual/nocgoonly"
+
+func mode() string {
+	if asmSuffix() != 7 {
+		panic("unexpected asmSuffix")
+	}
+	return nocgoonly.Label() + "-fallback"
+}
+
+-- dual/nocgo_asm.go --
+//go:build !cgo && !cgobindings && (amd64 || arm64)
+
+package main
+
+func asmSuffix() int
+
+-- dual/nocgo_amd64.s --
+//go:build !cgo && !cgobindings
+
+#include "textflag.h"
+
+TEXT ·asmSuffix(SB),NOSPLIT,$0-8
+	MOVQ $7, ret+0(FP)
+	RET
+
+-- dual/nocgo_arm64.s --
+//go:build !cgo && !cgobindings
+
+#include "textflag.h"
+
+TEXT ·asmSuffix(SB),NOSPLIT,$0-8
+	MOVD $7, R0
+	MOVD R0, ret+0(FP)
+	RET
+
+-- dual/nocgo_other.go --
+//go:build !cgo && !cgobindings && !amd64 && !arm64
+
+package main
+
+func asmSuffix() int { return 7 }
+
+-- dual/cgo_only.go --
+//go:build cgo
+
+package main
+
+const _cgoTagEnabled = true
+
+-- dual/binding.go --
+//go:build cgobindings
+
+package main
+
+import "C"
+
+//cgo:func Abs abs libc
+func Abs(int32) int32
+
+-- dual/helper_cgo.go --
+//go:build cgo || cgobindings
+
+package main
+
+import "fmt"
+
+func mode() string {
+	return fmt.Sprintf("binding-helper abs=%d", Abs(-120)+cgoAsmBonus())
+}
+
+-- dual/cgo_asm.go --
+//go:build (cgo || cgobindings) && (amd64 || arm64)
+
+package main
+
+func cgoAsmBonus() int32
+
+-- dual/cgo_amd64.s --
+//go:build cgo || cgobindings
+
+#include "textflag.h"
+
+TEXT ·cgoAsmBonus(SB),NOSPLIT,$0-4
+	MOVL $8, ret+0(FP)
+	RET
+
+-- dual/cgo_arm64.s --
+//go:build cgo || cgobindings
+
+#include "textflag.h"
+
+TEXT ·cgoAsmBonus(SB),NOSPLIT,$0-4
+	MOVD $8, R0
+	MOVW R0, ret+0(FP)
+	RET
+
+-- dual/cgo_other.go --
+//go:build (cgo || cgobindings) && !amd64 && !arm64
+
+package main
+
+func cgoAsmBonus() int32 { return 8 }
+
+-- dual/main.go --
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Printf("mode=%s\n", mode())
+}
+
+-- badtype/go.mod --
+module badtype
+
+go 1.28
+
+-- badtype/main.go --
+package main
+
+import "C"
+
+//cgo:func Puts puts libc
+func Puts(s string) int32
+
+func main() {
+	Puts("hello")
+}
+
+-- checks/go.mod --
+module checks
+
+go 1.28
+
+-- checks/main.go --
+package main
+
+import "C"
+
+import (
+	"fmt"
+	"os"
+	"runtime"
+	"unsafe"
+)
+
+//cgo:func Memset C.memset libc
+func Memset(p unsafe.Pointer, c int32, n uintptr) unsafe.Pointer
+
+type S struct {
+	p *int32
+}
+
+type conn struct {
+	buf    *int32 // an unpinned Go pointer
+	outLen int32
+}
+
+func main() {
+	switch os.Args[1] {
+	case "narrow":
+		// Only c.outLen is checked, not the rest of c.
+		c := &conn{buf: new(int32)}
+		Memset(unsafe.Pointer(&c.outLen), 0, 4)
+		C.memset(unsafe.Pointer(&c.outLen), 0, 4)
+		// Only the elements of ss are checked.
+		ss := []S{{}, {}}
+		other := &struct {
+			ss  []S
+			buf *int32
+		}{ss, new(int32)}
+		Memset(unsafe.Pointer(&other.ss[1]), 0, 0)
+	case "unpinned":
+		Memset(unsafe.Pointer(&S{p: new(int32)}), 0, 0)
+	case "pinned":
+		var pinner runtime.Pinner
+		s := &S{p: new(int32)}
+		pinner.Pin(s.p)
+		Memset(unsafe.Pointer(s), 0, 0)
+		pinner.Unpin()
+	case "indirect":
+		// Without the call site, the wrapper checks all of c.
+		c := &conn{buf: new(int32)}
+		f := Memset
+		f(unsafe.Pointer(&c.outLen), 0, 4)
+	}
+	fmt.Printf("%s ok\n", os.Args[1])
+}

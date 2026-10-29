@@ -1,0 +1,60 @@
+# With CGO_ENABLED=bindings, the module index makes the same decisions
+# about which packages are cgo binding packages as loading packages
+# without it.
+
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+
+env CGO_ENABLED=bindings
+[!GOOS:windows] [!cgolinkext] env CC=/bin/false
+[GOOS:windows] env CC=nonexistent-cc
+env GOFLAGS=-modcacherw
+
+go get example.com/cgobindings@v1.0.0
+
+# Binding packages from the module cache, which is indexed, build without
+# a C compiler. withc has no binding pragmas, so it is built as with
+# CGO_ENABLED=0, using its fallback.
+go run .
+stdout '^withc=1 fallback=4$'
+
+# A package with binding pragmas that also contains C files is an error.
+! go build example.com/cgobindings/withcfiles
+stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c'
+
+# The module index and direct loading agree, for the module's packages
+# and for the standard library.
+go list -e -f '{{.ImportPath}} {{.CgoFiles}} {{.GoFiles}} {{.IgnoredGoFiles}} {{.CFiles}}' example.com/cgobindings/...
+cp stdout index.txt
+stdout '^example.com/cgobindings/withcfiles \[bind.go\] \[\] \[\] \[cfile.c\]$'
+stdout '^example.com/cgobindings/fallback \[bind.go\] \[\] \[nocgo.go\] \[\]$'
+stdout '^example.com/cgobindings/withc \[\] \[fallback.go\] \[withc.go\] \[\]$'
+go list -f '{{.ImportPath}} {{.CgoFiles}} {{.GoFiles}} {{.IgnoredGoFiles}}' std
+cp stdout std-index.txt
+stdout '^runtime/cgo \[\] \[.+\]'
+
+env GODEBUG=goindex=0
+! go build example.com/cgobindings/withcfiles
+stderr 'source files requiring a C compiler not allowed in a package using cgo binding pragmas: cfile.c'
+go list -e -f '{{.ImportPath}} {{.CgoFiles}} {{.GoFiles}} {{.IgnoredGoFiles}} {{.CFiles}}' example.com/cgobindings/...
+cmp stdout index.txt
+go list -f '{{.ImportPath}} {{.CgoFiles}} {{.GoFiles}} {{.IgnoredGoFiles}}' std
+cmp stdout std-index.txt
+
+-- go.mod --
+module m
+
+go 1.28
+-- main.go --
+package main
+
+import (
+	"fmt"
+
+	"example.com/cgobindings/fallback"
+	"example.com/cgobindings/withc"
+)
+
+func main() {
+	fmt.Printf("withc=%d fallback=%d\n", withc.One(), fallback.Abs(-4))
+}
