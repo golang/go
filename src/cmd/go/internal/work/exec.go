@@ -740,14 +740,9 @@ func (b *Builder) buildExport(ctx context.Context, a *Action) (err error) {
 		if p.Standard && p.ImportPath == "runtime/cgo" {
 			// filter to the non-gcc files.
 			sfiles = slices.Clone(sfiles)
-			i := 0
-			for _, f := range sfiles {
-				if !strings.HasPrefix(f, "gcc_") {
-					sfiles[i] = f
-					i++
-				}
-			}
-			sfiles = sfiles[:i]
+			sfiles = slices.DeleteFunc(sfiles, func(f string) bool {
+				return strings.HasPrefix(f, "gcc_")
+			})
 		} else {
 			sfiles = nil
 		}
