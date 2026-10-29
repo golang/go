@@ -5,6 +5,7 @@
 package ld
 
 import (
+	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"cmd/link/internal/loader"
 	"cmd/link/internal/sym"
@@ -44,7 +45,9 @@ func collectSEHAMD64(ctxt *Link) {
 	// to deduplicate .xdata entries.
 	uwcache := make(map[string]int64) // aux symbol name --> .xdata offset
 	type pdataEntry struct {
-		start    sym.LoaderSym
+		fn       sym.LoaderSym
+		start    int64
+		end      int64
 		xdataOff int64
 	}
 	var entries []pdataEntry
@@ -52,40 +55,59 @@ func collectSEHAMD64(ctxt *Link) {
 		if fi := ldr.FuncInfo(s); !fi.Valid() {
 			continue
 		}
-		uw := ldr.SEHUnwindSym(s)
-		if uw == 0 {
+		p := ldr.SEHUnwindSym(s)
+		if p == 0 {
 			continue
 		}
-		name := ctxt.SymName(uw)
-		off, cached := uwcache[name]
-		if !cached {
-			off = xdata.Size()
-			uwcache[name] = off
-			xdata.AddBytes(ldr.Data(uw))
-			// The SEH unwind data can contain relocations,
-			// make sure those are copied over.
-			rels := ldr.Relocs(uw)
-			for i := 0; i < rels.Count(); i++ {
-				r := rels.At(i)
-				rel, _ := xdata.AddRel(r.Type())
-				rel.SetOff(int32(off) + r.Off())
-				rel.SetSiz(r.Siz())
-				rel.SetSym(r.Sym())
-				rel.SetAdd(r.Add())
-			}
+		data, rels := ldr.Data(p), ldr.Relocs(p)
+		const entrySize = 12
+		if len(data)%entrySize != 0 || rels.Count() != len(data)/entrySize {
+			ctxt.Errorf(s, "invalid SEH .pdata records")
+			continue
 		}
-
-		entries = append(entries, pdataEntry{start: s, xdataOff: off})
+		for i := 0; i < rels.Count(); i++ {
+			r := rels.At(i)
+			if r.Off() != int32(i*entrySize+8) || r.Siz() != 4 || r.Type() != objabi.R_PEIMAGEOFF || r.Add() != 0 || r.Sym() == 0 {
+				ctxt.Errorf(s, "invalid SEH unwind info relocation")
+				continue
+			}
+			start := int64(ctxt.Arch.ByteOrder.Uint32(data[i*entrySize:]))
+			end := int64(ctxt.Arch.ByteOrder.Uint32(data[i*entrySize+4:]))
+			if start >= end || end > ldr.SymSize(s) {
+				ctxt.Errorf(s, "invalid SEH PC range [%d, %d)", start, end)
+				continue
+			}
+			uw := r.Sym()
+			name := ctxt.SymName(uw)
+			off, cached := uwcache[name]
+			if !cached {
+				off = xdata.Size()
+				uwcache[name] = off
+				xdata.AddBytes(ldr.Data(uw))
+				// The SEH unwind data can contain relocations,
+				// make sure those are copied over.
+				uwrels := ldr.Relocs(uw)
+				for j := 0; j < uwrels.Count(); j++ {
+					r := uwrels.At(j)
+					rel, _ := xdata.AddRel(r.Type())
+					rel.SetOff(int32(off) + r.Off())
+					rel.SetSiz(r.Siz())
+					rel.SetSym(r.Sym())
+					rel.SetAdd(r.Add())
+				}
+			}
+			entries = append(entries, pdataEntry{fn: s, start: start, end: end, xdataOff: off})
+		}
 	}
 	slices.SortFunc(entries, func(a, b pdataEntry) int {
-		return cmp.Compare(ldr.SymAddr(a.start), ldr.SymAddr(b.start))
+		return cmp.Compare(ldr.SymAddr(a.fn)+a.start, ldr.SymAddr(b.fn)+b.start)
 	})
 	for _, ent := range entries {
 		// Reference:
 		// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-runtime_function
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.start, 0)                      // function start address
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.start, ldr.SymSize(ent.start)) // function end address
-		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), ent.xdataOff)         // xdata symbol offset
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.fn, ent.start)         // range start address
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, ent.fn, ent.end)           // range end address
+		pdata.AddPEImageRelativeAddrPlus(ctxt.Arch, xdata.Sym(), ent.xdataOff) // xdata symbol offset
 	}
 	if pdata.Size() > 0 {
 		sehp.pdata = append(sehp.pdata, pdata.Sym())

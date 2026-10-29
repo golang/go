@@ -635,8 +635,9 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Prog.mark
 const (
-	markBit   = 1 << 0 // used in errorCheck to avoid duplicate work
-	unsafeTLS = 1 << 1 // unsafe part of a rewritten TLS access
+	markBit       = 1 << 0 // used in errorCheck to avoid duplicate work
+	unsafeTLS     = 1 << 1 // unsafe part of a rewritten TLS access
+	sehStackSplit = 1 << 2 // start of the out-of-line stack-split code
 )
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -1137,6 +1138,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix := obj.Appendp(last, newprog)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
+	spfix.Mark |= sehStackSplit
 
 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
 	spill := ctxt.StartUnsafePoint(pcdata, newprog)
