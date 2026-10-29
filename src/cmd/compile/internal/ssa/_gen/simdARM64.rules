@@ -410,8 +410,14 @@
 (TruncFloat32x4 ...) => (VFRINTZ4S ...) // pureVreg
 (TruncFloat64x2 ...) => (VFRINTZ2D ...) // pureVreg
 (TruncToInt8Int16x8 ...) => (VXTN8H ...) // pureVreg
+(VXTN8H (VUSHR8H [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 16 => (VSHRN8H [c] x) // peepholeRule
+(VXTN8H (VSSHR8H [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 16 => (VSHRN8H [c] x) // peepholeRule
 (TruncToInt16Int32x4 ...) => (VXTN4S ...) // pureVreg
+(VXTN4S (VUSHR4S [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 32 => (VSHRN4S [c] x) // peepholeRule
+(VXTN4S (VSSHR4S [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 32 => (VSHRN4S [c] x) // peepholeRule
 (TruncToInt32Int64x2 ...) => (VXTN2D ...) // pureVreg
+(VXTN2D (VUSHR2D [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 64 => (VSHRN2D [c] x) // peepholeRule
+(VXTN2D (VSSHR2D [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= 64 => (VSHRN2D [c] x) // peepholeRule
 (TruncToUint8Uint16x8 ...) => (VXTN8H ...) // pureVreg
 (TruncToUint16Uint32x4 ...) => (VXTN4S ...) // pureVreg
 (TruncToUint32Uint64x2 ...) => (VXTN2D ...) // pureVreg

@@ -3,6 +3,9 @@
 - go: TruncToInt8
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: int
       elemBits: 16
@@ -13,6 +16,9 @@
 - go: TruncToUint8
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: uint
       elemBits: 16
@@ -23,6 +29,9 @@
 - go: TruncToInt16
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: int
       elemBits: 32
@@ -33,6 +42,9 @@
 - go: TruncToUint16
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: uint
       elemBits: 32
@@ -43,6 +55,9 @@
 - go: TruncToInt32
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: int
       elemBits: 64
@@ -53,6 +68,9 @@
 - go: TruncToUint32
   asm: "VXTN"
   hiHalfAsm: "VXTN2"
+  peepholeRules:
+  - !string "(%h (VUSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
+  - !string "(%h (VSSHR%a [c] x)) && uint64(c) >= 1 && uint64(c)*2 <= %b => (VSHRN%a [c] x)"
   in:
     - base: uint
       elemBits: 64

@@ -123,6 +123,35 @@ func shiftAllLeftConst64(x archsimd.Uint64x2) archsimd.Uint64x2 {
 	return x.ShiftAllLeft(63)
 }
 
+// Truncate-of-immediate-right-shift fuses into the single
+// shift-right-and-narrow VSHRN for amounts in [1, elemBits/2].
+func shiftAllRightConstTrunc16(x archsimd.Uint16x8) archsimd.Uint8x16 {
+	// arm64:`VSHRN [$]4, V\d+\.H8, V\d+\.B8` -`VXTN` -`VUSHR`
+	return x.ShiftAllRight(4).TruncToUint8()
+}
+
+func shiftAllRightConstTruncSigned16(x archsimd.Int16x8) archsimd.Int8x16 {
+	// arm64:`VSHRN [$]4, V\d+\.H8, V\d+\.B8` -`VXTN` -`VSSHR`
+	return x.ShiftAllRight(4).TruncToInt8()
+}
+
+func shiftAllRightConstTrunc32(x archsimd.Uint32x4) archsimd.Uint16x8 {
+	// arm64:`VSHRN [$]9, V\d+\.S4, V\d+\.H4` -`VXTN` -`VUSHR`
+	return x.ShiftAllRight(9).TruncToUint16()
+}
+
+func shiftAllRightConstTrunc64(x archsimd.Uint64x2) archsimd.Uint32x4 {
+	// arm64:`VSHRN [$]31, V\d+\.D2, V\d+\.S2` -`VXTN` -`VUSHR`
+	return x.ShiftAllRight(31).TruncToUint32()
+}
+
+// Above half the lane width the amount is not encodable as VSHRN, so the
+// immediate shift and the narrow stay separate instructions.
+func shiftAllRightConstTruncNoFusion(x archsimd.Uint16x8) archsimd.Uint8x16 {
+	// arm64:`VUSHR [$]9, V\d+\.H8,` `VXTN V\d+\.H8,` -`VSHRN`
+	return x.ShiftAllRight(9).TruncToUint8()
+}
+
 func setHiUint32(x, lo archsimd.Uint32x4) {
 	// arm64:`VMOV V1.D\[0\], V0.D\[1\]`
 	sinkU32 = loToHiUint32Vec(x, lo)
