@@ -21,11 +21,28 @@ func TestParseAndProcessBinding(t *testing.T) {
 
 // #cgo LDFLAGS: ./libx.so
 import "C"
+import "structs"
 
+//cgo:type S C.S
+//cgo:type T T
 //cgo:func Add C.Add "libx.so"
 //cgo:func _AddFloat AddFloat "./libx.so"
 //cgo:func Puts puts libc
 //cgo:func Helper helper static
+//cgo:func _PassS PassS "libx.so"
+
+type S struct {
+	_ structs.HostLayout
+	a int32
+	b int16
+	c int8
+	_ [1]byte
+}
+
+type T struct {
+	_ structs.HostLayout
+	x int64
+}
 
 func Add(a int32, b int32) int32
 
@@ -34,9 +51,11 @@ func _AddFloat(a float32, b float64) float64
 func Puts(s *int8) int32
 
 func Helper()
+
+func _PassS(s S, t T) S
 `
 
-	p := newPackage(nil, fset)
+	p := newPackage(nil, token.NewFileSet())
 	entry := p.parseBinding("binding.go", []byte(input))
 
 	if entry.Package != "p" {
@@ -45,8 +64,19 @@ func Helper()
 	if len(entry.LdFlags) != 1 || entry.LdFlags[0] != "./libx.so" {
 		t.Fatalf("LdFlags = %v, want [./libx.so]", entry.LdFlags)
 	}
-	if len(entry.Funcs) != 4 {
-		t.Fatalf("len(Funcs) = %d, want 4", len(entry.Funcs))
+	if sType := entry.TypeMap["_Ctype_S"]; sType.Size != 8 || sType.Align != 4 {
+		t.Fatalf("TypeMap[_Ctype_S] = %+v, want struct of size 8 align 4", sType)
+	}
+	if len(entry.TypeGoToC) != 1 || entry.TypeGoToC["S"] != "S" {
+		t.Fatalf("TypeGoToC = %+v, want only S", entry.TypeGoToC)
+	}
+	for _, name := range []string{"T", "AddFloat", "puts", "helper", "PassS"} {
+		if !entry.GoOnlyCNames[name] {
+			t.Errorf("GoOnlyCNames[%q] = false, want true", name)
+		}
+	}
+	if len(entry.Funcs) != 5 {
+		t.Fatalf("len(Funcs) = %d, want 5", len(entry.Funcs))
 	}
 	if fn := entry.Funcs[0]; fn.Name != "Add" || fn.CName != "Add" || !fn.BindC || fn.Library != "libx.so" || fn.Ret != "int32" {
 		t.Errorf("Funcs[0] = %+v", fn)
@@ -103,12 +133,12 @@ func Call(x int32) int32 {
 		`//go:cgo_import_dynamic Add Add`,
 		`//go:cgo_import_dynamic AddFloat AddFloat`,
 		`//go:cgo_import_dynamic puts puts`,
+		`type _Ctype_S = S`,
 		`var _cgo_trampoline_Add byte`,
 		`func _Cfunc_Add(p0 int32, p1 int32) int32`,
 		`func Add(p0 int32, p1 int32) int32`,
 		`func _AddFloat(p0 float32, p1 float64) float64`,
-		`//go:linkname _Cgo_keepalive runtime.cgoKeepAlive`,
-		"\t\t_Cgo_keepalive(&args)\n",
+		`_Cgo_use(p0)`,
 	} {
 		if !strings.Contains(gotypes, want) {
 			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
@@ -117,12 +147,21 @@ func Call(x int32) int32 {
 	for _, notWant := range []string{
 		// static symbols are not dynamically imported.
 		`cgo_import_dynamic helper`,
-		// AddFloat is bound without the C. prefix.
+		// AddFloat and T are bound without the C. prefix.
 		`_Cfunc_AddFloat =`,
+		`type _Ctype_T`,
 	} {
 		if strings.Contains(gotypes, notWant) {
 			t.Errorf("_cgo_gotypes.go contains %q:\n%s", notWant, gotypes)
 		}
+	}
+
+	mainOut, err := os.ReadFile(filepath.Join(tmpDir, "main.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mainOut), `_Cfunc_Add(int32(x), 2)`) {
+		t.Errorf("main.cgobinding.go missing rewritten C.Add call:\n%s", mainOut)
 	}
 
 	trampBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_trampolines.s"))
@@ -137,6 +176,8 @@ func Call(x int32) int32 {
 		"CALL\tAddFloat(SB)",
 		"_trampoline_Helper(SB), NOSPLIT|NOFRAME, $0-0",
 		"CALL\thelper(SB)",
+		"_trampoline__PassS(SB), NOSPLIT|NOFRAME, $0-0",
+		"CALL\tPassS(SB)",
 	} {
 		if !strings.Contains(tramp, want) {
 			t.Errorf("_cgo_trampolines.s missing %q:\n%s", want, tramp)
@@ -230,6 +271,7 @@ func TestParseCgoPragma(t *testing.T) {
 		{`//cgo:func F f static`, cgoPragma{Kind: "func", GoName: "F", CName: "f", Static: true}, true},
 		{`//cgo:func F f libc`, cgoPragma{Kind: "func", GoName: "F", CName: "f", LibC: true}, true},
 		{`//cgo:func F f "static"`, cgoPragma{Kind: "func", GoName: "F", CName: "f", Library: "static"}, true},
+		{`//cgo:type T C.struct_t`, cgoPragma{Kind: "type", GoName: "T", CName: "struct_t", BindC: true}, true},
 		{`//go:noinline`, cgoPragma{}, false},
 		{`// cgo:func F f libc`, cgoPragma{}, false},
 	} {
@@ -345,7 +387,8 @@ func TestBindingEdgeCases(t *testing.T) {
 	t.Setenv("GOOS", "linux")
 	t.Setenv("GOARCH", "amd64")
 
-	// Aliased imports and inline HostLayout structs must emit valid
+	// TypeMap must not pollute Go type namespace with raw C name;
+	// aliased imports and inline HostLayout structs must emit valid
 	// _cgo_gotypes.go with import "structs".
 	input := `package p
 
@@ -353,9 +396,18 @@ import "C"
 import s "structs"
 import u "unsafe"
 
+//cgo:type Foo C.Bar
 //cgo:func TakeInline TakeInline "libx.so"
 
-func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer })
+type Foo struct {
+	_ s.HostLayout
+	a int64
+	b int64
+}
+
+type Bar int32
+
+func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer }, b Bar)
 `
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "b.go")
@@ -365,6 +417,14 @@ func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer })
 	*objDir = tmpDir + string(filepath.Separator)
 
 	p := newPackage(nil, token.NewFileSet())
+	entry := p.parseBinding(srcFile, []byte(input))
+	if got := entry.TypeMap["_Ctype_Bar"]; got.Size != 16 {
+		t.Fatalf("TypeMap[_Ctype_Bar].Size = %d, want 16", got.Size)
+	}
+	if got := entry.TypeMap["Bar"]; got.Size != 4 {
+		t.Fatalf("TypeMap[Bar].Size = %d, want 4 (must not be overwritten by C.Bar)", got.Size)
+	}
+
 	p.processBinding([]string{srcFile})
 	gotypesBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_gotypes.go"))
 	if err != nil {
@@ -514,6 +574,97 @@ func TestCTypeError(t *testing.T) {
 		got := cTypeError(tt.typ, types)
 		if (got == "") != (tt.want == "") || !strings.Contains(got, tt.want) {
 			t.Errorf("cTypeError(%q) = %q, want error containing %q", tt.typ, got, tt.want)
+		}
+	}
+}
+
+// TestBindingNamedTypeChecks verifies that package-local and //cgo:type
+// struct types shared with C must embed structs.HostLayout recursively,
+// through nested structs, arrays, and pointers, and that incomplete
+// types may only be used behind pointers.
+func TestBindingNamedTypeChecks(t *testing.T) {
+	origGoos, origGoarch := goos, goarch
+	defer func() { goos, goarch = origGoos, origGoarch }()
+	goos, goarch = "linux", "amd64"
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "amd64")
+
+	input := `package p
+
+import "C"
+import "runtime/cgo"
+import "structs"
+
+//cgo:type Node C.node
+//cgo:type Opaque C.opaque
+//cgo:func Walk walk "libx.so"
+
+type Node struct {
+	_    structs.HostLayout
+	next *Node
+	val  int32
+	kids [2]Pair
+}
+
+type Pair struct {
+	_    structs.HostLayout
+	a, b int32
+}
+
+type Opaque struct{ _ cgo.Incomplete }
+
+func Walk(n *Node, o *Opaque, p Pair) int32
+`
+	p := newPackage(nil, token.NewFileSet())
+	entry := p.parseBinding("binding.go", []byte(input))
+	if node := entry.TypeMap["Node"]; node.Size != 32 || node.Align != 8 || !node.HasPointers {
+		t.Errorf("TypeMap[Node] = %+v, want size 32 align 8 with pointers", node)
+	}
+	if len(entry.Funcs) != 1 {
+		t.Fatalf("len(Funcs) = %d, want 1", len(entry.Funcs))
+	}
+	for _, tt := range []struct {
+		typ, want string
+	}{
+		{"Node", ""},
+		{"*Node", ""},
+		{"*Opaque", ""},
+		{"[2]Pair", ""},
+		{"Opaque", "incomplete"},
+		{"struct { _ structs.HostLayout; o Opaque }", "incomplete"},
+	} {
+		if got := cTypeError(tt.typ, entry.TypeMap); (got == "") != (tt.want == "") || !strings.Contains(got, tt.want) {
+			t.Errorf("cTypeError(%q) = %q, want error containing %q", tt.typ, got, tt.want)
+		}
+	}
+	if got := cDeclTypeError("Opaque", entry.TypeMap); got != "" {
+		t.Errorf("cDeclTypeError(Opaque) = %q, want no error", got)
+	}
+
+	types := map[string]BindingType{
+		"Inner":    {Name: "Inner", Def: "struct { a int32 }"},
+		"Outer":    {Name: "Outer", Def: "struct { _ structs.HostLayout; in Inner }"},
+		"PtrOuter": {Name: "PtrOuter", Def: "struct { _ structs.HostLayout; in *Inner }"},
+		"ArrOuter": {Name: "ArrOuter", Def: "struct { _ structs.HostLayout; in [2]Inner }"},
+		"Self":     {Name: "Self", Def: "struct { _ structs.HostLayout; next *Self; m map[int32]int32 }"},
+		"Alias":    {Name: "Alias", Def: "PtrOuter"},
+	}
+	for _, tt := range []struct {
+		typ, want string
+	}{
+		{"Inner", "structs.HostLayout"},
+		{"*Inner", "structs.HostLayout"},
+		{"Outer", "structs.HostLayout"},
+		{"PtrOuter", "structs.HostLayout"},
+		{"ArrOuter", "structs.HostLayout"},
+		{"Alias", "structs.HostLayout"},
+		{"*Self", "Go map"},
+	} {
+		if got := cTypeError(tt.typ, types); !strings.Contains(got, tt.want) {
+			t.Errorf("cTypeError(%q) = %q, want error containing %q", tt.typ, got, tt.want)
+		}
+		if got := cDeclTypeError(tt.typ, types); !strings.Contains(got, tt.want) {
+			t.Errorf("cDeclTypeError(%q) = %q, want error containing %q", tt.typ, got, tt.want)
 		}
 	}
 }
