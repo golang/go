@@ -12,6 +12,7 @@ import (
 	"go/build/constraint"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"internal/syslist"
 	"io"
 	"os"
@@ -23,6 +24,7 @@ import (
 
 	"cmd/internal/edit"
 	"cmd/internal/hash"
+	"cmd/internal/objabi"
 	"cmd/internal/par"
 )
 
@@ -37,10 +39,10 @@ type BindingEntry struct {
 // bindingSource holds the raw bytes and parsed AST of a source file inspected
 // for //cgo: pragmas.
 type bindingSource struct {
-	path string
-	data []byte
-	file *ast.File
-	fset *token.FileSet
+	path     string // trimmed path for diagnostics
+	origPath string // untrimmed path for ${SRCDIR} expansion; defaults to path
+	data     []byte
+	file     *ast.File
 }
 
 func targetPtrSize() int64 {
@@ -196,6 +198,37 @@ func windowsDLLName(lib string) string {
 	return base
 }
 
+// cgoPragma is a parsed //cgo:func pragma:
+//
+//	//cgo:func GoName [C.]cName {"lib" | static | libc}
+//
+// A pragma always names both the Go function GoName, which must be declared
+// without a body elsewhere in the package, and the C symbol cName that it
+// calls. Writing the C name as C.cName additionally lets Go code in the
+// package call the function as C.cName, as with traditional cgo; without the
+// C. prefix, the function is only reachable through GoName.
+//
+// Pragmas are self-contained and may appear anywhere in a file that
+// imports "C".
+type cgoPragma struct {
+	Pos    token.Position
+	Kind   string // pragma name: "func"
+	GoName string // Go identifier being bound
+	CName  string // C symbol name
+	BindC  bool   // cName was written as C.cName, so Go code may also use C.cName
+
+	// Library specifier.
+	Library string // shared library for the "lib" form
+	LibC    bool   // libc: the platform C runtime
+	Static  bool   // static: resolved at link time from a .syso or .a
+}
+
+// cgoPragmaSyntax maps each supported //cgo: pragma name to its syntax, for
+// error messages.
+var cgoPragmaSyntax = map[string]string{
+	"func": `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
+}
+
 // parseCgoDirective parses a "#cgo [cond] VERB: flags" line (where line starts
 // with "#cgo"). It returns the verb, raw flags string, whether any platform
 // condition matched the target goos/goarch, and whether the syntax is valid.
@@ -242,37 +275,6 @@ func matchCgoCond(cond string) bool {
 		}
 		return false
 	})
-}
-
-// cgoPragma is a parsed //cgo:func pragma:
-//
-//	//cgo:func GoName [C.]cName {"lib" | static | libc}
-//
-// A pragma always names both the Go function GoName, which must be declared
-// without a body elsewhere in the package, and the C symbol cName that it
-// calls. Writing the C name as C.cName additionally lets Go code in the
-// package call the function as C.cName, as with traditional cgo; without the
-// C. prefix, the function is only reachable through GoName.
-//
-// Pragmas are self-contained and may appear anywhere in a file that
-// imports "C".
-type cgoPragma struct {
-	Pos    token.Position
-	Kind   string // pragma name: "func"
-	GoName string // Go identifier being bound
-	CName  string // C symbol name
-	BindC  bool   // cName was written as C.cName, so Go code may also use C.cName
-
-	// Library specifier.
-	Library string // shared library for the "lib" form
-	LibC    bool   // libc: the platform C runtime
-	Static  bool   // static: resolved at link time from a .syso or .a
-}
-
-// cgoPragmaSyntax maps each supported //cgo: pragma name to its syntax, for
-// error messages.
-var cgoPragmaSyntax = map[string]string{
-	"func": `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
 }
 
 // isCgoPragmaComment reports whether the comment text is a //cgo: binding
@@ -369,8 +371,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 	for i := range sources {
 		src := &sources[i]
 		if src.file == nil {
-			src.fset = token.NewFileSet()
-			fileAST, err := parser.ParseFile(src.fset, src.path, src.data, parser.ParseComments)
+			fileAST, err := parser.ParseFile(p.fset, src.path, src.data, parser.ParseComments)
 			if err != nil {
 				fatalf("parsing %s: %s", src.path, err)
 			}
@@ -379,7 +380,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 		if entry.Package == "" {
 			entry.Package = src.file.Name.Name
 		}
-		pragmas = append(pragmas, parseCgoPragmas(src.fset, src.file)...)
+		pragmas = append(pragmas, parseCgoPragmas(p.fset, src.file)...)
 
 		// Collect #cgo LDFLAGS directives from the import "C" preamble,
 		// honoring their build constraints. When cmd/go passes -ldflags,
@@ -388,7 +389,11 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 		if ldflagsSet {
 			continue
 		}
-		srcDirVal := filepath.Dir(src.path)
+		origPath := src.origPath
+		if origPath == "" {
+			origPath = src.path
+		}
+		srcDirVal := filepath.ToSlash(filepath.Dir(origPath))
 		forEachImportC(src.file, func(_ *ast.GenDecl, _ *ast.ImportSpec, doc *ast.CommentGroup) {
 			if doc == nil {
 				return
@@ -415,15 +420,11 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 	}
 
 	// Index the bodyless function declarations that pragmas may name.
-	type funcDecl struct {
-		d    *ast.FuncDecl
-		fset *token.FileSet
-	}
-	funcDecls := make(map[string]funcDecl)
+	funcDecls := make(map[string]*ast.FuncDecl)
 	for _, src := range sources {
 		for _, decl := range src.file.Decls {
 			if d, ok := decl.(*ast.FuncDecl); ok && d.Recv == nil {
-				funcDecls[d.Name.Name] = funcDecl{d, src.fset}
+				funcDecls[d.Name.Name] = d
 			}
 		}
 	}
@@ -443,13 +444,12 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			boundC[pr.CName] = true
 		}
 
-		fd, ok := funcDecls[pr.GoName]
+		d, ok := funcDecls[pr.GoName]
 		if !ok {
 			fatalf("%s: //cgo:func %s: missing declaration of func %s", pos, pr.GoName, pr.GoName)
 		}
-		d := fd.d
 		if d.Body != nil {
-			fatalf("%s: //cgo:func function %s cannot have a body", fd.fset.Position(d.Pos()), pr.GoName)
+			fatalf("%s: //cgo:func function %s cannot have a body", p.fset.Position(d.Pos()), pr.GoName)
 		}
 		fn := BindingFunc{
 			Name:    pr.GoName,
@@ -464,7 +464,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			for _, field := range d.Type.Params.List {
 				pType := p.cgoASTToGoDef(field.Type)
 				if why := cTypeError(pType, nil); why != "" {
-					fatalf("%s: //cgo:func %s: parameter type %s cannot be passed to C: %s", fd.fset.Position(field.Type.Pos()), pr.GoName, pType, why)
+					fatalf("%s: //cgo:func %s: parameter type %s cannot be passed to C: %s", p.fset.Position(field.Type.Pos()), pr.GoName, pType, why)
 				}
 				for range max(1, len(field.Names)) {
 					fn.Params = append(fn.Params, pType)
@@ -475,7 +475,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			res := d.Type.Results.List[0].Type
 			fn.Ret = p.cgoASTToGoDef(res)
 			if why := cTypeError(fn.Ret, nil); why != "" {
-				fatalf("%s: //cgo:func %s: result type %s cannot be returned from C: %s", fd.fset.Position(res.Pos()), pr.GoName, fn.Ret, why)
+				fatalf("%s: //cgo:func %s: result type %s cannot be returned from C: %s", p.fset.Position(res.Pos()), pr.GoName, fn.Ret, why)
 			}
 		}
 		entry.Funcs = append(entry.Funcs, fn)
@@ -489,9 +489,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 func (p *Package) processBinding(goFiles []string) {
 	type parsedFile struct {
 		srcfile    string
-		origPath   string
 		data       []byte
-		fset       *token.FileSet
 		parsed     *ast.File
 		hasImportC bool
 	}
@@ -505,31 +503,33 @@ func (p *Package) processBinding(goFiles []string) {
 			if *srcDir != "" && !filepath.IsAbs(srcfile) {
 				origPath = filepath.Join(*srcDir, srcfile)
 			}
+			if aname, err := filepath.Abs(origPath); err == nil {
+				origPath = aname
+			}
 			b, err := os.ReadFile(origPath)
 			if err != nil {
 				fatalf("%s", err)
 			}
-			fset := token.NewFileSet()
-			parsed, err := parser.ParseFile(fset, origPath, b, parser.ParseComments)
+			trimmedPath, _ := objabi.ApplyRewrites(origPath, *trimpath)
+			if strings.ContainsAny(trimmedPath, "\r\n") {
+				fatalf("input path contains newline character: %q", trimmedPath)
+			}
+			parsed, err := parser.ParseFile(p.fset, trimmedPath, b, parser.ParseComments)
 			if err != nil {
 				fatalf("%s", err)
 			}
-			hasImportC := slices.ContainsFunc(parsed.Imports, func(s *ast.ImportSpec) bool {
-				return s.Path.Value == `"C"`
-			})
+			hasImportC := hasImportCFile(parsed)
 			parsedFiles[i] = parsedFile{
-				srcfile:    srcfile,
-				origPath:   origPath,
+				srcfile:    trimmedPath,
 				data:       b,
-				fset:       fset,
 				parsed:     parsed,
 				hasImportC: hasImportC,
 			}
 			sources[i] = bindingSource{
-				path: origPath,
-				data: b,
-				file: parsed,
-				fset: fset,
+				path:     trimmedPath,
+				origPath: origPath,
+				data:     b,
+				file:     parsed,
 			}
 		})
 	}
@@ -550,47 +550,76 @@ func (p *Package) processBinding(goFiles []string) {
 	// are rewritten to undefined identifiers if referenced as C.name.
 	cFuncMap := make(map[string]BindingFunc)
 	goFuncMap := make(map[string]BindingFunc)
-	knownBoundFuncs := make(map[string]bool)
+	knownBoundNames := make(map[string]bool)
 	boundGoFuncs := make(map[string]bool)
 	for _, fn := range entry.Funcs {
 		if fn.BindC {
 			cFuncMap[fn.CName] = fn
 		}
-		goFuncMap[fn.GoName] = fn
-		knownBoundFuncs[fn.CName] = true
-		knownBoundFuncs[fn.Name] = true
-		knownBoundFuncs[fn.GoName] = true
+		knownBoundNames[fn.CName] = true
+		knownBoundNames[fn.Name] = true
+		knownBoundNames[fn.GoName] = true
 		boundGoFuncs[fn.GoName] = true
+		goFuncMap[fn.GoName] = fn
+	}
+
+	astFiles := make([]*ast.File, len(parsedFiles))
+	for i, pf := range parsedFiles {
+		astFiles[i] = pf.parsed
+	}
+	typeInfo := &types.Info{
+		Uses:   make(map[*ast.Ident]types.Object),
+		Scopes: make(map[ast.Node]*types.Scope),
+	}
+	typeConf := types.Config{
+		Importer:                 bindingStubImporter{},
+		Error:                    func(error) {},
+		DisableUnusedImportCheck: true,
+	}
+	tpkg, _ := typeConf.Check(entry.Package, p.fset, astFiles, typeInfo)
+
+	rewriter := &bindingRewriter{
+		p:               p,
+		tpkg:            tpkg,
+		typeInfo:        typeInfo,
+		entry:           entry,
+		cFuncMap:        cFuncMap,
+		goFuncMap:       goFuncMap,
+		knownBoundNames: knownBoundNames,
 	}
 
 	outGoFiles := make([]string, len(parsedFiles))
 	rewriteQ := par.NewQueue(runtime.GOMAXPROCS(0))
 	for i, pf := range parsedFiles {
 		rewriteQ.Add(func() {
-			srcfile := pf.srcfile
+			trimmedSrc := pf.srcfile
 			b := pf.data
 			parsed := pf.parsed
+			tf := p.fset.File(parsed.Package)
 			editBuf := edit.NewBuffer(b)
 
-			// Strip //cgo: pragmas and the bodyless declarations of bound
-			// functions from the input file because _cgo_gotypes.go defines the
-			// concrete Go wrapper functions with bodies in the same package; leaving
-			// the bodyless declarations in place would cause duplicate declaration
-			// errors during compilation.
+			// Strip //cgo: pragmas and bodyless bound declarations because
+			// _cgo_gotypes.go defines the Go wrappers.
+			var stripped [][2]token.Pos
+			stripNode := func(pos, end token.Pos) {
+				editBuf.Replace(tf.Offset(pos), tf.Offset(end), "")
+				stripped = append(stripped, [2]token.Pos{pos, end})
+			}
+			parsed.Decls = slices.DeleteFunc(parsed.Decls, func(decl ast.Decl) bool {
+				if d, ok := decl.(*ast.FuncDecl); ok && d.Body == nil && d.Recv == nil && boundGoFuncs[d.Name.Name] {
+					stripNode(d.Pos(), d.End())
+					return true
+				}
+				return false
+			})
+
 			for _, cg := range parsed.Comments {
 				for _, c := range cg.List {
-					if isCgoPragmaComment(c.Text) {
-						editBuf.Replace(int(c.Pos()-1), int(c.End()-1), "")
+					if isCgoPragmaComment(c.Text) && !slices.ContainsFunc(stripped, func(r [2]token.Pos) bool {
+						return c.Pos() < r[1] && c.End() > r[0]
+					}) {
+						editBuf.Replace(tf.Offset(c.Pos()), tf.Offset(c.End()), "")
 					}
-				}
-			}
-			isBoundDecl := func(n ast.Node) bool {
-				d, ok := n.(*ast.FuncDecl)
-				return ok && d.Body == nil && d.Recv == nil && boundGoFuncs[d.Name.Name]
-			}
-			for _, decl := range parsed.Decls {
-				if isBoundDecl(decl) {
-					editBuf.Replace(int(decl.Pos()-1), int(decl.End()-1), "")
 				}
 			}
 
@@ -609,12 +638,12 @@ func (p *Package) processBinding(goFiles []string) {
 				forEachImportC(parsed, func(d *ast.GenDecl, s *ast.ImportSpec, _ *ast.CommentGroup) {
 					if hasUnsafeImport {
 						if len(d.Specs) == 1 {
-							editBuf.Replace(int(d.Pos()-1), int(d.End()-1), "")
+							editBuf.Replace(tf.Offset(d.Pos()), tf.Offset(d.End()), "")
 						} else {
-							editBuf.Replace(int(s.Pos()-1), int(s.End()-1), "")
+							editBuf.Replace(tf.Offset(s.Pos()), tf.Offset(s.End()), "")
 						}
 					} else {
-						editBuf.Replace(int(s.Path.Pos()-1), int(s.Path.End()-1), `_ "unsafe"`)
+						editBuf.Replace(tf.Offset(s.Path.Pos()), tf.Offset(s.Path.End()), `_ "unsafe"`)
 						hasUnsafeImport = true
 					}
 				})
@@ -623,90 +652,13 @@ func (p *Package) processBinding(goFiles []string) {
 				}
 			}
 
-			// Rewrite references to C names, and calls of bound functions
-			// that pass pointers, which get the same cgocheck pointer checks
-			// as calls in traditional cgo.
-			edits := &bindingEdits{src: b}
-			off := func(pos token.Pos) int { return int(pos - 1) }
-			if pf.hasImportC {
-				ast.Inspect(parsed, func(n ast.Node) bool {
-					if isBoundDecl(n) {
-						return false
-					}
-					sel, ok := n.(*ast.SelectorExpr)
-					if !ok {
-						return true
-					}
-					id, ok := sel.X.(*ast.Ident)
-					if !ok || id.Name != "C" {
-						return true
-					}
-					name := sel.Sel.Name
-					start := off(sel.Pos())
-					end := off(sel.End())
-					if fn, isFunc := cFuncMap[name]; isFunc {
-						edits.replace(start, end, bindingFuncEntry(fn, nil))
-					} else if goType, isPrim := primitiveCtypeToGo("_Ctype_" + name); isPrim {
-						edits.replace(start, end, goType)
-					} else if knownBoundFuncs[name] {
-						edits.replace(start, end, "_Cundef_"+name)
-					} else {
-						edits.replace(start, end, "_Cfunc_"+name)
-					}
-					return true
-				})
-			}
-			shadowed := bindingLocalNames(parsed)
-			type callSite struct {
-				call *ast.CallExpr
-				fn   BindingFunc
-			}
-			var calls []callSite
-			deferred := make(map[*ast.CallExpr]bool)
-			unused := make(map[*ast.CallExpr]bool)
-			ast.Inspect(parsed, func(n ast.Node) bool {
-				switch n := n.(type) {
-				case *ast.FuncDecl:
-					if isBoundDecl(n) {
-						return false
-					}
-				case *ast.DeferStmt:
-					deferred[n.Call] = true
-				case *ast.GoStmt:
-					deferred[n.Call] = true
-				case *ast.ExprStmt:
-					if call, ok := n.X.(*ast.CallExpr); ok {
-						unused[call] = true
-					}
-				case *ast.CallExpr:
-					switch fun := n.Fun.(type) {
-					case *ast.SelectorExpr:
-						if id, ok := fun.X.(*ast.Ident); ok && id.Name == "C" && pf.hasImportC {
-							if fn, ok := cFuncMap[fun.Sel.Name]; ok {
-								calls = append(calls, callSite{n, fn})
-							}
-						}
-					case *ast.Ident:
-						if fn, ok := goFuncMap[fun.Name]; ok && !shadowed[fun.Name] {
-							calls = append(calls, callSite{n, fn})
-						}
-					}
-				}
-				return true
-			})
-			// Rewrite inner calls first so that outer calls include them.
-			for _, c := range slices.Backward(calls) {
-				if repl := p.rewriteBindingCall(edits, off, c.call, c.fn, nil, deferred[c.call], unused[c.call], knownBoundFuncs); repl != "" {
-					edits.replace(off(c.call.Pos()), off(c.call.End()), repl)
-				}
-			}
-			edits.apply(editBuf)
+			rewriter.rewriteFile(editBuf, tf, parsed, b, pf.hasImportC)
 
-			base := strings.TrimSuffix(filepath.Base(srcfile), ".go")
+			base := strings.TrimSuffix(filepath.Base(trimmedSrc), ".go")
 			outName := base + ".cgobinding.go"
 			fgo1 := creat(outName)
 			fmt.Fprintf(fgo1, "// Code generated by cmd/cgo; DO NOT EDIT.\n\n")
-			fmt.Fprintf(fgo1, "//line %s:1:1\n", srcfile)
+			fmt.Fprintf(fgo1, "//line %s:1:1\n", filepath.ToSlash(trimmedSrc))
 			fgo1.Write(editBuf.Bytes())
 			fgo1.Close()
 			outGoFiles[i] = outName
@@ -728,6 +680,224 @@ func (p *Package) processBinding(goFiles []string) {
 		}
 		fflg.Close()
 	}
+}
+
+type bindingStubImporter struct{}
+
+func (bindingStubImporter) Import(path string) (*types.Package, error) {
+	name := path
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		name = path[i+1:]
+	}
+	pkg := types.NewPackage(path, name)
+	pkg.MarkComplete()
+	return pkg, nil
+}
+
+type bindingRewriter struct {
+	p               *Package
+	tpkg            *types.Package
+	typeInfo        *types.Info
+	entry           *BindingEntry
+	cFuncMap        map[string]BindingFunc
+	goFuncMap       map[string]BindingFunc
+	knownBoundNames map[string]bool
+}
+
+func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file *ast.File, src []byte, hasImportC bool) {
+	resolve := func(id *ast.Ident) types.Object {
+		obj := r.typeInfo.Uses[id]
+		if obj == nil && r.tpkg != nil {
+			if scope := r.tpkg.Scope().Innermost(id.Pos()); scope != nil {
+				_, obj = scope.LookupParent(id.Name, id.Pos())
+			}
+		}
+		return obj
+	}
+	isImportC := func(id *ast.Ident) bool {
+		pkgName, ok := resolve(id).(*types.PkgName)
+		return ok && pkgName.Imported().Path() == "C"
+	}
+	// isBoundGoFunc reports whether id refers to the package-level
+	// declaration of a bound function, rather than a local name.
+	isBoundGoFunc := func(id *ast.Ident) bool {
+		fn, ok := resolve(id).(*types.Func)
+		return ok && r.tpkg != nil && fn.Parent() == r.tpkg.Scope()
+	}
+
+	// Rewrite references to C names, and calls of bound functions that
+	// pass pointers, which get the same cgocheck pointer checks as calls
+	// in traditional cgo.
+	edits := &bindingEdits{src: src}
+	if hasImportC {
+		ast.Inspect(file, func(node ast.Node) bool {
+			sel, ok := node.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			id, ok := sel.X.(*ast.Ident)
+			if !ok || id.Name != "C" || !isImportC(id) {
+				return true
+			}
+			name := sel.Sel.Name
+			var repl string
+			if fn, isFunc := r.cFuncMap[name]; isFunc {
+				repl = bindingFuncEntry(fn, nil)
+			} else if goType, isPrim := primitiveCtypeToGo("_Ctype_" + name); isPrim {
+				repl = goType
+			} else if r.knownBoundNames[name] {
+				repl = "_Cundef_" + name
+			} else {
+				repl = "_Cfunc_" + name
+			}
+			edits.replace(tf.Offset(sel.Pos()), tf.Offset(sel.End()), repl)
+			return false
+		})
+	}
+	type callSite struct {
+		call *ast.CallExpr
+		fn   BindingFunc
+	}
+	var calls []callSite
+	deferred := make(map[*ast.CallExpr]bool)
+	unused := make(map[*ast.CallExpr]bool)
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.DeferStmt:
+			deferred[n.Call] = true
+		case *ast.GoStmt:
+			deferred[n.Call] = true
+		case *ast.ExprStmt:
+			if call, ok := n.X.(*ast.CallExpr); ok {
+				unused[call] = true
+			}
+		case *ast.CallExpr:
+			switch fun := n.Fun.(type) {
+			case *ast.SelectorExpr:
+				if id, ok := fun.X.(*ast.Ident); ok && hasImportC && id.Name == "C" && isImportC(id) {
+					if fn, ok := r.cFuncMap[fun.Sel.Name]; ok {
+						calls = append(calls, callSite{n, fn})
+					}
+				}
+			case *ast.Ident:
+				if fn, ok := r.goFuncMap[fun.Name]; ok && isBoundGoFunc(fun) {
+					calls = append(calls, callSite{n, fn})
+				}
+			}
+		}
+		return true
+	})
+	// Rewrite inner calls first so that outer calls include them.
+	for _, c := range slices.Backward(calls) {
+		if repl := r.p.rewriteBindingCall(edits, tf.Offset, c.call, c.fn, nil, deferred[c.call], unused[c.call], r.knownBoundNames); repl != "" {
+			edits.replace(tf.Offset(c.call.Pos()), tf.Offset(c.call.End()), repl)
+		}
+	}
+	edits.apply(editBuf)
+}
+
+func (p *Package) cgoASTToGoDef(expr ast.Expr) string {
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return e.Name
+	case *ast.SelectorExpr:
+		if id, ok := e.X.(*ast.Ident); ok && id.Name == "C" {
+			if goType, ok := primitiveCtypeToGo("_Ctype_" + e.Sel.Name); ok {
+				return goType
+			}
+			return "_Ctype_" + e.Sel.Name
+		}
+		return p.cgoASTToGoDef(e.X) + "." + e.Sel.Name
+	case *ast.StarExpr:
+		return "*" + p.cgoASTToGoDef(e.X)
+	default:
+		var buf bytes.Buffer
+		noSourceConf.Fprint(&buf, p.fset, expr)
+		return buf.String()
+	}
+}
+
+func typeHasPointers(typeName string) bool {
+	typeName = strings.TrimSpace(typeName)
+	return strings.HasPrefix(typeName, "*") || strings.HasPrefix(typeName, "unsafe.Pointer") || strings.HasPrefix(typeName, "[]") || strings.HasPrefix(typeName, "string")
+}
+
+// cTypeError reports why values of the Go type expression t cannot be passed
+// to or returned from C, or "" if they can. Go strings, slices, maps,
+// channels, functions, and interfaces have no C equivalent, so they (and
+// pointers to, arrays of, and structs containing them) are rejected rather
+// than passed in their Go runtime representation. Named types are resolved
+// through types, which maps a type name to its definition.
+func cTypeError(t string, types map[string]BindingType) string {
+	return cTypeErrorIn(t, types, make(map[string]bool))
+}
+
+func cTypeErrorIn(t string, types map[string]BindingType, seen map[string]bool) string {
+	t = strings.TrimSpace(t)
+	if strings.HasPrefix(t, "...") {
+		return "Go variadic parameters are not supported"
+	}
+	expr, err := parser.ParseExpr(t)
+	if err != nil {
+		// Leave reporting malformed types to the ABI layout code.
+		return ""
+	}
+	return cTypeExprError(expr, types, seen)
+}
+
+func cTypeExprError(expr ast.Expr, types map[string]BindingType, seen map[string]bool) string {
+	switch e := expr.(type) {
+	case *ast.ParenExpr:
+		return cTypeExprError(e.X, types, seen)
+	case *ast.StarExpr:
+		return cTypeExprError(e.X, types, seen)
+	case *ast.ArrayType:
+		if e.Len == nil {
+			return "it contains a Go slice"
+		}
+		return cTypeExprError(e.Elt, types, seen)
+	case *ast.Ellipsis:
+		return "Go variadic parameters are not supported"
+	case *ast.MapType:
+		return "it contains a Go map"
+	case *ast.ChanType:
+		return "it contains a Go channel"
+	case *ast.FuncType:
+		return "it contains a Go func value"
+	case *ast.InterfaceType:
+		return "it contains a Go interface"
+	case *ast.StructType:
+		for _, field := range e.Fields.List {
+			if why := cTypeExprError(field.Type, types, seen); why != "" {
+				return why
+			}
+		}
+		return ""
+	case *ast.Ident:
+		switch e.Name {
+		case "string":
+			return "it contains a Go string"
+		case "any", "error":
+			return "it contains a Go interface"
+		}
+		return cTypeNameError(e.Name, types, seen)
+	case *ast.SelectorExpr:
+		if x, ok := e.X.(*ast.Ident); ok {
+			return cTypeNameError(x.Name+"."+e.Sel.Name, types, seen)
+		}
+	}
+	return ""
+}
+
+func cTypeNameError(name string, types map[string]BindingType, seen map[string]bool) string {
+	if seen[name] {
+		return ""
+	}
+	seen[name] = true
+	if bt, ok := types[name]; ok && bt.Def != "" {
+		return cTypeErrorIn(bt.Def, types, seen)
+	}
+	return ""
 }
 
 // bindingEdits is a set of non-overlapping replacements in a source file.
@@ -776,86 +946,6 @@ func (e *bindingEdits) apply(buf *edit.Buffer) {
 	for _, x := range e.edits {
 		buf.Replace(x.start, x.end, x.text)
 	}
-}
-
-// bindingLocalNames returns the names that file declares other than by
-// package-level declarations: import names and names declared in function
-// scopes. A call through such a name may not refer to the bound function of
-// that name, so such calls are left to the checking Go wrapper.
-func bindingLocalNames(file *ast.File) map[string]bool {
-	names := make(map[string]bool)
-	for _, imp := range file.Imports {
-		if imp.Name != nil {
-			names[imp.Name.Name] = true
-		}
-	}
-	addFields := func(fl *ast.FieldList) {
-		if fl == nil {
-			return
-		}
-		for _, f := range fl.List {
-			for _, n := range f.Names {
-				names[n.Name] = true
-			}
-		}
-	}
-	addIdents := func(exprs ...ast.Expr) {
-		for _, x := range exprs {
-			if id, ok := x.(*ast.Ident); ok {
-				names[id.Name] = true
-			}
-		}
-	}
-	local := func(n ast.Node) bool {
-		switch n := n.(type) {
-		case *ast.FuncLit:
-			addFields(n.Type.TypeParams)
-			addFields(n.Type.Params)
-			addFields(n.Type.Results)
-		case *ast.AssignStmt:
-			if n.Tok == token.DEFINE {
-				addIdents(n.Lhs...)
-			}
-		case *ast.RangeStmt:
-			if n.Tok == token.DEFINE {
-				addIdents(n.Key, n.Value)
-			}
-		case *ast.ValueSpec:
-			for _, id := range n.Names {
-				names[id.Name] = true
-			}
-		case *ast.TypeSpec:
-			names[n.Name.Name] = true
-			addFields(n.TypeParams)
-		}
-		return true
-	}
-	for _, decl := range file.Decls {
-		switch d := decl.(type) {
-		case *ast.FuncDecl:
-			addFields(d.Recv)
-			addFields(d.Type.TypeParams)
-			addFields(d.Type.Params)
-			addFields(d.Type.Results)
-			if d.Body != nil {
-				ast.Inspect(d.Body, local)
-			}
-		case *ast.GenDecl:
-			for _, spec := range d.Specs {
-				if ts, ok := spec.(*ast.TypeSpec); ok {
-					addFields(ts.TypeParams)
-				}
-			}
-			ast.Inspect(d, func(n ast.Node) bool {
-				if fl, ok := n.(*ast.FuncLit); ok {
-					ast.Inspect(fl, local)
-					return false
-				}
-				return true
-			})
-		}
-	}
-	return names
 }
 
 // bindingPointerChecks reports, for each parameter of fn, whether an
@@ -1083,110 +1173,6 @@ func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, c
 		repl = repl[:i] + strings.Repeat("\n", n) + repl[i:]
 	}
 	return repl
-}
-
-func (p *Package) cgoASTToGoDef(expr ast.Expr) string {
-	switch e := expr.(type) {
-	case *ast.Ident:
-		return e.Name
-	case *ast.SelectorExpr:
-		if id, ok := e.X.(*ast.Ident); ok && id.Name == "C" {
-			if goType, ok := primitiveCtypeToGo("_Ctype_" + e.Sel.Name); ok {
-				return goType
-			}
-			return "_Ctype_" + e.Sel.Name
-		}
-		return p.cgoASTToGoDef(e.X) + "." + e.Sel.Name
-	case *ast.StarExpr:
-		return "*" + p.cgoASTToGoDef(e.X)
-	default:
-		var buf bytes.Buffer
-		noSourceConf.Fprint(&buf, fset, expr)
-		return buf.String()
-	}
-}
-
-// cTypeError reports why values of the Go type expression t cannot be passed
-// to or returned from C, or "" if they can. Go strings, slices, maps,
-// channels, functions, and interfaces have no C equivalent, so they (and
-// pointers to, arrays of, and structs containing them) are rejected rather
-// than passed in their Go runtime representation. Named types are resolved
-// through types, which maps a type name to its definition.
-func cTypeError(t string, types map[string]BindingType) string {
-	return cTypeErrorIn(t, types, make(map[string]bool))
-}
-
-func cTypeErrorIn(t string, types map[string]BindingType, seen map[string]bool) string {
-	t = strings.TrimSpace(t)
-	if strings.HasPrefix(t, "...") {
-		return "Go variadic parameters are not supported"
-	}
-	expr, err := parser.ParseExpr(t)
-	if err != nil {
-		// Leave reporting malformed types to the ABI layout code.
-		return ""
-	}
-	return cTypeExprError(expr, types, seen)
-}
-
-func cTypeExprError(expr ast.Expr, types map[string]BindingType, seen map[string]bool) string {
-	switch e := expr.(type) {
-	case *ast.ParenExpr:
-		return cTypeExprError(e.X, types, seen)
-	case *ast.StarExpr:
-		return cTypeExprError(e.X, types, seen)
-	case *ast.ArrayType:
-		if e.Len == nil {
-			return "it contains a Go slice"
-		}
-		return cTypeExprError(e.Elt, types, seen)
-	case *ast.Ellipsis:
-		return "Go variadic parameters are not supported"
-	case *ast.MapType:
-		return "it contains a Go map"
-	case *ast.ChanType:
-		return "it contains a Go channel"
-	case *ast.FuncType:
-		return "it contains a Go func value"
-	case *ast.InterfaceType:
-		return "it contains a Go interface"
-	case *ast.StructType:
-		for _, field := range e.Fields.List {
-			if why := cTypeExprError(field.Type, types, seen); why != "" {
-				return why
-			}
-		}
-		return ""
-	case *ast.Ident:
-		switch e.Name {
-		case "string":
-			return "it contains a Go string"
-		case "any", "error":
-			return "it contains a Go interface"
-		}
-		return cTypeNameError(e.Name, types, seen)
-	case *ast.SelectorExpr:
-		if x, ok := e.X.(*ast.Ident); ok {
-			return cTypeNameError(x.Name+"."+e.Sel.Name, types, seen)
-		}
-	}
-	return ""
-}
-
-func cTypeNameError(name string, types map[string]BindingType, seen map[string]bool) string {
-	if seen[name] {
-		return ""
-	}
-	seen[name] = true
-	if bt, ok := types[name]; ok && bt.Def != "" {
-		return cTypeErrorIn(bt.Def, types, seen)
-	}
-	return ""
-}
-
-func typeHasPointers(typeName string) bool {
-	typeName = strings.TrimSpace(typeName)
-	return strings.HasPrefix(typeName, "*") || strings.HasPrefix(typeName, "unsafe.Pointer") || strings.HasPrefix(typeName, "[]") || strings.HasPrefix(typeName, "string")
 }
 
 func (p *Package) writeGoTypes(bf *BindingEntry) {

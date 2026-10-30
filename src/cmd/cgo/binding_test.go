@@ -246,6 +246,96 @@ func TestParseCgoPragma(t *testing.T) {
 	}
 }
 
+func TestBindingScopeAndTrimpath(t *testing.T) {
+	origGoos, origGoarch, origObjDir, origTrimpath, origLdflagsSet := goos, goarch, *objDir, *trimpath, ldflagsSet
+	defer func() {
+		goos, goarch, *objDir, *trimpath, ldflagsSet = origGoos, origGoarch, origObjDir, origTrimpath, origLdflagsSet
+	}()
+	goos, goarch = "linux", "amd64"
+	ldflagsSet = false
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "amd64")
+
+	tmpDir := t.TempDir()
+	*objDir = tmpDir + string(filepath.Separator)
+	*trimpath = tmpDir + "=>/virtual"
+
+	src := `package p
+
+// #cgo LDFLAGS: -L${SRCDIR}/lib -lx
+import "C"
+
+//cgo:func Add C.Add "libx.so"
+func Add(a int32, b int32) int32
+
+type box struct{ Add int32 }
+
+func UseC(x int32) int32 { return C.Add(C.int(x), 1) }
+
+func ShadowParam(C box) int32 { return C.Add }
+
+func ShadowLocal() int32 {
+	C := box{Add: 3}
+	return C.Add
+}
+`
+	srcFile := filepath.Join(tmpDir, "b.go")
+	if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := newPackage(nil, token.NewFileSet())
+	p.processBinding([]string{srcFile})
+
+	// ${SRCDIR} must expand from the untrimmed source directory using forward
+	// slashes (matching go/build.expandSrcDir), after splitQuoted so spaces
+	// and backslashes in the directory path are preserved.
+	wantFlag := "-L" + filepath.ToSlash(tmpDir) + "/lib"
+	if !slices.Equal(p.LdFlags, []string{wantFlag, "-lx"}) {
+		t.Errorf("LdFlags = %q, want %q", p.LdFlags, []string{wantFlag, "-lx"})
+	}
+	spaceDir := filepath.Join(tmpDir, "dir with space")
+	p2 := newPackage(nil, token.NewFileSet())
+	entry2 := p2.parseBindingFiles([]bindingSource{{
+		path:     "/virtual/b.go",
+		origPath: filepath.Join(spaceDir, "b.go"),
+		data:     []byte(src),
+	}})
+	wantSpace := []string{"-L" + filepath.ToSlash(spaceDir) + "/lib", "-lx"}
+	if !slices.Equal(entry2.LdFlags, wantSpace) {
+		t.Errorf("LdFlags with space in SRCDIR = %q, want %q", entry2.LdFlags, wantSpace)
+	}
+	if filepath.Separator == '/' {
+		bsDir := filepath.Join(tmpDir, `a\b`)
+		p3 := newPackage(nil, token.NewFileSet())
+		entry3 := p3.parseBindingFiles([]bindingSource{{
+			path:     "/virtual/b.go",
+			origPath: filepath.Join(bsDir, "b.go"),
+			data:     []byte(src),
+		}})
+		wantBS := []string{"-L" + bsDir + "/lib", "-lx"}
+		if !slices.Equal(entry3.LdFlags, wantBS) {
+			t.Errorf("LdFlags with backslash in SRCDIR = %q, want %q", entry3.LdFlags, wantBS)
+		}
+	}
+
+	outBytes, err := os.ReadFile(filepath.Join(tmpDir, "b.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(outBytes)
+	for _, want := range []string{
+		"//line /virtual/b.go:1:1\n",
+		"return _Cfunc_Add(int32(x), 1)",
+		"func ShadowParam(C box) int32 { return C.Add }",
+		"C := box{Add: 3}\n\treturn C.Add",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("b.cgobinding.go missing %q:\n%s", want, out)
+		}
+	}
+}
+
 func TestBindingLdflagsPreamble(t *testing.T) {
 	origGoos, origGoarch := goos, goarch
 	defer func() { goos, goarch = origGoos, origGoarch }()
@@ -268,7 +358,7 @@ func F()
 	p := newPackage(nil, fset)
 	goos, goarch = "darwin", "arm64"
 	entry := p.parseBinding(filepath.Join(dir, "binding.go"), []byte(input))
-	want := []string{"-L" + dir + "/lib", "-lmac"}
+	want := []string{"-L" + filepath.ToSlash(dir) + "/lib", "-lmac"}
 	if !slices.Equal(entry.LdFlags, want) {
 		t.Errorf("LdFlags = %q, want %q", entry.LdFlags, want)
 	}
