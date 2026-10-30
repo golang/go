@@ -90,9 +90,13 @@ TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOV	p_len+24(FP), X7	// len(p)
 
 	// Byte-align input to a 16-byte boundary (algorithm requirement; the
-	// fold-loop LDs only need 8-byte alignment).
+	// fold-loop LDs only need 8-byte alignment). ANDI gives the offset from
+	// the previous 16-byte boundary; negating it yields the bytes until the
+	// next boundary, which is how many the loop must consume.
 	ANDI	$15, X6, X23
 	BEQ	X23, ZERO, ieee_aligned
+	SUB	X6, X0, X23
+	ANDI	$15, X23, X23
 
 ieee_align_head:
 	CRC_BYTE()
@@ -206,9 +210,13 @@ TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOV	p_len+24(FP), X7	// len(p)
 
 	// Byte-align input to a 16-byte boundary (algorithm requirement; the
-	// fold-loop LDs only need 8-byte alignment).
+	// fold-loop LDs only need 8-byte alignment). ANDI gives the offset from
+	// the previous 16-byte boundary; negating it yields the bytes until the
+	// next boundary, which is how many the loop must consume.
 	ANDI	$15, X6, X23
 	BEQ	X23, ZERO, cast_aligned
+	SUB	X6, X0, X23
+	ANDI	$15, X23, X23
 
 cast_align_head:
 	CRC_BYTE()
