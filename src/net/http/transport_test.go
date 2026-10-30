@@ -1215,6 +1215,14 @@ func testTransportGzip(t *testing.T, mode testMode) {
 			t.Errorf("Accept-Encoding = %q, want %q", g, e)
 		}
 		rw.Header().Set("Content-Encoding", "gzip")
+		if status := req.FormValue("status"); status != "" {
+			code, err := strconv.Atoi(status)
+			if err != nil {
+				t.Error(err)
+			}
+			rw.WriteHeader(code)
+			return
+		}
 
 		var w io.Writer = rw
 		var buf bytes.Buffer
@@ -1290,6 +1298,21 @@ func testTransportGzip(t *testing.T, mode testMode) {
 	}
 	if res.StatusCode != 200 {
 		t.Errorf("Head status=%d; want=200", res.StatusCode)
+	}
+	if res.Body != http.NoBody {
+		t.Errorf("Head response body is %T, want http.NoBody", res.Body)
+	}
+
+	// And a 304 response with no response body.
+	res, err = c.Get(ts.URL + "/?status=304")
+	if err != nil {
+		t.Fatalf("304 get: %v", err)
+	}
+	if res.StatusCode != 304 {
+		t.Fatalf("got status %v, want 304", res.StatusCode)
+	}
+	if res.Body != http.NoBody {
+		t.Errorf("304 response body is %T, want http.NoBody", res.Body)
 	}
 }
 

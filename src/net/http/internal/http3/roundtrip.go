@@ -294,7 +294,8 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 			extractTrailerFromHeader(h, trailer)
 			delete(h, "Trailer")
 
-			if (internal.BodyAllowedForStatus(statusCode) && contentLength != 0 && req.Method != http.MethodHead) || len(trailer) > 0 {
+			hasBody := true
+			if internal.BodyAllowedForStatus(statusCode) && req.Method != http.MethodHead && (contentLength != 0 || len(trailer) > 0) {
 				rt.respBody = &bodyReader{
 					st:             st,
 					remain:         contentLength,
@@ -302,6 +303,7 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 					maxHeaderBytes: cc.tr.maxResponseHeaderBytes(),
 				}
 			} else {
+				hasBody = false
 				rt.respBody = http.NoBody
 				st.CloseRead(uint64(errH3NoError))
 				rt.finish(roundTripReadDone)
@@ -314,9 +316,12 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 				Status:        strconv.Itoa(statusCode) + " " + http.StatusText(statusCode),
 				ContentLength: contentLength,
 				Trailer:       trailer,
-				Body:          (*transportResponseBody)(rt),
+				Body:          rt.respBody,
 			}
-			if addedGzip && ascii.EqualFold(h.Get("Content-Encoding"), "gzip") {
+			if hasBody {
+				resp.Body = (*transportResponseBody)(rt)
+			}
+			if addedGzip && hasBody && ascii.EqualFold(h.Get("Content-Encoding"), "gzip") {
 				resp.Body = &httpcommon.GzipReader{Body: resp.Body}
 				h.Del("Content-Encoding")
 				h.Del("Content-Length")
