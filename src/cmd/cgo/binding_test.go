@@ -426,7 +426,7 @@ func TestParseCgoPragma(t *testing.T) {
 			t.Fatal(err)
 		}
 		got, ok := parseCgoPragma(fset, file.Comments[0].List[0])
-		got.Pos = token.Position{}
+		got.Pos, got.TokPos, got.Text = token.Position{}, 0, ""
 		if ok != tt.ok || got != tt.want {
 			t.Errorf("parseCgoPragma(%q) = %+v, %v; want %+v, %v", tt.src, got, ok, tt.want, tt.ok)
 		}
@@ -1234,6 +1234,26 @@ func TestBindingHasPointer(t *testing.T) {
 	} {
 		if got := bindingHasPointer(tt.typ, types, true); got != tt.want {
 			t.Errorf("bindingHasPointer(%q, top) = %v, want %v", tt.typ, got, tt.want)
+		}
+	}
+}
+
+// TestIsAnonCtype verifies which _Ctype_ names -gen-binding treats as the
+// names cgo invents for untagged C structs, unions, and classes.
+func TestIsAnonCtype(t *testing.T) {
+	for name, want := range map[string]bool{
+		"_Ctype_struct___0":   true,
+		"_Ctype_union___12":   true,
+		"_Ctype_class___3":    true,
+		"_Ctype_struct___":    false,
+		"_Ctype_struct___foo": false,
+		"_Ctype_struct_S":     false,
+		"_Ctype_union_U":      false,
+		"_Ctype_U":            false,
+		"_Ctype_int":          false,
+	} {
+		if got := isAnonCtype(name); got != want {
+			t.Errorf("isAnonCtype(%q) = %v, want %v", name, got, want)
 		}
 	}
 }

@@ -54,6 +54,7 @@ type Package struct {
 	Preamble    string          // collected preamble for _cgo_export.h
 	noCallbacks map[string]bool // C function names with #cgo nocallback directive
 	noEscapes   map[string]bool // C function names with #cgo noescape directive
+	genFiles    []*File         // input files for -gen-binding
 }
 
 // A typedefInfo is an element on Package.typedefList: a typedef name
@@ -81,6 +82,8 @@ type File struct {
 	Edit        *edit.Buffer
 
 	debugs []*debug // debug data from iterations of gccDebug. Initialized by File.loadDebug.
+
+	gen *genBindingFile // input for -gen-binding
 }
 
 func (f *File) offset(p token.Pos) int {
@@ -283,6 +286,8 @@ var exportHeader = flag.String("exportheader", "", "where to write export header
 
 var binding = flag.Bool("binding", false, "generate code for //cgo: binding pragmas without a C compiler")
 
+var genBinding = flag.Bool("gen-binding", false, "generate a Go binding file from the //cgo: pragmas in a package's Go files and their C headers")
+
 var ldflags = flag.String("ldflags", "", "flags to pass to C linker")
 var ldflagsSet bool
 
@@ -326,7 +331,7 @@ func main() {
 		return
 	}
 
-	if *godefs {
+	if *godefs || *genBinding {
 		// Generating definitions pulled from header files,
 		// to be checked into Go repositories.
 		// Line numbers are just noise.
@@ -401,6 +406,10 @@ func main() {
 		p.addToFlag("LDFLAGS", args)
 	}
 
+	if *genBinding && (*binding || *godefs) {
+		fatalf("-gen-binding cannot be combined with -binding or -godefs")
+	}
+
 	if *binding {
 		if !buildcfg.Experiment.CgoBindings {
 			fatalf("-binding requires GOEXPERIMENT=cgobindings")
@@ -410,6 +419,15 @@ func main() {
 		}
 		p.processBinding(goFiles)
 		return
+	}
+
+	if *genBinding {
+		if !buildcfg.Experiment.CgoBindings {
+			fatalf("-gen-binding requires GOEXPERIMENT=cgobindings")
+		}
+		if !platform.CgoSupported(goos, goarch) {
+			fatalf("-gen-binding is not supported on %s/%s", goos, goarch)
+		}
 	}
 
 	// We need a C compiler to be available. Check this.
@@ -441,6 +459,11 @@ func main() {
 		if aname, err := filepath.Abs(input); err == nil {
 			input = aname
 		}
+		if *genBinding {
+			// As when cmd/go runs cgo, let the preamble include headers
+			// from the directory of the Go file.
+			p.addToFlag("CFLAGS", []string{"-I", filepath.Dir(input)})
+		}
 
 		b, err := os.ReadFile(input)
 		if err != nil {
@@ -450,6 +473,7 @@ func main() {
 			fatalf("%s", err)
 		}
 
+		origDir := filepath.Dir(input)
 		q.Add(func() {
 			// Apply trimpath to the file path. The path won't be read from after this point.
 			input, _ = objabi.ApplyRewrites(input, *trimpath)
@@ -462,10 +486,20 @@ func main() {
 			goFiles[i] = input
 
 			f := new(File)
+			if *genBinding && !genBindingImportsC(input, b) {
+				// A Go file of the package that does not use cgo.
+				// It may declare Go names bound by the pragmas.
+				f.useGenBindingPragmas(input, origDir, b)
+				fs[i] = f
+				return
+			}
 			f.Edit = edit.NewBuffer(b)
 			f.LitMap = make(map[*ast.CompositeLit]*Lit)
 			f.ParseGo(input, b)
-			f.ProcessCgoDirectives()
+			if *genBinding {
+				f.useGenBindingPragmas(input, origDir, b)
+			}
+			f.ProcessCgoDirectives(p)
 			gccIsClang := f.loadDefines(p.GccOptions)
 			once.Do(func() {
 				p.GccIsClang = gccIsClang
@@ -483,6 +517,11 @@ func main() {
 
 	for i, input := range goFiles {
 		f := fs[i]
+		if f.AST == nil {
+			// A -gen-binding input file that does not import "C".
+			p.genFiles = append(p.genFiles, f)
+			continue
+		}
 		p.Translate(f)
 		for _, cref := range f.Ref {
 			switch cref.Context {
@@ -502,6 +541,8 @@ func main() {
 		p.Record(f)
 		if *godefs {
 			os.Stdout.WriteString(p.godefs(f, osArgs))
+		} else if *genBinding {
+			p.genFiles = append(p.genFiles, f)
 		} else {
 			p.writeOutput(f, input)
 		}
@@ -524,6 +565,17 @@ func main() {
 		if _, found := cFunctions[funcName]; !found {
 			error_(token.NoPos, "#cgo nocallback %s: no matched C function", funcName)
 		}
+	}
+
+	if *genBinding {
+		if nerrors > 0 {
+			os.Exit(2)
+		}
+		p.writeBinding(os.Stdout)
+		if nerrors > 0 {
+			os.Exit(2)
+		}
+		return
 	}
 
 	if !*godefs {

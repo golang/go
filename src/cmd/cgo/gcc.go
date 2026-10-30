@@ -80,7 +80,7 @@ func cname(s string) string {
 //  1. discards all #cgo CFLAGS, LDFLAGS, nocallback and noescape directives,
 //     so they don't make their way into _cgo_export.h.
 //  2. parse the nocallback and noescape directives.
-func (f *File) ProcessCgoDirectives() {
+func (f *File) ProcessCgoDirectives(p *Package) {
 	linesIn := strings.Split(f.Preamble, "\n")
 	linesOut := make([]string, 0, len(linesIn))
 	f.NoCallbacks = make(map[string]bool)
@@ -93,13 +93,44 @@ func (f *File) ProcessCgoDirectives() {
 			linesOut = append(linesOut, "")
 
 			// #cgo (nocallback|noescape) <function name>
-			if fields := strings.Fields(l); len(fields) == 3 {
+			if fields := strings.Fields(l); len(fields) == 3 && (fields[1] == "nocallback" || fields[1] == "noescape") {
 				directive := fields[1]
 				funcName := fields[2]
 				if directive == "nocallback" {
 					f.NoCallbacks[funcName] = true
 				} else if directive == "noescape" {
 					f.NoEscapes[funcName] = true
+				}
+				continue
+			}
+
+			if *genBinding {
+				verb, flags, matched, ok := parseCgoDirective(l)
+				if !ok {
+					fatalf("invalid #cgo line: %s", line)
+				}
+				if !matched || flags == "" {
+					continue
+				}
+				if verb == "pkg-config" {
+					fatalf("-gen-binding does not support #cgo pkg-config")
+				}
+				args, err := splitQuoted(flags)
+				if err != nil {
+					fatalf("invalid #cgo %s: %v", verb, err)
+				}
+				if f.gen != nil && f.gen.srcDir != "" {
+					srcDir := filepath.ToSlash(f.gen.srcDir)
+					for i, arg := range args {
+						args[i] = strings.ReplaceAll(arg, "${SRCDIR}", srcDir)
+					}
+				}
+				if len(args) > 0 {
+					if verb == "CFLAGS" || verb == "CPPFLAGS" {
+						p.addToFlag("CFLAGS", args)
+					} else if verb == "LDFLAGS" {
+						p.addToFlag("LDFLAGS", args)
+					}
 				}
 			}
 		}
@@ -213,6 +244,10 @@ func (f *File) loadDebug(p *Package) {
 		needType := p.guessKinds(f)
 		if len(needType) > 0 {
 			f.debugs = append(f.debugs, p.loadDWARF(f, &ft, needType))
+		} else if *genBinding && strings.TrimSpace(f.Preamble) != "" {
+			if err := p.gccErrors([]byte(builtinProlog + f.Preamble)); err != "" {
+				error_(token.NoPos, "\n%s", err)
+			}
 		}
 
 		// In godefs mode we're OK with the typedefs, which
@@ -1681,9 +1716,10 @@ func (p *Package) rewriteRef(f *File) {
 	}
 
 	// Remove functions only used as expressions, so their respective
-	// bridge functions are not generated.
+	// bridge functions are not generated. In -gen-binding mode the
+	// functions come from pragmas, not calls, so keep them all.
 	for name, used := range functions {
-		if !used {
+		if !used && !*genBinding {
 			delete(f.Name, name)
 		}
 	}
@@ -2669,6 +2705,13 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		case 8 + signedDelta:
 			t.Go = c.int64
 		}
+		if *genBinding && dt.EnumName != "" {
+			name := "_Ctype_enum_" + dt.EnumName
+			if typedef[name] == nil {
+				tt := *t
+				typedef[name] = &tt
+			}
+		}
 
 	case *dwarf.FloatType:
 		switch t.Size {
@@ -2821,12 +2864,25 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		}
 		switch dt.Kind {
 		case "class", "union":
+			if t.C.Empty() {
+				t.C.Set("__typeof__(unsigned char[%d])", t.Size)
+			}
+			if *genBinding && dt.Kind == "union" && t.Size > 0 {
+				if g, align := c.unionFloatArray(dt, t.Size); g != nil {
+					t.Align = align
+					if dt.StructName == "" {
+						t.Go = g
+					} else {
+						tt := *t
+						tt.Go = g
+						typedef[name.Name] = &tt
+					}
+					break
+				}
+			}
 			t.Go = c.Opaque(t.Size)
 			if c.dwarfHasPointer(dt, pos) {
 				unionWithPointer[t.Go] = true
-			}
-			if t.C.Empty() {
-				t.C.Set("__typeof__(unsigned char[%d])", t.Size)
 			}
 			t.Align = 1 // TODO: should probably base this on field alignment.
 			typedef[name.Name] = t
@@ -2918,6 +2974,7 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 		}
 		t.Size = sub.Size
 		t.Align = sub.Align
+		t.EnumValues = sub.EnumValues
 		oldType := typedef[name.Name]
 		if oldType == nil {
 			tt := *t
@@ -3278,7 +3335,12 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
 			align = talign
 		}
 	}
-	if off < dt.ByteSize {
+	if *genBinding && len(sizes) > 0 && sizes[len(sizes)-1] > 0 && (off+align-1)&^(align-1) == dt.ByteSize {
+		// In -gen-binding mode, omit trailing padding when Go's struct
+		// alignment already rounds the size up to dt.ByteSize, avoiding
+		// synthetic `_ [N]byte` fields that ABI layout treats as byte arrays.
+		off = dt.ByteSize
+	} else if off < dt.ByteSize {
 		fld, sizes = c.pad(fld, sizes, dt.ByteSize-off)
 		off = dt.ByteSize
 	}
@@ -3668,4 +3730,51 @@ var jniTypes = map[string]string{
 	"jdoubleArray":  "jarray",
 	"jobjectArray":  "jarray",
 	"jweak":         "jobject",
+}
+
+func (c *typeConv) unionFloatArray(dt *dwarf.StructType, size int64) (ast.Expr, int64) {
+	hasFloat32, hasFloat64, hasNonFloat := false, false, false
+	var walk func(t dwarf.Type)
+	walk = func(t dwarf.Type) {
+		if hasNonFloat {
+			return
+		}
+		switch x := base(t).(type) {
+		case *dwarf.FloatType:
+			switch x.ByteSize {
+			case 4:
+				hasFloat32 = true
+			case 8:
+				hasFloat64 = true
+			default:
+				hasNonFloat = true
+			}
+		case *dwarf.ArrayType:
+			walk(x.Type)
+		case *dwarf.StructType:
+			if len(x.Field) == 0 {
+				hasNonFloat = true
+				return
+			}
+			for _, f := range x.Field {
+				walk(f.Type)
+			}
+		default:
+			hasNonFloat = true
+		}
+	}
+	walk(dt)
+	if hasNonFloat || (!hasFloat32 && !hasFloat64) {
+		return nil, 1
+	}
+	if hasFloat32 && !hasFloat64 && size%4 == 0 && size <= 16 {
+		return &ast.ArrayType{Len: c.intExpr(size / 4), Elt: c.float32}, 4
+	}
+	if hasFloat64 && !hasFloat32 && size%8 == 0 && size <= 32 {
+		return &ast.ArrayType{Len: c.intExpr(size / 8), Elt: c.float64}, 8
+	}
+	if goarch == "amd64" && goos != "windows" && size%8 == 0 && size <= 16 {
+		return &ast.ArrayType{Len: c.intExpr(size / 8), Elt: c.float64}, 8
+	}
+	return nil, 1
 }

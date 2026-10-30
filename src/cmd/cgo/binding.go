@@ -261,11 +261,13 @@ func windowsDLLName(lib string) string {
 // imports "C".
 type cgoPragma struct {
 	Pos      token.Position
-	Kind     string // pragma name: "func", "var", "type", "const", or "dynload"
-	RecvType string // for func and var, the //cgo:dynload type LibT in the LibT.GoName form
-	GoName   string // Go identifier being bound (the method name in the LibT.GoName form)
-	CName    string // C symbol name
-	BindC    bool   // cName was written as C.cName, so Go code may also use C.cName
+	TokPos   token.Pos // position in the file set the pragma was parsed with
+	Text     string    // the pragma comment text
+	Kind     string    // pragma name: "func", "var", "type", "const", or "dynload"
+	RecvType string    // for func and var, the //cgo:dynload type LibT in the LibT.GoName form
+	GoName   string    // Go identifier being bound (the method name in the LibT.GoName form)
+	CName    string    // C symbol name
+	BindC    bool      // cName was written as C.cName, so Go code may also use C.cName
 
 	// Library specifier, for func and var.
 	Library string // shared library for the "lib" form
@@ -358,7 +360,7 @@ func parseCgoPragma(fset *token.FileSet, c *ast.Comment) (cgoPragma, bool) {
 		off := int(arg.Pos - d.ArgsPos)
 		return off >= 0 && off < len(d.Args) && (d.Args[off] == '"' || d.Args[off] == '`')
 	}
-	pr := cgoPragma{Pos: fset.Position(c.Pos()), Kind: d.Name}
+	pr := cgoPragma{Pos: fset.Position(c.Pos()), TokPos: c.Pos(), Text: strings.TrimSpace(c.Text), Kind: d.Name}
 	if d.Name == "dynload" {
 		if len(args) != 1 {
 			bad("wrong number of arguments")
