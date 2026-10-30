@@ -257,26 +257,31 @@ func (h Handle) AddStackMaps(stackMaps ...StackMap) {
 	if !ok {
 		panic("runtime/jit: unregistered handle")
 	}
-	var previous uintptr
-	if len(r.StackMaps) != 0 {
-		previous = r.StackMaps[len(r.StackMaps)-1].PCOffset
-	}
-	if err := validateMaps(r, stackMaps, previous, len(r.StackMaps) != 0); err != nil {
+	if err := validateMaps(r.region, stackMaps, r.lastPC, r.hasMaps); err != nil {
 		panic(err)
 	}
 	copied := copyMaps(stackMaps)
 	addUserFrameStackMaps(h.handle, copied)
-	r.StackMaps = append(r.StackMaps, copied...)
-	liveRegions[h.handle] = r
+	if len(copied) != 0 {
+		r.mapBatches = append(r.mapBatches, copied)
+		r.lastPC = copied[len(copied)-1].PCOffset
+		r.hasMaps = true
+		liveRegions[h.handle] = r
+	}
 }
 
-// liveRegions keeps function pointers (closures) alive so the GC does
-// not collect them. The runtime stores these pointers in persistentalloc
-// memory that is invisible to the GC, so we must retain a reference here.
-var (
-	liveRegionsMu sync.Mutex
-	liveRegions   map[uintptr]Region
-)
+// Writers serialize on ordinary Go goroutines. Runtime stack walkers use
+// the GC-owned tree and stable map blocks without acquiring this mutex.
+// Diagnostic maps retain append batches, never copies of earlier entries.
+type registeredRegion struct {
+	region     Region
+	mapBatches [][]StackMap
+	lastPC     uintptr
+	hasMaps    bool
+}
+
+var liveRegionsMu sync.Mutex
+var liveRegions map[uintptr]registeredRegion
 
 // Register makes the runtime aware of a user code region.
 func Register(r Region) Handle {
@@ -287,7 +292,7 @@ func Register(r Region) Handle {
 	liveRegionsMu.Lock()
 	defer liveRegionsMu.Unlock()
 	for _, other := range liveRegions {
-		if r.Start < other.End && other.Start < r.End {
+		if r.Start < other.region.End && other.region.Start < r.End {
 			panic(&MetadataError{Start: r.Start, End: r.End, Field: "range", Reason: "overlaps a registered region"})
 		}
 	}
@@ -298,11 +303,17 @@ func Register(r Region) Handle {
 		r.StackMaps,
 	)
 
-	// Keep closures alive for the GC.
-	if liveRegions == nil {
-		liveRegions = make(map[uintptr]Region)
+	state := registeredRegion{region: r}
+	state.region.StackMaps = nil
+	if len(r.StackMaps) != 0 {
+		state.mapBatches = [][]StackMap{r.StackMaps}
+		state.lastPC = r.StackMaps[len(r.StackMaps)-1].PCOffset
+		state.hasMaps = true
 	}
-	liveRegions[h] = r
+	if liveRegions == nil {
+		liveRegions = make(map[uintptr]registeredRegion)
+	}
+	liveRegions[h] = state
 
 	return Handle{handle: h}
 }
@@ -319,6 +330,9 @@ func (h Handle) Unregister() {
 	}
 	unregisterUserFrameRegion(h.handle)
 	delete(liveRegions, h.handle)
+	if len(liveRegions) == 0 {
+		liveRegions = nil
+	}
 }
 
 // Preempt reports whether the Go runtime is requesting the current

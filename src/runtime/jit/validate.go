@@ -100,8 +100,11 @@ func (h Handle) Snapshot() Region {
 	if !ok {
 		panic("runtime/jit: unregistered handle")
 	}
-	r.StackMaps = copyMaps(r.StackMaps)
-	return r
+	result := r.region
+	for _, batch := range r.mapBatches {
+		result.StackMaps = append(result.StackMaps, copyMaps(batch)...)
+	}
+	return result
 }
 
 // WriteTo writes registered PCs, root slots, and unwind recipes for diagnosis.

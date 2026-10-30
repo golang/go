@@ -1,0 +1,46 @@
+# Copyright 2026 The Go Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style
+# license that can be found in the LICENSE file.
+name: JIT metadata lifetimes
+on:
+  pull_request:
+    branches: [jit-foreign-frames-master, jit-foreign-frames-go1.27.0]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jit-metadata-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version: '1.27.x'
+          cache: false
+      - name: Build the proposed toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          bootstrap=$(go env GOROOT)
+          (cd src && GOROOT_BOOTSTRAP="$bootstrap" ./make.bash)
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+          printf 'GOROOT=%s\n' "$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          printf 'GOEXPERIMENT=jit\n' >> "$GITHUB_ENV"
+      - name: Check registry balance and stable stackmap blocks
+        run: go test runtime -run '^TestUserFrame(PersistentTree|StableStackMapBlocks)$' -count=3
+      - name: Check GC lifetimes and active JIT frames
+        env:
+          GOGC: '1'
+          GODEBUG: clobberfree=1,gccheckmark=1
+        run: >-
+          go test runtime/jit
+          -run '^Test(Metadata|RegisterUnregister|MultipleRegisterUnregister|StackMapPublicationConcurrentWithGC|PointerMapKeepsHeapObjectLive|PointerMapStackGrowth|StackMapParallelActiveFrames|CallerFramePointerStackGrowth)'
+          -count=10
+      - name: Race-check concurrent registry updates and lookups
+        run: go test -race runtime/jit -run '^TestMetadata' -count=3

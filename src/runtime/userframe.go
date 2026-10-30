@@ -63,14 +63,73 @@ type userFrameStackMap struct {
 	callerBPOffset        uintptr
 }
 
-// userFrameStackMapTable is append-only. Writers serialize through
-// userFrameLock. Readers atomically load count and maps without locking. Old
-// backing arrays are persistentalloc'd and never freed, so a concurrent grow
-// cannot invalidate a reader's snapshot.
+// Each leaf holds a stable block of entries. Append never relocates entries or
+// masks. The radix index grows by publishing new child pointers and, rarely, a
+// new root descriptor; old roots remain valid Go objects for concurrent readers.
+const userFrameMapBlockShift = 6
+const userFrameMapIndexShift = 4
+
+type userFrameStackMapBlock struct {
+	entries [1 << userFrameMapBlockShift]userFrameStackMap
+}
+
+type userFrameStackMapNode struct {
+	children [1 << userFrameMapIndexShift]unsafe.Pointer
+}
+
+type userFrameStackMapIndex struct {
+	root   unsafe.Pointer
+	levels uint8
+}
+
 type userFrameStackMapTable struct {
-	maps     unsafe.Pointer // *userFrameStackMap
-	count    uintptr
-	capacity uintptr // protected by userFrameLock
+	index *userFrameStackMapIndex
+	count uintptr
+}
+
+//go:nosplit
+func userFrameMapAt(index *userFrameStackMapIndex, i uintptr) *userFrameStackMap {
+	block := i >> userFrameMapBlockShift
+	p := index.root
+	for level := index.levels; level != 0; level-- {
+		n := (*userFrameStackMapNode)(p)
+		slot := (block >> ((level - 1) * userFrameMapIndexShift)) & ((1 << userFrameMapIndexShift) - 1)
+		p = atomic.Loadp(unsafe.Pointer(&n.children[slot]))
+	}
+	return &(*userFrameStackMapBlock)(p).entries[i&((1<<userFrameMapBlockShift)-1)]
+}
+
+// userFrameMapAppendSlot is writer-only. Publish count after initializing every
+// new entry. Readers with an older count can safely use the expanded index.
+func userFrameMapAppendSlot(table *userFrameStackMapTable, i uintptr) *userFrameStackMap {
+	index := table.index
+	if index == nil {
+		index = &userFrameStackMapIndex{root: unsafe.Pointer(new(userFrameStackMapBlock))}
+		atomicstorep(unsafe.Pointer(&table.index), unsafe.Pointer(index))
+	}
+	block := i >> userFrameMapBlockShift
+	for block>>(index.levels*userFrameMapIndexShift) != 0 {
+		root := new(userFrameStackMapNode)
+		root.children[0] = index.root
+		index = &userFrameStackMapIndex{root: unsafe.Pointer(root), levels: index.levels + 1}
+		atomicstorep(unsafe.Pointer(&table.index), unsafe.Pointer(index))
+	}
+	p := index.root
+	for level := index.levels; level != 0; level-- {
+		n := (*userFrameStackMapNode)(p)
+		slot := (block >> ((level - 1) * userFrameMapIndexShift)) & ((1 << userFrameMapIndexShift) - 1)
+		child := n.children[slot]
+		if child == nil {
+			if level == 1 {
+				child = unsafe.Pointer(new(userFrameStackMapBlock))
+			} else {
+				child = unsafe.Pointer(new(userFrameStackMapNode))
+			}
+			atomicstorep(unsafe.Pointer(&n.children[slot]), child)
+		}
+		p = child
+	}
+	return &(*userFrameStackMapBlock)(p).entries[i&((1<<userFrameMapBlockShift)-1)]
 }
 
 type userFrameUnwindMode uint8
@@ -81,173 +140,148 @@ const (
 	userFrameUnwindDeclare                            // frames are described via callbacks
 )
 
-// User frame registry.
-//
-// Uses a copy-on-write scheme: writers (register/unregister) allocate a
-// new snapshot via persistentalloc and atomically swap the pointer.
-// Readers (findUserFrameRegion) load the pointer atomically and operate
-// on an immutable snapshot. This avoids data races without requiring
-// the reader to take a lock (which is important because the reader runs
-// on the system stack during stack unwinding and signal handling).
-
-// userFrameSnapshot is the immutable snapshot published to readers.
-// regions is a variable-length trailing array allocated by
-// allocUserFrameSnapshot.
-type userFrameSnapshot struct {
-	count   int
-	regions [1]userFrameRegion
+// User frame registry. Writers are serialized by runtime/jit's registryMu.
+// Nodes are immutable after publication. An update copies O(log N) nodes;
+// ordinary typed Go references retain the old paths for concurrent readers.
+// The handle index belongs only to writers and never enters stack walks.
+type userFrameNode struct {
+	region *userFrameRegion
+	left   *userFrameNode
+	right  *userFrameNode
+	height int
 }
 
 var (
-	userFrameLock   mutex
-	userFrameSnap   unsafe.Pointer // *userFrameSnapshot, accessed atomically
-	userFrameHandle uintptr        // monotonic counter for handles
+	userFrameRoot     *userFrameNode
+	userFrameByHandle map[uintptr]*userFrameRegion
+	userFrameHandle   uintptr
 )
 
-// loadUserFrameSnapshot atomically loads the current snapshot.
-//
-//go:nosplit
-func loadUserFrameSnapshot() *userFrameSnapshot {
-	p := atomic.Loadp(unsafe.Pointer(&userFrameSnap))
-	return (*userFrameSnapshot)(p)
+func userFrameHeight(n *userFrameNode) int {
+	if n == nil {
+		return 0
+	}
+	return n.height
 }
 
-func allocUserFrameSnapshot(count int) *userFrameSnapshot {
-	if count < 0 {
-		throw("registerUserFrameRegion: too many regions")
-	}
-	regionBytes := uintptr(count) * unsafe.Sizeof(userFrameRegion{})
-	if count != 0 && regionBytes/unsafe.Sizeof(userFrameRegion{}) != uintptr(count) {
-		throw("registerUserFrameRegion: too many regions")
-	}
-	bytes := unsafe.Offsetof(userFrameSnapshot{}.regions) + regionBytes
-	if bytes < regionBytes {
-		throw("registerUserFrameRegion: too many regions")
-	}
-	mem := persistentalloc(bytes, unsafe.Alignof(userFrameSnapshot{}), &memstats.other_sys)
-	snap := (*userFrameSnapshot)(mem)
-	snap.count = count
-	return snap
+func userFrameNodeFor(r *userFrameRegion, left, right *userFrameNode) *userFrameNode {
+	return &userFrameNode{region: r, left: left, right: right, height: 1 + max(userFrameHeight(left), userFrameHeight(right))}
 }
 
-//go:nosplit
-func (snap *userFrameSnapshot) region(i int) *userFrameRegion {
-	return (*userFrameRegion)(add(unsafe.Pointer(snap), unsafe.Offsetof(userFrameSnapshot{}.regions)+uintptr(i)*unsafe.Sizeof(userFrameRegion{})))
+func userFrameRotateLeft(n *userFrameNode) *userFrameNode {
+	r := n.right
+	return userFrameNodeFor(r.region, userFrameNodeFor(n.region, n.left, r.left), r.right)
+}
+
+func userFrameRotateRight(n *userFrameNode) *userFrameNode {
+	l := n.left
+	return userFrameNodeFor(l.region, l.left, userFrameNodeFor(n.region, l.right, n.right))
+}
+
+func userFrameBalance(n *userFrameNode) *userFrameNode {
+	balance := userFrameHeight(n.left) - userFrameHeight(n.right)
+	if balance > 1 {
+		if userFrameHeight(n.left.left) < userFrameHeight(n.left.right) {
+			n = userFrameNodeFor(n.region, userFrameRotateLeft(n.left), n.right)
+		}
+		return userFrameRotateRight(n)
+	}
+	if balance < -1 {
+		if userFrameHeight(n.right.right) < userFrameHeight(n.right.left) {
+			n = userFrameNodeFor(n.region, n.left, userFrameRotateRight(n.right))
+		}
+		return userFrameRotateLeft(n)
+	}
+	return n
+}
+
+func userFrameInsert(n *userFrameNode, r *userFrameRegion) *userFrameNode {
+	if n == nil {
+		return userFrameNodeFor(r, nil, nil)
+	}
+	if r.start < n.region.start {
+		return userFrameBalance(userFrameNodeFor(n.region, userFrameInsert(n.left, r), n.right))
+	}
+	return userFrameBalance(userFrameNodeFor(n.region, n.left, userFrameInsert(n.right, r)))
+}
+
+func userFrameRemove(n *userFrameNode, start uintptr) *userFrameNode {
+	if start < n.region.start {
+		return userFrameBalance(userFrameNodeFor(n.region, userFrameRemove(n.left, start), n.right))
+	}
+	if start > n.region.start {
+		return userFrameBalance(userFrameNodeFor(n.region, n.left, userFrameRemove(n.right, start)))
+	}
+	if n.left == nil {
+		return n.right
+	}
+	if n.right == nil {
+		return n.left
+	}
+	successor := n.right
+	for successor.left != nil {
+		successor = successor.left
+	}
+	return userFrameBalance(userFrameNodeFor(successor.region, n.left, userFrameRemove(n.right, successor.region.start)))
 }
 
 func registerUserFrameRegion(r userFrameRegion) uintptr {
 	if r.start >= r.end {
 		throw("registerUserFrameRegion: invalid address range")
 	}
-	lock(&userFrameLock)
-
-	// Read current snapshot (may be nil on first call).
-	old := loadUserFrameSnapshot()
-	var oldCount int
-	if old != nil {
-		oldCount = old.count
-	}
-
-	// Check for overlaps.
-	for i := 0; i < oldCount; i++ {
-		fr := old.region(i)
-		if r.start < fr.end && r.end > fr.start {
-			unlock(&userFrameLock)
+	root := (*userFrameNode)(atomic.Loadp(unsafe.Pointer(&userFrameRoot)))
+	for n := root; n != nil; {
+		if r.end <= n.region.start {
+			n = n.left
+		} else if r.start >= n.region.end {
+			n = n.right
+		} else {
 			throw("registerUserFrameRegion: overlapping region")
 		}
 	}
-
-	// Assign handle.
 	userFrameHandle++
 	r.handle = userFrameHandle
-
-	// Build new snapshot with the region inserted in sorted order.
-	snap := allocUserFrameSnapshot(oldCount + 1)
-
-	pos := oldCount
-	for i := 0; i < oldCount; i++ {
-		if r.start < old.region(i).start {
-			pos = i
-			break
-		}
+	if userFrameByHandle == nil {
+		userFrameByHandle = make(map[uintptr]*userFrameRegion)
 	}
-	// Copy elements before pos.
-	for i := 0; i < pos; i++ {
-		*snap.region(i) = *old.region(i)
-	}
-	// Insert new region.
-	*snap.region(pos) = r
-	// Copy elements after pos.
-	for i := pos; i < oldCount; i++ {
-		*snap.region(i + 1) = *old.region(i)
-	}
-
-	// Publish atomically. Readers will see the complete new snapshot.
-	atomic.StorepNoWB(unsafe.Pointer(&userFrameSnap), unsafe.Pointer(snap))
-
-	h := r.handle
-	unlock(&userFrameLock)
-	return h
+	region := new(userFrameRegion)
+	*region = r
+	userFrameByHandle[r.handle] = region
+	root = userFrameInsert(root, region)
+	atomicstorep(unsafe.Pointer(&userFrameRoot), unsafe.Pointer(root))
+	return r.handle
 }
 
 func unregisterUserFrameRegion(handle uintptr) {
-	lock(&userFrameLock)
-	old := loadUserFrameSnapshot()
-	if old == nil {
-		unlock(&userFrameLock)
+	r := userFrameByHandle[handle]
+	if r == nil {
 		throw("unregisterUserFrameRegion: handle not found")
 	}
-
-	// Find the region.
-	idx := -1
-	for i := 0; i < old.count; i++ {
-		if old.region(i).handle == handle {
-			idx = i
-			break
-		}
+	root := (*userFrameNode)(atomic.Loadp(unsafe.Pointer(&userFrameRoot)))
+	root = userFrameRemove(root, r.start)
+	atomicstorep(unsafe.Pointer(&userFrameRoot), unsafe.Pointer(root))
+	delete(userFrameByHandle, handle)
+	if len(userFrameByHandle) == 0 {
+		userFrameByHandle = nil
 	}
-	if idx < 0 {
-		unlock(&userFrameLock)
-		throw("unregisterUserFrameRegion: handle not found")
-	}
-
-	// Build new snapshot without the region.
-	snap := allocUserFrameSnapshot(old.count - 1)
-	j := 0
-	for i := 0; i < old.count; i++ {
-		if i != idx {
-			*snap.region(j) = *old.region(i)
-			j++
-		}
-	}
-	atomic.StorepNoWB(unsafe.Pointer(&userFrameSnap), unsafe.Pointer(snap))
-
-	unlock(&userFrameLock)
 }
 
-// findUserFrameRegion returns the user frame region containing pc, or nil.
-// Uses an atomic load to read an immutable snapshot — no lock needed.
+// findUserFrameRegion performs a lock-free lookup without copying metadata.
+// The returned Go pointer keeps the region and its metadata reachable.
 //
 //go:nosplit
 func findUserFrameRegion(pc uintptr) *userFrameRegion {
 	if !goexperiment.JIT {
 		return nil
 	}
-	snap := loadUserFrameSnapshot()
-	if snap == nil {
-		return nil
-	}
-	// Binary search over sorted regions.
-	lo, hi := 0, snap.count
-	for lo < hi {
-		mid := int(uint(lo+hi) >> 1)
-		region := snap.region(mid)
-		if region.end <= pc {
-			lo = mid + 1
-		} else if region.start > pc {
-			hi = mid
+	n := (*userFrameNode)(atomic.Loadp(unsafe.Pointer(&userFrameRoot)))
+	for n != nil {
+		if pc < n.region.start {
+			n = n.left
+		} else if pc >= n.region.end {
+			n = n.right
 		} else {
-			return region
+			return n.region
 		}
 	}
 	return nil
@@ -370,15 +404,15 @@ func findUserFrameStackMap(r *userFrameRegion, pc uintptr) *userFrameStackMap {
 		return nil
 	}
 	count := atomic.Loaduintptr(&r.stackMaps.count)
-	maps := atomic.Loadp(unsafe.Pointer(&r.stackMaps.maps))
-	if count == 0 || maps == nil {
+	index := (*userFrameStackMapIndex)(atomic.Loadp(unsafe.Pointer(&r.stackMaps.index)))
+	if count == 0 || index == nil {
 		return nil
 	}
 	offset := pc - r.start
 	lo, hi := uintptr(0), count
 	for lo < hi {
 		mid := (lo + hi) >> 1
-		m := (*userFrameStackMap)(add(maps, mid*unsafe.Sizeof(userFrameStackMap{})))
+		m := userFrameMapAt(index, mid)
 		if m.pcOffset < offset {
 			lo = mid + 1
 		} else {
@@ -388,7 +422,7 @@ func findUserFrameStackMap(r *userFrameRegion, pc uintptr) *userFrameStackMap {
 	if lo == count {
 		return nil
 	}
-	m := (*userFrameStackMap)(add(maps, lo*unsafe.Sizeof(userFrameStackMap{})))
+	m := userFrameMapAt(index, lo)
 	if m.pcOffset != offset {
 		return nil
 	}
@@ -404,33 +438,9 @@ func appendUserFrameStackMaps(table *userFrameStackMapTable, start, end uintptr,
 	if newCount < oldCount {
 		throw("registerUserFrameRegion: too many stack maps")
 	}
-	maps := atomic.Loadp(unsafe.Pointer(&table.maps))
-	if newCount > table.capacity {
-		newCapacity := table.capacity * 2
-		if newCapacity < 16 {
-			newCapacity = 16
-		}
-		for newCapacity < newCount {
-			if newCapacity > ^uintptr(0)/2 {
-				throw("registerUserFrameRegion: too many stack maps")
-			}
-			newCapacity *= 2
-		}
-		bytes := newCapacity * unsafe.Sizeof(userFrameStackMap{})
-		if bytes/unsafe.Sizeof(userFrameStackMap{}) != newCapacity {
-			throw("registerUserFrameRegion: stack map table too large")
-		}
-		newMaps := persistentalloc(bytes, unsafe.Alignof(userFrameStackMap{}), &memstats.other_sys)
-		if oldCount != 0 {
-			memmove(newMaps, maps, oldCount*unsafe.Sizeof(userFrameStackMap{}))
-		}
-		maps = newMaps
-		table.capacity = newCapacity
-		atomic.StorepNoWB(unsafe.Pointer(&table.maps), maps)
-	}
 	var previousPC uintptr
 	if oldCount != 0 {
-		previous := (*userFrameStackMap)(add(maps, (oldCount-1)*unsafe.Sizeof(userFrameStackMap{})))
+		previous := userFrameMapAt(table.index, oldCount-1)
 		previousPC = previous.pcOffset
 	}
 	for i := range input {
@@ -454,10 +464,10 @@ func appendUserFrameStackMaps(table *userFrameStackMapTable, start, end uintptr,
 		}
 		var mask *byte
 		if maskBytes != 0 {
-			mask = (*byte)(persistentalloc(maskBytes, 1, &memstats.other_sys))
-			memmove(unsafe.Pointer(mask), unsafe.Pointer(&in.pointerMask[0]), maskBytes)
+			mask = &make([]byte, maskBytes)[0]
+			copy(unsafe.Slice(mask, maskBytes), in.pointerMask[:maskBytes])
 		}
-		out := (*userFrameStackMap)(add(maps, (oldCount+uintptr(i))*unsafe.Sizeof(userFrameStackMap{})))
+		out := userFrameMapAppendSlot(table, oldCount+uintptr(i))
 		*out = userFrameStackMap{
 			pcOffset:              in.pcOffset,
 			frameOffset:           in.frameOffset,
@@ -507,7 +517,7 @@ func jit_registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 	if userFrameUnwindMode(unwindMode) > userFrameUnwindDeclare {
 		throw("registerUserFrameRegion: invalid unwind mode")
 	}
-	table := (*userFrameStackMapTable)(persistentalloc(unsafe.Sizeof(userFrameStackMapTable{}), unsafe.Alignof(userFrameStackMapTable{}), &memstats.other_sys))
+	table := new(userFrameStackMapTable)
 	appendUserFrameStackMaps(table, start, end, userFrameUnwindMode(unwindMode), stackMaps)
 	r := userFrameRegion{
 		start:      start,
@@ -521,20 +531,11 @@ func jit_registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 
 //go:linkname jit_addUserFrameStackMaps runtime/jit.addUserFrameStackMaps
 func jit_addUserFrameStackMaps(handle uintptr, stackMaps []userFrameStackMapInput) {
-	lock(&userFrameLock)
-	snap := loadUserFrameSnapshot()
-	if snap != nil {
-		for i := 0; i < snap.count; i++ {
-			r := snap.region(i)
-			if r.handle == handle {
-				appendUserFrameStackMaps(r.stackMaps, r.start, r.end, r.unwindMode, stackMaps)
-				unlock(&userFrameLock)
-				return
-			}
-		}
+	r := userFrameByHandle[handle]
+	if r == nil {
+		throw("addUserFrameStackMaps: handle not found")
 	}
-	unlock(&userFrameLock)
-	throw("addUserFrameStackMaps: handle not found")
+	appendUserFrameStackMaps(r.stackMaps, r.start, r.end, r.unwindMode, stackMaps)
 }
 
 //go:linkname jit_unregisterUserFrameRegion runtime/jit.unregisterUserFrameRegion
