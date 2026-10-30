@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -30,11 +29,24 @@ import (
 	"cmd/internal/par"
 )
 
-// BindingEntry holds the parsed declarations and linker flags collected
+// BindingVar describes a C global variable bound with //cgo:var.
+type BindingVar struct {
+	Name    string // Internal identifier (used in _Cvar_<Name>)
+	GoName  string // Go variable named by the pragma
+	CName   string // C symbol name
+	BindC   bool   // The pragma used the C.<CName> form, so C.<CName> is bound as well
+	Type    string // Go type expression
+	Library string // Shared library or DLL name; empty for libc and static
+	LibC    bool   // The symbol comes from the platform C runtime (libc)
+	Static  bool   // The symbol is resolved at link time from a .syso or .a (static)
+}
+
+// Bindings holds the parsed declarations and linker flags collected
 // from the //cgo: pragmas in a package.
-type BindingEntry struct {
+type Bindings struct {
 	Package      string
 	LdFlags      []string
+	Vars         []BindingVar
 	Funcs        []BindingFunc
 	TypeGoToC    map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
 	ConstCToGo   map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
@@ -214,6 +226,7 @@ func windowsDLLName(lib string) string {
 // cgoPragma is a parsed cgo binding pragma:
 //
 //	//cgo:func GoName [C.]cName {"lib" | static | libc}
+//	//cgo:var GoName [C.]cName {"lib" | static | libc}
 //	//cgo:type GoName [C.]cName
 //	//cgo:const GoName [C.]cName
 //
@@ -226,12 +239,12 @@ func windowsDLLName(lib string) string {
 // imports "C".
 type cgoPragma struct {
 	Pos    token.Position
-	Kind   string // pragma name: "func", "type", or "const"
+	Kind   string // pragma name: "func", "var", "type", or "const"
 	GoName string // Go identifier being bound
 	CName  string // C symbol name
 	BindC  bool   // cName was written as C.cName, so Go code may also use C.cName
 
-	// Library specifier, for func.
+	// Library specifier, for func and var.
 	Library string // shared library for the "lib" form
 	LibC    bool   // libc: the platform C runtime
 	Static  bool   // static: resolved at link time from a .syso or .a
@@ -241,6 +254,7 @@ type cgoPragma struct {
 // error messages.
 var cgoPragmaSyntax = map[string]string{
 	"func":  `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
+	"var":   `//cgo:var GoName [C.]cName {"lib" | static | libc}`,
 	"type":  `//cgo:type GoName [C.]cName`,
 	"const": `//cgo:const GoName [C.]cName`,
 }
@@ -319,7 +333,7 @@ func parseCgoPragma(fset *token.FileSet, c *ast.Comment) (cgoPragma, bool) {
 		off := int(arg.Pos - d.ArgsPos)
 		return off >= 0 && off < len(d.Args) && (d.Args[off] == '"' || d.Args[off] == '`')
 	}
-	hasLib := d.Name == "func"
+	hasLib := d.Name == "func" || d.Name == "var"
 	want := 2
 	if hasLib {
 		want = 3
@@ -447,6 +461,21 @@ func structHasHostLayoutOrIncomplete(st *ast.StructType, imp fileImports) bool {
 	return false
 }
 
+// cVarExpr returns the Go expression for the bound C variable v.
+func cVarExpr(v BindingVar) string {
+	return "(*_Cvar_" + v.Name + ")"
+}
+
+// varImportSym returns the local symbol name for the dynamically imported
+// C variable v. On Windows, the symbol is the variable's import address
+// table slot rather than the variable itself; see writeGoTypes.
+func varImportSym(v BindingVar) string {
+	if goos == "windows" {
+		return fmt.Sprintf("_cgo%s_var_addr_%s", cPrefix, v.Name)
+	}
+	return fmt.Sprintf("_cgo%s_var_%s", cPrefix, v.Name)
+}
+
 func hasImportCFile(file *ast.File) bool {
 	return file != nil && slices.ContainsFunc(file.Imports, func(imp *ast.ImportSpec) bool {
 		return imp.Path.Value == `"C"`
@@ -469,7 +498,7 @@ func replaceCConstNodes(eb *edit.Buffer, tf *token.File, node ast.Node, constCTo
 	})
 }
 
-func (p *Package) buildConstPkg(entry *BindingEntry) {
+func (p *Package) buildConstPkg(entry *Bindings) {
 	constFset := token.NewFileSet()
 	entry.constFset = constFset
 	var files []*ast.File
@@ -526,7 +555,7 @@ func evalArrayLenIn(fset *token.FileSet, pkg *types.Package, pos token.Pos, expr
 	return 0, false
 }
 
-func (p *Package) evalBindingArrayLen(expr ast.Expr, entry *BindingEntry) (int64, bool) {
+func (p *Package) evalBindingArrayLen(expr ast.Expr, entry *Bindings) (int64, bool) {
 	var buf bytes.Buffer
 	noSourceConf.Fprint(&buf, p.fset, expr)
 	src := buf.Bytes()
@@ -567,7 +596,7 @@ func (p *Package) evalBindingArrayLen(expr ast.Expr, entry *BindingEntry) (int64
 	return 0, false
 }
 
-func (p *Package) evalArrayLen(arr *ast.ArrayType, entry *BindingEntry) int64 {
+func (p *Package) evalArrayLen(arr *ast.ArrayType, entry *Bindings) int64 {
 	if entry != nil && entry.typeInfo != nil {
 		if tv, ok := entry.typeInfo.Types[arr]; ok {
 			if t, ok := tv.Type.(*types.Array); ok && t.Len() >= 0 {
@@ -584,12 +613,12 @@ func (p *Package) evalArrayLen(arr *ast.ArrayType, entry *BindingEntry) int64 {
 	return 0
 }
 
-func (p *Package) parseBinding(bindingPath string, data []byte) *BindingEntry {
+func (p *Package) parseBinding(bindingPath string, data []byte) *Bindings {
 	return p.parseBindingFiles([]bindingSource{{path: bindingPath, data: data}})
 }
 
-func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
-	entry := &BindingEntry{
+func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
+	entry := &Bindings{
 		LdFlags:      append([]string(nil), p.LdFlags...),
 		TypeGoToC:    make(map[string]string),
 		ConstCToGo:   make(map[string]string),
@@ -655,6 +684,8 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 	typeSpecs := make(map[string]*ast.TypeSpec)
 	typeImports := make(map[string]fileImports)
 	constSpecs := make(map[string]*ast.ValueSpec)
+	varSpecs := make(map[string]*ast.ValueSpec)
+	varImports := make(map[string]fileImports)
 	var typeOrder []string
 	for _, src := range sources {
 		imp := collectFileImports(src.file)
@@ -675,9 +706,14 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 							typeImports[s.Name.Name] = imp
 						}
 					case *ast.ValueSpec:
+						m := varSpecs
 						if d.Tok == token.CONST {
-							for _, id := range s.Names {
-								constSpecs[id.Name] = s
+							m = constSpecs
+						}
+						for _, id := range s.Names {
+							m[id.Name] = s
+							if d.Tok == token.VAR {
+								varImports[id.Name] = imp
 							}
 						}
 					}
@@ -714,6 +750,8 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			if found && pr.BindC {
 				entry.ConstCToGo[pr.CName] = pr.GoName
 			}
+		case "var":
+			_, found = varSpecs[pr.GoName]
 		}
 		if !found {
 			fatalf("%s: //cgo:%s %s: missing declaration of %s %s", pr.Pos, pr.Kind, pr.GoName, pr.Kind, pr.GoName)
@@ -888,6 +926,37 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 
 	for _, pr := range pragmas {
 		switch pr.Kind {
+		case "var":
+			if token.IsExported(pr.GoName) {
+				fatalf("%s: //cgo:var %s: Go variable name must be unexported", pr.Pos, pr.GoName)
+			}
+			vs := varSpecs[pr.GoName]
+			pos := p.fset.Position(vs.Pos())
+			if len(vs.Names) != 1 {
+				fatalf("%s: //cgo:var %s: the variable declaration must declare only %s", pos, pr.GoName, pr.GoName)
+			}
+			if vs.Type == nil {
+				fatalf("%s: //cgo:var variable %s must specify an explicit type", pos, pr.GoName)
+			}
+			if len(vs.Values) > 0 {
+				fatalf("%s: //cgo:var variable %s cannot have an initializer", pos, pr.GoName)
+			}
+			vImp := varImports[pr.GoName]
+			validateUsedTypeExpr(vs.Type, false, vImp)
+			vType := p.cgoASTToGoDefInFile(vs.Type, entry, vImp)
+			if why := cDeclTypeError(vType, entry.TypeMap); why != "" {
+				fatalf("%s: //cgo:var variable %s of type %s cannot be shared with C: %s", p.fset.Position(vs.Type.Pos()), pr.GoName, vType, why)
+			}
+			entry.Vars = append(entry.Vars, BindingVar{
+				Name:    pr.GoName,
+				GoName:  pr.GoName,
+				CName:   pr.CName,
+				BindC:   pr.BindC,
+				Type:    vType,
+				Library: pr.Library,
+				LibC:    pr.LibC,
+				Static:  pr.Static,
+			})
 		case "func":
 			d := funcDecls[pr.GoName]
 			pos := p.fset.Position(d.Pos())
@@ -1003,7 +1072,17 @@ func (p *Package) processBinding(goFiles []string) {
 		knownBoundNames[goType] = true
 	}
 
-	// cFuncMap maps C names bound with the C.cName form to their functions.
+	// varMap and cFuncMap map C names bound with the C.cName form.
+	varMap := make(map[string]BindingVar)
+	boundGoVars := make(map[string]BindingVar)
+	for _, v := range entry.Vars {
+		if v.BindC {
+			varMap[v.CName] = v
+		}
+		boundGoVars[v.GoName] = v
+		knownBoundNames[v.GoName] = true
+	}
+
 	cFuncMap := make(map[string]BindingFunc)
 	goFuncMap := make(map[string]BindingFunc)
 	boundGoFuncs := make(map[string]bool)
@@ -1022,6 +1101,8 @@ func (p *Package) processBinding(goFiles []string) {
 		tpkg:            entry.tpkg,
 		typeInfo:        entry.typeInfo,
 		entry:           entry,
+		varMap:          varMap,
+		boundGoVars:     boundGoVars,
 		cFuncMap:        cFuncMap,
 		goFuncMap:       goFuncMap,
 		knownBoundNames: knownBoundNames,
@@ -1037,17 +1118,42 @@ func (p *Package) processBinding(goFiles []string) {
 			tf := p.fset.File(parsed.Package)
 			editBuf := edit.NewBuffer(b)
 
-			// Strip //cgo: pragmas and bodyless bound declarations because
-			// _cgo_gotypes.go defines the Go wrappers.
+			// Strip //cgo: pragmas and bound func/var declarations;
+			// _cgo_gotypes.go supplies their wrappers and C symbol imports.
 			var stripped [][2]token.Pos
 			stripNode := func(pos, end token.Pos) {
 				editBuf.Replace(tf.Offset(pos), tf.Offset(end), "")
 				stripped = append(stripped, [2]token.Pos{pos, end})
 			}
+			isBoundVar := func(spec ast.Spec) bool {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok || len(vs.Names) != 1 {
+					return false
+				}
+				_, ok = boundGoVars[vs.Names[0].Name]
+				return ok
+			}
 			parsed.Decls = slices.DeleteFunc(parsed.Decls, func(decl ast.Decl) bool {
-				if d, ok := decl.(*ast.FuncDecl); ok && d.Body == nil && d.Recv == nil && boundGoFuncs[d.Name.Name] {
-					stripNode(d.Pos(), d.End())
-					return true
+				switch d := decl.(type) {
+				case *ast.FuncDecl:
+					if d.Body == nil && d.Recv == nil && boundGoFuncs[d.Name.Name] {
+						stripNode(d.Pos(), d.End())
+						return true
+					}
+				case *ast.GenDecl:
+					if d.Tok == token.VAR {
+						if len(d.Specs) > 0 && !slices.ContainsFunc(d.Specs, func(spec ast.Spec) bool { return !isBoundVar(spec) }) {
+							stripNode(d.Pos(), d.End())
+							return true
+						}
+						d.Specs = slices.DeleteFunc(d.Specs, func(spec ast.Spec) bool {
+							if isBoundVar(spec) {
+								stripNode(spec.Pos(), spec.End())
+								return true
+							}
+							return false
+						})
+					}
 				}
 				return false
 			})
@@ -1152,7 +1258,9 @@ type bindingRewriter struct {
 	p               *Package
 	tpkg            *types.Package
 	typeInfo        *types.Info
-	entry           *BindingEntry
+	entry           *Bindings
+	varMap          map[string]BindingVar
+	boundGoVars     map[string]BindingVar
 	cFuncMap        map[string]BindingFunc
 	goFuncMap       map[string]BindingFunc
 	knownBoundNames map[string]bool
@@ -1186,32 +1294,50 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 	// pass pointers, which get the same cgocheck pointer checks as calls
 	// in traditional cgo.
 	edits := &bindingEdits{src: src}
+	boundVarObjs := make(map[types.Object]BindingVar, len(r.boundGoVars))
+	if r.tpkg != nil {
+		for name, v := range r.boundGoVars {
+			if obj := r.tpkg.Scope().Lookup(name); obj != nil {
+				boundVarObjs[obj] = v
+			}
+		}
+	}
 	ast.Inspect(file, func(node ast.Node) bool {
-		sel, ok := node.(*ast.SelectorExpr)
-		if !ok || !hasImportC {
-			return true
+		switch n := node.(type) {
+		case *ast.SelectorExpr:
+			if !hasImportC {
+				return true
+			}
+			id, ok := n.X.(*ast.Ident)
+			if !ok || id.Name != "C" || !isImportC(id) {
+				return true
+			}
+			name := n.Sel.Name
+			var repl string
+			if goConst, isConst := r.entry.ConstCToGo[name]; isConst {
+				repl = goConst
+			} else if v, isVar := r.varMap[name]; isVar {
+				repl = cVarExpr(v)
+			} else if fn, isFunc := r.cFuncMap[name]; isFunc {
+				repl = bindingFuncEntry(fn, r.entry.TypeMap)
+			} else if _, isType := r.entry.TypeMap["_Ctype_"+name]; isType {
+				repl = "_Ctype_" + name
+			} else if goType, isPrim := primitiveCtypeToGo("_Ctype_" + name); isPrim {
+				repl = goType
+			} else if r.knownBoundNames[name] {
+				repl = "_Cundef_" + name
+			} else {
+				repl = "_Cfunc_" + name
+			}
+			edits.replace(tf.Offset(n.Pos()), tf.Offset(n.End()), repl)
+			return false
+		case *ast.Ident:
+			if v, ok := boundVarObjs[r.typeInfo.Uses[n]]; ok {
+				edits.replace(tf.Offset(n.Pos()), tf.Offset(n.End()), cVarExpr(v))
+			}
+			return false
 		}
-		id, ok := sel.X.(*ast.Ident)
-		if !ok || id.Name != "C" || !isImportC(id) {
-			return true
-		}
-		name := sel.Sel.Name
-		var repl string
-		if goConst, isConst := r.entry.ConstCToGo[name]; isConst {
-			repl = goConst
-		} else if fn, isFunc := r.cFuncMap[name]; isFunc {
-			repl = bindingFuncEntry(fn, r.entry.TypeMap)
-		} else if _, isType := r.entry.TypeMap["_Ctype_"+name]; isType {
-			repl = "_Ctype_" + name
-		} else if goType, isPrim := primitiveCtypeToGo("_Ctype_" + name); isPrim {
-			repl = goType
-		} else if r.knownBoundNames[name] {
-			repl = "_Cundef_" + name
-		} else {
-			repl = "_Cfunc_" + name
-		}
-		edits.replace(tf.Offset(sel.Pos()), tf.Offset(sel.End()), repl)
-		return false
+		return true
 	})
 	type callSite struct {
 		call *ast.CallExpr
@@ -1255,7 +1381,7 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 	edits.apply(editBuf)
 }
 
-func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *BindingEntry, imp fileImports) string {
+func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *Bindings, imp fileImports) string {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
 		return p.cgoASTToGoDefInFile(e.X, entry, imp)
@@ -1717,16 +1843,24 @@ func (p *Package) rewriteBindingCall(e *bindingEdits, off func(token.Pos) int, c
 	return repl
 }
 
-func (p *Package) writeGoTypes(bf *BindingEntry) {
+func (p *Package) writeGoTypes(bf *Bindings) {
 	f := creat("_cgo_gotypes.go")
 	defer f.Close()
 
 	needsStructs := false
-	for _, fn := range bf.Funcs {
-		if strings.Contains(fn.Ret, "structs.HostLayout") ||
-			slices.ContainsFunc(fn.Params, func(pt string) bool { return strings.Contains(pt, "structs.HostLayout") }) {
+	for _, v := range bf.Vars {
+		if strings.Contains(v.Type, "structs.HostLayout") {
 			needsStructs = true
 			break
+		}
+	}
+	if !needsStructs {
+		for _, fn := range bf.Funcs {
+			if strings.Contains(fn.Ret, "structs.HostLayout") ||
+				slices.ContainsFunc(fn.Params, func(pt string) bool { return strings.Contains(pt, "structs.HostLayout") }) {
+				needsStructs = true
+				break
+			}
 		}
 	}
 
@@ -1742,29 +1876,30 @@ func (p *Package) writeGoTypes(bf *BindingEntry) {
 	}
 	fmt.Fprintf(f, "var _ unsafe.Pointer\n\n")
 
-	if len(bf.Funcs) > 0 {
-		if goos != "windows" && goos != "aix" {
-			importedLibs := make(map[string]bool)
-			for _, fn := range bf.Funcs {
-				if fn.Library != "" && !isStandardC(fn.Library) {
-					importedLibs[dynLibName(fn.Library)] = true
-				}
+	if len(bf.Funcs) > 0 || len(bf.Vars) > 0 || len(bf.LdFlags) > 0 {
+		importedLibs := make(map[string]bool)
+		for _, fn := range bf.Funcs {
+			if fn.Library != "" && !isStandardC(fn.Library) {
+				importedLibs[dynLibName(fn.Library)] = true
 			}
-			for _, flag := range bf.LdFlags {
-				fields, _ := splitQuoted(flag)
-				for _, field := range fields {
-					if !strings.HasPrefix(field, "-") && (strings.HasSuffix(field, ".so") || strings.Contains(field, ".so.") || strings.HasSuffix(field, ".dylib") || strings.HasSuffix(field, ".dll")) {
-						if !isStandardC(field) {
-							importedLibs[dynLibName(field)] = true
-						}
+		}
+		for _, v := range bf.Vars {
+			if v.Library != "" && !isStandardC(v.Library) {
+				importedLibs[dynLibName(v.Library)] = true
+			}
+		}
+		for _, flag := range bf.LdFlags {
+			fields, _ := splitQuoted(flag)
+			for _, field := range fields {
+				if !strings.HasPrefix(field, "-") && (strings.HasSuffix(field, ".so") || strings.Contains(field, ".so.") || strings.HasSuffix(field, ".dylib") || strings.HasSuffix(field, ".dll")) {
+					if !isStandardC(field) {
+						importedLibs[dynLibName(field)] = true
 					}
 				}
 			}
-			var sortedLibs []string
-			for lib := range importedLibs {
-				sortedLibs = append(sortedLibs, lib)
-			}
-			sort.Strings(sortedLibs)
+		}
+		sortedLibs := slices.Sorted(maps.Keys(importedLibs))
+		if goos != "windows" && goos != "aix" {
 			for _, lib := range sortedLibs {
 				fmt.Fprintf(f, "//go:cgo_import_dynamic _ _ %q\n", lib)
 			}
@@ -1816,6 +1951,30 @@ func (p *Package) writeGoTypes(bf *BindingEntry) {
 		if len(emittedImp) > 0 {
 			fmt.Fprintf(f, "\n")
 		}
+
+		emittedStaticVar := make(map[string]bool)
+		emittedVarImp := false
+		for _, v := range bf.Vars {
+			if v.Static {
+				if !emittedStaticVar[v.CName] {
+					emittedStaticVar[v.CName] = true
+					emittedVarImp = true
+					// Resolved at link time from a .syso or .a file.
+					fmt.Fprintf(f, "//go:cgo_import_static %s\n", v.CName)
+				}
+			} else {
+				emittedVarImp = true
+				localSym := varImportSym(v)
+				if lib := dynImpLib(v.Library); lib != "" {
+					fmt.Fprintf(f, "//go:cgo_import_dynamic %s %s %q\n", localSym, v.CName, lib)
+				} else {
+					fmt.Fprintf(f, "//go:cgo_import_dynamic %s %s\n", localSym, v.CName)
+				}
+			}
+		}
+		if emittedVarImp {
+			fmt.Fprintf(f, "\n")
+		}
 	}
 
 	for _, flag := range bf.LdFlags {
@@ -1823,6 +1982,29 @@ func (p *Package) writeGoTypes(bf *BindingEntry) {
 	}
 	if len(bf.LdFlags) > 0 {
 		fmt.Fprintf(f, "\n")
+	}
+
+	// _Cvar_<Name> points to the C variable. Usually it is initialized
+	// with the address of __cgo_var_<Name>, which is the variable itself.
+	// A dynamically imported symbol on Windows is instead a slot in the PE
+	// import address table, which the Windows loader fills in with the
+	// address of the variable in the DLL: PE has no copy relocations, so
+	// code outside a DLL can only reach the DLL's data through such a slot.
+	// There, _Cvar_<Name> is the slot itself.
+	for _, v := range bf.Vars {
+		if goos == "windows" && !v.Static {
+			fmt.Fprintf(f, "//go:linkname _Cvar_%s %s\n", v.Name, varImportSym(v))
+			fmt.Fprintf(f, "var _Cvar_%s *%s\n\n", v.Name, v.Type)
+			continue
+		}
+		goSym := "__cgo_var_" + v.Name
+		target := v.CName
+		if !v.Static {
+			target = varImportSym(v)
+		}
+		fmt.Fprintf(f, "//go:linkname %s %s\n", goSym, target)
+		fmt.Fprintf(f, "var %s byte\n", goSym)
+		fmt.Fprintf(f, "var _Cvar_%s *%s = (*%s)(unsafe.Pointer(&%s))\n\n", v.Name, v.Type, v.Type, goSym)
 	}
 
 	fmt.Fprintf(f, "//go:linkname _cgo_runtime_cgocall runtime.cgocall\n")
@@ -1944,7 +2126,7 @@ func (p *Package) writeGoTypes(bf *BindingEntry) {
 	}
 }
 
-func (p *Package) writeTrampolines(bf *BindingEntry) {
+func (p *Package) writeTrampolines(bf *Bindings) {
 	f := creat("_cgo_trampolines.s")
 	defer f.Close()
 

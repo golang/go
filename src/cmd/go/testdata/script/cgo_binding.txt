@@ -120,6 +120,7 @@ cc -fPIC -c -o static.syso ../c/static.c
 [!cgolinkext] go run -ldflags=-linkmode=internal .
 [cgolinkext] go run .
 stdout '^static=42$'
+stdout '^counter=42$'
 
 -- c/c.c --
 int Add(int a, int b) { return a + b; }
@@ -160,6 +161,7 @@ void WritePtr(int *p, int val) { *p = val; }
 
 -- c/static.c --
 int StaticTwice(int x) { return 2 * x; }
+int StaticCounter = 40;
 
 -- p/go.mod --
 module p
@@ -233,11 +235,16 @@ import "C"
 import "fmt"
 
 //cgo:func StaticTwice StaticTwice static
+//cgo:var counter StaticCounter static
 
 func StaticTwice(x int32) int32
 
+var counter int32
+
 func main() {
 	fmt.Printf("static=%d\n", StaticTwice(21))
+	counter += 2
+	fmt.Printf("counter=%d\n", counter)
 }
 
 -- withcfile/go.mod --

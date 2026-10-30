@@ -27,6 +27,8 @@ import "structs"
 //cgo:type T T
 //cgo:const MY_CONST C.MY_CONST
 //cgo:const Other OTHER
+//cgo:var _GlobalX C.GlobalX "libx.so"
+//cgo:var staticY StaticY static
 //cgo:func Add C.Add "libx.so"
 //cgo:func _AddFloat AddFloat "./libx.so"
 //cgo:func Puts puts libc
@@ -50,6 +52,10 @@ const (
 	MY_CONST = 42
 	Other    = 7
 )
+
+var _GlobalX int32
+
+var staticY int32
 
 func Add(a int32, b int32) int32
 
@@ -77,10 +83,14 @@ func _PassS(s S, t T) S
 	if len(entry.TypeGoToC) != 1 || entry.TypeGoToC["S"] != "S" {
 		t.Fatalf("TypeGoToC = %+v, want only S", entry.TypeGoToC)
 	}
+	if len(entry.Vars) != 2 || entry.Vars[0].GoName != "_GlobalX" || entry.Vars[0].CName != "GlobalX" || !entry.Vars[0].BindC ||
+		entry.Vars[1].GoName != "staticY" || !entry.Vars[1].Static || entry.Vars[1].BindC {
+		t.Fatalf("Vars = %+v, want _GlobalX, staticY", entry.Vars)
+	}
 	if len(entry.ConstCToGo) != 1 || entry.ConstCToGo["MY_CONST"] != "MY_CONST" {
 		t.Fatalf("ConstCToGo = %+v, want only MY_CONST", entry.ConstCToGo)
 	}
-	for _, name := range []string{"T", "OTHER", "AddFloat", "puts", "helper", "PassS"} {
+	for _, name := range []string{"T", "OTHER", "StaticY", "AddFloat", "puts", "helper", "PassS"} {
 		if !entry.GoOnlyCNames[name] {
 			t.Errorf("GoOnlyCNames[%q] = false, want true", name)
 		}
@@ -112,7 +122,8 @@ func _PassS(s S, t T) S
 import "C"
 
 func Call(x int32) int32 {
-	_ = C.MY_CONST + Other
+	C.GlobalX = C.MY_CONST
+	staticY = Other
 	_ = C.OTHER
 	return Add(x, 1) + int32(C.Add(C.int(x), 2))
 }
@@ -145,6 +156,11 @@ func Call(x int32) int32 {
 		`//go:cgo_import_dynamic Add Add`,
 		`//go:cgo_import_dynamic AddFloat AddFloat`,
 		`//go:cgo_import_dynamic puts puts`,
+		`_var__GlobalX GlobalX`,
+		`var _Cvar__GlobalX *int32 = (*int32)(unsafe.Pointer(&__cgo_var__GlobalX))`,
+		`//go:cgo_import_static StaticY`,
+		`//go:linkname __cgo_var_staticY StaticY`,
+		`var _Cvar_staticY *int32 = (*int32)(unsafe.Pointer(&__cgo_var_staticY))`,
 		`type _Ctype_S = S`,
 		`var _cgo_trampoline_Add byte`,
 		`func _Cfunc_Add(p0 int32, p1 int32) int32`,
@@ -167,13 +183,19 @@ func Call(x int32) int32 {
 			t.Errorf("_cgo_gotypes.go contains %q:\n%s", notWant, gotypes)
 		}
 	}
+	for line := range strings.SplitSeq(gotypes, "\n") {
+		if strings.Contains(line, "cgo_import_dynamic") && strings.Contains(line, "StaticY") {
+			t.Errorf("_cgo_gotypes.go contains dynamic import for static var StaticY: %q", line)
+		}
+	}
 
 	mainOut, err := os.ReadFile(filepath.Join(tmpDir, "main.cgobinding.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`_ = MY_CONST + Other`,
+		`(*_Cvar__GlobalX) = MY_CONST`,
+		`(*_Cvar_staticY) = Other`,
 		`_Cundef_OTHER`,
 		`_Cfunc_Add(int32(x), 2)`,
 	} {
@@ -279,6 +301,75 @@ func TestBindingLibcAndTargetTypes(t *testing.T) {
 	}
 }
 
+// TestBindingVarWindows verifies the code generated for //cgo:var on
+// Windows, where a dynamically imported variable is reached through its
+// import address table slot, while a static variable is used directly.
+func TestBindingVarWindows(t *testing.T) {
+	tmpDir := t.TempDir()
+	bindingFile := filepath.Join(tmpDir, "binding.go")
+	if err := os.WriteFile(bindingFile, []byte(`package p
+
+import "C"
+
+//cgo:var _GlobalX C.GlobalX "libx.dll"
+//cgo:var staticY StaticY static
+
+var _GlobalX int32
+
+var staticY int32
+
+func Set() {
+	C.GlobalX = 1
+	staticY = 2
+}
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origObjDir, origGoarch, origGoos := *objDir, goarch, goos
+	defer func() { *objDir, goarch, goos = origObjDir, origGoarch, origGoos }()
+	*objDir = tmpDir + string(filepath.Separator)
+	goos, goarch = "windows", "amd64"
+	t.Setenv("GOOS", "windows")
+	t.Setenv("GOARCH", "amd64")
+
+	p := newPackage(nil, token.NewFileSet())
+	p.processBinding([]string{bindingFile})
+
+	gotypesBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_gotypes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotypes := string(gotypesBytes)
+	for _, want := range []string{
+		`_var_addr__GlobalX GlobalX`,
+		`//go:linkname _Cvar__GlobalX _cgo_`,
+		"_var_addr__GlobalX\nvar _Cvar__GlobalX *int32\n",
+		`//go:cgo_import_static StaticY`,
+		`//go:linkname __cgo_var_staticY StaticY`,
+		`var _Cvar_staticY *int32 = (*int32)(unsafe.Pointer(&__cgo_var_staticY))`,
+	} {
+		if !strings.Contains(gotypes, want) {
+			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
+		}
+	}
+	for _, notWant := range []string{`__cgo_var__GlobalX`, `__cgo_var_addr`, `**`} {
+		if strings.Contains(gotypes, notWant) {
+			t.Errorf("_cgo_gotypes.go contains %q:\n%s", notWant, gotypes)
+		}
+	}
+
+	rewritten, err := os.ReadFile(filepath.Join(tmpDir, "binding.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`(*_Cvar__GlobalX) = 1`, `(*_Cvar_staticY) = 2`} {
+		if !strings.Contains(string(rewritten), want) {
+			t.Errorf("binding.cgobinding.go missing %q:\n%s", want, rewritten)
+		}
+	}
+}
+
 func TestParseCgoPragma(t *testing.T) {
 	for _, tt := range []struct {
 		src  string
@@ -289,6 +380,7 @@ func TestParseCgoPragma(t *testing.T) {
 		{`//cgo:func F f static`, cgoPragma{Kind: "func", GoName: "F", CName: "f", Static: true}, true},
 		{`//cgo:func F f libc`, cgoPragma{Kind: "func", GoName: "F", CName: "f", LibC: true}, true},
 		{`//cgo:func F f "static"`, cgoPragma{Kind: "func", GoName: "F", CName: "f", Library: "static"}, true},
+		{`//cgo:var V C.v libc`, cgoPragma{Kind: "var", GoName: "V", CName: "v", BindC: true, LibC: true}, true},
 		{`//cgo:type T C.struct_t`, cgoPragma{Kind: "type", GoName: "T", CName: "struct_t", BindC: true}, true},
 		{`//cgo:const K K`, cgoPragma{Kind: "const", GoName: "K", CName: "K"}, true},
 		{`//go:noinline`, cgoPragma{}, false},
@@ -419,6 +511,7 @@ import u "unsafe"
 //cgo:type Foo C.Bar
 //cgo:const N C.N
 //cgo:const lowerC C.lower_c
+//cgo:var gVar C.gVar "libx.so"
 //cgo:func TakeInline TakeInline "libx.so"
 
 const (
@@ -444,7 +537,19 @@ type Foo struct {
 
 type Bar int32
 
+type MyMap map[int32]int32
+
+var gVar int32
+
 func TakeInline(x struct{ _ s.HostLayout; buf [C.N]byte; buf2 [derived]byte; buf3 [derivedTyped]byte; buf4 [derivedSizeof]byte; buf5 [int(u.Sizeof(Bar(0))) + int(derivedTyped)]byte; p u.Pointer }, b Bar)
+
+func Use[gVar any](x gVar) MyMap {
+	return MyMap{gVar: 1}
+}
+
+func UseMap() MyMap {
+	return MyMap{gVar: 1}
+}
 `
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "b.go")
@@ -490,6 +595,12 @@ func TakeInline(x struct{ _ s.HostLayout; buf [C.N]byte; buf2 [derived]byte; buf
 	rewritten := string(rewrittenBytes)
 	if !strings.Contains(rewritten, "var _ u.Pointer") || !strings.Contains(rewritten, "var _ s.HostLayout") {
 		t.Errorf("b.cgobinding.go missing aliased import keeps:\n%s", rewritten)
+	}
+	if !strings.Contains(rewritten, "func Use[gVar any](x gVar)") {
+		t.Errorf("b.cgobinding.go rewrote shadowed type param gVar:\n%s", rewritten)
+	}
+	if !strings.Contains(rewritten, "return MyMap{(*_Cvar_gVar): 1}") {
+		t.Errorf("b.cgobinding.go did not rewrite key in named map composite lit:\n%s", rewritten)
 	}
 
 	// evalBindingArrayLen must not panic on invalid constant expressions.
