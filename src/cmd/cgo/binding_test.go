@@ -729,6 +729,118 @@ func Use() {
 	}
 }
 
+func TestDynloadBinding(t *testing.T) {
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "amd64")
+	tmpDir := t.TempDir()
+	src := filepath.Join(tmpDir, "lib.go")
+	if err := os.WriteFile(src, []byte(`package p
+
+import "C"
+import cgo "runtime/cgo"
+import _ "runtime/cgo"
+
+//cgo:dynload Lib
+//cgo:func Lib.Compute compute
+//cgo:var Lib.Counter counter
+//cgo:func Lib.Reset compute_reset
+
+//go:noinline
+func helper() int { return 1 }
+
+type Lib struct {
+	cgo.Library
+	name string
+}
+
+func (*Lib) Compute(a, b int32) int32
+
+func (*Lib) Counter() *int32
+
+func (l *Lib) Reset()
+
+func (l *Lib) Name() string { return l.name }
+`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	origObjDir, origGoos, origGoarch := *objDir, goos, goarch
+	*objDir = tmpDir + string(filepath.Separator)
+	goos, goarch = "linux", "amd64"
+	defer func() { *objDir, goos, goarch = origObjDir, origGoos, origGoarch }()
+
+	p := newPackage(nil, token.NewFileSet())
+	p.processBinding([]string{src})
+
+	gotypes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_gotypes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`//go:linkname _cgo_register_library runtime/cgo.registerLibrary`,
+		`//go:linkname _cgo_library_symbol runtime/cgo.librarySymbol`,
+		`func _cgo_register_libraries() bool {
+	_cgo_register_library((*Lib)(nil), []string{"compute", "counter", "compute_reset"})
+	return true
+}
+
+var _ = _cgo_register_libraries()`,
+		`func (_cgo_recv *Lib) Counter() *int32 {
+	return (*int32)(_cgo_library_symbol(&_cgo_recv.Library, 1))
+}`,
+		`type _cgo_arg__dyn3_Lib_Compute struct {
+	fn uintptr
+	p0 int32`,
+		`func (_cgo_recv *Lib) Compute(p0 int32, p1 int32) int32 {
+	return _Cfunc__dyn3_Lib_Compute(uintptr(_cgo_library_symbol(&_cgo_recv.Library, 0)), p0, p1)
+}`,
+		`func (_cgo_recv *Lib) Reset() {
+	_Cfunc__dyn3_Lib_Reset(uintptr(_cgo_library_symbol(&_cgo_recv.Library, 2)))
+}`,
+	} {
+		if !strings.Contains(string(gotypes), want) {
+			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
+		}
+	}
+	if strings.Contains(string(gotypes), "cgo_import_dynamic") {
+		t.Errorf("_cgo_gotypes.go has dynamic imports for //cgo:dynload symbols:\n%s", gotypes)
+	}
+
+	// Registering the //cgo:dynload types is the first declaration in each
+	// rewritten file, so that it happens before any other package
+	// initialization. It goes on the line of the last import, so that the
+	// first declaration keeps its directives.
+	rewritten, err := os.ReadFile(filepath.Join(tmpDir, "lib.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"\nimport _ \"runtime/cgo\"; var _ = _cgo_register_libraries()\n",
+		"\n//go:noinline\nfunc helper() int { return 1 }\n",
+	} {
+		if !strings.Contains(string(rewritten), want) {
+			t.Errorf("lib.cgobinding.go missing %q:\n%s", want, rewritten)
+		}
+	}
+
+	out, err := os.ReadFile(filepath.Join(tmpDir, "lib.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(out), "Compute(a, b int32)") || strings.Contains(string(out), "Counter() *int32") || !strings.Contains(string(out), "Name() string") {
+		t.Errorf("lib.cgobinding.go should keep only unbound methods:\n%s", out)
+	}
+
+	tramp, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_trampolines.s"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"_trampoline__dyn3_Lib_Compute(SB)", "MOVQ\t0(R12), R11", "CALL\tR11"} {
+		if !strings.Contains(string(tramp), want) {
+			t.Errorf("_cgo_trampolines.s missing %q:\n%s", want, tramp)
+		}
+	}
+}
+
 func TestBindingLdflagsPreamble(t *testing.T) {
 	origGoos, origGoarch := goos, goarch
 	defer func() { goos, goarch = origGoos, origGoarch }()

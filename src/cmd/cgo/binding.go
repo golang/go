@@ -40,21 +40,28 @@ type BindingVar struct {
 	Library string // Shared library or DLL name; empty for libc and static
 	LibC    bool   // The symbol comes from the platform C runtime (libc)
 	Static  bool   // The symbol is resolved at link time from a .syso or .a (static)
+
+	// Methods of //cgo:dynload types:
+	RecvType string // The //cgo:dynload type, for a //cgo:var LibT.GoName pragma
+	SymIndex int    // Index of the symbol in RecvType's per-instance symbol table
 }
 
 // Bindings holds the parsed declarations and linker flags collected
 // from the //cgo: pragmas in a package.
 type Bindings struct {
-	mu           sync.Mutex
-	Package      string
-	LdFlags      []string
-	Vars         []BindingVar
-	Funcs        []BindingFunc
-	UsedBuiltins map[string]bool   // cgo builtins (such as CString) referenced as C.name
-	TypeGoToC    map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
-	ConstCToGo   map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
-	GoOnlyCNames map[string]bool   // C names bound by pragmas without the C. prefix
-	TypeMap      map[string]BindingType
+	mu            sync.Mutex
+	Package       string
+	LdFlags       []string
+	Vars          []BindingVar
+	Funcs         []BindingFunc
+	UsedBuiltins  map[string]bool   // cgo builtins (such as CString) referenced as C.name
+	TypeGoToC     map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
+	ConstCToGo    map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
+	GoOnlyCNames  map[string]bool   // C names bound by pragmas without the C. prefix
+	DynloadTypes  []string          // //cgo:dynload types, in pragma order
+	DynloadCounts map[string]int    // number of symbols bound for each //cgo:dynload type
+	DynloadVars   []BindingVar      // //cgo:var LibT.GoName methods
+	TypeMap       map[string]BindingType
 
 	tpkg         *types.Package
 	typeInfo     *types.Info
@@ -241,20 +248,24 @@ func windowsDLLName(lib string) string {
 //	//cgo:var GoName [C.]cName {"lib" | static | libc}
 //	//cgo:type GoName [C.]cName
 //	//cgo:const GoName [C.]cName
+//	//cgo:dynload LibT
+//	//cgo:func LibT.GoName cName
+//	//cgo:var LibT.GoName cName
 //
-// A pragma names both a Go declaration, GoName, and the C name, cName, that it
-// binds it to. Writing the C name as C.cName also lets Go code in the package
-// refer to it as C.cName, as with traditional cgo; without the C. prefix, it
-// is reachable only through GoName.
+// Except for //cgo:dynload, a pragma names both a Go declaration, GoName, and
+// the C name, cName, that it binds it to. Writing the C name as C.cName also
+// lets Go code in the package refer to it as C.cName, as with traditional cgo;
+// without the C. prefix, it is reachable only through GoName.
 //
 // Pragmas are self-contained and may appear anywhere in a file that
 // imports "C".
 type cgoPragma struct {
-	Pos    token.Position
-	Kind   string // pragma name: "func", "var", "type", or "const"
-	GoName string // Go identifier being bound
-	CName  string // C symbol name
-	BindC  bool   // cName was written as C.cName, so Go code may also use C.cName
+	Pos      token.Position
+	Kind     string // pragma name: "func", "var", "type", "const", or "dynload"
+	RecvType string // for func and var, the //cgo:dynload type LibT in the LibT.GoName form
+	GoName   string // Go identifier being bound (the method name in the LibT.GoName form)
+	CName    string // C symbol name
+	BindC    bool   // cName was written as C.cName, so Go code may also use C.cName
 
 	// Library specifier, for func and var.
 	Library string // shared library for the "lib" form
@@ -265,10 +276,11 @@ type cgoPragma struct {
 // cgoPragmaSyntax maps each supported //cgo: pragma name to its syntax, for
 // error messages.
 var cgoPragmaSyntax = map[string]string{
-	"func":  `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
-	"var":   `//cgo:var GoName [C.]cName {"lib" | static | libc}`,
-	"type":  `//cgo:type GoName [C.]cName`,
-	"const": `//cgo:const GoName [C.]cName`,
+	"func":    `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
+	"var":     `//cgo:var GoName [C.]cName {"lib" | static | libc}`,
+	"type":    `//cgo:type GoName [C.]cName`,
+	"const":   `//cgo:const GoName [C.]cName`,
+	"dynload": `//cgo:dynload LibT`,
 }
 
 // parseCgoDirective parses a "#cgo [cond] VERB: flags" line (where line starts
@@ -333,8 +345,9 @@ func parseCgoPragma(fset *token.FileSet, c *ast.Comment) (cgoPragma, bool) {
 	if !ok || d.Tool != "cgo" || cgoPragmaSyntax[d.Name] == "" {
 		return cgoPragma{}, false
 	}
+	syntax := cgoPragmaSyntax[d.Name]
 	bad := func(why string) {
-		fatalf("%s: invalid //cgo:%s pragma: %s (want %s)", fset.Position(c.Pos()), d.Name, why, cgoPragmaSyntax[d.Name])
+		fatalf("%s: invalid //cgo:%s pragma: %s (want %s)", fset.Position(c.Pos()), d.Name, why, syntax)
 	}
 	args, err := d.ParseArgs()
 	if err != nil {
@@ -345,6 +358,39 @@ func parseCgoPragma(fset *token.FileSet, c *ast.Comment) (cgoPragma, bool) {
 		off := int(arg.Pos - d.ArgsPos)
 		return off >= 0 && off < len(d.Args) && (d.Args[off] == '"' || d.Args[off] == '`')
 	}
+	pr := cgoPragma{Pos: fset.Position(c.Pos()), Kind: d.Name}
+	if d.Name == "dynload" {
+		if len(args) != 1 {
+			bad("wrong number of arguments")
+		}
+		if quoted(args[0]) || !token.IsIdentifier(args[0].Arg) || args[0].Arg == "_" {
+			bad(fmt.Sprintf("invalid Go type name %q", args[0].Arg))
+		}
+		pr.GoName = args[0].Arg
+		return pr, true
+	}
+	if len(args) > 0 && !quoted(args[0]) && (d.Name == "func" || d.Name == "var") {
+		if recv, name, ok := strings.Cut(args[0].Arg, "."); ok {
+			syntax = "//cgo:" + d.Name + " LibT.GoName cName"
+			if len(args) != 2 {
+				bad("wrong number of arguments; a //cgo:dynload method takes no library specifier")
+			}
+			if !token.IsIdentifier(recv) || !token.IsIdentifier(name) || name == "_" {
+				bad(fmt.Sprintf("invalid Go name %q", args[0].Arg))
+			}
+			if quoted(args[1]) {
+				bad(fmt.Sprintf("invalid C name %q", args[1].Arg))
+			}
+			if strings.HasPrefix(args[1].Arg, "C.") {
+				bad("a //cgo:dynload method cannot bind a C. name")
+			}
+			if !token.IsIdentifier(args[1].Arg) {
+				bad(fmt.Sprintf("invalid C name %q", args[1].Arg))
+			}
+			pr.RecvType, pr.GoName, pr.CName = recv, name, args[1].Arg
+			return pr, true
+		}
+	}
 	hasLib := d.Name == "func" || d.Name == "var"
 	want := 2
 	if hasLib {
@@ -353,7 +399,6 @@ func parseCgoPragma(fset *token.FileSet, c *ast.Comment) (cgoPragma, bool) {
 	if len(args) != want {
 		bad("wrong number of arguments")
 	}
-	pr := cgoPragma{Pos: fset.Position(c.Pos()), Kind: d.Name}
 	if quoted(args[0]) || !token.IsIdentifier(args[0].Arg) || args[0].Arg == "_" {
 		bad(fmt.Sprintf("invalid Go name %q", args[0].Arg))
 	}
@@ -629,6 +674,56 @@ func (p *Package) parseBinding(bindingPath string, data []byte) *Bindings {
 	return p.parseBindingFiles([]bindingSource{{path: bindingPath, data: data}})
 }
 
+// recvTypeName returns the name of the receiver base type of method d, or ""
+// if it is not a (possibly pointer to a) named type.
+func recvTypeName(d *ast.FuncDecl) string {
+	if d.Recv == nil || len(d.Recv.List) != 1 {
+		return ""
+	}
+	t := d.Recv.List[0].Type
+	if star, ok := t.(*ast.StarExpr); ok {
+		t = star.X
+	}
+	if id, ok := t.(*ast.Ident); ok {
+		return id.Name
+	}
+	return ""
+}
+
+// structEmbedsLibrary reports whether ts is a non-generic, non-alias struct
+// type that embeds runtime/cgo.Library.
+func structEmbedsLibrary(ts *ast.TypeSpec, imp fileImports) bool {
+	st, ok := ts.Type.(*ast.StructType)
+	if !ok || ts.TypeParams != nil || ts.Assign.IsValid() {
+		return false
+	}
+	for _, fld := range st.Fields.List {
+		if len(fld.Names) != 0 {
+			continue
+		}
+		switch ft := fld.Type.(type) {
+		case *ast.SelectorExpr:
+			if id, ok := ft.X.(*ast.Ident); ok && imp.runtimeCgo[id.Name] && ft.Sel.Name == "Library" {
+				return true
+			}
+		case *ast.Ident:
+			if imp.runtimeCgo["."] && ft.Name == "Library" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *Package) checkDynloadType(pr cgoPragma, ts *ast.TypeSpec, imp fileImports) {
+	if ts == nil {
+		fatalf("%s: //cgo:dynload %s: missing declaration of type %s", pr.Pos, pr.GoName, pr.GoName)
+	}
+	if !structEmbedsLibrary(ts, imp) {
+		fatalf("%s: //cgo:dynload type %s must be a struct type that embeds cgo.Library", p.fset.Position(ts.Pos()), pr.GoName)
+	}
+}
+
 func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 	if p.noCallbacks == nil {
 		p.noCallbacks = make(map[string]bool)
@@ -637,12 +732,13 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		p.noEscapes = make(map[string]bool)
 	}
 	entry := &Bindings{
-		LdFlags:      append([]string(nil), p.LdFlags...),
-		UsedBuiltins: make(map[string]bool),
-		TypeGoToC:    make(map[string]string),
-		ConstCToGo:   make(map[string]string),
-		GoOnlyCNames: make(map[string]bool),
-		constSources: sources,
+		LdFlags:       append([]string(nil), p.LdFlags...),
+		UsedBuiltins:  make(map[string]bool),
+		TypeGoToC:     make(map[string]string),
+		ConstCToGo:    make(map[string]string),
+		GoOnlyCNames:  make(map[string]bool),
+		DynloadCounts: make(map[string]int),
+		constSources:  sources,
 	}
 
 	var pragmas []cgoPragma
@@ -714,6 +810,8 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 	// Index the package-level declarations that pragmas may name.
 	funcDecls := make(map[string]*ast.FuncDecl)
 	funcImports := make(map[string]fileImports)
+	methodDecls := make(map[string]*ast.FuncDecl) // keyed by "T.M"
+	methodImports := make(map[string]fileImports)
 	typeSpecs := make(map[string]*ast.TypeSpec)
 	typeImports := make(map[string]fileImports)
 	constSpecs := make(map[string]*ast.ValueSpec)
@@ -728,6 +826,9 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 				if d.Recv == nil {
 					funcDecls[d.Name.Name] = d
 					funcImports[d.Name.Name] = imp
+				} else if recv := recvTypeName(d); recv != "" {
+					methodDecls[recv+"."+d.Name.Name] = d
+					methodImports[recv+"."+d.Name.Name] = imp
 				}
 			case *ast.GenDecl:
 				for _, spec := range d.Specs {
@@ -760,6 +861,38 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 	boundGo := make(map[string]bool)
 	boundC := make(map[string]bool)
 	for _, pr := range pragmas {
+		if pr.Kind == "dynload" {
+			p.checkDynloadType(pr, typeSpecs[pr.GoName], typeImports[pr.GoName])
+			if _, ok := entry.DynloadCounts[pr.GoName]; ok {
+				fatalf("%s: %s is declared by more than one //cgo:dynload pragma", pr.Pos, pr.GoName)
+			}
+			boundGo[pr.GoName] = true
+			entry.DynloadCounts[pr.GoName] = 0
+			entry.DynloadTypes = append(entry.DynloadTypes, pr.GoName)
+		}
+	}
+	for _, pr := range pragmas {
+		if pr.Kind == "dynload" {
+			continue
+		}
+		if pr.RecvType != "" {
+			key := pr.RecvType + "." + pr.GoName
+			if _, ok := entry.DynloadCounts[pr.RecvType]; !ok {
+				fatalf("%s: //cgo:%s %s: %s is not declared with //cgo:dynload", pr.Pos, pr.Kind, key, pr.RecvType)
+			}
+			if boundGo[key] {
+				fatalf("%s: %s is bound by more than one //cgo: pragma", pr.Pos, key)
+			}
+			boundGo[key] = true
+			d := methodDecls[key]
+			if d == nil {
+				fatalf("%s: //cgo:%s %s: missing declaration of method (*%s).%s", pr.Pos, pr.Kind, key, pr.RecvType, pr.GoName)
+			}
+			if _, ok := d.Recv.List[0].Type.(*ast.StarExpr); !ok {
+				fatalf("%s: //cgo:%s method %s must have a pointer receiver (*%s)", p.fset.Position(d.Pos()), pr.Kind, pr.GoName, pr.RecvType)
+			}
+			continue
+		}
 		if boundGo[pr.GoName] {
 			fatalf("%s: %s is bound by more than one //cgo: pragma", pr.Pos, pr.GoName)
 		}
@@ -960,9 +1093,50 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 		}
 	}
 
+	allocDynSym := func(recvType, goName string) (string, int) {
+		dynName := fmt.Sprintf("_dyn%d_%s_%s", len(recvType), recvType, goName)
+		for boundGo[dynName] {
+			dynName = "_" + dynName
+		}
+		idx := entry.DynloadCounts[recvType]
+		entry.DynloadCounts[recvType] = idx + 1
+		return dynName, idx
+	}
+
 	for _, pr := range pragmas {
 		switch pr.Kind {
 		case "var":
+			if pr.RecvType != "" {
+				key := pr.RecvType + "." + pr.GoName
+				d := methodDecls[key]
+				pos := p.fset.Position(d.Pos())
+				if d.Body != nil {
+					fatalf("%s: //cgo:var method %s cannot have a body", pos, pr.GoName)
+				}
+				var star *ast.StarExpr
+				if d.Type.Params.NumFields() == 0 && d.Type.Results.NumFields() == 1 {
+					star, _ = d.Type.Results.List[0].Type.(*ast.StarExpr)
+				}
+				if star == nil || d.Type.TypeParams != nil {
+					fatalf("%s: //cgo:var method %s must have the form func (*%s) %s() *T", pos, pr.GoName, pr.RecvType, pr.GoName)
+				}
+				mImp := methodImports[key]
+				validateUsedTypeExpr(star.X, true, mImp)
+				vType := p.cgoASTToGoDefInFile(star.X, entry, mImp)
+				if why := cDeclTypeError(vType, entry.TypeMap); why != "" {
+					fatalf("%s: //cgo:var method %s: variable type %s cannot be shared with C: %s", p.fset.Position(star.X.Pos()), pr.GoName, vType, why)
+				}
+				dynName, symIdx := allocDynSym(pr.RecvType, pr.GoName)
+				entry.DynloadVars = append(entry.DynloadVars, BindingVar{
+					Name:     dynName,
+					GoName:   pr.GoName,
+					CName:    pr.CName,
+					Type:     vType,
+					RecvType: pr.RecvType,
+					SymIndex: symIdx,
+				})
+				continue
+			}
 			if token.IsExported(pr.GoName) {
 				fatalf("%s: //cgo:var %s: Go variable name must be unexported", pr.Pos, pr.GoName)
 			}
@@ -995,6 +1169,9 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 			})
 		case "func":
 			d := funcDecls[pr.GoName]
+			if pr.RecvType != "" {
+				d = methodDecls[pr.RecvType+"."+pr.GoName]
+			}
 			pos := p.fset.Position(d.Pos())
 			if d.Body != nil {
 				fatalf("%s: //cgo:func function %s cannot have a body", pos, pr.GoName)
@@ -1016,6 +1193,12 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *Bindings {
 				Static:  pr.Static,
 			}
 			fImp := funcImports[pr.GoName]
+			if pr.RecvType != "" {
+				fImp = methodImports[pr.RecvType+"."+pr.GoName]
+				fn.Name, fn.SymIndex = allocDynSym(pr.RecvType, pr.GoName)
+				fn.Indirect = true
+				fn.RecvType = pr.RecvType
+			}
 			if d.Type.Params != nil {
 				for _, field := range d.Type.Params.List {
 					validateUsedTypeExpr(field.Type, false, fImp)
@@ -1129,8 +1312,17 @@ func (p *Package) processBinding(goFiles []string) {
 	cFuncMap := make(map[string]BindingFunc)
 	goFuncMap := make(map[string]BindingFunc)
 	boundGoFuncs := make(map[string]bool)
+	boundMethods := make(map[string]bool) // "LibT.GoName" for //cgo:dynload methods
 	boundCFuncs := make(map[string]bool)
+	for _, v := range entry.DynloadVars {
+		boundMethods[v.RecvType+"."+v.GoName] = true
+	}
 	for _, fn := range entry.Funcs {
+		if fn.RecvType != "" {
+			boundMethods[fn.RecvType+"."+fn.GoName] = true
+			boundCFuncs[fn.CName] = true
+			continue
+		}
 		if fn.BindC {
 			cFuncMap[fn.CName] = fn
 		}
@@ -1199,7 +1391,7 @@ func (p *Package) processBinding(goFiles []string) {
 			parsed.Decls = slices.DeleteFunc(parsed.Decls, func(decl ast.Decl) bool {
 				switch d := decl.(type) {
 				case *ast.FuncDecl:
-					if d.Body == nil && d.Recv == nil && boundGoFuncs[d.Name.Name] {
+					if d.Body == nil && (d.Recv == nil && boundGoFuncs[d.Name.Name] || d.Recv != nil && boundMethods[recvTypeName(d)+"."+d.Name.Name]) {
 						stripNode(d.Pos(), d.End())
 						return true
 					}
@@ -1233,6 +1425,27 @@ func (p *Package) processBinding(goFiles []string) {
 
 			imp := collectFileImports(parsed)
 			hasUnsafeImport := imp.hasUnsafe
+
+			if len(entry.DynloadTypes) > 0 {
+				// Make registering the //cgo:dynload types the first
+				// declaration in the file (see writeGoTypes). Put it right
+				// after the imports (or the package clause), on the same
+				// line, so that line numbers do not change and the first
+				// declaration keeps its doc comment and directives.
+				// Skip an import "C" declaration that is removed below.
+				insertAt := tf.Offset(parsed.Name.End())
+				for _, d := range parsed.Decls {
+					gd, ok := d.(*ast.GenDecl)
+					if !ok || gd.Tok != token.IMPORT {
+						break
+					}
+					if hasUnsafeImport && len(gd.Specs) == 1 && gd.Specs[0].(*ast.ImportSpec).Path.Value == `"C"` {
+						continue
+					}
+					insertAt = tf.Offset(gd.End())
+				}
+				editBuf.Insert(insertAt, "; "+dynloadRegisterDecl)
+			}
 
 			if pf.hasImportC {
 				forEachImportC(parsed, func(d *ast.GenDecl, s *ast.ImportSpec, _ *ast.CommentGroup) {
@@ -1518,6 +1731,10 @@ func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *Bindings, imp fileIm
 		return buf.String()
 	}
 }
+
+// dynloadRegisterDecl is the declaration that registers the symbols of
+// the //cgo:dynload types of a package during package initialization.
+const dynloadRegisterDecl = "var _ = _cgo_register_libraries()"
 
 const bindingRuntimeProlog = `//go:linkname _cgo_runtime_cgocall runtime.cgocall
 func _cgo_runtime_cgocall(fn unsafe.Pointer, arg uintptr) int32
@@ -1985,17 +2202,66 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		}
 	}
 
+	if !needsStructs {
+		for _, v := range bf.DynloadVars {
+			if strings.Contains(v.Type, "structs.HostLayout") {
+				needsStructs = true
+				break
+			}
+		}
+	}
+
 	fmt.Fprintf(f, "// Code generated by cmd/cgo; DO NOT EDIT.\n\n")
 	fmt.Fprintf(f, "package %s\n\n", bf.Package)
 	fmt.Fprintf(f, "import \"unsafe\"\n\n")
 	if needsStructs {
 		fmt.Fprintf(f, "import \"structs\"\n\n")
 	}
-	if *importRuntimeCgo {
+	if *importRuntimeCgo || len(bf.DynloadTypes) > 0 {
 		fmt.Fprintf(f, "import _cgopackage \"runtime/cgo\"\n\n")
 		fmt.Fprintf(f, "type _ _cgopackage.Incomplete\n\n")
 	}
 	fmt.Fprintf(f, "var _ unsafe.Pointer\n\n")
+
+	if len(bf.DynloadTypes) > 0 {
+		fmt.Fprintf(f, "//go:linkname _cgo_register_library runtime/cgo.registerLibrary\n")
+		fmt.Fprintf(f, "func _cgo_register_library(typ any, syms []string)\n\n")
+		fmt.Fprintf(f, "//go:linkname _cgo_library_symbol runtime/cgo.librarySymbol\n")
+		fmt.Fprintf(f, "func _cgo_library_symbol(lib *_cgopackage.Library, index int) unsafe.Pointer\n\n")
+
+		// Register the symbols bound to each //cgo:dynload type, in symbol
+		// index order, so that cgo.Open can resolve all of them when it
+		// loads the library. Package initialization may call cgo.Open, so
+		// the registration must happen first: every file of the package
+		// starts with a variable declaration that calls
+		// _cgo_register_libraries (see dynloadRegisterDecl), and since
+		// that call depends on no package-level variables, the variable in
+		// the first file is initialized before any other variable, and
+		// before any init function runs. Registering again is harmless.
+		fmt.Fprintf(f, "func _cgo_register_libraries() bool {\n")
+		for _, t := range bf.DynloadTypes {
+			syms := make([]string, bf.DynloadCounts[t])
+			for _, fn := range bf.Funcs {
+				if fn.Indirect && fn.RecvType == t {
+					syms[fn.SymIndex] = strconv.Quote(fn.CName)
+				}
+			}
+			for _, v := range bf.DynloadVars {
+				if v.RecvType == t {
+					syms[v.SymIndex] = strconv.Quote(v.CName)
+				}
+			}
+			fmt.Fprintf(f, "\t_cgo_register_library((*%s)(nil), []string{%s})\n", t, strings.Join(syms, ", "))
+		}
+		fmt.Fprintf(f, "\treturn true\n}\n\n")
+		fmt.Fprintf(f, "%s\n\n", dynloadRegisterDecl)
+	}
+	resolveDynSym := func(index int) string {
+		return fmt.Sprintf("_cgo_library_symbol(&_cgo_recv.Library, %d)", index)
+	}
+	for _, v := range bf.DynloadVars {
+		fmt.Fprintf(f, "func (_cgo_recv *%s) %s() *%s {\n\treturn (*%s)(%s)\n}\n\n", v.RecvType, v.GoName, v.Type, v.Type, resolveDynSym(v.SymIndex))
+	}
 
 	if len(bf.Funcs) > 0 || len(bf.Vars) > 0 || len(bf.LdFlags) > 0 || bf.needCMalloc() {
 		importedLibs := make(map[string]bool)
@@ -2056,8 +2322,8 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		emittedImp := make(map[string]bool)
 		for _, fn := range bf.Funcs {
 			cSym := fn.CName
-			if fn.Static {
-				// Resolved at link time from a .syso or .a file.
+			if fn.Static || fn.Indirect {
+				// Resolved at link time (.syso/.a) or at run time (cgo.Open).
 				continue
 			}
 			if !emittedImp[cSym] {
@@ -2189,8 +2455,11 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		fmt.Fprintf(f, "//go:linkname _cgo_trampoline_%s _cgo%s_trampoline_%s\n", fn.Name, cPrefix, fn.Name)
 		fmt.Fprintf(f, "var _cgo_trampoline_%s byte\n\n", fn.Name)
 
-		if len(fn.Params) > 0 || fn.Ret != "" {
+		if fn.Indirect || len(fn.Params) > 0 || fn.Ret != "" {
 			fmt.Fprintf(f, "type _cgo_arg_%s struct {\n", fn.Name)
+			if fn.Indirect {
+				fmt.Fprintf(f, "\tfn uintptr\n")
+			}
 			for i, pt := range fn.Params {
 				fmt.Fprintf(f, "\tp%d %s\n", i, pt)
 			}
@@ -2203,20 +2472,22 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		var paramDecls []string
 		var paramPass []string
 		var paramNames []string
+		if fn.Indirect {
+			paramDecls = append(paramDecls, "fn uintptr")
+			paramPass = append(paramPass, "fn: fn")
+		}
 		for i, pt := range fn.Params {
 			paramDecls = append(paramDecls, fmt.Sprintf("p%d %s", i, pt))
 			paramPass = append(paramPass, fmt.Sprintf("p%d: p%d", i, i))
 			paramNames = append(paramNames, fmt.Sprintf("p%d", i))
 		}
 		retSig := ""
-		retPrefix := ""
 		if fn.Ret != "" {
 			retSig = " " + fn.Ret
-			retPrefix = "return "
 		}
 		noCallback := p.noCallbacks[fn.CName]
 		noEscape := p.noEscapes[fn.CName]
-		hasArgs := len(fn.Params) > 0 || fn.Ret != ""
+		hasArgs := fn.Indirect || len(fn.Params) > 0 || fn.Ret != ""
 		// When a C call with a return value may invoke Go callbacks, the
 		// trampoline relocates &args by the _cgo_topofstack delta if the
 		// goroutine stack grows. Pass args as a value parameter to a
@@ -2281,30 +2552,68 @@ func (p *Package) writeGoTypes(bf *Bindings) {
 		}
 		fmt.Fprintf(f, "}\n\n")
 
-		// Calls that are not rewritten to check their own arguments (calls
-		// from other packages and from files without import "C", indirect
-		// calls, and calls whose arguments cannot be analyzed) go through
-		// a wrapper that checks every argument that might contain a Go
-		// pointer. Without knowing how an argument was formed, it checks
-		// the complete memory allocation that the argument points to.
-		entryFunc := bindingFuncEntry(fn, bf.TypeMap)
-		if needs, any := bindingPointerChecks(fn, bf.TypeMap); any {
-			fmt.Fprintf(f, "func %s(%s)%s {\n", entryFunc, strings.Join(paramDecls, ", "), retSig)
-			for i, need := range needs {
-				if need {
-					fmt.Fprintf(f, "\t_cgoCheckPointer(p%d, nil)\n", i)
-				}
-			}
-			fmt.Fprintf(f, "\t%s_Cfunc_%s(%s)\n}\n\n", retPrefix, fn.Name, strings.Join(paramNames, ", "))
+		var fnArg string
+		if fn.Indirect {
+			fnArg = "uintptr(" + resolveDynSym(fn.SymIndex) + ")"
 		}
-		if fn.GoName != "" {
-			fmt.Fprintf(f, "func %s(%s)%s {\n\t%s%s(%s)\n}\n\n",
-				fn.GoName, strings.Join(paramDecls, ", "), retSig, retPrefix, entryFunc, strings.Join(paramNames, ", "))
+		emitGoFuncWrapper(f, fn, fnArg, definedCfuncs, bf.TypeMap)
+	}
+}
+
+// emitGoFuncWrapper writes the Go function or //cgo:dynload method wrapper calling _Cfunc_<fn.Name>.
+func emitGoFuncWrapper(f *os.File, fn BindingFunc, fnArg string, definedCfuncs map[string]bool, types map[string]BindingType) {
+	if fn.GoName == "" {
+		return
+	}
+	var paramDecls []string
+	var passArgs []string
+	recv := ""
+	if fn.Indirect {
+		recv = "(_cgo_recv *" + fn.RecvType + ") "
+		passArgs = append(passArgs, fnArg)
+	}
+	for i, pt := range fn.Params {
+		pName := fmt.Sprintf("p%d", i)
+		paramDecls = append(paramDecls, fmt.Sprintf("%s %s", pName, pt))
+		passArgs = append(passArgs, pName)
+	}
+	retSig := ""
+	retPrefix := ""
+	if fn.Ret != "" {
+		retSig = " " + fn.Ret
+		retPrefix = "return "
+	}
+	cSym := fn.CName
+	targetFunc := fn.Name
+	callExpr := fmt.Sprintf("_Cfunc_%s(%s)", targetFunc, strings.Join(passArgs, ", "))
+
+	// Calls that are not rewritten to check their own arguments (calls
+	// from other packages and from files without import "C", method and
+	// indirect calls, and calls whose arguments cannot be analyzed) go
+	// through the wrapper, which checks every argument that might contain
+	// a Go pointer. Without knowing how an argument was formed, it checks
+	// the complete memory allocation that the argument points to.
+	var checks strings.Builder
+	needs, _ := bindingPointerChecks(fn, types)
+	for i, need := range needs {
+		if need {
+			fmt.Fprintf(&checks, "\t_cgoCheckPointer(p%d, nil)\n", i)
 		}
-		if cSym := fn.CName; fn.BindC && cSym != fn.Name && !definedCfuncs[cSym] {
-			definedCfuncs[cSym] = true
-			fmt.Fprintf(f, "var _Cfunc_%s = _Cfunc_%s\n\n", cSym, fn.Name)
-		}
+	}
+	if checks.Len() > 0 && !fn.Indirect {
+		// Rewritten C.cName references that are not calls use
+		// _Cgocheck_<name>; see bindingFuncEntry.
+		entry := bindingFuncEntry(fn, types)
+		fmt.Fprintf(f, "func %s(%s)%s {\n%s\t%s%s\n}\n\n",
+			entry, strings.Join(paramDecls, ", "), retSig, &checks, retPrefix, callExpr)
+		checks.Reset()
+		callExpr = fmt.Sprintf("%s(%s)", entry, strings.Join(passArgs, ", "))
+	}
+	fmt.Fprintf(f, "func %s%s(%s)%s {\n%s\t%s%s\n}\n\n",
+		recv, fn.GoName, strings.Join(paramDecls, ", "), retSig, &checks, retPrefix, callExpr)
+	if fn.BindC && cSym != targetFunc && !definedCfuncs[cSym] {
+		definedCfuncs[cSym] = true
+		fmt.Fprintf(f, "var _Cfunc_%s = _Cfunc_%s\n\n", cSym, targetFunc)
 	}
 }
 

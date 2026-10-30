@@ -342,6 +342,27 @@ func TestWriteTrampolineAMD64(t *testing.T) {
 		t.Errorf("amd64 register-only trampoline unexpectedly touches stack:\n%s", amdAsm)
 	}
 
+	// Indirect call trampoline.
+	var indBuf bytes.Buffer
+	sysv.writeTrampoline(&indBuf, BindingFunc{
+		Name:     "fp__BinOp",
+		Params:   []string{"int32", "int32"},
+		Ret:      "int32",
+		Indirect: true,
+	}, nil)
+	indAsm := indBuf.String()
+	for _, want := range []string{
+		"MOVL\t8(R12), DI",
+		"MOVL\t12(R12), SI",
+		"MOVQ\t0(R12), R11",
+		"CALL\tR11",
+		"MOVL\tAX, 16(R12)",
+	} {
+		if !strings.Contains(indAsm, want) {
+			t.Errorf("amd64 indirect trampoline missing %q in:\n%s", want, indAsm)
+		}
+	}
+
 	// Odd-sized struct loads/stores must decompose without 8-byte overreads.
 	checkOdd5No8ByteMoves(t, "amd64")
 }
@@ -506,6 +527,14 @@ func TestLayoutAndTrampolineARM64(t *testing.T) {
 	} {
 		if !strings.Contains(armBuf.String(), want) {
 			t.Errorf("arm64 trampoline missing %q in:\n%s", want, armBuf.String())
+		}
+	}
+
+	var indBuf bytes.Buffer
+	aapcs.writeTrampoline(&indBuf, BindingFunc{Name: "fp__BinOp", Params: []string{"int32", "int32"}, Ret: "int32", Indirect: true}, nil)
+	for _, want := range []string{"MOVW\t8(R19), R0", "MOVW\t12(R19), R1", "MOVD\t0(R19), R12", "CALL\t(R12)", "MOVW\tR0, 16(R19)"} {
+		if !strings.Contains(indBuf.String(), want) {
+			t.Errorf("arm64 indirect trampoline missing %q in:\n%s", want, indBuf.String())
 		}
 	}
 

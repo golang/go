@@ -24,7 +24,9 @@ type BindingType struct {
 	HasPointers bool   // Whether the type contains pointers (for GC keepalives)
 }
 
-// BindingFunc describes a bound C function declared with //cgo:func.
+// BindingFunc describes a C function bound with //cgo:func, either a
+// function linked with the program or a method of a //cgo:dynload type that
+// calls a function in a library loaded at run time.
 type BindingFunc struct {
 	// Identifier and symbol names:
 	Name   string // Internal cgo function identifier (used in _Cfunc_<Name>, _cgo_arg_<Name>, and _cgo_trampoline_<Name>)
@@ -37,12 +39,17 @@ type BindingFunc struct {
 	Ret    string   // Return type expression, or "" for void
 
 	// Calling convention modifiers (used by ABI layout and trampoline generation):
+	Indirect    bool // Call target address is passed at offset 0 of the Go arg struct (//cgo:dynload methods)
 	MayCallback bool // C call may re-enter Go; spills pointer-passed args/returns to g0 stack and tracks _cgo_topofstack
 
 	// Go wrapper and import metadata (used by binding.go):
 	Library string // Shared library or DLL name for dynamic import directives; empty for libc and static
 	LibC    bool   // The symbol comes from the platform C runtime (libc)
 	Static  bool   // The symbol is resolved at link time from a .syso or .a (static)
+
+	// Methods of //cgo:dynload types (used by binding.go):
+	RecvType string // The //cgo:dynload type, for a //cgo:func LibT.GoName pragma
+	SymIndex int    // Index of the symbol in RecvType's per-instance symbol table
 }
 
 // ParamLoc describes where a function parameter is passed in the C ABI.
@@ -559,6 +566,9 @@ func (cfg *ABIConfig) assignParams(fn BindingFunc, st *abiState, types map[strin
 		panic("ABIConfig.AssignParam must be set")
 	}
 	var goOff int64
+	if fn.Indirect {
+		goOff = cfg.PtrSize
+	}
 	paramTypes := fn.Params
 	params := make([]ParamLoc, len(paramTypes))
 	for i, pt := range paramTypes {
@@ -901,6 +911,12 @@ func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
 	}
 }
 
+// emitCallIndirect calls the C function pointer stored at 0(base).
+func (cfg *ABIConfig) emitCallIndirect(w io.Writer, base string) {
+	cfg.emitLoadInt(w, base, 0, cfg.PtrSize, false, cfg.TmpReg)
+	cfg.emitCallReg(w, cfg.TmpReg)
+}
+
 // emitCallRuntime emits a direct call to an internal Go runtime helper symbol.
 func (cfg *ABIConfig) emitCallRuntime(w io.Writer, sym string) {
 	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
@@ -1103,10 +1119,14 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 		cfg.PreCall(cfg, w, fn, lay)
 	}
 
-	if fn.CName == "" {
+	switch {
+	case fn.Indirect:
+		cfg.emitCallIndirect(w, base)
+	case fn.CName == "":
 		panic("BindingFunc.CName must be set")
+	default:
+		cfg.emitCallSymbol(w, fn.CName, fn.Static)
 	}
-	cfg.emitCallSymbol(w, fn.CName, fn.Static)
 
 	if fn.Ret != "" && lay.Ret.Size > 0 {
 		retDstBase, retDstOff := base, lay.Ret.GoOffset
