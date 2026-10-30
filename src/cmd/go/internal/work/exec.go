@@ -47,8 +47,6 @@ import (
 	"cmd/internal/buildid"
 	"cmd/internal/quoted"
 	"cmd/internal/sys"
-
-	"golang.org/x/tools/go/analysis"
 )
 
 const DefaultCFlags = "-O2 -g"
@@ -1535,7 +1533,7 @@ type vetConfig struct {
 	NonGoFiles   []string // absolute paths to package non-Go files
 	IgnoredFiles []string // absolute paths to ignored source files
 
-	Module      *analysis.Module  // module information, if any
+	Module      *vetModule        // module information, if any
 	ImportMap   map[string]string // map import path in source code to package path
 	PackageFile map[string]string // map package path to .a file with export data
 	Standard    map[string]bool   // map package path to whether it's in the standard library
@@ -1560,12 +1558,35 @@ type exportConfig struct {
 	TrimPath    string            // rewrites for source file paths, as in -trimpath
 }
 
-// analysisModuleFromModulePublic converts a modinfo.ModulePublic to a analysis.Module.
-func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *analysis.Module {
+// A vetModule describes the module to which a package belongs, in the
+// configuration of a vet tool. Its JSON encoding must match that of
+// golang.org/x/tools/go/analysis.Module, which the tool decodes.
+//
+// TODO(adonovan): reunify the types when x/tools/go/analysis moves to std (#82465).
+type vetModule struct {
+	Path      string          // module path
+	Version   string          // module version ("" if unknown, such as for workspace modules)
+	Replace   *vetModule      // replaced by this module
+	Time      *time.Time      // time version was created
+	Main      bool            // is this the main module?
+	Indirect  bool            // is this module only an indirect dependency of main module?
+	Dir       string          // directory holding files for this module, if any
+	GoMod     string          // path to go.mod file used when loading this module, if any
+	GoVersion string          // go version used in module (e.g. "go1.22.0")
+	Error     *vetModuleError // error loading module
+}
+
+// A vetModuleError holds errors loading a module; see [vetModule].
+type vetModuleError struct {
+	Err string // the error itself
+}
+
+// analysisModuleFromModulePublic converts a modinfo.ModulePublic to a vetModule.
+func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *vetModule {
 	if m == nil {
 		return nil
 	}
-	vm := &analysis.Module{
+	vm := &vetModule{
 		Path:      m.Path,
 		Version:   m.Version,
 		Replace:   analysisModuleFromModulePublic(m.Replace),
@@ -1577,7 +1598,7 @@ func analysisModuleFromModulePublic(m *modinfo.ModulePublic) *analysis.Module {
 		GoVersion: m.GoVersion,
 	}
 	if m.Error != nil {
-		vm.Error = &analysis.ModuleError{Err: m.Error.Err}
+		vm.Error = &vetModuleError{Err: m.Error.Err}
 	}
 	return vm
 }

@@ -647,6 +647,98 @@ var depsRules = `
 	< golang.org/x/tools/internal/gcimporter
 	< golang.org/x/tools/go/gcexportdata;
 
+	# x/tools analysis passes and unitchecker, for cmd/vet and cmd/fix
+	# (via internal/analysis/...). Generated from the import graph;
+	# order within x/tools is by depth.
+	archive/zip, bufio, bytes, cmp,
+	crypto/md5, crypto/sha256, embed, encoding/binary,
+	encoding/gob, encoding/json, errors, flag,
+	fmt, go/ast, go/build, go/build/constraint,
+	go/constant, go/format, go/parser, go/printer,
+	go/scanner, go/token, go/types, hash/maphash,
+	io, iter, log, maps,
+	math, math/big, net/url, os,
+	os/exec, path, path/filepath, reflect,
+	regexp, runtime, slices, sort,
+	strconv, strings, sync, time,
+	unicode, unicode/utf8, unsafe, golang.org/x/tools/go/gcexportdata,
+	golang.org/x/tools/go/types/objectpath, golang.org/x/tools/internal/gcimporter, golang.org/x/tools/internal/pkgbits
+	< golang.org/x/tools/go/analysis,
+	  golang.org/x/tools/go/ast/astutil,
+	  golang.org/x/tools/go/ast/edge,
+	  golang.org/x/tools/go/cfg,
+	  golang.org/x/tools/internal/astutil/free,
+	  golang.org/x/tools/internal/diff/lcs,
+	  golang.org/x/tools/internal/fmtstr,
+	  golang.org/x/tools/internal/moreiters,
+	  golang.org/x/tools/internal/moremaps,
+	  golang.org/x/tools/internal/packagepath,
+	  golang.org/x/tools/internal/stdlib,
+	  golang.org/x/tools/internal/versions
+	< golang.org/x/tools/go/analysis/internal/analysisflags,
+	  golang.org/x/tools/go/ast/inspector,
+	  golang.org/x/tools/internal/analysis/analyzerutil,
+	  golang.org/x/tools/internal/diff,
+	  golang.org/x/tools/internal/facts,
+	  golang.org/x/tools/internal/typeparams
+	< golang.org/x/tools/go/analysis/passes/asmdecl,
+	  golang.org/x/tools/go/analysis/passes/buildtag,
+	  golang.org/x/tools/go/analysis/passes/directive,
+	  golang.org/x/tools/go/analysis/passes/framepointer,
+	  golang.org/x/tools/go/analysis/passes/inspect,
+	  golang.org/x/tools/internal/analysis/driverutil,
+	  golang.org/x/tools/internal/cursorutil,
+	  golang.org/x/tools/internal/typesinternal
+	< golang.org/x/tools/go/analysis/passes/cgocall,
+	  golang.org/x/tools/go/analysis/passes/composite,
+	  golang.org/x/tools/go/analysis/passes/httpresponse,
+	  golang.org/x/tools/go/analysis/passes/ifaceassert,
+	  golang.org/x/tools/go/analysis/passes/nilfunc,
+	  golang.org/x/tools/go/analysis/passes/sigchanyzer,
+	  golang.org/x/tools/go/analysis/passes/stdmethods,
+	  golang.org/x/tools/go/analysis/passes/stdversion,
+	  golang.org/x/tools/go/analysis/passes/structtag,
+	  golang.org/x/tools/go/analysis/passes/unsafeptr,
+	  golang.org/x/tools/go/analysis/unitchecker,
+	  golang.org/x/tools/go/types/typeutil,
+	  golang.org/x/tools/internal/astutil
+	< golang.org/x/tools/go/analysis/passes/appends,
+	  golang.org/x/tools/go/analysis/passes/atomic,
+	  golang.org/x/tools/go/analysis/passes/bools,
+	  golang.org/x/tools/go/analysis/passes/copylock,
+	  golang.org/x/tools/go/analysis/passes/ctrlflow,
+	  golang.org/x/tools/go/analysis/passes/defers,
+	  golang.org/x/tools/go/analysis/passes/internal/gofixdirective,
+	  golang.org/x/tools/go/analysis/passes/loopclosure,
+	  golang.org/x/tools/go/analysis/passes/shift,
+	  golang.org/x/tools/go/analysis/passes/slog,
+	  golang.org/x/tools/go/analysis/passes/testinggoroutine,
+	  golang.org/x/tools/go/analysis/passes/tests,
+	  golang.org/x/tools/go/analysis/passes/timeformat,
+	  golang.org/x/tools/go/analysis/passes/unmarshal,
+	  golang.org/x/tools/go/analysis/passes/unusedresult,
+	  golang.org/x/tools/go/analysis/passes/waitgroup,
+	  golang.org/x/tools/internal/typesinternal/typeindex,
+	  golang.org/x/tools/refactor/satisfy
+	< golang.org/x/tools/go/analysis/passes/lostcancel,
+	  golang.org/x/tools/go/analysis/passes/printf,
+	  golang.org/x/tools/internal/analysis/typeindex,
+	  golang.org/x/tools/internal/refactor
+	< golang.org/x/tools/go/analysis/passes/assign,
+	  golang.org/x/tools/go/analysis/passes/errorsas,
+	  golang.org/x/tools/go/analysis/passes/hostport,
+	  golang.org/x/tools/go/analysis/passes/modernize,
+	  golang.org/x/tools/go/analysis/passes/scannererr,
+	  golang.org/x/tools/go/analysis/passes/sqlrowserr,
+	  golang.org/x/tools/go/analysis/passes/unreachable,
+	  golang.org/x/tools/internal/analysis/intconv,
+	  golang.org/x/tools/internal/refactor/inline
+	< golang.org/x/tools/go/analysis/passes/inline,
+	  golang.org/x/tools/go/analysis/passes/stringintconv
+	< golang.org/x/tools/go/analysis/suite/fix,
+	  golang.org/x/tools/go/analysis/suite/vet
+	< internal/analysis/suite/fix, internal/analysis/suite/vet, internal/analysis/unitchecker;
+
 	# go/importer
 	DEBUG, crypto/sha256, go/build, go/types, text/scanner
 	< internal/exportdata, internal/pkgbits;

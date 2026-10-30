@@ -67,7 +67,7 @@ module importcmd
 -- importcmd/x.go --
 package importcmd
 
-import _ "cmd/vendor/golang.org/x/tools/go/analysis"
+import _ "cmd/vendor/golang.org/x/mod/module"
 -- importstd/go.mod --
 module importvendor
 -- importstd/x.go --
