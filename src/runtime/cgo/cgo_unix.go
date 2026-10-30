@@ -20,6 +20,10 @@ var _cgo_tsan_release_fn uintptr
 //go:linkname _cgo_msan_unpoison_fn _cgo_msan_unpoison_fn
 var _cgo_msan_unpoison_fn uintptr
 
+//go:linkname _libc_pthread_self libc_pthread_self
+var _libc_pthread_self byte
+var libc_pthread_self = unsafe.Pointer(&_libc_pthread_self)
+
 //go:linknamestd runtime_asmcgocall runtime.asmcgocall
 //go:noescape
 func runtime_asmcgocall(fn, arg unsafe.Pointer) int32
@@ -152,7 +156,6 @@ func msanUnpoisonNoG(addr unsafe.Pointer, size uintptr) {
 		asmcgocallNoG(_cgo_msan_unpoison_fn, uintptr(addr), size, 0, 0, 0, 0)
 	}
 }
-
 //go:nosplit
 //go:norace
 func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {
@@ -164,3 +167,6 @@ func msanUnpoisonMode(noG bool, addr unsafe.Pointer, size uintptr) {
 		}
 	}
 }
+
+//go:linknamestd _cgoGetStackBound runtime.cgoGetStackBound
+var _cgoGetStackBound = cgoGetStackBound

@@ -278,15 +278,21 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 	// it actually contains SP.
 	g0.stack.hi = sp + 1024
 	g0.stack.lo = sp - 32*1024
+	g0.stackguard0 = g0.stack.lo + stackGuard
+	g0.stackguard1 = g0.stackguard0
 	mp.g0StackAccurate = false
-	if !signal && _cgo_getstackbound != nil {
+	if !signal && ((goexperiment.CgoBindings && cgoGetStackBound != nil) || _cgo_getstackbound != nil) {
 		// Don't adjust if called from the signal handler.
 		// We are on the signal stack, not the pthread stack.
 		// (We could get the stack bounds from sigaltstack, but
 		// we're getting out of the signal handler very soon
 		// anyway. Not worth it.)
 		var bounds [2]uintptr
-		asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
+		if goexperiment.CgoBindings && cgoGetStackBound != nil {
+			bounds[0], bounds[1] = cgoGetStackBound()
+		} else {
+			asmcgocall(_cgo_getstackbound, unsafe.Pointer(&bounds))
+		}
 		// getstackbound is an unsupported no-op on Windows.
 		//
 		// On Unix systems, if the API to get accurate stack bounds is
@@ -298,11 +304,11 @@ func callbackUpdateSystemStack(mp *m, sp uintptr, signal bool) {
 		if bounds[0] != 0 && sp > bounds[0] && sp <= bounds[1] {
 			g0.stack.lo = bounds[0]
 			g0.stack.hi = bounds[1]
+			g0.stackguard0 = g0.stack.lo + stackGuard
+			g0.stackguard1 = g0.stackguard0
 			mp.g0StackAccurate = true
 		}
 	}
-	g0.stackguard0 = g0.stack.lo + stackGuard
-	g0.stackguard1 = g0.stackguard0
 }
 
 // Call from C back to Go. fn must point to an ABIInternal Go entry-point.

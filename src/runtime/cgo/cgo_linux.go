@@ -8,6 +8,22 @@ package cgo
 
 import "unsafe"
 
+//go:linkname _libc_pthread_attr_init libc_pthread_attr_init
+var _libc_pthread_attr_init byte
+var libc_pthread_attr_init = unsafe.Pointer(&_libc_pthread_attr_init)
+
+//go:linkname _libc_pthread_attr_destroy libc_pthread_attr_destroy
+var _libc_pthread_attr_destroy byte
+var libc_pthread_attr_destroy = unsafe.Pointer(&_libc_pthread_attr_destroy)
+
+//go:linkname _libc_pthread_getattr_np libc_pthread_getattr_np
+var _libc_pthread_getattr_np byte
+var libc_pthread_getattr_np = unsafe.Pointer(&_libc_pthread_getattr_np)
+
+//go:linkname _libc_pthread_attr_getstack libc_pthread_attr_getstack
+var _libc_pthread_attr_getstack byte
+var libc_pthread_attr_getstack = unsafe.Pointer(&_libc_pthread_attr_getstack)
+
 //go:linkname _libc_mmap libc_mmap
 var _libc_mmap byte
 var libc_mmap = unsafe.Pointer(&_libc_mmap)
@@ -146,6 +162,36 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 	return ret
 }
 
+// pthreadAttr corresponds to pthread_attr_t.
+type pthreadAttr struct {
+	data [8]uintptr
+}
+
+// cgoGetStackBound returns the current OS thread's stack bounds [lo, hi).
+// It must be called while pinned to the M (or on a system/C stack) so
+// pthread_self refers to a fixed OS thread.
+//
+//go:nosplit
+//go:norace
+//go:nocheckptr
+func cgoGetStackBound() (uintptr, uintptr) {
+	var attr pthreadAttr
+	var addr, size uintptr
+
+	// Needed before pthread_getattr_np, too, since before glibc 2.32
+	// it did not call pthread_attr_init in all cases (see #65625).
+	asmcgocall(uintptr(libc_pthread_attr_init), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
+	self := asmcgocall(uintptr(libc_pthread_self), 0, 0, 0, 0, 0, 0)
+	if int32(asmcgocall(uintptr(libc_pthread_getattr_np), self, uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0)) == 0 {
+		asmcgocall(uintptr(libc_pthread_attr_getstack), uintptr(unsafe.Pointer(&attr)), uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&size)), 0, 0, 0)
+	}
+	asmcgocall(uintptr(libc_pthread_attr_destroy), uintptr(unsafe.Pointer(&attr)), 0, 0, 0, 0, 0)
+
+	return addr, addr + size
+}
+
+//go:cgo_ldflag "-pthread"
+
 // Specify "libc.so.6" so internal linking without C host objects emits a
 // DT_NEEDED entry for glibc's dynamic loader; external linking ignores the
 // library field, !android excludes bionic, and musl treats any "libc.so.*"
@@ -155,3 +201,8 @@ func cgoSigaction(signum uintptr, goact, oldgoact *goSigaction, noG bool) int32 
 //go:cgo_import_dynamic libc_sigaction sigaction "libc.so.6"
 //go:cgo_import_dynamic libc_sigfillset sigfillset "libc.so.6"
 //go:cgo_import_dynamic libc_errno_location __errno_location "libc.so.6"
+//go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "libc.so.6"
+//go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "libc.so.6"
+//go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so.6"
+//go:cgo_import_dynamic libc_pthread_getattr_np pthread_getattr_np "libc.so.6"
+//go:cgo_import_dynamic libc_pthread_attr_getstack pthread_attr_getstack "libc.so.6"
