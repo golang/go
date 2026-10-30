@@ -48,13 +48,13 @@ func marshalValueAny(enc *jsontext.Encoder, val any, mo *jsonopts.Struct) error 
 		return marshalArrayAny(enc, val, mo)
 	}
 
-	v := newAddressableValue(reflect.TypeOf(val))
-	v.Set(reflect.ValueOf(val))
-	marshal := lookupMarshaler(v.Type()).fnc
+	va := newAddressableValue(reflect.TypeOf(val))
+	va.Set(reflect.ValueOf(val))
+	marshal := lookupMarshaler(va.Type()).fnc
 	if mo.Marshalers != nil {
-		marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, v.Type())
+		marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, va.Type())
 	}
-	return marshal(enc, v, mo)
+	return marshal(enc, maybeAddressableValue(va), mo)
 }
 
 // unmarshalValueAny unmarshals a JSON value as a Go any.

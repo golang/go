@@ -68,12 +68,12 @@ func JoinUnmarshalers(us ...*Unmarshalers) *Unmarshalers {
 	return newUnmarshalers(us...)
 }
 
-type typedMarshalers = typedArshalers[jsontext.Encoder]
-type typedUnmarshalers = typedArshalers[jsontext.Decoder]
-type typedArshalers[Coder any] struct {
+type typedMarshalers = typedArshalers[jsontext.Encoder, maybeAddressableValue]
+type typedUnmarshalers = typedArshalers[jsontext.Decoder, alwaysAddressableValue]
+type typedArshalers[Coder, Value any] struct {
 	nonComparable
 
-	fncVals  []typedArshaler[Coder]
+	fncVals  []typedArshaler[Coder, Value]
 	fncCache sync.Map // map[reflect.Type]arshaler
 
 	// fromAny reports whether any of Go types used to represent arbitrary JSON
@@ -87,18 +87,18 @@ type typedArshalers[Coder any] struct {
 	// if this is true.
 	fromAny bool
 }
-type typedMarshaler = typedArshaler[jsontext.Encoder]
-type typedUnmarshaler = typedArshaler[jsontext.Decoder]
-type typedArshaler[Coder any] struct {
+type typedMarshaler = typedArshaler[jsontext.Encoder, maybeAddressableValue]
+type typedUnmarshaler = typedArshaler[jsontext.Decoder, alwaysAddressableValue]
+type typedArshaler[Coder, Value any] struct {
 	typ     reflect.Type
-	fnc     func(*Coder, addressableValue, *jsonopts.Struct) error
+	fnc     func(*Coder, Value, *jsonopts.Struct) error
 	maySkip bool
 }
 
 func newMarshalers(ms ...*Marshalers) *Marshalers       { return newTypedArshalers(ms...) }
 func newUnmarshalers(us ...*Unmarshalers) *Unmarshalers { return newTypedArshalers(us...) }
-func newTypedArshalers[Coder any](as ...*typedArshalers[Coder]) *typedArshalers[Coder] {
-	var a typedArshalers[Coder]
+func newTypedArshalers[Coder, Value any](as ...*typedArshalers[Coder, Value]) *typedArshalers[Coder, Value] {
+	var a typedArshalers[Coder, Value]
 	for _, a2 := range as {
 		if a2 != nil {
 			a.fncVals = append(a.fncVals, a2.fncVals...)
@@ -111,7 +111,7 @@ func newTypedArshalers[Coder any](as ...*typedArshalers[Coder]) *typedArshalers[
 	return &a
 }
 
-func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsonopts.Struct) error, t reflect.Type) (func(*Coder, addressableValue, *jsonopts.Struct) error, bool) {
+func (a *typedArshalers[Coder, Value]) lookup(fnc func(*Coder, Value, *jsonopts.Struct) error, t reflect.Type) (func(*Coder, Value, *jsonopts.Struct) error, bool) {
 	if a == nil {
 		return fnc, false
 	}
@@ -119,12 +119,12 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 		if v == nil {
 			return fnc, false
 		}
-		return v.(func(*Coder, addressableValue, *jsonopts.Struct) error), true
+		return v.(func(*Coder, Value, *jsonopts.Struct) error), true
 	}
 
 	// Collect a list of arshalers that can be called for this type.
 	// This list may be longer than 1 since some arshalers can be skipped.
-	var fncs []func(*Coder, addressableValue, *jsonopts.Struct) error
+	var fncs []func(*Coder, Value, *jsonopts.Struct) error
 	for _, fncVal := range a.fncVals {
 		if !castableTo(t, fncVal.typ) {
 			continue
@@ -142,7 +142,7 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 
 	// Construct an arshaler that may call every applicable arshaler.
 	fncDefault := fnc
-	fnc = func(c *Coder, v addressableValue, o *jsonopts.Struct) error {
+	fnc = func(c *Coder, v Value, o *jsonopts.Struct) error {
 		for _, fnc := range fncs {
 			if err := fnc(c, v, o); !errors.Is(err, errors.ErrUnsupported) {
 				return err // may be nil or non-nil
@@ -153,7 +153,7 @@ func (a *typedArshalers[Coder]) lookup(fnc func(*Coder, addressableValue, *jsono
 
 	// Use the first stored so duplicate work can be garbage collected.
 	v, _ := a.fncCache.LoadOrStore(t, fnc)
-	return v.(func(*Coder, addressableValue, *jsonopts.Struct) error), true
+	return v.(func(*Coder, Value, *jsonopts.Struct) error), true
 }
 
 // MarshalFunc constructs a type-specific marshaler that
@@ -170,7 +170,8 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 	assertCastableTo(t, true)
 	typFnc := typedMarshaler{
 		typ: t,
-		fnc: func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		fnc: func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
+			va := vm.ensureAddr()
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			val, err := fn(v)
 			if err != nil {
@@ -211,7 +212,8 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 	assertCastableTo(t, true)
 	typFnc := typedMarshaler{
 		typ: t,
-		fnc: func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		fnc: func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
+			va := vm.ensureAddr()
 			xe := export.Encoder(enc)
 			prevDepth, prevLength := xe.Tokens.DepthLength()
 			xe.Flags.Set(jsonflags.WithinArshalCall | 1)
@@ -257,7 +259,7 @@ func UnmarshalFunc[T any](fn func([]byte, T) error) *Unmarshalers {
 	assertCastableTo(t, false)
 	typFnc := typedUnmarshaler{
 		typ: t,
-		fnc: func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		fnc: func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {
 			val, err := dec.ReadValue()
 			if err != nil {
 				return err // must be a syntactic or I/O error
@@ -292,7 +294,7 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 	assertCastableTo(t, false)
 	typFnc := typedUnmarshaler{
 		typ: t,
-		fnc: func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		fnc: func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			prevDepth, prevLength := xd.Tokens.DepthLength()
 			if prevDepth == 1 && xd.AtEOF() {
@@ -398,7 +400,7 @@ func castableTo(from, to reflect.Type) bool {
 // be a non-nil pointer to a concrete type.
 //
 // Requirement: castableTo(va.Type(), to) must hold.
-func (va addressableValue) castTo(to reflect.Type) reflect.Value {
+func (va alwaysAddressableValue) castTo(to reflect.Type) reflect.Value {
 	switch to.Kind() {
 	case reflect.Interface:
 		return va.Addr().Convert(to)

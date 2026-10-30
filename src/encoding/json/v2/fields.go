@@ -70,8 +70,8 @@ type structField struct {
 	index0  int   // 0th index into a struct according to [reflect.Type.FieldByIndex]
 	index   []int // 1st index and remainder according to [reflect.Type.FieldByIndex]
 	typ     reflect.Type
-	isZero  func(addressableValue) bool
-	isEmpty func(addressableValue) bool
+	isZero  func(maybeAddressableValue) bool
+	isEmpty func(maybeAddressableValue) bool
 	fieldOptions
 }
 
@@ -234,29 +234,29 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 				// Provide a function that uses a type's IsZero method.
 				switch {
 				case sf.Type.Kind() == reflect.Interface && sf.Type.Implements(isZeroerType):
-					f.isZero = func(va addressableValue) bool {
+					f.isZero = func(vm maybeAddressableValue) bool {
 						// Avoid panics calling IsZero on a nil interface or
 						// non-nil interface with nil pointer.
-						return va.IsNil() || (va.Elem().Kind() == reflect.Pointer && va.Elem().IsNil()) || va.Interface().(isZeroer).IsZero()
+						return vm.IsNil() || (vm.Elem().Kind() == reflect.Pointer && vm.Elem().IsNil()) || vm.Interface().(isZeroer).IsZero()
 					}
 				case sf.Type.Kind() == reflect.Pointer && sf.Type.Implements(isZeroerType):
-					f.isZero = func(va addressableValue) bool {
+					f.isZero = func(vm maybeAddressableValue) bool {
 						// Avoid panics calling IsZero on nil pointer.
-						return va.IsNil() || va.Interface().(isZeroer).IsZero()
+						return vm.IsNil() || vm.Interface().(isZeroer).IsZero()
 					}
 				case sf.Type.Implements(isZeroerType):
-					f.isZero = func(va addressableValue) bool { return va.Interface().(isZeroer).IsZero() }
+					f.isZero = func(vm maybeAddressableValue) bool { return vm.Interface().(isZeroer).IsZero() }
 				case reflect.PointerTo(sf.Type).Implements(isZeroerType):
-					f.isZero = func(va addressableValue) bool { return va.Addr().Interface().(isZeroer).IsZero() }
+					f.isZero = func(vm maybeAddressableValue) bool { return vm.ensureAddr().Addr().Interface().(isZeroer).IsZero() }
 				}
 
 				// Provide a function that can determine whether the value would
 				// serialize as an empty JSON value.
 				switch sf.Type.Kind() {
 				case reflect.String, reflect.Map, reflect.Array, reflect.Slice:
-					f.isEmpty = func(va addressableValue) bool { return va.Len() == 0 }
+					f.isEmpty = func(vm maybeAddressableValue) bool { return vm.Len() == 0 }
 				case reflect.Pointer, reflect.Interface:
-					f.isEmpty = func(va addressableValue) bool { return va.IsNil() }
+					f.isEmpty = func(vm maybeAddressableValue) bool { return vm.IsNil() }
 				}
 
 				// Reject multiple fields with same name within the same struct.

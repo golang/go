@@ -209,13 +209,13 @@ pkg encoding/json/v2, func Deterministic(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func FormatNilMapAsNull(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func FormatNilSliceAsNull(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func GetOption[$0 interface{}](jsonopts.Options, func($0) jsonopts.Options) ($0, bool) #71497
-pkg encoding/json/v2, func JoinMarshalers(...*typedArshalers[jsontext.Encoder]) *typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, func JoinMarshalers(...*typedArshalers[jsontext.Encoder, maybeAddressableValue]) *typedArshalers[jsontext.Encoder, maybeAddressableValue] #71497
 pkg encoding/json/v2, func JoinOptions(...jsonopts.Options) jsonopts.Options #71497
-pkg encoding/json/v2, func JoinUnmarshalers(...*typedArshalers[jsontext.Decoder]) *typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, func JoinUnmarshalers(...*typedArshalers[jsontext.Decoder, alwaysAddressableValue]) *typedArshalers[jsontext.Decoder, alwaysAddressableValue] #71497
 pkg encoding/json/v2, func Marshal(interface{}, ...jsonopts.Options) ([]uint8, error) #71497
 pkg encoding/json/v2, func MarshalEncode(*jsontext.Encoder, interface{}, ...jsonopts.Options) error #71497
-pkg encoding/json/v2, func MarshalFunc[$0 interface{}](func($0) ([]uint8, error)) *typedArshalers[jsontext.Encoder] #71497
-pkg encoding/json/v2, func MarshalToFunc[$0 interface{}](func(*jsontext.Encoder, $0) error) *typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, func MarshalFunc[$0 interface{}](func($0) ([]uint8, error)) *typedArshalers[jsontext.Encoder, maybeAddressableValue] #71497
+pkg encoding/json/v2, func MarshalToFunc[$0 interface{}](func(*jsontext.Encoder, $0) error) *typedArshalers[jsontext.Encoder, maybeAddressableValue] #71497
 pkg encoding/json/v2, func MarshalWrite(io.Writer, interface{}, ...jsonopts.Options) error #71497
 pkg encoding/json/v2, func MatchCaseInsensitiveNames(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func OmitZeroStructFields(bool) jsonopts.Options #71497
@@ -223,18 +223,18 @@ pkg encoding/json/v2, func RejectUnknownMembers(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func StringifyNumbers(bool) jsonopts.Options #71497
 pkg encoding/json/v2, func Unmarshal([]uint8, interface{}, ...jsonopts.Options) error #71497
 pkg encoding/json/v2, func UnmarshalDecode(*jsontext.Decoder, interface{}, ...jsonopts.Options) error #71497
-pkg encoding/json/v2, func UnmarshalFromFunc[$0 interface{}](func(*jsontext.Decoder, $0) error) *typedArshalers[jsontext.Decoder] #71497
-pkg encoding/json/v2, func UnmarshalFunc[$0 interface{}](func([]uint8, $0) error) *typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, func UnmarshalFromFunc[$0 interface{}](func(*jsontext.Decoder, $0) error) *typedArshalers[jsontext.Decoder, alwaysAddressableValue] #71497
+pkg encoding/json/v2, func UnmarshalFunc[$0 interface{}](func([]uint8, $0) error) *typedArshalers[jsontext.Decoder, alwaysAddressableValue] #71497
 pkg encoding/json/v2, func UnmarshalRead(io.Reader, interface{}, ...jsonopts.Options) error #71497
-pkg encoding/json/v2, func WithMarshalers(*typedArshalers[jsontext.Encoder]) jsonopts.Options #71497
-pkg encoding/json/v2, func WithUnmarshalers(*typedArshalers[jsontext.Decoder]) jsonopts.Options #71497
+pkg encoding/json/v2, func WithMarshalers(*typedArshalers[jsontext.Encoder, maybeAddressableValue]) jsonopts.Options #71497
+pkg encoding/json/v2, func WithUnmarshalers(*typedArshalers[jsontext.Decoder, alwaysAddressableValue]) jsonopts.Options #71497
 pkg encoding/json/v2, method (*SemanticError) Error() string #71497
 pkg encoding/json/v2, method (*SemanticError) Unwrap() error #71497
 pkg encoding/json/v2, type Marshaler interface { MarshalJSON } #71497
 pkg encoding/json/v2, type Marshaler interface, MarshalJSON() ([]uint8, error) #71497
 pkg encoding/json/v2, type MarshalerTo interface { MarshalJSONTo } #71497
 pkg encoding/json/v2, type MarshalerTo interface, MarshalJSONTo(*jsontext.Encoder) error #71497
-pkg encoding/json/v2, type Marshalers = typedArshalers[jsontext.Encoder] #71497
+pkg encoding/json/v2, type Marshalers = typedArshalers[jsontext.Encoder, maybeAddressableValue] #71497
 pkg encoding/json/v2, type Options = jsonopts.Options #71497
 pkg encoding/json/v2, type SemanticError struct #71497
 pkg encoding/json/v2, type SemanticError struct, ByteOffset int64 #71497
@@ -247,7 +247,7 @@ pkg encoding/json/v2, type Unmarshaler interface { UnmarshalJSON } #71497
 pkg encoding/json/v2, type Unmarshaler interface, UnmarshalJSON([]uint8) error #71497
 pkg encoding/json/v2, type UnmarshalerFrom interface { UnmarshalJSONFrom } #71497
 pkg encoding/json/v2, type UnmarshalerFrom interface, UnmarshalJSONFrom(*jsontext.Decoder) error #71497
-pkg encoding/json/v2, type Unmarshalers = typedArshalers[jsontext.Decoder] #71497
+pkg encoding/json/v2, type Unmarshalers = typedArshalers[jsontext.Decoder, alwaysAddressableValue] #71497
 pkg encoding/json/v2, var ErrUnknownName error #71497
 pkg go/constant, func StringLen(Value) int64 #79042
 pkg go/scanner, method (*Scanner) End() token.Pos #74958

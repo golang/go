@@ -43,7 +43,7 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	case timeDurationType:
 		fncs.nonDefault = true
 		marshalNano := fncs.fnc
-		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) error {
+		fncs.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
 			xe := export.Encoder(enc)
 			var m durationArshaler
 			if mo.Flags.Has(jsonflags.FormatTag) {
@@ -51,7 +51,7 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 					return newInvalidFormatError(enc, t)
 				}
 			} else if mo.Flags.Get(jsonflags.FormatDurationAsNano) {
-				return marshalNano(enc, va, mo)
+				return marshalNano(enc, vm, mo)
 			} else {
 				// TODO(https://go.dev/issue/71631): Decide on default duration representation.
 				var workaround string
@@ -64,7 +64,7 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
 			}
 
-			m.td, _ = reflect.TypeAssert[time.Duration](va.Value)
+			m.td, _ = reflect.TypeAssert[time.Duration](vm.Value)
 			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
 			if err := xe.AppendRaw(k, true, m.appendMarshal); err != nil {
 				if !isSyntacticError(err) && !export.IsIOError(err) {
@@ -76,7 +76,7 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 		}
 	case timeTimeType:
 		fncs.nonDefault = true
-		fncs.fnc = func(enc *jsontext.Encoder, va addressableValue, mo *jsonopts.Struct) (err error) {
+		fncs.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) (err error) {
 			xe := export.Encoder(enc)
 			var m timeArshaler
 			if mo.Flags.Has(jsonflags.FormatTag) {
@@ -88,11 +88,11 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 				return newMarshalErrorBefore(enc, t, errInvalidStringTag)
 			}
 
-			m.tt, _ = reflect.TypeAssert[time.Time](va.Value)
+			m.tt, _ = reflect.TypeAssert[time.Time](vm.Value)
 			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
 			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
 				}
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -118,7 +118,7 @@ func makeTimeUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 	case timeDurationType:
 		fncs.nonDefault = true
 		unmarshalNano := fncs.fnc
-		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+		fncs.fnc = func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) error {
 			xd := export.Decoder(dec)
 			var u durationArshaler
 			if uo.Flags.Has(jsonflags.FormatTag) {
@@ -176,7 +176,7 @@ func makeTimeUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 		}
 	case timeTimeType:
 		fncs.nonDefault = true
-		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) (err error) {
+		fncs.fnc = func(dec *jsontext.Decoder, va alwaysAddressableValue, uo *jsonopts.Struct) (err error) {
 			xd := export.Decoder(dec)
 			var u timeArshaler
 			if uo.Flags.Has(jsonflags.FormatTag) {
