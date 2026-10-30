@@ -9,6 +9,8 @@
 
 package types
 
+import "sync"
+
 // Sizes defines the sizing functions for package unsafe.
 type Sizes interface {
 	// Alignof returns the alignment of a variable of type T.
@@ -48,6 +50,12 @@ type Sizes interface {
 type StdSizes struct {
 	WordSize int64 // word size in bytes - must be >= 4 (32bits)
 	MaxAlign int64 // maximum alignment in bytes - must be >= 1
+
+	// sizeCache memoizes Sizeof results to avoid exponential
+	// slow-downs for deeply nested types (go.dev/issue/78342).
+	// It is lazily allocated on first use.
+	sizeCacheMu sync.RWMutex
+	sizeCache   map[Type]int64
 }
 
 func (s *StdSizes) Alignof(T Type) (result int64) {
@@ -186,7 +194,24 @@ var basicSizes = [...]byte{
 	Complex128: 16,
 }
 
-func (s *StdSizes) Sizeof(T Type) int64 {
+func (s *StdSizes) Sizeof(T Type) (size int64) {
+	s.sizeCacheMu.RLock()
+	cached, ok := s.sizeCache[T]
+	s.sizeCacheMu.RUnlock()
+	if ok {
+		return cached
+	}
+	// Memoize the result; the deferred closure observes the final
+	// value of the named result size (go.dev/issue/78342).
+	defer func() {
+		s.sizeCacheMu.Lock()
+		if s.sizeCache == nil {
+			s.sizeCache = make(map[Type]int64)
+		}
+		s.sizeCache[T] = size
+		s.sizeCacheMu.Unlock()
+	}()
+
 	switch t := T.Underlying().(type) {
 	case *Basic:
 		assert(isTyped(T))
@@ -235,11 +260,11 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 		}
 		offsets := s.Offsetsof(t.fields)
 		offs := offsets[n-1]
-		size := s.Sizeof(t.fields[n-1].typ)
-		if offs < 0 || size < 0 {
+		fsize := s.Sizeof(t.fields[n-1].typ)
+		if offs < 0 || fsize < 0 {
 			return -1 // type too large
 		}
-		return offs + size // may overflow to < 0 which is ok
+		return offs + fsize // may overflow to < 0 which is ok
 	case *Interface:
 		// Type parameters lead to variable sizes/alignments;
 		// StdSizes.Sizeof won't be called for them.
@@ -253,22 +278,22 @@ func (s *StdSizes) Sizeof(T Type) int64 {
 
 // common architecture word sizes and alignments
 var gcArchSizes = map[string]*gcSizes{
-	"386":      {4, 4},
-	"amd64":    {8, 8},
-	"amd64p32": {4, 8},
-	"arm":      {4, 4},
-	"arm64":    {8, 8},
-	"loong64":  {8, 8},
-	"mips":     {4, 4},
-	"mipsle":   {4, 4},
-	"mips64":   {8, 8},
-	"mips64le": {8, 8},
-	"ppc64":    {8, 8},
-	"ppc64le":  {8, 8},
-	"riscv64":  {8, 8},
-	"s390x":    {8, 8},
-	"sparc64":  {8, 8},
-	"wasm":     {8, 8},
+	"386":      {WordSize: 4, MaxAlign: 4},
+	"amd64":    {WordSize: 8, MaxAlign: 8},
+	"amd64p32": {WordSize: 4, MaxAlign: 8},
+	"arm":      {WordSize: 4, MaxAlign: 4},
+	"arm64":    {WordSize: 8, MaxAlign: 8},
+	"loong64":  {WordSize: 8, MaxAlign: 8},
+	"mips":     {WordSize: 4, MaxAlign: 4},
+	"mipsle":   {WordSize: 4, MaxAlign: 4},
+	"mips64":   {WordSize: 8, MaxAlign: 8},
+	"mips64le": {WordSize: 8, MaxAlign: 8},
+	"ppc64":    {WordSize: 8, MaxAlign: 8},
+	"ppc64le":  {WordSize: 8, MaxAlign: 8},
+	"riscv64":  {WordSize: 8, MaxAlign: 8},
+	"s390x":    {WordSize: 8, MaxAlign: 8},
+	"sparc64":  {WordSize: 8, MaxAlign: 8},
+	"wasm":     {WordSize: 8, MaxAlign: 8},
 	// When adding more architectures here,
 	// update the doc string of SizesFor below.
 }
