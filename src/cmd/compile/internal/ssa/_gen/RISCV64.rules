@@ -70,6 +70,7 @@
 (Abs ...) => (FABSD ...)
 
 (FMA ...) => (FMADDD ...)
+(FMA32 ...) => (FMADDS ...)
 
 (Min(64|32)F ...) => (LoweredFMIN(D|S) ...)
 (Max(64|32)F ...) => (LoweredFMAX(D|S) ...)

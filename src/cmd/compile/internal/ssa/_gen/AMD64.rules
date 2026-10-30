@@ -132,6 +132,7 @@
 (CVTSD2SS (ROUNDSD [c] (CVTSS2SD x))) => (ROUNDSS [c] x)
 
 (FMA x y z) => (VFMADD231SD z x y)
+(FMA32 x y z) => (VFMADD231SS z x y)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.

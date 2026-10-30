@@ -247,6 +247,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpFMA:
 		v.Op = ssaop.OpPPC64FMADD
 		return true
+	case ssaop.OpFMA32:
+		v.Op = ssaop.OpPPC64FMADDS
+		return true
 	case ssaop.OpFloor:
 		v.Op = ssaop.OpPPC64FFLOOR
 		return true

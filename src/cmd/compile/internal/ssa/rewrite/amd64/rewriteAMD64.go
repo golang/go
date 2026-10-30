@@ -4499,6 +4499,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)
+	case ssaop.OpFMA32:
+		return rewriteValue_OpFMA32(v)
 	case ssaop.OpFloor:
 		return rewriteValue_OpFloor(v)
 	case ssaop.OpFloorFloat32x4:
@@ -99570,6 +99572,21 @@ func rewriteValue_OpFMA(v *ssa.Value) bool {
 		y := v_1
 		z := v_2
 		v.Reset(ssaop.OpAMD64VFMADD231SD)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValue_OpFMA32(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMA32 x y z)
+	// result: (VFMADD231SS z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.Reset(ssaop.OpAMD64VFMADD231SS)
 		v.AddArg3(z, x, y)
 		return true
 	}

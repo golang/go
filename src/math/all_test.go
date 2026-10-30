@@ -3333,6 +3333,42 @@ func TestFMANegativeArgs(t *testing.T) {
 	}
 }
 
+//go:noinline
+func fmsub32(x, y, z float32) float32 {
+	return FMA32(x, y, -z)
+}
+
+//go:noinline
+func fnmsub32(x, y, z float32) float32 {
+	return FMA32(-x, y, z)
+}
+
+//go:noinline
+func fnmadd32(x, y, z float32) float32 {
+	return FMA32(-x, y, -z)
+}
+
+func TestFMA32NegativeArgs(t *testing.T) {
+	// See TestFMANegativeArgs.
+	for _, c := range fma32C {
+		want := PortableFMA32(c.x, c.y, -c.z)
+		got := fmsub32(c.x, c.y, c.z)
+		if !alike(float64(got), float64(want)) {
+			t.Errorf("FMA32(%g, %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA32(-c.x, c.y, c.z)
+		got = fnmsub32(c.x, c.y, c.z)
+		if !alike(float64(got), float64(want)) {
+			t.Errorf("FMA32(-(%g), %g, %g) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+		want = PortableFMA32(-c.x, c.y, -c.z)
+		got = fnmadd32(c.x, c.y, c.z)
+		if !alike(float64(got), float64(want)) {
+			t.Errorf("FMA32(-(%g), %g, -(%g)) == %g, want %g", c.x, c.y, c.z, got, want)
+		}
+	}
+}
+
 // Check that math functions of high angle values
 // return accurate results. [Since (vf[i] + large) - large != vf[i],
 // testing for Trig(vf[i] + large) == Trig(vf[i]), where large is
@@ -4158,4 +4194,12 @@ func BenchmarkFMA(b *testing.B) {
 		x = FMA(E, Pi, x)
 	}
 	GlobalF = x
+}
+
+func BenchmarkFMA32(b *testing.B) {
+	x := float32(0.0)
+	for i := 0; i < b.N; i++ {
+		x = FMA32(E, Pi, x)
+	}
+	GlobalF32 = x
 }

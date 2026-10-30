@@ -260,6 +260,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpEqPtr(v)
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)
+	case ssaop.OpFMA32:
+		return rewriteValue_OpFMA32(v)
 	case ssaop.OpFloor:
 		return rewriteValue_OpFloor(v)
 	case ssaop.OpGetCallerPC:
@@ -1892,6 +1894,21 @@ func rewriteValue_OpFMA(v *ssa.Value) bool {
 		y := v_1
 		z := v_2
 		v.Reset(ssaop.OpS390XFMADD)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValue_OpFMA32(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMA32 x y z)
+	// result: (FMADDS z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.Reset(ssaop.OpS390XFMADDS)
 		v.AddArg3(z, x, y)
 		return true
 	}

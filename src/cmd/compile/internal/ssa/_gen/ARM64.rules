@@ -58,6 +58,7 @@
 (RoundToEven ...) => (FRINTND ...)
 (Trunc       ...) => (FRINTZD ...)
 (FMA       x y z) => (FMADDD z x y)
+(FMA32     x y z) => (FMADDS z x y)
 
 (Sqrt32 ...) => (FSQRTS ...)
 

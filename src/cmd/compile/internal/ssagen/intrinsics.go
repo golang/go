@@ -779,15 +779,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue2(ssaop.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
 		},
 		sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm)
+	makeFMA := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
+			return s.newValue3(op, typ, args[0], args[1], args[2])
+		}
+	}
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
-		},
+		makeFMA(ssaop.OpFMA, types.TFLOAT64),
 		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	addF("math", "FMA32",
+		makeFMA(ssaop.OpFMA32, types.TFLOAT32),
+		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
+
+	makeFMAAMD64 := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
 			if cfg.goamd64 >= 3 {
-				return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+				return s.newValue3(op, typ, args[0], args[1], args[2])
 			}
 
 			v := s.entryNewValue0A(ssaop.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
@@ -803,21 +812,29 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(op, typ, args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
 			s.startBlock(bFalse)
-			s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+			s.vars[n] = s.callResult(n, callNormal) // typ
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Merge results.
 			s.startBlock(bEnd)
-			return s.variable(n, types.Types[types.TFLOAT64])
-		},
-		sys.AMD64)
+			return s.variable(n, typ)
+		}
+	}
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		makeFMAAMD64(ssaop.OpFMA, types.TFLOAT64),
+		sys.AMD64)
+	addF("math", "FMA32",
+		makeFMAAMD64(ssaop.OpFMA32, types.TFLOAT32),
+		sys.AMD64)
+
+	makeFMAARM := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -832,18 +849,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(op, typ, args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
 			s.startBlock(bFalse)
-			s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+			s.vars[n] = s.callResult(n, callNormal) // typ
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Merge results.
 			s.startBlock(bEnd)
-			return s.variable(n, types.Types[types.TFLOAT64])
-		},
+			return s.variable(n, typ)
+		}
+	}
+	addF("math", "FMA",
+		makeFMAARM(ssaop.OpFMA, types.TFLOAT64),
+		sys.ARM)
+	addF("math", "FMA32",
+		makeFMAARM(ssaop.OpFMA32, types.TFLOAT32),
 		sys.ARM)
 
 	makeRoundAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

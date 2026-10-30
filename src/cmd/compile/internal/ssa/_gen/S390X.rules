@@ -142,6 +142,7 @@
 (RoundToEven x) => (FIDBR [4] x)
 (Round       x) => (FIDBR [1] x)
 (FMA     x y z) => (FMADD z x y)
+(FMA32   x y z) => (FMADDS z x y)
 
 (Sqrt32    ...) => (FSQRTS ...)
 

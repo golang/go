@@ -4135,6 +4135,7 @@ const (
 	OpARMMULAD
 	OpARMMULSF
 	OpARMMULSD
+	OpARMFMULAF
 	OpARMFMULAD
 	OpARMAND
 	OpARMANDconst
@@ -7105,6 +7106,7 @@ const (
 	OpMax64FSel
 	OpMax32FSel
 	OpFMA
+	OpFMA32
 	OpPhi
 	OpCopy
 	OpConvert
@@ -73264,6 +73266,22 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "FMULAF",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm.AFMULAF,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{2, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		Name:         "FMULAD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -114568,6 +114586,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "FMA",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "FMA32",
 		ArgLen:  3,
 		Generic: true,
 	},
