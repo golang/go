@@ -219,6 +219,7 @@ func syscall_runtimeUnsetenv(key string) {
 // writeErrStr writes a string to descriptor 2.
 // If SetCrashOutput(f) was called, it also writes to f.
 //
+//go:linknamestd writeErrStr
 //go:nosplit
 func writeErrStr(s string) {
 	writeErrData(unsafe.StringData(s), int32(len(s)))

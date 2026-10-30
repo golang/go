@@ -6,6 +6,7 @@
 
 #include "go_asm.h"
 #include "textflag.h"
+#include "abi_amd64.h"
 
 // cgoCallTrampoline is called by runtime.asmcgocall (or runtime.cgocall)
 // using the System V AMD64 C ABI with DI pointing to a cgoCallFrame.
@@ -32,3 +33,26 @@ TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
 	POPQ	BX
 	POPQ	BP
 	RET
+
+TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
+	PUSH_REGS_HOST_TO_ABI0()
+	ADJSP	$8
+	MOVQ	DI, 0(SP)
+	CALL	·threadentry(SB)
+	ADJSP	$-8
+	POP_REGS_HOST_TO_ABI0()
+	XORL	AX, AX
+	RET
+
+TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
+	PUSH_REGS_HOST_TO_ABI0()
+	ADJSP	$16
+	MOVQ	DI, 0(SP)
+	MOVQ	SI, 8(SP)
+	CALL	·cgoInit(SB)
+	ADJSP	$-16
+	POP_REGS_HOST_TO_ABI0()
+	RET
+
+GLOBL _cgo_init(SB), NOPTR, $8
+DATA _cgo_init+0(SB)/8, $x_cgo_init<>(SB)

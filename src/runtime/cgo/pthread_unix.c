@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build unix
+//go:build !goexperiment.cgobindings && unix
 
 #ifndef _GNU_SOURCE // pthread_getattr_np
 #define _GNU_SOURCE
@@ -14,6 +14,24 @@
 #include <errno.h>
 #include "libcgo.h"
 #include "libcgo_unix.h"
+
+void
+x_cgo_thread_start(ThreadStart *arg)
+{
+	ThreadStart *ts;
+
+	/* Make our own copy that can persist after we return. */
+	_cgo_tsan_acquire();
+	ts = malloc(sizeof *ts);
+	_cgo_tsan_release();
+	if(ts == nil) {
+		fprintf(stderr, "runtime/cgo: out of memory in thread_start\n");
+		abort();
+	}
+	*ts = *arg;
+
+	_cgo_sys_thread_start(ts);	/* OS-dependent half */
+}
 
 void
 _cgo_sys_thread_start(ThreadStart *ts)

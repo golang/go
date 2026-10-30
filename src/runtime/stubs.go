@@ -221,6 +221,8 @@ func cgocallback(fn, frame, ctxt uintptr)
 func gogo(buf *gobuf)
 
 func asminit()
+
+//go:linknamestd setg
 func setg(gg *g)
 func breakpoint()
 

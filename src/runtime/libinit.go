@@ -8,6 +8,7 @@ package runtime
 
 import (
 	"internal/abi"
+	"internal/goexperiment"
 	"unsafe"
 )
 
@@ -38,7 +39,12 @@ func libInit() {
 
 	// Asynchronous initialization.
 	// Prefer creating a thread via cgo if it is available.
-	if _cgo_sys_thread_create != nil {
+	if goexperiment.CgoBindings && cgoSysThreadCreate != nil {
+		if cgoSysThreadCreate(noescape(fn)) != 0 {
+			writeErrStr(failthreadcreate)
+			exit(1)
+		}
+	} else if _cgo_sys_thread_create != nil {
 		// No g because the TLS is not set up until later in rt0_go.
 		asmcgocall_no_g(_cgo_sys_thread_create, fn)
 	} else {

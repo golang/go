@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
 	"os"
 	"os/exec"
@@ -826,13 +827,28 @@ func TestGdbInfCallstack(t *testing.T) {
 	}
 
 	// Execute gdb commands.
-	// 'setg_gcc' is the first point where we can reproduce the issue with just one 'run' command.
+	breakSym := "setg_gcc"
+	bt := []string{
+		`setg_gcc`,
+		`crosscall1`,
+		`threadentry`,
+	}
+	if goexperiment.CgoBindings && (runtime.GOOS == "linux" || runtime.GOOS == "darwin") {
+		// 'runtime.setg' is hit on the newly created pthread inside threadentry.
+		breakSym = "'runtime.setg'"
+		bt = []string{
+			`runtime\.setg`,
+			`threadentry`,
+			`threadentry`,
+			`x_cgo_threadentry`,
+		}
+	}
 	args := []string{"-nx", "-batch",
 		"-iex", "add-auto-load-safe-path " + filepath.Join(testenv.GOROOT(t), "src", "runtime"),
 		"-ex", "set startup-with-shell off",
-		"-ex", "break setg_gcc",
+		"-ex", "break " + breakSym,
 		"-ex", "run",
-		"-ex", "backtrace 3",
+		"-ex", fmt.Sprintf("backtrace %d", len(bt)),
 		"-ex", "disable 1",
 		"-ex", "continue",
 		filepath.Join(dir, "a.exe"),
@@ -844,13 +860,7 @@ func TestGdbInfCallstack(t *testing.T) {
 		t.Fatalf("gdb exited with error: %v", err)
 	}
 
-	// Check that the backtrace matches
-	// We check the 3 inner most frames only as they are present certainly, according to gcc_<OS>_arm64.c
-	bt := []string{
-		`setg_gcc`,
-		`crosscall1`,
-		`threadentry`,
-	}
+	// Check that the backtrace matches the 3 innermost frames on the new pthread.
 	for i, name := range bt {
 		s := fmt.Sprintf("#%v.*%v", i, name)
 		re := regexp.MustCompile(s)
