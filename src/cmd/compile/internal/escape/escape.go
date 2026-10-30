@@ -307,12 +307,6 @@ func (b *batch) flowClosure(k hole, clo *ir.ClosureExpr) {
 // capture them. A closure that is left capturing nothing is not a closure
 // anymore, and walkClosure can then refer to its function directly instead of
 // building a closure record for it. See #5370.
-//
-// Whether a captured variable is rewritten must depend on its canonical
-// variable only, so that every closure capturing it reaches the same decision.
-// A closure nested inside clofn reads the variables it captures out of clofn's
-// closure record, so rewriting a capture here while leaving the nested closure
-// capturing it would leave that closure with nothing to read from.
 func (b *batch) rewriteClosureVarsWithLiterals(clofn *ir.Func) {
 	// All the copies that inlining made of a closure share a single linker
 	// symbol, so we must not specialize the body of just one of them: every
@@ -391,9 +385,22 @@ func (b *batch) rewriteClosureVarsWithLiterals(clofn *ir.Func) {
 	// Substitute the captured variables with the local variables declared above.
 	var edit func(ir.Node) ir.Node
 	edit = func(n ir.Node) ir.Node {
-		if n, ok := n.(*ir.Name); ok {
+		switch n := n.(type) {
+		case *ir.Name:
 			if name := repl[n]; name != nil {
 				return name
+			}
+		case *ir.ClosureExpr:
+			// A closure nested inside clofn reads the variables it captures
+			// out of clofn's closure record, which no longer holds the ones
+			// rewritten above, so point it at the local that holds the
+			// constant instead. Only its captures change; its body is left
+			// alone, which is what lets this work for a closure that inlining
+			// copied.
+			for _, cv := range n.Func.ClosureVars {
+				if name := repl[cv.Outer]; name != nil {
+					cv.Outer = name
+				}
 			}
 		}
 		ir.EditChildren(n, edit)
