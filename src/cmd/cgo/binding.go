@@ -21,6 +21,7 @@ import (
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"cmd/internal/edit"
@@ -36,8 +37,16 @@ type BindingEntry struct {
 	LdFlags      []string
 	Funcs        []BindingFunc
 	TypeGoToC    map[string]string // Go type name -> C name, for //cgo:type GoName C.cName
+	ConstCToGo   map[string]string // C name -> Go const name, for //cgo:const GoName C.cName
 	GoOnlyCNames map[string]bool   // C names bound by pragmas without the C. prefix
 	TypeMap      map[string]BindingType
+
+	tpkg         *types.Package
+	typeInfo     *types.Info
+	constPkg     *types.Package
+	constFset    *token.FileSet
+	constFilePos map[string]token.Pos
+	constSources []bindingSource
 }
 
 // bindingSource holds the raw bytes and parsed AST of a source file inspected
@@ -206,6 +215,7 @@ func windowsDLLName(lib string) string {
 //
 //	//cgo:func GoName [C.]cName {"lib" | static | libc}
 //	//cgo:type GoName [C.]cName
+//	//cgo:const GoName [C.]cName
 //
 // A pragma names both a Go declaration, GoName, and the C name, cName, that it
 // binds it to. Writing the C name as C.cName also lets Go code in the package
@@ -216,7 +226,7 @@ func windowsDLLName(lib string) string {
 // imports "C".
 type cgoPragma struct {
 	Pos    token.Position
-	Kind   string // pragma name: "func" or "type"
+	Kind   string // pragma name: "func", "type", or "const"
 	GoName string // Go identifier being bound
 	CName  string // C symbol name
 	BindC  bool   // cName was written as C.cName, so Go code may also use C.cName
@@ -230,8 +240,9 @@ type cgoPragma struct {
 // cgoPragmaSyntax maps each supported //cgo: pragma name to its syntax, for
 // error messages.
 var cgoPragmaSyntax = map[string]string{
-	"func": `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
-	"type": `//cgo:type GoName [C.]cName`,
+	"func":  `//cgo:func GoName [C.]cName {"lib" | static | libc}`,
+	"type":  `//cgo:type GoName [C.]cName`,
+	"const": `//cgo:const GoName [C.]cName`,
 }
 
 // parseCgoDirective parses a "#cgo [cond] VERB: flags" line (where line starts
@@ -442,6 +453,137 @@ func hasImportCFile(file *ast.File) bool {
 	})
 }
 
+func replaceCConstNodes(eb *edit.Buffer, tf *token.File, node ast.Node, constCToGo map[string]string) {
+	ast.Inspect(node, func(n ast.Node) bool {
+		sel, ok := n.(*ast.SelectorExpr)
+		if !ok {
+			return true
+		}
+		if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
+			if goName, ok := constCToGo[sel.Sel.Name]; ok {
+				eb.Replace(tf.Offset(sel.Pos()), tf.Offset(sel.End()), goName)
+				return false
+			}
+		}
+		return true
+	})
+}
+
+func (p *Package) buildConstPkg(entry *BindingEntry) {
+	constFset := token.NewFileSet()
+	entry.constFset = constFset
+	var files []*ast.File
+	filePos := make(map[string]token.Pos, len(entry.constSources))
+	for _, src := range entry.constSources {
+		if src.file == nil || src.data == nil {
+			continue
+		}
+		data := src.data
+		if hasImportCFile(src.file) {
+			if tf := p.fset.File(src.file.Package); tf != nil {
+				eb := edit.NewBuffer(data)
+				for _, decl := range src.file.Decls {
+					if gd, ok := decl.(*ast.GenDecl); ok && (gd.Tok == token.CONST || gd.Tok == token.TYPE) {
+						replaceCConstNodes(eb, tf, gd, entry.ConstCToGo)
+					}
+				}
+				data = eb.Bytes()
+			}
+		}
+		f, err := parser.ParseFile(constFset, src.path, data, 0)
+		if err != nil {
+			continue
+		}
+		files = append(files, f)
+		filePos[src.path] = f.Name.Pos()
+	}
+	if len(files) == 0 {
+		return
+	}
+	conf := types.Config{
+		Importer:                 bindingStubImporter{},
+		Sizes:                    types.SizesFor("gc", goarch),
+		Error:                    func(error) {},
+		DisableUnusedImportCheck: true,
+	}
+	entry.constPkg, _ = conf.Check(entry.Package, constFset, files, nil)
+	entry.constFilePos = filePos
+}
+
+// evalArrayLenIn evaluates exprStr as a Go array length in pkg at pos.
+// Evaluating "[" + exprStr + "]struct{}" lets go/types apply Go's array-length
+// rules and return the length via (*types.Array).Len without importing
+// go/constant (which cmd/dist rewrites to bootstrap/go/constant during
+// bootstrap while keeping go/types from the bootstrap toolchain).
+func evalArrayLenIn(fset *token.FileSet, pkg *types.Package, pos token.Pos, exprStr string) (int64, bool) {
+	tv, err := types.Eval(fset, pkg, pos, "["+exprStr+"]struct{}")
+	if err != nil {
+		return 0, false
+	}
+	if arr, ok := tv.Type.(*types.Array); ok && arr.Len() >= 0 {
+		return arr.Len(), true
+	}
+	return 0, false
+}
+
+func (p *Package) evalBindingArrayLen(expr ast.Expr, entry *BindingEntry) (int64, bool) {
+	var buf bytes.Buffer
+	noSourceConf.Fprint(&buf, p.fset, expr)
+	src := buf.Bytes()
+	if entry != nil && len(entry.ConstCToGo) > 0 {
+		tmpFset := token.NewFileSet()
+		if parsed, err := parser.ParseExprFrom(tmpFset, "", src, 0); err == nil {
+			if tf := tmpFset.File(parsed.Pos()); tf != nil {
+				eb := edit.NewBuffer(src)
+				replaceCConstNodes(eb, tf, parsed, entry.ConstCToGo)
+				src = eb.Bytes()
+			}
+		}
+	}
+	exprStr := string(src)
+	if entry != nil && entry.tpkg != nil {
+		if n, ok := evalArrayLenIn(p.fset, entry.tpkg, expr.Pos(), exprStr); ok {
+			return n, true
+		}
+		if len(entry.ConstCToGo) > 0 {
+			if entry.constFset == nil {
+				p.buildConstPkg(entry)
+			}
+			if entry.constPkg != nil {
+				pos := token.NoPos
+				if tf := p.fset.File(expr.Pos()); tf != nil {
+					pos = entry.constFilePos[tf.Name()]
+				}
+				if n, ok := evalArrayLenIn(entry.constFset, entry.constPkg, pos, exprStr); ok {
+					return n, true
+				}
+			}
+		}
+	} else {
+		if n, ok := evalArrayLenIn(token.NewFileSet(), nil, token.NoPos, exprStr); ok {
+			return n, true
+		}
+	}
+	return 0, false
+}
+
+func (p *Package) evalArrayLen(arr *ast.ArrayType, entry *BindingEntry) int64 {
+	if entry != nil && entry.typeInfo != nil {
+		if tv, ok := entry.typeInfo.Types[arr]; ok {
+			if t, ok := tv.Type.(*types.Array); ok && t.Len() >= 0 {
+				return t.Len()
+			}
+		}
+	}
+	if n, ok := p.evalBindingArrayLen(arr.Len, entry); ok {
+		return n
+	}
+	var lb bytes.Buffer
+	noSourceConf.Fprint(&lb, p.fset, arr.Len)
+	fatalf("%s: cannot evaluate array length %q as a non-negative integer constant", p.fset.Position(arr.Len.Pos()), lb.String())
+	return 0
+}
+
 func (p *Package) parseBinding(bindingPath string, data []byte) *BindingEntry {
 	return p.parseBindingFiles([]bindingSource{{path: bindingPath, data: data}})
 }
@@ -450,7 +592,9 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 	entry := &BindingEntry{
 		LdFlags:      append([]string(nil), p.LdFlags...),
 		TypeGoToC:    make(map[string]string),
+		ConstCToGo:   make(map[string]string),
 		GoOnlyCNames: make(map[string]bool),
+		constSources: sources,
 	}
 
 	var pragmas []cgoPragma
@@ -510,6 +654,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 	funcImports := make(map[string]fileImports)
 	typeSpecs := make(map[string]*ast.TypeSpec)
 	typeImports := make(map[string]fileImports)
+	constSpecs := make(map[string]*ast.ValueSpec)
 	var typeOrder []string
 	for _, src := range sources {
 		imp := collectFileImports(src.file)
@@ -522,11 +667,18 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 				}
 			case *ast.GenDecl:
 				for _, spec := range d.Specs {
-					if s, ok := spec.(*ast.TypeSpec); ok {
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
 						if _, ok := typeSpecs[s.Name.Name]; !ok {
 							typeOrder = append(typeOrder, s.Name.Name)
 							typeSpecs[s.Name.Name] = s
 							typeImports[s.Name.Name] = imp
+						}
+					case *ast.ValueSpec:
+						if d.Tok == token.CONST {
+							for _, id := range s.Names {
+								constSpecs[id.Name] = s
+							}
 						}
 					}
 				}
@@ -557,10 +709,34 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			_, found = funcDecls[pr.GoName]
 		case "type":
 			_, found = typeSpecs[pr.GoName]
+		case "const":
+			_, found = constSpecs[pr.GoName]
+			if found && pr.BindC {
+				entry.ConstCToGo[pr.CName] = pr.GoName
+			}
 		}
 		if !found {
 			fatalf("%s: //cgo:%s %s: missing declaration of %s %s", pr.Pos, pr.Kind, pr.GoName, pr.Kind, pr.GoName)
 		}
+	}
+
+	if len(sources) > 0 {
+		astFiles := make([]*ast.File, len(sources))
+		for i, src := range sources {
+			astFiles[i] = src.file
+		}
+		entry.typeInfo = &types.Info{
+			Types:  make(map[ast.Expr]types.TypeAndValue),
+			Uses:   make(map[*ast.Ident]types.Object),
+			Scopes: make(map[ast.Node]*types.Scope),
+		}
+		typeConf := types.Config{
+			Importer:                 bindingStubImporter{},
+			Sizes:                    types.SizesFor("gc", goarch),
+			Error:                    func(error) {},
+			DisableUnusedImportCheck: true,
+		}
+		entry.tpkg, _ = typeConf.Check(entry.Package, p.fset, astFiles, entry.typeInfo)
 	}
 
 	type rawTypeInfo struct {
@@ -610,6 +786,9 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 		case *ast.StarExpr:
 			validateUsedTypeExpr(e.X, true, imp)
 		case *ast.ArrayType:
+			if e.Len != nil {
+				p.evalArrayLen(e, entry)
+			}
 			validateUsedTypeExpr(e.Elt, false, imp)
 		case *ast.StructType:
 			if e.Fields != nil {
@@ -680,7 +859,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 		resolving[goName] = false
 		resolved[goName] = true
 
-		defStr := p.cgoASTToGoDefInFile(info.ts.Type, info.imp)
+		defStr := p.cgoASTToGoDefInFile(info.ts.Type, entry, info.imp)
 		if targetBT, ok := typeMap[defStr]; ok && targetBT.Def != "" {
 			defStr = targetBT.Def
 		}
@@ -728,7 +907,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			if d.Type.Params != nil {
 				for _, field := range d.Type.Params.List {
 					validateUsedTypeExpr(field.Type, false, fImp)
-					pType := p.cgoASTToGoDefInFile(field.Type, fImp)
+					pType := p.cgoASTToGoDefInFile(field.Type, entry, fImp)
 					if why := cTypeError(pType, entry.TypeMap); why != "" {
 						fatalf("%s: //cgo:func %s: parameter type %s cannot be passed to C: %s", p.fset.Position(field.Type.Pos()), pr.GoName, pType, why)
 					}
@@ -740,7 +919,7 @@ func (p *Package) parseBindingFiles(sources []bindingSource) *BindingEntry {
 			if d.Type.Results != nil && len(d.Type.Results.List) > 0 {
 				res := d.Type.Results.List[0].Type
 				validateUsedTypeExpr(res, false, fImp)
-				fn.Ret = p.cgoASTToGoDefInFile(res, fImp)
+				fn.Ret = p.cgoASTToGoDefInFile(res, entry, fImp)
 				if why := cTypeError(fn.Ret, entry.TypeMap); why != "" {
 					fatalf("%s: //cgo:func %s: result type %s cannot be returned from C: %s", p.fset.Position(res.Pos()), pr.GoName, fn.Ret, why)
 				}
@@ -817,6 +996,9 @@ func (p *Package) processBinding(goFiles []string) {
 	// Go names bound by pragmas, and C names bound without the C. prefix.
 	// References to them are rewritten to undefined identifiers.
 	knownBoundNames := maps.Clone(entry.GoOnlyCNames)
+	for _, goConst := range entry.ConstCToGo {
+		knownBoundNames[goConst] = true
+	}
 	for goType := range entry.TypeGoToC {
 		knownBoundNames[goType] = true
 	}
@@ -835,25 +1017,10 @@ func (p *Package) processBinding(goFiles []string) {
 		knownBoundNames[fn.GoName] = true
 	}
 
-	astFiles := make([]*ast.File, len(parsedFiles))
-	for i, pf := range parsedFiles {
-		astFiles[i] = pf.parsed
-	}
-	typeInfo := &types.Info{
-		Uses:   make(map[*ast.Ident]types.Object),
-		Scopes: make(map[ast.Node]*types.Scope),
-	}
-	typeConf := types.Config{
-		Importer:                 bindingStubImporter{},
-		Error:                    func(error) {},
-		DisableUnusedImportCheck: true,
-	}
-	tpkg, _ := typeConf.Check(entry.Package, p.fset, astFiles, typeInfo)
-
 	rewriter := &bindingRewriter{
 		p:               p,
-		tpkg:            tpkg,
-		typeInfo:        typeInfo,
+		tpkg:            entry.tpkg,
+		typeInfo:        entry.typeInfo,
 		entry:           entry,
 		cFuncMap:        cFuncMap,
 		goFuncMap:       goFuncMap,
@@ -969,6 +1136,9 @@ func (p *Package) processBinding(goFiles []string) {
 type bindingStubImporter struct{}
 
 func (bindingStubImporter) Import(path string) (*types.Package, error) {
+	if path == "unsafe" {
+		return types.Unsafe, nil
+	}
 	name := path
 	if i := strings.LastIndex(path, "/"); i >= 0 {
 		name = path[i+1:]
@@ -1027,7 +1197,9 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 		}
 		name := sel.Sel.Name
 		var repl string
-		if fn, isFunc := r.cFuncMap[name]; isFunc {
+		if goConst, isConst := r.entry.ConstCToGo[name]; isConst {
+			repl = goConst
+		} else if fn, isFunc := r.cFuncMap[name]; isFunc {
 			repl = bindingFuncEntry(fn, r.entry.TypeMap)
 		} else if _, isType := r.entry.TypeMap["_Ctype_"+name]; isType {
 			repl = "_Ctype_" + name
@@ -1083,10 +1255,10 @@ func (r *bindingRewriter) rewriteFile(editBuf *edit.Buffer, tf *token.File, file
 	edits.apply(editBuf)
 }
 
-func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, imp fileImports) string {
+func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, entry *BindingEntry, imp fileImports) string {
 	switch e := expr.(type) {
 	case *ast.ParenExpr:
-		return p.cgoASTToGoDefInFile(e.X, imp)
+		return p.cgoASTToGoDefInFile(e.X, entry, imp)
 	case *ast.Ident:
 		if imp.structs["."] && e.Name == "HostLayout" {
 			return "structs.HostLayout"
@@ -1116,22 +1288,20 @@ func (p *Package) cgoASTToGoDefInFile(expr ast.Expr, imp fileImports) string {
 				return "_Ctype_" + e.Sel.Name
 			}
 		}
-		return p.cgoASTToGoDefInFile(e.X, imp) + "." + e.Sel.Name
+		return p.cgoASTToGoDefInFile(e.X, entry, imp) + "." + e.Sel.Name
 	case *ast.StarExpr:
-		return "*" + p.cgoASTToGoDefInFile(e.X, imp)
+		return "*" + p.cgoASTToGoDefInFile(e.X, entry, imp)
 	case *ast.ArrayType:
 		lenStr := ""
 		if e.Len != nil {
-			var buf bytes.Buffer
-			noSourceConf.Fprint(&buf, p.fset, e.Len)
-			lenStr = buf.String()
+			lenStr = strconv.FormatInt(p.evalArrayLen(e, entry), 10)
 		}
-		return "[" + lenStr + "]" + p.cgoASTToGoDefInFile(e.Elt, imp)
+		return "[" + lenStr + "]" + p.cgoASTToGoDefInFile(e.Elt, entry, imp)
 	case *ast.StructType:
 		var buf bytes.Buffer
 		buf.WriteString("struct {\n")
 		for _, fld := range e.Fields.List {
-			typeStr := p.cgoASTToGoDefInFile(fld.Type, imp)
+			typeStr := p.cgoASTToGoDefInFile(fld.Type, entry, imp)
 			var names []string
 			for _, id := range fld.Names {
 				names = append(names, id.Name)

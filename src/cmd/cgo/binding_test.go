@@ -25,6 +25,8 @@ import "structs"
 
 //cgo:type S C.S
 //cgo:type T T
+//cgo:const MY_CONST C.MY_CONST
+//cgo:const Other OTHER
 //cgo:func Add C.Add "libx.so"
 //cgo:func _AddFloat AddFloat "./libx.so"
 //cgo:func Puts puts libc
@@ -43,6 +45,11 @@ type T struct {
 	_ structs.HostLayout
 	x int64
 }
+
+const (
+	MY_CONST = 42
+	Other    = 7
+)
 
 func Add(a int32, b int32) int32
 
@@ -70,7 +77,10 @@ func _PassS(s S, t T) S
 	if len(entry.TypeGoToC) != 1 || entry.TypeGoToC["S"] != "S" {
 		t.Fatalf("TypeGoToC = %+v, want only S", entry.TypeGoToC)
 	}
-	for _, name := range []string{"T", "AddFloat", "puts", "helper", "PassS"} {
+	if len(entry.ConstCToGo) != 1 || entry.ConstCToGo["MY_CONST"] != "MY_CONST" {
+		t.Fatalf("ConstCToGo = %+v, want only MY_CONST", entry.ConstCToGo)
+	}
+	for _, name := range []string{"T", "OTHER", "AddFloat", "puts", "helper", "PassS"} {
 		if !entry.GoOnlyCNames[name] {
 			t.Errorf("GoOnlyCNames[%q] = false, want true", name)
 		}
@@ -102,6 +112,8 @@ func _PassS(s S, t T) S
 import "C"
 
 func Call(x int32) int32 {
+	_ = C.MY_CONST + Other
+	_ = C.OTHER
 	return Add(x, 1) + int32(C.Add(C.int(x), 2))
 }
 `
@@ -160,8 +172,14 @@ func Call(x int32) int32 {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(mainOut), `_Cfunc_Add(int32(x), 2)`) {
-		t.Errorf("main.cgobinding.go missing rewritten C.Add call:\n%s", mainOut)
+	for _, want := range []string{
+		`_ = MY_CONST + Other`,
+		`_Cundef_OTHER`,
+		`_Cfunc_Add(int32(x), 2)`,
+	} {
+		if !strings.Contains(string(mainOut), want) {
+			t.Errorf("main.cgobinding.go missing %q:\n%s", want, mainOut)
+		}
 	}
 
 	trampBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_trampolines.s"))
@@ -272,6 +290,7 @@ func TestParseCgoPragma(t *testing.T) {
 		{`//cgo:func F f libc`, cgoPragma{Kind: "func", GoName: "F", CName: "f", LibC: true}, true},
 		{`//cgo:func F f "static"`, cgoPragma{Kind: "func", GoName: "F", CName: "f", Library: "static"}, true},
 		{`//cgo:type T C.struct_t`, cgoPragma{Kind: "type", GoName: "T", CName: "struct_t", BindC: true}, true},
+		{`//cgo:const K K`, cgoPragma{Kind: "const", GoName: "K", CName: "K"}, true},
 		{`//go:noinline`, cgoPragma{}, false},
 		{`// cgo:func F f libc`, cgoPragma{}, false},
 	} {
@@ -388,6 +407,7 @@ func TestBindingEdgeCases(t *testing.T) {
 	t.Setenv("GOARCH", "amd64")
 
 	// TypeMap must not pollute Go type namespace with raw C name;
+	// C.<const>, iota, and derived constants must work as array lengths;
 	// aliased imports and inline HostLayout structs must emit valid
 	// _cgo_gotypes.go with import "structs".
 	input := `package p
@@ -397,7 +417,24 @@ import s "structs"
 import u "unsafe"
 
 //cgo:type Foo C.Bar
+//cgo:const N C.N
+//cgo:const lowerC C.lower_c
 //cgo:func TakeInline TakeInline "libx.so"
+
+const (
+	_ = iota
+	_
+	_
+	_
+	N = iota
+	lowerC = 2
+	derived = C.lower_c * 2
+	typedN Bar = 4
+	derivedTyped = C.typed_n + 1
+	derivedSizeof = u.Sizeof(Bar(0)) + C.lower_c
+)
+
+//cgo:const typedN C.typed_n
 
 type Foo struct {
 	_ s.HostLayout
@@ -407,7 +444,7 @@ type Foo struct {
 
 type Bar int32
 
-func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer }, b Bar)
+func TakeInline(x struct{ _ s.HostLayout; buf [C.N]byte; buf2 [derived]byte; buf3 [derivedTyped]byte; buf4 [derivedSizeof]byte; buf5 [int(u.Sizeof(Bar(0))) + int(derivedTyped)]byte; p u.Pointer }, b Bar)
 `
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "b.go")
@@ -435,6 +472,10 @@ func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer }, b Bar)
 		`import "structs"`,
 		`_ structs.HostLayout`,
 		`buf [4]byte`,
+		`buf2 [4]byte`,
+		`buf3 [5]byte`,
+		`buf4 [6]byte`,
+		`buf5 [9]byte`,
 		`p unsafe.Pointer`,
 		`_Cgo_use(p0)`,
 	} {
@@ -449,6 +490,34 @@ func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer }, b Bar)
 	rewritten := string(rewrittenBytes)
 	if !strings.Contains(rewritten, "var _ u.Pointer") || !strings.Contains(rewritten, "var _ s.HostLayout") {
 		t.Errorf("b.cgobinding.go missing aliased import keeps:\n%s", rewritten)
+	}
+
+	// evalBindingArrayLen must not panic on invalid constant expressions.
+	for _, exprSrc := range []string{"^1.5", "!1", "&x", "1.5 | 2", "1 << 1.5", "-1", "1.5"} {
+		e, err := parser.ParseExpr(exprSrc)
+		if err != nil {
+			t.Fatalf("ParseExpr(%q): %v", exprSrc, err)
+		}
+		if n, ok := p.evalBindingArrayLen(e, nil); ok {
+			t.Errorf("evalBindingArrayLen(%q) = %d, want invalid", exprSrc, n)
+		}
+	}
+	for _, tc := range []struct {
+		expr string
+		want int64
+	}{
+		{"0", 0},
+		{"4", 4},
+		{"4.0", 4},
+		{"1 + 2*3", 7},
+	} {
+		e, err := parser.ParseExpr(tc.expr)
+		if err != nil {
+			t.Fatalf("ParseExpr(%q): %v", tc.expr, err)
+		}
+		if n, ok := p.evalBindingArrayLen(e, nil); !ok || n != tc.want {
+			t.Errorf("evalBindingArrayLen(%q) = (%d, %v), want (%d, true)", tc.expr, n, ok, tc.want)
+		}
 	}
 }
 
