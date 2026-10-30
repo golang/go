@@ -6537,6 +6537,27 @@ func testInvalidHeaderResponse(t *testing.T, mode testMode) {
 	}
 }
 
+func TestTransportRejectsProtocolHeaderInHTTP1(t *testing.T) {
+	ts := httptest.NewServer(HandlerFunc(func(ResponseWriter, *Request) {
+		t.Error("HTTP/1 server received request with :protocol header")
+	}))
+	defer ts.Close()
+
+	req, err := NewRequest(MethodConnect, ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(":protocol", "websocket")
+
+	res, err := ts.Client().Do(req)
+	if res != nil {
+		res.Body.Close()
+	}
+	if err == nil || !strings.Contains(err.Error(), ":protocol pseudo-header is not allowed in HTTP/1.x") {
+		t.Fatalf("Client.Do() error = %v, want :protocol HTTP/1.x error", err)
+	}
+}
+
 type bodyCloser bool
 
 func (bc *bodyCloser) Close() error {
