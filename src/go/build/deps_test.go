@@ -638,6 +638,9 @@ var depsRules = `
 	hash/maphash, container/heap, go/constant, go/parser, internal/buildcfg, internal/goversion, internal/types/errors
 	< go/types;
 
+	FMT, flag, go/types, time
+	< go/analysis;
+
 	# x/tools
 	# These are the only allowed dependencies of gcexportdata. Any change here
 	# must be mirrored in x/tools/go/gcexportdata/deps_test.go.
