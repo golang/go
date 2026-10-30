@@ -665,6 +665,20 @@ var depsRules = `
 	< golang.org/x/tools/...
 	< internal/analysis/fipsdit, internal/analysis/suite/fix, internal/analysis/suite/vet, internal/analysis/unitchecker;
 
+	# The protocol between the go command and go test's analysis tool.
+	# The go command imports it, so it must not depend on the analysis
+	# framework, or go/types.
+	FMT, encoding/binary, encoding/json
+	< internal/analysis/gotestchecker/protocol;
+
+	go/types !< internal/analysis/gotestchecker/protocol;
+
+	# go test's analysis driver
+	golang.org/x/tools/..., golang.org/x/tools/go/gcexportdata,
+	golang.org/x/tools/go/types/objectpath, runtime/debug,
+	internal/analysis/gotestchecker/protocol
+	< internal/analysis/gotestchecker;
+
 	# go/importer
 	DEBUG, crypto/sha256, go/build, go/types, text/scanner
 	< internal/exportdata, internal/pkgbits;
