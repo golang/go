@@ -336,6 +336,62 @@ func ShadowLocal() int32 {
 	}
 }
 
+func TestBindingEdgeCases(t *testing.T) {
+	origGoos, origGoarch, origObjDir := goos, goarch, *objDir
+	defer func() {
+		goos, goarch, *objDir = origGoos, origGoarch, origObjDir
+	}()
+	goos, goarch = "linux", "amd64"
+	t.Setenv("GOOS", "linux")
+	t.Setenv("GOARCH", "amd64")
+
+	// Aliased imports and inline HostLayout structs must emit valid
+	// _cgo_gotypes.go with import "structs".
+	input := `package p
+
+import "C"
+import s "structs"
+import u "unsafe"
+
+//cgo:func TakeInline TakeInline "libx.so"
+
+func TakeInline(x struct{ _ s.HostLayout; buf [4]byte; p u.Pointer })
+`
+	tmpDir := t.TempDir()
+	srcFile := filepath.Join(tmpDir, "b.go")
+	if err := os.WriteFile(srcFile, []byte(input), 0644); err != nil {
+		t.Fatal(err)
+	}
+	*objDir = tmpDir + string(filepath.Separator)
+
+	p := newPackage(nil, token.NewFileSet())
+	p.processBinding([]string{srcFile})
+	gotypesBytes, err := os.ReadFile(filepath.Join(tmpDir, "_cgo_gotypes.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotypes := string(gotypesBytes)
+	for _, want := range []string{
+		`import "structs"`,
+		`_ structs.HostLayout`,
+		`buf [4]byte`,
+		`p unsafe.Pointer`,
+		`_Cgo_use(p0)`,
+	} {
+		if !strings.Contains(gotypes, want) {
+			t.Errorf("_cgo_gotypes.go missing %q:\n%s", want, gotypes)
+		}
+	}
+	rewrittenBytes, err := os.ReadFile(filepath.Join(tmpDir, "b.cgobinding.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rewritten := string(rewrittenBytes)
+	if !strings.Contains(rewritten, "var _ u.Pointer") || !strings.Contains(rewritten, "var _ s.HostLayout") {
+		t.Errorf("b.cgobinding.go missing aliased import keeps:\n%s", rewritten)
+	}
+}
+
 func TestBindingLdflagsPreamble(t *testing.T) {
 	origGoos, origGoarch := goos, goarch
 	defer func() { goos, goarch = origGoos, origGoarch }()
@@ -387,9 +443,12 @@ func TestDynLibName(t *testing.T) {
 
 func TestCTypeError(t *testing.T) {
 	types := map[string]BindingType{
-		"_Ctype_struct_ok":  {Name: "_Ctype_struct_ok", Def: "struct { a int32; p *byte }"},
-		"_Ctype_struct_bad": {Name: "_Ctype_struct_bad", Def: "struct { s []byte }"},
-		"_Ctype_struct_rec": {Name: "_Ctype_struct_rec", Def: "struct { next *_Ctype_struct_rec }"},
+		"_Ctype_struct_ok":     {Name: "_Ctype_struct_ok", Def: "struct { _ structs.HostLayout; a int32; p *byte }"},
+		"_Ctype_struct_bad":    {Name: "_Ctype_struct_bad", Def: "struct { _ structs.HostLayout; s []byte }"},
+		"_Ctype_struct_rec":    {Name: "_Ctype_struct_rec", Def: "struct { _ structs.HostLayout; next *_Ctype_struct_rec }"},
+		"_Ctype_struct_nohl":   {Name: "_Ctype_struct_nohl", Def: "struct { a int32 }"},
+		"_Ctype_struct_opaque": {Name: "_Ctype_struct_opaque", Def: "struct { _ _cgopackage.Incomplete }"},
+		"_Ctype_struct_inner":  {Name: "_Ctype_struct_inner", Def: "struct { _ structs.HostLayout; p *_Ctype_struct_nohl }"},
 	}
 	for _, tt := range []struct {
 		typ  string
@@ -403,29 +462,86 @@ func TestCTypeError(t *testing.T) {
 		{"complex128", ""},
 		{"[0]byte", ""},
 		{"[4]float32", ""},
-		{"struct { x int32; y [2]uint8 }", ""},
+		{"struct{}", ""},
+		{"struct { _ structs.HostLayout; x int32; y [2]uint8 }", ""},
+		{"struct { _ structs.HostLayout; s struct { _ structs.HostLayout; x int32 } }", ""},
+		{"[2]struct { _ structs.HostLayout; x int32 }", ""},
+		{"*struct { _ structs.HostLayout; x int32 }", ""},
+		{"**struct { _ structs.HostLayout; x int32 }", ""},
 		{"_Ctype_struct_ok", ""},
 		{"*_Ctype_struct_rec", ""},
 		{"_Ctype_struct_unknown", ""},
+		{"*_Ctype_struct_opaque", ""},
+		{"*struct { _ _cgopackage.Incomplete }", ""},
 		{"string", "Go string"},
 		{"*string", "Go string"},
 		{"[]byte", "Go slice"},
+		{"*[]int32", "Go slice"},
 		{"[2][]byte", "Go slice"},
 		{"map[int32]int32", "Go map"},
+		{"*map[int32]int32", "Go map"},
 		{"chan int32", "Go channel"},
+		{"[3]chan int32", "Go channel"},
 		{"func()", "Go func value"},
+		{"*func()", "Go func value"},
 		{"interface{}", "Go interface"},
+		{"[1]interface{}", "Go interface"},
 		{"any", "Go interface"},
 		{"error", "Go interface"},
-		{"struct { s string }", "Go string"},
+		{"L[int32]", "generic"},
+		{"*M[int32, int64]", "generic"},
+		{"struct { _ structs.HostLayout; s string }", "Go string"},
+		{"struct { _ structs.HostLayout; f func() }", "Go func value"},
+		{"[2]struct { _ structs.HostLayout; m map[int32]int32 }", "Go map"},
+		{"*struct { _ structs.HostLayout; s []byte }", "Go slice"},
 		{"...int32", "variadic"},
 		{"_Ctype_struct_bad", "Go slice"},
 		{"*_Ctype_struct_bad", "Go slice"},
+		{"struct { x int32 }", "structs.HostLayout"},
+		{"struct { _ structs.HostLayout; s struct { x int32 } }", "structs.HostLayout"},
+		{"[2]struct { x int32 }", "structs.HostLayout"},
+		{"*struct { x int32 }", "structs.HostLayout"},
+		{"**struct { x int32 }", "structs.HostLayout"},
+		{"struct { _ structs.HostLayout; p *struct { x int32 } }", "structs.HostLayout"},
+		{"_Ctype_struct_nohl", "structs.HostLayout"},
+		{"*_Ctype_struct_nohl", "structs.HostLayout"},
+		{"_Ctype_struct_inner", "structs.HostLayout"},
+		{"_Ctype_struct_opaque", "incomplete"},
+		{"struct { _ _cgopackage.Incomplete }", "incomplete"},
+		{"[1]_Ctype_struct_opaque", "incomplete"},
+		{"struct { _ structs.HostLayout; o _Ctype_struct_opaque }", "incomplete"},
 	} {
 		got := cTypeError(tt.typ, types)
 		if (got == "") != (tt.want == "") || !strings.Contains(got, tt.want) {
 			t.Errorf("cTypeError(%q) = %q, want error containing %q", tt.typ, got, tt.want)
 		}
+	}
+}
+
+// TestInspectTypeGoOnly verifies that the ABI layout code panics on Go
+// types that have no C equivalent, which cTypeError rejects first.
+func TestInspectTypeGoOnly(t *testing.T) {
+	cfg := getABI("linux", "amd64")
+	for _, typ := range []string{
+		"string",
+		"any",
+		"error",
+		"map[int32]int32",
+		"chan int32",
+		"func()",
+		"interface{}",
+		"L[int32]",
+		"struct { _ structs.HostLayout; m map[int32]int32 }",
+		"[2]func()",
+	} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Errorf("inspectType(%q) did not panic", typ)
+				}
+			}()
+			cfg.inspectType(typ, nil)
+		}()
 	}
 }
 

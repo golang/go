@@ -17,10 +17,11 @@ import (
 // BindingType describes a C or Go type used by cgo binding declarations
 // for C ABI classification and Go wrapper generation.
 type BindingType struct {
-	Name  string // Mangled C type name (e.g. "_Ctype_foo") or Go helper type name
-	Def   string // Underlying Go type expression (e.g. "int32", "struct { a float32 }"); empty if opaque
-	Size  int64  // Size in bytes on the target architecture
-	Align int64  // Alignment in bytes on the target architecture
+	Name        string // Mangled C type name (e.g. "_Ctype_foo") or Go helper type name
+	Def         string // Underlying Go type expression (e.g. "int32", "struct { a float32 }"); empty if opaque
+	Size        int64  // Size in bytes on the target architecture
+	Align       int64  // Alignment in bytes on the target architecture
+	HasPointers bool   // Whether the type contains pointers (for GC keepalives)
 }
 
 // BindingFunc describes a bound C function declared with //cgo:func.
@@ -96,13 +97,14 @@ type leafField struct {
 // typeInfo holds the byte size, alignment, ABI classification, and flattened
 // scalar leaves of a type.
 type typeInfo struct {
-	size      int64
-	align     int64
-	isFloat   bool
-	signed    bool
-	composite bool
-	fields    []leafField
-	fieldsOK  bool
+	size        int64
+	align       int64
+	isFloat     bool
+	signed      bool
+	composite   bool
+	hasPointers bool
+	fields      []leafField
+	fieldsOK    bool
 }
 
 // regSlot describes a single register piece of a parameter or return value.
@@ -233,6 +235,10 @@ func (cfg *ABIConfig) inspectType(t string, types map[string]BindingType) typeIn
 
 // inspectExpr walks a parsed Go type AST expression to compute its byte size,
 // alignment, aggregate classification, and flattened scalar leaf fields.
+//
+// Go strings, maps, channels, funcs, interfaces, and instantiated generic
+// types have no C ABI layout. cTypeError rejects them before any layout is
+// computed, so inspectExpr panics if it sees one.
 func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, seen map[string]bool) typeInfo {
 	ptrSize := cfg.PtrSize
 	if isHostLayoutExpr(expr) {
@@ -242,12 +248,14 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 	case *ast.ParenExpr:
 		return cfg.inspectExpr(e.X, types, seen)
 	case *ast.StarExpr:
-		return cfg.ptrTypeInfo()
+		d := cfg.ptrTypeInfo()
+		d.hasPointers = true
+		return d
 	case *ast.ArrayType:
 		if e.Len == nil {
 			// A nil Len represents a Go slice ([]T), whose runtime layout is a
 			// 3-word slice header (Data, Len, Cap).
-			return typeInfo{size: ptrSize * 3, align: ptrSize}
+			return typeInfo{size: ptrSize * 3, align: ptrSize, hasPointers: true}
 		}
 		// Binding parsing evaluates constant array lengths (such as named constants)
 		// to integer literals before calling inspectType.
@@ -264,7 +272,7 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 			return typeInfo{align: ed.align, composite: true, fieldsOK: true}
 		}
 		if !ed.fieldsOK {
-			return typeInfo{size: ed.size * n, align: ed.align, composite: true}
+			return typeInfo{size: ed.size * n, align: ed.align, composite: true, hasPointers: ed.hasPointers}
 		}
 		fields := make([]leafField, 0, int64(len(ed.fields))*n)
 		for i := range n {
@@ -275,23 +283,26 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 			}
 		}
 		return typeInfo{
-			size:      ed.size * n,
-			align:     ed.align,
-			composite: true,
-			fields:    fields,
-			fieldsOK:  true,
+			size:        ed.size * n,
+			align:       ed.align,
+			composite:   true,
+			hasPointers: ed.hasPointers,
+			fields:      fields,
+			fieldsOK:    true,
 		}
 	case *ast.StructType:
 		var off int64
 		maxAlign := int64(1)
 		var fields []leafField
 		fieldsOK := true
+		hasPointers := false
 		for _, fld := range e.Fields.List {
 			if isHostLayoutExpr(fld.Type) {
 				continue
 			}
 			fd := cfg.inspectExpr(fld.Type, types, seen)
 			maxAlign = max(maxAlign, fd.align)
+			hasPointers = hasPointers || fd.hasPointers
 			if !fd.fieldsOK {
 				fieldsOK = false
 				fields = nil
@@ -308,24 +319,30 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 			}
 		}
 		return typeInfo{
-			size:      alignUp(off, maxAlign),
-			align:     maxAlign,
-			composite: true,
-			fields:    fields,
-			fieldsOK:  fieldsOK,
+			size:        alignUp(off, maxAlign),
+			align:       maxAlign,
+			composite:   true,
+			hasPointers: hasPointers,
+			fields:      fields,
+			fieldsOK:    fieldsOK,
 		}
 	case *ast.SelectorExpr:
-		if e.Sel.Name == "Incomplete" {
-			return typeInfo{align: 1, fieldsOK: true}
+		if id, ok := e.X.(*ast.Ident); ok {
+			if (id.Name == "structs" && e.Sel.Name == "HostLayout") ||
+				((id.Name == "_cgopackage" || id.Name == "cgo") && e.Sel.Name == "Incomplete") {
+				return typeInfo{align: 1, fieldsOK: true}
+			}
+			if id.Name == "C" {
+				return cfg.inspectTypeName("_Ctype_"+e.Sel.Name, types, seen)
+			}
 		}
-		if id, ok := e.X.(*ast.Ident); ok && id.Name == "C" {
-			return cfg.inspectTypeName("_Ctype_"+e.Sel.Name, types, seen)
-		}
-		return cfg.ptrTypeInfo()
+		d := cfg.ptrTypeInfo()
+		d.hasPointers = true
+		return d
 	case *ast.Ident:
 		return cfg.inspectTypeName(e.Name, types, seen)
 	}
-	return typeInfo{size: ptrSize, align: ptrSize}
+	panic(fmt.Sprintf("unsupported type expression %T in ABI type", expr))
 }
 
 // scalarSpec describes the size and classification of a built-in Go or C scalar type.
@@ -396,19 +413,47 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 		return d
 	}
 
+	switch name {
+	case "string", "any", "error":
+		panic("Go type " + name + " in ABI type")
+	case "complex64":
+		return typeInfo{
+			size:      8,
+			align:     4,
+			composite: true,
+			fields: []leafField{
+				{offset: 0, size: 4, align: 4, isFloat: true},
+				{offset: 4, size: 4, align: 4, isFloat: true},
+			},
+			fieldsOK: true,
+		}
+	case "complex128":
+		al := cfg.inspectTypeName("float64", nil, nil).align
+		return typeInfo{
+			size:      16,
+			align:     al,
+			composite: true,
+			fields: []leafField{
+				{offset: 0, size: 8, align: al, isFloat: true},
+				{offset: 8, size: 8, align: al, isFloat: true},
+			},
+			fieldsOK: true,
+		}
+	}
+
 	bt, ok := types[name]
 	if !ok {
 		return cfg.ptrTypeInfo()
 	}
 	if bt.Def == "" {
-		return typeInfo{size: bt.Size, align: bt.Align, composite: true}
+		return typeInfo{size: bt.Size, align: bt.Align, composite: true, hasPointers: bt.HasPointers}
 	}
 	if seen[name] {
-		return typeInfo{size: bt.Size, align: bt.Align}
+		return typeInfo{size: bt.Size, align: bt.Align, hasPointers: bt.HasPointers}
 	}
 	expr, err := parser.ParseExpr(bt.Def)
 	if err != nil {
-		return typeInfo{size: bt.Size, align: bt.Align}
+		return typeInfo{size: bt.Size, align: bt.Align, hasPointers: bt.HasPointers}
 	}
 	if seen == nil {
 		seen = make(map[string]bool)
@@ -416,6 +461,7 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 	seen[name] = true
 	d := cfg.inspectExpr(expr, types, seen)
 	delete(seen, name)
+	d.hasPointers = d.hasPointers || bt.HasPointers
 	if d.composite && (bt.Size > 0 || bt.Align > 0) {
 		d.size, d.align = bt.Size, bt.Align
 	}
