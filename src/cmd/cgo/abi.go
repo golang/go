@@ -14,7 +14,7 @@ import (
 	"strconv"
 )
 
-// BindingType describes a C or Go type declared in a //cgo:binding file
+// BindingType describes a C or Go type used by cgo binding declarations
 // for C ABI classification and Go wrapper generation.
 type BindingType struct {
 	Name  string // Mangled C type name (e.g. "_Ctype_foo") or Go helper type name
@@ -23,12 +23,22 @@ type BindingType struct {
 	Align int64  // Alignment in bytes on the target architecture
 }
 
-// BindingFunc describes a bound C function declared with //cgo:binding.
+// BindingFunc describes a bound C function declared with //cgo:func.
 type BindingFunc struct {
-	Name   string   // Internal cgo function identifier (used in _Cfunc_<Name>, _cgo_arg_<Name>, and _cgo_trampoline_<Name>)
-	CName  string   // Target C symbol name
-	Params []string // Declared parameter types (Go type expressions, e.g. "int32", "*byte", "_Ctype_S")
+	// Identifier and symbol names:
+	Name   string // Internal cgo function identifier (used in _Cfunc_<Name>, _cgo_arg_<Name>, and _cgo_trampoline_<Name>)
+	GoName string // Go function named by the //cgo:func pragma (used by binding.go)
+	CName  string // Target C symbol name
+	BindC  bool   // The pragma wrote the C name as C.<CName>, so Go code may also call the function as C.<CName> (used by binding.go)
+
+	// Signature (Go type expressions, e.g. "int32", "*byte", "_Ctype_S"):
+	Params []string // Declared parameter types
 	Ret    string   // Return type expression, or "" for void
+
+	// Go wrapper and import metadata (used by binding.go):
+	Library string // Shared library or DLL name for dynamic import directives; empty for libc and static
+	LibC    bool   // The symbol comes from the platform C runtime (libc)
+	Static  bool   // The symbol is resolved at link time from a .syso or .a (static)
 }
 
 // ParamLoc describes where a function parameter is passed in the C ABI.
@@ -950,7 +960,13 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	if fn.CName == "" {
 		panic("BindingFunc.CName must be set")
 	}
-	cfg.emitCallSymbol(w, fn.CName)
+	if fn.Static {
+		// A statically linked symbol is defined in the final binary, so
+		// call it directly rather than through a dynamic import slot.
+		fmt.Fprintf(w, "\tCALL\t%s(SB)\n", fn.CName)
+	} else {
+		cfg.emitCallSymbol(w, fn.CName)
+	}
 
 	if fn.Ret != "" && lay.Ret.Size > 0 && !lay.Ret.Indirect {
 		for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
