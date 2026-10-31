@@ -32,6 +32,7 @@ package s390x
 import (
 	"cmd/internal/obj"
 	"cmd/internal/objabi"
+	"cmd/internal/src"
 	"cmd/internal/sys"
 	"internal/abi"
 	"log"
@@ -389,6 +390,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 			if retReg == obj.REG_NONE {
 				retReg = REG_LR
 			}
+			p.Pos = p.Pos.WithXlogue(src.PosEpilogueBegin)
 
 			if c.cursym.Func().Text.Mark&LEAF != 0 {
 				if autosize == 0 {
