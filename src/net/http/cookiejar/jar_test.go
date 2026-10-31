@@ -6,6 +6,7 @@ package cookiejar
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"slices"
@@ -701,6 +702,13 @@ var basicsTests = [...]jarTest{
 		},
 	},
 	{
+		"Max-Age that overflows time.Duration.",
+		"http://www.host.test/",
+		[]string{"a=1; max-age=9300000000"},
+		"a=1",
+		[]query{{"http://www.host.test", "a=1"}},
+	},
+	{
 		"Retrieval of cookies with quoted values", // issue #46443
 		"http://www.host.test/",
 		[]string{
@@ -897,6 +905,42 @@ func TestExpiration(t *testing.T) {
 			{"http://www.host.test", "a=1 f=6"},                 // t0 + 6006 ms
 		},
 	}.run(t, jar)
+}
+
+// TestNewEntryLifetimeLimit checks that newEntry limits the lifetime of a
+// persistent cookie to 400 days (RFC 6265bis section 5.5).
+func TestNewEntryLifetimeLimit(t *testing.T) {
+	jar := newTestJar()
+	hour := tNow.Add(time.Hour)
+	limit := tNow.Add(400 * 24 * time.Hour)
+	for _, tc := range []struct {
+		maxAge  int
+		expires time.Time
+		want    time.Time // endOfTime for a session cookie
+	}{
+		{3600, time.Time{}, hour},
+		{34560000, time.Time{}, limit},
+		{34560001, time.Time{}, limit},
+		{math.MaxInt, time.Time{}, limit},
+		{0, hour, hour},
+		{0, limit, limit},
+		{0, limit.Add(time.Second), limit},
+		{0, endOfTime, limit},
+		{3600, endOfTime, hour},
+		{0, time.Time{}, endOfTime},
+	} {
+		c := &http.Cookie{Name: "a", Value: "1", MaxAge: tc.maxAge, Expires: tc.expires}
+		e, remove, err := jar.newEntry(c, tNow, "/", "www.host.test")
+		if err != nil || remove {
+			t.Errorf("MaxAge=%d Expires=%v: got remove=%t err=%v", tc.maxAge, tc.expires, remove, err)
+			continue
+		}
+		wantPersistent := !tc.want.Equal(endOfTime)
+		if e.Persistent != wantPersistent || !e.Expires.Equal(tc.want) {
+			t.Errorf("MaxAge=%d Expires=%v: got Expires=%v Persistent=%t, want Expires=%v Persistent=%t",
+				tc.maxAge, tc.expires, e.Expires, e.Persistent, tc.want, wantPersistent)
+		}
+	}
 }
 
 //
