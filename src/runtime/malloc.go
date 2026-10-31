@@ -833,10 +833,10 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
 		// Create new hints for extending this region.
 		hint := (*arenaHint)(h.arenaHintAlloc.alloc())
 		hint.addr, hint.down = uintptr(v), true
-		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+		hint.next, *hintList = *hintList, hint
 		hint = (*arenaHint)(h.arenaHintAlloc.alloc())
 		hint.addr = uintptr(v) + size
-		hint.next, mheap_.arenaHints = mheap_.arenaHints, hint
+		hint.next, *hintList = *hintList, hint
 	}
 
 	// Check for bad pointers or pointers we can't use.
