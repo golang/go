@@ -24,6 +24,9 @@ func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
 func emptyfunc()
 
+// stackcheck checks that SP is in range [g->stack.lo, g->stack.hi].
+func stackcheck()
+
 // Used by reflectcall and the reflect package.
 //
 // Spills/loads arguments in registers to/from an internal/abi.RegArgs
