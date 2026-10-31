@@ -306,7 +306,11 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 	return fncs
 }
 
-func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
+// makeMethodUnmarshaler wraps fncs with unmarshal methods implemented by t.
+// viaPointer reports whether values of type t passed to the returned
+// unmarshaler were obtained by dereferencing a pointer.
+// In v1, unmarshal methods of an unnamed type are only called on such values.
+func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type, viaPointer bool) *unmarshaler {
 	// Avoid injecting method unmarshaler on the pointer or interface version
 	// to avoid ever calling the method on a nil pointer or interface receiver.
 	// Let it be injected on the value receiver (which is always addressable).
@@ -314,9 +318,20 @@ func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 		return fncs
 	}
 
+	// In v1, unmarshal methods are only called on a value of an unnamed type
+	// if it is reached through a pointer (see indirect in v1 decode.go).
+	legacySkip := t.Name() == "" && !viaPointer
+
 	if _, ok := implements(t, textUnmarshalerType); ok {
 		fncs.nonDefault = true
+		prevUnmarshal := fncs.fnc
 		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
+			if legacySkip && uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
+				!export.Decoder(dec).Tokens.Last.NeedObjectName() {
+				// Do not call UnmarshalText on values of unnamed types
+				// unless reached through a pointer or used as a map key.
+				return prevUnmarshal(dec, va, uo)
+			}
 			xd := export.Decoder(dec)
 			var flags jsonwire.ValueFlags
 			val, err := xd.ReadValue(&flags)
@@ -353,8 +368,9 @@ func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 		prevUnmarshal := fncs.fnc
 		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				export.Decoder(dec).Tokens.Last.NeedObjectName() {
-				// Do not call UnmarshalJSON on map keys.
+				(legacySkip || export.Decoder(dec).Tokens.Last.NeedObjectName()) {
+				// Do not call UnmarshalJSON on map keys or on values of unnamed types
+				// not reached through a pointer.
 				return prevUnmarshal(dec, va, uo)
 			}
 			val, err := dec.ReadValue()
@@ -379,8 +395,9 @@ func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 		prevUnmarshal := fncs.fnc
 		fncs.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 			if uo.Flags.Get(jsonflags.CallMethodsWithLegacySemantics) &&
-				export.Decoder(dec).Tokens.Last.NeedObjectName() {
-				// Do not call UnmarshalJSONFrom on map keys.
+				(legacySkip || export.Decoder(dec).Tokens.Last.NeedObjectName()) {
+				// Do not call UnmarshalJSONFrom on map keys or on values of unnamed types
+				// not reached through a pointer.
 				return prevUnmarshal(dec, va, uo)
 			}
 			xd := export.Decoder(dec)
