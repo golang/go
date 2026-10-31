@@ -33,7 +33,11 @@ import "unsafe"
 // Since poll_oneoff is similar to poll(2), the implementation here was derived
 // from netpoll_aix.go.
 
-const _EINTR = 27
+const (
+	_EINTR   = 27
+	_ENOSYS  = 52
+	_ENOTSUP = 58
+)
 
 var (
 	evts []event
@@ -211,17 +215,21 @@ retry:
 	var nevents size
 	errno := poll_oneoff(&pollsubs[0], &evts[0], uint32(len(pollsubs)), &nevents)
 	if errno != 0 {
-		if errno != _EINTR {
-			println("errno=", errno, " len(pollsubs)=", len(pollsubs))
-			throw("poll_oneoff failed")
+		if errno == _EINTR {
+			// If a timed sleep was interrupted, just return to
+			// recalculate how long we should sleep now.
+			if delay > 0 {
+				unlock(&mtx)
+				return gList{}, 0
+			}
+			goto retry
 		}
-		// If a timed sleep was interrupted, just return to
-		// recalculate how long we should sleep now.
-		if delay > 0 {
+		if errno == _ENOSYS || errno == _ENOTSUP {
 			unlock(&mtx)
 			return gList{}, 0
 		}
-		goto retry
+		println("errno=", errno, " len(pollsubs)=", len(pollsubs))
+		throw("poll_oneoff failed")
 	}
 
 	var toRun gList
