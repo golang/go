@@ -24,6 +24,11 @@ import (
 
 const usesLR = sys.MinFrameSize > 0
 
+// retPCSize is the size of the return-PC slot between stack frames on
+// architectures without a link register.
+// The linker describes the same slot using the target's register size.
+const retPCSize = goarch.PtrSize
+
 const (
 	// tracebackInnerFrames is the number of innermost frames to print in a
 	// stack trace. The total maximum frames is tracebackInnerFrames +
@@ -187,7 +192,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 			frame.lr = 0
 		} else {
 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
-			frame.sp += goarch.PtrSize
+			frame.sp += retPCSize
 		}
 	}
 
@@ -334,7 +339,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 		frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc))
 		if !usesLR {
 			// On x86, call instruction pushes return PC before entering new function.
-			frame.fp += goarch.PtrSize
+			frame.fp += retPCSize
 		}
 	}
 
@@ -382,7 +387,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 			}
 		} else {
 			if frame.lr == 0 {
-				lrPtr = frame.fp - goarch.PtrSize
+				lrPtr = frame.fp - retPCSize
 				frame.lr = *(*uintptr)(unsafe.Pointer(lrPtr))
 			}
 		}
@@ -391,7 +396,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 	frame.varp = frame.fp
 	if !usesLR {
 		// On x86, call instruction pushes return PC before entering new function.
-		frame.varp -= goarch.PtrSize
+		frame.varp -= retPCSize
 	}
 
 	// For architectures with frame pointers, if there's

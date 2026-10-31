@@ -38,7 +38,7 @@ func TestVarLocHighRegister(t *testing.T) {
 		t.Errorf("RemoveReg(%d) = %v", hi, got)
 	}
 
-	var live abt.T
+	var live abt.T[*liveSlot]
 	live.Insert(0, &liveSlot{both})
 	state := StateAtPC{slots: make([]VarLoc, 1), registers: make([][]SlotID, hi+1)}
 	state.reset(live)

@@ -66,7 +66,7 @@ func IsNewObject(v *Value, select1 []*Value) (mem *Value, ok bool) {
 	if v.Args[0].Args[0].Op != ssaop.OpSP {
 		return nil, false
 	}
-	if v.Args[0].AuxInt != c.Ctxt.Arch.FixedFrameSize+numParameters*c.RegSize { // offset of return value
+	if v.Args[0].AuxInt != c.Ctxt.Arch.FixedFrameSize+numParameters*c.PtrSize { // offset of return value
 		return nil, false
 	}
 	return mem, true

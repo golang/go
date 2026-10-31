@@ -181,6 +181,113 @@ func TestLargeTextSectionSplitting(t *testing.T) {
 	}
 }
 
+// TestTextSectionSplitOverAligned checks that text section splitting copes
+// with functions aligned more strictly than Funcalign (issue 82517).
+func TestTextSectionSplitOverAligned(t *testing.T) {
+	// funcAsm is one assembly function: an optional PCALIGN, a load and
+	// store of sink (for a relocation), filler, and a return of the
+	// function's index.
+	var funcAsm, filler string
+	switch runtime.GOARCH {
+	case "arm64":
+		if runtime.GOOS != "darwin" {
+			t.Skipf("text section splitting is not done in %s/%s", runtime.GOOS, runtime.GOARCH)
+		}
+		funcAsm = `
+TEXT ·f%[1]d(SB), NOSPLIT, $0-8
+%[2]s
+	MOVD	$·sink(SB), R1
+	MOVD	(R1), R2
+	ADD	$1, R2
+	MOVD	R2, (R1)
+%[3]s
+	MOVD	$%[1]d, R0
+	MOVD	R0, ret+0(FP)
+	RET
+`
+		filler = "\tNOOP\n"
+	case "ppc64", "ppc64le":
+		funcAsm = `
+TEXT ·f%[1]d(SB), NOSPLIT, $0-8
+%[2]s
+	MOVD	$·sink(SB), R3
+	MOVD	0(R3), R4
+	ADD	$1, R4
+	MOVD	R4, 0(R3)
+%[3]s
+	MOVD	$%[1]d, R3
+	MOVD	R3, ret+0(FP)
+	RET
+`
+		filler = "\tADD\t$1, R5\n"
+	default:
+		// arm also splits text sections, but its assembler has no
+		// PCALIGN, so its functions can't be over-aligned.
+		t.Skipf("no over-aligned text section splitting on %s/%s", runtime.GOOS, runtime.GOARCH)
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Interleave 64-byte-aligned and plain functions, each about 8KiB
+	// long (1MiB in all), so that some split text sections start at a
+	// plain function and contain an over-aligned one.
+	const n = 128
+	var goSrc, asmSrc bytes.Buffer
+	goSrc.WriteString("package main\n\nvar sink int\n\n")
+	asmSrc.WriteString("#include \"textflag.h\"\n")
+	for i := range n {
+		fmt.Fprintf(&goSrc, "func f%d() int\n", i)
+		align := ""
+		if i%2 == 0 {
+			align = "\tPCALIGN\t$64"
+		}
+		fmt.Fprintf(&asmSrc, funcAsm, i, align, strings.Repeat(filler, 2000))
+	}
+	goSrc.WriteString("\nvar fs = []func() int{")
+	for i := range n {
+		fmt.Fprintf(&goSrc, "f%d, ", i)
+	}
+	fmt.Fprintf(&goSrc, `}
+
+func main() {
+	s := 0
+	for _, f := range fs {
+		s += f()
+	}
+	if s != %d || sink != %d {
+		panic(s)
+	}
+}
+`, n*(n-1)/2, n)
+	for name, src := range map[string][]byte{
+		"go.mod":                         []byte("module overaligned\n"),
+		"main.go":                        goSrc.Bytes(),
+		"funcs_" + runtime.GOARCH + ".s": asmSrc.Bytes(),
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), src, 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Several split sizes, so the test doesn't depend on one boundary
+	// happening to land in the right place. Much smaller sizes exceed
+	// the Mach-O limit on sections in __TEXT.
+	for _, size := range []int{256 << 10, 320 << 10, 384 << 10} {
+		exe := filepath.Join(dir, fmt.Sprintf("split%d.exe", size))
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe,
+			fmt.Sprintf("-ldflags=-linkmode=external -debugtextsize=%d", size))
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("build with -debugtextsize=%d: %v\n%s", size, err, out)
+		}
+		if out, err := testenv.Command(t, exe).CombinedOutput(); err != nil {
+			t.Fatalf("run with -debugtextsize=%d: %v\n%s", size, err, out)
+		}
+	}
+}
+
 func TestWindowsBuildmodeCSharedASLR(t *testing.T) {
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 	switch platform {

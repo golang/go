@@ -42,11 +42,12 @@ func tighten(f *ssa.Func) {
 				continue
 			}
 			switch v.Op {
-			case ssaop.OpPhi, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg, ssaop.OpSelect0, ssaop.OpSelect1, ssaop.OpSelectN:
+			case ssaop.OpPhi, ssaop.OpArg, ssaop.OpArgIntReg, ssaop.OpArgFloatReg, ssaop.OpSelect0, ssaop.OpSelect1, ssaop.OpSelectN, ssaop.OpInitMem:
 				// Phis need to stay in their block.
 				// Arg must stay in the entry block.
 				// Tuple selectors must stay with the tuple generator.
 				// SelectN is typically, ultimately, a register.
+				// InitMem must stay in the first block.
 				continue
 			}
 			if ssaop.OpcodeTable[v.Op].NilCheck {

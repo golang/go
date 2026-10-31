@@ -21,7 +21,7 @@ type assertFn1Tab[X, Want any] struct {
 	want Want
 }
 
-func assertFn1[X, Z comparable](t *testing.T, fn func(X) Z, label string, tab ...assertFn1Tab[X, Z]) {
+func assertFn1[X any, Z comparable](t *testing.T, fn func(X) Z, label string, tab ...assertFn1Tab[X, Z]) {
 	t.Helper()
 	for _, entry := range tab {
 		got := fn(entry.x)
@@ -43,6 +43,23 @@ func assertFn2[X, Y, Z comparable](t *testing.T, fn func(X, Y) Z, label string, 
 		got := fn(entry.x, entry.y)
 		if got != entry.want {
 			t.Errorf("%s(%v, %v) = %v; want %v", label, entry.x, entry.y, got, entry.want)
+		}
+	}
+}
+
+type assertFn3Tab[X, Y, Z, Want any] struct {
+	x    X
+	y    Y
+	z    Z
+	want Want
+}
+
+func assertFn3[X, Y, Z, W comparable](t *testing.T, fn func(X, Y, Z) W, label string, tab ...assertFn3Tab[X, Y, Z, W]) {
+	t.Helper()
+	for _, entry := range tab {
+		got := fn(entry.x, entry.y, entry.z)
+		if got != entry.want && (got == got || entry.want == entry.want) {
+			t.Errorf("%s(%v, %v, %v) = %v; want %v", label, entry.x, entry.y, entry.z, got, entry.want)
 		}
 	}
 }
@@ -297,4 +314,35 @@ func TestClmul(t *testing.T) {
 			t.Errorf("clmul[uint64](%#x, %#x) != clmul(%#x, %#x)", tc.b, tc.a, tc.a, tc.b)
 		}
 	}
+}
+
+func TestFMA32(t *testing.T) {
+	inf32 := float32(math.Inf(1))
+	ninf32 := float32(math.Inf(-1))
+	nan32 := float32(math.NaN())
+	assertFn3[float32, float32, float32, float32](t, fma32, "fma32",
+		// Single rounding and no intermediate overflow vs unfused x*y + z
+		{0.001, 10, 1e-6, 0.010001},
+		// Double-rounding test:
+		//   x * y = (1 + 2^-12)^2 = 1 + 2^-11 + 2^-24 = 0x1.002001p0,
+		// which is the exact midpoint between float32 0x1.002000p0 (even) and
+		// 0x1.002002p0 (odd; remember 23 bit mantissa). Adding z = 2^-53 (half
+		// a float64 ULP) puts the true sum strictly above the midpoint, so
+		// single rounding must round up to 0x1.002002p0, whereas naive float64
+		// addition rounds-to-even back to 0x1.002001p0 and then float32
+		// rounds-to-even down to 0x1.002000p0.
+		{0x1.001p0, 0x1.001p0, 0x1p-53, 0x1.002002p0},
+		// Intermediate overflow cases
+		{math.MaxFloat32, 2, -math.MaxFloat32, math.MaxFloat32},
+		{math.MaxFloat32, -20, inf32, inf32},
+		// Inf and NaN cases
+		{math.MaxFloat32, 2, 1, inf32},
+		{inf32, 2, 3, inf32},
+		{inf32, -2, 3, ninf32},
+		{inf32, 2, ninf32, nan32},
+		{0, inf32, 1, nan32},
+		{nan32, 2, 3, nan32},
+		{2, nan32, 3, nan32},
+		{2, 3, nan32, nan32},
+	)
 }

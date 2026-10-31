@@ -62,6 +62,9 @@ func simdReg(r int16) int16 {
 // loadByType returns the load instruction of the given type.
 func loadByType(t *types.Type) obj.As {
 	if t.IsSIMD() {
+		if buildcfg.GOPPC64 < 9 {
+			base.Fatalf("loadByType: SIMD type %v requires POWER9 or later", t)
+		}
 		return ppc64.ALXV
 	}
 	if t.Size() > 8 {
@@ -104,6 +107,9 @@ func loadByType(t *types.Type) obj.As {
 // storeByType returns the store instruction of the given type.
 func storeByType(t *types.Type) obj.As {
 	if t.IsSIMD() {
+		if buildcfg.GOPPC64 < 9 {
+			base.Fatalf("storeByType: SIMD type %v requires POWER9 or later", t)
+		}
 		return ppc64.ASTXV
 	}
 	if t.Size() > 8 {
@@ -1245,12 +1251,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// For sizes >= 64 generate a loop as follows:
 
 		// Set up loop counter in CTR, used by BC
+		//       XXLXOR VS32,VS32,VS32
 		//	 MOVD len/32,REG_TMP
 		//	 MOVD REG_TMP,CTR
 		//       MOVD $16,REG_TMP
 		//	 loop:
-		//	 STXVD2X vreg,(R0)(R20)
-		//	 STXVD2X vreg,(R31)(R20)
+		//	 STXVD2X VS32,(R0)(R20)
+		//	 STXVD2X VS32,(R31)(R20)
 		//	 ADD  $32,R20
 		//	 BC   16, 0, loop
 		//
@@ -1284,12 +1291,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		// only generate a loop if there is more
 		// than 1 iteration.
 		if ctr > 1 {
-			// The scratch vector register is allocated by regalloc
-			// and zeroed by the Zero128 op that feeds arg1.
-			vreg := v.Args[1].Reg()
+			// Set up VS32 (V0) to hold 0s
+			p := s.Prog(ppc64.AXXLXOR)
+			p.From.Type = obj.TYPE_REG
+			p.From.Reg = ppc64.REG_VS32
+			p.To.Type = obj.TYPE_REG
+			p.To.Reg = ppc64.REG_VS32
+			p.Reg = ppc64.REG_VS32
 
 			// Set up CTR loop counter
-			p := s.Prog(ppc64.AMOVD)
+			p = s.Prog(ppc64.AMOVD)
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = ctr
 			p.To.Type = obj.TYPE_REG
@@ -1323,7 +1334,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 			p = s.Prog(ppc64.ASTXVD2X)
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = vreg
+			p.From.Reg = ppc64.REG_VS32
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = v.Args[0].Reg()
 			p.To.Index = ppc64.REGZERO
@@ -1333,7 +1344,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			}
 			p = s.Prog(ppc64.ASTXVD2X)
 			p.From.Type = obj.TYPE_REG
-			p.From.Reg = vreg
+			p.From.Reg = ppc64.REG_VS32
 			p.To.Type = obj.TYPE_MEM
 			p.To.Reg = v.Args[0].Reg()
 			p.To.Index = ppc64.REGTMP

@@ -422,8 +422,8 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 		}
 
 	case ssaop.OpWasmI64Add, ssaop.OpWasmI64Sub, ssaop.OpWasmI64Mul, ssaop.OpWasmI64DivU, ssaop.OpWasmI64RemS, ssaop.OpWasmI64RemU, ssaop.OpWasmI64And, ssaop.OpWasmI64Or, ssaop.OpWasmI64Xor, ssaop.OpWasmI64Shl, ssaop.OpWasmI64ShrS, ssaop.OpWasmI64ShrU, ssaop.OpWasmI64Rotl,
-		ssaop.OpWasmF32Add, ssaop.OpWasmF32Sub, ssaop.OpWasmF32Mul, ssaop.OpWasmF32Div, ssaop.OpWasmF32Copysign,
-		ssaop.OpWasmF64Add, ssaop.OpWasmF64Sub, ssaop.OpWasmF64Mul, ssaop.OpWasmF64Div, ssaop.OpWasmF64Copysign:
+		ssaop.OpWasmF32Add, ssaop.OpWasmF32Sub, ssaop.OpWasmF32Mul, ssaop.OpWasmF32Div, ssaop.OpWasmF32Min, ssaop.OpWasmF32Max, ssaop.OpWasmF32Copysign,
+		ssaop.OpWasmF64Add, ssaop.OpWasmF64Sub, ssaop.OpWasmF64Mul, ssaop.OpWasmF64Div, ssaop.OpWasmF64Min, ssaop.OpWasmF64Max, ssaop.OpWasmF64Copysign:
 		getValue64(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		s.Prog(v.Op.Asm())

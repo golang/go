@@ -63,6 +63,582 @@ type (
 	Uint8x64   struct{ v []uint8 }
 )
 
+// Len returns the number of elements in x.
+func (x Float32x4) Len() int {
+	return spec.Len[float32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32x8) Len() int {
+	return spec.Len[float32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32x16) Len() int {
+	return spec.Len[float32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float32s) Len() int {
+	return spec.Len[float32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x2) Len() int {
+	return spec.Len[float64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x4) Len() int {
+	return spec.Len[float64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64x8) Len() int {
+	return spec.Len[float64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Float64s) Len() int {
+	return spec.Len[float64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x16) Len() int {
+	return spec.Len[int8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x32) Len() int {
+	return spec.Len[int8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8x64) Len() int {
+	return spec.Len[int8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int8s) Len() int {
+	return spec.Len[int8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x8) Len() int {
+	return spec.Len[int16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x16) Len() int {
+	return spec.Len[int16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16x32) Len() int {
+	return spec.Len[int16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int16s) Len() int {
+	return spec.Len[int16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x4) Len() int {
+	return spec.Len[int32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x8) Len() int {
+	return spec.Len[int32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32x16) Len() int {
+	return spec.Len[int32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int32s) Len() int {
+	return spec.Len[int32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x2) Len() int {
+	return spec.Len[int64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x4) Len() int {
+	return spec.Len[int64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64x8) Len() int {
+	return spec.Len[int64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Int64s) Len() int {
+	return spec.Len[int64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x16) Len() int {
+	return spec.Len[uint8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x32) Len() int {
+	return spec.Len[uint8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8x64) Len() int {
+	return spec.Len[uint8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint8s) Len() int {
+	return spec.Len[uint8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x8) Len() int {
+	return spec.Len[uint16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x16) Len() int {
+	return spec.Len[uint16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16x32) Len() int {
+	return spec.Len[uint16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint16s) Len() int {
+	return spec.Len[uint16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x4) Len() int {
+	return spec.Len[uint32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x8) Len() int {
+	return spec.Len[uint32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32x16) Len() int {
+	return spec.Len[uint32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint32s) Len() int {
+	return spec.Len[uint32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x2) Len() int {
+	return spec.Len[uint64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x4) Len() int {
+	return spec.Len[uint64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64x8) Len() int {
+	return spec.Len[uint64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Uint64s) Len() int {
+	return spec.Len[uint64, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x16) Len() int {
+	return spec.Len[spec.Mask8, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x32) Len() int {
+	return spec.Len[spec.Mask8, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8x64) Len() int {
+	return spec.Len[spec.Mask8, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask8s) Len() int {
+	return spec.Len[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x8) Len() int {
+	return spec.Len[spec.Mask16, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x16) Len() int {
+	return spec.Len[spec.Mask16, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16x32) Len() int {
+	return spec.Len[spec.Mask16, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask16s) Len() int {
+	return spec.Len[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x4) Len() int {
+	return spec.Len[spec.Mask32, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x8) Len() int {
+	return spec.Len[spec.Mask32, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32x16) Len() int {
+	return spec.Len[spec.Mask32, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask32s) Len() int {
+	return spec.Len[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x2) Len() int {
+	return spec.Len[spec.Mask64, spec.Width128](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x4) Len() int {
+	return spec.Len[spec.Mask64, spec.Width256](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64x8) Len() int {
+	return spec.Len[spec.Mask64, spec.Width512](x.v)
+}
+
+// Len returns the number of elements in x.
+func (x Mask64s) Len() int {
+	return spec.Len[spec.Mask64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x4) String() string {
+	return spec.String[float32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x8) String() string {
+	return spec.String[float32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32x16) String() string {
+	return spec.String[float32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float32s) String() string {
+	return spec.String[float32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x2) String() string {
+	return spec.String[float64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x4) String() string {
+	return spec.String[float64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64x8) String() string {
+	return spec.String[float64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Float64s) String() string {
+	return spec.String[float64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x16) String() string {
+	return spec.String[int8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x32) String() string {
+	return spec.String[int8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8x64) String() string {
+	return spec.String[int8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int8s) String() string {
+	return spec.String[int8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x8) String() string {
+	return spec.String[int16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x16) String() string {
+	return spec.String[int16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16x32) String() string {
+	return spec.String[int16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int16s) String() string {
+	return spec.String[int16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x4) String() string {
+	return spec.String[int32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x8) String() string {
+	return spec.String[int32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32x16) String() string {
+	return spec.String[int32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int32s) String() string {
+	return spec.String[int32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x2) String() string {
+	return spec.String[int64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x4) String() string {
+	return spec.String[int64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64x8) String() string {
+	return spec.String[int64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Int64s) String() string {
+	return spec.String[int64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x16) String() string {
+	return spec.String[uint8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x32) String() string {
+	return spec.String[uint8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8x64) String() string {
+	return spec.String[uint8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint8s) String() string {
+	return spec.String[uint8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x8) String() string {
+	return spec.String[uint16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x16) String() string {
+	return spec.String[uint16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16x32) String() string {
+	return spec.String[uint16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint16s) String() string {
+	return spec.String[uint16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x4) String() string {
+	return spec.String[uint32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x8) String() string {
+	return spec.String[uint32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32x16) String() string {
+	return spec.String[uint32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint32s) String() string {
+	return spec.String[uint32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x2) String() string {
+	return spec.String[uint64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x4) String() string {
+	return spec.String[uint64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64x8) String() string {
+	return spec.String[uint64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}".
+func (x Uint64s) String() string {
+	return spec.String[uint64, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x16) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x32) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8x64) String() string {
+	return spec.StringMask[spec.Mask8, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask8s) String() string {
+	return spec.StringMask[spec.Mask8, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x8) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x16) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16x32) String() string {
+	return spec.StringMask[spec.Mask16, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask16s) String() string {
+	return spec.StringMask[spec.Mask16, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x4) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x8) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32x16) String() string {
+	return spec.StringMask[spec.Mask32, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask32s) String() string {
+	return spec.StringMask[spec.Mask32, spec.WidthScalable](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x2) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width128](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x4) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width256](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64x8) String() string {
+	return spec.StringMask[spec.Mask64, spec.Width512](x.v)
+}
+
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
+func (x Mask64s) String() string {
+	return spec.StringMask[spec.Mask64, spec.WidthScalable](x.v)
+}
+
 // OnesCount counts the number of one bits ("population count") in
 // each element.
 //
@@ -13836,101 +14412,13 @@ func (x Uint64s) Average(y Uint64s) (z Uint64s) {
 //
 //	z[i] = x[i] / y[i]
 //
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x4) Div(y Float32x4) (z Float32x4) {
-	return Float32x4{spec.Div[float32, spec.Width128](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x8) Div(y Float32x8) (z Float32x8) {
-	return Float32x8{spec.Div[float32, spec.Width256](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32x16) Div(y Float32x16) (z Float32x16) {
-	return Float32x16{spec.Div[float32, spec.Width512](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float32s) Div(y Float32s) (z Float32s) {
-	return Float32s{spec.Div[float32, spec.WidthScalable](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x2) Div(y Float64x2) (z Float64x2) {
-	return Float64x2{spec.Div[float64, spec.Width128](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x4) Div(y Float64x4) (z Float64x4) {
-	return Float64x4{spec.Div[float64, spec.Width256](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64x8) Div(y Float64x8) (z Float64x8) {
-	return Float64x8{spec.Div[float64, spec.Width512](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-func (x Float64s) Div(y Float64s) (z Float64s) {
-	return Float64s{spec.Div[float64, spec.WidthScalable](x.v, y.v)}
-}
-
-// Div divides x by y elementwise.
-//
-//	z[i] = x[i] / y[i]
-//
 // The result is rounded toward zero (truncated division), just like Go's /
 // operator. Also like Go's / operator, dividing MinInt8
 // by -1 results in MinInt8, since the true result is unrepresentable.
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x16) Div(y Int8x16) (z Int8x16) {
-	return Int8x16{spec.Div[int8, spec.Width128](x.v, y.v)}
+	return Int8x16{spec.DivInts[int8, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -13943,7 +14431,7 @@ func (x Int8x16) Div(y Int8x16) (z Int8x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x32) Div(y Int8x32) (z Int8x32) {
-	return Int8x32{spec.Div[int8, spec.Width256](x.v, y.v)}
+	return Int8x32{spec.DivInts[int8, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -13956,7 +14444,7 @@ func (x Int8x32) Div(y Int8x32) (z Int8x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8x64) Div(y Int8x64) (z Int8x64) {
-	return Int8x64{spec.Div[int8, spec.Width512](x.v, y.v)}
+	return Int8x64{spec.DivInts[int8, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -13969,7 +14457,7 @@ func (x Int8x64) Div(y Int8x64) (z Int8x64) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int8s) Div(y Int8s) (z Int8s) {
-	return Int8s{spec.Div[int8, spec.WidthScalable](x.v, y.v)}
+	return Int8s{spec.DivInts[int8, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -13982,7 +14470,7 @@ func (x Int8s) Div(y Int8s) (z Int8s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x8) Div(y Int16x8) (z Int16x8) {
-	return Int16x8{spec.Div[int16, spec.Width128](x.v, y.v)}
+	return Int16x8{spec.DivInts[int16, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -13995,7 +14483,7 @@ func (x Int16x8) Div(y Int16x8) (z Int16x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x16) Div(y Int16x16) (z Int16x16) {
-	return Int16x16{spec.Div[int16, spec.Width256](x.v, y.v)}
+	return Int16x16{spec.DivInts[int16, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14008,7 +14496,7 @@ func (x Int16x16) Div(y Int16x16) (z Int16x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16x32) Div(y Int16x32) (z Int16x32) {
-	return Int16x32{spec.Div[int16, spec.Width512](x.v, y.v)}
+	return Int16x32{spec.DivInts[int16, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14021,7 +14509,7 @@ func (x Int16x32) Div(y Int16x32) (z Int16x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int16s) Div(y Int16s) (z Int16s) {
-	return Int16s{spec.Div[int16, spec.WidthScalable](x.v, y.v)}
+	return Int16s{spec.DivInts[int16, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14034,7 +14522,7 @@ func (x Int16s) Div(y Int16s) (z Int16s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x4) Div(y Int32x4) (z Int32x4) {
-	return Int32x4{spec.Div[int32, spec.Width128](x.v, y.v)}
+	return Int32x4{spec.DivInts[int32, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14047,7 +14535,7 @@ func (x Int32x4) Div(y Int32x4) (z Int32x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x8) Div(y Int32x8) (z Int32x8) {
-	return Int32x8{spec.Div[int32, spec.Width256](x.v, y.v)}
+	return Int32x8{spec.DivInts[int32, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14060,7 +14548,7 @@ func (x Int32x8) Div(y Int32x8) (z Int32x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32x16) Div(y Int32x16) (z Int32x16) {
-	return Int32x16{spec.Div[int32, spec.Width512](x.v, y.v)}
+	return Int32x16{spec.DivInts[int32, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14073,7 +14561,7 @@ func (x Int32x16) Div(y Int32x16) (z Int32x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int32s) Div(y Int32s) (z Int32s) {
-	return Int32s{spec.Div[int32, spec.WidthScalable](x.v, y.v)}
+	return Int32s{spec.DivInts[int32, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14086,7 +14574,7 @@ func (x Int32s) Div(y Int32s) (z Int32s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x2) Div(y Int64x2) (z Int64x2) {
-	return Int64x2{spec.Div[int64, spec.Width128](x.v, y.v)}
+	return Int64x2{spec.DivInts[int64, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14099,7 +14587,7 @@ func (x Int64x2) Div(y Int64x2) (z Int64x2) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x4) Div(y Int64x4) (z Int64x4) {
-	return Int64x4{spec.Div[int64, spec.Width256](x.v, y.v)}
+	return Int64x4{spec.DivInts[int64, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14112,7 +14600,7 @@ func (x Int64x4) Div(y Int64x4) (z Int64x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64x8) Div(y Int64x8) (z Int64x8) {
-	return Int64x8{spec.Div[int64, spec.Width512](x.v, y.v)}
+	return Int64x8{spec.DivInts[int64, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14125,7 +14613,7 @@ func (x Int64x8) Div(y Int64x8) (z Int64x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Int64s) Div(y Int64s) (z Int64s) {
-	return Int64s{spec.Div[int64, spec.WidthScalable](x.v, y.v)}
+	return Int64s{spec.DivInts[int64, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14137,7 +14625,7 @@ func (x Int64s) Div(y Int64s) (z Int64s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x16) Div(y Uint8x16) (z Uint8x16) {
-	return Uint8x16{spec.Div[uint8, spec.Width128](x.v, y.v)}
+	return Uint8x16{spec.DivInts[uint8, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14149,7 +14637,7 @@ func (x Uint8x16) Div(y Uint8x16) (z Uint8x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x32) Div(y Uint8x32) (z Uint8x32) {
-	return Uint8x32{spec.Div[uint8, spec.Width256](x.v, y.v)}
+	return Uint8x32{spec.DivInts[uint8, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14161,7 +14649,7 @@ func (x Uint8x32) Div(y Uint8x32) (z Uint8x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8x64) Div(y Uint8x64) (z Uint8x64) {
-	return Uint8x64{spec.Div[uint8, spec.Width512](x.v, y.v)}
+	return Uint8x64{spec.DivInts[uint8, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14173,7 +14661,7 @@ func (x Uint8x64) Div(y Uint8x64) (z Uint8x64) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint8s) Div(y Uint8s) (z Uint8s) {
-	return Uint8s{spec.Div[uint8, spec.WidthScalable](x.v, y.v)}
+	return Uint8s{spec.DivInts[uint8, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14185,7 +14673,7 @@ func (x Uint8s) Div(y Uint8s) (z Uint8s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x8) Div(y Uint16x8) (z Uint16x8) {
-	return Uint16x8{spec.Div[uint16, spec.Width128](x.v, y.v)}
+	return Uint16x8{spec.DivInts[uint16, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14197,7 +14685,7 @@ func (x Uint16x8) Div(y Uint16x8) (z Uint16x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x16) Div(y Uint16x16) (z Uint16x16) {
-	return Uint16x16{spec.Div[uint16, spec.Width256](x.v, y.v)}
+	return Uint16x16{spec.DivInts[uint16, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14209,7 +14697,7 @@ func (x Uint16x16) Div(y Uint16x16) (z Uint16x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16x32) Div(y Uint16x32) (z Uint16x32) {
-	return Uint16x32{spec.Div[uint16, spec.Width512](x.v, y.v)}
+	return Uint16x32{spec.DivInts[uint16, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14221,7 +14709,7 @@ func (x Uint16x32) Div(y Uint16x32) (z Uint16x32) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint16s) Div(y Uint16s) (z Uint16s) {
-	return Uint16s{spec.Div[uint16, spec.WidthScalable](x.v, y.v)}
+	return Uint16s{spec.DivInts[uint16, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14233,7 +14721,7 @@ func (x Uint16s) Div(y Uint16s) (z Uint16s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x4) Div(y Uint32x4) (z Uint32x4) {
-	return Uint32x4{spec.Div[uint32, spec.Width128](x.v, y.v)}
+	return Uint32x4{spec.DivInts[uint32, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14245,7 +14733,7 @@ func (x Uint32x4) Div(y Uint32x4) (z Uint32x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x8) Div(y Uint32x8) (z Uint32x8) {
-	return Uint32x8{spec.Div[uint32, spec.Width256](x.v, y.v)}
+	return Uint32x8{spec.DivInts[uint32, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14257,7 +14745,7 @@ func (x Uint32x8) Div(y Uint32x8) (z Uint32x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32x16) Div(y Uint32x16) (z Uint32x16) {
-	return Uint32x16{spec.Div[uint32, spec.Width512](x.v, y.v)}
+	return Uint32x16{spec.DivInts[uint32, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14269,7 +14757,7 @@ func (x Uint32x16) Div(y Uint32x16) (z Uint32x16) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint32s) Div(y Uint32s) (z Uint32s) {
-	return Uint32s{spec.Div[uint32, spec.WidthScalable](x.v, y.v)}
+	return Uint32s{spec.DivInts[uint32, spec.WidthScalable](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14281,7 +14769,7 @@ func (x Uint32s) Div(y Uint32s) (z Uint32s) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x2) Div(y Uint64x2) (z Uint64x2) {
-	return Uint64x2{spec.Div[uint64, spec.Width128](x.v, y.v)}
+	return Uint64x2{spec.DivInts[uint64, spec.Width128](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14293,7 +14781,7 @@ func (x Uint64x2) Div(y Uint64x2) (z Uint64x2) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x4) Div(y Uint64x4) (z Uint64x4) {
-	return Uint64x4{spec.Div[uint64, spec.Width256](x.v, y.v)}
+	return Uint64x4{spec.DivInts[uint64, spec.Width256](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14305,7 +14793,7 @@ func (x Uint64x4) Div(y Uint64x4) (z Uint64x4) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64x8) Div(y Uint64x8) (z Uint64x8) {
-	return Uint64x8{spec.Div[uint64, spec.Width512](x.v, y.v)}
+	return Uint64x8{spec.DivInts[uint64, spec.Width512](x.v, y.v)}
 }
 
 // Div divides x by y elementwise.
@@ -14317,7 +14805,95 @@ func (x Uint64x8) Div(y Uint64x8) (z Uint64x8) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 func (x Uint64s) Div(y Uint64s) (z Uint64s) {
-	return Uint64s{spec.Div[uint64, spec.WidthScalable](x.v, y.v)}
+	return Uint64s{spec.DivInts[uint64, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x4) Div(y Float32x4) (z Float32x4) {
+	return Float32x4{spec.DivFloats[float32, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x8) Div(y Float32x8) (z Float32x8) {
+	return Float32x8{spec.DivFloats[float32, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32x16) Div(y Float32x16) (z Float32x16) {
+	return Float32x16{spec.DivFloats[float32, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float32s) Div(y Float32s) (z Float32s) {
+	return Float32s{spec.DivFloats[float32, spec.WidthScalable](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x2) Div(y Float64x2) (z Float64x2) {
+	return Float64x2{spec.DivFloats[float64, spec.Width128](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x4) Div(y Float64x4) (z Float64x4) {
+	return Float64x4{spec.DivFloats[float64, spec.Width256](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64x8) Div(y Float64x8) (z Float64x8) {
+	return Float64x8{spec.DivFloats[float64, spec.Width512](x.v, y.v)}
+}
+
+// Div divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+func (x Float64s) Div(y Float64s) (z Float64s) {
+	return Float64s{spec.DivFloats[float64, spec.WidthScalable](x.v, y.v)}
 }
 
 // DotProductPairs multiplies corresponding elements of x and y, and sums
@@ -15563,281 +16139,305 @@ func (x Uint64s) Mul(y Uint64s) (z Uint64s) {
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
-func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
-	return Float32x4{spec.MulAdd[float32, spec.Width128](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
-	return Float32x8{spec.MulAdd[float32, spec.Width256](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
-	return Float32x16{spec.MulAdd[float32, spec.Width512](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
-	return Float32s{spec.MulAdd[float32, spec.WidthScalable](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
-	return Float64x2{spec.MulAdd[float64, spec.Width128](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
-	return Float64x4{spec.MulAdd[float64, spec.Width256](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
-	return Float64x8{spec.MulAdd[float64, spec.Width512](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
-func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
-	return Float64s{spec.MulAdd[float64, spec.WidthScalable](x.v, y.v, z.v)}
-}
-
-// MulAdd returns x * y + z elementwise.
-//
-//	w[i] = x[i] * y[i] + z[i]
 func (x Int8x16) MulAdd(y Int8x16, z Int8x16) (w Int8x16) {
-	return Int8x16{spec.MulAdd[int8, spec.Width128](x.v, y.v, z.v)}
+	return Int8x16{spec.MulAddInts[int8, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8x32) MulAdd(y Int8x32, z Int8x32) (w Int8x32) {
-	return Int8x32{spec.MulAdd[int8, spec.Width256](x.v, y.v, z.v)}
+	return Int8x32{spec.MulAddInts[int8, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8x64) MulAdd(y Int8x64, z Int8x64) (w Int8x64) {
-	return Int8x64{spec.MulAdd[int8, spec.Width512](x.v, y.v, z.v)}
+	return Int8x64{spec.MulAddInts[int8, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int8s) MulAdd(y Int8s, z Int8s) (w Int8s) {
-	return Int8s{spec.MulAdd[int8, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int8s{spec.MulAddInts[int8, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x8) MulAdd(y Int16x8, z Int16x8) (w Int16x8) {
-	return Int16x8{spec.MulAdd[int16, spec.Width128](x.v, y.v, z.v)}
+	return Int16x8{spec.MulAddInts[int16, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x16) MulAdd(y Int16x16, z Int16x16) (w Int16x16) {
-	return Int16x16{spec.MulAdd[int16, spec.Width256](x.v, y.v, z.v)}
+	return Int16x16{spec.MulAddInts[int16, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16x32) MulAdd(y Int16x32, z Int16x32) (w Int16x32) {
-	return Int16x32{spec.MulAdd[int16, spec.Width512](x.v, y.v, z.v)}
+	return Int16x32{spec.MulAddInts[int16, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int16s) MulAdd(y Int16s, z Int16s) (w Int16s) {
-	return Int16s{spec.MulAdd[int16, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int16s{spec.MulAddInts[int16, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x4) MulAdd(y Int32x4, z Int32x4) (w Int32x4) {
-	return Int32x4{spec.MulAdd[int32, spec.Width128](x.v, y.v, z.v)}
+	return Int32x4{spec.MulAddInts[int32, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x8) MulAdd(y Int32x8, z Int32x8) (w Int32x8) {
-	return Int32x8{spec.MulAdd[int32, spec.Width256](x.v, y.v, z.v)}
+	return Int32x8{spec.MulAddInts[int32, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32x16) MulAdd(y Int32x16, z Int32x16) (w Int32x16) {
-	return Int32x16{spec.MulAdd[int32, spec.Width512](x.v, y.v, z.v)}
+	return Int32x16{spec.MulAddInts[int32, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int32s) MulAdd(y Int32s, z Int32s) (w Int32s) {
-	return Int32s{spec.MulAdd[int32, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int32s{spec.MulAddInts[int32, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x2) MulAdd(y Int64x2, z Int64x2) (w Int64x2) {
-	return Int64x2{spec.MulAdd[int64, spec.Width128](x.v, y.v, z.v)}
+	return Int64x2{spec.MulAddInts[int64, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x4) MulAdd(y Int64x4, z Int64x4) (w Int64x4) {
-	return Int64x4{spec.MulAdd[int64, spec.Width256](x.v, y.v, z.v)}
+	return Int64x4{spec.MulAddInts[int64, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64x8) MulAdd(y Int64x8, z Int64x8) (w Int64x8) {
-	return Int64x8{spec.MulAdd[int64, spec.Width512](x.v, y.v, z.v)}
+	return Int64x8{spec.MulAddInts[int64, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Int64s) MulAdd(y Int64s, z Int64s) (w Int64s) {
-	return Int64s{spec.MulAdd[int64, spec.WidthScalable](x.v, y.v, z.v)}
+	return Int64s{spec.MulAddInts[int64, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x16) MulAdd(y Uint8x16, z Uint8x16) (w Uint8x16) {
-	return Uint8x16{spec.MulAdd[uint8, spec.Width128](x.v, y.v, z.v)}
+	return Uint8x16{spec.MulAddInts[uint8, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x32) MulAdd(y Uint8x32, z Uint8x32) (w Uint8x32) {
-	return Uint8x32{spec.MulAdd[uint8, spec.Width256](x.v, y.v, z.v)}
+	return Uint8x32{spec.MulAddInts[uint8, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8x64) MulAdd(y Uint8x64, z Uint8x64) (w Uint8x64) {
-	return Uint8x64{spec.MulAdd[uint8, spec.Width512](x.v, y.v, z.v)}
+	return Uint8x64{spec.MulAddInts[uint8, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint8s) MulAdd(y Uint8s, z Uint8s) (w Uint8s) {
-	return Uint8s{spec.MulAdd[uint8, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint8s{spec.MulAddInts[uint8, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x8) MulAdd(y Uint16x8, z Uint16x8) (w Uint16x8) {
-	return Uint16x8{spec.MulAdd[uint16, spec.Width128](x.v, y.v, z.v)}
+	return Uint16x8{spec.MulAddInts[uint16, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x16) MulAdd(y Uint16x16, z Uint16x16) (w Uint16x16) {
-	return Uint16x16{spec.MulAdd[uint16, spec.Width256](x.v, y.v, z.v)}
+	return Uint16x16{spec.MulAddInts[uint16, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16x32) MulAdd(y Uint16x32, z Uint16x32) (w Uint16x32) {
-	return Uint16x32{spec.MulAdd[uint16, spec.Width512](x.v, y.v, z.v)}
+	return Uint16x32{spec.MulAddInts[uint16, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint16s) MulAdd(y Uint16s, z Uint16s) (w Uint16s) {
-	return Uint16s{spec.MulAdd[uint16, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint16s{spec.MulAddInts[uint16, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4) {
-	return Uint32x4{spec.MulAdd[uint32, spec.Width128](x.v, y.v, z.v)}
+	return Uint32x4{spec.MulAddInts[uint32, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x8) MulAdd(y Uint32x8, z Uint32x8) (w Uint32x8) {
-	return Uint32x8{spec.MulAdd[uint32, spec.Width256](x.v, y.v, z.v)}
+	return Uint32x8{spec.MulAddInts[uint32, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32x16) MulAdd(y Uint32x16, z Uint32x16) (w Uint32x16) {
-	return Uint32x16{spec.MulAdd[uint32, spec.Width512](x.v, y.v, z.v)}
+	return Uint32x16{spec.MulAddInts[uint32, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint32s) MulAdd(y Uint32s, z Uint32s) (w Uint32s) {
-	return Uint32s{spec.MulAdd[uint32, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint32s{spec.MulAddInts[uint32, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x2) MulAdd(y Uint64x2, z Uint64x2) (w Uint64x2) {
-	return Uint64x2{spec.MulAdd[uint64, spec.Width128](x.v, y.v, z.v)}
+	return Uint64x2{spec.MulAddInts[uint64, spec.Width128](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x4) MulAdd(y Uint64x4, z Uint64x4) (w Uint64x4) {
-	return Uint64x4{spec.MulAdd[uint64, spec.Width256](x.v, y.v, z.v)}
+	return Uint64x4{spec.MulAddInts[uint64, spec.Width256](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64x8) MulAdd(y Uint64x8, z Uint64x8) (w Uint64x8) {
-	return Uint64x8{spec.MulAdd[uint64, spec.Width512](x.v, y.v, z.v)}
+	return Uint64x8{spec.MulAddInts[uint64, spec.Width512](x.v, y.v, z.v)}
 }
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
 func (x Uint64s) MulAdd(y Uint64s, z Uint64s) (w Uint64s) {
-	return Uint64s{spec.MulAdd[uint64, spec.WidthScalable](x.v, y.v, z.v)}
+	return Uint64s{spec.MulAddInts[uint64, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
+	return Float32x4{spec.MulAddFloats[float32, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x8) MulAdd(y Float32x8, z Float32x8) (w Float32x8) {
+	return Float32x8{spec.MulAddFloats[float32, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32x16) MulAdd(y Float32x16, z Float32x16) (w Float32x16) {
+	return Float32x16{spec.MulAddFloats[float32, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
+	return Float32s{spec.MulAddFloats[float32, spec.WidthScalable](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
+	return Float64x2{spec.MulAddFloats[float64, spec.Width128](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x4) MulAdd(y Float64x4, z Float64x4) (w Float64x4) {
+	return Float64x4{spec.MulAddFloats[float64, spec.Width256](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8) {
+	return Float64x8{spec.MulAddFloats[float64, spec.Width512](x.v, y.v, z.v)}
+}
+
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
+	return Float64s{spec.MulAddFloats[float64, spec.WidthScalable](x.v, y.v, z.v)}
 }
 
 // Neg returns the elementwise negation of x.

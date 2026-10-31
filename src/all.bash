@@ -9,5 +9,5 @@ if [ ! -f make.bash ]; then
 	exit 1
 fi
 . ./make.bash "$@" --no-banner
-bash run.bash --no-rebuild
+bash run.bash "$@" --no-rebuild
 ../bin/go tool dist banner # print build info

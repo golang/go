@@ -45,9 +45,37 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 	// Evaluate arguments for built-ins that use ordinary (value) arguments.
 	// For built-ins with special argument handling (make, new, etc.),
 	// evaluation is done by the respective built-in code.
-	var args []*operand // not valid for _Make, _New, _Offsetof, _Trace
+
+	// not valid	for _Append, _Copy, _Delete 		if len(argList != 1)
+	// not valid	for _Make, _New, _Offsetof, _Trace
+	var args []*operand
 	var nargs int
 	switch id {
+	case _Append, _Copy, _Delete:
+		// Careful: There is a tension between argument inference and tuple
+		// arguments to built-ins.
+		//
+		// Case len(argList) != 1: No argument can be a tuple argument to a
+		// built-in and thus necessarily nargs == len(argList). We cannot
+		// evaluate argList upfront because e.g. {} in delete(m, {}) needs a
+		// target type from m.
+		if len(argList) != 1 {
+			nargs = len(argList)
+			// Type the first argument (if available) upfront for convenience.
+			if nargs > 0 {
+				check.expr(nil, x, argList[0])
+				if !x.isValid() {
+					check.use(argList[1:]...)
+					return
+				}
+			}
+			break
+		}
+		// Case len(argList) == 1: The argument may be a tuple argument to a
+		// built-in and thus potentially nargs != len(argList). We can evaluate
+		// argList upfront because e.g. {} in delete({}) has no other argument
+		// from which to get a target type.
+		fallthrough
 	default:
 		// check all arguments
 		args = check.exprList(argList)
@@ -102,7 +130,26 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		E, err := sliceElem(x)
 		if err != nil {
 			check.errorf(x, InvalidAppend, "invalid append: %s", err.format(check))
+			check.use(argList[1:]...)
 			return
+		}
+
+		if args == nil { // first argument is evaluated and is a slice
+			// process arguments so we can create a signature later
+			args = make([]*operand, nargs)
+			args[0] = x
+			if nargs == 2 && hasDots(call) {
+				// append(x, s...)
+				args[1] = new(operand)
+				check.expr(newTarget(x.typ(), "argument to append"), args[1], argList[1])
+			} else {
+				// append(x, e1, e2, e3)
+				for i := 1; i < nargs; i++ {
+					// argList[i] could be a generic function value
+					args[i] = new(operand)
+					check.genericExpr(newTarget(E, "argument to append"), args[i], argList[i])
+				}
+			}
 		}
 
 		// Handle append(bytes, y...) special case, where
@@ -378,11 +425,22 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 		dstE, err := sliceElem(x)
 		if err != nil {
 			check.errorf(x, InvalidCopy, "invalid copy: %s", err.format(check))
+			check.use(argList[1:]...)
 			return
 		}
 
+		var y *operand
+		if args == nil { // first argument is evaluated and is a slice
+			y = new(operand)
+			check.expr(newTarget(x.typ(), "argument to copy"), y, argList[1])
+			if !y.isValid() {
+				return
+			}
+		} else {
+			y = args[1]
+		}
+
 		// get special case out of the way
-		y := args[1]
 		var special bool
 		if ok, _ := x.assignableTo(check, NewSlice(universeByte), nil); ok {
 			special = true
@@ -440,10 +498,15 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
 			key = map_.key
 			return true
 		}) {
+			check.use(argList[1:]...)
 			return
 		}
-
-		*x = *args[1] // key
+		if args == nil {
+			// argList[1] could be a generic function value
+			check.genericExpr(newTarget(key, "argument to delete"), x, argList[1])
+		} else {
+			*x = *args[1] // key
+		}
 		check.assignment(x, key, "argument to delete")
 		if !x.isValid() {
 			return

@@ -215,17 +215,9 @@ func Average[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// Div divides x by y elementwise.
+// DivInts divides x by y elementwise.
 //
 //	z[i] = x[i] / y[i]
-//
-// {{if eq .xB "float"}}
-//
-// Division by zero does not panic, and the result follows IEEE 754. That is,
-// dividing a non-zero value by zero results in +/- infinity, and dividing zero
-// by zero results in NaN.
-//
-// {{else}}
 //
 // The result is rounded toward zero (truncated division), just like Go's /
 // operator.{{if eq .xB "int"}} Also like Go's / operator, dividing Min{{title .xE}}
@@ -233,8 +225,26 @@ func Average[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 // Unlike Go's / operator, division by zero does not panic and instead produces
 // a zero result for that element.
 //
-// {{end}}
-func Div[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+//specgen:name Div
+func DivInts[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, func(x, y E) E {
+		if y == 0 {
+			return 0
+		}
+		return x / y
+	})
+}
+
+// DivFloats divides x by y elementwise.
+//
+//	z[i] = x[i] / y[i]
+//
+// Division by zero does not panic, and the result follows IEEE 754. That is,
+// dividing a non-zero value by zero results in +/- infinity, and dividing zero
+// by zero results in NaN.
+//
+//specgen:name Div
+func DivFloats[E Floats, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E {
 		return x / y
 	})
@@ -334,13 +344,39 @@ func Mul[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// MulAdd returns x * y + z elementwise.
+// MulAddInts returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
-func MulAdd[E Elt, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+//
+//specgen:name MulAdd
+func MulAddInts[E Ints | Uints, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
 	w = makeVec[E, W]()
 	for i := range x {
 		w[i] = x[i]*y[i] + z[i]
+	}
+	return w
+}
+
+// MulAddFloats returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+//
+//specgen:name MulAdd
+func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+	// Go has the option of compiling x*y + z using FMA, but only does so if FMA
+	// support is guaranteed by the hardware version (e.g., GOAMD64>=3). To
+	// guarantee the right result, we have to do it ourself.
+	w = makeVec[E, W]()
+	for i := range x {
+		switch xi := any(x[i]).(type) {
+		case float32:
+			w[i] = E(fma32(xi, float32(y[i]), float32(z[i])))
+		case float64:
+			w[i] = E(math.FMA(xi, float64(y[i]), float64(z[i])))
+		}
 	}
 	return w
 }

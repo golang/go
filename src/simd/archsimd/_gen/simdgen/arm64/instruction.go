@@ -341,6 +341,10 @@ func (instruction *Instruction) arrangementStrings() ([]string, ArngShape) {
 	case "UMOV":
 		return instruction.extractUMOVArrangements(), DefaultArngs
 
+	case "SMOV":
+		arrangements = append(arrangements, "16B", "8H", "4S")
+		return arrangements, DefaultArngs
+
 	case "INS":
 		// INS instruction inserts general register values into vector elements
 		// It supports all arrangements: B, H, S, D with 128-bit vector registers

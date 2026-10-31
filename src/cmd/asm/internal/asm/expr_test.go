@@ -25,6 +25,8 @@ var exprTests = []exprTest{
 	{"0x0f", 15, true},
 	{"0xFF", 255, true},
 	{"9223372036854775807", 9223372036854775807, true}, // max int64
+	{`'\x80'`, 128, true},                              // see go.dev/issue/82205
+
 	// Unary
 	{"-0", 0, true},
 	{"~0", -1, true},
@@ -90,7 +92,6 @@ var badExprTests = []badExprTest{
 	{"3>>(1<<63)", "negative right shift count"},
 	{"(1<<63)>>2", "right shift of value with high bit set"},
 	{"(1<<62)>>2", ""},
-	{`'\x80'`, "illegal UTF-8 encoding for character constant"},
 	{"(23*4", "missing closing paren"},
 	{")23*4", "unexpected ) evaluating expression"},
 	{"18446744073709551616", "value out of range"},

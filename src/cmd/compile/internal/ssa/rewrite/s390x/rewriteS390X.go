@@ -6571,7 +6571,7 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		return true
 	}
 	// match: (CMPUconst (SRDconst _ [c]) [n])
-	// cond: c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(n)
+	// cond: c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(uint32(n))
 	// result: (FlagLT)
 	for {
 		n := ssa.AuxIntToInt32(v.AuxInt)
@@ -6579,7 +6579,7 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToUint8(v_0.AuxInt)
-		if !(c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(n)) {
+		if !(c > 0 && c < 64 && (1<<uint(64-c)) <= uint64(uint32(n))) {
 			break
 		}
 		v.Reset(ssaop.OpS390XFlagLT)

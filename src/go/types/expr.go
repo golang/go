@@ -793,13 +793,43 @@ func init() {
 	}
 }
 
+// isUntypedCompLit returns whether e is directly an untyped composite literal,
+// without traversing parenthesis (to reflect type inference mechanics).
+func isUntypedCompLit(e ast.Expr) bool {
+	lit, _ := e.(*ast.CompositeLit)
+	return lit != nil && lit.Type == nil
+}
+
 // If e != nil, it must be the binary expression; it may be nil for non-constant expressions
 // (when invoked for an assignment operation where the binary expression is implicit).
 func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
 	var y operand
+	if isComparison(op) {
+		if l := isUntypedCompLit(lhs); l != isUntypedCompLit(rhs) {
+			// we have a direction to flow the target type for a composite literal
+			var T *target
+			if l {
+				// {} == cl
+				check.expr(nil, &y, rhs)
+				if y.isValid() {
+					T = newTarget(y.typ(), "comparison")
+				}
+				check.expr(T, x, lhs)
+			} else {
+				// cl == {}
+				check.expr(nil, x, lhs)
+				if x.isValid() {
+					T = newTarget(x.typ(), "comparison")
+				}
+				check.expr(T, &y, rhs)
+			}
+			goto checked
+		}
+	}
 
 	check.expr(nil, x, lhs)
 	check.expr(nil, &y, rhs)
+checked:
 
 	if !x.isValid() {
 		return

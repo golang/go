@@ -450,9 +450,9 @@ func CalcSize(t *Type) {
 		// TODO(mdempsky): Should package abi be responsible for computing argwid?
 		w = calcStructOffset(t1, t1.Recvs(), 0)
 		w = calcStructOffset(t1, t1.Params(), w)
-		w = RoundUp(w, int64(RegSize))
+		w = RoundUp(w, int64(PtrSize))
 		w = calcStructOffset(t1, t1.Results(), w)
-		w = RoundUp(w, int64(RegSize))
+		w = RoundUp(w, int64(PtrSize))
 		t1.extra.(*Func).Argwid = w
 		t.align = 1
 	}

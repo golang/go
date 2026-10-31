@@ -761,6 +761,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	UCVTFD R5, F29                                              // bd00639e
 	VMOV V0.B[1], R11                                           // 0b3c030e
 	VMOV V1.H[3], R12                                           // 2c3c0e0e
+	VSMOV V0.B[1], R11                                          // 0b2c034e
+	VSMOV V1.H[3], R12                                          // 2c2c0e4e
+	VSMOV V13.S[2], R20                                         // b42d144e
+	VSMOV V31.B[15], R21                                        // f52f1f4e
+	VSMOV V31.S[3], R21                                         // f52f1c4e
 	VUSHR $6, V22.H8, V23.H8                                    // d7061a6f
 	SB                                                          // ff3003d5
 

@@ -913,8 +913,18 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p := s.Prog(v.Op.Asm())
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
-	case ssaop.Op386BSFL, ssaop.Op386BSFW,
-		ssaop.Op386BSRL, ssaop.Op386BSRW,
+	case ssaop.Op386BSFL, ssaop.Op386BSRL:
+		if v.Args[0].Reg() != v.Reg() {
+			// BSF/BSR depend on the previous destination value.
+			// Clear the destination to break the dependency.
+			opregreg(s, x86.AXORL, v.Reg(), v.Reg())
+		}
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
+	case ssaop.Op386BSFW, ssaop.Op386BSRW,
 		ssaop.Op386SQRTSS, ssaop.Op386SQRTSD:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
@@ -981,6 +991,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			base.WarnfAt(v.Pos, "generated nil check")
 		}
 	case ssaop.Op386LoweredCtz32:
+		// BSF depends on the previous destination value.
+		// Clear the destination to break the dependency.
+		if v.Args[0].Reg() != v.Reg() {
+			opregreg(s, x86.AXORL, v.Reg(), v.Reg())
+		}
 		// BSFL in, out
 		p := s.Prog(x86.ABSFL)
 		p.From.Type = obj.TYPE_REG
@@ -1010,6 +1025,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("input[1] and output in the same register %s", v.LongString())
 		}
 
+		// BSF depends on the previous destination value.
+		// Clear the destination to break the dependency before each scan.
+		// Both inputs are distinct from the output. Each scan sets its own ZF.
+		opregreg(s, x86.AXORL, v.Reg(), v.Reg())
 		// BSFL arg0, out
 		p := s.Prog(x86.ABSFL)
 		p.From.Type = obj.TYPE_REG
@@ -1017,10 +1036,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg()
 
-		// JNZ 5(PC)
+		// JNZ to the final NOP
 		p1 := s.Prog(x86.AJNE)
 		p1.To.Type = obj.TYPE_BRANCH
 
+		opregreg(s, x86.AXORL, v.Reg(), v.Reg())
 		// BSFL arg1, out
 		p2 := s.Prog(x86.ABSFL)
 		p2.From.Type = obj.TYPE_REG

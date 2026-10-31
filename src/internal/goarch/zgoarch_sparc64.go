@@ -30,3 +30,4 @@ const IsS390x = 0
 const IsSparc = 0
 const IsSparc64 = 1
 const IsWasm = 0
+const IsWasm32 = 0

@@ -51,7 +51,7 @@ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 
 	//	8:	50000000	b	0
 	//				8: R_LARCH_B26	runtime.addmoduledata
-	o(OP_B_BL(OpCodeIRR(AJMP), 0))
+	o(OP_B_BL(OpCodeI(AJMP), 0))
 	rel3, _ := initfunc.AddRel(objabi.R_CALLLOONG64)
 	rel3.SetOff(8)
 	rel3.SetSiz(4)
@@ -370,7 +370,7 @@ func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBu
 		plt.AddUint32(ctxt.Arch, t)
 
 		// jirl $r0, $r15, 0
-		t = OP_16IRR(OpCodeIRR(AJIRL), 0, REG_R15, REG_R0)
+		t = OP_16IRR(OpCodeIRR(AJAL), 0, REG_R15, REG_R0)
 		plt.AddUint32(ctxt.Arch, t)
 
 		// check gotplt.size == 0
@@ -418,7 +418,7 @@ func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		plt.AddUint32(target.Arch, t)
 
 		// jirl r0, r15, 0
-		t = OP_16IRR(OpCodeIRR(AJIRL), 0, REG_R15, REG_R0)
+		t = OP_16IRR(OpCodeIRR(AJAL), 0, REG_R15, REG_R0)
 		plt.AddUint32(target.Arch, t)
 
 		// add to got.plt: pointer to plt[0]
@@ -880,7 +880,7 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
 	r2.SetSym(target)
 	r2.SetAdd(offset)
 
-	o3 := OP_16IRR(OpCodeIRR(AJIRL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
+	o3 := OP_16IRR(OpCodeIRR(AJAL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)
@@ -904,7 +904,7 @@ func gentrampgot(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder,
 	r2.SetSiz(4)
 	r2.SetSym(target)
 
-	o3 := OP_16IRR(OpCodeIRR(AJIRL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
+	o3 := OP_16IRR(OpCodeIRR(AJAL), 0, REGRT1, REG_R0) // jirl $r0, $r20, 0
 	ctxt.Arch.ByteOrder.PutUint32(P[8:], o3)
 
 	tramp.SetData(P)

@@ -9,6 +9,7 @@ package builtins
 import "unsafe"
 
 func f0() {}
+func g0[P any](P) {}
 
 func append1() {
 	var b byte
@@ -78,6 +79,24 @@ func append3() {
 	_ = append(f3())
 	_ = append(f5())
 	_ = append(ff /* ERROR "must be a slice" */ ()) // TODO(gri) better error message
+}
+
+func append4() {
+	e1 := 42
+	e2 := 42
+	append(bad /* ERROR "undefined" */, e1)
+	append(nil /* ERROR "must be a slice" */, e2)
+}
+
+func append5() {
+	var s []func(int)
+	_ = append(s, g0)
+}
+
+func append6() {
+	var s [][]int
+	_ = append(s, {})
+	_ = append(s, {{1}, {2}, {3}}...)
 }
 
 func cap1() {
@@ -291,6 +310,13 @@ func copy2() {
 	copy(f3()) // ERROR "too many arguments"
 }
 
+func copy3() {
+	s1 := []int{42}
+	s2 := []int{42}
+	copy(bad /* ERROR "undefined" */, s1)
+	copy(nil /* ERROR "must be a slice" */, s2)
+}
+
 func delete1() {
 	var m map[string]int
 	var s string
@@ -313,6 +339,18 @@ func delete2() {
 	delete(f1()) // ERROR "not enough arguments"
 	delete(f2())
 	delete(f3()) // ERROR "too many arguments"
+}
+
+func delete3() {
+	k1 := 42
+	k2 := 42
+	delete(bad /* ERROR "undefined" */, k1)
+	delete(nil /* ERROR "nil is not a map" */, k2)
+}
+
+func delete4() {
+	var m map[func/* ERROR "invalid map key type" */(int)]int
+	delete(m, g0) // should still infer the type argument to g0
 }
 
 func imag1() {

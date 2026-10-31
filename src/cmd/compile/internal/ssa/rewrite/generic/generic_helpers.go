@@ -78,7 +78,7 @@ func canLoadUnaligned(c *ssa.Config) bool {
 // canRotate reports whether the architecture supports
 // rotates of integer registers with the given number of bits.
 func canRotate(c *ssa.Config, bits int64) bool {
-	if bits > c.PtrSize*8 {
+	if bits > c.RegSize*8 {
 		// Don't rewrite to rotates bigger than the machine word.
 		return false
 	}

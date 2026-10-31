@@ -119,7 +119,6 @@ var bootstrapDirs = []string{
 	"cmd/vendor/golang.org/x/mod/sumdb/dirhash",
 	"cmd/vendor/golang.org/x/mod/zip",
 	"cmd/vendor/golang.org/x/sync/semaphore",
-	"cmd/vendor/golang.org/x/tools/go/analysis",
 	"compress/flate",
 	"compress/zlib",
 	"container/heap",

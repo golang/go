@@ -1384,11 +1384,29 @@ func TestDecoderReset(t *testing.T) {
 	})
 
 	t.Run("Test ability to reset nil reader", func(t *testing.T) {
-		defer func() {
-			if recover() != nil {
-				t.Fatalf("decoder.Reset(nil) shouldn`t panic")
-			}
-		}()
-		dec.Reset(nil)
+		checkPanic := func(want any, f func()) {
+			defer func() {
+				got := recover()
+				if got != want {
+					t.Errorf("panic: got %v, want %v", got, want)
+				}
+			}()
+			f()
+		}
+
+		// NewDecoder on a nil Writer should not panic.
+		checkPanic(nil, func() { NewDecoder(nil) })
+
+		// Reset(nil) on an Decoder with an internal io.Reader should not panic.
+		checkPanic(nil, func() {
+			dec.Reset(new(bytes.Buffer))
+			dec.Reset(nil)
+			dec.Reset(nil) // should be idempotent
+		})
+
+		// Subsequent Decoder method calls after Reset(nil) must panic.
+		checkPanic("nil io.Reader", func() { dec.ReadToken() })
+
+		// TODO: Calling methods on zero Decoder should also panic.
 	})
 }

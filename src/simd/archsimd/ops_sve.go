@@ -819,12 +819,18 @@ func (x Uint64s) Mul(y Uint64s) (z Uint64s)
 //
 //	w[i] = x[i] * y[i] + z[i]
 //
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
+//
 // Asm: ZFMLA, CPU Feature: SVE
 func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s)
 
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: ZFMLA, CPU Feature: SVE
 func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s)

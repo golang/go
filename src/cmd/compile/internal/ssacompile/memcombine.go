@@ -51,8 +51,8 @@ func memcombineLoads(f *ssa.Func, ptrAlignments []int8) {
 			if v.Op != ssaop.OpOr16 && v.Op != ssaop.OpOr32 && v.Op != ssaop.OpOr64 {
 				continue
 			}
-			if mark.Contains(v.ID) {
-				// marked - means it is not the root of an OR tree
+			if v.Uses == 1 && mark.Contains(v.ID) {
+				// A single-use argument belongs to its parent's OR tree.
 				continue
 			}
 			// Add the OR tree rooted at v to the order.
@@ -63,7 +63,8 @@ func memcombineLoads(f *ssa.Func, ptrAlignments []int8) {
 				x := order[i]
 				for j := 0; j < 2; j++ {
 					a := x.Args[j]
-					if a.Op == ssaop.OpOr16 || a.Op == ssaop.OpOr32 || a.Op == ssaop.OpOr64 {
+					// combineLoads cannot combine through shared values.
+					if a.Uses == 1 && (a.Op == ssaop.OpOr16 || a.Op == ssaop.OpOr32 || a.Op == ssaop.OpOr64) {
 						order = append(order, a)
 					}
 				}

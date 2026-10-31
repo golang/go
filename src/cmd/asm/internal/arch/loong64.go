@@ -17,10 +17,14 @@ import (
 
 func jumpLoong64(word string) bool {
 	switch word {
-	case "BEQ", "BFPF", "BFPT", "BLTZ", "BGEZ", "BLEZ", "BGTZ", "BLT", "BLTU", "JIRL", "BNE", "BGE", "BGEU", "JMP", "JAL", "CALL":
+	case "BEQ", "BFPF", "BFPT", "BLTZ", "BGEZ", "BLEZ", "BGTZ", "BLT", "BLTU", "BNE", "BGE", "BGEU", "JMP", "JAL", "CALL":
 		return true
 	}
 	return false
+}
+
+func IsLoong64JIRL(op obj.As) bool {
+	return op == loong64.AJAL
 }
 
 // IsLoong64RDTIME reports whether the op (as defined by an loong64.A*

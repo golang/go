@@ -7,6 +7,7 @@ package script
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 // ErrUnexpectedSuccess indicates that a script command that was expected to
@@ -16,28 +17,37 @@ var ErrUnexpectedSuccess = errors.New("unexpected success")
 // A CommandError describes an error resulting from attempting to execute a
 // specific command.
 type CommandError struct {
-	File string
-	Line int
-	Op   string
-	Args []string
-	Err  error
+	File       string
+	Line       int
+	Op         string
+	Args       []string
+	Err        error
+	Background bool          // command ran in background (had trailing &)
+	Duration   time.Duration // execution duration. Zero for background commands (because unknown)
 }
 
 func cmdError(cmd *command, err error) *CommandError {
 	return &CommandError{
-		File: cmd.file,
-		Line: cmd.line,
-		Op:   cmd.name,
-		Args: cmd.args,
-		Err:  err,
+		File:       cmd.file,
+		Line:       cmd.line,
+		Op:         cmd.name,
+		Args:       cmd.args,
+		Err:        err,
+		Background: cmd.background,
+		Duration:   cmd.duration,
 	}
 }
 
 func (e *CommandError) Error() string {
-	if len(e.Args) == 0 {
-		return fmt.Sprintf("%s:%d: %s: %v", e.File, e.Line, e.Op, e.Err)
+	var duration string
+	if !e.Background {
+		// We only track duration for non-background commands.
+		duration = fmt.Sprintf(" (took %.3fs)", e.Duration.Seconds())
 	}
-	return fmt.Sprintf("%s:%d: %s %s: %v", e.File, e.Line, e.Op, quoteArgs(e.Args), e.Err)
+	if len(e.Args) == 0 {
+		return fmt.Sprintf("%s:%d: %s%s: %v", e.File, e.Line, e.Op, duration, e.Err)
+	}
+	return fmt.Sprintf("%s:%d: %s %s%s: %v", e.File, e.Line, e.Op, quoteArgs(e.Args), duration, e.Err)
 }
 
 func (e *CommandError) Unwrap() error { return e.Err }

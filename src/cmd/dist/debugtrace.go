@@ -6,15 +6,19 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
 var (
-	debugTrace  string
-	debugTraces []string
-	distEvents  []*traceEvent
+	debugTrace       string
+	debugTraceAppend bool // append trace events instead of overwriting
+	traceMu          sync.Mutex
+	debugTraces      []string
+	distEvents       []*traceEvent
 )
 
 // This is a subset of the fields on internal/trace/traceviewer/format.go,
@@ -44,32 +48,85 @@ func timeMicros(t time.Time) float64 {
 	return float64(t.UnixNano()) / float64(time.Microsecond)
 }
 
-type span string
+type span struct {
+	name string
+	tid  uint64
+}
 
 func startSpan(name string) span {
+	return startSpanTID(name, 0)
+}
+
+func startSpanTID(name string, tid uint64) span {
 	if debugTrace == "" {
-		return ""
+		return span{}
 	}
-	distEvents = append(distEvents, &traceEvent{Name: name, Phase: "B", Time: timeMicros(time.Now())})
-	return span(name)
+	traceMu.Lock()
+	distEvents = append(distEvents, &traceEvent{Name: name, Phase: "B", Time: timeMicros(time.Now()), TID: tid})
+	traceMu.Unlock()
+	return span{name: name, tid: tid}
 }
 
 func (s span) done() {
-	if s == "" {
+	if s.name == "" {
 		return
 	}
-	distEvents = append(distEvents, &traceEvent{Name: string(s), Phase: "E", Time: timeMicros(time.Now())})
+	traceMu.Lock()
+	distEvents = append(distEvents, &traceEvent{Name: s.name, Phase: "E", Time: timeMicros(time.Now()), TID: s.tid})
+	traceMu.Unlock()
 }
 
 // writeTrace merges the -debug-trace outputs from the go command invocations and adds
 // dist's own trace events in too. Because the traces have absolute timpstamps, we can
 // essentially just concatenate them.
 func writeTrace() {
-	f, err := os.Create(debugTrace)
-	if err != nil {
-		fatalf("opening trace file for write: %v", err)
+	var f *os.File
+	var err error
+	if debugTraceAppend {
+		f, err = os.OpenFile(debugTrace, os.O_RDWR|os.O_CREATE, 0o777)
+		if err != nil {
+			fatalf("open trace file for read/write: %v", err)
+		}
+		ok := func() bool {
+			// Try to seek before close brace so we can append.
+			fi, err := f.Stat()
+			if err != nil {
+				return false
+			}
+			size := fi.Size()
+			var lastTwo [2]byte
+			if size < 2 {
+				return false
+			}
+			if _, err := f.ReadAt(lastTwo[:], size-2); err != nil {
+				return false
+			}
+			if lastTwo != [2]byte{']', '\n'} {
+				return false
+			}
+			if _, err = f.Seek(-2, io.SeekEnd); err != nil {
+				return false
+			}
+			if _, err = f.WriteString(",\n"); err != nil {
+				return false
+			}
+			return true
+		}()
+		if !ok {
+			if err = f.Truncate(0); err != nil {
+				fatalf("failed to truncate trace file for writing: %v", err)
+			}
+			f.Seek(0, io.SeekStart)
+			f.WriteString("[\n")
+		}
+	} else {
+		// Not appending to already existing file. Create a new file.
+		f, err = os.Create(debugTrace)
+		if err != nil {
+			fatalf("opening trace file for write: %v", err)
+		}
+		f.WriteString("[\n")
 	}
-	f.WriteString("[\n")
 
 	enc := json.NewEncoder(f)
 	for _, ev := range distEvents {

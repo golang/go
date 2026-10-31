@@ -470,7 +470,7 @@ func (x {{.Name}}) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 {{- else}}
 // String returns a string representation of SIMD vector x. Only the x.Len()
@@ -479,7 +479,7 @@ func (x {{.Name}}) String() string {
 	var s [{{.MaxLanes}}]{{.Base}}
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 {{- end}}
 {{end}}
@@ -1002,7 +1002,10 @@ func writeSIMDTypes(buffer *bytes.Buffer, typeMap simdTypeMap) {
 		// SVE predicates are represented as-is (a P register), not as data vectors,
 		// so their Go types are tagged with psve rather than a v<N> vector tag.
 		buffer.WriteString(`
-import "unsafe"
+import (
+	"simd/internal/simdfmt"
+	"unsafe"
+)
 
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {

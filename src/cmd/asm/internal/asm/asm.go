@@ -419,10 +419,18 @@ func (p *Parser) asmJump(op obj.As, cond string, a []obj.Addr) {
 			target = &a[0]
 			prog.To = a[1]
 			targetAddr = &prog.From
-		} else {
-			target = &a[1]
-			prog.From = a[0]
+			break
 		}
+
+		if p.arch.Family == sys.Loong64 && arch.IsLoong64JIRL(op) {
+			target = &a[0]
+			prog.RegTo2 = a[1].Reg
+			break
+		}
+
+		target = &a[1]
+		prog.From = a[0]
+
 	case 3:
 		if p.arch.Family == sys.PPC64 {
 			// Special 3-operand jumps.

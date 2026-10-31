@@ -256,8 +256,9 @@ const (
 	BIG_9  = 256 - 2
 	BIG_10 = 512 - 2
 	BIG_11 = 1024 - 2
-	BIG_12 = 2046
+	BIG_12 = 2048 - 2
 	BIG_16 = 32768 - 2
+	BIG_18 = 131072 - 2
 	BIG_32 = 2147483648 - 2
 )
 
@@ -420,6 +421,7 @@ const (
 	C_SOREG_11 // An $n+reg memory arg where n is a 11 bit signed offset
 	C_SOREG_12 // An $n+reg memory arg where n is a 12 bit signed offset
 	C_SOREG_16 // An $n+reg memory arg where n is a 16 bit signed offset
+	C_SOREG_18 // An $n+reg memory arg where n is a 18 bit signed offset
 	C_LOREG_32 // An $n+reg memory arg where n is a 32 bit signed offset
 	C_LOREG_64 // An $n+reg memory arg where n is a 64 bit signed offset
 	C_ROFF     // register offset

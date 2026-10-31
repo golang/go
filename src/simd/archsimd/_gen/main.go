@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true, "refgen": true, "specstats": true}, "comma-separated list of tools (or +/-tools) to run")
+	flagTools = flagVar("tools", ToolSet{"tmplgen": true, "simdgen": true, "wasmgen": true, "midway": true, "refgen": true}, "comma-separated list of tools (or +/-tools) to run")
 
 	flagN         = flag.Bool("n", false, "dry run")
 	flagXedPath   = sgutil.FlagXEDPath(".")
@@ -156,10 +156,6 @@ func main() {
 
 	if flagTools["midway"] {
 		doGen("midway", &files)
-	}
-
-	if flagTools["specstats"] {
-		doGen("cmd/specstats", &files)
 	}
 }
 

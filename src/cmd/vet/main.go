@@ -5,11 +5,11 @@
 package main
 
 import (
+	"internal/analysis/suite/vet"
+	"internal/analysis/unitchecker"
+
 	"cmd/internal/objabi"
 	"cmd/internal/telemetry/counter"
-
-	"golang.org/x/tools/go/analysis/suite/vet"
-	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {

@@ -160,6 +160,74 @@ var atomicLDADD = map[obj.As]uint32{
 	ALDORLW:   2<<30 | 0x1c3<<21 | 0x0c<<10,
 	ALDORLH:   1<<30 | 0x1c3<<21 | 0x0c<<10,
 	ALDORLB:   0<<30 | 0x1c3<<21 | 0x0c<<10,
+	// LDSMAX: atomic signed maximum
+	ALDSMAXAD:  3<<30 | 0x1c5<<21 | 0x10<<10,
+	ALDSMAXAW:  2<<30 | 0x1c5<<21 | 0x10<<10,
+	ALDSMAXAH:  1<<30 | 0x1c5<<21 | 0x10<<10,
+	ALDSMAXAB:  0<<30 | 0x1c5<<21 | 0x10<<10,
+	ALDSMAXALD: 3<<30 | 0x1c7<<21 | 0x10<<10,
+	ALDSMAXALW: 2<<30 | 0x1c7<<21 | 0x10<<10,
+	ALDSMAXALH: 1<<30 | 0x1c7<<21 | 0x10<<10,
+	ALDSMAXALB: 0<<30 | 0x1c7<<21 | 0x10<<10,
+	ALDSMAXD:   3<<30 | 0x1c1<<21 | 0x10<<10,
+	ALDSMAXW:   2<<30 | 0x1c1<<21 | 0x10<<10,
+	ALDSMAXH:   1<<30 | 0x1c1<<21 | 0x10<<10,
+	ALDSMAXB:   0<<30 | 0x1c1<<21 | 0x10<<10,
+	ALDSMAXLD:  3<<30 | 0x1c3<<21 | 0x10<<10,
+	ALDSMAXLW:  2<<30 | 0x1c3<<21 | 0x10<<10,
+	ALDSMAXLH:  1<<30 | 0x1c3<<21 | 0x10<<10,
+	ALDSMAXLB:  0<<30 | 0x1c3<<21 | 0x10<<10,
+	// LDSMIN: atomic signed minimum
+	ALDSMINAD:  3<<30 | 0x1c5<<21 | 0x14<<10,
+	ALDSMINAW:  2<<30 | 0x1c5<<21 | 0x14<<10,
+	ALDSMINAH:  1<<30 | 0x1c5<<21 | 0x14<<10,
+	ALDSMINAB:  0<<30 | 0x1c5<<21 | 0x14<<10,
+	ALDSMINALD: 3<<30 | 0x1c7<<21 | 0x14<<10,
+	ALDSMINALW: 2<<30 | 0x1c7<<21 | 0x14<<10,
+	ALDSMINALH: 1<<30 | 0x1c7<<21 | 0x14<<10,
+	ALDSMINALB: 0<<30 | 0x1c7<<21 | 0x14<<10,
+	ALDSMIND:   3<<30 | 0x1c1<<21 | 0x14<<10,
+	ALDSMINW:   2<<30 | 0x1c1<<21 | 0x14<<10,
+	ALDSMINH:   1<<30 | 0x1c1<<21 | 0x14<<10,
+	ALDSMINB:   0<<30 | 0x1c1<<21 | 0x14<<10,
+	ALDSMINLD:  3<<30 | 0x1c3<<21 | 0x14<<10,
+	ALDSMINLW:  2<<30 | 0x1c3<<21 | 0x14<<10,
+	ALDSMINLH:  1<<30 | 0x1c3<<21 | 0x14<<10,
+	ALDSMINLB:  0<<30 | 0x1c3<<21 | 0x14<<10,
+	// LDUMAX: atomic unsigned maximum
+	ALDUMAXAD:  3<<30 | 0x1c5<<21 | 0x18<<10,
+	ALDUMAXAW:  2<<30 | 0x1c5<<21 | 0x18<<10,
+	ALDUMAXAH:  1<<30 | 0x1c5<<21 | 0x18<<10,
+	ALDUMAXAB:  0<<30 | 0x1c5<<21 | 0x18<<10,
+	ALDUMAXALD: 3<<30 | 0x1c7<<21 | 0x18<<10,
+	ALDUMAXALW: 2<<30 | 0x1c7<<21 | 0x18<<10,
+	ALDUMAXALH: 1<<30 | 0x1c7<<21 | 0x18<<10,
+	ALDUMAXALB: 0<<30 | 0x1c7<<21 | 0x18<<10,
+	ALDUMAXD:   3<<30 | 0x1c1<<21 | 0x18<<10,
+	ALDUMAXW:   2<<30 | 0x1c1<<21 | 0x18<<10,
+	ALDUMAXH:   1<<30 | 0x1c1<<21 | 0x18<<10,
+	ALDUMAXB:   0<<30 | 0x1c1<<21 | 0x18<<10,
+	ALDUMAXLD:  3<<30 | 0x1c3<<21 | 0x18<<10,
+	ALDUMAXLW:  2<<30 | 0x1c3<<21 | 0x18<<10,
+	ALDUMAXLH:  1<<30 | 0x1c3<<21 | 0x18<<10,
+	ALDUMAXLB:  0<<30 | 0x1c3<<21 | 0x18<<10,
+	// LDUMIN: atomic unsigned minimum
+	ALDUMINAD:  3<<30 | 0x1c5<<21 | 0x1c<<10,
+	ALDUMINAW:  2<<30 | 0x1c5<<21 | 0x1c<<10,
+	ALDUMINAH:  1<<30 | 0x1c5<<21 | 0x1c<<10,
+	ALDUMINAB:  0<<30 | 0x1c5<<21 | 0x1c<<10,
+	ALDUMINALD: 3<<30 | 0x1c7<<21 | 0x1c<<10,
+	ALDUMINALW: 2<<30 | 0x1c7<<21 | 0x1c<<10,
+	ALDUMINALH: 1<<30 | 0x1c7<<21 | 0x1c<<10,
+	ALDUMINALB: 0<<30 | 0x1c7<<21 | 0x1c<<10,
+	ALDUMIND:   3<<30 | 0x1c1<<21 | 0x1c<<10,
+	ALDUMINW:   2<<30 | 0x1c1<<21 | 0x1c<<10,
+	ALDUMINH:   1<<30 | 0x1c1<<21 | 0x1c<<10,
+	ALDUMINB:   0<<30 | 0x1c1<<21 | 0x1c<<10,
+	ALDUMINLD:  3<<30 | 0x1c3<<21 | 0x1c<<10,
+	ALDUMINLW:  2<<30 | 0x1c3<<21 | 0x1c<<10,
+	ALDUMINLH:  1<<30 | 0x1c3<<21 | 0x1c<<10,
+	ALDUMINLB:  0<<30 | 0x1c3<<21 | 0x1c<<10,
 }
 
 var atomicSWP = map[obj.As]uint32{
@@ -541,6 +609,7 @@ var optab = []Optab{
 	{AVMOV, C_ZREG, C_NONE, C_NONE, C_ARNG, C_NONE, 82, 4, 0, 0, 0},
 	{AVMOV, C_ZREG, C_NONE, C_NONE, C_ELEM, C_NONE, 78, 4, 0, 0, 0},
 	{AVMOV, C_ARNG, C_NONE, C_NONE, C_ARNG, C_NONE, 83, 4, 0, 0, 0},
+	{AVSMOV, C_ELEM, C_NONE, C_NONE, C_ZREG, C_NONE, 73, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_ARNG, C_NONE, 79, 4, 0, 0, 0},
 	{AVDUP, C_ELEM, C_NONE, C_NONE, C_VREG, C_NONE, 80, 4, 0, 0, 0},
 	{AVDUP, C_ZREG, C_NONE, C_NONE, C_ARNG, C_NONE, 82, 4, 0, 0, 0},
@@ -3443,6 +3512,7 @@ func buildop(ctxt *obj.Link) {
 
 		case AVCNT,
 			AVMOV,
+			AVSMOV,
 			AVLD1,
 			AVST1,
 			AVST2,
@@ -4935,11 +5005,14 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 		o1 = c.oprrr(p, p.As, p.To.Reg, p.Reg, p.From.Reg)
 		o1 |= uint32(Q&1)<<30 | uint32(size&3)<<22
 
-	case 73: /* vmov V.<T>[index], R */
+	case 73: /* vmov/vsmov V.<T>[index], R */
 		rf := int(p.From.Reg)
 		rt := int(p.To.Reg)
 		imm5 := 0
 		o1 = 7<<25 | 0xf<<10
+		if p.As == AVSMOV {
+			o1 = 7<<25 | 0xb<<10 | 1<<30
+		}
 		index := int(p.From.Index)
 		switch (p.From.Reg >> 5) & 15 {
 		case ARNG_B:
@@ -4959,6 +5032,9 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			imm5 |= 8
 			imm5 |= index << 4
 			o1 |= 1 << 30
+			if p.As == AVSMOV {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+			}
 		default:
 			c.ctxt.Diag("invalid arrangement: %v", p)
 		}

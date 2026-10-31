@@ -5,7 +5,7 @@
 package spec
 
 import (
-	"internal/strconv"
+	"fmt"
 	"sync/atomic"
 	"unsafe"
 )
@@ -123,7 +123,7 @@ func ScalableWidth() int {
 // overlapping attempts to set the width.
 func SetScalableWidth(bits int) (restore func()) {
 	if bits <= 0 || bits > maxScalableWidth || bits%128 != 0 {
-		panic("invalid scalable width " + strconv.Itoa(bits))
+		panic(fmt.Sprintf("invalid scalable width %d", bits))
 	}
 
 	if !scalableWidth.CompareAndSwap(0, int64(bits)) {
@@ -157,7 +157,7 @@ func (WidthScalable) bits() int { return ScalableWidth() }
 // This type is known to specgen.
 type Vec[E EltOrMask, W Width] []E
 
-func (v Vec[E, W]) len() int {
+func (x Vec[E, W]) len() int {
 	return lanes[E, W]()
 }
 

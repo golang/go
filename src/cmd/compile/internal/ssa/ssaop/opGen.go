@@ -564,8 +564,10 @@ const (
 	OpAMD64NOTQ
 	OpAMD64NOTL
 	OpAMD64BSFQ
-	OpAMD64BSFL
 	OpAMD64BSRQ
+	OpAMD64BSFQinit
+	OpAMD64BSRQinit
+	OpAMD64BSFL
 	OpAMD64BSRL
 	OpAMD64CMOVQEQ
 	OpAMD64CMOVQNE
@@ -5070,6 +5072,9 @@ const (
 	OpARM64VSHRN2_8H
 	OpARM64VSHRN4S
 	OpARM64VSHRN8H
+	OpARM64VSMOVBextr
+	OpARM64VSMOVHextr
+	OpARM64VSMOVSextr
 	OpARM64VSQSHL2Dconst
 	OpARM64VSQSHL4Sconst
 	OpARM64VSQSHL8Hconst
@@ -6644,11 +6649,15 @@ const (
 	OpWasmF32Sub
 	OpWasmF32Mul
 	OpWasmF32Div
+	OpWasmF32Min
+	OpWasmF32Max
 	OpWasmF64Neg
 	OpWasmF64Add
 	OpWasmF64Sub
 	OpWasmF64Mul
 	OpWasmF64Div
+	OpWasmF64Min
+	OpWasmF64Max
 	OpWasmI64TruncSatF64S
 	OpWasmI64TruncSatF64U
 	OpWasmI64TruncSatF32S
@@ -17920,16 +17929,65 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "BSFQ",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ABSFQ,
+		Name:         "BSFQ",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSFQ,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			Outputs: []OutputInfo{
-				{1, RegMask{V1: 0, V2: 0}},
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSRQ",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSRQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSFQinit",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSFQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+		},
+	},
+	{
+		Name:         "BSRQinit",
+		ArgLen:       2,
+		ResultInArg0: true,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ABSRQ,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+				{1, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
+			},
+			Outputs: []OutputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
@@ -17945,21 +18003,6 @@ var OpcodeTable = [...]OpInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 			Outputs: []OutputInfo{
-				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-		},
-	},
-	{
-		Name:    "BSRQ",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ABSRQ,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
-			},
-			Outputs: []OutputInfo{
-				{1, RegMask{V1: 0, V2: 0}},
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
 			},
 		},
@@ -86644,6 +86687,48 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:    "VSMOVBextr",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  1,
+		asm:     arm64.AVSMOV,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:    "VSMOVHextr",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  1,
+		asm:     arm64.AVSMOV,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:    "VSMOVSextr",
+		AuxType: AuxTypeUInt8,
+		ArgLen:  1,
+		asm:     arm64.AVSMOV,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		Name:    "VSQSHL2Dconst",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  1,
@@ -101571,17 +101656,16 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:           "LoweredZero",
 		AuxType:        AuxTypeInt64,
-		ArgLen:         3,
+		ArgLen:         2,
 		ClobberFlags:   true,
 		FaultOnNilArg0: true,
 		AddrSinkArg0:   true,
 		unsafePoint:    true,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
-				{0, RegMask{V1: 1048576, V2: 0}},    // R20
-				{1, RegMask{V1: 0, V2: 4294967295}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15 V16 V17 V18 V19 V20 V21 V22 V23 V24 V25 V26 V27 V28 V29 V30 V31
+				{0, RegMask{V1: 1048576, V2: 0}}, // R20
 			},
-			Clobbers: RegMask{V1: 1048576, V2: 0}, // R20
+			Clobbers: RegMask{V1: 1048576, V2: 1}, // R20 V0
 		},
 	},
 	{
@@ -109763,6 +109847,36 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:    "F32Min",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF32Min,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
+		Name:    "F32Max",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF32Max,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		Name:    "F64Neg",
 		ArgLen:  1,
 		EarlyOk: true,
@@ -109826,6 +109940,36 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:  2,
 		EarlyOk: true,
 		asm:     wasm.AF64Div,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "F64Min",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF64Min,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
+		Name:    "F64Max",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     wasm.AF64Max,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 281470681743360, V2: 0}}, // F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31

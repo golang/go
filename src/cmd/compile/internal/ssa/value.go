@@ -636,8 +636,16 @@ func (v *Value) RegName() string {
 // Otherwise, nil is returned.
 func (v *Value) MemoryArg() *Value {
 	if v.Op == ssaop.OpPhi {
-		v.Fatalf("MemoryArg on Phi")
+		if v.Type.IsMemory() {
+			v.Fatalf("MemoryArg on Phi<mem> is ambiguous")
+		}
+
+		// The logic below would also return nil for non-memory Phis,
+		// since their arguments have the same non-memory type.
+		// But return explicitly to make this behavior clear.
+		return nil
 	}
+
 	na := len(v.Args)
 	if na == 0 {
 		return nil

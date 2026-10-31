@@ -116,8 +116,6 @@ TEXT ·ctrBlocks1Asm(SB), NOSPLIT, $0-48
 
 	MOVV	$shiftRows(SB), R12
 	VMOVQ	(R12), V7
-	MOVV	$byteSwap32(SB), R12
-	VMOVQ	(R12), V2
 	MOVV	$rot1(SB), R12
 	VMOVQ	(R12), V10
 	MOVV	$rot2(SB), R12
@@ -129,7 +127,6 @@ TEXT ·ctrBlocks1Asm(SB), NOSPLIT, $0-48
 	// AddRoundKey
 	VMOVQ	(R5), V8
 	ADDV	$16, R5
-	VSHUFB	V2, V8, V8, V8	// V8 = byte-swap each 32-bit word of round key
 	VXORV	V8, V0, V0
 
 	// middle round: nr-1
@@ -146,7 +143,6 @@ Lenc_loop:
 	// AddRoundKey
 	VMOVQ	(R5), V8
 	ADDV	$16, R5
-	VSHUFB	V2, V8, V8, V8
 	VXORV	V8, V1, V0
 
 	ADDV	$-1, R12
@@ -156,7 +152,6 @@ Lenc_loop:
 	SUBBYTES(V0, R14, V0)
 	VSHUFB	V7, V0, V0, V0
 	VMOVQ	(R5), V8
-	VSHUFB	V2, V8, V8, V8
 	VXORV	V8, V0, V0
 
 	VMOVQ	(R7), V1
@@ -193,8 +188,6 @@ TEXT ·ctrBlocks2Asm(SB), NOSPLIT, $0-48
 	// Load persistent constant tables (same as ctrBlocks1Asm)
 	MOVV	$shiftRows(SB), R12
 	VMOVQ	(R12), V7
-	MOVV	$byteSwap32(SB), R12
-	VMOVQ	(R12), V2
 	MOVV	$rot1(SB), R12
 	VMOVQ	(R12), V10
 	MOVV	$rot2(SB), R12
@@ -206,7 +199,6 @@ TEXT ·ctrBlocks2Asm(SB), NOSPLIT, $0-48
 	// Initial AddRoundKey (both blocks share the same first round key)
 	VMOVQ	(R5), V8
 	ADDV	$16, R5
-	VSHUFB	V2, V8, V8, V8
 	VXORV	V8, V0, V0
 	VXORV	V8, V1, V1
 
@@ -217,7 +209,6 @@ Lenc2_loop:
 	// Round key for this round (shared)
 	VMOVQ	(R5), V8
 	ADDV	$16, R5
-	VSHUFB	V2, V8, V8, V8
 
 	// Block 0
 	SUBBYTES(V0, R14, V13)
@@ -236,7 +227,6 @@ Lenc2_loop:
 
 	// Final round: SubBytes + ShiftRows + AddRoundKey (no MixColumns)
 	VMOVQ	(R5), V8
-	VSHUFB	V2, V8, V8, V8
 
 	SUBBYTES(V0, R14, V13)
 	VSHUFB	V7, V13, V13, V0
@@ -297,8 +287,6 @@ TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0-48
 
 	MOVV	$shiftRows(SB), R12
 	VMOVQ	(R12), V7
-	MOVV	$byteSwap32(SB), R12
-	VMOVQ	(R12), V2
 	MOVV	$rot1(SB), R12
 	VMOVQ	(R12), V10
 	MOVV	$rot2(SB), R12
@@ -309,7 +297,6 @@ TEXT ·ctrBlocks4Asm(SB), NOSPLIT, $0-48
 
 	// Initial AddRoundKey (4 blocks share the same round key)
 	VMOVQ	(R5), V8
-	VSHUFB	V2, V8, V8, V8
 	VXORV	V8, V0, V0
 	VXORV	V8, V1, V1
 	VXORV	V8, V3, V3
@@ -337,7 +324,6 @@ Lenc4_loop:
 	MIXCOLUMNS(V4, V16, V10, V11, V12, V5, V6, V9)
 
 	VMOVQ (R5), V8
-	VSHUFB	V2, V8, V8, V8
 	VXORV	V8, V13, V0
 	VXORV	V8, V14, V1
 	VXORV	V8, V15, V3
@@ -349,7 +335,6 @@ Lenc4_loop:
 
 	// last round: SubBytes + ShiftRows + AddRoundKey (no MixColumns)
 	VMOVQ	(R5), V8
-	VSHUFB	V2, V8, V8, V8
 
 	SUBBYTES(V0, R14, V13)
 	VSHUFB	V7, V13, V13, V0
@@ -468,8 +453,6 @@ TEXT ·ctrBlocks8Asm(SB), NOSPLIT, $0-48
 
 	MOVV	$shiftRows(SB), R12
 	VMOVQ	(R12), V7
-	MOVV	$byteSwap32(SB), R12
-	VMOVQ	(R12), V2
 	MOVV	$rot1(SB), R12
 	VMOVQ	(R12), V10
 	MOVV	$rot2(SB), R12
@@ -480,7 +463,6 @@ TEXT ·ctrBlocks8Asm(SB), NOSPLIT, $0-48
 
 	VMOVQ	(R5), V15
 	ADDV	$16, R5
-	VSHUFB	V2, V15, V15, V15
 	VXORV	V15, V0, V0
 	VXORV	V15, V1, V1
 	VXORV	V15, V3, V3
@@ -524,7 +506,6 @@ Lenc8_loop:
 
 	VMOVQ (R5), V15
 	ADDV  $16, R5
-	VSHUFB V2, V15, V15, V15
 	VXORV  V15, V23, V0
 	VXORV  V15, V24, V1
 	VXORV  V15, V25, V3
@@ -557,7 +538,6 @@ Lenc8_loop:
 	VSHUFB	V7, V9, V9, V9
 
 	VMOVQ	(R5), V15
-	VSHUFB	V2, V15, V15, V15
 	VXORV	V15, V0, V0
 	VXORV	V15, V1, V1
 	VXORV	V15, V3, V3

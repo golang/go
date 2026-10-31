@@ -42,7 +42,6 @@ TEXT ·block<ABIInternal>(SB), NOSPLIT, $0
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R7
 	BNE	R7, lsx_chacha8
 	JMP	·block_generic<ABIInternal>(SB)
-	RET
 
 lsx_chacha8:
 	MOVV	$·chachaConst(SB), R10

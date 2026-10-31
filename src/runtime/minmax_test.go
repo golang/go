@@ -23,6 +23,8 @@ var tests = []struct{ min, max float64 }{
 	{1, 2},
 	{-2, 1},
 	{negZero, zero},
+	{zero, zero},
+	{negZero, negZero},
 	{zero, inf},
 	{negInf, zero},
 	{negInf, inf},
@@ -32,43 +34,59 @@ var tests = []struct{ min, max float64 }{
 
 var all = []float64{1, 2, -1, -2, zero, negZero, inf, negInf, nan}
 
-func eq(x, y float64) bool {
-	return x == y && math.Signbit(x) == math.Signbit(y)
+func eq[T float32 | float64](x, y T) bool {
+	return x == y && math.Signbit(float64(x)) == math.Signbit(float64(y))
 }
 
 func TestMinFloat(t *testing.T) {
+	t.Run("float64", testMinFloat[float64])
+	t.Run("float32", testMinFloat[float32])
+}
+
+func testMinFloat[T float32 | float64](t *testing.T) {
 	for _, tt := range tests {
-		if z := min(tt.min, tt.max); !eq(z, tt.min) {
-			t.Errorf("min(%v, %v) = %v, want %v", tt.min, tt.max, z, tt.min)
+		lo, hi := T(tt.min), T(tt.max)
+		if z := min(lo, hi); !eq(z, lo) {
+			t.Errorf("min(%v, %v) = %v, want %v", lo, hi, z, lo)
 		}
-		if z := min(tt.max, tt.min); !eq(z, tt.min) {
-			t.Errorf("min(%v, %v) = %v, want %v", tt.max, tt.min, z, tt.min)
+		if z := min(hi, lo); !eq(z, lo) {
+			t.Errorf("min(%v, %v) = %v, want %v", hi, lo, z, lo)
 		}
 	}
+	nan := T(nan)
 	for _, x := range all {
-		if z := min(nan, x); !math.IsNaN(z) {
+		x := T(x)
+		if z := min(nan, x); !math.IsNaN(float64(z)) {
 			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
-		if z := min(x, nan); !math.IsNaN(z) {
+		if z := min(x, nan); !math.IsNaN(float64(z)) {
 			t.Errorf("min(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
 	}
 }
 
 func TestMaxFloat(t *testing.T) {
+	t.Run("float64", testMaxFloat[float64])
+	t.Run("float32", testMaxFloat[float32])
+}
+
+func testMaxFloat[T float32 | float64](t *testing.T) {
 	for _, tt := range tests {
-		if z := max(tt.min, tt.max); !eq(z, tt.max) {
-			t.Errorf("max(%v, %v) = %v, want %v", tt.min, tt.max, z, tt.max)
+		lo, hi := T(tt.min), T(tt.max)
+		if z := max(lo, hi); !eq(z, hi) {
+			t.Errorf("max(%v, %v) = %v, want %v", lo, hi, z, hi)
 		}
-		if z := max(tt.max, tt.min); !eq(z, tt.max) {
-			t.Errorf("max(%v, %v) = %v, want %v", tt.max, tt.min, z, tt.max)
+		if z := max(hi, lo); !eq(z, hi) {
+			t.Errorf("max(%v, %v) = %v, want %v", hi, lo, z, hi)
 		}
 	}
+	nan := T(nan)
 	for _, x := range all {
-		if z := max(nan, x); !math.IsNaN(z) {
+		x := T(x)
+		if z := max(nan, x); !math.IsNaN(float64(z)) {
 			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
-		if z := max(x, nan); !math.IsNaN(z) {
+		if z := max(x, nan); !math.IsNaN(float64(z)) {
 			t.Errorf("max(%v, %v) = %v, want %v", nan, x, z, nan)
 		}
 	}

@@ -105,8 +105,8 @@
 // the frame size used for data expansion is 128 bytes.
 // See the definition of the macro LOAD1 above (8 bytes * 16 entries).
 //
-// func block(dig *Digest, p []byte)
-TEXT ·block(SB),NOSPLIT,$128-32
+// func blockScalar(dig *Digest, p []byte)
+TEXT ·blockScalar(SB),NOSPLIT,$128-32
 	MOVV	p_len+16(FP), R6
 	MOVV	p_base+8(FP), R5
 	AND	$~127, R6
@@ -238,4 +238,201 @@ loop:
 	BNE	R5, R25, loop
 
 end:
+	RET
+
+// LSX message-schedule path (requires HWCAP LSX).
+//
+// Ring buffer (R3): bytes 0..127 hold W[0..15] as in blockScalar; bytes
+// 128..135 mirror slot 0, so a 16-byte VMOVQ at offset 120 reads
+// [W[15], W[0]] without a cross-lane shuffle when a pair wraps around.
+//
+// V16..V19: operand pairs; V20..V22: scratch; V23: computed W pair.
+
+// bswap64: VSHUFB index table reversing the 8 bytes of each 64-bit lane
+// (big-endian message word -> host order).
+DATA	bswap64<>+0x00(SB)/8, $0x0001020304050607
+DATA	bswap64<>+0x08(SB)/8, $0x08090a0b0c0d0e0f
+GLOBL	bswap64<>(SB), RODATA|NOPTR, $16
+
+// WPAIR(i): computes V23 = [W[i], W[i+1]] (i even) and stores it at slot
+// (i&15). The four operand pairs are adjacent ring-buffer slots, each
+// loaded with a single VMOVQ; the slot-0 mirror handles the wrap case.
+#define WPAIR(i) \
+	VMOVQ	(((i-16)&15)*8)(R3), V16; \
+	VMOVQ	(((i-7)&15)*8)(R3), V17; \
+	VMOVQ	(((i-2)&15)*8)(R3), V18; \
+	VMOVQ	(((i-15)&15)*8)(R3), V19; \
+	VROTRV	$19, V18, V20; \
+	VROTRV	$61, V18, V21; \
+	VSRLV	$6, V18, V22; \
+	VXORV	V21, V20, V20; \
+	VXORV	V22, V20, V20; \
+	VROTRV	$1, V19, V21; \
+	VROTRV	$8, V19, V22; \
+	VSRLV	$7, V19, V23; \
+	VXORV	V22, V21, V21; \
+	VXORV	V23, V21, V21; \
+	VADDV	V16, V17, V22; \
+	VADDV	V20, V21, V23; \
+	VADDV	V22, V23, V23; \
+	VMOVQ	V23, ((i&15)*8)(R3)
+
+// WPAIRM: WPAIR plus mirroring the new slot 0 to offset 128.
+// Used when i ≡ 0 (mod 16), i.e. i ∈ {16,32,48,64}.
+#define WPAIRM(i) \
+	WPAIR(i); \
+	VMOVQ	V23.V[0], 128(R3)
+
+// SHA512T1K: SHA512T1 variant for when REGTMP4 already holds K[i]+W[i],
+// saving the K-table load and one ADDV.
+#define SHA512T1K(e, f, g, h) \
+	ADDV	REGTMP4, h; \
+	ROTRV	$14, e, REGTMP5; \
+	ROTRV	$18, e, REGTMP; \
+	ROTRV	$41, e, REGTMP3; \
+	XOR	f, g, REGTMP2; \
+	XOR	REGTMP, REGTMP5; \
+	AND	e, REGTMP2; \
+	XOR	REGTMP5, REGTMP3; \
+	XOR	g, REGTMP2; \
+	ADDV	REGTMP3, h; \
+	ADDV	h, REGTMP2, REGTMP4
+
+#define SHA512ROUNDK(a, b, c, d, e, f, g, h) \
+	SHA512T1K(e, f, g, h); \
+	SHA512T2(a, b, c); \
+	ADDV	REGTMP4, d; \
+	ADDV	REGTMP1, REGTMP4, h
+
+// PAIR0(i): byte-swaps message words i,i+1 (V24 = bswap64 mask), stores
+// them to the ring buffer, adds K[i],K[i+1] in V22, and runs two scalar
+// rounds off the extracted lanes. i even, 0 <= i <= 14.
+#define PAIR0(i, a1,b1,c1,d1,e1,f1,g1,h1, a2,b2,c2,d2,e2,f2,g2,h2) \
+	VMOVQ	(i*8)(R5), V23; \
+	VSHUFB	V24, V23, V23, V23; \
+	VMOVQ	V23, ((i&15)*8)(R3); \
+	VMOVQ	(i*8)(REG_KT), V22; \
+	VADDV	V22, V23, V22; \
+	VMOVQ	V22.V[0], REGTMP4; \
+	SHA512ROUNDK(a1,b1,c1,d1,e1,f1,g1,h1); \
+	VMOVQ	V22.V[1], REGTMP4; \
+	SHA512ROUNDK(a2,b2,c2,d2,e2,f2,g2,h2)
+
+// PAIR(i): WPAIR plus a vector K-add; each W[i]+K[i] is extracted
+// straight into REGTMP4 via a lane move (no memory round trip) and fed
+// to a scalar round.
+#define PAIR(i, a1,b1,c1,d1,e1,f1,g1,h1, a2,b2,c2,d2,e2,f2,g2,h2) \
+	WPAIR(i); \
+	VMOVQ	((i)*8)(REG_KT), V22; \
+	VADDV	V22, V23, V22; \
+	VMOVQ	V22.V[0], REGTMP4; \
+	SHA512ROUNDK(a1,b1,c1,d1,e1,f1,g1,h1); \
+	VMOVQ	V22.V[1], REGTMP4; \
+	SHA512ROUNDK(a2,b2,c2,d2,e2,f2,g2,h2)
+
+// PAIRM: PAIR using WPAIRM, for i ∈ {16,32,48,64}.
+#define PAIRM(i, a1,b1,c1,d1,e1,f1,g1,h1, a2,b2,c2,d2,e2,f2,g2,h2) \
+	WPAIRM(i); \
+	VMOVQ	((i)*8)(REG_KT), V22; \
+	VADDV	V22, V23, V22; \
+	VMOVQ	V22.V[0], REGTMP4; \
+	SHA512ROUNDK(a1,b1,c1,d1,e1,f1,g1,h1); \
+	VMOVQ	V22.V[1], REGTMP4; \
+	SHA512ROUNDK(a2,b2,c2,d2,e2,f2,g2,h2)
+
+// func blockLSX(dig *Digest, p []byte)
+TEXT ·blockLSX(SB),NOSPLIT,$144-32
+	MOVV	p_len+16(FP), R6
+	MOVV	p_base+8(FP), R5
+	AND	$~127, R6
+	BEQ	R6, lend
+
+	MOVV	$·_K(SB), REG_KT
+	MOVV	dig+0(FP), R4
+	ADDV	R5, R6, R25
+	MOVV	(0*8)(R4), R8
+	MOVV	(1*8)(R4), R9
+	MOVV	(2*8)(R4), R10
+	MOVV	(3*8)(R4), R11
+	MOVV	(4*8)(R4), R12
+	MOVV	(5*8)(R4), R13
+	MOVV	(6*8)(R4), R14
+	MOVV	(7*8)(R4), R15
+
+	MOVV	$bswap64<>(SB), R26
+	VMOVQ	(R26), V24	// bswap64 mask, reused across blocks
+
+lloop:
+	PAIR0( 0, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	VMOVQ	V23.V[0], 128(R3)	// mirror slot 0 (W[0])
+	PAIR0( 2, R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR0( 4, R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR0( 6, R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIR0( 8, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR0(10, R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR0(12, R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR0(14, R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+
+	PAIRM(16, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(18,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(20,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(22,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIR(24,  R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(26,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(28,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(30,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIRM(32, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(34,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(36,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(38,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIR(40,  R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(42,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(44,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(46,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIRM(48, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(50,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(52,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(54,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIR(56,  R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(58,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(60,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(62,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIRM(64, R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(66,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(68,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(70,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+	PAIR(72,  R8,  R9,  R10, R11, R12, R13, R14, R15, R15, R8,  R9,  R10, R11, R12, R13, R14)
+	PAIR(74,  R14, R15, R8,  R9,  R10, R11, R12, R13, R13, R14, R15, R8,  R9,  R10, R11, R12)
+	PAIR(76,  R12, R13, R14, R15, R8,  R9,  R10, R11, R11, R12, R13, R14, R15, R8,  R9,  R10)
+	PAIR(78,  R10, R11, R12, R13, R14, R15, R8,  R9,  R9,  R10, R11, R12, R13, R14, R15, R8)
+
+	MOVV	(0*8)(R4), REGTMP
+	MOVV	(1*8)(R4), REGTMP1
+	MOVV	(2*8)(R4), REGTMP2
+	MOVV	(3*8)(R4), REGTMP3
+	ADDV	REGTMP, R8
+	ADDV	REGTMP1, R9
+	ADDV	REGTMP2, R10
+	ADDV	REGTMP3, R11
+	MOVV	R8, (0*8)(R4)
+	MOVV	R9, (1*8)(R4)
+	MOVV	R10, (2*8)(R4)
+	MOVV	R11, (3*8)(R4)
+	MOVV	(4*8)(R4), REGTMP
+	MOVV	(5*8)(R4), REGTMP1
+	MOVV	(6*8)(R4), REGTMP2
+	MOVV	(7*8)(R4), REGTMP3
+	ADDV	REGTMP, R12
+	ADDV	REGTMP1, R13
+	ADDV	REGTMP2, R14
+	ADDV	REGTMP3, R15
+	MOVV	R12, (4*8)(R4)
+	MOVV	R13, (5*8)(R4)
+	MOVV	R14, (6*8)(R4)
+	MOVV	R15, (7*8)(R4)
+
+	ADDV	$128, R5
+	BNE	R5, R25, lloop
+
+lend:
 	RET

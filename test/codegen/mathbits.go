@@ -16,7 +16,7 @@ import (
 // ----------------------- //
 
 func LeadingZeros(n uint) int {
-	// amd64/v1,amd64/v2:"BSRQ"
+	// amd64/v1,amd64/v2:"BSRQ" -"CMOVQEQ"
 	// amd64/v3:"LZCNTQ" -"BSRQ"
 	// arm64:"CLZ"
 	// arm:"CLZ"
@@ -30,7 +30,7 @@ func LeadingZeros(n uint) int {
 }
 
 func LeadingZeros64(n uint64) int {
-	// amd64/v1,amd64/v2:"BSRQ"
+	// amd64/v1,amd64/v2:"BSRQ" -"CMOVQEQ"
 	// amd64/v3:"LZCNTQ" -"BSRQ"
 	// arm:"CLZ"
 	// arm64:"CLZ"
@@ -90,7 +90,7 @@ func LeadingZeros8(n uint8) int {
 // --------------- //
 
 func Len(n uint) int {
-	// amd64/v1,amd64/v2:"BSRQ"
+	// amd64/v1,amd64/v2:"MOVQ [$]-1" "BSRQ" "LEAQ 1" -"CMOVQEQ" -"XORL"
 	// amd64/v3: "LZCNTQ"
 	// arm64:"CLZ"
 	// arm:"CLZ"
@@ -104,7 +104,7 @@ func Len(n uint) int {
 }
 
 func Len64(n uint64) int {
-	// amd64/v1,amd64/v2:"BSRQ"
+	// amd64/v1,amd64/v2:"MOVQ [$]-1" "BSRQ" "LEAQ 1" -"CMOVQEQ" -"XORL"
 	// amd64/v3: "LZCNTQ"
 	// arm64:"CLZ"
 	// arm:"CLZ"
@@ -115,6 +115,16 @@ func Len64(n uint64) int {
 	// s390x:"FLOGR"
 	// wasm:"I64Clz"
 	return bits.Len64(n)
+}
+
+func Len64NonZeroOr(n uint64) int {
+	// amd64/v1,amd64/v2:"BSRQ" -"MOVQ [$]-1" -"CMOVQEQ"
+	return bits.Len64(n | 1)
+}
+
+func Len64NonZeroBTS(n uint64) int {
+	// amd64/v1,amd64/v2:"BTSQ [$]40" "BSRQ" -"MOVQ [$]-1" -"CMOVQEQ"
+	return bits.Len64(n | 1<<40)
 }
 
 func SubFromLen64(n uint64) int {
@@ -489,7 +499,7 @@ func RotateLeftVariable32(n uint32, m int) uint32 {
 
 func TrailingZeros(n uint) int {
 	// 386:"BSFL"
-	// amd64/v1,amd64/v2:"BSFQ" "MOVL [$]64" "CMOVQEQ"
+	// amd64/v1,amd64/v2:"MOVL [$]64" "BSFQ" -"CMOVQEQ" -"XORL"
 	// amd64/v3:"TZCNTQ"
 	// arm:"CLZ"
 	// arm64:"RBIT" "CLZ"
@@ -504,7 +514,7 @@ func TrailingZeros(n uint) int {
 
 func TrailingZeros64(n uint64) int {
 	// 386:"BSFL" "JNE"
-	// amd64/v1,amd64/v2:"BSFQ" "MOVL [$]64" "CMOVQEQ"
+	// amd64/v1,amd64/v2:"MOVL [$]64" "BSFQ" -"CMOVQEQ" -"XORL"
 	// amd64/v3:"TZCNTQ"
 	// arm64:"RBIT" "CLZ"
 	// loong64:"CTZV"
@@ -523,7 +533,7 @@ func TrailingZeros64Subtract(n uint64) int {
 }
 
 func TrailingZeros32(n uint32) int {
-	// 386:"BSFL"
+	// 386:"BSFL" -"XORL"
 	// amd64/v1,amd64/v2:"BTSQ [$]32" "BSFQ"
 	// amd64/v3:"TZCNTL"
 	// arm:"CLZ"
@@ -538,8 +548,8 @@ func TrailingZeros32(n uint32) int {
 }
 
 func TrailingZeros16(n uint16) int {
-	// 386:"BSFL "
-	// amd64:"BSFL" "ORL [$]65536"
+	// 386:"BSFL" -"XORL"
+	// amd64:"ORL [$]65536" "BSFL" -"XORL"
 	// arm:"ORR [$]65536" "CLZ" -"MOVHU R"
 	// arm64:"ORR [$]65536" "RBITW" "CLZW" -"MOVHU R" -"RBIT " -"CLZ "
 	// loong64:"CTZV"
@@ -553,7 +563,7 @@ func TrailingZeros16(n uint16) int {
 
 func TrailingZeros8(n uint8) int {
 	// 386:"BSFL"
-	// amd64:"BSFL" "ORL [$]256"
+	// amd64:"ORL [$]256" "BSFL"
 	// arm:"ORR [$]256" "CLZ" -"MOVBU R"
 	// arm64:"ORR [$]256" "RBITW" "CLZW" -"MOVBU R" -"RBIT " -"CLZ "
 	// loong64:"CTZV"
@@ -563,6 +573,46 @@ func TrailingZeros8(n uint8) int {
 	// s390x:"FLOGR" "OR [$]256"
 	// wasm:"I64Ctz"
 	return bits.TrailingZeros8(n)
+}
+
+func TrailingZeros64LiveInput(n uint64) (uint64, int) {
+	// amd64/v1,amd64/v2:"MOVL [$]64" "BSFQ" -"CMOVQEQ" -"XORL"
+	// 386:2"XORL" 2"BSFL"
+	return n, bits.TrailingZeros64(n)
+}
+
+func TrailingZeros64RegPressure(n, a, b, c, d, e, f, g, h, i, j, k, l uint64) (uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, uint64, int) {
+	// amd64/v1,amd64/v2:"MOVL [$]64" "BSFQ" -"CMOVQEQ" -"XORL"
+	return a, b, c, d, e, f, g, h, i, j, k, l, bits.TrailingZeros64(n)
+}
+
+func TrailingZeros32LiveInput(n uint32) (uint32, int) {
+	// 386:"XORL" "BSFL"
+	t := bits.TrailingZeros32(n)
+	return n + uint32(t), t
+}
+
+func TrailingZeros32NonZeroLiveInput(n uint32) (uint32, int) {
+	if n == 0 {
+		return 32, 32
+	}
+	// amd64/v1,amd64/v2:"XORL" "BSFL"
+	// 386:"XORL" "BSFL"
+	t := bits.TrailingZeros32(n)
+	return n + uint32(t), t
+}
+
+func Len64LiveInput(n uint64) (uint64, int) {
+	// amd64/v1,amd64/v2:"MOVQ [$]-1" "BSRQ" "INCQ" -"CMOVQEQ" -"XORL"
+	return n, bits.Len64(n)
+}
+
+func Len16LiveInput(n uint16) (uint32, int) {
+	// The lowered BSRL scans 2*n+1. Return that same expression so CSE
+	// keeps the scan input live across the scan.
+	x := uint32(n) + uint32(n) + 1
+	// amd64/v1,amd64/v2:"XORL" "BSRL"
+	return x, bits.Len16(n)
 }
 
 // IterateBitsNN checks special handling of TrailingZerosNN when the input is known to be non-zero.

@@ -1687,6 +1687,13 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMADDADP, r0)
 			opset(AXVMAXDP, r0)
 			opset(AXVMINDP, r0)
+			opset(AXVADDSP, r0)
+			opset(AXVSUBSP, r0)
+			opset(AXVMULSP, r0)
+			opset(AXVDIVSP, r0)
+			opset(AXVMADDASP, r0)
+			opset(AXVMAXSP, r0)
+			opset(AXVMINSP, r0)
 
 		case AXXSEL: /* xxsel */
 			opset(AXXSEL, r0)
@@ -1737,6 +1744,7 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVCVUXDSP, r0)
 			opset(AXVCVUXWSP, r0)
 			opset(AXVSQRTDP, r0)
+			opset(AXVSQRTSP, r0)
 
 		case AAND: /* logical op Rb,Rs,Ra; no literal */
 			opset(AANDN, r0)
@@ -4961,6 +4969,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
 		return OPVXX3(60, 232, 0) /* xvmindp - v2.06 */
 	case AXVSQRTDP:
 		return OPVXX2(60, 203, 0) /* xvsqrtdp - v2.06 */
+	case AXVADDSP:
+		return OPVXX3(60, 64, 0) /* xvaddsp - v2.06 */
+	case AXVSUBSP:
+		return OPVXX3(60, 72, 0) /* xvsubsp - v2.06 */
+	case AXVMULSP:
+		return OPVXX3(60, 80, 0) /* xvmulsp - v2.06 */
+	case AXVDIVSP:
+		return OPVXX3(60, 88, 0) /* xvdivsp - v2.06 */
+	case AXVMADDASP:
+		return OPVXX3(60, 65, 0) /* xvmaddasp - v2.06 */
+	case AXVMAXSP:
+		return OPVXX3(60, 192, 0) /* xvmaxsp - v2.06 */
+	case AXVMINSP:
+		return OPVXX3(60, 200, 0) /* xvminsp - v2.06 */
+	case AXVSQRTSP:
+		return OPVXX2(60, 139, 0) /* xvsqrtsp - v2.06 */
 	/* End of VSX instructions */
 
 	case AMADDHD:

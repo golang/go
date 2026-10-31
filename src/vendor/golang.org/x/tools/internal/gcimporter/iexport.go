@@ -282,9 +282,9 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package, reportf ReportFunc)
 	// fact iexportCommon doesn't even check for I/O errors.
 	// TODO(adonovan): handle I/O errors properly.
 	// TODO(adonovan): use byte slices throughout, avoiding copying.
-	const bundle, shallow = false, true
+	const shallow = true
 	var out bytes.Buffer
-	err := iexportCommon(&out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg}, reportf)
+	err := iexportCommon(&out, fset, shallow, iexportVersion, []*types.Package{pkg}, reportf)
 	return out.Bytes(), err
 }
 
@@ -301,9 +301,8 @@ func IExportShallow(fset *token.FileSet, pkg *types.Package, reportf ReportFunc)
 // TODO(rfindley): remove reportf when we are confident enough in the new
 // objectpath encoding.
 func IImportShallow(fset *token.FileSet, getPackages GetPackagesFunc, data []byte, path string, reportf ReportFunc) (*types.Package, error) {
-	const bundle = false
 	const shallow = true
-	pkgs, err := iimportCommon(fset, getPackages, data, bundle, path, shallow, reportf)
+	pkgs, err := iimportCommon(fset, getPackages, data, path, shallow, reportf)
 	if err != nil {
 		return nil, err
 	}
@@ -313,27 +312,17 @@ func IImportShallow(fset *token.FileSet, getPackages GetPackagesFunc, data []byt
 // ReportFunc is the type of a function used to report formatted bugs.
 type ReportFunc = func(string, ...any)
 
-// Current bundled export format version. Increase with each format change.
-// 0: initial implementation
-const bundleVersion = 0
-
 // IExportData writes indexed export data for pkg to out.
 //
 // If no file set is provided, position info will be missing.
 // The package path of the top-level package will not be recorded,
 // so that calls to IImportData can override with a provided package path.
 func IExportData(out io.Writer, fset *token.FileSet, pkg *types.Package) error {
-	const bundle, shallow = false, false
-	return iexportCommon(out, fset, bundle, shallow, iexportVersion, []*types.Package{pkg}, nil)
+	const shallow = false
+	return iexportCommon(out, fset, shallow, iexportVersion, []*types.Package{pkg}, nil)
 }
 
-// IExportBundle writes an indexed export bundle for pkgs to out.
-func IExportBundle(out io.Writer, fset *token.FileSet, pkgs []*types.Package) error {
-	const bundle, shallow = true, false
-	return iexportCommon(out, fset, bundle, shallow, iexportVersion, pkgs, nil)
-}
-
-func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, version int, pkgs []*types.Package, reportf ReportFunc) (err error) {
+func iexportCommon(out io.Writer, fset *token.FileSet, shallow bool, version int, pkgs []*types.Package, reportf ReportFunc) (err error) {
 	if !debug {
 		defer func() {
 			if e := recover(); e != nil {
@@ -363,9 +352,7 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		declIndex:   map[types.Object]uint64{},
 		tparamNames: map[types.Object]string{},
 		typIndex:    map[types.Type]uint64{},
-	}
-	if !bundle {
-		p.localpkg = pkgs[0]
+		localpkg:    pkgs[0],
 	}
 
 	for i, pt := range predeclared() {
@@ -381,14 +368,6 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 		for _, name := range scope.Names() {
 			if token.IsExported(name) {
 				p.pushDecl(scope.Lookup(name))
-			}
-		}
-
-		if bundle {
-			// Ensure pkg and its imports are included in the index.
-			p.allPkgs[pkg] = true
-			for _, imp := range pkg.Imports() {
-				p.allPkgs[imp] = true
 			}
 		}
 	}
@@ -413,25 +392,10 @@ func iexportCommon(out io.Writer, fset *token.FileSet, bundle, shallow bool, ver
 	dataLen := uint64(p.data0.Len())
 	w := p.newWriter()
 	w.writeIndex(p.declIndex)
-
-	if bundle {
-		w.uint64(uint64(len(pkgs)))
-		for _, pkg := range pkgs {
-			w.pkg(pkg)
-			imps := pkg.Imports()
-			w.uint64(uint64(len(imps)))
-			for _, imp := range imps {
-				w.pkg(imp)
-			}
-		}
-	}
 	w.flush()
 
 	// Assemble header.
 	var hdr intWriter
-	if bundle {
-		hdr.uint64(bundleVersion)
-	}
 	hdr.uint64(uint64(p.version))
 	hdr.uint64(uint64(p.strings.Len()))
 	if p.shallow {
@@ -573,7 +537,7 @@ type iexporter struct {
 
 	shallow    bool                // don't put types from other packages in the index
 	objEncoder *objectpath.Encoder // encodes objects from other packages in shallow mode; lazily allocated
-	localpkg   *types.Package      // (nil in bundle mode)
+	localpkg   *types.Package
 
 	// allPkgs tracks all packages that have been referenced by
 	// the export data, so we can ensure to include them in the
@@ -1333,11 +1297,10 @@ func (w *exportWriter) value(typ types.Type, v constant.Value, pkg *types.Packag
 		}
 		w.mpint(&i, typ)
 	case types.IsFloat:
-		f := constantToFloat(v)
-		w.mpfloat(f, typ)
+		w.float(v, typ)
 	case types.IsComplex:
-		w.mpfloat(constantToFloat(constant.Real(v)), typ)
-		w.mpfloat(constantToFloat(constant.Imag(v)), typ)
+		w.float(constant.Real(v), typ)
+		w.float(constant.Imag(v), typ)
 	case types.IsString:
 		w.string(constant.StringVal(v))
 	default:
@@ -1375,6 +1338,39 @@ func constantToFloat(x constant.Value) *big.Float {
 	return &f
 }
 
+// float exports a floating-point constant value.
+func (w *exportWriter) float(x constant.Value, typ types.Type) {
+	if w.p.version < iexportVersionRationalFloats {
+		w.mpfloat(constantToFloat(x), typ) // 512-bit mantissa f.p.
+		return
+	}
+
+	// lossless encoding
+	switch v := constant.Val(constant.ToFloat(x)).(type) {
+	case *big.Rat:
+		if n := v.Num(); v.IsInt() && n.BitLen() <= 8*untypedMaxBytes {
+			w.uint64(floatTagInt) // integer
+			w.mpint(n, types.Typ[types.UntypedFloat])
+		} else {
+			w.uint64(floatTagRat) // rational
+			w.bigInt(n)
+			w.bigInt(v.Denom())
+		}
+	case *big.Float:
+		w.uint64(floatTagFloat) // 512-bit mantissa f.p.
+		w.mpfloat(v, typ)
+	default:
+		panic(internalErrorf("unexpected float constant %v (%T)", x, v))
+	}
+}
+
+// bigInt exports an arbitrary-precision integer as its big-endian
+// magnitude bytes (as a string) followed by a sign bool.
+func (w *exportWriter) bigInt(v *big.Int) {
+	w.string(string(v.Bytes())) // (big endian)
+	w.bool(v.Sign() < 0)
+}
+
 func valueToRat(x constant.Value) *big.Rat {
 	// Convert little-endian to big-endian.
 	// I can't believe this is necessary.
@@ -1382,7 +1378,11 @@ func valueToRat(x constant.Value) *big.Rat {
 	for i := 0; i < len(bytes)/2; i++ {
 		bytes[i], bytes[len(bytes)-1-i] = bytes[len(bytes)-1-i], bytes[i]
 	}
-	return new(big.Rat).SetInt(new(big.Int).SetBytes(bytes))
+	i := new(big.Int).SetBytes(bytes)
+	if constant.Sign(x) < 0 {
+		i.Neg(i) // constant.Bytes returns the absolute value
+	}
+	return new(big.Rat).SetInt(i)
 }
 
 // mpint exports a multi-precision integer.

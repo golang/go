@@ -984,21 +984,50 @@ func genPPC64(g *gen) {
 	p("MOVD g_m(g), %s", vReg)
 	p("MOVD m_p(%s), %s", vReg, vReg)
 	p("ADD $(p_xRegs+xRegPerP_scratch), %s, %s", vReg, vReg)
-	// VS0-VS31 saved first: MOVFL FPSCR,F0 below clobbers F0 (=VS0).
+	// POWER9+ stores the vector regs with the D-form STXV (immediate offset).
+	// POWER8 has no D-form vector store, so it uses the indexed X-form STXVD2X;
+	// the GOPPC64_power9 macro (defined cumulatively for power9 and later)
+	// chooses between them at assembly time, so a power8 build contains no
+	// POWER9 (D-form) instructions.
+	p("#ifdef GOPPC64_power9")
 	lVSRegs.save(g)
+	lVRegs.save(g)
+	p("#else")
+	for i := 0; i <= 31; i++ {
+		p("MOVD $%d, R5", 16+i*16)
+		p("STXVD2X VS%d, (R5)(%s)", i, vReg)
+	}
+	for i := 0; i <= 31; i++ {
+		p("MOVD $%d, R5", 528+i*16)
+		p("STXVD2X V%d, (R5)(%s)", i, vReg)
+	}
+	p("#endif")
+	// FPSCR saved after all vector regs: it only needs VS0 (=F0) already stored,
+	// which both branches do. MOVFL/FMOVD are valid on every POWER level.
 	p("MOVFL FPSCR, F0")
 	p("FMOVD F0, 0(%s)", vReg)
-	lVRegs.save(g)
 	p("CALL ·asyncPreempt2(SB)")
 	p("// Restore VS0-VS31, FPSCR, and V0-V31 from *p.xRegs.cache")
 	p("MOVD g_m(g), %s", vReg)
 	p("MOVD m_p(%s), %s", vReg, vReg)
 	p("MOVD (p_xRegs+xRegPerP_cache)(%s), %s", vReg, vReg)
-	// FPSCR restored first: LXV VS0 below overwrites F0's scratch value.
+	// FPSCR restored before any vector reg: the VS0 load below overwrites F0's
+	// scratch value.
 	p("FMOVD 0(%s), F0", vReg)
 	p("MOVFL F0, FPSCR")
+	p("#ifdef GOPPC64_power9")
 	lVSRegs.restoreDirect(g)
 	lVRegs.restoreDirect(g)
+	p("#else")
+	for i := 0; i <= 31; i++ {
+		p("MOVD $%d, R5", 16+i*16)
+		p("LXVD2X (R5)(%s), VS%d", vReg, i)
+	}
+	for i := 0; i <= 31; i++ {
+		p("MOVD $%d, R5", 528+i*16)
+		p("LXVD2X (R5)(%s), V%d", vReg, i)
+	}
+	p("#endif")
 	l.restore(g)
 
 	p("MOVD %d(R1), R31", l.stack) // sigctxt.pushCall has pushed LR, R2, R12 (at interrupt) on stack, restore them

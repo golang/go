@@ -266,7 +266,11 @@ func (p *Profile) postDecode() error {
 		}
 		s.Location = nil
 		for _, lid := range s.locationIDX {
-			s.Location = append(s.Location, locations[lid])
+			loc := locations[lid]
+			if loc == nil {
+				return fmt.Errorf("location ID %d not found", lid)
+			}
+			s.Location = append(s.Location, loc)
 		}
 		s.locationIDX = nil
 	}

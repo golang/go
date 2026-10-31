@@ -107,9 +107,9 @@ func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bo
 
 		minSP := frame.fp
 		if !usesLR {
-			// The CALL itself pushes a word.
+			// The CALL itself pushes a return PC slot.
 			// Undo that adjustment.
-			minSP -= goarch.PtrSize
+			minSP -= retPCSize
 		}
 		if arg0 >= minSP {
 			// The function hasn't started yet.

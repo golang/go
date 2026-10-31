@@ -102,6 +102,14 @@ func (e *Encoder) Reset(w io.Writer, opts ...Options) {
 	switch {
 	case e == nil:
 		panic("jsontext: invalid nil Encoder")
+	case w == nil:
+		// Reset with nil io.Writer is often used to avoid pinning memory
+		// when using the Encoder with a sync.Pool.
+		// A nil io.Writer is insufficient since that signals that the
+		// Encoder is operating in a purely buffered mode.
+		// Instead, use a wrapped nil interface so that method calls
+		// on Encoder eventually panic when calling the Write method.
+		w = struct{ io.Writer }{}
 	case e.s.Flags.Get(jsonflags.WithinArshalCall):
 		panic("jsontext: cannot reset Encoder passed to json.MarshalerTo")
 	}
@@ -157,6 +165,9 @@ func (e *encoderState) NeedFlush() bool {
 func (e *encoderState) Flush() error {
 	if e.wr == nil || e.avoidFlush() {
 		return nil
+	}
+	if w, ok := e.wr.(struct{ io.Writer }); ok && w.Writer == nil {
+		panic("nil io.Writer")
 	}
 
 	// In streaming mode, always emit a newline after the top-level value.

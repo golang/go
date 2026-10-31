@@ -4,6 +4,8 @@
 
 package archsimd
 
+import "simd/internal/simdfmt"
+
 // BroadcastInt8x16 returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastInt8x16(x int8) (z Int8x16) {
@@ -74,74 +76,74 @@ func BroadcastFloat64x2(x float64) (z Float64x2) {
 	return v.SetElem(0, x).broadcast1To2()
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int8x16) String() string {
 	var s [16]int8
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int16x8) String() string {
 	var s [8]int16
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int32x4) String() string {
 	var s [4]int32
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int64x2) String() string {
 	var s [2]int64
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint8x16) String() string {
 	var s [16]uint8
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint16x8) String() string {
 	var s [8]uint16
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint32x4) String() string {
 	var s [4]uint32
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint64x2) String() string {
 	var s [2]uint64
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float32x4) String() string {
 	var s [4]float32
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
-// String returns a string representation of SIMD vector x.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float64x2) String() string {
 	var s [2]float64
 	x.StoreArray(&s)
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // HiToLo returns a vector with the upper 64 bits zeroed and the lower

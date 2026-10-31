@@ -1,20 +1,48 @@
 !sum
 
-# GetElem VMOV (UMOV, integer)
+# GetElem VSMOV (SMOV, signed narrow lanes): sign-extending extract
 - go: GetElem
-  asm: "VMOV"
+  asm: "VSMOV"
   ssaVariant: "extr"
+  specialLower: !string |-
+    match (MOV%rreg x:(VSMOV%sextr [i] _)) => x
+    match (MOV%rreg (VMOV%sextr [i] x)) => (VSMOV%sextr [i] x)
+    match (MOV%rUreg x:(VMOV%sextr [i] _)) => x
+    match (MOV%rUreg (VSMOV%sextr [i] x)) => (VMOV%sextr [i] x)
   in:
   - &immIndex
     class: immediate
     go: Immediate
     name: index
-  - &vector
-    go: $t
-    base: int|uint
+  - go: $t
+    base: int
+    elemBits: 8|16|32
   out:
   - &scalar
     class: greg
+
+# GetElem VMOV (UMOV, unsigned lanes)
+- go: GetElem
+  asm: "VMOV"
+  ssaVariant: "extr"
+  in:
+  - *immIndex
+  - go: $t
+    base: uint
+  out:
+  - *scalar
+
+# GetElem VMOV (UMOV, D lanes)
+- go: GetElem
+  asm: "VMOV"
+  ssaVariant: "extr"
+  in:
+  - *immIndex
+  - go: $t
+    base: int
+    elemBits: 64
+  out:
+  - *scalar
 
 # GetElem VDUP (duplicate element into scalar float in vreg)
 - go: GetElem
@@ -38,7 +66,9 @@
   ssaVariant: "ins"
   in:
   - *immIndex
-  - *vector
+  - &vector
+    go: $t
+    base: int|uint
   - *scalar
   out:
   - *vector

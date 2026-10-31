@@ -130,6 +130,9 @@ func (op *Operand) instantiate(arrangement Arrangement, ashape ArngShape, vregPo
 				op.Bits = 32
 			}
 		}
+		if mnemonic == "SMOV" {
+			op.Bits = 64
+		}
 		if mnemonic == "INS" {
 			op.Bits = arrangement.elemBits
 		}

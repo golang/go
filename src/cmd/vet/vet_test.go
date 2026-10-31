@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/analysis/suite/vet"
 	"internal/testenv"
 	"log"
 	"os"
@@ -23,8 +24,6 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-
-	"golang.org/x/tools/go/analysis/suite/vet"
 )
 
 // TestMain executes the test binary as the vet command if

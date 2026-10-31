@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -145,6 +146,96 @@ func BenchmarkCodeMarshal(b *testing.B) {
 		}
 	})
 	b.SetBytes(int64(len(codeJSON)))
+}
+
+// Keep these workloads in sync with encoding/json/v2/bench_test.go.
+func BenchmarkMarshalRecords(b *testing.B) {
+	type record struct {
+		ID     int      `json:"id"`
+		Name   string   `json:"name"`
+		Email  string   `json:"email"`
+		Active bool     `json:"active"`
+		Score  float64  `json:"score"`
+		Tags   []string `json:"tags"`
+	}
+	for _, n := range []int{1, 10000} {
+		b.Run(strconv.Itoa(n), func(b *testing.B) {
+			records := make([]record, n)
+			tags := []string{"go", "json", "bench"}
+			for i := range records {
+				name := "user-" + strconv.Itoa(i)
+				records[i] = record{i, name, name + "@example.com", i%2 == 0, float64(i) * 0.5, tags}
+			}
+			var v any = records
+			out, err := Marshal(v)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.SetBytes(int64(len(out)))
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := Marshal(v); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkMarshalMapRecords(b *testing.B) {
+	type record struct {
+		ID       int
+		Name     string
+		Metadata map[string]string
+	}
+	records := make([]record, 1000)
+	metadata := map[string]string{"role": "user", "region": "west"}
+	for i := range records {
+		records[i] = record{i, "user-" + strconv.Itoa(i), metadata}
+	}
+	var v any = records
+	out, err := Marshal(v)
+	if err != nil {
+		b.Fatal(err)
+	}
+	b.SetBytes(int64(len(out)))
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := Marshal(v); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkMarshalScalarArrays(b *testing.B) {
+	for _, sample := range []any{true, "hello, world!", int64(-1234), uint64(1234), float32(1.234), float64(1.234)} {
+		t := reflect.TypeOf(sample)
+		for _, n := range []int{1, 2, 4, 8, 32, 1024} {
+			for _, kind := range []reflect.Kind{reflect.Slice, reflect.Array} {
+				b.Run(fmt.Sprintf("%s/%s/%d", t, kind, n), func(b *testing.B) {
+					array := reflect.New(reflect.ArrayOf(n, t))
+					for i := range n {
+						array.Elem().Index(i).Set(reflect.ValueOf(sample))
+					}
+					var v any = array.Elem().Interface()
+					if kind == reflect.Slice {
+						v = array.Elem().Slice(0, n).Interface()
+					}
+					out, err := Marshal(v)
+					if err != nil {
+						b.Fatal(err)
+					}
+					b.SetBytes(int64(len(out)))
+					b.ReportAllocs()
+					for b.Loop() {
+						if _, err := Marshal(v); err != nil {
+							b.Fatal(err)
+						}
+					}
+				})
+			}
+		}
+	}
 }
 
 func BenchmarkCodeMarshalError(b *testing.B) {

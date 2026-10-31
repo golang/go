@@ -64,7 +64,7 @@ func (x Int8s) GreaterEqual(y Int8s) (z Mask8s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int8s) IfElse(mask Mask8s, y Int8s) (z Int8s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int8s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -134,7 +134,7 @@ func (x Int8s) Store(s []int8)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int8s) StorePart(s []int8) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int8s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -218,7 +218,7 @@ func (x Int16s) GreaterEqual(y Int16s) (z Mask16s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int16s) IfElse(mask Mask16s, y Int16s) (z Int16s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int16s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -294,7 +294,7 @@ func (x Int16s) Store(s []int16)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int16s) StorePart(s []int16) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int16s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -376,7 +376,7 @@ func (x Int32s) GreaterEqual(y Int32s) (z Mask32s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int32s) IfElse(mask Mask32s, y Int32s) (z Int32s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int32s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -452,7 +452,7 @@ func (x Int32s) Store(s []int32)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int32s) StorePart(s []int32) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int32s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -523,7 +523,7 @@ func (x Int64s) GreaterEqual(y Int64s) (z Mask64s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int64s) IfElse(mask Mask64s, y Int64s) (z Int64s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int64s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -573,7 +573,7 @@ func (x Int64s) Store(s []int64)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int64s) StorePart(s []int64) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int64s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -646,7 +646,7 @@ func (x Uint8s) Equal(y Uint8s) (z Mask8s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint8s) IfElse(mask Mask8s, y Uint8s) (z Uint8s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint8s) Len() int
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -733,7 +733,7 @@ func (x Uint8s) Store(s []uint8)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint8s) StorePart(s []uint8) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint8s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -814,7 +814,7 @@ func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint16s) IfElse(mask Mask16s, y Uint16s) (z Uint16s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint16s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -928,7 +928,7 @@ func (x Uint16s) Store(s []uint16)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint16s) StorePart(s []uint16) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint16s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -1002,7 +1002,7 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint32s) IfElse(mask Mask32s, y Uint32s) (z Uint32s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint32s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1116,7 +1116,7 @@ func (x Uint32s) Store(s []uint32)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint32s) StorePart(s []uint32) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint32s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -1223,7 +1223,7 @@ func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint64s) IfElse(mask Mask64s, y Uint64s) (z Uint64s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint64s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1317,7 +1317,7 @@ func (x Uint64s) Store(s []uint64)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint64s) StorePart(s []uint64) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint64s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -1386,7 +1386,7 @@ func (x Float32s) GreaterEqual(y Float32s) (z Mask32s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Float32s) IfElse(mask Mask32s, y Float32s) (z Float32s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Float32s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1424,6 +1424,9 @@ func (x Float32s) Mul(y Float32s) (z Float32s)
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
 func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s)
 
 // Neg returns the elementwise negation of x.
@@ -1450,7 +1453,7 @@ func (x Float32s) Store(s []float32)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float32s) StorePart(s []float32) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float32s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -1510,7 +1513,7 @@ func (x Float64s) GreaterEqual(y Float64s) (z Mask64s)
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Float64s) IfElse(mask Mask64s, y Float64s) (z Float64s)
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Float64s) Len() int
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1548,6 +1551,9 @@ func (x Float64s) Mul(y Float64s) (z Float64s)
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow.
 func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s)
 
 // Neg returns the elementwise negation of x.
@@ -1574,7 +1580,7 @@ func (x Float64s) Store(s []float64)
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float64s) StorePart(s []float64) (n int)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float64s) String() string
 
 // Sub subtracts y from x elementwise.
@@ -1617,7 +1623,8 @@ func (x Mask8s) Not() (z Mask8s)
 //	z[i] = x[i] | y[i]
 func (x Mask8s) Or(y Mask8s) (z Mask8s)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask8s) String() string
 
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -1665,7 +1672,8 @@ func (x Mask16s) Not() (z Mask16s)
 //	z[i] = x[i] | y[i]
 func (x Mask16s) Or(y Mask16s) (z Mask16s)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask16s) String() string
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -1713,7 +1721,8 @@ func (x Mask32s) Not() (z Mask32s)
 //	z[i] = x[i] | y[i]
 func (x Mask32s) Or(y Mask32s) (z Mask32s)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask32s) String() string
 
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -1761,7 +1770,8 @@ func (x Mask64s) Not() (z Mask64s)
 //	z[i] = x[i] | y[i]
 func (x Mask64s) Or(y Mask64s) (z Mask64s)
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask64s) String() string
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits

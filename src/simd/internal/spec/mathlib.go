@@ -195,21 +195,6 @@ func mulSaturatedUSS64(x uint64, y int64) int64 {
 	}
 }
 
-func rotateRight[T Ints | Uints](x T, dist uint64) T {
-	k := int(dist % uint64(elemBits[T]()))
-	switch any(x).(type) {
-	case int8, uint8:
-		return T(bits.RotateLeft8(uint8(x), -k))
-	case int16, uint16:
-		return T(bits.RotateLeft16(uint16(x), -k))
-	case int32, uint32:
-		return T(bits.RotateLeft32(uint32(x), -k))
-	case int64, uint64:
-		return T(bits.RotateLeft64(uint64(x), -k))
-	}
-	panic("unreachable")
-}
-
 // clmul computes the carryless multiplication of a and b, returning the result
 // split into high and low halves.
 func clmul[E Uints](a, b E) (hi, lo E) {
@@ -223,4 +208,40 @@ func clmul[E Uints](a, b E) (hi, lo E) {
 		}
 	}
 	return
+}
+
+// fma32 returns x*y + z, computed with only one rounding.
+func fma32(x, y, z float32) float32 {
+	// Because float32 has a 24-bit significand and exponent in [-149, 127], the
+	// product of two finite float32s has at most a 48-bit significand and
+	// exponent in [-298, 255], which is always exact in float64.
+	p := float64(x) * float64(y)
+	zf := float64(z)
+	s := p + zf
+	// p+zf performs one 53-bit rounding, and a naive conversion to float32
+	// performs a second. Specifically, if the true value of p + zf is
+	// slightly off the midpoint between two float32s, p + zf in float64 can
+	// round onto that exact float32 midpoint (whose low 28 float64
+	// significand bits are 0, so bit 0 is even), and the subsequent float32
+	// round-to-even conversion may round in the wrong direction. We
+	// implement round-to-odd per Boldo & Melquiond to counteract this.
+	if !math.IsInf(s, 0) && !math.IsNaN(s) && math.Float64bits(s)&1 == 0 {
+		// s is even, so we need to nudge s to perform round-to-odd. Compute
+		// the exact round-off error for the p+zf addition using Fast2Sum.
+		hi, lo := p, zf
+		if math.Abs(hi) < math.Abs(lo) {
+			hi, lo = lo, hi
+		}
+		if err := (hi - s) + lo; err != 0 {
+			// Nudge s by one float64 ULP toward odd. Choose the odd
+			// neighbor in the direction of err to keep s on the same side
+			// of the midpoint as the true value of p + zf.
+			if (err > 0) == (s > 0) {
+				s = math.Float64frombits(math.Float64bits(s) | 1)
+			} else {
+				s = math.Float64frombits(math.Float64bits(s) - 1)
+			}
+		}
+	}
+	return float32(s)
 }

@@ -434,6 +434,8 @@ NextVar:
 			// Replace the loads with the corresponding value.
 			replaceLoad(lc)
 		}
+		// Footprints on this variable are now gone, unset its addrtaken flag.
+		n.SetAddrtaken(false)
 		// This var is done, remove it from varGrouped.
 		if f.Pass.Debug > 1 {
 			f.Warnl(n.Pos(), "promoted %v in single block case", n)

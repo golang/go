@@ -24,11 +24,11 @@ go test -C ../strings -n
 stderr 'strings\.test'
 
 # go vet
-go vet -C ../strings -n
+go vet -C ../strings -a -n
 stderr strings_test
 
 # go fix
-go fix -C ../strings -n
+go fix -C ../strings -a -n
 stderr strings_test
 
 # -C must be first on command line (as of Go 1.21)

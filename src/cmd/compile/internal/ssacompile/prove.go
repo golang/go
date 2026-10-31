@@ -1794,13 +1794,8 @@ func getBranch(sdom ssa.SparseTree, p *ssa.Block, b *ssa.Block) branch {
 		if len(b.Preds) == 1 && b.Preds[0].B == p {
 			return jumpTable0 + branch(b.Preds[0].I)
 		}
-		// TODO: this loop can lead to quadratic behavior, as
-		// getBranch can be called len(p.Succs) times.
-		for i, e := range p.Succs {
-			if sdom.IsAncestorEq(e.B, b) && len(e.B.Preds) == 1 {
-				return jumpTable0 + branch(i)
-			}
-		}
+		// If a successor other than b dominated b, p would not be
+		// b's immediate dominator. The remaining edges add no facts.
 	}
 	return unknown
 }

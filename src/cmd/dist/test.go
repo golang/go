@@ -47,9 +47,11 @@ func cmdtest() {
 	flag.BoolVar(&t.asan, "asan", false, "run in address sanitizer builder mode")
 	flag.BoolVar(&t.json, "json", false, "report test results in JSON")
 	flag.StringVar(&t.artifactsDir, "artifacts-dir", "", "save test artifacts in the specified directory")
+	flag.StringVar(&debugTrace, "debug-trace", debugTrace, "write a merged trace of the test run to `file`")
 
 	xflagparse(-1) // any number of args
 	if noRebuild {
+		debugTraceAppend = true
 		t.rebuild = false
 	}
 
@@ -115,6 +117,7 @@ type distTest struct {
 
 func (t *tester) run() {
 	timelog("start", "dist test")
+	distSpan := startSpan("dist test")
 
 	os.Setenv("PATH", fmt.Sprintf("%s%c%s", gorootBin, os.PathListSeparator, os.Getenv("PATH")))
 
@@ -163,7 +166,9 @@ func (t *tester) run() {
 	if t.rebuild {
 		t.out("Building packages and commands.")
 		// Force rebuild the whole toolchain.
-		goInstall(toolenv(), gorootBinGo, append([]string{"-a"}, toolchain...)...)
+		rebuildSpan := startSpan("rebuild toolchain")
+		goInstall(toolenv(), gorootBinGo, append(append(maybeTraceFlag("rebuildToolchain"), "-a"), toolchain...)...)
+		rebuildSpan.done()
 	}
 
 	if !t.listMode {
@@ -180,9 +185,15 @@ func (t *tester) run() {
 			// and virtualization we usually start with a clean GOCACHE, so we would
 			// end up rebuilding large parts of the standard library that aren't
 			// otherwise relevant to the actual set of packages under test.
-			goInstall(toolenv(), gorootBinGo, toolchain...)
-			goInstall(toolenv(), gorootBinGo, toolchain...)
-			goInstall(toolenv(), gorootBinGo, toolsToInstall...)
+			toolchain1Span := startSpan("toolchain1")
+			goInstall(toolenv(), gorootBinGo, append(maybeTraceFlag("toolchain1"), toolchain...)...)
+			toolchain1Span.done()
+			toolchain2Span := startSpan("toolchain2")
+			goInstall(toolenv(), gorootBinGo, append(maybeTraceFlag("toolchain2"), toolchain...)...)
+			toolchain2Span.done()
+			toolsSpan := startSpan("tools")
+			goInstall(toolenv(), gorootBinGo, append(maybeTraceFlag("tools"), toolsToInstall...)...)
+			toolsSpan.done()
 		}
 	}
 
@@ -259,6 +270,10 @@ func (t *tester) run() {
 	}
 	t.runPending(nil)
 	timelog("end", "dist test")
+	distSpan.done()
+	if debugTrace != "" {
+		writeTrace()
+	}
 
 	if !t.json {
 		if t.failed {
@@ -353,6 +368,7 @@ type goTest struct {
 	pkg  string   // A single package to test
 
 	testFlags []string // Additional flags accepted by this test
+	trace     string   // If non-empty, write go test -debug-trace output to <workdir>/<trace>.trace
 }
 
 // compileOnly reports whether this test is only for compiling,
@@ -495,6 +511,9 @@ func (opts *goTest) buildArgs(t *tester) (build, run, pkgs, testFlags []string, 
 	if opts.buildmode != "" {
 		build = append(build, "-buildmode="+opts.buildmode)
 	}
+	if opts.trace != "" {
+		build = append(build, maybeTraceFlag(opts.trace)...)
+	}
 
 	pkgs = opts.packages()
 
@@ -583,9 +602,13 @@ func (t *tester) registerStdTest(pkg string) {
 		defer timelog("end", dt.name)
 		ranGoTest = true
 
+		stdSpan := startSpan("go test std cmd")
+		defer stdSpan.done()
+
 		return (&goTest{
 			gcflags: gcflags,
 			pkgs:    stdMatches,
+			trace:   "std",
 		}).run(t)
 	})
 }
@@ -1384,7 +1407,12 @@ func (t *tester) registerCgoTests(heading string) {
 func (t *tester) runPending(nextTest *distTest) {
 	worklist := t.worklist
 	t.worklist = nil
-	for _, w := range worklist {
+	var pendingSpan span
+	if len(worklist) > 0 {
+		pendingSpan = startSpan("runPending")
+	}
+	maxbg := runtime.GOMAXPROCS(0)
+	for i, w := range worklist {
 		w.start = make(chan bool)
 		w.end = make(chan struct{})
 		// w.cmd must be set up to write to w.out. We can't check that, but we
@@ -1398,10 +1426,12 @@ func (t *tester) runPending(nextTest *distTest) {
 				w.printSkip(t, "skipped due to earlier error")
 			} else {
 				timelog("start", w.dt.name)
+				s := startSpanTID(w.dt.name, uint64(i%maxbg+1))
 				w.err = w.cmd.Run()
 				if w.flush != nil {
 					w.flush()
 				}
+				s.done()
 				if w.err != nil {
 					if isUnsupportedVMASize(w) {
 						timelog("skip", w.dt.name)
@@ -1416,7 +1446,6 @@ func (t *tester) runPending(nextTest *distTest) {
 		}(w)
 	}
 
-	maxbg := runtime.GOMAXPROCS(0)
 	started := 0
 	ended := 0
 	var last *distTest
@@ -1452,6 +1481,7 @@ func (t *tester) runPending(nextTest *distTest) {
 			t.failed = true
 		}
 	}
+	pendingSpan.done()
 	if t.failed && !t.keepGoing {
 		fatalf("FAILED")
 	}

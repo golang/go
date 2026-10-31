@@ -4,7 +4,10 @@
 
 package archsimd
 
-import "unsafe"
+import (
+	"simd/internal/simdfmt"
+	"unsafe"
+)
 
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {
@@ -24,7 +27,7 @@ type Float32s struct {
 	vals      [8]float32
 }
 
-// Len returns the number of elements in a Float32s.
+// Len returns the number of elements in x.
 func (x Float32s) Len() int { return vl() / 4 }
 
 // LoadFloat32s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -108,13 +111,12 @@ func (x Float32s) Masked(mask Mask32s) (z Float32s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat32s(x float32) (z Float32s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float32s) String() string {
 	var s [8]float32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Float64s is a scalable SIMD vector of float64s.
@@ -125,7 +127,7 @@ type Float64s struct {
 	vals      [4]float64
 }
 
-// Len returns the number of elements in a Float64s.
+// Len returns the number of elements in x.
 func (x Float64s) Len() int { return vl() / 8 }
 
 // LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -209,13 +211,12 @@ func (x Float64s) Masked(mask Mask64s) (z Float64s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastFloat64s(x float64) (z Float64s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float64s) String() string {
 	var s [4]float64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int8s is a scalable SIMD vector of int8s.
@@ -226,7 +227,7 @@ type Int8s struct {
 	vals    [32]int8
 }
 
-// Len returns the number of elements in an Int8s.
+// Len returns the number of elements in x.
 func (x Int8s) Len() int { return vl() }
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -319,13 +320,12 @@ func (x Int8s) ToMask() (z Mask8s) {
 	return x.NotEqual(Int8s{})
 }
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int8s) String() string {
 	var s [32]int8
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int16s is a scalable SIMD vector of int16s.
@@ -336,7 +336,7 @@ type Int16s struct {
 	vals     [16]int16
 }
 
-// Len returns the number of elements in an Int16s.
+// Len returns the number of elements in x.
 func (x Int16s) Len() int { return vl() / 2 }
 
 // LoadInt16s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -429,13 +429,12 @@ func (x Int16s) ToMask() (z Mask16s) {
 	return x.NotEqual(Int16s{})
 }
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int16s) String() string {
 	var s [16]int16
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int32s is a scalable SIMD vector of int32s.
@@ -446,7 +445,7 @@ type Int32s struct {
 	vals    [8]int32
 }
 
-// Len returns the number of elements in an Int32s.
+// Len returns the number of elements in x.
 func (x Int32s) Len() int { return vl() / 4 }
 
 // LoadInt32s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -539,13 +538,12 @@ func (x Int32s) ToMask() (z Mask32s) {
 	return x.NotEqual(Int32s{})
 }
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int32s) String() string {
 	var s [8]int32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Int64s is a scalable SIMD vector of int64s.
@@ -556,7 +554,7 @@ type Int64s struct {
 	vals    [4]int64
 }
 
-// Len returns the number of elements in an Int64s.
+// Len returns the number of elements in x.
 func (x Int64s) Len() int { return vl() / 8 }
 
 // LoadInt64s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -649,13 +647,12 @@ func (x Int64s) ToMask() (z Mask64s) {
 	return x.NotEqual(Int64s{})
 }
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int64s) String() string {
 	var s [4]int64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint8s is a scalable SIMD vector of uint8s.
@@ -666,7 +663,7 @@ type Uint8s struct {
 	vals     [32]uint8
 }
 
-// Len returns the number of elements in a Uint8s.
+// Len returns the number of elements in x.
 func (x Uint8s) Len() int { return vl() }
 
 // LoadUint8s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -750,13 +747,12 @@ func (x Uint8s) Masked(mask Mask8s) (z Uint8s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint8s(x uint8) (z Uint8s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint8s) String() string {
 	var s [32]uint8
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint16s is a scalable SIMD vector of uint16s.
@@ -767,7 +763,7 @@ type Uint16s struct {
 	vals      [16]uint16
 }
 
-// Len returns the number of elements in a Uint16s.
+// Len returns the number of elements in x.
 func (x Uint16s) Len() int { return vl() / 2 }
 
 // LoadUint16s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -851,13 +847,12 @@ func (x Uint16s) Masked(mask Mask16s) (z Uint16s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint16s(x uint16) (z Uint16s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint16s) String() string {
 	var s [16]uint16
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint32s is a scalable SIMD vector of uint32s.
@@ -868,7 +863,7 @@ type Uint32s struct {
 	vals     [8]uint32
 }
 
-// Len returns the number of elements in a Uint32s.
+// Len returns the number of elements in x.
 func (x Uint32s) Len() int { return vl() / 4 }
 
 // LoadUint32s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -952,13 +947,12 @@ func (x Uint32s) Masked(mask Mask32s) (z Uint32s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint32s(x uint32) (z Uint32s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint32s) String() string {
 	var s [8]uint32
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Uint64s is a scalable SIMD vector of uint64s.
@@ -969,7 +963,7 @@ type Uint64s struct {
 	vals     [4]uint64
 }
 
-// Len returns the number of elements in a Uint64s.
+// Len returns the number of elements in x.
 func (x Uint64s) Len() int { return vl() / 8 }
 
 // LoadUint64s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -1053,13 +1047,12 @@ func (x Uint64s) Masked(mask Mask64s) (z Uint64s) {
 // Asm: ZDUP, CPU Feature: SVE
 func BroadcastUint64s(x uint64) (z Uint64s)
 
-// String returns a string representation of SIMD vector x. Only the x.Len()
-// elements that exist at the runtime vector length are shown.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint64s) String() string {
 	var s [4]uint64
 	n := x.Len()
 	x.Store(s[:])
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask8s is a scalable mask for a SIMD vector of 8-bit elements.
@@ -1126,9 +1119,8 @@ func (x Mask8s) ToInt8s() (z Int8s) {
 	return BroadcastInt8s(-1).Masked(x)
 }
 
-// String returns a string representation of SIMD mask x: 1 for an active lane,
-// 0 for an inactive one. Only the vl() lanes that exist at the runtime
-// vector length are shown.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask8s) String() string {
 	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [32]int8
@@ -1138,7 +1130,7 @@ func (x Mask8s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask16s is a scalable mask for a SIMD vector of 16-bit elements.
@@ -1205,9 +1197,8 @@ func (x Mask16s) ToInt16s() (z Int16s) {
 	return BroadcastInt16s(-1).Masked(x)
 }
 
-// String returns a string representation of SIMD mask x: 1 for an active lane,
-// 0 for an inactive one. Only the vl() / 2 lanes that exist at the runtime
-// vector length are shown.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask16s) String() string {
 	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [16]int16
@@ -1217,7 +1208,7 @@ func (x Mask16s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask32s is a scalable mask for a SIMD vector of 32-bit elements.
@@ -1284,9 +1275,8 @@ func (x Mask32s) ToInt32s() (z Int32s) {
 	return BroadcastInt32s(-1).Masked(x)
 }
 
-// String returns a string representation of SIMD mask x: 1 for an active lane,
-// 0 for an inactive one. Only the vl() / 4 lanes that exist at the runtime
-// vector length are shown.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask32s) String() string {
 	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [8]int32
@@ -1296,7 +1286,7 @@ func (x Mask32s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }
 
 // Mask64s is a scalable mask for a SIMD vector of 64-bit elements.
@@ -1363,9 +1353,8 @@ func (x Mask64s) ToInt64s() (z Int64s) {
 	return BroadcastInt64s(-1).Masked(x)
 }
 
-// String returns a string representation of SIMD mask x: 1 for an active lane,
-// 0 for an inactive one. Only the vl() / 8 lanes that exist at the runtime
-// vector length are shown.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask64s) String() string {
 	bits := *(*uint64)(unsafe.Pointer(&x))
 	var s [4]int64
@@ -1375,5 +1364,5 @@ func (x Mask64s) String() string {
 			s[i] = 1
 		}
 	}
-	return sliceToString(s[:n])
+	return simdfmt.SliceToString(s[:n])
 }

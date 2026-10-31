@@ -210,7 +210,13 @@ const (
 	// to a 48-bit address space like every other arm64 platform.
 	//
 	// WebAssembly currently has a limit of 4GB linear memory.
-	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64))*48 + (1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) + 40*goos.IsIos*goarch.IsArm64
+	//
+	// OpenBSD/arm64 is limited to 39 bits, according to:
+	// https://github.com/openbsd/src/blob/65a9769f762528944cb8c228592381427b188551/sys/arch/arm64/include/vmparam.h#L93
+	heapAddrBits = (_64bit*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)*(1-goos.IsOpenbsd*goarch.IsArm64))*48 +
+		(1-_64bit+goarch.IsWasm)*(32-(goarch.IsMips+goarch.IsMipsle)) +
+		40*goos.IsIos*goarch.IsArm64 +
+		39*goos.IsOpenbsd*goarch.IsArm64
 
 	// maxAlloc is the maximum size of an allocation. On 64-bit,
 	// it's theoretically possible to allocate 1<<heapAddrBits bytes. On
@@ -234,6 +240,7 @@ const (
 	//       */32-bit         32         4MB           1  1024  (4KB)
 	//     */mips(le)         31         4MB           1   512  (2KB)
 	//           wasm         32       512KB           1  8192 (64KB)
+	//  openbsd/arm64         39         4MB           1  128K  (1MB)
 
 	// heapArenaBytes is the size of a heap arena. The heap
 	// consists of mappings of size heapArenaBytes, aligned to
@@ -256,7 +263,11 @@ const (
 	// logHeapArenaBytes is log_2 of heapArenaBytes. For clarity,
 	// prefer using heapArenaBytes where possible (we need the
 	// constant to compute some other constants).
-	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)) + (2+20)*(_64bit*goos.IsWindows) + (2+20)*(1-_64bit) + (9+10)*goarch.IsWasm + (2+20)*goos.IsIos*goarch.IsArm64
+	logHeapArenaBytes = (6+20)*(_64bit*(1-goos.IsWindows)*(1-goarch.IsWasm)*(1-goos.IsIos*goarch.IsArm64)*(1-goos.IsOpenbsd*goarch.IsArm64)) +
+		(2+20)*(_64bit*goos.IsWindows+goarch.IsArm64*goos.IsOpenbsd) +
+		(2+20)*(1-_64bit) +
+		(9+10)*goarch.IsWasm +
+		(2+20)*goos.IsIos*goarch.IsArm64
 
 	// heapArenaBitmapWords is the size of each heap arena's bitmap in uintptrs.
 	heapArenaBitmapWords = heapArenaWords / (8 * goarch.PtrSize)

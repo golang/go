@@ -29,6 +29,7 @@ import (
 	"cmd/compile/internal/ssa/rewrite/wasm"
 	"cmd/compile/internal/ssa/ssaop"
 	"cmd/internal/obj"
+	"internal/buildcfg"
 )
 
 func NewConfig(softFloat bool) *ssa.Config {
@@ -126,7 +127,11 @@ func newConfig(arch string, types ssa.Types, ctxt *obj.Link, optimize, softfloat
 		c.GpRegMask = gpRegMaskPPC64
 		c.FpRegMask = fpRegMaskPPC64
 		c.SpecialRegMask = specialRegMaskPPC64
-		c.SimdRegMask = simdRegMaskPPC64
+		if buildcfg.GOPPC64 >= 9 {
+			c.SimdRegMask = simdRegMaskPPC64
+		} else {
+			c.SimdRegMask = ssaop.RegMask{}
+		}
 		c.IntParamRegs = paramIntRegPPC64
 		c.FloatParamRegs = paramFloatRegPPC64
 		c.FPReg = framepointerRegPPC64

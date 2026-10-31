@@ -470,21 +470,21 @@ func _() {
 	fv(0, { /* ERROR "invalid composite literal type int" */ 1, 2, 3}...)
 
 	// comparisons
-	// TODO(gri) these should work
-	_ = s == { /* ERROR "missing type in composite literal" */ 1}
-	_ = { /* ERROR "missing type in composite literal" */ 1} == s
+	_ = s == {1}
+	_ = s == ({ /* ERROR "missing type in composite literal" */ 1})
+	_ = {1} == s
+	_ = ({ /* ERROR "missing type in composite literal" */ 1}) == s
+	_ = { /* ERROR "missing type in composite literal" */ 1} == { /* ERROR "missing type in composite literal" */ 1}
 
 	// switch cases
-	// TODO(gri) these should work
 	switch s {
-	case { /* ERROR "missing type in composite literal" */ 1}:
+	case {1}:
 	}
 
 	// built-in functions where untyped composite literals are allowed
-	// TODO(gri) there should work
-	_ = append(sl, { /* ERROR "missing type in composite literal" */ 1})
-	_ = copy(l, { /* ERROR "missing type in composite literal" */ 1, 2, 3})
-	delete(m, { /* ERROR "missing type in composite literal" */ 1})
+	_ = append(sl, {1})
+	_ = copy(l, {1, 2, 3})
+	delete(m, {1})
 
 	// built-in functions where untyped composite literals are not allowed
 	_ = new({ /* ERROR "missing type in composite literal" */ })

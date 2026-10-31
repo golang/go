@@ -190,7 +190,6 @@ var predeclaredFuncs = [...]struct {
 	_Imag:    {"imag", 1, false, expression},
 	_Len:     {"len", 1, false, expression},
 	_Make:    {"make", 1, true, expression},
-	// To disable max/min, remove the next two lines.
 	_Max:     {"max", 1, true, expression},
 	_Min:     {"min", 1, true, expression},
 	_New:     {"new", 1, false, expression},

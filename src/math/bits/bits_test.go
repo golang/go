@@ -80,6 +80,24 @@ func TestLeadingZeros(t *testing.T) {
 			}
 		}
 	}
+
+	// Narrow conversions may leave unrelated high register bits set.
+	for k := uint(8); k < 64; k++ {
+		x := uint64(1) << k
+		if got := LeadingZeros8(uint8(x)); got != 8 {
+			t.Fatalf("LeadingZeros8(uint8(%#016x)) == %d; want 8", x, got)
+		}
+		if k >= 16 {
+			if got := LeadingZeros16(uint16(x)); got != 16 {
+				t.Fatalf("LeadingZeros16(uint16(%#016x)) == %d; want 16", x, got)
+			}
+		}
+		if k >= 32 {
+			if got := LeadingZeros32(uint32(x)); got != 32 {
+				t.Fatalf("LeadingZeros32(uint32(%#016x)) == %d; want 32", x, got)
+			}
+		}
+	}
 }
 
 // Exported (global) variable serving as input for some
@@ -701,6 +719,24 @@ func TestLen(t *testing.T) {
 						t.Fatalf("Len(%#016x) == %d; want %d", x, got, want)
 					}
 				}
+			}
+		}
+	}
+
+	// Narrow conversions may leave unrelated high register bits set.
+	for k := uint(8); k < 64; k++ {
+		x := uint64(1) << k
+		if got := Len8(uint8(x)); got != 0 {
+			t.Fatalf("Len8(uint8(%#016x)) == %d; want 0", x, got)
+		}
+		if k >= 16 {
+			if got := Len16(uint16(x)); got != 0 {
+				t.Fatalf("Len16(uint16(%#016x)) == %d; want 0", x, got)
+			}
+		}
+		if k >= 32 {
+			if got := Len32(uint32(x)); got != 0 {
+				t.Fatalf("Len32(uint32(%#016x)) == %d; want 0", x, got)
 			}
 		}
 	}

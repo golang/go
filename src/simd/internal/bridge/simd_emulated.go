@@ -9,9 +9,9 @@
 package bridge
 
 import (
-	"internal/strconv"
 	"math"
 	"math/bits"
+	"simd/internal/simdfmt"
 )
 
 // VectorBitSize returns the bit length of the emulated vector (fixed to 128).
@@ -32,43 +32,6 @@ func Emulated() bool {
 // that will fail ("SIGILL") if it is executed.
 func HasHardwareCarrylessMultiply() bool {
 	return false
-}
-
-type number interface {
-	~int8 | ~int16 | ~int32 | ~int64 | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64
-}
-
-func sliceToString[T number](x []T) string {
-	s := ""
-	pfx := "{"
-	for _, y := range x {
-		s += pfx
-		pfx = ","
-		switch e := any(y).(type) {
-		case int8:
-			s += strconv.Itoa(int(e))
-		case int16:
-			s += strconv.Itoa(int(e))
-		case int32:
-			s += strconv.Itoa(int(e))
-		case int64:
-			s += strconv.FormatInt(int64(e), 10)
-		case uint8:
-			s += strconv.FormatUint(uint64(e), 10)
-		case uint16:
-			s += strconv.FormatUint(uint64(e), 10)
-		case uint32:
-			s += strconv.FormatUint(uint64(e), 10)
-		case uint64:
-			s += strconv.FormatUint(uint64(e), 10)
-		case float32:
-			s += strconv.FormatFloat(float64(e), 'g', -1, 32)
-		case float64:
-			s += strconv.FormatFloat(e, 'g', -1, 64)
-		}
-	}
-	s += "}"
-	return s
 }
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -380,7 +343,7 @@ func (x Int8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -775,7 +738,7 @@ func (x Int16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -1161,7 +1124,7 @@ func (x Int32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -1417,7 +1380,7 @@ func (x Int64s) StorePart(s []int64) (n int) {
 
 // String returns a string representation of the vector.
 func (x Int64s) String() string {
-	return sliceToString([]int64{int64(x.a), int64(x.b)})
+	return simdfmt.SliceToString([]int64{int64(x.a), int64(x.b)})
 }
 
 // Sub subtracts y from x elementwise.
@@ -1697,7 +1660,7 @@ func (x Uint8s) String() string {
 	for i := 0; i < 16; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -2129,7 +2092,7 @@ func (x Uint16s) String() string {
 	for i := 0; i < 8; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -2534,7 +2497,7 @@ func (x Uint32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -2840,7 +2803,7 @@ func (x Uint64s) StorePart(s []uint64) (n int) {
 
 // String returns a string representation of the vector.
 func (x Uint64s) String() string {
-	return sliceToString([]uint64{x.a, x.b})
+	return simdfmt.SliceToString([]uint64{x.a, x.b})
 }
 
 // Sub subtracts y from x elementwise.
@@ -3215,7 +3178,7 @@ func (x Float32s) String() string {
 	for i := 0; i < 4; i++ {
 		parts[i] = x.get(i)
 	}
-	return sliceToString(parts[:])
+	return simdfmt.SliceToString(parts[:])
 }
 
 // Sub subtracts y from x elementwise.
@@ -3511,7 +3474,7 @@ func (x Float64s) StorePart(s []float64) (n int) {
 
 // String returns a string representation of the vector.
 func (x Float64s) String() string {
-	return sliceToString([]float64{x.get(0), x.get(1)})
+	return simdfmt.SliceToString([]float64{x.get(0), x.get(1)})
 }
 
 // Sub subtracts y from x elementwise.
@@ -3585,7 +3548,7 @@ func (x Mask8s) Xor(y Mask8s) (z Mask8s) {
 func (x Mask8s) String() string {
 	var s [16]int8
 	x.ToInt8s().Neg().Store(s[:])
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -3650,7 +3613,7 @@ func (x Mask16s) Xor(y Mask16s) (z Mask16s) {
 func (x Mask16s) String() string {
 	var s [8]int16
 	x.ToInt16s().Neg().Store(s[:])
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -3715,7 +3678,7 @@ func (x Mask32s) Xor(y Mask32s) (z Mask32s) {
 func (x Mask32s) String() string {
 	var s [4]int32
 	x.ToInt32s().Neg().Store(s[:])
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
@@ -3778,7 +3741,7 @@ func (x Mask64s) Xor(y Mask64s) (z Mask64s) {
 func (x Mask64s) String() string {
 	var s [2]int64
 	x.ToInt64s().Neg().Store(s[:])
-	return sliceToString(s[:])
+	return simdfmt.SliceToString(s[:])
 }
 
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits

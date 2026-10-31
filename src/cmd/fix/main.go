@@ -20,11 +20,11 @@ an analyzer that can suggest fixes.
 package main
 
 import (
+	"internal/analysis/suite/fix"
+	"internal/analysis/unitchecker"
+
 	"cmd/internal/objabi"
 	"cmd/internal/telemetry/counter"
-
-	"golang.org/x/tools/go/analysis/suite/fix"
-	"golang.org/x/tools/go/analysis/unitchecker"
 )
 
 func main() {

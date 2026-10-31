@@ -317,7 +317,8 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
 		}
 		s = s[n:]
 		if c == 'x' {
-			// single-byte string, possibly not UTF-8
+			// byte value in a string literal (possibly not UTF-8);
+			// or code point in a rune literal.
 			value = v
 			break
 		}
@@ -462,7 +463,13 @@ func unquote(in string, unescape bool) (out, rem string, err error) {
 
 			// Append the character if unescaping the input.
 			if unescape {
-				if r < utf8.RuneSelf || !multibyte {
+				// As a rune literal, a hex or octal escape denotes
+				// a code point ('\xff' = U+00FF), so it must be
+				// UTF-8 encoded like any other rune.
+				// Within a string literal, such escapes
+				// denote individual bytes.
+				if r < utf8.RuneSelf ||
+					!multibyte && quote == '"' {
 					buf = append(buf, byte(r))
 				} else {
 					buf = utf8.AppendRune(buf, r)

@@ -85,8 +85,8 @@
 // Lowering other arithmetic
 (Ctz64 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTQ x)
 (Ctz32 x)     && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
-(Ctz64 <t> x) && buildcfg.GOAMD64 <  3 => (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <types.TypeFlags> (BSFQ x)))
-(Ctz32 x)     && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ (BTSQconst <typ.UInt64> [32] x)))
+(Ctz64 x)     && buildcfg.GOAMD64 <  3 => (BSFQinit (MOVLconst [64]) x)
+(Ctz32 x)     && buildcfg.GOAMD64 <  3 => (BSFQ (BTSQconst <typ.UInt64> [32] x))
 (Ctz16 x) => (BSFL (ORLconst <typ.UInt32> [1<<16] x))
 (Ctz8  x) => (BSFL (ORLconst <typ.UInt32> [1<<8 ] x))
 
@@ -94,20 +94,20 @@
 (Ctz32NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
 (Ctz16NonZero x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
 (Ctz8NonZero  x) && buildcfg.GOAMD64 >= 3 => (TZCNTL x)
-(Ctz64NonZero x) && buildcfg.GOAMD64 <  3 => (Select0 (BSFQ x))
+(Ctz64NonZero x) && buildcfg.GOAMD64 <  3 => (BSFQ x)
 (Ctz32NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
 (Ctz16NonZero x) && buildcfg.GOAMD64 <  3 => (BSFL x)
 (Ctz8NonZero  x) && buildcfg.GOAMD64 <  3 => (BSFL x)
 
-// BitLen64 of a 64 bit value x requires checking whether x == 0, since BSRQ is undefined when x == 0.
-// However, for zero-extended values, we can cheat a bit, and calculate
-// BSR(x<<1 + 1), which is guaranteed to be non-zero, and which conveniently
-// places the index of the highest set bit where we want it.
-// For GOAMD64>=3, BitLen can be calculated by OperandSize - LZCNT(x).
-(BitLen64 <t> x) && buildcfg.GOAMD64 < 3 => (ADDQconst [1] (CMOVQEQ <t> (Select0 <t> (BSRQ x)) (MOVQconst <t> [-1]) (Select1 <types.TypeFlags> (BSRQ x))))
-(BitLen32 x) && buildcfg.GOAMD64 <  3 => (Select0 (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x))))
+// For GOAMD64<3, BitLen64 initializes the BSRQ destination to -1 so that
+// incrementing the result gives 0 for zero input and the bit length otherwise.
+// Zero-extended values use BSR(x<<1 + 1), which guarantees a non-zero input and
+// conveniently places the index of the highest set bit where we want it.
+(BitLen64 x) && buildcfg.GOAMD64 <  3 => (ADDQconst [1] (BSRQinit (MOVQconst [-1]) x))
+(BitLen32 x) && buildcfg.GOAMD64 <  3 => (BSRQ (LEAQ1 <typ.UInt64> [1] (MOVLQZX <typ.UInt64> x) (MOVLQZX <typ.UInt64> x)))
 (BitLen16 x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVWQZX <typ.UInt32> x) (MOVWQZX <typ.UInt32> x)))
 (BitLen8  x) && buildcfg.GOAMD64 <  3 => (BSRL (LEAL1 <typ.UInt32> [1] (MOVBQZX <typ.UInt32> x) (MOVBQZX <typ.UInt32> x)))
+// For GOAMD64>=3, BitLen can be calculated by OperandSize - LZCNT(x).
 (BitLen64 <t> x)        && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-64] (LZCNTQ x)))
 // Use 64-bit version to allow const-fold remove unnecessary arithmetic.
 (BitLen32 <t> x) && buildcfg.GOAMD64 >= 3 => (NEGQ (ADDQconst <t> [-32] (LZCNTL x)))
@@ -1480,8 +1480,9 @@
 (CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && ssa.Is32Bit(int64(off1)+int64(off2)) =>
 	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
 
-// We don't need the conditional move if we know the arg of BSF is not zero.
-(CMOVQEQ x _ (Select1 (BS(F|R)Q (ORQconst [c] _)))) && c != 0 => x
+// We don't need to initialize the destination if we know the arg of BSF/BSR is not zero.
+(BS(F|R)Qinit _ x:(ORQconst [c] _)) && c != 0 => (BS(F|R)Q x)
+(BS(F|R)Qinit _ x:(BTSQconst _)) => (BS(F|R)Q x)
 // Extension is unnecessary for trailing zeros.
 (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) => (BSFQ (ORQconst <t> [1<<8] x))
 (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) => (BSFQ (ORQconst <t> [1<<16] x))
@@ -1800,14 +1801,16 @@
 (KANDW (VCMPPS512 [3] x x) (VCMPPS512 [3] y y)) => (VCMPPS512 [3] x y) // 512 = 32x16 -> KANDW
 
 // These larger simplifying rules must come before the smaller simplifying rules that might break them).
+// Note that (VPANDN x y) computes ^x & y, while (KANDN x y) computes x & ^y,
+// so the AndNot rules swap the operands.
 // Rewrite rules for binary logical mask operations that apply to 8-bit elements (B, for bytes) of 128, 256, and 512-bit vectors
 (VPAND128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDW x y))
 (VPAND256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDD x y))
 (VPANDD512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDQ x y))
 
-(VPANDN128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDNW x y))
-(VPANDN256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDND x y))
-(VPANDND512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDNQ x y))
+(VPANDN128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KANDNW y x))
+(VPANDN256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KANDND y x))
+(VPANDND512 (VPMOVMToVec8x64 x) (VPMOVMToVec8x64 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x64 (KANDNQ y x))
 
 (VPOR128 (VPMOVMToVec8x16 x) (VPMOVMToVec8x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x16 (KORW x y))
 (VPOR256 (VPMOVMToVec8x32 x) (VPMOVMToVec8x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec8x32 (KORD x y))
@@ -1826,9 +1829,9 @@
 (VPAND256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDW x y))
 (VPANDD512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDD x y))
 
-(VPANDN128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDNW x y))
-(VPANDND512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDND x y))
+(VPANDN128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KANDNW y x))
+(VPANDND512 (VPMOVMToVec16x32 x) (VPMOVMToVec16x32 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x32 (KANDND y x))
 
 (VPOR128 (VPMOVMToVec16x8 x) (VPMOVMToVec16x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x8 (KORB x y))
 (VPOR256 (VPMOVMToVec16x16 x) (VPMOVMToVec16x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec16x16 (KORW x y))
@@ -1847,9 +1850,9 @@
 (VPAND256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDB x y))
 (VPANDD512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDW x y))
 
-(VPANDN128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDNB x y))
-(VPANDND512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDNW x y))
+(VPANDN128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KANDNB y x))
+(VPANDND512 (VPMOVMToVec32x16 x) (VPMOVMToVec32x16 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x16 (KANDNW y x))
 
 (VPOR128 (VPMOVMToVec32x4 x) (VPMOVMToVec32x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x4 (KORB x y))
 (VPOR256 (VPMOVMToVec32x8 x) (VPMOVMToVec32x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec32x8 (KORB x y))
@@ -1868,9 +1871,9 @@
 (VPAND256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDB x y))
 (VPANDD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDB x y))
 
-(VPANDN128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KANDNB x y))
-(VPANDN256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDNB x y))
-(VPANDND512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDNB x y))
+(VPANDN128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KANDNB y x))
+(VPANDN256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KANDNB y x))
+(VPANDND512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KANDNB y x))
 
 (VPOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KORB x y))
 (VPOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KORB x y))

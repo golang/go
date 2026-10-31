@@ -16,12 +16,12 @@ import (
 func KnownBits(f *Func) {
 	kb := &knownBitsState{
 		entries:         f.Cache.AllocKnownBitsEntriesSlice(f.NumValues()),
-		seenValues:      f.Cache.allocBitset(f.NumValues()),
-		reachableBlocks: f.Cache.allocBitset(f.NumBlocks()),
+		seenValues:      f.Cache.AllocBitset(f.NumValues()),
+		reachableBlocks: f.Cache.AllocBitset(f.NumBlocks()),
 	}
 	defer f.Cache.FreeKnownBitsEntriesSlice(kb.entries)
-	defer f.Cache.freeBitset(kb.seenValues)
-	defer f.Cache.freeBitset(kb.reachableBlocks)
+	defer f.Cache.FreeBitset(kb.seenValues)
+	defer f.Cache.FreeBitset(kb.reachableBlocks)
 	clear(kb.seenValues)
 	clear(kb.entries)
 	clear(kb.reachableBlocks)
@@ -126,8 +126,8 @@ type knownBitsEntry struct {
 
 type knownBitsState struct {
 	entries         []knownBitsEntry // indexed by Value.ID
-	seenValues      bitset           // indexed by Value.ID (at the bit level)
-	reachableBlocks bitset           // indexed by Block.ID (at the bit level)
+	seenValues      Bitset           // indexed by Value.ID (at the bit level)
+	reachableBlocks Bitset           // indexed by Block.ID (at the bit level)
 }
 
 func (kb *knownBitsState) fold(v *Value) (value, known int64) {
