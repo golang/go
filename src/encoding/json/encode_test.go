@@ -583,6 +583,49 @@ func TestRefValMarshal(t *testing.T) {
 	}
 }
 
+// A pointer-receiver MarshalJSON is called for a field reached through an
+// embedded pointer, even when the outer value is not addressable.
+// It is not called for a field of an unaddressable value with no pointer in between.
+func TestMarshalEmbeddedPointer(t *testing.T) {
+	type inner struct {
+		R Ref    `json:"r"`
+		A [1]Ref `json:"a"`
+	}
+	type outer struct{ *inner }
+	in := inner{R: 1, A: [1]Ref{2}}
+
+	type direct struct {
+		R Ref `json:"r"`
+	}
+	type directArr struct {
+		A [1]Ref `json:"a"`
+	}
+
+	tests := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"embedded pointer", outer{&in}, `{"r":"ref","a":["ref"]}`},
+		{"pointer to outer", &outer{&in}, `{"r":"ref","a":["ref"]}`},
+		{"unaddressable field", direct{R: 1}, `{"r":1}`},
+		{"addressable field", &direct{R: 1}, `{"r":"ref"}`},
+		{"unaddressable array", directArr{A: [1]Ref{2}}, `{"a":[2]}`},
+		{"addressable array", &directArr{A: [1]Ref{2}}, `{"a":["ref"]}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := Marshal(tt.in)
+			if err != nil {
+				t.Fatalf("Marshal error: %v", err)
+			}
+			if got := string(b); got != tt.want {
+				t.Errorf("Marshal:\n\tgot:  %s\n\twant: %s", got, tt.want)
+			}
+		})
+	}
+}
+
 // C implements Marshaler and returns unescaped JSON.
 type C int
 
