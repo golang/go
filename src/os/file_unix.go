@@ -309,7 +309,7 @@ func (file *file) close() error {
 		return syscall.EINVAL
 	}
 	if info := file.dirinfo.Swap(nil); info != nil {
-		info.close()
+		info.release()
 	}
 	var err error
 	if e := file.pfd.Close(); e != nil {
@@ -332,7 +332,7 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
 	if info := f.dirinfo.Swap(nil); info != nil {
 		// Free cached dirinfo, so we allocate a new one if we
 		// access this file as a directory again. See #35767 and #37161.
-		info.close()
+		info.release()
 	}
 	ret, err = f.pfd.Seek(offset, whence)
 	runtime.KeepAlive(f)
