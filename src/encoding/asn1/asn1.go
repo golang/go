@@ -674,11 +674,17 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
 		err = SyntaxError{fmt.Sprintf("%s slice too big: %d elements of %d bytes", elemType.Kind(), numElements, elemSize)}
 		return
 	}
-	ret = reflect.MakeSlice(sliceType, 0, safeCap)
+	ret = reflect.MakeSlice(sliceType, safeCap, safeCap)
 	params := fieldParameters{}
 	offset := 0
 	for i := 0; i < numElements; i++ {
-		ret = reflect.Append(ret, reflect.Zero(elemType))
+		if i == ret.Len() {
+			// Grow past the bounded initial allocation only once the
+			// preceding elements have been parsed, and use all of the
+			// new capacity rather than appending one element at a time.
+			ret = reflect.Append(ret, reflect.Zero(elemType))
+			ret = ret.Slice(0, min(ret.Cap(), numElements))
+		}
 		offset, err = parseField(ret.Index(i), bytes, offset, params, depth)
 		if err != nil {
 			return
