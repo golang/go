@@ -340,9 +340,9 @@ func TestStatConsole(t *testing.T) {
 }
 
 func TestClosedStat(t *testing.T) {
-	// Historically we do not seem to match ErrClosed on non-Unix systems.
+	// Historically we do not seem to match ErrClosed on Plan 9.
 	switch runtime.GOOS {
-	case "windows", "plan9":
+	case "plan9":
 		t.Skipf("skipping on %s", runtime.GOOS)
 	}
 

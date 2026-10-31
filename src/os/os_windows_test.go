@@ -2691,3 +2691,93 @@ func TestNewFileStdinBlocked(t *testing.T) {
 	}
 	wg.Wait() // Don't leave goroutines behind.
 }
+
+func TestClosedDirectoryHandle(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "entry"), nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	for _, primed := range []bool{false, true} {
+		for _, op := range []struct {
+			name string
+			call func(*os.File) error
+		}{
+			{"Stat", func(f *os.File) error { _, err := f.Stat(); return err }},
+			{"ReadDir", func(f *os.File) error { _, err := f.ReadDir(-1); return err }},
+			{"Readdir", func(f *os.File) error { _, err := f.Readdir(-1); return err }},
+			{"Readdirnames", func(f *os.File) error { _, err := f.Readdirnames(-1); return err }},
+		} {
+			t.Run(fmt.Sprintf("%s/primed=%v", op.name, primed), func(t *testing.T) {
+				f, err := os.Open(dir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer f.Close()
+				if primed {
+					if _, err := f.ReadDir(1); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := f.Close(); err != nil {
+					t.Fatal(err)
+				}
+				err = op.call(f)
+				if !errors.Is(err, os.ErrClosed) {
+					t.Errorf("%s on closed directory = %v; want ErrClosed", op.name, err)
+				}
+				var pe *os.PathError
+				if !errors.As(err, &pe) || pe.Path != dir {
+					t.Errorf("%s error = %v; want PathError with path %q", op.name, err, dir)
+				}
+			})
+		}
+	}
+}
+
+func TestFileStatCloseRace(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	other := filepath.Join(dir, "other")
+	if err := os.WriteFile(other, []byte("other file"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for range 100 {
+		f, err := os.Open(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		started := make(chan struct{})
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			close(started)
+			for range 100 {
+				fi, err := f.Stat()
+				if err != nil {
+					if !errors.Is(err, os.ErrClosed) {
+						t.Errorf("Stat racing Close = %v; want ErrClosed", err)
+					}
+					return
+				}
+				if !fi.IsDir() {
+					t.Errorf("Stat of directory returned mode %v", fi.Mode())
+					return
+				}
+			}
+		}()
+		<-started
+		runtime.Gosched()
+		if err := f.Close(); err != nil {
+			t.Error(err)
+		}
+		// Opening another file can reuse the handle that Close released.
+		g, err := os.Open(other)
+		if err != nil {
+			t.Error(err)
+		} else {
+			g.Close()
+		}
+		<-done
+	}
+}
