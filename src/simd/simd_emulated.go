@@ -4071,3 +4071,59 @@ func (x Mask64s) TrailingZeros() int {
 	}
 	return 2
 }
+
+// ToBits writes x as a bitmap into dst and returns the number of words written.
+// Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask element i is true.
+// Unused high bits in the last word are zero. Words after the bitmap are
+// unchanged. If dst is too short, it panics without modifying dst.
+func (x Mask8s) ToBits(dst []uint) int {
+	var word uint
+	for i := 0; i < 8; i++ {
+		word |= uint((x.a>>(8*i))&1) << i
+		word |= uint((x.b>>(8*i))&1) << (i + 8)
+	}
+	dst[0] = word
+	return 1
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of words written.
+// Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask element i is true.
+// Unused high bits in the last word are zero. Words after the bitmap are
+// unchanged. If dst is too short, it panics without modifying dst.
+func (x Mask16s) ToBits(dst []uint) int {
+	var word uint
+	for i := 0; i < 4; i++ {
+		word |= uint((x.a>>(16*i))&1) << i
+		word |= uint((x.b>>(16*i))&1) << (i + 4)
+	}
+	dst[0] = word
+	return 1
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of words written.
+// Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask element i is true.
+// Unused high bits in the last word are zero. Words after the bitmap are
+// unchanged. If dst is too short, it panics without modifying dst.
+func (x Mask32s) ToBits(dst []uint) int {
+	var word uint
+	for i := 0; i < 2; i++ {
+		word |= uint((x.a>>(32*i))&1) << i
+		word |= uint((x.b>>(32*i))&1) << (i + 2)
+	}
+	dst[0] = word
+	return 1
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of words written.
+// Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask element i is true.
+// Unused high bits in the last word are zero. Words after the bitmap are
+// unchanged. If dst is too short, it panics without modifying dst.
+func (x Mask64s) ToBits(dst []uint) int {
+	var word uint
+	for i := 0; i < 1; i++ {
+		word |= uint((x.a>>(64*i))&1) << i
+		word |= uint((x.b>>(64*i))&1) << (i + 1)
+	}
+	dst[0] = word
+	return 1
+}

@@ -10704,6 +10704,50 @@ func (x Mask64x8) ToBits() (z uint8) {
 	return uint8(spec.MaskToBits[spec.Mask64, spec.Width512](x.v))
 }
 
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask8s) ToBits(dst []uint) int {
+	return spec.MaskToBitsSlice[spec.Mask8](x.v, dst)
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask16s) ToBits(dst []uint) int {
+	return spec.MaskToBitsSlice[spec.Mask16](x.v, dst)
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask32s) ToBits(dst []uint) int {
+	return spec.MaskToBitsSlice[spec.Mask32](x.v, dst)
+}
+
+// ToBits writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+func (x Mask64s) ToBits(dst []uint) int {
+	return spec.MaskToBitsSlice[spec.Mask64](x.v, dst)
+}
+
 // ToInt8x16 converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8x16) ToInt8x16() (z Int8x16) {

@@ -6,6 +6,8 @@
 
 package spec
 
+import "math/bits"
+
 // UintN represents a Go uintN type. An argument x of type UintN introduces a
 // constraint variable named xN that must be resolved to the bit width (8, 16,
 // 32, or 64). Widths smaller than 8 are rounded up to 8. Widths larger than 64
@@ -44,6 +46,28 @@ func MaskToBits[E MaskElt, W FixedWidth](x Vec[E, W]) (z UintN) {
 		}
 	}
 	return z
+}
+
+// MaskToBitsSlice writes x as a bitmap into dst and returns the number of
+// words written. Bit i%bits.UintSize of dst[i/bits.UintSize] is set if mask
+// element i is true. Unused high bits in the last word are zero.
+//
+// It writes one bit per mask element, rounded up to a whole number of words,
+// leaving the rest of dst unchanged. If dst is too short, it panics without
+// modifying dst.
+//
+//specgen:name ToBits
+func MaskToBitsSlice[E MaskElt](x Vec[E, WidthScalable], dst []uint) int {
+	n := (len(x) + bits.UintSize - 1) / bits.UintSize
+	_ = dst[n-1]
+	dst = dst[:n]
+	clear(dst)
+	for i, elt := range x {
+		if elt != 0 {
+			dst[i/bits.UintSize] |= 1 << (i % bits.UintSize)
+		}
+	}
+	return n
 }
 
 // MaskToZ converts the mask to a vector, where element i is set to ^0 (all bits
