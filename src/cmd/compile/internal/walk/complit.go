@@ -302,23 +302,20 @@ func (w *walkState) slicelit(n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes) {
 
 	// set auto to point at new temp or heap (3 assign)
 	var a ir.Node
-	var onStack bool
 	if x := n.Prealloc; x != nil {
 		// temp allocated during order.go for dddarg
 		if !types.Identical(t, x.Type()) {
 			panic("dotdotdot base type does not match order's assigned type")
 		}
 		a = w.initStackTemp(init, x, vstat)
-		onStack = true
-	} else if n.Esc() == ir.EscNone && t.Size() <= ir.MaxImplicitStackVarSize {
+	} else if n.Esc() == ir.EscNone {
 		a = w.initStackTemp(init, typecheck.TempAt(base.Pos, w.curfunc, t), vstat)
-		onStack = true
 	} else {
 		a = ir.NewUnaryExpr(base.Pos, ir.ONEW, ir.TypeNode(t))
 	}
 	w.appendWalkStmt(init, ir.NewAssignStmt(base.Pos, vauto, a))
 
-	if vstat != nil && n.Prealloc == nil && n.Esc() != ir.EscNone && !onStack {
+	if vstat != nil && n.Prealloc == nil && n.Esc() != ir.EscNone {
 		// If we allocated on the heap with ONEW, copy the static to the
 		// heap (4). We skip this for stack temporaries, because
 		// initStackTemp already handled the copy.

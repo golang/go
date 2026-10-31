@@ -204,3 +204,50 @@ func largeZeroSliceLiteral300MiB() {
 	s := []byte{300*1<<20 - 1: 0}[:0]
 	consumeSlice(s)
 }
+
+type Tests struct {
+	t1 int
+	t2 int
+}
+
+var sinkTests []*Tests
+
+//go:noinline
+func consumeTests(s []*Tests) {
+	if cap(s) > 0 {
+		sinkTests = s[:cap(s)]
+	}
+}
+
+//go:noinline
+func largeSliceLiteralPtr() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{(1<<17 - 1): nil}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralPtrWithNew() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{(1<<17 - 1): new(Tests)}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralPtrWithTwoNews() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{
+		0:           new(Tests),
+		(1<<17 - 1): new(Tests),
+	}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralStruct() {
+	// amd64:"CALL runtime\.newobject"
+	s := []Tests{(1<<17 - 1): {}}[:0]
+	if cap(s) > 0 {
+		sinkTests = append(sinkTests, &s[:cap(s)][cap(s)-1])
+	}
+}
