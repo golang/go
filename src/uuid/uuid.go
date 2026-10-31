@@ -38,6 +38,7 @@ type UUID [16]byte
 //	f81d4fae-7dec-11d0-a765-00a0c91e6bf6
 //	{f81d4fae-7dec-11d0-a765-00a0c91e6bf6}
 //	urn:uuid:f81d4fae-7dec-11d0-a765-00a0c91e6bf6
+//	URN:UUID:f81d4fae-7dec-11d0-a765-00a0c91e6bf6
 //	f81d4fae7dec11d0a76500a0c91e6bf6
 //
 // Alphabetic characters in the hexadecimal digits may be any case.
@@ -122,10 +123,15 @@ var errInvalid = errors.New("invalid uuid")
 // The UUID is expected in a form accepted by [Parse].
 func (u *UUID) UnmarshalText(b []byte) error {
 	var dst UUID
+	const prefix = "urn:uuid:"
 	switch len(b) {
-	case len("urn:uuid:") + 36:
+	case len(prefix) + 36:
 		// urn:uuid:00000000-0000-0000-0000-000000000000
-		b = bytes.TrimPrefix(b, []byte("urn:uuid:"))
+		// where "urn:uuid:" is case-insensitive.
+		if !bytes.EqualFold(b[:len(prefix)], []byte(prefix)) {
+			return errInvalid
+		}
+		b = b[len(prefix):]
 	case 2 + 36:
 		// {00000000-0000-0000-0000-000000000000}
 		b = bytes.TrimPrefix(b, []byte("{"))
