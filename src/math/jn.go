@@ -72,21 +72,23 @@ func Jn(n int, x float64) float64 {
 	if x == 0 {
 		return 0
 	}
+	// Use an unsigned magnitude so that -MinInt is representable.
+	absN := uint(n)
 	if n < 0 {
-		n, x = -n, -x
+		absN, x = -absN, -x
 	}
-	if n == 1 {
+	if absN == 1 {
 		return J1(x)
 	}
 	sign := false
 	if x < 0 {
 		x = -x
-		if n&1 == 1 {
+		if absN&1 == 1 {
 			sign = true // odd n and negative x
 		}
 	}
 	var b float64
-	if float64(n) <= x {
+	if float64(absN) <= x {
 		// Safe to use J(n+1,x)=2n/x *J(n,x)-J(n-1,x)
 		if x >= Two302 { // x > 2**302
 
@@ -104,7 +106,7 @@ func Jn(n int, x float64) float64 {
 			//                 3     s+c             c-s
 
 			var temp float64
-			switch s, c := Sincos(x); n & 3 {
+			switch s, c := Sincos(x); absN & 3 {
 			case 0:
 				temp = c + s
 			case 1:
@@ -117,8 +119,8 @@ func Jn(n int, x float64) float64 {
 			b = (1 / SqrtPi) * temp / Sqrt(x)
 		} else {
 			b = J1(x)
-			for i, a := 1, J0(x); i < n; i++ {
-				a, b = b, b*(float64(i+i)/x)-a // avoid underflow
+			for i, a := uint(1), J0(x); i < absN; i++ {
+				a, b = b, b*(2*float64(i)/x)-a // avoid underflow
 			}
 		}
 	} else {
@@ -126,13 +128,13 @@ func Jn(n int, x float64) float64 {
 			// x is tiny, return the first Taylor expansion of J(n,x)
 			// J(n,x) = 1/n!*(x/2)**n  - ...
 
-			if n > 33 { // underflow
+			if absN > 33 { // underflow
 				b = 0
 			} else {
 				temp := x * 0.5
 				b = temp
 				a := 1.0
-				for i := 2; i <= n; i++ {
+				for i := uint(2); i <= absN; i++ {
 					a *= float64(i) // a = n!
 					b *= temp       // b = (x/2)**n
 				}
@@ -168,7 +170,7 @@ func Jn(n int, x float64) float64 {
 			// When Q(k) > 1e17	good for quadruple
 
 			// determine k
-			w := float64(n+n) / x
+			w := 2 * float64(absN) / x
 			h := 2 / x
 			q0 := w
 			z := w + h
@@ -179,10 +181,9 @@ func Jn(n int, x float64) float64 {
 				z += h
 				q0, q1 = q1, z*q1-q0
 			}
-			m := n + n
 			t := 0.0
-			for i := 2 * (n + k); i >= m; i -= 2 {
-				t = 1 / (float64(i)/x - t)
+			for i := k; i >= 0; i-- {
+				t = 1 / (2*float64(absN+uint(i))/x - t)
 			}
 			a := t
 			b = 1
@@ -194,23 +195,30 @@ func Jn(n int, x float64) float64 {
 			//  then recurrent value may overflow and the result is
 			//  likely underflow to zero
 
-			tmp := float64(n)
+			tmp := float64(absN)
 			v := 2 / x
 			tmp = tmp * Log(Abs(v*tmp))
 			if tmp < 7.09782712893383973096e+02 {
-				for i := n - 1; i > 0; i-- {
-					di := float64(i + i)
+				for i := absN - 1; i > 0; i-- {
+					di := 2 * float64(i)
 					a, b = b, b*di/x-a
 				}
 			} else {
-				for i := n - 1; i > 0; i-- {
-					di := float64(i + i)
+				for i := absN - 1; i > 0; i-- {
+					di := 2 * float64(i)
 					a, b = b, b*di/x-a
 					// scale b to avoid spurious overflow
 					if b > 1e100 {
 						a /= b
 						t /= b
 						b = 1
+						if t == 0 {
+							// Further recurrence cannot recover from underflow.
+							if sign {
+								return -t
+							}
+							return t
+						}
 					}
 				}
 			}
@@ -252,13 +260,15 @@ func Yn(n int, x float64) float64 {
 		return Inf(-1)
 	}
 	sign := false
+	// Use an unsigned magnitude so that -MinInt is representable.
+	absN := uint(n)
 	if n < 0 {
-		n = -n
-		if n&1 == 1 {
+		absN = -absN
+		if absN&1 == 1 {
 			sign = true // sign true if n < 0 && |n| odd
 		}
 	}
-	if n == 1 {
+	if absN == 1 {
 		if sign {
 			return -Y1(x)
 		}
@@ -280,7 +290,7 @@ func Yn(n int, x float64) float64 {
 		//		   3	 s+c		 c-s
 
 		var temp float64
-		switch s, c := Sincos(x); n & 3 {
+		switch s, c := Sincos(x); absN & 3 {
 		case 0:
 			temp = s - c
 		case 1:
@@ -295,8 +305,8 @@ func Yn(n int, x float64) float64 {
 		a := Y0(x)
 		b = Y1(x)
 		// quit if b is -inf
-		for i := 1; i < n && !IsInf(b, -1); i++ {
-			a, b = b, (float64(i+i)/x)*b-a
+		for i := uint(1); i < absN && !IsInf(b, -1); i++ {
+			a, b = b, (2*float64(i)/x)*b-a
 		}
 	}
 	if sign {
