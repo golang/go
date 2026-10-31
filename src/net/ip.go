@@ -462,7 +462,7 @@ func (m IPMask) String() string {
 var netmarshal = godebug.New("netmarshal")
 
 // netmarshalOld reports whether we are using the backward
-// compatible marshaling for IPMask, IPNet, and HardwareAddr.
+// compatible marshaling for IPMask and HardwareAddr.
 func netmarshalOld() bool {
 	switch netmarshal.Value() {
 	case "":
