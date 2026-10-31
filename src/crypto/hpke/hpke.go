@@ -28,14 +28,16 @@ type context struct {
 
 // Sender is a sending HPKE context. It is instantiated with a specific KEM
 // encapsulation key (i.e. the public key), and it is stateful, incrementing the
-// nonce counter for each [Sender.Seal] call.
+// nonce counter for each [Sender.Seal] call. Sender uses a 64 bit counter,
+// which is unlikely to overflow under normal usage.
 type Sender struct {
 	*context
 }
 
 // Recipient is a receiving HPKE context. It is instantiated with a specific KEM
 // decapsulation key (i.e. the secret key), and it is stateful, incrementing the
-// nonce counter for each successful [Recipient.Open] call.
+// nonce counter for each successful [Recipient.Open] call. Recipient uses a 64
+// bit counter, which is unlikely to overflow under normal usage.
 type Recipient struct {
 	*context
 }
