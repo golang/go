@@ -459,7 +459,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	// can be executed on g0. Second, it is called frequently, so will
 	// benefit from this fast path.
 	BNEZ	X10, rest
-	MOV	X1, X23
+	MOV	X1, X5
 	MOV	g, X6
 	CALL	runtime·load_g(SB)
 	MOV	g_m(g), X7
@@ -467,7 +467,7 @@ TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
 	MOV	p_raceprocctx(X7), X7
 	MOV	X7, (X11)
 	MOV	X6, g
-	JMP	(X23)
+	JMP	(X5)
 rest:
 	// Save callee-save registers (X8, X9, X18..X27, F8, F9, F18..F27),
 	// since Go code will not respect this.
