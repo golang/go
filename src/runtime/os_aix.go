@@ -244,6 +244,7 @@ func newosproc(mp *m) {
 		throw("newosproc")
 	}
 
+	pthread_attr_destroy(&attr)
 }
 
 func exitThread(wait *atomic.Uint32) {
