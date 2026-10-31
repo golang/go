@@ -22,6 +22,9 @@ func sbrk(n uintptr) unsafe.Pointer {
 	return unsafe.Pointer(bl)
 }
 
+func sysUnusedOSImpl(v unsafe.Pointer, n uintptr) {
+}
+
 // Implemented in src/runtime/sys_wasm.s
 func growMemory(pages int32) int32
 func currentMemory() int32
