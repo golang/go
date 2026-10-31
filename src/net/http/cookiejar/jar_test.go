@@ -459,7 +459,7 @@ var basicsTests = [...]jarTest{
 	},
 	{
 		"Secure cookies are not returned to http.",
-		"http://www.host.test/",
+		"https://www.host.test/",
 		[]string{"A=a; secure"},
 		"A=a",
 		[]query{
@@ -515,7 +515,7 @@ var basicsTests = [...]jarTest{
 	},
 	{
 		"Localhost only if it's a segment",
-		"http://notlocalhost/",
+		"https://notlocalhost/",
 		[]string{"A=a; secure"},
 		"A=a",
 		[]query{
@@ -526,6 +526,20 @@ var basicsTests = [...]jarTest{
 			{"https://notlocalhost/", "A=a"},
 			{"https://notlocalhost/some/path", "A=a"},
 		},
+	},
+	{
+		"Secure cookies from http are ignored, except from localhost.",
+		"http://notlocalhost/",
+		[]string{"A=a; secure", "B=b"},
+		"B=b",
+		[]query{{"https://notlocalhost", "B=b"}},
+	},
+	{
+		"Localhost can replace Secure cookies over http.",
+		"http://localhost:8910/",
+		[]string{"A=a; secure", "A=b"},
+		"A=b",
+		[]query{{"http://localhost:8910", "A=b"}},
 	},
 	{
 		"Explicit path.",
@@ -731,7 +745,7 @@ func TestBasics(t *testing.T) {
 var updateAndDeleteTests = [...]jarTest{
 	{
 		"Set initial cookies.",
-		"http://www.host.test",
+		"https://www.host.test",
 		[]string{
 			"a=1",
 			"b=2; secure",
@@ -744,8 +758,8 @@ var updateAndDeleteTests = [...]jarTest{
 		},
 	},
 	{
-		"Update value via http.",
-		"http://www.host.test",
+		"Update value via https.",
+		"https://www.host.test",
 		[]string{
 			"a=w",
 			"b=x; secure",
@@ -758,13 +772,27 @@ var updateAndDeleteTests = [...]jarTest{
 		},
 	},
 	{
-		"Clear Secure flag from an http.",
+		"Update value via http, but not of Secure cookies.",
 		"http://www.host.test/",
+		[]string{
+			"a=v",
+			"b=xx",
+			"c=v; httponly",
+			"d=zz; httponly"},
+		"a=v b=x c=v d=z",
+		[]query{
+			{"http://www.host.test", "a=v c=v"},
+			{"https://www.host.test", "a=v b=x c=v d=z"},
+		},
+	},
+	{
+		"Clear Secure flag from an https.",
+		"https://www.host.test/",
 		[]string{
 			"b=xx",
 			"d=zz; httponly"},
-		"a=w b=xx c=y d=zz",
-		[]query{{"http://www.host.test", "a=w b=xx c=y d=zz"}},
+		"a=v b=xx c=v d=zz",
+		[]query{{"http://www.host.test", "a=v b=xx c=v d=zz"}},
 	},
 	{
 		"Delete all.",
@@ -872,6 +900,106 @@ func TestUpdateAndDelete(t *testing.T) {
 	jar := newTestJar()
 	for _, test := range updateAndDeleteTests {
 		test.run(t, jar)
+	}
+}
+
+// strictSecureTests contains jarTests which must be performed on the same
+// Jar. They test RFC 6265bis section 5.7 steps 13 and 16: an insecure origin
+// cannot set a Secure cookie, nor overwrite, delete or shadow one.
+var strictSecureTests = [...]jarTest{
+	{
+		"Secure cookies from http are ignored.",
+		"http://www.host.test/",
+		[]string{
+			"a=1; secure",
+			"b=2; secure; domain=host.test",
+			"x=0"},
+		"x=0",
+		[]query{{"https://www.host.test", "x=0"}},
+	},
+	{
+		"Secure cookies from https.",
+		"https://www.host.test/",
+		[]string{
+			"a=1; secure",
+			"b=2; secure; domain=host.test",
+			"c=3; secure; path=/foo"},
+		"a=1 b=2 c=3 x=0",
+		[]query{
+			{"https://www.host.test/foo", "c=3 x=0 a=1 b=2"},
+			{"http://www.host.test/foo", "x=0"},
+		},
+	},
+	{
+		"No overwrite or deletion of Secure cookies from http.",
+		"http://www.host.test/",
+		[]string{
+			"a=x",
+			"b=; domain=host.test; max-age=-1",
+			"c=; path=/foo; max-age=-1"},
+		"a=1 b=2 c=3 x=0",
+		[]query{{"https://www.host.test/foo", "c=3 x=0 a=1 b=2"}},
+	},
+	{
+		"No shadowing of Secure cookies from http.",
+		"http://www.host.test/",
+		[]string{
+			"a=x; path=/foo",        // path-matches a's path
+			"a=x; domain=host.test", // a's domain domain-matches it
+			"b=x",                   // domain-matches b's domain
+			"c=x; path=/foo/bar"},   // path-matches c's path
+		"a=1 b=2 c=3 x=0",
+		[]query{{"https://www.host.test/foo/bar", "c=3 x=0 a=1 b=2"}},
+	},
+	{
+		"Cookies from http that do not shadow a Secure cookie.",
+		"http://www.host.test/",
+		[]string{
+			"c=y",
+			"c=z; path=/foobar",
+			"d=4"},
+		"a=1 b=2 c=3 c=y c=z d=4 x=0",
+		[]query{{"http://www.host.test/foobar", "c=z x=0 c=y d=4"}},
+	},
+	{
+		"Cookies from http on another host.",
+		"http://other.host.test/",
+		[]string{
+			"a=y", // a is a host cookie of www.host.test
+			"b=y"},
+		"a=1 a=y b=2 c=3 c=y c=z d=4 x=0",
+		[]query{{"http://other.host.test/", "a=y"}},
+	},
+	{
+		"Overwrite and deletion of Secure cookies from https.",
+		"https://www.host.test/",
+		[]string{
+			"a=z",
+			"b=; domain=host.test; max-age=-1",
+			"c=; path=/foo; max-age=-1"},
+		"a=y a=z c=y c=z d=4 x=0",
+		[]query{{"http://www.host.test/foo", "x=0 a=z c=y d=4"}},
+	},
+}
+
+func TestSetCookiesStrictSecure(t *testing.T) {
+	jar := newTestJar()
+	for _, test := range strictSecureTests {
+		test.run(t, jar)
+	}
+}
+
+// TestSetCookiesStrictSecureExpired checks that an expired Secure cookie does
+// not keep an insecure origin from setting a cookie of the same name.
+func TestSetCookiesStrictSecureExpired(t *testing.T) {
+	jar := newTestJar()
+	jar.setCookies(mustParseURL("https://www.host.test/"),
+		[]*http.Cookie{{Name: "a", Value: "1", Secure: true, MaxAge: 1}}, tNow)
+	jar.setCookies(mustParseURL("http://www.host.test/"),
+		[]*http.Cookie{{Name: "a", Value: "2"}}, tNow.Add(2*time.Second))
+	got := jar.cookies(mustParseURL("http://www.host.test/"), tNow.Add(3*time.Second))
+	if len(got) != 1 || got[0].String() != "a=2" {
+		t.Errorf("got %v, want [a=2]", got)
 	}
 }
 
