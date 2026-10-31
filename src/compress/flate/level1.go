@@ -11,11 +11,7 @@ type fastEncL1 struct {
 }
 
 func (e *fastEncL1) encode(dst *tokens, src []byte) {
-	const (
-		inputMargin            = 12 - 1
-		minNonLiteralBlockSize = 1 + 1 + inputMargin
-		hashBytes              = 5
-	)
+	const hashBytes = 5
 
 	// Protect against e.cur wraparound.
 	for e.cur >= bufferReset {

@@ -528,6 +528,75 @@ func TestNonCompressedBlockDoesntLeakDict(t *testing.T) {
 	}
 }
 
+// TestSmallFlushKeepsHistory checks that a block too small to compress does not
+// discard the match history, so data written after it, up to Close, can still
+// be matched against data written before it.
+// See https://go.dev/issue/81542.
+func TestSmallFlushKeepsHistory(t *testing.T) {
+	const msg = `{"id":"a7f3e9c2","name":"Wynn Kessler","age":34,"active":true,` +
+		`"tags":["alpha","beta","gamma"],"location":{"city":"Denver","zip":"80202"},` +
+		`"score":87.5,"joined":"2024-03-15T10:22:00Z","meta":{"verified":true,"level":3}}`
+
+	// Separators on both sides of minNonLiteralBlockSize, below which the
+	// encoder does not look for matches at all.
+	for _, sep := range []string{"Testing", strings.Repeat("separator", 5)} {
+		for level := 1; level <= 9; level++ {
+			t.Run(fmt.Sprintf("level=%d/sep=%d", level, len(sep)), func(t *testing.T) {
+				var buf bytes.Buffer
+				w, err := NewWriter(&buf, level)
+				if err != nil {
+					t.Fatalf("NewWriter: %v", err)
+				}
+				// Reuse the writer, so that a Close leaving the compressor in
+				// its no-more-data state would show up here.
+				var first []byte
+				for range 2 {
+					buf.Reset()
+					write := func(s string) int {
+						before := buf.Len()
+						if _, err := io.WriteString(w, s); err != nil {
+							t.Fatalf("Write: %v", err)
+						}
+						if err := w.Flush(); err != nil {
+							t.Fatalf("Flush: %v", err)
+						}
+						return buf.Len() - before
+					}
+					write(msg)
+					write(sep)
+					if n := write(msg); n > 40 {
+						t.Errorf("repeat of a %d byte message took %d bytes, want it emitted as a match", len(msg), n)
+					}
+					tail := msg[:100]
+					before := buf.Len()
+					if _, err := io.WriteString(w, tail); err != nil {
+						t.Fatalf("Write: %v", err)
+					}
+					if err := w.Close(); err != nil {
+						t.Fatalf("Close: %v", err)
+					}
+					if n := buf.Len() - before; n > 40 {
+						t.Errorf("repeat of a %d byte tail at Close took %d bytes, want it emitted as a match", len(tail), n)
+					}
+					got, err := io.ReadAll(NewReader(bytes.NewReader(buf.Bytes())))
+					if err != nil {
+						t.Fatalf("ReadAll: %v", err)
+					}
+					if want := msg + sep + msg + tail; string(got) != want {
+						t.Errorf("roundtrip mismatch:\ngot  %q\nwant %q", got, want)
+					}
+					if first == nil {
+						first = bytes.Clone(buf.Bytes())
+					} else if !bytes.Equal(first, buf.Bytes()) {
+						t.Errorf("output after Reset differs: %d bytes, want %d", buf.Len(), len(first))
+					}
+					w.Reset(&buf)
+				}
+			})
+		}
+	}
+}
+
 // See https://golang.org/issue/2508
 func TestRegression2508(t *testing.T) {
 	if testing.Short() {

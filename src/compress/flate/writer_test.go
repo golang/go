@@ -343,3 +343,81 @@ func TestDeflateFast_Reset(t *testing.T) {
 		}
 	}
 }
+
+// TestDeflateFastFlush_Reset tests that blocks too small to be compressed,
+// which are only added to the match history, keep encoding correct and
+// consistent across a wraparound of the table offset.
+// See https://go.dev/issue/81542.
+func TestDeflateFastFlush_Reset(t *testing.T) {
+	buf := new(bytes.Buffer)
+	for i := range 40000 {
+		fmt.Fprintf(buf, "asdfasdfasdf%d\n", i)
+	}
+	in := buf.Bytes()[:420000]
+
+	// Flush blocks too small for the encoder to emit tokens, with an
+	// occasional block big enough to be matched against them.
+	writeAll := func(t *testing.T, w *Writer) {
+		for i, data := 0, in; len(data) > 0; i++ {
+			n := 12
+			if i%64 == 63 {
+				n = 300
+			}
+			n = min(n, len(data))
+			if _, err := w.Write(data[:n]); err != nil {
+				t.Fatal(err)
+			}
+			data = data[n:]
+			if err := w.Flush(); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	for level := 1; level <= 6; level++ {
+		t.Run(fmt.Sprintf("level=%d", level), func(t *testing.T) {
+			// We do an encode with a clean buffer to compare.
+			var want bytes.Buffer
+			w, err := NewWriter(&want, level)
+			if err != nil {
+				t.Fatalf("NewWriter: level %d: %v", level, err)
+			}
+			writeAll(t, w)
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
+			// Both encodes would agree on a gap in the history, so check that
+			// the output decodes.
+			dec, err := io.ReadAll(NewReader(bytes.NewReader(want.Bytes())))
+			if err != nil || !bytes.Equal(dec, in) {
+				t.Fatalf("roundtrip failed: %v", err)
+			}
+
+			w, err = NewWriter(io.Discard, level)
+			if err != nil {
+				t.Fatalf("NewWriter: level %d: %v", level, err)
+			}
+			// Skip ahead so that appending the blocks below wraps the history
+			// buffer past bufferReset.
+			for range (bufferReset - 250000) / maxMatchOffset {
+				w.d.fast.reset()
+			}
+			var got bytes.Buffer
+			w.Reset(&got)
+			fg := w.d.fast.(canGetFastGen).getFastGen()
+			before := fg.cur
+			writeAll(t, w)
+			if err := w.Close(); err != nil {
+				t.Fatal(err)
+			}
+
+			// The offset only ever grows, except when it is rebased.
+			if fg.cur >= before {
+				t.Fatalf("test did not reach the wraparound, offset went %d -> %d", before, fg.cur)
+			}
+			if !bytes.Equal(got.Bytes(), want.Bytes()) {
+				t.Errorf("output did not match at wraparound, len(want) = %d, len(got) = %d", want.Len(), got.Len())
+			}
+		})
+	}
+}
