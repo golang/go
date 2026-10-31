@@ -201,3 +201,13 @@ func TestSehUnwindNilPointerPanic(t *testing.T) {
 		t.Fatal("did not see nil pointer panic")
 	}
 }
+
+func TestSehUnwindParkedThread(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	got := runTestProg(t, "testprog", "SehUnwindParkedThread")
+	if want := "OK\n"; got != want {
+		t.Fatalf("want %q, got %q", want, got)
+	}
+}
