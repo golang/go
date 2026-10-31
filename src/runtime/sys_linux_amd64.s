@@ -75,7 +75,7 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
 	MOVL	$SYS_openat, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+16(FP)
 	RET
@@ -85,7 +85,7 @@ TEXT runtime·closefd(SB),NOSPLIT,$0-12
 	MOVL	$SYS_close, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$-1, AX
 	MOVL	AX, ret+8(FP)
 	RET
@@ -305,7 +305,7 @@ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
 	MOVL	$SYS_rt_sigprocmask, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
@@ -515,7 +515,7 @@ TEXT runtime·sysMmap(SB),NOSPLIT,$0
 	MOVL	$SYS_mmap, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	ok
+	JCS	ok
 	NOTQ	AX
 	INCQ	AX
 	MOVQ	$0, p+32(FP)
@@ -550,7 +550,7 @@ TEXT runtime·sysMunmap(SB),NOSPLIT,$0
 	MOVQ	$SYS_munmap, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
@@ -661,7 +661,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
 	MOVQ	$SYS_sigaltstack, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 
@@ -678,7 +678,7 @@ TEXT runtime·settls(SB),NOSPLIT,$32
 	MOVQ	$SYS_arch_prctl, AX
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	2(PC)
+	JCS	2(PC)
 	MOVL	$0xf1, 0xf1  // crash
 	RET
 

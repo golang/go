@@ -16,7 +16,7 @@ TEXT ·Syscall6(SB),NOSPLIT,$0-40
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP	R6, R0
-	BLS	ok
+	BCC	ok
 	MOVW	$-1, R1
 	MOVW	R1, r1+28(FP)
 	MOVW	$0, R2

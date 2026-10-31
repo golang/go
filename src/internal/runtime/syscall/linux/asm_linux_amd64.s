@@ -34,7 +34,7 @@ TEXT ·Syscall6<ABIInternal>(SB),NOSPLIT,$0
 	// num already in AX.
 	SYSCALL
 	CMPQ	AX, $0xfffffffffffff001
-	JLS	ok
+	JCS	ok
 	NEGQ	AX
 	MOVQ	AX, CX  // errno
 	MOVQ	$-1, AX // r1
