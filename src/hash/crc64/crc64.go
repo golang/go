@@ -34,11 +34,17 @@ var (
 	slicing8TableECMA *[8]Table
 )
 
+// isoTable and ecmaTable point to the first tables of slicing8TableISO and
+// slicing8TableECMA. MakeTable returns them, so a caller using these
+// polynomials can be recognized by comparing against them.
+var isoTable, ecmaTable *Table
+
 var buildSlicing8TablesOnce = sync.OnceFunc(buildSlicing8Tables)
 
 func buildSlicing8Tables() {
 	slicing8TableISO = makeSlicingBy8Table(makeTable(ISO))
 	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
+	isoTable, ecmaTable = &slicing8TableISO[0], &slicing8TableECMA[0]
 }
 
 // MakeTable returns a [Table] constructed from the specified polynomial.
@@ -47,9 +53,9 @@ func MakeTable(poly uint64) *Table {
 	buildSlicing8TablesOnce()
 	switch poly {
 	case ISO:
-		return &slicing8TableISO[0]
+		return isoTable
 	case ECMA:
-		return &slicing8TableECMA[0]
+		return ecmaTable
 	default:
 		return makeTable(poly)
 	}
@@ -141,6 +147,7 @@ func (d *digest) Clone() (hash.Cloner, error) {
 func update(crc uint64, tab *Table, p []byte) uint64 {
 	buildSlicing8TablesOnce()
 	crc = ^crc
+	crc, p = archFold(crc, tab, p)
 	// Table comparison is somewhat expensive, so avoid it for small sizes
 	for len(p) >= 64 {
 		var helperTable *[8]Table

@@ -220,4 +220,19 @@ func BenchmarkCrc64(b *testing.B) {
 	b.Run("Random16KB", func(b *testing.B) {
 		bench(b, 0x777, 16<<10)
 	})
+	b.Run("ISO16B", func(b *testing.B) {
+		bench(b, ISO, 16)
+	})
+	b.Run("ISO64B", func(b *testing.B) {
+		bench(b, ISO, 64)
+	})
+	b.Run("ISO127B", func(b *testing.B) {
+		bench(b, ISO, 127)
+	})
+	b.Run("Random16B", func(b *testing.B) {
+		bench(b, 0x777, 16)
+	})
+	b.Run("Random127B", func(b *testing.B) {
+		bench(b, 0x777, 127)
+	})
 }
