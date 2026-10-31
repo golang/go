@@ -17,6 +17,7 @@ import (
 	"io/fs"
 	"log"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -178,6 +179,22 @@ func parsePackage(writer io.Writer, pkg *load.Package, userPath string) *Package
 	var allGoFiles []*ast.File
 	for _, p := range pkgs {
 		for _, f := range p.Files {
+			if !showSrc {
+				for _, decl := range f.Decls {
+					gen, ok := decl.(*ast.GenDecl)
+					if !ok || gen.Tok != token.TYPE {
+						continue
+					}
+					for _, spec := range gen.Specs {
+						switch typ := spec.(*ast.TypeSpec).Type.(type) {
+						case *ast.StructType:
+							collectFieldComments(typ.Fields, f.Comments)
+						case *ast.InterfaceType:
+							collectFieldComments(typ.Methods, f.Comments)
+						}
+					}
+				}
+			}
 			allGoFiles = append(allGoFiles, f)
 		}
 	}
@@ -946,6 +963,34 @@ func (pkg *Package) typeDoc(typ *doc.Type) {
 		pkg.funcSummary(typ.Funcs, true)
 		pkg.exampleSummary(typ.Examples, false)
 		pkg.funcSummary(typ.Methods, true)
+	}
+}
+
+// collectFieldComments attaches standalone comments before fields to their
+// documentation before go/doc discards unassociated comments.
+func collectFieldComments(fields *ast.FieldList, comments []*ast.CommentGroup) {
+	i := sort.Search(len(comments), func(i int) bool {
+		return comments[i].Pos() > fields.Opening
+	})
+	for _, field := range fields.List {
+		var list []*ast.Comment
+		for i < len(comments) && comments[i].Pos() < field.Pos() {
+			if len(list) > 0 {
+				list = append(list, &ast.Comment{Text: "//"})
+			}
+			list = append(list, comments[i].List...)
+			i++
+		}
+		if len(list) > 0 {
+			field.Doc = &ast.CommentGroup{List: list}
+		}
+		end := field.End()
+		if field.Comment != nil {
+			end = field.Comment.End()
+		}
+		for i < len(comments) && comments[i].Pos() < end {
+			i++
+		}
 	}
 }
 
