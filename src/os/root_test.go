@@ -747,6 +747,47 @@ func TestRootRemoveAll(t *testing.T) {
 	}
 }
 
+func TestRootRemoveAllPathError(t *testing.T) {
+	testRequiresPermissions(t)
+
+	dir := t.TempDir()
+	t.Chdir(dir)
+	for _, rootName := range []string{dir, "."} {
+		for _, name := range []string{"dir", "parent/dir", "parent/../dir", "./dir/"} {
+			t.Run(rootName+"/"+name, func(t *testing.T) {
+				if err := os.MkdirAll("parent", 0o755); err != nil {
+					t.Fatal(err)
+				}
+				locked := filepath.Join(name, "locked")
+				if err := os.MkdirAll(locked, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(locked, "file"), nil, 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chmod(locked, 0o555); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { os.Chmod(locked, 0o755) })
+				root, err := os.OpenRoot(rootName)
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer root.Close()
+				err = root.RemoveAll(name)
+				pe, ok := err.(*os.PathError)
+				if !ok {
+					t.Fatalf("Root.RemoveAll(%q) = %v, want *PathError", name, err)
+				}
+				want := strings.TrimRight(name, "/") + "/locked/file"
+				if pe.Path != want || !errors.Is(err, os.ErrPermission) {
+					t.Errorf("Root.RemoveAll(%q) = %v, want permission error for %q", name, err, want)
+				}
+			})
+		}
+	}
+}
+
 func TestRootOpenFileAsRoot(t *testing.T) {
 	dir := t.TempDir()
 	target := filepath.Join(dir, "target")
