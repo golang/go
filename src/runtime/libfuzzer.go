@@ -7,6 +7,7 @@
 package runtime
 
 import "unsafe"
+import "internal/runtime/atomic"
 
 func libfuzzerCallWithTwoByteBuffers(fn, start, end *byte)
 func libfuzzerCallTraceIntCmp(fn *byte, arg0, arg1, fakePC uintptr)
@@ -81,6 +82,16 @@ func init() {
 	size := (uintptr(end)-uintptr(start))*unsafe.Sizeof(uintptr(0))*2 + 1
 	pcTables = make([]byte, size)
 	libfuzzerCallWithTwoByteBuffers(&__sanitizer_cov_pcs_init, &pcTables[0], &pcTables[size-1])
+
+	initDone.Store(1)
+}
+
+var initDone atomic.Uint32
+
+func waitLibFuzzerInit() {
+	for initDone.Load() == 0 {
+		internal_sync_runtime_doSpin()
+	}
 }
 
 // We call libFuzzer's __sanitizer_weak_hook_strcmp function which takes the
