@@ -174,6 +174,73 @@ func TestChaCha8MarshalRead(t *testing.T) {
 	}
 }
 
+func TestChaCha8UnmarshalBinaryInvalid(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		data string
+	}{
+		{"invalid_state", "readbuf:\x03POCinvalid"},
+		{"invalid_offset", "readbuf:\x03POC" + chacha8marshal[0][:15] + "\x7d" + chacha8marshal[0][16:]},
+		{"missing_length", "readbuf:"},
+		{"truncated_buffer", "readbuf:\x08short"},
+		{"too_long", "readbuf:\x09123456789" + chacha8marshal[0]},
+		{"max_length", "readbuf:\xff" + string(bytes.Repeat([]byte{'x'}, 255)) + chacha8marshal[0]},
+		{"max_length_truncated", "readbuf:\xff"},
+		{"invalid_core", "invalid"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for _, read := range []int{0, 3} {
+				p := NewChaCha8(chacha8seed)
+				p.Read(make([]byte, read))
+				before, err := p.MarshalBinary()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := p.UnmarshalBinary([]byte(test.data)); err == nil {
+					t.Fatal("UnmarshalBinary succeeded for invalid encoding")
+				}
+				after, err := p.MarshalBinary()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !bytes.Equal(after, before) {
+					t.Errorf("after reading %d bytes, failed UnmarshalBinary changed state: got %x, want %x", read, after, before)
+				}
+			}
+		})
+	}
+}
+
+func TestChaCha8UnmarshalBinaryReadBuffer(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		data string
+		buf  string
+	}{
+		{"none", chacha8marshal[0], ""},
+		{"empty", "readbuf:\x00" + chacha8marshal[0], ""},
+		{"full", "readbuf:\x0812345678" + chacha8marshal[0], "12345678"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			for _, read := range []int{0, 3} {
+				p := NewChaCha8([32]byte{})
+				p.Read(make([]byte, read))
+				if err := p.UnmarshalBinary([]byte(test.data)); err != nil {
+					t.Fatal(err)
+				}
+				want := make([]byte, 64)
+				n := copy(want, test.buf)
+				NewChaCha8(chacha8seed).Read(want[n:])
+				got := make([]byte, len(want))
+				p.Read(got)
+				if !bytes.Equal(got, want) {
+					t.Errorf("after reading %d bytes, Read after UnmarshalBinary = %x, want %x", read, got, want)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkChaCha8(b *testing.B) {
 	p := NewChaCha8([32]byte{1, 2, 3, 4, 5})
 	var t uint64
