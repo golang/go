@@ -217,6 +217,7 @@ type Cleanup struct {
 // has already been queued for execution (because ptr became unreachable).
 // To guarantee that Stop removes the cleanup function, the caller must ensure
 // that the pointer that was passed to AddCleanup is reachable across the call to Stop.
+// Calling Stop more than once is equivalent to calling it once.
 func (c Cleanup) Stop() {
 	if c.id == 0 {
 		// id is set to zero when the cleanup is a noop.
