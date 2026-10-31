@@ -1010,6 +1010,9 @@ func TestCrashWhileTracing(t *testing.T) {
 	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t)))
 	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
 	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		t.Fatalf("could not create stdout pipe: %v", err)
+	}
 	var errOut bytes.Buffer
 	cmd.Stderr = &errOut
 

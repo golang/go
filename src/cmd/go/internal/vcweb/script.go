@@ -96,7 +96,7 @@ func (s *Server) loadScript(ctx context.Context, logger *log.Logger, scriptPath 
 		return nil, err
 	}
 	if closeErr != nil {
-		return nil, err
+		return nil, closeErr
 	}
 
 	sc, err := getScriptCtx(st)

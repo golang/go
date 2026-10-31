@@ -241,7 +241,8 @@ func cmdKtsIfcResponderRandExpCrtAft(h func() hash.Hash) command {
 				copy(paddedE[4-len(eBytes):], eBytes)
 				e := int(binary.BigEndian.Uint32(paddedE))
 
-				priv, err := rsa.NewPrivateKeyWithPrecomputation(nBytes, e, d.Bytes(), pBytes, qBytes, dmp1Bytes, dmq1Bytes, iqmpBytes)
+				var priv *rsa.PrivateKey
+				priv, err = rsa.NewPrivateKeyWithPrecomputation(nBytes, e, d.Bytes(), pBytes, qBytes, dmp1Bytes, dmq1Bytes, iqmpBytes)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create private key: %v", err)
 				}
@@ -249,7 +250,8 @@ func cmdKtsIfcResponderRandExpCrtAft(h func() hash.Hash) command {
 				dkm, err = rsa.DecryptOAEP(h(), h(), priv, cBytes, nil)
 			} else {
 				// Large exponent, use TestingOnlyLargeExponentPrivateKey.
-				priv, err := rsa.TestingOnlyNewLargeExponentPrivateKeyWithPrecomputation(nBytes, eBytes, d.Bytes(), pBytes, qBytes, dmp1Bytes, dmq1Bytes, iqmpBytes)
+				var priv *rsa.TestingOnlyLargeExponentPrivateKey
+				priv, err = rsa.TestingOnlyNewLargeExponentPrivateKeyWithPrecomputation(nBytes, eBytes, d.Bytes(), pBytes, qBytes, dmp1Bytes, dmq1Bytes, iqmpBytes)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create private key: %v", err)
 				}

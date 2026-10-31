@@ -249,11 +249,11 @@ func TestDial(t *testing.T) {
 		t.Skip("skipping syslog test during -short")
 	}
 	f, err := Dial("", "", (LOG_LOCAL7|LOG_DEBUG)+1, "syslog_test")
-	if f != nil {
+	if f != nil || err == nil {
 		t.Fatalf("Should have trapped bad priority")
 	}
 	f, err = Dial("", "", -1, "syslog_test")
-	if f != nil {
+	if f != nil || err == nil {
 		t.Fatalf("Should have trapped bad priority")
 	}
 	l, err := Dial("", "", LOG_USER|LOG_ERR, "syslog_test")

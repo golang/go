@@ -1915,7 +1915,7 @@ func TestEscaping(t *testing.T) {
 			continue
 		}
 		f, err := os.Create(p)
-		if err != nil {
+		if err == nil {
 			f.Close()
 		}
 		ents, err := os.ReadDir(dir)

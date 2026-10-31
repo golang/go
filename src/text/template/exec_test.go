@@ -2010,6 +2010,9 @@ func TestIssue31810(t *testing.T) {
 	// Works if the function is explicitly called.
 	const textCall = "{{ (call .)  }}"
 	tmpl, err = New("").Parse(textCall)
+	if err != nil {
+		t.Fatal(err)
+	}
 	b.Reset()
 	err = tmpl.Execute(&b, f)
 	if err != nil {
