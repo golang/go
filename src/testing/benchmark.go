@@ -236,13 +236,11 @@ func (b *B) run1() bool {
 		}
 	}
 	go func() {
-		// Signal that we're done whether we return normally
-		// or by FailNow's runtime.Goexit.
-		defer func() {
-			b.signal <- true
-		}()
+		returned := false
+		defer b.signalDone(&returned)
 
 		b.runN(1)
+		returned = true
 	}()
 	<-b.signal
 	if b.failed {
@@ -329,11 +327,8 @@ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 // launch is run by the doBench function as a separate goroutine.
 // run1 must have been called on b.
 func (b *B) launch() {
-	// Signal that we're done whether we return normally
-	// or by FailNow's runtime.Goexit.
-	defer func() {
-		b.signal <- true
-	}()
+	returned := false
+	defer b.signalDone(&returned)
 
 	// b.Loop does its own ramp-up logic so we just need to run it once.
 	// If b.loop.n is non zero, it means b.Loop has already run.
@@ -359,6 +354,40 @@ func (b *B) launch() {
 		}
 	}
 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
+	returned = true
+}
+
+// signalDone must be deferred directly by the goroutine that runs b, with
+// returned reporting whether that goroutine's function returned normally.
+// It signals that b is done whether the benchmark returned or stopped with
+// FailNow or SkipNow. A panic is re-raised instead of signaled: the waiting
+// goroutine would go on as if b had finished and could exit the process
+// before the panic is reported. Like tRunner, it also treats a stop that is
+// neither a return, a FailNow or SkipNow, nor a panic as a panic: a
+// panic(nil) under GODEBUG=panicnil=1, or a direct call to runtime.Goexit.
+func (b *B) signalDone(returned *bool) {
+	err := recover()
+	if err == nil && !*returned && !b.stopped() {
+		err = errNilPanicOrGoexit
+	}
+	if err != nil {
+		panic(err)
+	}
+	b.signal <- true
+}
+
+// stopped reports whether b or one of its parents stopped with FailNow or
+// SkipNow.
+func (b *B) stopped() bool {
+	for c := &b.common; c != nil; c = c.parent {
+		c.mu.RLock()
+		finished := c.finished
+		c.mu.RUnlock()
+		if finished {
+			return true
+		}
+	}
+	return false
 }
 
 // Elapsed returns the measured elapsed time of the benchmark.
