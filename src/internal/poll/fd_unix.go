@@ -299,12 +299,12 @@ func (fd *FD) ReadMsg(p []byte, oob []byte, flags int) (int, int, int, syscall.S
 			if err == syscall.EINTR {
 				continue
 			}
-			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
 			}
+			n = 0
 		}
 		err = fd.eofError(n, err)
 		return n, oobn, sysflags, sa, err
@@ -326,12 +326,12 @@ func (fd *FD) ReadMsgInet4(p []byte, oob []byte, flags int, sa4 *syscall.Sockadd
 			if err == syscall.EINTR {
 				continue
 			}
-			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
 			}
+			n = 0
 		}
 		err = fd.eofError(n, err)
 		return n, oobn, sysflags, err
@@ -353,12 +353,12 @@ func (fd *FD) ReadMsgInet6(p []byte, oob []byte, flags int, sa6 *syscall.Sockadd
 			if err == syscall.EINTR {
 				continue
 			}
-			// TODO(dfc) should n and oobn be set to 0
 			if err == syscall.EAGAIN && fd.pd.pollable() {
 				if err = fd.pd.waitRead(fd.isFile); err == nil {
 					continue
 				}
 			}
+			n = 0
 		}
 		err = fd.eofError(n, err)
 		return n, oobn, sysflags, err

@@ -839,3 +839,45 @@ func TestDualStackUDPBroadcast(t *testing.T) {
 		t.Errorf("WriteToUDPAddrPort failed: %v", err)
 	}
 }
+
+// TestUDPReadMsgZeroNOnError verifies that ReadMsgUDP and ReadMsgUDPAddrPort
+// return n=0 on error, such as a canceled read.
+func TestUDPReadMsgZeroNOnError(t *testing.T) {
+	switch runtime.GOOS {
+	case "plan9":
+		t.Skipf("not supported on %s", runtime.GOOS)
+	}
+
+	if !testableNetwork("udp4") {
+		t.Skipf("skipping: udp4 not available")
+	}
+
+	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	checkReturn := func(t *testing.T, name string, n, cmsgn int, err error) {
+		t.Helper()
+		if !errors.Is(err, os.ErrDeadlineExceeded) {
+			t.Errorf("%s got err=%#v, want os.ErrDeadlineExceeded", name, err)
+		}
+		if n != 0 {
+			t.Errorf("%s got n=%d, want 0", name, n)
+		}
+		if cmsgn != 0 {
+			t.Errorf("%s got cmsgn=%d, want 0", name, cmsgn)
+		}
+	}
+
+	buf := make([]byte, 8)
+
+	conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	n, cmsgn, _, _, err := conn.ReadMsgUDP(buf, nil)
+	checkReturn(t, "ReadMsgUDP()", n, cmsgn, err)
+
+	conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	n, cmsgn, _, _, err = conn.ReadMsgUDPAddrPort(buf, nil)
+	checkReturn(t, "ReadMsgUDPAddrPort()", n, cmsgn, err)
+}
