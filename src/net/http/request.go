@@ -1172,7 +1172,7 @@ func readRequestLimit(b *bufio.Reader, maxHeaders int64) (req *Request, err erro
 
 	fixPragmaCacheControl(req.Header)
 
-	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header, false)
+	req.Close = shouldClose(req.ProtoMajor, req.ProtoMinor, req.Header)
 
 	err = readTransfer(req, b, maxHeaders)
 	if err != nil {
