@@ -31,52 +31,29 @@ var (
 
 	cgroupOK  bool
 	cgroupCPU cgroup.CPU
-
-	// defaultGOMAXPROCSInit runs before internal/godebug init, so we can't
-	// directly update the GODEBUG counter. Store the result until after
-	// init runs.
-	containermaxprocsNonDefault bool
-	containermaxprocs           = &godebugInc{name: "containermaxprocs"}
 )
 
 // Prepare for defaultGOMAXPROCS.
 //
 // Must run after parsedebugvars.
 func defaultGOMAXPROCSInit() {
+	if debug.containermaxprocs == 0 {
+		return
+	}
+
 	c, err := cgroup.OpenCPU(cgroupScratch[:])
 	if err != nil {
 		// Likely cgroup.ErrNoCgroup.
 		return
 	}
 
-	if debug.containermaxprocs > 0 {
-		// Normal operation.
-		cgroupCPU = c
-		cgroupOK = true
-		return
-	}
-
-	// cgroup-aware GOMAXPROCS is disabled. We still check the cgroup once
-	// at startup to see if enabling the GODEBUG would result in a
-	// different default GOMAXPROCS. If so, we increment runtime/metrics
-	// /godebug/non-default-behavior/cgroupgomaxprocs:events.
-	procs := getCPUCount()
-	cgroupProcs := adjustCgroupGOMAXPROCS(procs, c)
-	if procs != cgroupProcs {
-		containermaxprocsNonDefault = true
-	}
-
-	// Don't need the cgroup for remaining execution.
-	c.Close()
+	cgroupCPU = c
+	cgroupOK = true
 }
 
 // defaultGOMAXPROCSUpdateGODEBUG updates the internal/godebug counter for
 // container GOMAXPROCS, once internal/godebug is initialized.
-func defaultGOMAXPROCSUpdateGODEBUG() {
-	if containermaxprocsNonDefault {
-		containermaxprocs.IncNonDefault()
-	}
-}
+func defaultGOMAXPROCSUpdateGODEBUG() {}
 
 // Return the default value for GOMAXPROCS when it has not been set explicitly.
 //
