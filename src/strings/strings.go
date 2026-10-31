@@ -1323,3 +1323,27 @@ func CutLast(s, sep string) (before, after string, found bool) {
 	}
 	return s, "", false
 }
+
+// CutLastPrefix removes the prefix at the end of s.
+// Unlike CutPrefix, it looks for the prefix at the end of s rather than at the beginning.
+//
+// If s does not end with prefix, CutLastPrefix returns s, false.
+// If prefix is empty, CutLastPrefix returns s, true.
+//
+// Example:
+//
+//	before, found := CutLastPrefix("a/b/c/", "/")
+//	// before = "a/b/c", found = true
+//
+//	before, found = CutLastPrefix("a/b/c", "/")
+//	// before = "a/b/c", found = false
+func CutLastPrefix(s, prefix string) (before string, found bool) {
+	if prefix == "" {
+		return s, true
+	}
+	if len(s) < len(prefix) || !HasSuffix(s, prefix) {
+		return s, false
+	}
+	return s[:len(s)-len(prefix)], true
+}
+
