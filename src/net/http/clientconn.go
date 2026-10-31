@@ -234,11 +234,11 @@ func validateClientConnRequest(req *Request) error {
 		return errors.New("http: nil Request.Header")
 	}
 	// Validate the outgoing headers.
-	if err := validateHeaders(req.Header); err != "" {
+	if err := validateHeadersWithProtocol(req.Header); err != "" {
 		return fmt.Errorf("http: invalid header %s", err)
 	}
 	// Validate the outgoing trailers too.
-	if err := validateHeaders(req.Trailer); err != "" {
+	if err := validateTrailers(req.Trailer); err != "" {
 		return fmt.Errorf("http: invalid trailer %s", err)
 	}
 	if req.Method != "" && !validMethod(req.Method) {

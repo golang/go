@@ -771,6 +771,23 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
 	}
 }
 
+func TestRequestWriteRejectsProtocolHeader(t *testing.T) {
+	req, err := NewRequest(MethodConnect, "http://example.com/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(":protocol", "websocket")
+
+	var got bytes.Buffer
+	err = req.Write(&got)
+	if err == nil || !strings.Contains(err.Error(), ":protocol pseudo-header is not allowed in HTTP/1.x") {
+		t.Fatalf("Request.Write() error = %v, want :protocol HTTP/1.x error", err)
+	}
+	if got.Len() != 0 {
+		t.Fatalf("Request.Write() wrote %q before returning an error", got.String())
+	}
+}
+
 func TestRequestBadHostHeader(t *testing.T) {
 	got := []string{}
 	req, err := NewRequest("GET", "http://foo/after", nil)

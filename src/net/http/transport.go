@@ -551,9 +551,17 @@ func (t *Transport) alternateRoundTripper(req *Request) RoundTripper {
 	return altProto[req.URL.Scheme]
 }
 
-func validateHeaders(hdrs Header) string {
+func validateTrailers(hdrs Header) string {
+	return validateHeaderFields(hdrs, false)
+}
+
+func validateHeadersWithProtocol(hdrs Header) string {
+	return validateHeaderFields(hdrs, true)
+}
+
+func validateHeaderFields(hdrs Header, allowProtocol bool) string {
 	for k, vv := range hdrs {
-		if !httpguts.ValidHeaderFieldName(k) {
+		if !httpguts.ValidHeaderFieldName(k) && !(allowProtocol && k == ":protocol") {
 			return fmt.Sprintf("field name %q", k)
 		}
 		for _, v := range vv {
@@ -583,14 +591,15 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 	scheme := req.URL.Scheme
 	isHTTP := scheme == "http" || scheme == "https"
 	if isHTTP {
-		// Validate the outgoing headers.
-		if err := validateHeaders(req.Header); err != "" {
+		// Validate the outgoing headers. Permit the :protocol pseudo-header
+		// used by extended CONNECT requests over HTTP/2 and HTTP/3.
+		if err := validateHeadersWithProtocol(req.Header); err != "" {
 			req.closeBody()
 			return nil, fmt.Errorf("net/http: invalid header %s", err)
 		}
 
 		// Validate the outgoing trailers too.
-		if err := validateHeaders(req.Trailer); err != "" {
+		if err := validateTrailers(req.Trailer); err != "" {
 			req.closeBody()
 			return nil, fmt.Errorf("net/http: invalid trailer %s", err)
 		}
