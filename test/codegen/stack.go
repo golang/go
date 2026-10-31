@@ -174,3 +174,80 @@ func storeArg(a [2]int) {
 	// amd64:-`MOVQ \$123,.*\.a\+\d+\(SP\)`
 	a[1] = 123
 }
+
+var sinkByte byte
+
+//go:noinline
+func consumeSlice(s []byte) {
+	if cap(s) > 0 {
+		sinkByte = s[:cap(s)][cap(s)-1]
+	}
+}
+
+//go:noinline
+func largeSliceLiteral() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{(1<<17 - 1): 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 1}[:0]
+	consumeSlice(s)
+}
+
+//go:noinline
+func largeZeroSliceLiteral300MiB() {
+	// amd64:`CALL runtime\.newobject`
+	s := []byte{300*1<<20 - 1: 0}[:0]
+	consumeSlice(s)
+}
+
+type Tests struct {
+	t1 int
+	t2 int
+}
+
+var sinkTests []*Tests
+
+//go:noinline
+func consumeTests(s []*Tests) {
+	if cap(s) > 0 {
+		sinkTests = s[:cap(s)]
+	}
+}
+
+//go:noinline
+func largeSliceLiteralPtr() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{(1<<17 - 1): nil}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralPtrWithNew() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{(1<<17 - 1): new(Tests)}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralPtrWithTwoNews() {
+	// amd64:"CALL runtime\.newobject"
+	s := []*Tests{
+		0:           new(Tests),
+		(1<<17 - 1): new(Tests),
+	}[:0]
+	consumeTests(s)
+}
+
+//go:noinline
+func largeSliceLiteralStruct() {
+	// amd64:"CALL runtime\.newobject"
+	s := []Tests{(1<<17 - 1): {}}[:0]
+	if cap(s) > 0 {
+		sinkTests = append(sinkTests, &s[:cap(s)][cap(s)-1])
+	}
+}
