@@ -350,6 +350,54 @@ func Float64Constant() float64 {
 	return 49.0
 }
 
+func Float32ConstantZfa() float32 {
+	// riscv64/rva23u64:"FLIS" -"MOVF"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVF" -"FLIS"
+	return 2.5
+}
+
+func Float32ConstantZfaNegative() float32 {
+	// riscv64/rva23u64:"FLIS" -"MOVF"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVF" -"FLIS"
+	return -1.0
+}
+
+func Float32ConstantZfaDenormal() float32 {
+	// riscv64/rva23u64:"FLIS" -"MOVF"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVF" -"FLIS"
+	return 0x1p-126
+}
+
+func Float32ConstantZfaNotInTable() float32 {
+	// 0.1 is not in the Zfa immediate table.
+	// riscv64/rva23u64:"MOVF" -"FLIS"
+	return 0.1
+}
+
+func Float64ConstantZfa() float64 {
+	// riscv64/rva23u64:"FLID" -"MOVD"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVD" -"FLID"
+	return 2.5
+}
+
+func Float64ConstantZfaMinNormal() float64 {
+	// The only double entry that differs from the single-precision table.
+	// riscv64/rva23u64:"FLID" -"MOVD"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVD" -"FLID"
+	return 0x1p-1022
+}
+
+func Float64ConstantZfaNotInTable() float64 {
+	// riscv64/rva23u64:"MOVD" -"FLID"
+	return 3.375
+}
+
+func Float64ConstantZfaInf() float64 {
+	// riscv64/rva23u64:"FLID" -"MOVD"
+	// riscv64/rva20u64,riscv64/rva22u64:"MOVD" -"FLID"
+	return math.Inf(1)
+}
+
 func Float32DenormalConstant() float32 {
 	// ppc64x:"FMOVS [$]f32\\.00400000\\(SB\\)"
 	return 0x1p-127
