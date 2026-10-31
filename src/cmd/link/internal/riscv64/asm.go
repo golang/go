@@ -124,8 +124,14 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_64):
+		if targType == sym.SDYNIMPORT {
+			ldr.Errorf(s, "unexpected R_RISCV_64 relocation for dynamic symbol %s", ldr.SymName(targ))
+		}
 		su := ldr.MakeSymbolUpdater(s)
 		su.SetRelocType(rIdx, objabi.R_ADDR)
+		if target.IsPIE() && target.IsInternal() {
+			break
+		}
 		return true
 
 	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_ADD32):
@@ -193,6 +199,26 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocSym(rIdx, syms.PLT)
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 
+		return true
+
+	case objabi.R_ADDR:
+		if !target.IsPIE() || !target.IsInternal() {
+			break
+		}
+
+		// The R_ADDRs that fill in these sections must stay static.
+		switch ldr.SymName(s) {
+		case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+			return false
+		}
+		if r.Siz() != 8 {
+			ldr.Errorf(s, "unexpected R_ADDR relocation of size %d", r.Siz())
+			return false
+		}
+		rela := ldr.MakeSymbolUpdater(syms.Rela)
+		rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+		rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_RISCV_RELATIVE)))
+		rela.AddAddrPlus(target.Arch, targ, r.Add())
 		return true
 	}
 
@@ -504,8 +530,16 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
 		return val, 0, true
 
 	case objabi.R_RISCV_TLS_IE:
-		log.Fatalf("cannot handle R_RISCV_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
-		return val, 0, false
+		if !target.IsPIE() || !target.IsElf() {
+			log.Fatalf("cannot handle R_RISCV_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
+		}
+		// We are linking the final executable, so we can relax the
+		// AUIPC+LD of the GOT entry to the local-exec LUI+ADDIW.
+		rd := (val >> 7) & 0x1f
+		lui := rd<<7 | 0x37
+		addiw := rd<<15 | rd<<7 | 0x1b
+		val = addiw<<32 | lui
+		fallthrough
 
 	case objabi.R_RISCV_TLS_LE:
 		// Generate LUI and ADDIW instruction immediates.
