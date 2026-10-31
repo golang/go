@@ -8,6 +8,7 @@
 50:example/test:*.t4
 50:text/plain:*,v
 50:application/x-trash:*~
+50:application/x-test-man:*.[1-3]
 30:example/do-not-use:*.t4
 10:example/glob-question-mark:*.foo?ar
 10:example/glob-asterisk:*.foo*r
