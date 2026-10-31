@@ -88,6 +88,7 @@ var (
 	BuildPGO               string                  // -pgo flag
 	BuildPkgdir            string                  // -pkgdir flag
 	BuildRace              bool                    // -race flag
+	BuildStatic            bool                    // -static flag
 	BuildToolexec          []string                // -toolexec flag
 	BuildToolchainName     string
 	BuildToolchainCompiler func() string
