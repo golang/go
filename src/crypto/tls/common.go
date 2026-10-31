@@ -283,7 +283,8 @@ type ConnectionState struct {
 
 	// PeerCertificates are the parsed certificates sent by the peer, in the
 	// order in which they were sent. The first element is the leaf certificate
-	// that the connection is verified against.
+	// that the connection is verified against, the rest are unverified
+	// certificates that can be used as intermediates to build a chain.
 	//
 	// On the client side, it can't be empty. On the server side, it can be
 	// empty if Config.ClientAuth is not RequireAnyClientCert or
@@ -674,8 +675,11 @@ type Config struct {
 	// VerifyPeerCertificate, if not nil, is called after normal
 	// certificate verification by either a TLS client or server. It
 	// receives the raw ASN.1 certificates provided by the peer and also
-	// any verified chains that normal processing found. If it returns a
-	// non-nil error, the handshake is aborted and that error results.
+	// any verified chains that normal processing found. The first element of
+	// rawCerts is the leaf certificate that the connection is verified against,
+	// the rest are unverified certificates that can be used as intermediates to
+	// build a chain. If it returns a non-nil error, the handshake is aborted
+	// and that error results.
 	//
 	// If normal verification fails then the handshake will abort before
 	// considering this callback. If normal verification is disabled (on the
