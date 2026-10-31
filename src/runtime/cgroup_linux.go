@@ -89,7 +89,10 @@ func defaultGOMAXPROCS(ncpu int32) int32 {
 	//
 	// 2. The average CPU cgroup throughput limit (average throughput =
 	// quota/period). A limit less than 2 is rounded up to 2, and any
-	// fractional component is rounded up.
+	// fractional component is rounded down. The reason for rounding down is
+	// to avoid oversubscribing the cgroup when fractional quotas are used. Using
+	// floor keeps GOMAXPROCS within the effective quota, reducing the risk of
+	// throttling under sustained load.
 	//
 	// TODO: add rationale.
 
@@ -109,7 +112,7 @@ func defaultGOMAXPROCS(ncpu int32) int32 {
 func adjustCgroupGOMAXPROCS(procs int32, cpu cgroup.CPU) int32 {
 	limit, ok, err := cgroup.ReadCPULimit(cpu)
 	if err == nil && ok {
-		limit = ceil(limit)
+		limit = floor(limit)
 		limit = max(limit, 2)
 		if int32(limit) < procs {
 			procs = int32(limit)
