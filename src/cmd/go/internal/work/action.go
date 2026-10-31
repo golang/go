@@ -941,9 +941,9 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 		// in an otherwise empty subdirectory named exe to avoid
 		// naming conflicts. The only possible conflict is if we were
 		// to create a top-level package named exe.
-		name := "a.out"
+		name := "a.out" + cfg.ExeSuffix
 		if p.Internal.ExeName != "" {
-			name = p.Internal.ExeName
+			name = p.Internal.ExeName + cfg.ExeSuffix
 		} else if (cfg.Goos == "darwin" || cfg.Goos == "windows") && cfg.BuildBuildmode == "c-shared" && p.Target != "" {
 			// On OS X, the linker output name gets recorded in the
 			// shared library's LC_ID_DYLIB load command.
@@ -952,9 +952,10 @@ func (b *Builder) LinkAction(s *modload.Loader, mode, depMode BuildMode, p *load
 			// we'll install it as; otherwise the library is only loadable as "a.out".
 			// On Windows, DLL file name is recorded in PE file
 			// export section, so do like on OS X.
+			// The target name is used as is, without adding cfg.ExeSuffix.
 			_, name = filepath.Split(p.Target)
 		}
-		a.Target = a.Objdir + filepath.Join("exe", name) + cfg.ExeSuffix
+		a.Target = a.Objdir + filepath.Join("exe", name)
 		a.built = a.Target
 		b.addTransitiveLinkDeps(s, a, exportAction, "")
 
