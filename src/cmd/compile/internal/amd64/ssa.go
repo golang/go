@@ -564,6 +564,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = v.Reg0()
 
+	case ssaop.OpAMD64ADDQcarryload, ssaop.OpAMD64ADCQload, ssaop.OpAMD64SUBQborrowload, ssaop.OpAMD64SBBQload:
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[1].Reg()
+		ssagen.AddAux(&p.From, v)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
 	case ssaop.OpAMD64ADDQconstcarry, ssaop.OpAMD64ADCQconst, ssaop.OpAMD64SUBQconstborrow, ssaop.OpAMD64SBBQconst:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
