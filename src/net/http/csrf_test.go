@@ -345,3 +345,13 @@ func TestCrossOriginProtectionServer(t *testing.T) {
 		})
 	}
 }
+
+func TestCrossOriginProtectionPanic(t *testing.T) {
+	csrf := http.NewCrossOriginProtection()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("got no panic; want panic")
+		}
+	}()
+	csrf.Handler(nil)
+}
