@@ -311,7 +311,11 @@ func spanOf(at positioner) posSpan {
 	case *operand:
 		if x.expr != nil {
 			pos := x.Pos()
-			return posSpan{pos, pos, x.expr.End()}
+			end := x.expr.End()
+			if x.exprEnd.IsValid() {
+				end = x.exprEnd
+			}
+			return posSpan{pos, pos, end}
 		}
 		return posSpan{nopos, nopos, nopos}
 	default:
