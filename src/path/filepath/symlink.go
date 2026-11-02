@@ -88,7 +88,7 @@ func walkSymlinks(path string) (string, error) {
 		}
 
 		if fi.Mode()&fs.ModeSymlink == 0 {
-			if !fi.Mode().IsDir() && end < len(path) {
+			if !fi.Mode().IsDir() && !isDirReparsePoint(fi) && end < len(path) {
 				return "", syscall.ENOTDIR
 			}
 			continue
