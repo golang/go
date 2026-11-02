@@ -361,7 +361,7 @@ func createConservativeVar(fnsym *obj.LSym, fn *ir.Func, n *ir.Name, closureVars
 		DictIndex:     n.DictIndex,
 		ClosureOffset: closureOffset(n, closureVars),
 	}
-	if n.Esc() == ir.EscHeap && n.Heapaddr != nil {
+	if base.Ctxt.Flag_locationlists && n.Esc() == ir.EscHeap && n.Heapaddr != nil {
 		// The variable was promoted to the heap and has a known heap
 		// address, so describe its location by dereferencing the pointer
 		// stored at its stack offset. A heap-escaped variable may have no
