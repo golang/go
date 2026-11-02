@@ -1851,7 +1851,7 @@ func rewriteValue_OpLsh16x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh16x64 x (Const64 [c]))
-	// cond: uint32(c) < 16
+	// cond: uint64(c) < 16
 	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
@@ -1859,7 +1859,7 @@ func rewriteValue_OpLsh16x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 16) {
+		if !(uint64(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
@@ -1868,14 +1868,14 @@ func rewriteValue_OpLsh16x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Lsh16x64 _ (Const64 [c]))
-	// cond: uint32(c) >= 16
+	// cond: uint64(c) >= 16
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 16) {
+		if !(uint64(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -1961,7 +1961,7 @@ func rewriteValue_OpLsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh32x64 x (Const64 [c]))
-	// cond: uint32(c) < 32
+	// cond: uint64(c) < 32
 	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
@@ -1969,7 +1969,7 @@ func rewriteValue_OpLsh32x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 32) {
+		if !(uint64(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
@@ -1978,14 +1978,14 @@ func rewriteValue_OpLsh32x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Lsh32x64 _ (Const64 [c]))
-	// cond: uint32(c) >= 32
+	// cond: uint64(c) >= 32
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 32) {
+		if !(uint64(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -2071,7 +2071,7 @@ func rewriteValue_OpLsh8x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Lsh8x64 x (Const64 [c]))
-	// cond: uint32(c) < 8
+	// cond: uint64(c) < 8
 	// result: (SLLconst x [int32(c)])
 	for {
 		x := v_0
@@ -2079,7 +2079,7 @@ func rewriteValue_OpLsh8x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 8) {
+		if !(uint64(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSLLconst)
@@ -2088,14 +2088,14 @@ func rewriteValue_OpLsh8x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Lsh8x64 _ (Const64 [c]))
-	// cond: uint32(c) >= 8
+	// cond: uint64(c) >= 8
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 8) {
+		if !(uint64(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -5944,7 +5944,7 @@ func rewriteValue_OpRsh16Ux64(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Rsh16Ux64 x (Const64 [c]))
-	// cond: uint32(c) < 16
+	// cond: uint64(c) < 16
 	// result: (SRLconst (SLLconst <typ.UInt32> x [16]) [int32(c+16)])
 	for {
 		x := v_0
@@ -5952,7 +5952,7 @@ func rewriteValue_OpRsh16Ux64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 16) {
+		if !(uint64(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
@@ -5964,14 +5964,14 @@ func rewriteValue_OpRsh16Ux64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh16Ux64 _ (Const64 [c]))
-	// cond: uint32(c) >= 16
+	// cond: uint64(c) >= 16
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 16) {
+		if !(uint64(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -6063,7 +6063,7 @@ func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Rsh16x64 x (Const64 [c]))
-	// cond: uint32(c) < 16
+	// cond: uint64(c) < 16
 	// result: (SRAconst (SLLconst <typ.UInt32> x [16]) [int32(c+16)])
 	for {
 		x := v_0
@@ -6071,7 +6071,7 @@ func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 16) {
+		if !(uint64(c) < 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
@@ -6083,7 +6083,7 @@ func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh16x64 x (Const64 [c]))
-	// cond: uint32(c) >= 16
+	// cond: uint64(c) >= 16
 	// result: (SRAconst (SLLconst <typ.UInt32> x [16]) [31])
 	for {
 		x := v_0
@@ -6091,7 +6091,7 @@ func rewriteValue_OpRsh16x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 16) {
+		if !(uint64(c) >= 16) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
@@ -6182,7 +6182,7 @@ func rewriteValue_OpRsh32Ux64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Rsh32Ux64 x (Const64 [c]))
-	// cond: uint32(c) < 32
+	// cond: uint64(c) < 32
 	// result: (SRLconst x [int32(c)])
 	for {
 		x := v_0
@@ -6190,7 +6190,7 @@ func rewriteValue_OpRsh32Ux64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 32) {
+		if !(uint64(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
@@ -6199,14 +6199,14 @@ func rewriteValue_OpRsh32Ux64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh32Ux64 _ (Const64 [c]))
-	// cond: uint32(c) >= 32
+	// cond: uint64(c) >= 32
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 32) {
+		if !(uint64(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -6290,7 +6290,7 @@ func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
 	// match: (Rsh32x64 x (Const64 [c]))
-	// cond: uint32(c) < 32
+	// cond: uint64(c) < 32
 	// result: (SRAconst x [int32(c)])
 	for {
 		x := v_0
@@ -6298,7 +6298,7 @@ func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 32) {
+		if !(uint64(c) < 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
@@ -6307,7 +6307,7 @@ func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh32x64 x (Const64 [c]))
-	// cond: uint32(c) >= 32
+	// cond: uint64(c) >= 32
 	// result: (SRAconst x [31])
 	for {
 		x := v_0
@@ -6315,7 +6315,7 @@ func rewriteValue_OpRsh32x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 32) {
+		if !(uint64(c) >= 32) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
@@ -6407,7 +6407,7 @@ func rewriteValue_OpRsh8Ux64(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Rsh8Ux64 x (Const64 [c]))
-	// cond: uint32(c) < 8
+	// cond: uint64(c) < 8
 	// result: (SRLconst (SLLconst <typ.UInt32> x [24]) [int32(c+24)])
 	for {
 		x := v_0
@@ -6415,7 +6415,7 @@ func rewriteValue_OpRsh8Ux64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 8) {
+		if !(uint64(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRLconst)
@@ -6427,14 +6427,14 @@ func rewriteValue_OpRsh8Ux64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh8Ux64 _ (Const64 [c]))
-	// cond: uint32(c) >= 8
+	// cond: uint64(c) >= 8
 	// result: (MOVWconst [0])
 	for {
 		if v_1.Op != ssaop.OpConst64 {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 8) {
+		if !(uint64(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSMOVWconst)
@@ -6526,7 +6526,7 @@ func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 	b := v.Block
 	typ := &b.Func.Config.Types
 	// match: (Rsh8x64 x (Const64 [c]))
-	// cond: uint32(c) < 8
+	// cond: uint64(c) < 8
 	// result: (SRAconst (SLLconst <typ.UInt32> x [24]) [int32(c+24)])
 	for {
 		x := v_0
@@ -6534,7 +6534,7 @@ func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) < 8) {
+		if !(uint64(c) < 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
@@ -6546,7 +6546,7 @@ func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 		return true
 	}
 	// match: (Rsh8x64 x (Const64 [c]))
-	// cond: uint32(c) >= 8
+	// cond: uint64(c) >= 8
 	// result: (SRAconst (SLLconst <typ.UInt32> x [24]) [31])
 	for {
 		x := v_0
@@ -6554,7 +6554,7 @@ func rewriteValue_OpRsh8x64(v *ssa.Value) bool {
 			break
 		}
 		c := ssa.AuxIntToInt64(v_1.AuxInt)
-		if !(uint32(c) >= 8) {
+		if !(uint64(c) >= 8) {
 			break
 		}
 		v.Reset(ssaop.OpMIPSSRAconst)
