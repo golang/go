@@ -1388,14 +1388,23 @@
 (VPSLLQ256const [a] x) && a==0 => x // asmRule
 (VPSLLQ512const [a] x) && a==0 => x // asmRule
 (VPSLLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSLLWMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked128 dst x mask) // asmRule
 (VPSLLWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSLLWMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked256 dst x mask) // asmRule
 (VPSLLWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSLLWMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked512 dst x mask) // asmRule
 (VPSLLDMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSLLDMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked128 dst x mask) // asmRule
 (VPSLLDMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSLLDMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked256 dst x mask) // asmRule
 (VPSLLDMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSLLDMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked512 dst x mask) // asmRule
 (VPSLLQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSLLQMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked128 dst x mask) // asmRule
 (VPSLLQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSLLQMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked256 dst x mask) // asmRule
 (VPSLLQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
+(VPSLLQMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked512 dst x mask) // asmRule
 (VPSRAW128const [a] x) && a==0 => x // asmRule
 (VPSRAW256const [a] x) && a==0 => x // asmRule
 (VPSRAW512const [a] x) && a==0 => x // asmRule
@@ -1415,23 +1424,41 @@
 (VPSRLQ256const [a] x) && a==0 => x // asmRule
 (VPSRLQ512const [a] x) && a==0 => x // asmRule
 (VPSRAWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSRAWMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked128 dst x mask) // asmRule
 (VPSRAWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSRAWMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked256 dst x mask) // asmRule
 (VPSRAWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSRAWMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked512 dst x mask) // asmRule
 (VPSRADMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSRADMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked128 dst x mask) // asmRule
 (VPSRADMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSRADMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked256 dst x mask) // asmRule
 (VPSRADMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSRADMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked512 dst x mask) // asmRule
 (VPSRAQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSRAQMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked128 dst x mask) // asmRule
 (VPSRAQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSRAQMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked256 dst x mask) // asmRule
 (VPSRAQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
+(VPSRAQMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked512 dst x mask) // asmRule
 (VPSRLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSRLWMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked128 dst x mask) // asmRule
 (VPSRLWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSRLWMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked256 dst x mask) // asmRule
 (VPSRLWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSRLWMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked512 dst x mask) // asmRule
 (VPSRLDMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSRLDMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked128 dst x mask) // asmRule
 (VPSRLDMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSRLDMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked256 dst x mask) // asmRule
 (VPSRLDMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSRLDMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMDMasked512 dst x mask) // asmRule
 (VPSRLQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSRLQMasked128constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked128 dst x mask) // asmRule
 (VPSRLQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSRLQMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked256 dst x mask) // asmRule
 (VPSRLQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
+(VPSRLQMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked512 dst x mask) // asmRule
 (ternInt32x4 ...) => (VPTERNLOGD128 ...) // pureVreg
 (ternInt32x8 ...) => (VPTERNLOGD256 ...) // pureVreg
 (ternInt32x16 ...) => (VPTERNLOGD512 ...) // pureVreg

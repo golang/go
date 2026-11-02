@@ -67,6 +67,11 @@ type RawOperation struct {
 	//
 	//	(VPSLLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask)
 	//
+	// Similarly, for 512-bit vectors, it derives the rule for the merging
+	// form, which blends the unmasked result into dst under the mask:
+	//
+	//	(VPSLLWMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked512 dst x mask)
+	//
 	// Format specifiers are not expanded in asm rules.
 	AsmRules *[]string
 	// LowerRules replace the default lowering rule of the generic op. They are

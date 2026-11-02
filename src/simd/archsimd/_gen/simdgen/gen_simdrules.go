@@ -726,6 +726,9 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					panic(fmt.Errorf("simdgen: asm rules are not supported on masked machine op %s", data.Asm))
 				}
 			}
+			// Likewise, a merging machine op is its unmasked form followed by
+			// a blend into dst.
+			_, mergeBlend, _ := gOp.mergeMaskedForm(maskType, opOutShape)
 			for i, rule := range gOp.AsmRules {
 				cond, out := parseAsmRule(rule)
 				optData := data
@@ -738,6 +741,13 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					optData.RuleOut = fmt.Sprintf("(%s %s mask)", zeroMove, out)
 				}
 				allData = append(allData, optData)
+				if mergeBlend != "" {
+					mergeData := optData
+					mergeData.Asm += "Merging"
+					mergeData.Args = "dst " + optData.Args
+					mergeData.RuleOut = fmt.Sprintf("(%s dst %s mask)", mergeBlend, out)
+					allData = append(allData, mergeData)
+				}
 			}
 		}
 		if len(gOp.LowerRules) > 0 || len(gOp.PeepholeRules) > 0 {

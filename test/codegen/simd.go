@@ -161,6 +161,20 @@ func sftImmVPSRL() archsimd.Uint32x4 {
 	return x.ShiftAllRight(1)
 }
 
+func sftImmZeroMasked(x archsimd.Int16x32, bits uint32) archsimd.Int16x32 {
+	// Check that a zero-masked shift by 0 still zeroes masked-off lanes instead of folding to x.
+	mask := archsimd.Mask16x32FromBits(bits)
+	// amd64:`VMOVDQU16\.Z` -`VPSLLW`
+	return x.ShiftAllLeft(0).Masked(mask)
+}
+
+func sftImmZeroMerge(x, dst archsimd.Int16x32, bits uint32) archsimd.Int16x32 {
+	// Check that a merge-masked shift by 0 folds to a blend instead of shifting by 0.
+	mask := archsimd.Mask16x32FromBits(bits)
+	// amd64:`VPBLENDMW` -`VPSLLW`
+	return x.ShiftAllLeft(0).IfElse(mask, dst)
+}
+
 func aLtbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
 	// the vector length implies AVX512 implies the mask operations.
 	// amd64:`KANDQ`
