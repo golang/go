@@ -6630,19 +6630,6 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (CMPUconst x:(MOVHreg _) [c])
-	// result: (CMPWUconst x [c])
-	for {
-		c := ssa.AuxIntToInt32(v.AuxInt)
-		x := v_0
-		if x.Op != ssaop.OpS390XMOVHreg {
-			break
-		}
-		v.Reset(ssaop.OpS390XCMPWUconst)
-		v.AuxInt = ssa.Int32ToAuxInt(c)
-		v.AddArg(x)
-		return true
-	}
 	// match: (CMPUconst x:(MOVHZreg _) [c])
 	// result: (CMPWUconst x [c])
 	for {
@@ -6656,12 +6643,13 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (CMPUconst x:(MOVBreg _) [c])
+	// match: (CMPUconst x:(MOVHreg _) [c])
+	// cond: c >= 0
 	// result: (CMPWUconst x [c])
 	for {
 		c := ssa.AuxIntToInt32(v.AuxInt)
 		x := v_0
-		if x.Op != ssaop.OpS390XMOVBreg {
+		if x.Op != ssaop.OpS390XMOVHreg || !(c >= 0) {
 			break
 		}
 		v.Reset(ssaop.OpS390XCMPWUconst)
@@ -6675,6 +6663,20 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		c := ssa.AuxIntToInt32(v.AuxInt)
 		x := v_0
 		if x.Op != ssaop.OpS390XMOVBZreg {
+			break
+		}
+		v.Reset(ssaop.OpS390XCMPWUconst)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMPUconst x:(MOVBreg _) [c])
+	// cond: c >= 0
+	// result: (CMPWUconst x [c])
+	for {
+		c := ssa.AuxIntToInt32(v.AuxInt)
+		x := v_0
+		if x.Op != ssaop.OpS390XMOVBreg || !(c >= 0) {
 			break
 		}
 		v.Reset(ssaop.OpS390XCMPWUconst)
