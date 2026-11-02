@@ -126,6 +126,11 @@ func (t *Transport) TestSetNewClientConnHook(f func(*ClientConn)) {
 
 func (cc *ClientConn) TestNetConn() net.Conn     { return cc.tconn }
 func (cc *ClientConn) TestSetNetConn(c net.Conn) { cc.tconn = c }
+func (cc *ClientConn) TestSetNextStreamID(id uint32) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.nextStreamID = id
+}
 
 func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32)) (*ClientResponse, error) {
 	return cc.roundTrip(req, func(cs *clientStream) {
