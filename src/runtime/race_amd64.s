@@ -493,7 +493,7 @@ rest:
 	MOVQ	g(R12), R14
 	MOVQ	g_m(R14), R13
 	MOVQ	m_g0(R13), R15
-	CMPQ	R13, R15
+	CMPQ	R14, R15
 	JEQ	noswitch	// branch if already on g0
 	MOVQ	R15, g(R12)	// g = m->g0
 	MOVQ	R15, R14	// set g register
