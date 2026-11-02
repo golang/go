@@ -336,7 +336,13 @@ func (v Value) runes() []rune {
 // Such values are called addressable. A value is addressable if it is
 // an element of a slice, an element of an addressable array,
 // a field of an addressable struct, or the result of dereferencing a pointer.
-// If CanAddr returns false, calling [Value.Addr] will panic.
+// The underlying value of an interface is not addressable,
+// and neither is a map key or value.
+//
+// If CanAddr returns false, then calling the following methods will panic:
+//   - [Value.Addr], [Value.UnsafeAddr], or [Value.Grow],
+//   - [Value.Set] and related methods (see [Value.CanSet]), and
+//   - [Value.Bytes], [Value.Slice] and [Value.Slice3] when v is an array.
 func (v Value) CanAddr() bool {
 	return v.flag&flagAddr != 0
 }
@@ -346,6 +352,7 @@ func (v Value) CanAddr() bool {
 // obtained by the use of unexported struct fields.
 // If CanSet returns false, calling [Value.Set] or any type-specific
 // setter (e.g., [Value.SetBool], [Value.SetInt]) will panic.
+// Calling [Value.Grow] will also panic.
 func (v Value) CanSet() bool {
 	return v.flag&(flagAddr|flagRO) == flagAddr
 }
