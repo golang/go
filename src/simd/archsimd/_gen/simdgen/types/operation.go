@@ -58,9 +58,16 @@ type RawOperation struct {
 	//	(VSSHR4S [a] x) && a==0 => x
 	//
 	// Since the left-hand side comes from the operation's shape, one asm rule
-	// covers every machine op the operation expands to, including masked
-	// variants, which add "mask" to the left-hand side. Format specifiers are
-	// not expanded in asm rules.
+	// covers every machine op the operation expands to. Write the rule for
+	// the unmasked machine op. On amd64, simdgen derives the rule for the
+	// AVX-512 masked form, which computes the unmasked op and then zeroes the
+	// inactive lanes, by adding mask to the left-hand side and applying a
+	// zeroing masked move to <result>. For example, "a==0 => x" on
+	// VPSLLW128const also produces
+	//
+	//	(VPSLLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask)
+	//
+	// Format specifiers are not expanded in asm rules.
 	AsmRules *[]string
 	// LowerRules replace the default lowering rule of the generic op. They are
 	// complete rules, usually on %g, and are emitted in order, so a rule for a

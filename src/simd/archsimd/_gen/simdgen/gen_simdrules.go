@@ -713,6 +713,19 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 		if len(gOp.AsmRules) > 0 && !asmRulesDone[data.Asm] {
 			asmRulesDone[data.Asm] = true
+			// Asm rules are written for the unmasked machine op. A masked
+			// machine op is its unmasked form followed by a zeroing masked
+			// move, so its form of a rule applies that move to the result.
+			var zeroMove string
+			if maskType == OneMask {
+				ok := false
+				if CurrentArch().GoTypeArch == "amd64" && tplName == "maskIn" {
+					_, zeroMove, ok = gOp.zeroMaskedForm()
+				}
+				if !ok {
+					panic(fmt.Errorf("simdgen: asm rules are not supported on masked machine op %s", data.Asm))
+				}
+			}
 			for i, rule := range gOp.AsmRules {
 				cond, out := parseAsmRule(rule)
 				optData := data
@@ -720,8 +733,9 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 				optData.RuleIndex = i
 				optData.RuleCond = "&& " + cond
 				optData.RuleOut = out
-				if maskType == OneMask {
+				if zeroMove != "" {
 					optData.Args += " mask"
+					optData.RuleOut = fmt.Sprintf("(%s %s mask)", zeroMove, out)
 				}
 				allData = append(allData, optData)
 			}

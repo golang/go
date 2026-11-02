@@ -1387,15 +1387,15 @@
 (VPSLLQ128const [a] x) && a==0 => x // asmRule
 (VPSLLQ256const [a] x) && a==0 => x // asmRule
 (VPSLLQ512const [a] x) && a==0 => x // asmRule
-(VPSLLWMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSLLWMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSLLWMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSLLDMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSLLDMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSLLDMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSLLQMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSLLQMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSLLQMasked512const [a] x mask) && a==0 => x // asmRule
+(VPSLLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSLLWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSLLWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSLLDMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSLLDMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSLLDMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSLLQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSLLQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSLLQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
 (VPSRAW128const [a] x) && a==0 => x // asmRule
 (VPSRAW256const [a] x) && a==0 => x // asmRule
 (VPSRAW512const [a] x) && a==0 => x // asmRule
@@ -1414,24 +1414,24 @@
 (VPSRLQ128const [a] x) && a==0 => x // asmRule
 (VPSRLQ256const [a] x) && a==0 => x // asmRule
 (VPSRLQ512const [a] x) && a==0 => x // asmRule
-(VPSRAWMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRAWMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRAWMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSRADMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRADMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRADMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSRAQMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRAQMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRAQMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSRLWMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRLWMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRLWMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSRLDMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRLDMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRLDMasked512const [a] x mask) && a==0 => x // asmRule
-(VPSRLQMasked128const [a] x mask) && a==0 => x // asmRule
-(VPSRLQMasked256const [a] x mask) && a==0 => x // asmRule
-(VPSRLQMasked512const [a] x mask) && a==0 => x // asmRule
+(VPSRAWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSRAWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSRAWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSRADMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSRADMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSRADMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSRAQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSRAQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSRAQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
+(VPSRLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask) // asmRule
+(VPSRLWMasked256const [a] x mask) && a==0 => (VMOVDQU16Masked256 x mask) // asmRule
+(VPSRLWMasked512const [a] x mask) && a==0 => (VMOVDQU16Masked512 x mask) // asmRule
+(VPSRLDMasked128const [a] x mask) && a==0 => (VMOVDQU32Masked128 x mask) // asmRule
+(VPSRLDMasked256const [a] x mask) && a==0 => (VMOVDQU32Masked256 x mask) // asmRule
+(VPSRLDMasked512const [a] x mask) && a==0 => (VMOVDQU32Masked512 x mask) // asmRule
+(VPSRLQMasked128const [a] x mask) && a==0 => (VMOVDQU64Masked128 x mask) // asmRule
+(VPSRLQMasked256const [a] x mask) && a==0 => (VMOVDQU64Masked256 x mask) // asmRule
+(VPSRLQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
 (ternInt32x4 ...) => (VPTERNLOGD128 ...) // pureVreg
 (ternInt32x8 ...) => (VPTERNLOGD256 ...) // pureVreg
 (ternInt32x16 ...) => (VPTERNLOGD512 ...) // pureVreg
