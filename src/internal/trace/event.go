@@ -57,7 +57,7 @@ const (
 	// (identified via ResourceKind). A range that has begun but has not ended
 	// is considered active.
 	//
-	// EvRangeBegin and EvRangeEnd will share the same name, and an End will always
+	// EventRangeBegin and EventRangeEnd will share the same name, and an End will always
 	// follow a Begin on the same instance of the resource. The associated
 	// resource ID can be obtained from the Event. ResourceNone indicates the
 	// range is globally scoped. That is, any goroutine/proc/thread can start or
@@ -70,7 +70,8 @@ const (
 	EventRangeActive
 	EventRangeEnd
 
-	// EvTaskBegin and EvTaskEnd are a pair of events representing a runtime/trace.Task.
+	// EventTaskBegin and EventTaskEnd are a pair of events representing a
+	// runtime/trace.Task.
 	EventTaskBegin
 	EventTaskEnd
 
