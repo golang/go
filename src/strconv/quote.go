@@ -25,7 +25,9 @@ func quoteWith(s string, quote byte, ASCIIonly, graphicOnly bool) string {
 }
 
 func quoteRuneWith(r rune, quote byte, ASCIIonly, graphicOnly bool) string {
-	return string(appendQuotedRuneWith(nil, r, quote, ASCIIonly, graphicOnly))
+	// A quoted rune is at most two quotes, a backslash, 'U', and eight hex digits.
+	var buf [12]byte
+	return string(appendQuotedRuneWith(buf[:0], r, quote, ASCIIonly, graphicOnly))
 }
 
 func appendQuotedWith(buf []byte, s string, quote byte, ASCIIonly, graphicOnly bool) []byte {

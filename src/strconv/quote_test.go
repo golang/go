@@ -103,6 +103,42 @@ func BenchmarkQuoteRune(b *testing.B) {
 	}
 }
 
+var quoteRuneResult string
+
+func BenchmarkQuoteRuneEscaping(b *testing.B) {
+	cases := []struct {
+		name string
+		r    rune
+	}{
+		{"ASCII", 'a'},
+		{"Control", '\n'},
+		{"NonASCII", '界'},
+		{"GraphicSpace", '\u2000'},
+		{"NonBMP", '\U0010ffff'},
+		{"Invalid", -1},
+	}
+	for _, tc := range cases {
+		b.Run("QuoteRune/"+tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				quoteRuneResult = QuoteRune(tc.r)
+			}
+		})
+		b.Run("QuoteRuneToASCII/"+tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				quoteRuneResult = QuoteRuneToASCII(tc.r)
+			}
+		})
+		b.Run("QuoteRuneToGraphic/"+tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				quoteRuneResult = QuoteRuneToGraphic(tc.r)
+			}
+		})
+	}
+}
+
 var benchQuoteBuf []byte
 
 func BenchmarkAppendQuote(b *testing.B) {
@@ -129,9 +165,12 @@ type quoteRuneTest struct {
 var quoterunetests = []quoteRuneTest{
 	{'a', `'a'`, `'a'`, `'a'`},
 	{'\a', `'\a'`, `'\a'`, `'\a'`},
+	{'\'', `'\''`, `'\''`, `'\''`},
 	{'\\', `'\\'`, `'\\'`, `'\\'`},
 	{0xFF, `'ÿ'`, `'\u00ff'`, `'ÿ'`},
 	{0x263a, `'☺'`, `'\u263a'`, `'☺'`},
+	{0x1f600, `'😀'`, `'\U0001f600'`, `'😀'`},
+	{-1, `'�'`, `'\ufffd'`, `'�'`},
 	{0xdead, `'�'`, `'\ufffd'`, `'�'`},
 	{0xfffd, `'�'`, `'\ufffd'`, `'�'`},
 	{0x0010ffff, `'\U0010ffff'`, `'\U0010ffff'`, `'\U0010ffff'`},
@@ -173,6 +212,29 @@ func TestQuoteRuneToGraphic(t *testing.T) {
 		if out := AppendQuoteRuneToGraphic([]byte("abc"), tt.in); string(out) != "abc"+tt.graphic {
 			t.Errorf("AppendQuoteRuneToGraphic(%q, %U) = %s, want %s", "abc", tt.in, out, "abc"+tt.graphic)
 		}
+	}
+}
+
+func TestQuoteRuneAllocs(t *testing.T) {
+	for _, variant := range []struct {
+		name  string
+		quote func(rune) string
+	}{
+		{"QuoteRune", QuoteRune},
+		{"QuoteRuneToASCII", QuoteRuneToASCII},
+		{"QuoteRuneToGraphic", QuoteRuneToGraphic},
+	} {
+		t.Run(variant.name, func(t *testing.T) {
+			for _, tt := range quoterunetests {
+				// Retain the result so the returned string escapes the call.
+				allocs := testing.AllocsPerRun(100, func() {
+					quoteRuneResult = variant.quote(tt.in)
+				})
+				if allocs > 1 {
+					t.Errorf("%s(%U) allocated %g times; want at most 1", variant.name, tt.in, allocs)
+				}
+			}
+		})
 	}
 }
 
