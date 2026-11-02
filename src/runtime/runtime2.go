@@ -1215,7 +1215,12 @@ type _panic struct {
 	// The current stack frame that we're running deferred calls for.
 	pc uintptr
 	sp unsafe.Pointer
-	fp unsafe.Pointer
+	// fp is a plain integer rather than an unsafe.Pointer so that it does not
+	// keep the stack object it points at alive. On amd64 it is the address of
+	// the frame's argument area, so a pointer there resurrects a dead argument
+	// during the scan that runs while deferred calls execute. copystack moves
+	// it explicitly in adjustpanics.
+	fp uintptr
 
 	// retpc stores the PC where the panic should jump back to, if the
 	// function last returned by _panic.nextDefer() recovers the panic.

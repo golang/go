@@ -840,10 +840,18 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 	}
 }
 
+// adjustpanics runs after adjustframe, so the records and their link fields
+// have already moved with the stack. Only fp is left, because fp is a plain
+// integer that the typed pass does not touch. It is adjusted directly rather
+// than through adjustpointer, which is there to reinterpret a pointer slot.
 func adjustpanics(gp *g, adjinfo *adjustinfo) {
-	// Panics are on stack and already adjusted.
 	// Update pointer to head of list in G.
 	adjustpointer(adjinfo, unsafe.Pointer(&gp._panic))
+	for p := gp._panic; p != nil; p = p.link {
+		if adjinfo.old.lo <= p.fp && p.fp < adjinfo.old.hi {
+			p.fp += adjinfo.delta
+		}
+	}
 }
 
 func adjustsudogs(gp *g, adjinfo *adjustinfo) {
@@ -989,7 +997,6 @@ func copystack(gp *g, newsize uintptr) {
 	// stack because gentraceback uses them.
 	adjustctxt(gp, &adjinfo)
 	adjustdefers(gp, &adjinfo)
-	adjustpanics(gp, &adjinfo)
 	if adjinfo.sghi != 0 {
 		adjinfo.sghi += adjinfo.delta
 	}
@@ -1005,6 +1012,11 @@ func copystack(gp *g, newsize uintptr) {
 	for u.init(gp, 0); u.valid(); u.next() {
 		adjustframe(&u.frame, &adjinfo)
 	}
+
+	// Panic records live on the stack and have just moved with it, so this
+	// comes after the loop above. Traceback does not read them, so nothing
+	// before this point needs them.
+	adjustpanics(gp, &adjinfo)
 
 	if valgrindenabled {
 		if gp.valgrindStackID == 0 {

@@ -1048,7 +1048,7 @@ func (p *_panic) nextFrame() (ok bool) {
 
 		p.pc = u.frame.pc
 		p.sp = unsafe.Pointer(u.frame.sp)
-		p.fp = unsafe.Pointer(u.frame.fp)
+		p.fp = u.frame.fp
 
 		ok = true
 	})
@@ -1381,7 +1381,7 @@ var paniclk mutex
 // defers instead.
 func recovery(gp *g) {
 	p := gp._panic
-	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
+	pc, sp, fp := p.retpc, uintptr(p.sp), p.fp
 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
 
 	// The linker records the f-relative address of a call to deferreturn in f's funcInfo.
