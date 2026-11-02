@@ -4081,7 +4081,10 @@ type methodValueWrapper struct {
 // needWrapper records that wrapper methods may be needed at link
 // time.
 func (r *reader) needWrapper(typ *types.Type) {
-	if typ.IsPtr() || typ.IsKind(types.TFORW) {
+	// Non-interface shape types have no run-time method sets (see
+	// reflectdata.methods), so their wrappers would be unreachable.
+	// Shaped interface method expressions still call static wrappers.
+	if typ.IsPtr() || typ.IsKind(types.TFORW) || typ.HasShape() && !typ.IsInterface() {
 		return
 	}
 
