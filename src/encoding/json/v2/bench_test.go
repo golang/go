@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path"
 	"reflect"
@@ -125,11 +126,12 @@ func len64[Bytes ~[]byte | ~string](in Bytes) int64 {
 }
 
 var arshalTestdata = []struct {
-	name   string
-	raw    []byte
-	val    any
-	new    func() any
-	skipV1 bool
+	name         string
+	raw          []byte
+	val          any
+	new          func() any
+	skipV1       bool
+	marshalDeref bool // deref the value before performing marshal
 }{{
 	name: "Bool",
 	raw:  []byte("true"),
@@ -275,6 +277,17 @@ var arshalTestdata = []struct {
 	raw:  []byte(`"2006-01-02T22:04:05Z"`),
 	val:  new(time.Unix(1136239445, 0).UTC()),
 	new:  func() any { return new(time.Time) },
+}, {
+	name: "AddrPointer",
+	raw:  []byte(`"192.168.1.1"`),
+	val:  new(netip.AddrFrom4([4]byte{192, 168, 1, 1})),
+	new:  func() any { return new(netip.Addr) },
+}, {
+	name:         "AddrValue",
+	raw:          []byte(`"192.168.1.1"`),
+	val:          new(netip.AddrFrom4([4]byte{192, 168, 1, 1})),
+	new:          func() any { return new(netip.Addr) },
+	marshalDeref: true,
 }}
 
 type textArshaler struct{ _ [4]int }
@@ -450,9 +463,13 @@ func runMarshal(tb testing.TB) {
 
 		// Setup the marshal operation.
 		var raw []byte
+		val := tt.val
+		if tt.marshalDeref {
+			val = reflect.ValueOf(val).Elem().Interface()
+		}
 		run := func(tb testing.TB) {
 			var err error
-			raw, err = jsonFuncs.marshal(tt.val)
+			raw, err = jsonFuncs.marshal(val)
 			if err != nil {
 				tb.Fatalf("Marshal error: %v", err)
 			}
