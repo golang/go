@@ -1482,17 +1482,12 @@ func writeOpcode(w *bytes.Buffer, as obj.As) {
 	case as < AV128Load:
 		w.WriteByte(0xFC)
 		w.WriteByte(byte(as - AI32TruncSatF32S + 0x00))
-	case as < AI16x8Abs: // [AV128Load, AI16x8Abs)
+	case as <= AI32x4RelaxedDotI8x16I7x16AddS: // [AV128Load, AI32x4RelaxedDotI8x16I7x16AddS]
+		// Vector instructions are the 0xFD prefix followed by a
+		// ULEB128-encoded opcode index. The opcodes are declared in
+		// index order, so one subtraction covers all of them.
 		w.WriteByte(0xFD)
-		writeUleb128(w, uint64(as-AV128Load+0x00))
-	case as < AI8x16RelaxedSwizzle: // [AI16x8Abs, AI8x16RelaxedSwizzle)
-		w.WriteByte(0xFD)
-		writeUleb128(w, uint64(as-AI16x8Abs+0x80))
-		w.WriteByte(0x01)
-	case as <= AI32x4RelaxedDotI8x16I7x16AddS: // [AI8x16RelaxedSwizzle, AI32x4RelaxedDotI8x16I7x16AddS]
-		w.WriteByte(0xFD)
-		writeUleb128(w, uint64(as-AI8x16RelaxedSwizzle+0x80))
-		w.WriteByte(0x02)
+		writeUleb128(w, uint64(as-AV128Load))
 
 	default:
 		panic(fmt.Sprintf("unexpected assembler op: %s", as))
