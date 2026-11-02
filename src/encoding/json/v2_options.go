@@ -254,6 +254,13 @@ func DefaultOptionsV1() Options {
 //     where it is the implementation's responsibility to represent the
 //     Go value as a JSON string (as required for JSON object names).
 //
+//   - When unmarshaling, unmarshal methods are not called on a value of
+//     an unnamed type (e.g., an anonymous struct type that embeds a type
+//     with unmarshal methods) unless the value is reached through a pointer.
+//     However, [encoding.TextUnmarshaler] is still callable for map keys.
+//     In contrast, the v2 semantic is to call unmarshal methods
+//     regardless of whether the type is named.
+//
 //   - When marshaling, if a map key value implements a marshal method
 //     and is a nil pointer, then it is serialized as an empty JSON string.
 //     In contrast, the v2 semantic is to report an error.

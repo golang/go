@@ -476,7 +476,7 @@ func unmarshalDecode(in *jsontext.Decoder, out any, uo *jsonopts.Struct, last bo
 	}
 
 	// Lookup and call the unmarshal function for this type.
-	unmarshal := lookupUnmarshaler(t).fnc
+	unmarshal := lookupUnmarshalerViaPointer(t).fnc
 	if uo.Unmarshalers != nil {
 		unmarshal, _ = uo.Unmarshalers.(*Unmarshalers).lookup(unmarshal, t)
 	}
@@ -563,11 +563,35 @@ func lookupUnmarshaler(t reflect.Type) *unmarshaler {
 	}
 
 	fnc := makeDefaultUnmarshaler(t)
-	fnc = makeMethodUnmarshaler(fnc, t)
+	fnc = makeMethodUnmarshaler(fnc, t, false)
 	fnc = makeTimeUnmarshaler(fnc, t)
 
 	// Use the last stored so that duplicate unmarshalers can be garbage collected.
 	v, _ := lookupUnmarshalerCache.LoadOrStore(t, fnc)
+	return v.(*unmarshaler)
+}
+
+var lookupUnmarshalerViaPointerCache sync.Map // map[reflect.Type]*unmarshaler
+
+// lookupUnmarshalerViaPointer is like [lookupUnmarshaler],
+// but for a value of type t obtained by dereferencing a pointer.
+// It only differs for unnamed struct types with unmarshal methods,
+// where [jsonflags.CallMethodsWithLegacySemantics] calls the methods
+// only when the value is reached through a pointer.
+func lookupUnmarshalerViaPointer(t reflect.Type) *unmarshaler {
+	if t.Name() != "" || t.Kind() != reflect.Struct {
+		return lookupUnmarshaler(t)
+	}
+	if v, ok := lookupUnmarshalerViaPointerCache.Load(t); ok {
+		return v.(*unmarshaler)
+	}
+	var fnc *unmarshaler
+	if implementsAny(t, allUnmarshalerTypes...) {
+		fnc = makeMethodUnmarshaler(makeDefaultUnmarshaler(t), t, true)
+	} else {
+		fnc = lookupUnmarshaler(t)
+	}
+	v, _ := lookupUnmarshalerViaPointerCache.LoadOrStore(t, fnc)
 	return v.(*unmarshaler)
 }
 

@@ -2965,3 +2965,90 @@ func TestUnmarshalMaxDepth(t *testing.T) {
 		}
 	}
 }
+
+type UnnamedMethodsInner struct{ Value int }
+
+// UnnamedMethodsChild has an UnmarshalJSON method that is promoted into
+// unnamed struct types embedding it. See https://go.dev/issue/81244.
+type UnnamedMethodsChild struct{ UnnamedMethodsInner }
+
+func (c *UnnamedMethodsChild) UnmarshalJSON([]byte) error {
+	c.Value = -1 // records that the method was called
+	return nil
+}
+
+type UnnamedMethodsKey struct{ S string }
+
+func (k *UnnamedMethodsKey) UnmarshalText(b []byte) error {
+	k.S = "text:" + string(b)
+	return nil
+}
+
+func TestUnmarshalUnnamedTypeMethods(t *testing.T) {
+	decoded := UnnamedMethodsChild{UnnamedMethodsInner{3}}
+	method := UnnamedMethodsChild{UnnamedMethodsInner{-1}}
+	tests := []struct {
+		CaseName
+		in   string
+		ptr  any // new(type) to unmarshal into
+		want any
+	}{{
+		CaseName: Name("EmbeddedPointerField"),
+		in:       `{"F":{"Value":3}}`,
+		ptr: new(struct {
+			F struct{ *UnnamedMethodsChild }
+		}),
+		want: &struct {
+			F struct{ *UnnamedMethodsChild }
+		}{struct{ *UnnamedMethodsChild }{&decoded}},
+	}, {
+		CaseName: Name("EmbeddedValueField"),
+		in:       `{"F":{"Value":3}}`,
+		ptr:      new(struct{ F struct{ UnnamedMethodsChild } }),
+		want:     &struct{ F struct{ UnnamedMethodsChild } }{struct{ UnnamedMethodsChild }{decoded}},
+	}, {
+		CaseName: Name("SliceElem"),
+		in:       `[{"Value":3}]`,
+		ptr:      new([]struct{ UnnamedMethodsChild }),
+		want:     &[]struct{ UnnamedMethodsChild }{{decoded}},
+	}, {
+		CaseName: Name("ArrayElem"),
+		in:       `[{"Value":3}]`,
+		ptr:      new([1]struct{ UnnamedMethodsChild }),
+		want:     &[1]struct{ UnnamedMethodsChild }{{decoded}},
+	}, {
+		CaseName: Name("MapValue"),
+		in:       `{"k":{"Value":3}}`,
+		ptr:      new(map[string]struct{ UnnamedMethodsChild }),
+		want:     &map[string]struct{ UnnamedMethodsChild }{"k": {decoded}},
+	}, {
+		CaseName: Name("PointerField"),
+		in:       `{"F":{"Value":3}}`,
+		ptr: new(struct {
+			F *struct{ UnnamedMethodsChild }
+		}),
+		want: &struct {
+			F *struct{ UnnamedMethodsChild }
+		}{&struct{ UnnamedMethodsChild }{method}},
+	}, {
+		CaseName: Name("TopLevel"),
+		in:       `{"Value":3}`,
+		ptr:      new(struct{ UnnamedMethodsChild }),
+		want:     &struct{ UnnamedMethodsChild }{method},
+	}, {
+		CaseName: Name("TextMapKey"),
+		in:       `{"a":1}`,
+		ptr:      new(map[struct{ UnnamedMethodsKey }]int),
+		want:     &map[struct{ UnnamedMethodsKey }]int{{UnnamedMethodsKey{"text:a"}}: 1},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.Name, func(t *testing.T) {
+			if err := Unmarshal([]byte(tt.in), tt.ptr); err != nil {
+				t.Fatalf("%s: Unmarshal error: %v", tt.Where, err)
+			}
+			if !reflect.DeepEqual(tt.ptr, tt.want) {
+				t.Errorf("%s: Unmarshal:\n\tgot:  %+v\n\twant: %+v", tt.Where, reflect.ValueOf(tt.ptr).Elem(), reflect.ValueOf(tt.want).Elem())
+			}
+		})
+	}
+}

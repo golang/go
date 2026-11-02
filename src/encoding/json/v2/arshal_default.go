@@ -1948,7 +1948,7 @@ func makePointerUnmarshaler(t reflect.Type) *unmarshaler {
 		valFncs *unmarshaler
 	)
 	init := func() {
-		valFncs = lookupUnmarshaler(t.Elem())
+		valFncs = lookupUnmarshalerViaPointer(t.Elem())
 	}
 	fnc.fnc = func(dec *jsontext.Decoder, va addressableValue, uo *jsonopts.Struct) error {
 		// NOTE: Struct.Format is forwarded to underlying unmarshal.
