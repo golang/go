@@ -5872,7 +5872,7 @@ func rewriteValue_OpARM64CSINV(v *ssa.Value) bool {
 	}
 	// match: (CSINV [cc] _ y flag)
 	// cond: ccARM64Eval(cc, flag) < 0
-	// result: (Not y)
+	// result: (MVN y)
 	for {
 		cc := ssa.AuxIntToOp(v.AuxInt)
 		y := v_1
@@ -5880,7 +5880,7 @@ func rewriteValue_OpARM64CSINV(v *ssa.Value) bool {
 		if !(ccARM64Eval(cc, flag) < 0) {
 			break
 		}
-		v.Reset(ssaop.OpNot)
+		v.Reset(ssaop.OpARM64MVN)
 		v.AddArg(y)
 		return true
 	}
