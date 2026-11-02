@@ -713,8 +713,8 @@
 (SRLI [x] (MOVWUreg y)) && x >= 0 && x <= 31 => (SRLIW [x] y)
 
 // Replace right shifts that exceed size of signed type.
-(SRAI <t> [x] (MOVBreg y)) && x >=  8 => (SRAI  [63] (SLLI <t> [56] y))
-(SRAI <t> [x] (MOVHreg y)) && x >= 16 => (SRAI  [63] (SLLI <t> [48] y))
+(SRAI <t> [x] (MOVBreg y)) && x >=  8 => (SRAI  [63] (SLLI <typ.Int64> [56] y))
+(SRAI <t> [x] (MOVHreg y)) && x >= 16 => (SRAI  [63] (SLLI <typ.Int64> [48] y))
 (SRAI     [x] (MOVWreg y)) && x >= 32 => (SRAIW [31] y)
 
 // Eliminate right shifts that exceed size of unsigned type.
