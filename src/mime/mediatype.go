@@ -303,8 +303,28 @@ func consumeValue(v string) (value, rest string) {
 	}
 
 	// parse a quoted-string
-	buffer := new(strings.Builder)
-	for i := 1; i < len(v); i++ {
+	i := 1
+scan:
+	for ; i < len(v); i++ {
+		switch v[i] {
+		case '"':
+			// Keep a small quoted value from retaining the entire input.
+			return strings.Clone(v[1:i]), v[i+1:]
+		case '\\':
+			if i+1 < len(v) && isTSpecial(v[i+1]) {
+				break scan
+			}
+		case '\r', '\n':
+			return "", v
+		}
+	}
+	if i == len(v) {
+		return "", v
+	}
+
+	var buffer strings.Builder
+	buffer.WriteString(v[1:i])
+	for ; i < len(v); i++ {
 		r := v[i]
 		if r == '"' {
 			return buffer.String(), v[i+1:]
