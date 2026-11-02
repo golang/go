@@ -1,0 +1,50 @@
+# Regression test for go.dev/issue/82758: the export data that vet
+# writes to the .vetx file of a cgo package must not depend on the
+# name of the work directory, which varies from run to run.
+
+[!cgo] skip
+[short] skip 'runs vet on a cgo package'
+
+env GOCACHE=$WORK/gocache
+go vet ./u
+
+# Recomputing the vet actions yields identical outputs.
+env GODEBUG=gocacheverify=1
+go vet ./u
+! stderr 'cache verify failed'
+env GODEBUG=
+
+# Diagnostics in the files of a cgo package are still reported
+# relative to the package directory.
+! go vet ./bad
+stderr '^bad[/\\]bad\.go:9:\d+: fmt\.Sprintf format %d has arg "x" of wrong type string$'
+
+-- go.mod --
+module m
+
+go 1.26
+-- c/c.go --
+package c
+
+/*
+struct x { int a; };
+*/
+import "C"
+
+type T struct{ p *C.struct_x }
+-- u/u.go --
+package u
+
+import "m/c"
+
+var V c.T
+-- bad/bad.go --
+package bad
+
+/*
+int f(void) { return 0; }
+*/
+import "C"
+import "fmt"
+
+var _ = fmt.Sprintf("%d", "x") + fmt.Sprint(C.f())
