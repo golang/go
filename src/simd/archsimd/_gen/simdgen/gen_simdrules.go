@@ -88,9 +88,8 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	return fmt.Sprintf("(%s (%s %s) mask) => (%s %s mask)\n", zeroMove, asmNoMask, d.Args, d.Asm, d.Args)
 }
 
-// zeroMaskedForm reports whether o, an amd64 operation whose last input is an
-// AVX-512 mask, is the zeroing-masked form of the unmasked machine op
-// asmNoMask. That is, for any args,
+// zeroMaskedForm reports whether o, an amd64 operation, is the zeroing-masked
+// form of the unmasked machine op asmNoMask. That is, for any args,
 //
 //	(machineOp args mask) == (zeroMove (asmNoMask args) mask)
 //
@@ -98,17 +97,21 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 // asmNoMask is the name the unmasked machine op would have, but there may not
 // be such a machine op. For example, there's none if the mask is required.
 func (o *Operation) zeroMaskedForm() (asmNoMask, zeroMove string, ok bool) {
-	mask := o.In[len(o.In)-1]
-	if mask.Class != "mask" || mask.ElemBits == nil {
+	if o.Zeroing != nil && !*o.Zeroing {
+		// The masked op merges.
+		return "", "", false
+	}
+	var mask *types.Operand
+	for i := range o.In {
+		if in := &o.In[i]; in.MaskRole != nil && *in.MaskRole == "opmask" {
+			mask = in
+			break
+		}
+	}
+	if mask == nil || mask.ElemBits == nil {
 		return "", "", false
 	}
 	asmNoMask = machineOpName(NoMask, *o)
-
-	for _, nope := range []string{"VMOVDQU", "VPCOMPRESS", "VCOMPRESS", "VPEXPAND", "VEXPAND", "VPBLENDM", "VMOVUP"} {
-		if strings.HasPrefix(asmNoMask, nope) {
-			return "", "", false
-		}
-	}
 
 	size := asmNoMask[len(asmNoMask)-3:]
 	if strings.HasSuffix(asmNoMask, "const") {

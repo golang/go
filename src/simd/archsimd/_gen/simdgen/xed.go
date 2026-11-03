@@ -76,6 +76,7 @@ func loadXED(xedPath string) []*unify.Value {
 	otherOps := make(map[string][]opData, 0)
 	appendDefs := func(inst *xeddata.Inst, ops []operand, addFields map[string]string) {
 		applyQuirks(inst, ops)
+		setMaskRoles(inst, ops)
 
 		defsPos := len(defs)
 		defs = append(defs, instToUVal(inst, ops, addFields)...)
@@ -238,14 +239,13 @@ func loadXED(xedPath string) []*unify.Value {
 }
 
 var (
-	maskRequiredRe = regexp.MustCompile(`VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]|VPEXPAND[BWDQ]|VEXPANDP[SD]`)
 	maskOptionalRe = regexp.MustCompile(`VPCMP(EQ|GT|U)?[BWDQ]|VCMPP[SD]`)
 )
 
 func applyQuirks(inst *xeddata.Inst, ops []operand) {
 	opc := inst.Opcode()
 	switch {
-	case maskRequiredRe.MatchString(opc):
+	case inst.Category == "COMPRESS" || inst.Category == "EXPAND":
 		// The mask on these instructions is marked optional, but the
 		// instruction is pointless without the mask.
 		for i, op := range ops {
@@ -263,6 +263,31 @@ func applyQuirks(inst *xeddata.Inst, ops []operand) {
 				ops[i] = op
 			}
 		}
+	}
+}
+
+// setMaskRoles sets the role of each mask operand of inst. See
+// [types.Operand.MaskRole].
+func setMaskRoles(inst *xeddata.Inst, ops []operand) {
+	// XED marks blends with MASK_AS_CONTROL. Compress and expand don't have
+	// any distinguishing attribute in their register forms, but do have
+	// their own categories.
+	sel := slices.Contains(strings.Fields(inst.Attributes), "MASK_AS_CONTROL") ||
+		inst.Category == "COMPRESS" || inst.Category == "EXPAND"
+	for i, op := range ops {
+		mask, ok := op.(operandMask)
+		if !ok {
+			continue
+		}
+		switch {
+		case !mask.opmask:
+			mask.role = "data"
+		case sel:
+			mask.role = "select"
+		default:
+			mask.role = "opmask"
+		}
+		ops[i] = mask
 	}
 }
 
@@ -325,6 +350,12 @@ type operandMask struct {
 
 	// Mask can be omitted, in which case it defaults to K0/"no mask"
 	optional bool
+
+	// opmask indicates this operand is in the EVEX opmask position (EVEX.aaa).
+	opmask bool
+
+	// role is the value of [types.Operand.MaskRole]. It is set by setMaskRoles.
+	role string
 }
 
 type operandImm struct {
@@ -389,8 +420,12 @@ func (o operandGReg) encode() types.Operand {
 }
 
 func (o operandMask) encode() types.Operand {
+	if o.role == "" {
+		panic("mask operand role not set")
+	}
 	op := types.Operand{
-		Class: "mask",
+		Class:    "mask",
+		MaskRole: &o.role,
 	}
 	if o.allMasks {
 		// If all operands are masks, omit sizes and let unification determine mask sizes.
@@ -504,6 +539,7 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 			return operandMask{
 				operandCommon: common,
 				optional:      op.Attributes["TXT=ZEROSTR"],
+				opmask:        op.NameRHS() == "MASK1()" || op.NameRHS() == "MASKNOT0()",
 			}, nil
 		} else {
 			class, regBits, fixedReg := decodeReg(op)
