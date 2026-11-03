@@ -12,7 +12,6 @@ import (
 	"io"
 	"reflect"
 
-	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/internal/jsonwire"
@@ -195,7 +194,7 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 			}); err != nil {
 				err = wrapErrUnsupported(err, "MarshalText method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalText") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, needAddr, err, "MarshalText")
 				}
 				if !isSemanticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -222,7 +221,7 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 			if err := export.Encoder(enc).AppendRaw('"', false, appender.AppendText); err != nil {
 				err = wrapErrUnsupported(err, "AppendText method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "AppendText") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, needAddr, err, "AppendText")
 				}
 				if !isSemanticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -247,14 +246,14 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 			if err != nil {
 				err = wrapErrUnsupported(err, "MarshalJSON method")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, needAddr, err, "MarshalJSON")
 				}
 				err = newMarshalErrorBefore(enc, t, err)
 				return collapseSemanticErrors(err)
 			}
 			if err := enc.WriteValue(val); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, needAddr, err, "MarshalJSON")
 				}
 				if isSyntacticError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -292,7 +291,7 @@ func makeMethodMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 					err = errUnsupportedMutation
 				}
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalJSONTo") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, needAddr, err, "MarshalJSONTo")
 				}
 				if !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(enc, t, prevDepth, prevLength, err)

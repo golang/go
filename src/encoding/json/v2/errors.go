@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/internal/jsonwire"
@@ -454,6 +455,16 @@ func newDuplicateNameError(ptr jsontext.Pointer, quotedName []byte, offset int64
 		JSONPointer: ptr,
 		Err:         jsontext.ErrDuplicateName,
 	}
+}
+
+// newLegacyMarshalerError construct a legacy MarshalerError.
+// For historical reasons, v1 only wrapped Marshaler errors, but not Unmarshaler errors.
+func newLegacyMarshalerError(vm maybeAddressableValue, needAddr bool, err error, funcName string) error {
+	if vm.legacyNotAddressable && !needAddr {
+		// For historical reasons, the exact reported type depended on addressability.
+		return internal.NewMarshalerError(vm.Interface(), err, funcName)
+	}
+	return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, funcName)
 }
 
 // toUnexpectedEOF converts [io.EOF] to [io.ErrUnexpectedEOF].
