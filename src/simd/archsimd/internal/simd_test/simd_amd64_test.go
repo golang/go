@@ -1620,3 +1620,33 @@ func TestReduceSumAmd64AVX512(t *testing.T) {
 	testV2S(t, int32s, archsimd.LoadInt32x16, archsimd.Int32x16.ReduceSum, reduceSum)
 	testV2S(t, uint32s, archsimd.LoadUint32x16, archsimd.Uint32x16.ReduceSum, reduceSum)
 }
+
+func TestMaskedZeroingResultSize(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VCVTPS2PD produces 64-bit elements from 32-bit
+	// inputs. A 32-bit mask applied after reinterpreting the result as
+	// Int32x8 must not be folded into VCVTPS2PDMasked256, because that
+	// would cause it to be treated as a 64-bit mask (using only bits 0-3
+	// and zeroing the whole result for 0xf0).
+	x := archsimd.LoadFloat32x4([]float32{1, 2, 3, 4})
+	got64 := make([]float64, 4)
+	x.ConvertToFloat64().AsInt32x8().Masked(archsimd.Mask32x8FromBits(0xf0)).AsFloat64x4().Store(got64)
+	checkSlices(t, got64, []float64{0, 0, 3, 4})
+
+	// Conversely, VCVTPD2PSY produces four 32-bit elements from four
+	// 64-bit inputs. A 64-bit mask applied after reinterpreting the
+	// result as Int64x2 must not be folded into VCVTPD2PSYMasked256,
+	// because that would treat the 2-bit 64-bit mask 0b10 as the 4-bit
+	// 32-bit mask 0b0010 (producing {0, 2, 0, 0} instead of {0, 0, 3, 4}).
+	y := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
+	got32 := make([]float32, 4)
+	y.ConvertToFloat32().AsInt64x2().Masked(archsimd.Mask64x2FromBits(0b10)).AsFloat32x4().Store(got32)
+	checkSlices(t, got32, []float32{0, 0, 3, 4})
+
+	// And when a 32-bit mask is applied directly to the Float32x4 result,
+	// folding it into VCVTPD2PSYMasked256 must mask all 4 float32 outputs.
+	y.ConvertToFloat32().Masked(archsimd.Mask32x4FromBits(0b1010)).Store(got32)
+	checkSlices(t, got32, []float32{0, 2, 0, 4})
+}

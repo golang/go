@@ -108,29 +108,29 @@ func (o *Operation) zeroMaskedForm() (asmNoMask, zeroMove string, ok bool) {
 			break
 		}
 	}
-	if mask == nil || mask.ElemBits == nil {
+	if mask == nil || len(o.Out) != 1 {
 		return "", "", false
 	}
-	asmNoMask = machineOpName(NoMask, *o)
 
-	size := asmNoMask[len(asmNoMask)-3:]
-	if strings.HasSuffix(asmNoMask, "const") {
-		sufLen := len("128const")
-		size = asmNoMask[len(asmNoMask)-sufLen:][:3]
+	// The opmask applies to the elements of the result, so zeroMove must
+	// have the result's shape. This can differ from the inputs' shape, for
+	// example in conversions that change the element size.
+	out := o.Out[0]
+	if out.Class != "vreg" || out.ElemBits == nil {
+		return "", "", false
 	}
+	size := o.VectorWidth()
 	switch size {
-	case "128", "256", "512":
+	case 128, 256, 512:
 	default:
-		panic("Unexpected operation size on " + asmNoMask)
+		panic(fmt.Errorf("unexpected vector width %d on %v", size, o))
 	}
-
-	switch *mask.ElemBits {
+	switch *out.ElemBits {
 	case 8, 16, 32, 64:
 	default:
-		panic(fmt.Errorf("Unexpected operation width %d on %v", *mask.ElemBits, asmNoMask))
+		panic(fmt.Errorf("unexpected result element width %d on %v", *out.ElemBits, o))
 	}
-
-	return asmNoMask, fmt.Sprintf("VMOVDQU%dMasked%s", *mask.ElemBits, size), true
+	return machineOpName(NoMask, *o), fmt.Sprintf("VMOVDQU%dMasked%d", *out.ElemBits, size), true
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
