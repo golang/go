@@ -104,6 +104,56 @@ func TestHTTP1ServerInvalidTrailers(t *testing.T) {
 	}
 }
 
+func TestHTTP1ServerSwitchingProtocolsWithoutHijack(t *testing.T) {
+	synctest.Subtest(t, "upgrade", func(t *testing.T) {
+		handler := newTestHandler(t)
+		st := newHTTP1ServerTest(t, handler.ServeHTTP)
+		defer handler.Close()
+
+		conn := st.dial()
+		conn.writeMessage(joinCRLF(
+			"GET / HTTP/1.1",
+			"Host: example.tld",
+			"Connection: upgrade",
+			"Upgrade: something",
+			"",
+		))
+
+		// Handler writes a 101 response, and then returns.
+		call := handler.nextCall()
+		call.w.Header().Set("Connection", "Upgrade")
+		call.w.Header().Set("Upgrade", "something")
+		call.w.WriteHeader(101)
+		call.exit()
+
+		conn.wantResponse("HTTP/1.1 101 Switching Protocols", nil)
+		conn.wantClosed()
+	})
+
+	synctest.Subtest(t, "non-upgrade", func(t *testing.T) {
+		handler := newTestHandler(t)
+		st := newHTTP1ServerTest(t, handler.ServeHTTP)
+		defer handler.Close()
+
+		conn := st.dial()
+		conn.writeMessage(joinCRLF(
+			"GET / HTTP/1.1",
+			"Host: example.tld",
+			"",
+		))
+
+		// Handler writes a 101 response, and then returns.
+		call := handler.nextCall()
+		call.w.Header().Set("Connection", "Upgrade")
+		call.w.Header().Set("Upgrade", "something")
+		call.w.WriteHeader(101)
+		call.exit()
+
+		conn.wantResponse("HTTP/1.1 101 Switching Protocols", nil)
+		conn.wantClosed()
+	})
+}
+
 // An http1ServerTest tests an HTTP/1 server using a fake network.
 // It must be used in a synctest bubble.
 type http1ServerTest struct {

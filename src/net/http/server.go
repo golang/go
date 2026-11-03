@@ -1640,6 +1640,11 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		return
 	}
 
+	if code == StatusSwitchingProtocols {
+		// Don't continue using a connection after sending 101 Switching Protocols.
+		w.closeAfterReply = true
+	}
+
 	// Only override the Connection header if it is not a successful
 	// protocol switch response and if KeepAlives are not enabled.
 	// See https://golang.org/issue/36381.
