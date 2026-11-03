@@ -266,6 +266,30 @@ var arshalTestdata = []struct {
 	new:    func() any { return new(jsonArshalerV2) },
 	skipV1: true,
 }, {
+	name: "IsZero/AddrValue/ValueReceiver",
+	raw:  []byte(`{}`),
+	val:  new(omitZeroValueIsZeroer),
+	new:  func() any { return new(omitZeroValueIsZeroer) },
+}, {
+	name:         "IsZero/NoAddrValue/ValueReceiver",
+	raw:          []byte(`{}`),
+	val:          new(omitZeroValueIsZeroer),
+	new:          func() any { return new(omitZeroValueIsZeroer) },
+	skipV1:       true,
+	marshalDeref: true,
+}, {
+	name: "IsZero/AddrValue/PointerReceiver",
+	raw:  []byte(`{}`),
+	val:  new(omitZeroPointerIsZeroer),
+	new:  func() any { return new(omitZeroPointerIsZeroer) },
+}, {
+	name:         "IsZero/NoAddrValue/PointerReceiver",
+	raw:          []byte(`{}`),
+	val:          new(omitZeroPointerIsZeroer),
+	new:          func() any { return new(omitZeroPointerIsZeroer) },
+	skipV1:       true,
+	marshalDeref: true,
+}, {
 	/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 	name:   "Duration",
 	raw:    []byte(`"1h1m1s"`),
@@ -326,6 +350,20 @@ func (*jsonArshalerV2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	return err
 }
+
+type omitZeroValueIsZeroer struct {
+	V valueAlwaysZero `json:",omitzero"`
+}
+type valueAlwaysZero string
+
+func (valueAlwaysZero) IsZero() bool { return true }
+
+type omitZeroPointerIsZeroer struct {
+	P pointerAlwaysZero `json:",omitzero"`
+}
+type pointerAlwaysZero string
+
+func (*pointerAlwaysZero) IsZero() bool { return true }
 
 func TestBenchmarkUnmarshal(t *testing.T) { runUnmarshal(t) }
 func BenchmarkUnmarshal(b *testing.B)     { runUnmarshal(b) }
