@@ -16,7 +16,13 @@ import (
 	"simd/archsimd/_gen/simdgen/types"
 )
 
+// tplRuleData is the input to one of the ruleTemplates, which produces one
+// rule. Most fields are fragments of rule syntax. writeSIMDRules creates one
+// for each operation and then copies and modifies it for each kind of rule it
+// produces for that operation.
 type tplRuleData struct {
+	op *Operation // the operation this rule is for
+
 	TplName        string // e.g. "sftimm"
 	RuleIndex      int    // index of the rule in its operation's rule list
 	GoOp           string // e.g. "ShiftAllLeft"
@@ -75,18 +81,32 @@ var (
 )
 
 func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
-	asmNoMask := d.Asm
-	if i := strings.Index(asmNoMask, "Masked"); i == -1 {
+	asmNoMask, zeroMove, ok := d.op.zeroMaskedForm()
+	if !ok || !asmCheck[asmNoMask] {
 		return ""
 	}
-	asmNoMask = strings.ReplaceAll(asmNoMask, "Masked", "")
-	if asmCheck[asmNoMask] == false {
-		return ""
+	return fmt.Sprintf("(%s (%s %s) mask) => (%s %s mask)\n", zeroMove, asmNoMask, d.Args, d.Asm, d.Args)
+}
+
+// zeroMaskedForm reports whether o, an amd64 operation whose last input is an
+// AVX-512 mask, is the zeroing-masked form of the unmasked machine op
+// asmNoMask. That is, for any args,
+//
+//	(machineOp args mask) == (zeroMove (asmNoMask args) mask)
+//
+// where machineOp is o's machine op and zeroMove is a zeroing masked move.
+// asmNoMask is the name the unmasked machine op would have, but there may not
+// be such a machine op. For example, there's none if the mask is required.
+func (o *Operation) zeroMaskedForm() (asmNoMask, zeroMove string, ok bool) {
+	mask := o.In[len(o.In)-1]
+	if mask.Class != "mask" || mask.ElemBits == nil {
+		return "", "", false
 	}
+	asmNoMask = machineOpName(NoMask, *o)
 
 	for _, nope := range []string{"VMOVDQU", "VPCOMPRESS", "VCOMPRESS", "VPEXPAND", "VEXPAND", "VPBLENDM", "VMOVUP"} {
 		if strings.HasPrefix(asmNoMask, nope) {
-			return ""
+			return "", "", false
 		}
 	}
 
@@ -98,16 +118,16 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	switch size {
 	case "128", "256", "512":
 	default:
-		panic("Unexpected operation size on " + d.Asm)
+		panic("Unexpected operation size on " + asmNoMask)
 	}
 
-	switch d.ElementSize {
+	switch *mask.ElemBits {
 	case 8, 16, 32, 64:
 	default:
-		panic(fmt.Errorf("Unexpected operation width %d on %v", d.ElementSize, d.Asm))
+		panic(fmt.Errorf("Unexpected operation width %d on %v", *mask.ElemBits, asmNoMask))
 	}
 
-	return fmt.Sprintf("(VMOVDQU%dMasked%s (%s %s) mask) => (%s %s mask)\n", d.ElementSize, size, asmNoMask, d.Args, d.Asm, d.Args)
+	return asmNoMask, fmt.Sprintf("VMOVDQU%dMasked%s", *mask.ElemBits, size), true
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -493,6 +513,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 
 		data := tplRuleData{
+			op:   &gOp,
 			GoOp: gOp.Go,
 			Asm:  asm,
 		}
