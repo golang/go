@@ -433,8 +433,8 @@ func FieldsFunc(s string, f func(rune) bool) []string {
 	// and collecting the result substrings right away) is significantly
 	// more efficient, possibly due to cache effects.
 	start := -1 // valid span start if >= 0
-	for end, rune := range s {
-		if f(rune) {
+	for end, r := range s {
+		if f(r) {
 			if start >= 0 {
 				spans = append(spans, span{start, end})
 				// Set start to a negative value.
@@ -636,7 +636,7 @@ func Repeat(s string, count int) string {
 	}
 
 	// Past a certain chunk size it is counterproductive to use
-	// larger chunks as the source of the write, as when the source
+	// larger chunks as the source of write, as when the source
 	// is too large we are basically just thrashing the CPU D-cache.
 	// So if the result length is larger than an empirically-found
 	// limit (8KB), we stop growing the source string once the limit
