@@ -185,15 +185,20 @@ type Operand struct {
 	// MaskRole describes the role of a mask operand in an amd64 instruction. It
 	// is derived from XED, is set on every amd64 mask operand, and is one of:
 	//
-	//	"opmask" - The operand is the AVX-512 opmask and masks the result:
-	//	           each result element is computed as if unmasked, and
-	//	           elements where the mask is false are zeroed or merged.
-	//	"select" - The operand is in the opmask position, but the
-	//	           instruction uses it to select elements in some other
-	//	           way, as in blend, compress, and expand.
-	//	"data"   - The operand isn't in the opmask position. For example,
-	//	           the mask result of a comparison, or the input of
-	//	           VPMOVM2D.
+	//	"opmask"         - The operand is the AVX-512 opmask and masks the
+	//	                   entire result: each result element is computed
+	//	                   as if unmasked, and elements where the mask is
+	//	                   false are zeroed or merged.
+	//	"opmask-partial" - Like "opmask", except the instruction computes
+	//	                   only the low elements of its result and zeroes
+	//	                   the rest regardless of masking (so the upper
+	//	                   elements are zeroed even when merging).
+	//	"select"         - The operand is in the opmask position, but the
+	//	                   instruction uses it to select elements in some
+	//	                   other way, as in blend, compress, and expand.
+	//	"data"           - The operand isn't in the opmask position. For
+	//	                   example, the mask result of a comparison, or
+	//	                   the input of VPMOVM2D.
 	//
 	// It is nil on other architectures.
 	MaskRole *string

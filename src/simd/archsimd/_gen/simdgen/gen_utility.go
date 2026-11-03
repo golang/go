@@ -987,6 +987,15 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		// form is just the /M-predicated machine op.
 		return false
 	}
+	for i := range o.In {
+		if in := &o.In[i]; in.MaskRole != nil && *in.MaskRole == "opmask-partial" {
+			// The merging form would zero the upper elements of the result,
+			// rather than merging them. This means the unmasked op followed by
+			// a blend into dst is not generally equivalent to its mask-merging
+			// form, so keep the blend separate.
+			return false
+		}
+	}
 	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
 	return o.OperandOrder == nil && maskType == OneMask && outType == OneVregOut &&
 		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")

@@ -121,7 +121,9 @@ func (o *Operation) zeroMaskedForm() (asmNoMask, zeroMove string, ok bool) {
 	// like VPBLENDM or VCOMPRESS).
 	hasOpmask := false
 	for i := range o.In {
-		if in := &o.In[i]; in.MaskRole != nil && *in.MaskRole == "opmask" {
+		// Both "opmask" and "opmask-partial" are valid when zeroing, since
+		// both sides zero the upper elements of a partial result.
+		if in := &o.In[i]; in.MaskRole != nil && (*in.MaskRole == "opmask" || *in.MaskRole == "opmask-partial") {
 			hasOpmask = true
 			break
 		}

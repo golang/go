@@ -275,6 +275,7 @@ func setMaskRoles(inst *xeddata.Inst, ops []operand) {
 	// their own categories.
 	sel := slices.Contains(strings.Fields(inst.Attributes), "MASK_AS_CONTROL") ||
 		inst.Category == "COMPRESS" || inst.Category == "EXPAND"
+	partial := hasPartialResult(inst, ops)
 	for i, op := range ops {
 		mask, ok := op.(operandMask)
 		if !ok {
@@ -285,11 +286,59 @@ func setMaskRoles(inst *xeddata.Inst, ops []operand) {
 			mask.role = "data"
 		case sel:
 			mask.role = "select"
+		case partial:
+			mask.role = "opmask-partial"
 		default:
 			mask.role = "opmask"
 		}
 		ops[i] = mask
 	}
+}
+
+// hasPartialResult reports whether inst computes only the low elements of its
+// vector result and zeroes the rest, regardless of masking.
+//
+// XED doesn't record this directly, since it describes the result operand as
+// the whole register. Instead, we recognize conversions and data transfers
+// (such as the truncating VPMOV* instructions) that take a single vector
+// source with fewer elements than the result. For example, VCVTPD2PS with a
+// 128-bit source converts two float64s into the low two float32s of its
+// 128-bit result, and zeroes the upper two.
+func hasPartialResult(inst *xeddata.Inst, ops []operand) bool {
+	if inst.Category != "CONVERT" && inst.Category != "DATAXFER" {
+		return false
+	}
+	lanes := func(s vecShape) int {
+		if s.elemBits == 0 {
+			return 0
+		}
+		return s.bits / s.elemBits
+	}
+	var srcLanes, dstLanes, nSrc int
+	for _, op := range ops {
+		var shape vecShape
+		switch op := op.(type) {
+		case operandVReg:
+			shape = op.vecShape
+		case operandMem:
+			if op.vbcst || op.unknown {
+				// We don't know how many elements this has.
+				return false
+			}
+			shape = op.vecShape
+		default:
+			continue
+		}
+		action := op.common().action
+		switch {
+		case action.w:
+			dstLanes = lanes(shape)
+		case action.r:
+			srcLanes = lanes(shape)
+			nSrc++
+		}
+	}
+	return nSrc == 1 && srcLanes > 0 && srcLanes < dstLanes
 }
 
 type operandCommon struct {

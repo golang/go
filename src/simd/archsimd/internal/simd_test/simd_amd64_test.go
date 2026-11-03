@@ -1683,3 +1683,18 @@ func TestMaskedMergingResultSize(t *testing.T) {
 	x.DotProductPairs(y).Merge(dst, archsimd.Mask32x4FromBits(0b0010)).Store(got)
 	checkSlices(t, got, []int32{10, 7, 30, 40})
 }
+
+func TestMaskedMergePartialResult(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VCVTPD2PSX converts two float64s into the low two
+	// float32s of its 128-bit result and zeroes the upper two, even with
+	// merging masking. Merging its result into dst must preserve the upper
+	// two elements of dst where the mask is false.
+	x := archsimd.LoadFloat64x2([]float64{1, 2})
+	dst := archsimd.LoadFloat32x4([]float32{10, 20, 30, 40})
+	got := make([]float32, 4)
+	x.ConvertToFloat32().Merge(dst, archsimd.Mask32x4FromBits(0b0001)).Store(got)
+	checkSlices(t, got, []float32{1, 20, 30, 40})
+}
