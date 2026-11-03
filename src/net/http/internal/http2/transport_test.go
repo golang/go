@@ -1037,6 +1037,41 @@ code=114 header=map[Foo-Bar:[114]]
 	}
 }
 
+// Issue 82814: 101 Switching Protocols is not supported in HTTP/2
+func TestTransport101SwitchingProtocols(t *testing.T) {
+	synctest.Test(t, testTransport101SwitchingProtocols)
+}
+func testTransport101SwitchingProtocols(t *testing.T) {
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	ctx := httptrace.WithClientTrace(t.Context(), {
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			t.Errorf("Got1xxResponse called with code %v", code)
+			return nil
+		},
+	})
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	tc.wantFrameType(FrameHeaders)
+
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:   rt.streamID(),
+		EndHeaders: true,
+		EndStream:  false,
+		BlockFragment: tc.makeHeaderBlockFragment(
+			":status", "101",
+		),
+	})
+	if !rt.done() {
+		t.Errorf("after receiving 101 status: RoundTrip still running, want error")
+	}
+	if err := rt.err(); err == nil {
+		t.Errorf("after receiving 101 status: RoundTrip succeeded, want error")
+	}
+}
+
 func TestTransportReceiveUndeclaredTrailer(t *testing.T) {
 	synctest.Test(t, testTransportReceiveUndeclaredTrailer)
 }

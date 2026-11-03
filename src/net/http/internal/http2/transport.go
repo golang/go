@@ -2307,6 +2307,9 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 		if f.StreamEnded() {
 			return nil, errors.New("1xx informational response with END_STREAM flag")
 		}
+		if statusCode == 101 {
+			return nil, errors.New("unsupported 101 response")
+		}
 		if fn := cs.get1xxTraceFunc(); fn != nil {
 			// If the 1xx response is being delivered to the user,
 			// then they're responsible for limiting the number

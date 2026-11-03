@@ -211,6 +211,9 @@ func (cc *clientConn) RoundTrip(req *http.Request) (_ *http.Response, err error)
 			}
 
 			if isInfoStatus(statusCode) {
+				if statusCode == 101 {
+					return nil, &streamError{errH3MessageError, "unsupported 101 response"}
+				}
 				if err := rt.maybeCallGot1xxResponse(statusCode, h); err != nil {
 					return nil, err
 				}
