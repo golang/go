@@ -251,7 +251,7 @@ func reshapeDiagram(x, z specexpr.Vector) string {
 	for i := range tab {
 		tab[i] = strings.TrimRight(tab[i], " ")
 	}
-	return "\t  " + strings.Join(tab, "\n\t  ")
+	return "\t" + strings.Join(tab, "\n\t")
 }
 
 // newSpecTemplate parses a spec template string. If tmpl does not contain "{{",
