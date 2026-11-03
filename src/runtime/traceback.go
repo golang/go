@@ -726,6 +726,9 @@ func tracebackPCs(u *unwinder, skip int, pcBuf []uintptr) int {
 				if fr == nil {
 					break
 				}
+				if fr.unwindMode == userFrameUnwindStop {
+					return n
+				}
 				if fr.unwindMode == userFrameUnwindDeclare {
 					if skip > 0 {
 						skip--
@@ -1153,6 +1156,9 @@ func traceback2(u *unwinder, showRuntime bool, skip, max int) (n, lastN int) {
 				fr := findUserFrameRegion(pc)
 				if fr == nil {
 					break
+				}
+				if fr.unwindMode == userFrameUnwindStop {
+					return
 				}
 				if fr.unwindMode == userFrameUnwindDeclare {
 					if fr.describe != nil {

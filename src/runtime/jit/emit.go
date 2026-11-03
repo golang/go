@@ -214,7 +214,7 @@ func frameRegister(frame PhysicalRegister) PhysicalRegister {
 		frame = nativeRegisterConfig().Frame
 	}
 	r := nativeRegisterConfig()
-	if frame.Class != IntegerRegister || frame == r.Stack || frame == r.Goroutine || frame == r.Closure || frame.Number >= gpRegisterLimit() {
+	if frame.Class != IntegerRegister || frame == r.Stack || frame == r.Goroutine || frame == r.Closure || frame == r.Scratch || frame.Number >= gpRegisterLimit() {
 		panic("runtime/jit: invalid frame register")
 	}
 	return frame
@@ -370,15 +370,15 @@ func (b *instructionBlock) jump(base, target int) {
 	switch runtime.GOARCH {
 	case "amd64":
 		b.byte(0xe9)
-		b.u32(uint32(int32(target - pos - 5)))
+		b.u32(uint32(int32(branchDisplacement(target, pos, 5, 32))))
 	case "arm64":
-		d := target - pos
+		d := branchDisplacement(target, pos, 0, 28)
 		if d%4 != 0 || d < -(1<<27) || d >= 1<<27 {
 			panic("runtime/jit: jump out of range")
 		}
 		b.u32(0x14000000 | uint32(d/4)&0x3ffffff)
 	case "riscv64":
-		d := int32(target - pos)
+		d := branchDisplacement(target, pos, 0, 21)
 		if d%2 != 0 || d < -(1<<20) || d >= 1<<20 {
 			panic("runtime/jit: jump out of range")
 		}
@@ -408,12 +408,12 @@ func stackCheckCode(base int, frameBytes uintptr, grow int) instructionBlock {
 		b.u32(uint32(demand)) // SUB R12,demand
 		pos := base + len(b.bytes)
 		b.byte(0x0f, 0x82)
-		b.u32(uint32(int32(grow - pos - 6)))
+		b.u32(uint32(int32(branchDisplacement(grow, pos, 6, 32))))
 		b.byte(0x4d, 0x3b, 0xa6)
 		b.u32(uint32(config.StackGuardOffset)) // CMP R12,[R14+guard]
 		pos = base + len(b.bytes)
 		b.byte(0x0f, 0x86)
-		b.u32(uint32(int32(grow - pos - 6)))
+		b.u32(uint32(int32(branchDisplacement(grow, pos, 6, 32))))
 	case "arm64":
 		b.immediate(r.Scratch, uint64(demand))
 		b.move(gp(16), r.Stack)
@@ -515,6 +515,10 @@ func EmitStackGrow(dst CodeBuffer, c CallingConvention, frame PhysicalRegister, 
 		b.call(r.Scratch)
 	}
 	returnPC := dst.Offset() + len(b.bytes)
+	// morestack/newstack preserves Go's fixed registers, not an arbitrary
+	// client-selected frame register (notably MemCP's X24 on riscv64).
+	// Reconstruct it from the restored SP before reloading arguments/teardown.
+	b.address(f, r.Stack, size)
 	for i, p := range parts {
 		b.memory(true, p.Location.Register, r.Stack, int32(i*8))
 	}
@@ -549,4 +553,54 @@ func EmitLeave(dst CodeBuffer, frame PhysicalRegister) {
 	var b instructionBlock
 	b.leave(frameRegister(frame))
 	dst.Write(b.bytes)
+}
+
+// EmitLoadFunctionContext loads a Go function variable's closure-context pointer
+// from the address in slot into target. It does not dereference the context or
+// call the function; a nil function loads a nil pointer. Only target is changed.
+// Keep the containing Go allocation rooted across subsequent safepoints.
+func EmitLoadFunctionContext(dst CodeBuffer, target, slot PhysicalRegister) {
+	r := nativeRegisterConfig()
+	if target.Class != IntegerRegister || slot.Class != IntegerRegister ||
+		target.Number >= gpRegisterLimit() || slot.Number >= gpRegisterLimit() ||
+		target == r.Stack || target == r.Goroutine {
+		panic("runtime/jit: invalid function-context registers")
+	}
+	var b instructionBlock
+	b.memory(true, target, slot, 0)
+	dst.Write(b.bytes)
+}
+
+func branchDisplacement(target, position, instructionBytes int, bits uint) int64 {
+	if target < 0 || position < 0 || position > int(^uint(0)>>1)-instructionBytes {
+		panic("runtime/jit: invalid branch offset")
+	}
+	delta := int64(target) - int64(position+instructionBytes)
+	limit := int64(1) << (bits - 1)
+	if delta < -limit || delta >= limit {
+		panic("runtime/jit: branch out of range")
+	}
+	return delta
+}
+
+func (b *instructionBlock) address(dst, base PhysicalRegister, offset int32) {
+	d, s := uint32(dst.Number), uint32(base.Number)
+	switch runtime.GOARCH {
+	case "amd64":
+		b.byte(0x48|byte(d>>3)<<2|byte(s>>3), 0x8d, 0x80|byte(d&7)<<3|byte(s&7))
+		if s&7 == 4 {
+			b.byte(0x24)
+		}
+		b.u32(uint32(offset))
+	case "arm64":
+		if offset < 0 || offset > 4095 {
+			panic("runtime/jit: frame address out of range")
+		}
+		b.u32(0x91000000 | uint32(offset)<<10 | s<<5 | d)
+	case "riscv64":
+		if offset < -2048 || offset > 2047 {
+			panic("runtime/jit: frame address out of range")
+		}
+		b.u32(uint32(offset&4095)<<20 | s<<15 | d<<7 | 0x13)
+	}
 }

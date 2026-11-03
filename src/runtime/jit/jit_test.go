@@ -613,6 +613,35 @@ func TestNestedUnwindStopEndsTraceback(t *testing.T) {
 	}
 }
 
+//go:noinline
+func collectThroughStopFrame() {
+	for i := 0; i < 3; i++ {
+		runtime.GC()
+		runtime.Gosched()
+	}
+}
+
+func TestUnwindStopPreservesEnclosingGoRoots(t *testing.T) {
+	code := callTrampoline(goFuncPtr(collectThroughStopFrame))
+	addr, size, err := allocExecutable(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer freeExecutable(addr, size)
+	h := jit.Register(jit.Region{Start: addr, End: addr + uintptr(size), Unwind: jit.UnwindStop, StackMaps: callTrampolineStackMaps()})
+	defer h.Unregister()
+	var finalized atomic.Bool
+	object := new([4096]byte)
+	object[0] = 42
+	runtime.SetFinalizer(object, func(*[4096]byte) { finalized.Store(true) })
+	callJIT(addr)
+	if finalized.Load() || object[0] != 42 {
+		t.Fatal("traceback barrier hid an enclosing Go root from GC")
+	}
+	runtime.KeepAlive(object)
+	runtime.SetFinalizer(object, nil)
+}
+
 func TestStackCheckConfig(t *testing.T) {
 	config := jit.StackCheckConfig()
 	if config.StackGuardOffset == 0 || config.StackSmall == 0 || config.MoreStackPC == 0 {

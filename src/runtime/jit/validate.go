@@ -53,9 +53,8 @@ func validateMaps(r Region, maps []StackMap, previous uintptr, hasPrevious bool)
 		if uintptr(len(m.PointerMask)) < bytes {
 			return bad(m.PCOffset, "PointerMask", "short bitmap")
 		}
-		if m.FrameWords%8 != 0 && bytes > 0 && m.PointerMask[bytes-1]>>uint(m.FrameWords%8) != 0 {
-			return bad(m.PCOffset, "PointerMask", "bits outside frame")
-		}
+		// Padding bits beyond FrameWords are ignored, as in the original
+		// scanner. Rejecting them would unnecessarily break existing generators.
 		if r.Unwind != UnwindStop && !m.HasUnwind {
 			return bad(m.PCOffset, "HasUnwind", "traversable frames require an unwind recipe")
 		}

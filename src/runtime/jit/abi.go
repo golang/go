@@ -114,7 +114,11 @@ func registerConfig() Registers {
 	// generated instruction sequences may use them explicitly.
 	r.Allocatable[0] &^= uint64(1)<<r.Scratch.Number | uint64(1)<<r.Frame.Number
 	if runtime.GOARCH == "amd64" {
-		r.Allocatable[0] &^= 1 << 15
+		// X15 must contain zero at Go call/return boundaries. R15, in contrast,
+		// is only implicit scratch for the Go assembler's dynlink expansions.
+		// These emitters do not use those expansions: clients may allocate R15
+		// and preserve it according to CallClobbers, just like R13.
+		r.Allocatable[1] &^= 1 << 15
 	}
 	for i := range r.Reserved {
 		r.Reserved[i] = ^r.Allocatable[i]

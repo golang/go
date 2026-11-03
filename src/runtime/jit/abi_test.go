@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"runtime"
 	"runtime/jit"
 	"testing"
 )
@@ -41,6 +42,44 @@ func TestCallingConvention(t *testing.T) {
 	}
 	if c.Registers.Allocatable.Contains(c.Registers.Goroutine) || c.Registers.Allocatable.Contains(c.Registers.Stack) {
 		t.Fatal("reserved register allocatable")
+	}
+	if runtime.GOARCH == "amd64" {
+		if !c.Registers.Allocatable.Contains(jit.PhysicalRegister{Class: jit.IntegerRegister, Number: 15}) {
+			t.Fatal("R15 is usable by direct emitters and call-clobbered, not a fixed register")
+		}
+		if c.Registers.Allocatable.Contains(jit.PhysicalRegister{Class: jit.FloatRegister, Number: 15}) {
+			t.Fatal("X15 must remain zero at Go boundaries")
+		}
+	}
+}
+
+func TestMemoryLayoutAggregatesAndInterfaces(t *testing.T) {
+	type object struct {
+		Tag       byte
+		Values    [2]*int
+		Interface any
+		Slice     []byte
+	}
+	typ := reflect.TypeFor[object]()
+	m := jit.GetMemoryLayout(typ)
+	if m.Size != typ.Size() || m.Align != uintptr(typ.Align()) {
+		t.Fatal("incorrect aggregate extent")
+	}
+	var pointers []uintptr
+	for _, part := range m.Parts {
+		if part.Pointer {
+			pointers = append(pointers, part.Offset)
+		}
+	}
+	word := reflect.TypeFor[uintptr]().Size()
+	want := []uintptr{typ.Field(1).Offset, typ.Field(1).Offset + word, typ.Field(2).Offset + word, typ.Field(3).Offset}
+	if !reflect.DeepEqual(pointers, want) {
+		t.Fatalf("pointer offsets %v, want %v", pointers, want)
+	}
+	// Returned descriptions must not share mutable storage across consumers.
+	m.Parts[0].Offset = 1234
+	if jit.GetMemoryLayout(typ).Parts[0].Offset != 0 {
+		t.Fatal("shared layout storage")
 	}
 }
 
@@ -160,4 +199,46 @@ func TestEmissionExhaustionDoesNotCommitSequence(t *testing.T) {
 		}
 	}()
 	jit.EmitFrame(b, jit.FramePlan{LocalBytes: 16})
+}
+
+func TestStackMapPaddingRemainsCompatible(t *testing.T) {
+	// Historically only the first FrameWords bits are meaningful. Padding in
+	// the final byte must not turn a valid existing registration into a panic.
+	r := jit.Region{Start: 0x1000, End: 0x2000, StackMaps: []jit.StackMap{{FrameWords: 1, PointerMask: []byte{0xff}}}}
+	if err := jit.ValidateRegion(r); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestFrameRejectsEmitterScratch(t *testing.T) {
+	if !jit.SupportedEmitters() {
+		t.Skip("ABI emitter target")
+	}
+	b := &jit.SliceBuffer{Bytes: make([]byte, 512)}
+	defer func() {
+		if recover() == nil {
+			t.Error("frame base aliases emitter scratch")
+		}
+		if b.Offset() != 0 {
+			t.Error("invalid frame partially emitted")
+		}
+	}()
+	jit.EmitFrame(b, jit.FramePlan{Frame: jit.RegisterConfig().Scratch})
+}
+
+func TestStackCheckRejectsUnreachableSlowPath(t *testing.T) {
+	if !jit.SupportedEmitters() {
+		t.Skip("ABI emitter target")
+	}
+	b := &jit.SliceBuffer{Bytes: make([]byte, 512)}
+	defer func() {
+		if recover() == nil {
+			t.Error("out-of-range branch silently truncated")
+		}
+		if b.Offset() != 0 {
+			t.Error("invalid branch partially emitted")
+		}
+	}()
+	far := uint64(1) << 33
+	jit.EmitStackCheck(b, 0, int(far))
 }

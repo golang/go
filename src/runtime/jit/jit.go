@@ -356,6 +356,12 @@ func mallocgc(size uintptr, typ *abi.Type, needzero bool) unsafe.Pointer
 //go:linkname userFrameStackCheck runtime/jit.userFrameStackCheck
 func userFrameStackCheck() (guardOffset, stackSmall, moreStackPC uintptr)
 
+//go:linkname userFrameWriteBarrier runtime/jit.userFrameWriteBarrier
+func userFrameWriteBarrier() uintptr
+
+//go:linkname userFramePreemptOffset runtime/jit.userFramePreemptOffset
+func userFramePreemptOffset() uintptr
+
 //go:linkname registerUserFrameRegion runtime/jit.registerUserFrameRegion
 func registerUserFrameRegion(start, end uintptr, unwindMode uint8,
 	describe func(pc uintptr) (string, string, int, bool),
