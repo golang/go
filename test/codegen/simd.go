@@ -81,6 +81,16 @@ func simdMaskedMerge() archsimd.Int16x16 {
 	return x.Add(y).Merge(x, mask) // amd64:`VPBLENDVB .*$`
 }
 
+func simdIfElseVPBLENDM(x, y archsimd.Int32x4, bits uint8) archsimd.Int32x4 {
+	if archsimd.X86.AVX512() {
+		// Check that 128/256-bit IfElse with an AVX-512 K-mask blends directly with VPBLENDM.
+		// amd64:`KMOVB` `VPBLENDMD X[0-9]+, X[0-9]+, K[1-7], X[0-9]+` -`VPMOVM2D` -`VPBLENDVB`
+		return x.IfElse(archsimd.Mask32x4FromBits(bits), y)
+	}
+	// amd64:`VPBLENDVB`
+	return x.IfElse(archsimd.Mask32x4FromBits(bits), y)
+}
+
 func simdFloat32x8Masked(x, y archsimd.Float32x8) archsimd.Float32x8 {
 	if archsimd.X86.AVX512() {
 		// Check that Masked folds into a zeroing AVX-512 op.

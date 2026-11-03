@@ -1946,6 +1946,18 @@
 (VANDP(S|D)128 x (VPMOVMToVec(32x4|64x2) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU(32|64)Masked128 x k)
 (VANDP(S|D)256 x (VPMOVMToVec(32x8|64x4) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU(32|64)Masked256 x k)
 
+// In AVX-512 code, mask-producing operations represent a Go Mask value in SSA
+// as (VPMOVMToVec* k), converting an AVX-512 mask k to a vector mask.
+// VPBLENDVB blends bytes, so it doesn't say how wide its mask's elements are,
+// but VPMOVMToVec* does. Use the AVX-512 blend for that element size, which
+// takes the AVX-512 mask directly (and can then fold into a merging masked op
+// in simdAMD64.rules).
+(VPBLENDVB128 x y (VPMOVMToVec(8x16|16x8|32x4|64x2) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPBLENDM(B|W|D|Q)Masked128 x y k)
+(VPBLENDVB256 x y (VPMOVMToVec(8x32|16x16|32x8|64x4) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPBLENDM(B|W|D|Q)Masked256 x y k)
+
+(VBLENDVP(S|D)128 x y (VPMOVMToVec(32x4|64x2) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPBLENDM(D|Q)Masked128 x y k)
+(VBLENDVP(S|D)256 x y (VPMOVMToVec(32x8|64x4) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPBLENDM(D|Q)Masked256 x y k)
+
 // Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
 (VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)
 (VPINSRD128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSSf2v <types.TypeVec128> y)

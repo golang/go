@@ -415,7 +415,6 @@
   in:
   - &v
     go: $t
-    bits: 512
     class: vreg
     base: int
   - *v
