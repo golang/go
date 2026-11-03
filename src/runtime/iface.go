@@ -46,6 +46,11 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 		throw("internal error - misuse of itab")
 	}
 
+	// Itabs are keyed by the underlying interface type; see
+	// internal/abi.InterfaceType.Under. An error message still names the
+	// interface type that was asked for, not the key.
+	key := inter.Underlying()
+
 	// easy case
 	if typ.TFlag&abi.TFlagUncommon == 0 {
 		if canfail {
@@ -62,20 +67,20 @@ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
 	// Use atomic to ensure we see any previous writes done by the thread
 	// that updates the itabTable field (with atomic.Storep in itabAdd).
 	t := (*itabTableType)(atomic.Loadp(unsafe.Pointer(&itabTable)))
-	if m = t.find(inter, typ); m != nil {
+	if m = t.find(key, typ); m != nil {
 		goto finish
 	}
 
 	// Not found.  Grab the lock and try again.
 	lock(&itabLock)
-	if m = itabTable.find(inter, typ); m != nil {
+	if m = itabTable.find(key, typ); m != nil {
 		unlock(&itabLock)
 		goto finish
 	}
 
 	// Entry doesn't exist yet. Make a new entry & add it.
-	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(inter.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
-	m.Inter = inter
+	m = (*itab)(persistentalloc(unsafe.Sizeof(itab{})+uintptr(len(key.Methods)-1)*goarch.PtrSize, 0, &memstats.other_sys))
+	m.Inter = key
 	m.Type = typ
 	// The hash is used in type switches. However, compiler statically generates itab's
 	// for all interface/type pairs used in switches (which are added to itabTable
