@@ -114,8 +114,8 @@ func (sc *serverConn) TestFramerMaxHeaderStringLen() int {
 	return sc.framer.maxHeaderStringLen()
 }
 
-func (t *Transport) TestNewClientConn(c net.Conn, singleUse bool, internalStateHook func()) (*ClientConn, error) {
-	return t.newClientConn(c, singleUse, internalStateHook)
+func (t *Transport) TestNewClientConn(c net.Conn, internalStateHook func()) (*ClientConn, error) {
+	return t.newClientConn(c, internalStateHook)
 }
 
 func (t *Transport) TestSetNewClientConnHook(f func(*ClientConn)) {
