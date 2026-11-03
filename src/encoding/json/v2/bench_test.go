@@ -517,6 +517,26 @@ func runMarshal(tb testing.TB) {
 	}
 }
 
+// BenchmarkMarshalAny marshals values held in interfaces, including dynamic
+// types that marshalValueAny does not handle directly and so take the
+// general interface path.
+func BenchmarkMarshalAny(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		val  any
+	}{
+		{"Ints", []any{1, 2, 3, 4, 5, 6, 7, 8}},
+		{"Mixed", []any{1, "two", 3.0, true, nil, int64(6), uint(7), []int{8}}},
+		{"Map", map[string]any{"a": 1, "b": "two", "c": 3.0, "d": true, "e": nil, "f": int64(6), "g": uint(7), "h": []int{8}}},
+	} {
+		runTestOrBench(b, tt.name, 0, func(tb testing.TB) {
+			if _, err := jsonFuncs.marshal(tt.val); err != nil {
+				tb.Fatalf("Marshal error: %v", err)
+			}
+		})
+	}
+}
+
 func TestBenchmarkTestdata(t *testing.T) { runAllTestdata(t) }
 func BenchmarkTestdata(b *testing.B)     { runAllTestdata(b) }
 

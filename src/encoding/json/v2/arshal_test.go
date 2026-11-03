@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"io"
 	"math"
 	"net"
@@ -771,6 +773,27 @@ func TestMarshalAppendTextNewSameCapacity(t *testing.T) {
 	}
 	if want := "\"hello\"\n"; dst.String() != want {
 		t.Fatalf("MarshalEncode = %q, want %q", dst.String(), want)
+	}
+}
+
+// TestMarshalInterfaceNoCopy checks that values held in interfaces are
+// marshaled without a per-element copy to addressable storage.
+func TestMarshalInterfaceNoCopy(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping malloc count under race detector")
+	}
+	type namedAny any
+	for _, in := range [][2]any{
+		{[]any{"a"}, []any{"a", "b", "c", "d", "e", "f", "g", "h"}},
+		{[]any{1}, []any{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]namedAny{1}, []namedAny{1, 2, 3, 4, 5, 6, 7, 8}},
+	} {
+		n1 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[0]) })
+		n8 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[1]) })
+		if n8 > n1 {
+			t.Errorf("MarshalWrite(%T): %v allocs for 8 elements, want at most %v (1 element)", in[0], n8, n1)
+		}
 	}
 }
 
