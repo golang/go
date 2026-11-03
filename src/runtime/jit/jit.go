@@ -1,4 +1,4 @@
-// Copyright 2025 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -251,7 +251,23 @@ func StackCheckConfig() StackCheck {
 // JIT compilers must call AddStackMaps after the corresponding machine code is
 // complete and before making that code reachable by another goroutine.
 func (h Handle) AddStackMaps(stackMaps ...StackMap) {
-	addUserFrameStackMaps(h.handle, stackMaps)
+	liveRegionsMu.Lock()
+	defer liveRegionsMu.Unlock()
+	r, ok := liveRegions[h.handle]
+	if !ok {
+		panic("runtime/jit: unregistered handle")
+	}
+	var previous uintptr
+	if len(r.StackMaps) != 0 {
+		previous = r.StackMaps[len(r.StackMaps)-1].PCOffset
+	}
+	if err := validateMaps(r, stackMaps, previous, len(r.StackMaps) != 0); err != nil {
+		panic(err)
+	}
+	copied := copyMaps(stackMaps)
+	addUserFrameStackMaps(h.handle, copied)
+	r.StackMaps = append(r.StackMaps, copied...)
+	liveRegions[h.handle] = r
 }
 
 // liveRegions keeps function pointers (closures) alive so the GC does
@@ -264,6 +280,17 @@ var (
 
 // Register makes the runtime aware of a user code region.
 func Register(r Region) Handle {
+	if err := ValidateRegion(r); err != nil {
+		panic(err)
+	}
+	r.StackMaps = copyMaps(r.StackMaps)
+	liveRegionsMu.Lock()
+	defer liveRegionsMu.Unlock()
+	for _, other := range liveRegions {
+		if r.Start < other.End && other.Start < r.End {
+			panic(&MetadataError{Start: r.Start, End: r.End, Field: "range", Reason: "overlaps a registered region"})
+		}
+	}
 	h := registerUserFrameRegion(
 		r.Start, r.End,
 		uint8(r.Unwind),
@@ -272,12 +299,10 @@ func Register(r Region) Handle {
 	)
 
 	// Keep closures alive for the GC.
-	liveRegionsMu.Lock()
 	if liveRegions == nil {
 		liveRegions = make(map[uintptr]Region)
 	}
 	liveRegions[h] = r
-	liveRegionsMu.Unlock()
 
 	return Handle{handle: h}
 }
@@ -287,11 +312,13 @@ func Register(r Region) Handle {
 // from the region remains on a goroutine stack, and that the code cannot be
 // entered again.
 func (h Handle) Unregister() {
-	unregisterUserFrameRegion(h.handle)
-
 	liveRegionsMu.Lock()
+	defer liveRegionsMu.Unlock()
+	if _, ok := liveRegions[h.handle]; !ok {
+		panic("runtime/jit: unregistered handle")
+	}
+	unregisterUserFrameRegion(h.handle)
 	delete(liveRegions, h.handle)
-	liveRegionsMu.Unlock()
 }
 
 // Preempt reports whether the Go runtime is requesting the current
@@ -303,10 +330,12 @@ func (h Handle) Unregister() {
 // runtime can perform pending operations (GC stop-the-world, goroutine
 // preemption, etc.).
 //
-// JIT code that frequently calls Go functions may not need explicit
-// Preempt checks, because Go function prologues already check for
-// preemption requests. Preempt is primarily useful for long-running
-// JIT loops that do not call back into Go.
+// A loop must reach a described scheduling boundary promptly. On a true
+// result, call Yield through an ordinary Go-call safepoint or leave generated
+// code for an equivalent scheduling boundary. Returning alone or calling an
+// arbitrary Go function is not sufficient: nosplit leaf calls need not check
+// for preemption. Opaque blocking foreign calls require cgo-style scheduler
+// coordination and are outside this cooperative API.
 //
 // Preempt is very lightweight: it reads a single flag from the current
 // goroutine with no synchronization overhead.

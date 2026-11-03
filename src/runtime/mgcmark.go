@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -1079,15 +1079,27 @@ func scanstack(gp *g, gcw *gcWork) int64 {
 //
 //go:nowritebarrier
 func userFrameScan(pc, sp uintptr, state *stackScanState, gcw *gcWork) {
+	if !goexperiment.JIT {
+		return
+	}
 	for pc != 0 {
 		base, words, pointerMask, ok := userFramePointerMap(pc, sp)
 		if ok && words != 0 {
 			bytes := words * goarch.PtrSize
 			if pointerMask == nil || bytes/goarch.PtrSize != words || base < state.stack.lo || base+bytes < base || base+bytes > state.stack.hi {
-				throw("invalid user frame pointer map")
+				badUserFrame("pointer map outside goroutine stack", pc, sp, base, words)
 			}
-			scanblock(base, bytes, pointerMask, gcw, state)
+			if state.conservative {
+				// A debugger/async-preempt register frame may conservatively reach
+				// stack objects. Preserve that provenance just as Go frames do.
+				scanConservative(base, bytes, pointerMask, gcw, state)
+			} else {
+				scanblock(base, bytes, pointerMask, gcw, state)
+			}
 		}
+		// Only the immediate parent of the injected frame is conservative.
+		// The next JIT or Go caller has a precise published return-PC map.
+		state.conservative = false
 		nextPC, nextSP, more := userFrameNextUser(pc, sp)
 		if !more {
 			return
