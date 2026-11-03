@@ -4615,6 +4615,166 @@ func (x Float64s) IsNaN() (z Mask64s) {
 	return Mask64s{spec.IsNaN[float64, spec.WidthScalable, spec.Mask64](x.v)}
 }
 
+// IsZero returns true if all elements of x are zeros.
+func (x Int8x16) IsZero() bool {
+	return spec.IsZero[int8, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int8x32) IsZero() bool {
+	return spec.IsZero[int8, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int8x64) IsZero() bool {
+	return spec.IsZero[int8, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int8s) IsZero() bool {
+	return spec.IsZero[int8, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int16x8) IsZero() bool {
+	return spec.IsZero[int16, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int16x16) IsZero() bool {
+	return spec.IsZero[int16, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int16x32) IsZero() bool {
+	return spec.IsZero[int16, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int16s) IsZero() bool {
+	return spec.IsZero[int16, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int32x4) IsZero() bool {
+	return spec.IsZero[int32, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int32x8) IsZero() bool {
+	return spec.IsZero[int32, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int32x16) IsZero() bool {
+	return spec.IsZero[int32, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int32s) IsZero() bool {
+	return spec.IsZero[int32, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int64x2) IsZero() bool {
+	return spec.IsZero[int64, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int64x4) IsZero() bool {
+	return spec.IsZero[int64, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int64x8) IsZero() bool {
+	return spec.IsZero[int64, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Int64s) IsZero() bool {
+	return spec.IsZero[int64, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint8x16) IsZero() bool {
+	return spec.IsZero[uint8, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint8x32) IsZero() bool {
+	return spec.IsZero[uint8, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint8x64) IsZero() bool {
+	return spec.IsZero[uint8, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint8s) IsZero() bool {
+	return spec.IsZero[uint8, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint16x8) IsZero() bool {
+	return spec.IsZero[uint16, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint16x16) IsZero() bool {
+	return spec.IsZero[uint16, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint16x32) IsZero() bool {
+	return spec.IsZero[uint16, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint16s) IsZero() bool {
+	return spec.IsZero[uint16, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint32x4) IsZero() bool {
+	return spec.IsZero[uint32, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint32x8) IsZero() bool {
+	return spec.IsZero[uint32, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint32x16) IsZero() bool {
+	return spec.IsZero[uint32, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint32s) IsZero() bool {
+	return spec.IsZero[uint32, spec.WidthScalable](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint64x2) IsZero() bool {
+	return spec.IsZero[uint64, spec.Width128](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint64x4) IsZero() bool {
+	return spec.IsZero[uint64, spec.Width256](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint64x8) IsZero() bool {
+	return spec.IsZero[uint64, spec.Width512](x.v)
+}
+
+// IsZero returns true if all elements of x are zeros.
+func (x Uint64s) IsZero() bool {
+	return spec.IsZero[uint64, spec.WidthScalable](x.v)
+}
+
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.
 //

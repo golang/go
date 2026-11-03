@@ -13,8 +13,8 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)          1919 / 3025   63%  [spec-common, spec-all]
-docs sourced from spec (§3)                      3398 / 3398  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          1935 / 3025   64%  [spec-common, spec-all]
+docs sourced from spec (§3)                      3414 / 3414  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -29,20 +29,20 @@ midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      4174 / 5444   77%
-by (receiver, name)                              1919 / 3025   63%
-by name                                           278 / 464    60%
+by (target, receiver, name)                      4190 / 5444   77%
+by (receiver, name)                              1935 / 3025   64%
+by name                                           279 / 464    60%
 
 By build configuration:
 
-  amd64                                          1833 / 2788   66%
+  amd64                                          1849 / 2788   66%
   arm64                                          1171 / 1383   85%
   wasm                                            798 / 877    91%
   portable                                        372 / 396    94%
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    526 / 585    90%
+  hand-written                                    542 / 585    93%
   midway                                          372 / 372   100%
   simdgen                                        1347 / 2326   58%
   tmplgen                                         415 / 463    90%
@@ -53,9 +53,9 @@ High-drift-risk names (emitted by >1 generator):
   covered                                         137 / 145    94%  [spec-all]
   portable core (simd_emulated.go methods)         67 / 67    100%  [spec-common]
 
-spec operations written so far                     92
-  expanding to distinct names                     289
-  expanding to (receiver, name) pairs            2676
+spec operations written so far                     93
+  expanding to distinct names                     290
+  expanding to (receiver, name) pairs            2708
 
 
 ## 2. Signatures and names   [named-results, fill-enforce]
@@ -87,7 +87,7 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   3398 / 3398  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   3414 / 3414  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs        294 / 294   100%  [gen-docs, comments-yaml]
 
@@ -135,18 +135,18 @@ spec misses receivers of a name it defines          8 -> 0       [spec-all, conv
 spec operations implemented nowhere                 1 -> 0       [spec-all]
     TrailingZeros
 
-Every name either side defines, less the 186 spec has never defined at all
-(1098 receivers, counted as coverage in §1 rather than disagreement):
+Every name either side defines, less the 185 spec has never defined at all
+(1082 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
   api = spec         221              0              0
-  api ⊂ spec          51              0            707
+  api ⊂ spec          52              0            723
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              289              8            757
+  total              290              8            773
 
 Names that disagree, with api - spec receivers (the defects):
 
@@ -202,6 +202,7 @@ Names that disagree, with api - spec receivers (the defects):
   ExtendLo8ToUint64          disjoint        1      3            1            3
       api - spec = Uint8x16
   IsNaN                      api ⊂ spec      6      8            0            2
+  IsZero                     api ⊂ spec     16     32            0           16
   LeadingZeros               api ⊂ spec     16     32            0           16
   Len                        api ⊂ spec     40     56            0           16
   Less                       api ⊂ spec     39     40            0            1
