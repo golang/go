@@ -18,7 +18,9 @@ var evenInt32s = [4]int32{-1, 0, -1, 0}
 // it.  Thus, XOR both sign bits and then used the signed
 // comparison operations.
 
-// Less return a mask vector of x[i] < y[i]
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
 //
 // Emulated
 func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
@@ -28,7 +30,10 @@ func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 	return ix.Less(iy)
 }
 
-// LessEqual return a mask vector of x[i] <= y[i]
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
 //
 // Emulated
 func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
@@ -38,7 +43,9 @@ func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 	return ix.LessEqual(iy)
 }
 
-// Greater return a mask vector of x[i] > y[i]
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
 //
 // Emulated
 func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
@@ -48,7 +55,10 @@ func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
 	return ix.Greater(iy)
 }
 
-// GreaterEqual return a mask vector of x[i] >= y[i]
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
 //
 // Emulated
 func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
@@ -58,7 +68,9 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
 	return ix.GreaterEqual(iy)
 }
 
-// Max returns the elementswise maximum of elements in x and y
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
 //
 // Emulated
 func (x Int64x2) Max(y Int64x2) (z Int64x2) {
@@ -66,7 +78,9 @@ func (x Int64x2) Max(y Int64x2) (z Int64x2) {
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
-// Min returns the elementswise minimum of elements in x and y
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
 //
 // Emulated
 func (x Int64x2) Min(y Int64x2) (z Int64x2) {
@@ -74,7 +88,9 @@ func (x Int64x2) Min(y Int64x2) (z Int64x2) {
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
-// Max returns the elementswise maximum of elements in x and y
+// Max returns the elementwise maximum of x and y.
+//
+//	z[i] = max(x[i], y[i])
 //
 // Emulated
 func (x Uint64x2) Max(y Uint64x2) (z Uint64x2) {
@@ -82,7 +98,9 @@ func (x Uint64x2) Max(y Uint64x2) (z Uint64x2) {
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
-// Min returns the elementswise minimum of elements in x and y
+// Min returns the elementwise minimum of x and y.
+//
+//	z[i] = min(x[i], y[i])
 //
 // Emulated
 func (x Uint64x2) Min(y Uint64x2) (z Uint64x2) {
@@ -90,7 +108,9 @@ func (x Uint64x2) Min(y Uint64x2) (z Uint64x2) {
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
-// Mul returns the elementswise product of elements in x and y
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated
 func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
@@ -109,7 +129,9 @@ func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
 	return pe.Or(po).ReshapeToUint8s().BitsToInt8()
 }
 
-// Mul returns the elementswise product of elements in x and y
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated
 func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
@@ -124,7 +146,10 @@ func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
 	return pe.Or(po).ReshapeToUint8s()
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Int16x8) OnesCount() (z Int16x8) {
@@ -135,7 +160,10 @@ func (x Int16x8) OnesCount() (z Int16x8) {
 	return c16e.Add(c16o)                                                               // return their elementwise sum
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Int32x4) OnesCount() (z Int32x4) {
@@ -150,7 +178,10 @@ func (x Int32x4) OnesCount() (z Int32x4) {
 	return c32e.Add(c32o)
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Int64x2) OnesCount() (z Int64x2) {
@@ -169,78 +200,112 @@ func (x Int64x2) OnesCount() (z Int64x2) {
 	return c64e.Add(c64o)
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Uint8x16) OnesCount() (z Uint8x16) {
 	return x.BitsToInt8().OnesCount().ToBits()
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Uint16x8) OnesCount() (z Uint16x8) {
 	return x.BitsToInt16().OnesCount().ToBits()
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Uint32x4) OnesCount() (z Uint32x4) {
 	return x.BitsToInt32().OnesCount().ToBits()
 }
 
-// OnesCount returns the number of set bits in each vector element
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated
 func (x Uint64x2) OnesCount() (z Uint64x2) {
 	return x.BitsToInt64().OnesCount().ToBits()
 }
 
-// MulAdd returns elementwise x * y + z.
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Emulated
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
 	return x.Mul(y).Add(z)
 }
 
-// MulAdd returns elementwise x * y + z.
+// MulAdd returns x * y + z elementwise.
+//
+//	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 //
 // Emulated
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
 	return x.Mul(y).Add(z)
 }
 
-// CarrylessMultiplyEven computes the carryless
-// multiplications of selected even halves of the elements of x and y.
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
 //
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
 //
 // Emulated
 func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(y)
 }
 
-// CarrylessMultiplyOdd computes the carryless
-// multiplications of selected odd halves of the elements of x and y.
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Emulated
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
@@ -249,7 +314,12 @@ func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(y)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = (x[0] + x[1]) + (x[2] + x[3])
 //
 // Emulated
 func (x Float32x4) ReduceSum() (z float32) {
@@ -258,14 +328,18 @@ func (x Float32x4) ReduceSum() (z float32) {
 	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1]
 //
 // Emulated
 func (x Float64x2) ReduceSum() (z float64) {
 	return x.GetElem(0) + x.GetElem(1)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Int16x8) ReduceSum() (z int16) {
@@ -273,7 +347,9 @@ func (x Int16x8) ReduceSum() (z int16) {
 		((x.GetElem(4) + x.GetElem(5)) + (x.GetElem(6) + x.GetElem(7)))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Uint16x8) ReduceSum() (z uint16) {
@@ -281,28 +357,36 @@ func (x Uint16x8) ReduceSum() (z uint16) {
 		((x.GetElem(4) + x.GetElem(5)) + (x.GetElem(6) + x.GetElem(7)))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Int32x4) ReduceSum() (z int32) {
 	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Uint32x4) ReduceSum() (z uint32) {
 	return (x.GetElem(0) + x.GetElem(1)) + (x.GetElem(2) + x.GetElem(3))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Int8x16) ReduceSum() (z int8) {
 	return int8(x.ExtendLo8ToInt16().Add(x.ExtendHi8ToInt16()).ReduceSum())
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated
 func (x Uint8x16) ReduceSum() (z uint8) {

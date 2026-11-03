@@ -128,7 +128,8 @@ func (x Mask64x2) None() bool {
 	return a0 == 0 && b0 == 0
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask x
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
 //
 // Emulated
 func (x Mask8x16) TrailingZeros() int {
@@ -145,7 +146,8 @@ func (x Mask8x16) TrailingZeros() int {
 	return lane>>3 + 8
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
 //
 // Emulated
 func (x Mask16x8) TrailingZeros() int {
@@ -162,7 +164,8 @@ func (x Mask16x8) TrailingZeros() int {
 	return lane>>4 + 4
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 4.
 //
 // Emulated
 func (x Mask32x4) TrailingZeros() int {
@@ -179,7 +182,8 @@ func (x Mask32x4) TrailingZeros() int {
 	return lane>>5 + 2
 }
 
-// TrailingZeros returns the number of trailing (low-order) zeroes in mask x
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 2.
 //
 // Emulated
 func (x Mask64x2) TrailingZeros() int {
