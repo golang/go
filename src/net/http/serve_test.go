@@ -8447,3 +8447,30 @@ func TestServerCONNECTFailure(t *testing.T) {
 		conn.wantClosed()
 	})
 }
+
+func TestRequestLineTooLong(t *testing.T) {
+	ts := httptest.NewUnstartedServer(HandlerFunc(func(ResponseWriter, *Request) {
+		t.Error("handler called for oversized request line")
+	}))
+	ts.Config.MaxHeaderBytes = 64
+	ts.Start()
+	defer ts.Close()
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	requestLine := "GET /" + strings.Repeat("a", 5000) + " HTTP/1.1\r\n"
+	if _, err := io.WriteString(conn, requestLine+"Host: go.dev\r\n\r\n"); err != nil {
+		t.Fatal(err)
+	}
+	statusLine, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(statusLine, "HTTP/1.1 414 ") {
+		t.Fatalf("got status line %q, want HTTP/1.1 414", statusLine)
+	}
+}
