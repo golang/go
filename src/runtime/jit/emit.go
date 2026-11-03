@@ -268,23 +268,8 @@ func PatchFrame(dst CodeBuffer, f FrameFixup, localBytes int32) {
 
 // EmitReturn restores a frame and returns with ABI result registers intact.
 func EmitReturn(dst CodeBuffer, frame PhysicalRegister) {
-	f := frameRegister(frame)
-	r := nativeRegisterConfig()
 	var b instructionBlock
-	b.move(r.Stack, f)
-	switch runtime.GOARCH {
-	case "amd64":
-		if f.Number >= 8 {
-			b.byte(0x41)
-		}
-		b.byte(0x58 | f.Number&7)
-	case "arm64":
-		b.u32(0xa8c10000 | 30<<10 | 31<<5 | uint32(f.Number))
-	case "riscv64":
-		b.memory(true, f, r.Stack, 0)
-		b.memory(true, gp(1), r.Stack, 8)
-		b.u32(16<<20 | 2<<15 | 2<<7 | 0x13)
-	}
+	b.leave(frameRegister(frame))
 	b.ret()
 	dst.Write(b.bytes)
 }
@@ -473,6 +458,10 @@ func PatchStackCheck(dst CodeBuffer, f StackCheckFixup, frameBytes uintptr, grow
 }
 
 func (b *instructionBlock) leave(frame PhysicalRegister) {
+	if runtime.GOARCH == "amd64" && frame.Number == 5 {
+		b.byte(0xc9)
+		return
+	}
 	r := nativeRegisterConfig()
 	b.move(r.Stack, frame)
 	switch runtime.GOARCH {
