@@ -996,14 +996,11 @@ func needTypelink(t *types.Type) bool {
 // type descriptor, ityp.
 func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 	// interface type descriptor layout is struct {
-	//   _type        // commonSize
-	//   pkgpath      // 1 word
-	//   []imethod    // 3 words (pointing to [...]imethod below)
+	//   internal/abi.InterfaceType
 	//   uncommontype // uncommonSize
 	//   [...]imethod
 	// }
-	// The size of imethod is 8.
-	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
+	return rttype.InterfaceType.Size() + int64(uncommonSize(ityp)) + i*rttype.IMethod.Size()
 }
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
