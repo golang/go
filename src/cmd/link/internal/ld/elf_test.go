@@ -600,3 +600,23 @@ func TestRelroSectionOverlapIssue67261(t *testing.T) {
 	}
 
 }
+
+func TestTLSIEtoLERelaxationExe(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "s390x") {
+		t.Skip("TLS IE to LE relaxation test only supported on linux/amd64 and linux/s390x")
+	}
+
+	// Verify that internal linking of a non-PIE executable (-buildmode=exe)
+	// successfully relaxes R_TLS_IE relocations to R_TLS_LE without aborting.
+	tmpdir := t.TempDir()
+	src := filepath.Join(tmpdir, "main.go")
+	if err := os.WriteFile(src, []byte(`package main; func main() {}`), 0666); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=exe", "-gcflags=all=-shared", "-ldflags=-linkmode=internal", "-o", filepath.Join(tmpdir, "main"), src)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("go build -buildmode=exe -gcflags=all=-shared -ldflags=-linkmode=internal failed: %v\n%s", err, out)
+	}
+}
