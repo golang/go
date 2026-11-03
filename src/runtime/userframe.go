@@ -1,4 +1,4 @@
-// Copyright 2025 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"unsafe"
 )
@@ -229,6 +230,9 @@ func unregisterUserFrameRegion(handle uintptr) {
 //
 //go:nosplit
 func findUserFrameRegion(pc uintptr) *userFrameRegion {
+	if !goexperiment.JIT {
+		return nil
+	}
 	snap := loadUserFrameSnapshot()
 	if snap == nil {
 		return nil
@@ -548,4 +552,17 @@ func jit_userFramePreempt() bool {
 //go:nosplit
 func jit_userFrameStackCheck() (guardOffset, stackSmall, moreStackPC uintptr) {
 	return unsafe.Offsetof(g{}.stackguard0), abi.StackSmall, abi.FuncPCABI0(morestack)
+}
+
+// badUserFrame identifies a malformed active map without allocating or calling
+// JIT code from the collector or stack copier.
+func badUserFrame(reason string, pc, sp, base, words uintptr) {
+	printlock()
+	print("runtime: JIT ", reason, " pc=", hex(pc), " sp=", hex(sp), " map-base=", hex(base), " words=", words)
+	if r := findUserFrameRegion(pc); r != nil {
+		print(" region=[", hex(r.start), ",", hex(r.end), ") pc-offset=", hex(pc-r.start))
+	}
+	println()
+	printunlock()
+	throw("invalid JIT frame metadata")
 }
