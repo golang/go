@@ -237,6 +237,12 @@ func (check *Checker) caseValues(x *operand, values []syntax.Expr, seen valueMap
 	var T *target
 	if x.isValid() {
 		T = newTarget(x.typ(), "case")
+		// A function can only be compared to nil, so a generic function
+		// case value is invalid anyway. Before Go 1.27, don't infer its
+		// type arguments, so we don't report a version error on top.
+		if T.sig() != nil && !check.allowVersion(go1_27) {
+			T = nil
+		}
 	}
 L:
 	for _, e := range values {

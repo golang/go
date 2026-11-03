@@ -267,7 +267,7 @@ func (check *Checker) assignVar(lhs, rhs ast.Expr, x *operand, context string) {
 			if _, ok := T.Underlying().(*Signature); ok {
 				desc = ExprString(lhs)
 			}
-			target = newTarget(T, desc)
+			target = newVarTarget(T, desc)
 		}
 		x = new(operand)
 		check.expr(target, x, rhs)
@@ -412,7 +412,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
 			if returnStmt != nil && desc == "" {
 				desc = "result variable"
 			}
-			check.expr(newTarget(lhs.typ, desc), &x, orig_rhs[i])
+			check.expr(newVarTarget(lhs.typ, desc), &x, orig_rhs[i])
 			check.initVar(lhs, &x, context)
 		}
 		return

@@ -87,11 +87,20 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
 		var params []*Var
 		var reverse bool
 		if Tsig != nil && sig.tparams != nil {
-			if !versionErr && !check.allowVersion(go1_21) {
+			// Inference when assigning to a variable requires go1.21; in all other
+			// assignment contexts, and when assigning to a variable of type parameter
+			// type (go.dev/issue/77439), it requires go1.27.
+			v, context := go1_21, "assignment"
+			if !T.isVar {
+				v, context = go1_27, T.desc
+			} else if isTypeParam(T.typ) {
+				v, context = go1_27, "assignment to type parameter"
+			}
+			if !versionErr && !check.allowVersion(v) {
 				if inst != nil {
-					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+					check.versionErrorf(instErrPos, v, "partially instantiated function in %s", context)
 				} else {
-					check.versionErrorf(instErrPos, go1_21, "implicitly instantiated function in assignment")
+					check.versionErrorf(instErrPos, v, "implicitly instantiated function in %s", context)
 				}
 			}
 			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)

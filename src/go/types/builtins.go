@@ -63,9 +63,10 @@ func (check *Checker) _Append(z *operand, call *ast.CallExpr) {
 		} else {
 			// append(x, e1, e2, e3)
 			for i := 1; i < nargs; i++ {
-				// call.ArgList[i] could be a generic function value
+				// call.ArgList[i] could be a generic function value;
+				// like any argument, it is assigned to a parameter variable
 				args[i] = new(operand)
-				check.genericExpr(newTarget(E, "argument to append"), args[i], call.Args[i])
+				check.genericExpr(newVarTarget(E, "argument to append"), args[i], call.Args[i])
 			}
 		}
 	}
