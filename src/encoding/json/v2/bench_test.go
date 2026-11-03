@@ -22,14 +22,12 @@ import (
 	"time"
 
 	jsonv1 "encoding/json"
-
-	jsonv1in2 "encoding/json"
 	"encoding/json/internal/jsontest"
 	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
 )
 
-// benchVersion is the version to benchmark (either "v1", "v1in2", or "v2").
+// benchVersion is the version to benchmark (either "v1" or "v2").
 var benchVersion = cmp.Or(os.Getenv("BENCHMARK_VERSION"), "v2")
 
 var jsonFuncs = func() (funcs struct {
@@ -60,24 +58,6 @@ var jsonFuncs = func() (funcs struct {
 		}
 		funcs.decodeTokens = func(r io.Reader) error {
 			d := jsonv1.NewDecoder(r)
-			for {
-				if _, err := d.Token(); err != nil {
-					return ignoreEOF(err)
-				}
-			}
-		}
-	case "v1in2":
-		funcs.marshal = jsonv1in2.Marshal
-		funcs.unmarshal = jsonv1in2.Unmarshal
-		funcs.encodeValue = func(w io.Writer, b []byte) error {
-			return jsonv1in2.NewEncoder(w).Encode(jsonv1in2.RawMessage(b))
-		}
-		funcs.decodeValue = func(r io.Reader) error {
-			var v jsonv1in2.RawMessage
-			return jsonv1in2.NewDecoder(r).Decode(&v)
-		}
-		funcs.decodeTokens = func(r io.Reader) error {
-			d := jsonv1in2.NewDecoder(r)
 			for {
 				if _, err := d.Token(); err != nil {
 					return ignoreEOF(err)
