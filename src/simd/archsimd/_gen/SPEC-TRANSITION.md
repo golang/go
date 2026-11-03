@@ -473,7 +473,7 @@ wherever its prerequisites and track allow.
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
 | [x] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
 | [x] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
-| [ ] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
+| [x] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
 | [ ] | E | `template-docs` | Retire generator-supplied API docs | `gen-docs`, `spec-all` | — |
 | [ ] | E | `cat-rehome` | Re-home `categories.yaml` non-doc fields | `template-docs` | — |
 | [ ] | E | `compiler-ops-impl` | Implement compiler-only ops representation | `compiler-ops`, `cat-rehome` | — |
@@ -1211,21 +1211,21 @@ sources those docs through `specfill`, and `simd_stubs.go` and
 `simd_emulated.go` carry identical spec-derived docs for them.
 
 ### `handwritten-fill` — Enable `-w` on hand-written files
-**Done:** [ ] · **Needs:** `gen-docs`, `doc-triage` · **Risk:** `risk-silent-doc-loss`
+**Done:** [x] · **Needs:** `gen-docs`, `doc-triage` · **Risk:** `risk-silent-doc-loss`
 
-Turn on doc rewriting for hand-written files, once `doc-triage` has emptied the
-conflict set — at which point `-w` rewrites only docs that already match what it
-would write.
+Run `specfill -w` across all hand-written files once `doc-triage` has triaged
+the conflict set, and drop `NoFillDoc: !isGen` from `TestFill` in
+`cmd/specfill` so CI enforces spec-filled doc comments on hand-written files as
+well as generated files.
 
-Two guards, both on `cmd/specfill` only. This does **not** change `gentools`'
-shared `-w`, which every generator uses:
+Two guards on `cmd/specfill` (implemented during `specfill`) protect `-w`:
 
 - `specfill -w` refuses to run when the report has any findings, or if there are
   uncommitted changes, so its diff is the complete story of what it did.
-- `specfill -w` never runs in CI; CI runs report mode (`fill-enforce`).
+- `specfill -w` never runs in CI; CI runs `TestFill` (`fill-enforce`).
 
 **Done when** `specfill -w` over the hand-written files is a no-op on a clean
-tree.
+tree and `TestFill` checks doc comments on hand-written files.
 
 ### `template-docs` — Retire generator-supplied API docs
 **Done:** [ ] · **Needs:** `gen-docs`, `spec-all` · **Blocks:** `cat-rehome`
@@ -1368,7 +1368,7 @@ each is far cheaper to settle before the bodies are written than after.
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
 | **[x]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
 | **[ ]** | `risk-sig-refactor-convergence` | `sig-refactor` may not converge — if it does not, §1.1 needs revisiting | `sig-refactor` |
-| **[ ]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
+| **[x]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
 | **[ ]** | `risk-cat-unknowns` | Unknown unknowns in `categories.yaml` — the field audit was static | `cat-rehome` |
 
 ---
