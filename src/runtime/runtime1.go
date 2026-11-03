@@ -325,6 +325,7 @@ var debug struct {
 	asyncpreemptoff          int32
 	harddecommit             int32
 	adaptivestackstart       int32
+	stackcachetokens         int32
 	tracefpunwindoff         int32
 	traceadvanceperiod       int32
 	traceCheckStackOwnership int32
@@ -382,6 +383,7 @@ var dbgvars = []*dbgVar{
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
+	{name: "stackcachetokens", value: &debug.stackcachetokens, def: 64},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
@@ -429,6 +431,7 @@ func parseRuntimeDebugVars(godebug string) {
 
 	debug.malloc = (debug.inittrace | debug.sbrk | debug.checkfinalizers) != 0
 	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
+	debug.stackcachetokens = min(max(debug.stackcachetokens, 0), 255) // g.stackUnused is a uint8
 
 	// Disable async preemption in checkmark mode. The following situation is
 	// problematic with checkmark mode:

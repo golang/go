@@ -934,6 +934,7 @@ func copystack(gp *g, newsize uintptr) {
 	if old.lo == 0 {
 		throw("nil stackbase")
 	}
+	gp.stackUnused = 0 // a moved stack has all its tokens
 	used := old.hi - gp.sched.sp
 	// Add just the difference to gcController.addScannableStack.
 	// g0 stacks never move, so this will never account for them.
@@ -1124,7 +1125,7 @@ func newstack() {
 		if !canPreemptM(thisg.m) {
 			// Let the goroutine keep running for now.
 			// gp->preempt is set, so it will be preempted next time.
-			gp.stackguard0 = gp.stack.lo + stackGuard
+			gp.stackguard0 = regularStackGuard(gp)
 			gogo(&gp.sched) // never return
 		}
 	}
@@ -1146,6 +1147,12 @@ func newstack() {
 		print("runtime: gp=", gp, ", goid=", gp.goid, ", gp->status=", hex(readgstatus(gp)), "\n ")
 		print("runtime: split stack overflow: ", hex(sp), " < ", hex(gp.stack.lo), "\n")
 		throw("runtime: split stack overflow")
+	}
+
+	// gp crossed the watermark of its lent stack. Retry the function
+	// prologue on the same stack. See stacktokens.go.
+	if !preempt && stackTokenTrap(gp, stackguard0) {
+		gogo(&gp.sched) // never return
 	}
 
 	if preempt {
