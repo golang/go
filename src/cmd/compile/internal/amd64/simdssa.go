@@ -1291,7 +1291,19 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPCMPB512,
 		ssaop.OpAMD64VPCMPW512,
 		ssaop.OpAMD64VPCMPD512,
-		ssaop.OpAMD64VPCMPQ512:
+		ssaop.OpAMD64VPCMPQ512,
+		ssaop.OpAMD64VCMPPS128k,
+		ssaop.OpAMD64VCMPPS256k,
+		ssaop.OpAMD64VCMPPD128k,
+		ssaop.OpAMD64VCMPPD256k,
+		ssaop.OpAMD64VPCMPB128,
+		ssaop.OpAMD64VPCMPB256,
+		ssaop.OpAMD64VPCMPW128,
+		ssaop.OpAMD64VPCMPW256,
+		ssaop.OpAMD64VPCMPD128,
+		ssaop.OpAMD64VPCMPD256,
+		ssaop.OpAMD64VPCMPQ128,
+		ssaop.OpAMD64VPCMPQ256:
 		p = simdV2kImm8(s, v)
 
 	case ssaop.OpAMD64VCMPPSMasked128,
@@ -1323,7 +1335,11 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPCMPUDMasked512,
 		ssaop.OpAMD64VPCMPUQMasked128,
 		ssaop.OpAMD64VPCMPUQMasked256,
-		ssaop.OpAMD64VPCMPUQMasked512:
+		ssaop.OpAMD64VPCMPUQMasked512,
+		ssaop.OpAMD64VCMPPSMasked128k,
+		ssaop.OpAMD64VCMPPSMasked256k,
+		ssaop.OpAMD64VCMPPDMasked128k,
+		ssaop.OpAMD64VCMPPDMasked256k:
 		p = simdV2kkImm8(s, v)
 
 	case ssaop.OpAMD64VPDPWSSD128,
@@ -2878,7 +2894,19 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPCMPUD512load,
 		ssaop.OpAMD64VPCMPUQ512load,
 		ssaop.OpAMD64VPCMPD512load,
-		ssaop.OpAMD64VPCMPQ512load:
+		ssaop.OpAMD64VPCMPQ512load,
+		ssaop.OpAMD64VCMPPS128kload,
+		ssaop.OpAMD64VCMPPS256kload,
+		ssaop.OpAMD64VCMPPD128kload,
+		ssaop.OpAMD64VCMPPD256kload,
+		ssaop.OpAMD64VPCMPB128load,
+		ssaop.OpAMD64VPCMPB256load,
+		ssaop.OpAMD64VPCMPW128load,
+		ssaop.OpAMD64VPCMPW256load,
+		ssaop.OpAMD64VPCMPD128load,
+		ssaop.OpAMD64VPCMPD256load,
+		ssaop.OpAMD64VPCMPQ128load,
+		ssaop.OpAMD64VPCMPQ256load:
 		p = simdV2kloadImm8(s, v)
 
 	case ssaop.OpAMD64VCMPPSMasked128load,
@@ -2906,7 +2934,11 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPCMPUDMasked512load,
 		ssaop.OpAMD64VPCMPUQMasked128load,
 		ssaop.OpAMD64VPCMPUQMasked256load,
-		ssaop.OpAMD64VPCMPUQMasked512load:
+		ssaop.OpAMD64VPCMPUQMasked512load,
+		ssaop.OpAMD64VCMPPSMasked128kload,
+		ssaop.OpAMD64VCMPPSMasked256kload,
+		ssaop.OpAMD64VCMPPDMasked128kload,
+		ssaop.OpAMD64VCMPPDMasked256kload:
 		p = simdV2kkloadImm8(s, v)
 
 	case ssaop.OpAMD64VPALIGNRMasked256load,

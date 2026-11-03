@@ -689,26 +689,42 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VBROADCASTSSMasked512(v)
 	case ssaop.OpAMD64VCMPPD128:
 		return rewriteValue_OpAMD64VCMPPD128(v)
+	case ssaop.OpAMD64VCMPPD128k:
+		return rewriteValue_OpAMD64VCMPPD128k(v)
 	case ssaop.OpAMD64VCMPPD256:
 		return rewriteValue_OpAMD64VCMPPD256(v)
+	case ssaop.OpAMD64VCMPPD256k:
+		return rewriteValue_OpAMD64VCMPPD256k(v)
 	case ssaop.OpAMD64VCMPPD512:
 		return rewriteValue_OpAMD64VCMPPD512(v)
 	case ssaop.OpAMD64VCMPPDMasked128:
 		return rewriteValue_OpAMD64VCMPPDMasked128(v)
+	case ssaop.OpAMD64VCMPPDMasked128k:
+		return rewriteValue_OpAMD64VCMPPDMasked128k(v)
 	case ssaop.OpAMD64VCMPPDMasked256:
 		return rewriteValue_OpAMD64VCMPPDMasked256(v)
+	case ssaop.OpAMD64VCMPPDMasked256k:
+		return rewriteValue_OpAMD64VCMPPDMasked256k(v)
 	case ssaop.OpAMD64VCMPPDMasked512:
 		return rewriteValue_OpAMD64VCMPPDMasked512(v)
 	case ssaop.OpAMD64VCMPPS128:
 		return rewriteValue_OpAMD64VCMPPS128(v)
+	case ssaop.OpAMD64VCMPPS128k:
+		return rewriteValue_OpAMD64VCMPPS128k(v)
 	case ssaop.OpAMD64VCMPPS256:
 		return rewriteValue_OpAMD64VCMPPS256(v)
+	case ssaop.OpAMD64VCMPPS256k:
+		return rewriteValue_OpAMD64VCMPPS256k(v)
 	case ssaop.OpAMD64VCMPPS512:
 		return rewriteValue_OpAMD64VCMPPS512(v)
 	case ssaop.OpAMD64VCMPPSMasked128:
 		return rewriteValue_OpAMD64VCMPPSMasked128(v)
+	case ssaop.OpAMD64VCMPPSMasked128k:
+		return rewriteValue_OpAMD64VCMPPSMasked128k(v)
 	case ssaop.OpAMD64VCMPPSMasked256:
 		return rewriteValue_OpAMD64VCMPPSMasked256(v)
+	case ssaop.OpAMD64VCMPPSMasked256k:
+		return rewriteValue_OpAMD64VCMPPSMasked256k(v)
 	case ssaop.OpAMD64VCMPPSMasked512:
 		return rewriteValue_OpAMD64VCMPPSMasked512(v)
 	case ssaop.OpAMD64VCVTDQ2PD256:
@@ -1457,10 +1473,18 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPCLMULQDQ128(v)
 	case ssaop.OpAMD64VPCLMULQDQ256:
 		return rewriteValue_OpAMD64VPCLMULQDQ256(v)
+	case ssaop.OpAMD64VPCMPB128:
+		return rewriteValue_OpAMD64VPCMPB128(v)
+	case ssaop.OpAMD64VPCMPB256:
+		return rewriteValue_OpAMD64VPCMPB256(v)
 	case ssaop.OpAMD64VPCMPBMasked128:
 		return rewriteValue_OpAMD64VPCMPBMasked128(v)
 	case ssaop.OpAMD64VPCMPBMasked256:
 		return rewriteValue_OpAMD64VPCMPBMasked256(v)
+	case ssaop.OpAMD64VPCMPD128:
+		return rewriteValue_OpAMD64VPCMPD128(v)
+	case ssaop.OpAMD64VPCMPD256:
+		return rewriteValue_OpAMD64VPCMPD256(v)
 	case ssaop.OpAMD64VPCMPD512:
 		return rewriteValue_OpAMD64VPCMPD512(v)
 	case ssaop.OpAMD64VPCMPDMasked128:
@@ -1513,6 +1537,10 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPCMPGTW128(v)
 	case ssaop.OpAMD64VPCMPGTW256:
 		return rewriteValue_OpAMD64VPCMPGTW256(v)
+	case ssaop.OpAMD64VPCMPQ128:
+		return rewriteValue_OpAMD64VPCMPQ128(v)
+	case ssaop.OpAMD64VPCMPQ256:
+		return rewriteValue_OpAMD64VPCMPQ256(v)
 	case ssaop.OpAMD64VPCMPQ512:
 		return rewriteValue_OpAMD64VPCMPQ512(v)
 	case ssaop.OpAMD64VPCMPQMasked128:
@@ -1545,6 +1573,10 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64VPCMPUWMasked128(v)
 	case ssaop.OpAMD64VPCMPUWMasked256:
 		return rewriteValue_OpAMD64VPCMPUWMasked256(v)
+	case ssaop.OpAMD64VPCMPW128:
+		return rewriteValue_OpAMD64VPCMPW128(v)
+	case ssaop.OpAMD64VPCMPW256:
+		return rewriteValue_OpAMD64VPCMPW256(v)
 	case ssaop.OpAMD64VPCMPWMasked128:
 		return rewriteValue_OpAMD64VPCMPWMasked128(v)
 	case ssaop.OpAMD64VPCMPWMasked256:
@@ -43059,6 +43091,81 @@ func rewriteValue_OpAMD64VAESKEYGENASSIST128(v *ssa.Value) bool {
 func rewriteValue_OpAMD64VANDPD128(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VANDPD128 x c:(VPCMPEQQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked128 x (VPCMPQ128 [0] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQQ128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(0)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPD128 x c:(VPCMPGTQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked128 x (VPCMPQ128 [6] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTQ128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(6)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPD128 x c:(VCMPPD128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked128 x (VCMPPD128k [pred] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPD128 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD128k, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (VANDPD128 x (VPMOVMToVec64x2 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VMOVDQU64Masked128 x k)
@@ -43108,6 +43215,81 @@ func rewriteValue_OpAMD64VANDPD128(v *ssa.Value) bool {
 func rewriteValue_OpAMD64VANDPD256(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VANDPD256 x c:(VPCMPEQQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked256 x (VPCMPQ256 [0] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQQ256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(0)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPD256 x c:(VPCMPGTQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked256 x (VPCMPQ256 [6] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTQ256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(6)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPD256 x c:(VCMPPD256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU64Masked256 x (VCMPPD256k [pred] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPD256 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU64Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD256k, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (VANDPD256 x (VPMOVMToVec64x4 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VMOVDQU64Masked256 x k)
@@ -43157,6 +43339,81 @@ func rewriteValue_OpAMD64VANDPD256(v *ssa.Value) bool {
 func rewriteValue_OpAMD64VANDPS128(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VANDPS128 x c:(VPCMPEQD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked128 x (VPCMPD128 [0] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQD128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(0)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPS128 x c:(VPCMPGTD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked128 x (VPCMPD128 [6] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTD128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(6)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPS128 x c:(VCMPPS128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked128 x (VCMPPS128k [pred] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPS128 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS128k, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (VANDPS128 x (VPMOVMToVec32x4 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VMOVDQU32Masked128 x k)
@@ -43206,6 +43463,81 @@ func rewriteValue_OpAMD64VANDPS128(v *ssa.Value) bool {
 func rewriteValue_OpAMD64VANDPS256(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VANDPS256 x c:(VPCMPEQD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked256 x (VPCMPD256 [0] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQD256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(0)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPS256 x c:(VPCMPGTD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked256 x (VPCMPD256 [6] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTD256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(6)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VANDPS256 x c:(VCMPPS256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VMOVDQU32Masked256 x (VCMPPS256k [pred] p q))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPS256 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VMOVDQU32Masked256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS256k, typ.Mask)
+			v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v0.AddArg2(p, q)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (VANDPS256 x (VPMOVMToVec32x8 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VMOVDQU32Masked256 x k)
@@ -43256,6 +43588,75 @@ func rewriteValue_OpAMD64VBLENDVPD128(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VBLENDVPD128 x y c:(VPCMPEQQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VPCMPQ128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQQ128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPD128 x y c:(VPCMPGTQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VPCMPQ128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTQ128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPD128 x y c:(VCMPPD128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VCMPPD128k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPD128 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD128k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VBLENDVPD128 x y (VPMOVMToVec64x2 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMQMasked128 x y k)
@@ -43279,6 +43680,75 @@ func rewriteValue_OpAMD64VBLENDVPD256(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VBLENDVPD256 x y c:(VPCMPEQQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VPCMPQ256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQQ256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPD256 x y c:(VPCMPGTQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VPCMPQ256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTQ256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPD256 x y c:(VCMPPD256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VCMPPD256k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPD256 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD256k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VBLENDVPD256 x y (VPMOVMToVec64x4 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMQMasked256 x y k)
@@ -43302,6 +43772,75 @@ func rewriteValue_OpAMD64VBLENDVPS128(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VBLENDVPS128 x y c:(VPCMPEQD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VPCMPD128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQD128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPS128 x y c:(VPCMPGTD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VPCMPD128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTD128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPS128 x y c:(VCMPPS128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VCMPPS128k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPS128 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS128k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VBLENDVPS128 x y (VPMOVMToVec32x4 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMDMasked128 x y k)
@@ -43325,6 +43864,75 @@ func rewriteValue_OpAMD64VBLENDVPS256(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VBLENDVPS256 x y c:(VPCMPEQD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VPCMPD256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQD256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPS256 x y c:(VPCMPGTD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VPCMPD256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTD256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VBLENDVPS256 x y c:(VCMPPS256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VCMPPS256k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPS256 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS256k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VBLENDVPS256 x y (VPMOVMToVec32x8 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMDMasked256 x y k)
@@ -43632,6 +44240,34 @@ func rewriteValue_OpAMD64VCMPPD128(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VCMPPD128k(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPD128k [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPD128kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPD128kload)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VCMPPD256(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -43653,6 +44289,34 @@ func rewriteValue_OpAMD64VCMPPD256(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpAMD64VCMPPD256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VCMPPD256k(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPD256k [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPD256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPD256kload)
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -43718,6 +44382,36 @@ func rewriteValue_OpAMD64VCMPPDMasked128(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VCMPPDMasked128k(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPDMasked128k [c] x l:(VMOVDQUload128 {sym} [off] ptr mem) mask)
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPDMasked128kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mask mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPDMasked128kload)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VCMPPDMasked256(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -43741,6 +44435,36 @@ func rewriteValue_OpAMD64VCMPPDMasked256(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpAMD64VCMPPDMasked256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VCMPPDMasked256k(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPDMasked256k [c] x l:(VMOVDQUload256 {sym} [off] ptr mem) mask)
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPDMasked256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mask mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPDMasked256kload)
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
@@ -43806,6 +44530,34 @@ func rewriteValue_OpAMD64VCMPPS128(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VCMPPS128k(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPS128k [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPS128kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPS128kload)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VCMPPS256(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -43827,6 +44579,34 @@ func rewriteValue_OpAMD64VCMPPS256(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpAMD64VCMPPS256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VCMPPS256k(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPS256k [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPS256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPS256kload)
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg3(x, ptr, mem)
@@ -43892,6 +44672,36 @@ func rewriteValue_OpAMD64VCMPPSMasked128(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VCMPPSMasked128k(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPSMasked128k [c] x l:(VMOVDQUload128 {sym} [off] ptr mem) mask)
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPSMasked128kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mask mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPSMasked128kload)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VCMPPSMasked256(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -43915,6 +44725,36 @@ func rewriteValue_OpAMD64VCMPPSMasked256(v *ssa.Value) bool {
 			break
 		}
 		v.Reset(ssaop.OpAMD64VCMPPSMasked256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VCMPPSMasked256k(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VCMPPSMasked256k [c] x l:(VMOVDQUload256 {sym} [off] ptr mem) mask)
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VCMPPSMasked256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mask mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		mask := v_2
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VCMPPSMasked256kload)
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
@@ -60024,6 +60864,268 @@ func rewriteValue_OpAMD64VPAND128(v *ssa.Value) bool {
 		}
 		break
 	}
+	// match: (VPAND128 x c:(VPCMPEQB128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec8x16 <types.TypeVec128> (VPCMPB128 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQB128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec8x16, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPEQW128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec16x8 <types.TypeVec128> (VPCMPW128 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQW128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec16x8, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPEQD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec32x4 <types.TypeVec128> (VPCMPD128 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQD128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x4, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPEQQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec64x2 <types.TypeVec128> (VPCMPQ128 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQQ128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x2, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPGTB128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec8x16 <types.TypeVec128> (VPCMPB128 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTB128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec8x16, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPGTW128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec16x8 <types.TypeVec128> (VPCMPW128 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTW128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec16x8, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPGTD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec32x4 <types.TypeVec128> (VPCMPD128 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTD128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x4, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VPCMPGTQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec64x2 <types.TypeVec128> (VPCMPQ128 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTQ128 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x2, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VCMPPS128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec32x4 <types.TypeVec128> (VCMPPS128k [pred] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPS128 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x4, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS128k, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND128 x c:(VCMPPD128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND128 x (VPMOVMToVec64x2 <types.TypeVec128> (VCMPPD128k [pred] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPD128 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND128)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x2, types.TypeVec128)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD128k, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
 	// match: (VPAND128 x (VPMOVMToVec8x16 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VMOVDQU8Masked128 x k)
@@ -60224,6 +61326,268 @@ func rewriteValue_OpAMD64VPAND256(v *ssa.Value) bool {
 			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64KANDB, typ.Mask)
 			v0.AddArg2(x, y)
 			v.AddArg(v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPEQB256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec8x32 <types.TypeVec256> (VPCMPB256 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQB256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec8x32, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPEQW256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec16x16 <types.TypeVec256> (VPCMPW256 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQW256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec16x16, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPEQD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec32x8 <types.TypeVec256> (VPCMPD256 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQD256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x8, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPEQQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec64x4 <types.TypeVec256> (VPCMPQ256 [0] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPEQQ256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x4, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(0)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPGTB256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec8x32 <types.TypeVec256> (VPCMPB256 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTB256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec8x32, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPGTW256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec16x16 <types.TypeVec256> (VPCMPW256 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTW256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec16x16, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPGTD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec32x8 <types.TypeVec256> (VPCMPD256 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTD256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x8, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VPCMPGTQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec64x4 <types.TypeVec256> (VPCMPQ256 [6] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VPCMPGTQ256 {
+				continue
+			}
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x4, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(6)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VCMPPS256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec32x8 <types.TypeVec256> (VCMPPS256k [pred] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPS256 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec32x8, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS256k, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
+			return true
+		}
+		break
+	}
+	// match: (VPAND256 x c:(VCMPPD256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPAND256 x (VPMOVMToVec64x4 <types.TypeVec256> (VCMPPD256k [pred] p q)))
+	for {
+		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+			x := v_0
+			c := v_1
+			if c.Op != ssaop.OpAMD64VCMPPD256 {
+				continue
+			}
+			pred := ssa.AuxIntToUint8(c.AuxInt)
+			q := c.Args[1]
+			p := c.Args[0]
+			if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+				continue
+			}
+			v.Reset(ssaop.OpAMD64VPAND256)
+			v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPMOVMToVec64x4, types.TypeVec256)
+			v1 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD256k, typ.Mask)
+			v1.AuxInt = ssa.Uint8ToAuxInt(pred)
+			v1.AddArg2(p, q)
+			v0.AddArg(v1)
+			v.AddArg2(x, v0)
 			return true
 		}
 		break
@@ -67868,6 +69232,230 @@ func rewriteValue_OpAMD64VPBLENDVB128(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VPBLENDVB128 x y c:(VPCMPEQB128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMBMasked128 x y (VPCMPB128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQB128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMBMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPEQW128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMWMasked128 x y (VPCMPW128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQW128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMWMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPEQD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VPCMPD128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQD128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPEQQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VPCMPQ128 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQQ128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPGTB128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMBMasked128 x y (VPCMPB128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTB128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMBMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPGTW128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMWMasked128 x y (VPCMPW128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTW128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMWMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPGTD128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VPCMPD128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTD128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VPCMPGTQ128 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VPCMPQ128 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTQ128 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ128, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VCMPPS128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked128 x y (VCMPPS128k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPS128 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS128k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB128 x y c:(VCMPPD128 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked128 x y (VCMPPD128k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPD128 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD128k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VPBLENDVB128 x y (VPMOVMToVec8x16 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMBMasked128 x y k)
@@ -67942,6 +69530,230 @@ func rewriteValue_OpAMD64VPBLENDVB256(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (VPBLENDVB256 x y c:(VPCMPEQB256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMBMasked256 x y (VPCMPB256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQB256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMBMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPEQW256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMWMasked256 x y (VPCMPW256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQW256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMWMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPEQD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VPCMPD256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQD256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPEQQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VPCMPQ256 [0] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPEQQ256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPGTB256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMBMasked256 x y (VPCMPB256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTB256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMBMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPB256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPGTW256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMWMasked256 x y (VPCMPW256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTW256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMWMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPW256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPGTD256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VPCMPD256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTD256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPD256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VPCMPGTQ256 p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VPCMPQ256 [6] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VPCMPGTQ256 {
+			break
+		}
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ256, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(6)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VCMPPS256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMDMasked256 x y (VCMPPS256k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPS256 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMDMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS256k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
+	// match: (VPBLENDVB256 x y c:(VCMPPD256 [pred] p q))
+	// cond: c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
+	// result: (VPBLENDMQMasked256 x y (VCMPPD256k [pred] p q))
+	for {
+		x := v_0
+		y := v_1
+		c := v_2
+		if c.Op != ssaop.OpAMD64VCMPPD256 {
+			break
+		}
+		pred := ssa.AuxIntToUint8(c.AuxInt)
+		q := c.Args[1]
+		p := c.Args[0]
+		if !(c.Uses == 1 && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBLENDMQMasked256)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD256k, typ.Mask)
+		v0.AuxInt = ssa.Uint8ToAuxInt(pred)
+		v0.AddArg2(p, q)
+		v.AddArg3(x, y, v0)
+		return true
+	}
 	// match: (VPBLENDVB256 x y (VPMOVMToVec8x32 k))
 	// cond: v.Block.CPUfeatures.HasFeature(ssa.CPUavx512)
 	// result: (VPBLENDMBMasked256 x y k)
@@ -68728,6 +70540,62 @@ func rewriteValue_OpAMD64VPCLMULQDQ256(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VPCMPB128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPB128 [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPB128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPB128load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPB256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPB256 [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPB256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPB256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VPCMPBMasked128(v *ssa.Value) bool {
 	v_2 := v.Args[2]
 	v_1 := v.Args[1]
@@ -68784,6 +70652,62 @@ func rewriteValue_OpAMD64VPCMPBMasked256(v *ssa.Value) bool {
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPD128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPD128 [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPD128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPD128load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPD256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPD256 [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPD256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPD256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
 		return true
 	}
 	return false
@@ -69782,6 +71706,62 @@ func rewriteValue_OpAMD64VPCMPGTW256(v *ssa.Value) bool {
 	}
 	return false
 }
+func rewriteValue_OpAMD64VPCMPQ128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPQ128 [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPQ128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPQ128load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPQ256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPQ256 [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPQ256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPQ256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
 func rewriteValue_OpAMD64VPCMPQ512(v *ssa.Value) bool {
 	v_1 := v.Args[1]
 	v_0 := v.Args[0]
@@ -70252,6 +72232,62 @@ func rewriteValue_OpAMD64VPCMPUWMasked256(v *ssa.Value) bool {
 		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
 		v.Aux = ssa.SymToAux(sym)
 		v.AddArg4(x, ptr, mask, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPW128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPW128 [c] x l:(VMOVDQUload128 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPW128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload128 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPW128load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPCMPW256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPCMPW256 [c] x l:(VMOVDQUload256 {sym} [off] ptr mem))
+	// cond: ssa.CanMergeLoad(v, l) && ssa.Clobber(l)
+	// result: (VPCMPW256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)] x ptr mem)
+	for {
+		c := ssa.AuxIntToUint8(v.AuxInt)
+		x := v_0
+		l := v_1
+		if l.Op != ssaop.OpAMD64VMOVDQUload256 {
+			break
+		}
+		off := ssa.AuxIntToInt32(l.AuxInt)
+		sym := ssa.AuxToSym(l.Aux)
+		mem := l.Args[1]
+		ptr := l.Args[0]
+		if !(ssa.CanMergeLoad(v, l) && ssa.Clobber(l)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPCMPW256load)
+		v.AuxInt = ssa.ValAndOffToAuxInt(ssa.MakeValAndOff(int32(uint8(c)), off))
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg3(x, ptr, mem)
 		return true
 	}
 	return false

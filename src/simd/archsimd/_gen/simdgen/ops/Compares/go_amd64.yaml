@@ -145,3 +145,41 @@
   - *float
   out:
   - class: mask
+
+# Unmasked AVX-512 comparisons for 128- and 256-bit vectors, which produce
+# AVX-512 masks rather than vector masks. (512-bit comparisons are already
+# AVX-512 instructions defined above, whereas 128- and 256-bit comparisons
+# default to AVX/AVX2 instructions that produce vector masks.) These have no
+# Go methods or generic ops, since the AVX comparisons provide those. Instead,
+# AMD64.rules uses these in place of the AVX comparisons when the result is
+# used as an AVX-512 mask.
+- go: compareToMask
+  asm: "VPCMP[BWDQ]"
+  in:
+  - class: immediate
+    immOffset: 0
+    name: pred
+  - &kint
+    bits: (128|256)
+    go: $t
+    base: int
+  - *kint
+  out:
+  - class: mask
+- go: compareToMask
+  asm: "VCMPP[SD]"
+  # Distinguish these from the 128/256-bit AVX float comparisons, which share
+  # the VCMPP[SD] mnemonic and input types and differ only in whether the
+  # output is a vector register or an AVX-512 mask register.
+  ssaVariant: "k"
+  in:
+  - class: immediate
+    immOffset: 0
+    name: pred
+  - &kfloat
+    bits: (128|256)
+    go: $t
+    base: float
+  - *kfloat
+  out:
+  - class: mask
