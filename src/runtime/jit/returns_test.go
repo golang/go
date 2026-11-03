@@ -192,10 +192,18 @@ func TestABIEmittedGoCallReturns(t *testing.T) {
 		t.Run(reflect.TypeOf(fn).String(), func(t *testing.T) {
 			c := jit.GetCallingConventionForFunc(fn)
 			b := &jit.SliceBuffer{Bytes: make([]byte, 512)}
-			jit.EmitFrame(b, jit.FramePlan{LocalBytes: int32(c.CallFrameSize)})
+			frameBytes := c.CallFrameSize + 16
+			jit.EmitFrame(b, jit.FramePlan{LocalBytes: int32(frameBytes)})
+			// A chosen JIT frame register can be caller-clobbered (notably on
+			// riscv64). Preserve it just like any other live register across Go.
+			emitTestFrameSpill(b, false, c.CallFrameSize)
 			call := jit.EmitCall(b, jit.CallPlan{Entry: reflect.ValueOf(fn).Pointer()})
+			emitTestFrameSpill(b, true, c.CallFrameSize)
 			jit.EmitReturn(b, c.Registers.Frame)
-			m := jit.FrameStackMap(uintptr(call.ReturnPC), c.CallFrameSize, make([]byte, (c.CallFrameSize/8+1+7)/8))
+			mask := make([]byte, (frameBytes/8+1+7)/8)
+			word := c.CallFrameSize / 8
+			mask[word/8] |= 1 << uint(word%8)
+			m := jit.FrameStackMap(uintptr(call.ReturnPC), frameBytes, mask)
 			addr, cleanup := registerReturnCode(t, b, []jit.StackMap{m})
 			defer cleanup()
 			h := new(jit.FunctionHeader)
@@ -211,5 +219,33 @@ func TestABIEmittedGoCallReturns(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func emitTestFrameSpill(b *jit.SliceBuffer, load bool, offset uintptr) {
+	r := jit.RegisterConfig()
+	frame, sp := uint32(r.Frame.Number), uint32(r.Stack.Number)
+	word := func(v uint32) { var code [4]byte; binary.LittleEndian.PutUint32(code[:], v); b.Write(code[:]) }
+	switch runtime.GOARCH {
+	case "amd64":
+		op := byte(0x89)
+		if load {
+			op = 0x8b
+		}
+		b.Write([]byte{0x48 | byte(frame>>3)<<2 | byte(sp>>3), op, 0x84 | byte(frame&7)<<3, 0x24})
+		word(uint32(offset))
+	case "arm64":
+		op := uint32(0xf9000000)
+		if load {
+			op = 0xf9400000
+		}
+		word(op | uint32(offset/8)<<10 | sp<<5 | frame)
+	case "riscv64":
+		v := uint32(offset)
+		if load {
+			word(v<<20 | sp<<15 | 3<<12 | frame<<7 | 3)
+		} else {
+			word(v>>5<<25 | frame<<20 | sp<<15 | 3<<12 | (v&31)<<7 | 0x23)
+		}
 	}
 }
