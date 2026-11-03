@@ -3330,6 +3330,101 @@ func testTransportRetryAfterRefusedStream(t *testing.T) {
 	rt.wantStatus(204)
 }
 
+// Issue 82177: when a request encounters errClientConnUnusable before headers are sent,
+// the transport cleanup closes Request.Body. The transport must not retry the request
+// with the closed body unless Request.GetBody is defined.
+func TestTransportRetryUnusableConn(t *testing.T) {
+	synctest.Test(t, testTransportRetryUnusableConn)
+}
+func testTransportRetryUnusableConn(t *testing.T) {
+	tt := newTestTransport(t, func(h2 *http.HTTP2Config) {
+		h2.StrictMaxConcurrentRequests = true
+	})
+
+	// Start request 1, which establishes the connection and occupies stream 1.
+	req1, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt1 := tt.roundTrip(req1)
+
+	tc := tt.getConn()
+	tc.wantFrameType(FrameSettings)
+	tc.wantFrameType(FrameWindowUpdate)
+	tc.wantHeaders(wantHeader{
+		streamID:  1,
+		endStream: true,
+	})
+	// Server advertises MaxConcurrentStreams: 1
+	tc.writeSettings(Setting{SettingMaxConcurrentStreams, 1})
+	tc.wantFrameType(FrameSettings) // Settings ACK
+
+	// Connection now has 1 active stream (stream 1) and maxConcurrentStreams is 1.
+	// Now start request 2 with a body that fails on Read if closed.
+	// Because StrictMaxConcurrentRequests is set, req2 is assigned to the
+	// same connection and waits in awaitOpenSlotForStreamLocked.
+	body := &closedTrackReader{}
+	req2, _ := http.NewRequest("POST", "https://dummy.tld/", body)
+	rt2 := tt.roundTrip(req2)
+	tc.writeGoAway(1, ErrCodeNo, nil)
+	tc.closeWrite()
+
+	// If the transport incorrectly retries the request on a new connection,
+	// handle the new connection to observe the closed-body read failure.
+	if tt.hasConn() {
+		tc2 := tt.getConn()
+		tc2.wantFrameType(FrameSettings)
+		tc2.wantFrameType(FrameWindowUpdate)
+		tc2.wantHeaders(wantHeader{
+			streamID:  1,
+			endStream: false,
+		})
+		tc2.writeSettings()
+	}
+
+	// rt2 must fail with an error from shouldRetryRequest rather than
+	// retrying and reading the already-closed body on a new connection.
+	if err := rt2.err(); err == nil {
+		t.Fatalf("rt2 finished with nil error; want error")
+	} else if errors.Is(err, io.ErrClosedPipe) {
+		t.Fatalf("got io.ErrClosedPipe; transport retried with a closed body: %v", err)
+	} else if !strings.Contains(err.Error(), "define Request.GetBody to avoid this error") {
+		t.Fatalf("rt2.err = %v, want Request.GetBody error", err)
+	}
+
+	if !body.isClosed() {
+		t.Errorf("body was not closed by transport cleanup")
+	}
+
+	if err := rt1.err(); err == nil {
+		t.Fatalf("rt1 finished with nil error; want error")
+	}
+}
+
+type closedTrackReader struct {
+	mu     sync.Mutex
+	closed bool
+}
+
+func (r *closedTrackReader) Read(p []byte) (n int, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return 0, io.ErrClosedPipe
+	}
+	return copy(p, "hello"), io.EOF
+}
+
+func (r *closedTrackReader) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.closed = true
+	return nil
+}
+
+func (r *closedTrackReader) isClosed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.closed
+}
+
 func TestTransportRetryHasLimit(t *testing.T) { synctest.Test(t, testTransportRetryHasLimit) }
 func testTransportRetryHasLimit(t *testing.T) {
 	tt := newTestTransport(t)

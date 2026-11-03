@@ -523,12 +523,6 @@ func shouldRetryRequest(req *ClientRequest, err error) (*ClientRequest, error) {
 		return newReq, nil
 	}
 
-	// The Request.Body can't reset back to the beginning, but we
-	// don't seem to have started to read from it yet, so reuse the body.
-	if err == errClientConnUnusable {
-		return req.Clone(), nil
-	}
-
 	return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
 }
 
