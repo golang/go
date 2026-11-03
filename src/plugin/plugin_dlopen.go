@@ -4,6 +4,8 @@
 
 //go:build (linux && cgo) || (darwin && cgo) || (freebsd && cgo)
 
+// Note: windows uses plugin_windows.go (no cgo dependency).
+
 package plugin
 
 /*

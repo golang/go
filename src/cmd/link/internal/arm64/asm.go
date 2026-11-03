@@ -42,6 +42,9 @@ import (
 )
 
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+	if ctxt.IsWindows() && ctxt.BuildMode == ld.BuildModePlugin {
+		return
+	}
 	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
 	if initfunc == nil {
 		return
