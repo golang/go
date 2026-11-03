@@ -4559,56 +4559,56 @@ func (x Uint64s) ToMask() (z Mask64s) {
 	return Mask64s{spec.ToMask[uint64, spec.WidthScalable, spec.Mask64](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float32x4) IsNaN() (z Mask32x4) {
 	return Mask32x4{spec.IsNaN[float32, spec.Width128, spec.Mask32](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float32x8) IsNaN() (z Mask32x8) {
 	return Mask32x8{spec.IsNaN[float32, spec.Width256, spec.Mask32](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float32x16) IsNaN() (z Mask32x16) {
 	return Mask32x16{spec.IsNaN[float32, spec.Width512, spec.Mask32](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float32s) IsNaN() (z Mask32s) {
 	return Mask32s{spec.IsNaN[float32, spec.WidthScalable, spec.Mask32](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float64x2) IsNaN() (z Mask64x2) {
 	return Mask64x2{spec.IsNaN[float64, spec.Width128, spec.Mask64](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float64x4) IsNaN() (z Mask64x4) {
 	return Mask64x4{spec.IsNaN[float64, spec.Width256, spec.Mask64](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float64x8) IsNaN() (z Mask64x8) {
 	return Mask64x8{spec.IsNaN[float64, spec.Width512, spec.Mask64](x.v)}
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 func (x Float64s) IsNaN() (z Mask64s) {
@@ -12539,7 +12539,7 @@ func (x Uint64s) ConcatAddPairsSaturated(y Uint64s) (z Uint64s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int8x16) ConcatSubPairsSaturated(y Int8x16) (z Int8x16) {
 	return Int8x16{spec.ConcatSubPairsSaturated[int8, spec.Width128](x.v, y.v)}
 }
@@ -12547,7 +12547,7 @@ func (x Int8x16) ConcatSubPairsSaturated(y Int8x16) (z Int8x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int8x32) ConcatSubPairsSaturated(y Int8x32) (z Int8x32) {
 	return Int8x32{spec.ConcatSubPairsSaturated[int8, spec.Width256](x.v, y.v)}
 }
@@ -12555,7 +12555,7 @@ func (x Int8x32) ConcatSubPairsSaturated(y Int8x32) (z Int8x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int8x64) ConcatSubPairsSaturated(y Int8x64) (z Int8x64) {
 	return Int8x64{spec.ConcatSubPairsSaturated[int8, spec.Width512](x.v, y.v)}
 }
@@ -12563,7 +12563,7 @@ func (x Int8x64) ConcatSubPairsSaturated(y Int8x64) (z Int8x64) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int8s) ConcatSubPairsSaturated(y Int8s) (z Int8s) {
 	return Int8s{spec.ConcatSubPairsSaturated[int8, spec.WidthScalable](x.v, y.v)}
 }
@@ -12571,7 +12571,7 @@ func (x Int8s) ConcatSubPairsSaturated(y Int8s) (z Int8s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8) {
 	return Int16x8{spec.ConcatSubPairsSaturated[int16, spec.Width128](x.v, y.v)}
 }
@@ -12579,7 +12579,7 @@ func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int16x16) ConcatSubPairsSaturated(y Int16x16) (z Int16x16) {
 	return Int16x16{spec.ConcatSubPairsSaturated[int16, spec.Width256](x.v, y.v)}
 }
@@ -12587,7 +12587,7 @@ func (x Int16x16) ConcatSubPairsSaturated(y Int16x16) (z Int16x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int16x32) ConcatSubPairsSaturated(y Int16x32) (z Int16x32) {
 	return Int16x32{spec.ConcatSubPairsSaturated[int16, spec.Width512](x.v, y.v)}
 }
@@ -12595,7 +12595,7 @@ func (x Int16x32) ConcatSubPairsSaturated(y Int16x32) (z Int16x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int16s) ConcatSubPairsSaturated(y Int16s) (z Int16s) {
 	return Int16s{spec.ConcatSubPairsSaturated[int16, spec.WidthScalable](x.v, y.v)}
 }
@@ -12611,7 +12611,7 @@ func (x Int32x4) ConcatSubPairsSaturated(y Int32x4) (z Int32x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int32x8) ConcatSubPairsSaturated(y Int32x8) (z Int32x8) {
 	return Int32x8{spec.ConcatSubPairsSaturated[int32, spec.Width256](x.v, y.v)}
 }
@@ -12619,7 +12619,7 @@ func (x Int32x8) ConcatSubPairsSaturated(y Int32x8) (z Int32x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int32x16) ConcatSubPairsSaturated(y Int32x16) (z Int32x16) {
 	return Int32x16{spec.ConcatSubPairsSaturated[int32, spec.Width512](x.v, y.v)}
 }
@@ -12627,7 +12627,7 @@ func (x Int32x16) ConcatSubPairsSaturated(y Int32x16) (z Int32x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int32s) ConcatSubPairsSaturated(y Int32s) (z Int32s) {
 	return Int32s{spec.ConcatSubPairsSaturated[int32, spec.WidthScalable](x.v, y.v)}
 }
@@ -12635,7 +12635,7 @@ func (x Int32s) ConcatSubPairsSaturated(y Int32s) (z Int32s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], y[0]-y[1]}
+//	z = {sat(x[0]-x[1]), sat(y[0]-y[1])}
 func (x Int64x2) ConcatSubPairsSaturated(y Int64x2) (z Int64x2) {
 	return Int64x2{spec.ConcatSubPairsSaturated[int64, spec.Width128](x.v, y.v)}
 }
@@ -12651,7 +12651,7 @@ func (x Int64x4) ConcatSubPairsSaturated(y Int64x4) (z Int64x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int64x8) ConcatSubPairsSaturated(y Int64x8) (z Int64x8) {
 	return Int64x8{spec.ConcatSubPairsSaturated[int64, spec.Width512](x.v, y.v)}
 }
@@ -12659,7 +12659,7 @@ func (x Int64x8) ConcatSubPairsSaturated(y Int64x8) (z Int64x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Int64s) ConcatSubPairsSaturated(y Int64s) (z Int64s) {
 	return Int64s{spec.ConcatSubPairsSaturated[int64, spec.WidthScalable](x.v, y.v)}
 }
@@ -12667,7 +12667,7 @@ func (x Int64s) ConcatSubPairsSaturated(y Int64s) (z Int64s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint8x16) ConcatSubPairsSaturated(y Uint8x16) (z Uint8x16) {
 	return Uint8x16{spec.ConcatSubPairsSaturated[uint8, spec.Width128](x.v, y.v)}
 }
@@ -12675,7 +12675,7 @@ func (x Uint8x16) ConcatSubPairsSaturated(y Uint8x16) (z Uint8x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint8x32) ConcatSubPairsSaturated(y Uint8x32) (z Uint8x32) {
 	return Uint8x32{spec.ConcatSubPairsSaturated[uint8, spec.Width256](x.v, y.v)}
 }
@@ -12683,7 +12683,7 @@ func (x Uint8x32) ConcatSubPairsSaturated(y Uint8x32) (z Uint8x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint8x64) ConcatSubPairsSaturated(y Uint8x64) (z Uint8x64) {
 	return Uint8x64{spec.ConcatSubPairsSaturated[uint8, spec.Width512](x.v, y.v)}
 }
@@ -12691,7 +12691,7 @@ func (x Uint8x64) ConcatSubPairsSaturated(y Uint8x64) (z Uint8x64) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint8s) ConcatSubPairsSaturated(y Uint8s) (z Uint8s) {
 	return Uint8s{spec.ConcatSubPairsSaturated[uint8, spec.WidthScalable](x.v, y.v)}
 }
@@ -12699,7 +12699,7 @@ func (x Uint8s) ConcatSubPairsSaturated(y Uint8s) (z Uint8s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint16x8) ConcatSubPairsSaturated(y Uint16x8) (z Uint16x8) {
 	return Uint16x8{spec.ConcatSubPairsSaturated[uint16, spec.Width128](x.v, y.v)}
 }
@@ -12707,7 +12707,7 @@ func (x Uint16x8) ConcatSubPairsSaturated(y Uint16x8) (z Uint16x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint16x16) ConcatSubPairsSaturated(y Uint16x16) (z Uint16x16) {
 	return Uint16x16{spec.ConcatSubPairsSaturated[uint16, spec.Width256](x.v, y.v)}
 }
@@ -12715,7 +12715,7 @@ func (x Uint16x16) ConcatSubPairsSaturated(y Uint16x16) (z Uint16x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint16x32) ConcatSubPairsSaturated(y Uint16x32) (z Uint16x32) {
 	return Uint16x32{spec.ConcatSubPairsSaturated[uint16, spec.Width512](x.v, y.v)}
 }
@@ -12723,7 +12723,7 @@ func (x Uint16x32) ConcatSubPairsSaturated(y Uint16x32) (z Uint16x32) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint16s) ConcatSubPairsSaturated(y Uint16s) (z Uint16s) {
 	return Uint16s{spec.ConcatSubPairsSaturated[uint16, spec.WidthScalable](x.v, y.v)}
 }
@@ -12739,7 +12739,7 @@ func (x Uint32x4) ConcatSubPairsSaturated(y Uint32x4) (z Uint32x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint32x8) ConcatSubPairsSaturated(y Uint32x8) (z Uint32x8) {
 	return Uint32x8{spec.ConcatSubPairsSaturated[uint32, spec.Width256](x.v, y.v)}
 }
@@ -12747,7 +12747,7 @@ func (x Uint32x8) ConcatSubPairsSaturated(y Uint32x8) (z Uint32x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint32x16) ConcatSubPairsSaturated(y Uint32x16) (z Uint32x16) {
 	return Uint32x16{spec.ConcatSubPairsSaturated[uint32, spec.Width512](x.v, y.v)}
 }
@@ -12755,7 +12755,7 @@ func (x Uint32x16) ConcatSubPairsSaturated(y Uint32x16) (z Uint32x16) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint32s) ConcatSubPairsSaturated(y Uint32s) (z Uint32s) {
 	return Uint32s{spec.ConcatSubPairsSaturated[uint32, spec.WidthScalable](x.v, y.v)}
 }
@@ -12763,7 +12763,7 @@ func (x Uint32s) ConcatSubPairsSaturated(y Uint32s) (z Uint32s) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], y[0]-y[1]}
+//	z = {sat(x[0]-x[1]), sat(y[0]-y[1])}
 func (x Uint64x2) ConcatSubPairsSaturated(y Uint64x2) (z Uint64x2) {
 	return Uint64x2{spec.ConcatSubPairsSaturated[uint64, spec.Width128](x.v, y.v)}
 }
@@ -12779,7 +12779,7 @@ func (x Uint64x4) ConcatSubPairsSaturated(y Uint64x4) (z Uint64x4) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint64x8) ConcatSubPairsSaturated(y Uint64x8) (z Uint64x8) {
 	return Uint64x8{spec.ConcatSubPairsSaturated[uint64, spec.Width512](x.v, y.v)}
 }
@@ -12787,7 +12787,7 @@ func (x Uint64x8) ConcatSubPairsSaturated(y Uint64x8) (z Uint64x8) {
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 func (x Uint64s) ConcatSubPairsSaturated(y Uint64s) (z Uint64s) {
 	return Uint64s{spec.ConcatSubPairsSaturated[uint64, spec.WidthScalable](x.v, y.v)}
 }

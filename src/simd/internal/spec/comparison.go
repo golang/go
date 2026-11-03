@@ -90,7 +90,7 @@ func ToMask[E Elt, W Width, zE MaskElt](x Vec[E, W]) (z Vec[zE, W]) {
 	})
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 //

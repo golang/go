@@ -160,7 +160,7 @@ func ConcatAddPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, 
 //
 // {{if eq .xL 2}}
 //
-//	z = {x[0]-x[1], y[0]-y[1]}
+//	z = {sat(x[0]-x[1]), sat(y[0]-y[1])}
 //
 // {{else if eq .xL 4}}
 //
@@ -168,7 +168,7 @@ func ConcatAddPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, 
 //
 // {{else}}
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 //
 // {{end}}
 func ConcatSubPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
