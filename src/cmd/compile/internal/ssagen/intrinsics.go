@@ -1812,28 +1812,28 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			},
 			sys.AMD64)
 
-		addF(simdPackage, "Int8x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int16x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int32x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int64x2.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint8x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint16x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint32x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint64x2.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int8x32.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int16x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int32x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int64x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint8x32.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Float32x4.IsNaN", opLen1(ssaop.OpIsNaNFloat32x4, types.TypeVec128), sys.AMD64)
-		addF(simdPackage, "Float32x8.IsNaN", opLen1(ssaop.OpIsNaNFloat32x8, types.TypeVec256), sys.AMD64)
-		addF(simdPackage, "Float32x16.IsNaN", opLen1(ssaop.OpIsNaNFloat32x16, types.TypeVec512), sys.AMD64)
-		addF(simdPackage, "Float64x2.IsNaN", opLen1(ssaop.OpIsNaNFloat64x2, types.TypeVec128), sys.AMD64)
-		addF(simdPackage, "Float64x4.IsNaN", opLen1(ssaop.OpIsNaNFloat64x4, types.TypeVec256), sys.AMD64)
-		addF(simdPackage, "Float64x8.IsNaN", opLen1(ssaop.OpIsNaNFloat64x8, types.TypeVec512), sys.AMD64)
+		for _, typ := range []string{
+			"Int8x16", "Int16x8", "Int32x4", "Int64x2",
+			"Uint8x16", "Uint16x8", "Uint32x4", "Uint64x2",
+			"Int8x32", "Int16x16", "Int32x8", "Int64x4",
+			"Uint8x32", "Uint16x16", "Uint32x8", "Uint64x4",
+		} {
+			addF(simdPackage, typ+".IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		}
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+			typ  *types.Type
+		}{
+			{"Float32x4", ssaop.OpIsNaNFloat32x4, types.TypeVec128},
+			{"Float32x8", ssaop.OpIsNaNFloat32x8, types.TypeVec256},
+			{"Float32x16", ssaop.OpIsNaNFloat32x16, types.TypeVec512},
+			{"Float64x2", ssaop.OpIsNaNFloat64x2, types.TypeVec128},
+			{"Float64x4", ssaop.OpIsNaNFloat64x4, types.TypeVec256},
+			{"Float64x8", ssaop.OpIsNaNFloat64x8, types.TypeVec512},
+		} {
+			addF(simdPackage, t.name+".IsNaN", opLen1(t.op, t.typ), sys.AMD64)
+		}
 
 		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {

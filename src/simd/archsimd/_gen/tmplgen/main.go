@@ -165,6 +165,12 @@ var avx2Shapes = &shapes{
 	floats: []int{32, 64},
 }
 
+var avx2IntegerShapes = &shapes{
+	vecs:  []int{128, 256},
+	ints:  []int{8, 16, 32, 64},
+	uints: []int{8, 16, 32, 64},
+}
+
 var avx2MaskedLoadShapes = &shapes{
 	vecs:   []int{128, 256},
 	ints:   []int{32, 64},
@@ -915,7 +921,14 @@ func (t templateData) CPUfeature() string {
 	case 128:
 		return "AVX"
 	case 256:
-		return "AVX2"
+		switch t.Base {
+		case "Float":
+			return "AVX"
+		case "Int", "Uint":
+			return "AVX2"
+		default:
+			panic(fmt.Errorf("unexpected base type %q", t.Base))
+		}
 	case 512:
 		return "AVX512"
 	}
@@ -1085,6 +1098,19 @@ func (x {{.VType}}) NotEqual(y {{.VType}}) Mask{{.WxC}} {
 }
 `)
 
+var floatIsNaNTemplate = shapedTemplateOf(floatShapes, "float IsNaN methods", `
+// Asm: {{if eq .EWidth 32}}VCMPPS{{else}}VCMPPD{{end}}, CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) IsNaN() (z Mask{{.WxC}})
+`)
+
+var avx2IsZeroTemplate = shapedTemplateOf(avx2IntegerShapes, "avx2 IsZero methods", `
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) IsZero() bool
+`)
+
 var unsafePATemplate = templateOf("unsafe PA helper", `
 // pa{{.VType}} returns a type-unsafe pointer to array that can
 // only be used with partial load/store operations that only
@@ -1099,7 +1125,7 @@ func pa{{.VType}}(s []{{.Etype}}) *[{{.Count}}]{{.Etype}} {
 var avx2MaskedTemplate = shapedTemplateOf(avx2Shapes, "avx2 .Masked methods", `
 // Masked returns x but with elements zeroed where mask is false.
 //
-// Emulated, CPU Feature: {{.CPUfeature}}
+// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
 func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 	im := mask.ToInt{{.WxC}}()
 {{- if eq .Base "Int" }}
@@ -1111,7 +1137,7 @@ func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
 
 // Merge returns x but with elements set to y where mask is false.
 //
-// Emulated, CPU Feature: {{.CPUfeature}}
+// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
 //
 // Deprecated: use x.IfElse(mask, y)
 //
@@ -1122,7 +1148,7 @@ func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
 
 // IfElse returns x but with elements set to y where mask is false.
 //
-// Emulated, CPU Feature: {{.CPUfeature}}
+// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
 func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
 {{- if eq .BxC .WxC -}}
 	im := mask.ToInt{{.BxC}}()
@@ -1472,6 +1498,7 @@ func main() {
 		one(*cm, prologue,
 			avx2SignedComparisonsTemplate,
 			avx2UnsignedComparisonsTemplate,
+			floatIsNaNTemplate,
 		)
 	}
 	if *mm != "" {
@@ -1489,6 +1516,7 @@ func main() {
 			stringTemplate,
 			maskToString,
 			shapeAndTemplate{amdUintShiftAllShapes, uintRotateAllTemplate},
+			avx2IsZeroTemplate,
 		)
 	}
 	if *ush != "" {

@@ -42,10 +42,10 @@ By build configuration:
 
 By generator (declarations per tool, counted once per tool per pair):
 
-  hand-written                                    542 / 585    93%
+  hand-written                                    520 / 563    92%
   midway                                          372 / 372   100%
   simdgen                                        1399 / 2326   60%
-  tmplgen                                         415 / 463    90%
+  tmplgen                                         437 / 485    90%
   wasmgen                                         416 / 416   100%
 
 High-drift-risk names (emitted by >1 generator):
