@@ -3354,7 +3354,7 @@ func execute(gp *g, inheritTime bool) {
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
-	gp.stackguard0 = gp.stack.lo + stackGuard
+	gp.stackguard0 = regularStackGuard(gp)
 	if !inheritTime {
 		mp.p.ptr().schedtick++
 	}
@@ -5042,7 +5042,7 @@ func exitsyscall() {
 			gp.stackguard0 = stackPreempt
 		} else {
 			// Otherwise restore the real stackGuard, we clobbered it in entersyscall/entersyscallblock.
-			gp.stackguard0 = gp.stack.lo + stackGuard
+			gp.stackguard0 = regularStackGuard(gp)
 		}
 		gp.throwsplit = false
 
@@ -5240,7 +5240,7 @@ func syscall_runtime_AfterFork() {
 	gp := getg().m.curg
 
 	// See the comments in beforefork.
-	gp.stackguard0 = gp.stack.lo + stackGuard
+	gp.stackguard0 = regularStackGuard(gp)
 
 	msigrestore(gp.m.sigmask)
 
@@ -5524,10 +5524,15 @@ func gfput(pp *p, gp *g) {
 		throw("gfput: bad status (not Gdead)")
 	}
 
+	stackLendRelease(pp, gp)
 	stksize := gp.stack.hi - gp.stack.lo
 
-	if stksize != uintptr(startingStackSize) {
-		// non-standard stack size - free it.
+	// Keep a grown stack, up to maxCachedStackSize, for the next goroutine
+	// that reuses gp, so that it need not grow its stack again. gfget bounds
+	// the memory of reused stacks; see stacklend.go. Without stack shrinking,
+	// GC could never shrink a reused stack, so keep only stacks of
+	// startingStackSize, as before.
+	if stksize > maxCachedStackSize || (debug.gcshrinkstackoff > 0 && stksize != uintptr(startingStackSize)) {
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
@@ -5584,10 +5589,9 @@ retry:
 	if gp == nil {
 		return nil
 	}
-	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
-		// Deallocate old stack. We kept it in gfput because it was the
-		// right size when the goroutine was put on the free list, but
-		// the right size has changed since then.
+	if gp.stack.lo != 0 && !stackLend(pp, gp) {
+		// gp's stack may not be lent (see stackLend). Deallocate it, so
+		// that gp starts on startingStackSize.
 		systemstack(func() {
 			stackfree(gp.stack)
 			gp.stack.lo = 0
@@ -5618,6 +5622,9 @@ retry:
 		if asanenabled {
 			asanunpoison(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
 		}
+		// A coroutine starts without execute, so set the guard here. A lent
+		// stack needs its watermark guard; see regularStackGuard.
+		gp.stackguard0 = regularStackGuard(gp)
 	}
 	return gp
 }
@@ -6054,6 +6061,7 @@ func (pp *p) destroy() {
 	freemcache(pp.mcache)
 	pp.mcache = nil
 	gfpurge(pp)
+	stackLendFlush(pp)
 	if raceenabled {
 		if pp.timers.raceCtx != 0 {
 			// The race detector code uses a callback to fetch
@@ -7447,6 +7455,7 @@ func pidleput(pp *p, now int64) int64 {
 	if !runqempty(pp) {
 		throw("pidleput: P has non-empty run queue")
 	}
+	stackLendFlush(pp)
 	if now == 0 {
 		now = nanotime()
 	}

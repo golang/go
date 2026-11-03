@@ -325,6 +325,7 @@ var debug struct {
 	asyncpreemptoff          int32
 	harddecommit             int32
 	adaptivestackstart       int32
+	stackcachelendkb         int32
 	tracefpunwindoff         int32
 	traceadvanceperiod       int32
 	traceCheckStackOwnership int32
@@ -382,6 +383,7 @@ var dbgvars = []*dbgVar{
 	{name: "scavtrace", value: &debug.scavtrace},
 	{name: "scheddetail", value: &debug.scheddetail},
 	{name: "schedtrace", value: &debug.schedtrace},
+	{name: "stackcachelendkb", value: &debug.stackcachelendkb, def: 2048},
 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
 	{name: "traceallocfree", atomic: &debug.traceallocfree},
 	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
