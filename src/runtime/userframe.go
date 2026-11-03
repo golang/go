@@ -317,7 +317,7 @@ func userFrameCallerBPSlot(pc, sp uintptr) (uintptr, bool) {
 func userFrameNextGo(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 	for {
 		r := findUserFrameRegion(pc)
-		if r == nil || r.unwindMode == userFrameUnwindStop {
+		if r == nil {
 			return 0, 0, false
 		}
 		callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
@@ -341,7 +341,7 @@ func userFrameNextGo(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 //go:nosplit
 func userFrameNextUser(pc, sp uintptr) (callerPC, callerSP uintptr, ok bool) {
 	r := findUserFrameRegion(pc)
-	if r == nil || r.unwindMode == userFrameUnwindStop {
+	if r == nil {
 		return 0, 0, false
 	}
 	callerPC, callerSP, _, ok = userFrameNext(r, pc, sp)
@@ -553,6 +553,12 @@ func jit_userFramePreempt() bool {
 func jit_userFrameStackCheck() (guardOffset, stackSmall, moreStackPC uintptr) {
 	return unsafe.Offsetof(g{}.stackguard0), abi.StackSmall, abi.FuncPCABI0(morestack)
 }
+
+//go:linkname jit_userFrameWriteBarrier runtime/jit.userFrameWriteBarrier
+func jit_userFrameWriteBarrier() uintptr { return uintptr(unsafe.Pointer(&writeBarrier)) }
+
+//go:linkname jit_userFramePreemptOffset runtime/jit.userFramePreemptOffset
+func jit_userFramePreemptOffset() uintptr { return unsafe.Offsetof(g{}.preempt) }
 
 // badUserFrame identifies a malformed active map without allocating or calling
 // JIT code from the collector or stack copier.

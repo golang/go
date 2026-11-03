@@ -12,27 +12,37 @@ pkg runtime/jit, const UnwindSkip = 1 #78189
 pkg runtime/jit, const UnwindSkip UnwindMode #78189
 pkg runtime/jit, const UnwindStop = 0 #78189
 pkg runtime/jit, const UnwindStop UnwindMode #78189
+pkg runtime/jit, func Clear[$0 interface{}](*$0) #78189
+pkg runtime/jit, func Copy[$0 interface{}](*$0, *$0) #78189
 pkg runtime/jit, func EmitCall(CodeBuffer, CallPlan) CallEmission #78189
 pkg runtime/jit, func EmitCallFrame(CodeBuffer, CallingConvention) int32 #78189
 pkg runtime/jit, func EmitFrame(CodeBuffer, FramePlan) FrameFixup #78189
 pkg runtime/jit, func EmitLeafReturn(CodeBuffer) #78189
 pkg runtime/jit, func EmitLeave(CodeBuffer, PhysicalRegister) #78189
+pkg runtime/jit, func EmitLoadFunctionContext(CodeBuffer, PhysicalRegister, PhysicalRegister) #78189
+pkg runtime/jit, func EmitPreemptCheck(CodeBuffer, int) PreemptCheckFixup #78189
 pkg runtime/jit, func EmitReturn(CodeBuffer, PhysicalRegister) #78189
 pkg runtime/jit, func EmitStackCheck(CodeBuffer, uintptr, int) StackCheckFixup #78189
 pkg runtime/jit, func EmitStackGrow(CodeBuffer, CallingConvention, PhysicalRegister, int) StackMap #78189
+pkg runtime/jit, func EmitWriteBarrierCheck(CodeBuffer, int) BarrierCheckFixup #78189
+pkg runtime/jit, func EmitYield(CodeBuffer) CallEmission #78189
 pkg runtime/jit, func FrameStackMap(uintptr, uintptr, []uint8) StackMap #78189
 pkg runtime/jit, func FunctionContext[$0 interface{}]($0) unsafe.Pointer #78189
 pkg runtime/jit, func FunctionEntryOffset() uintptr #78189
 pkg runtime/jit, func Function[$0 interface{}](*FunctionHeader) $0 #78189
 pkg runtime/jit, func GetCallingConventionForFunc(interface{}) CallingConvention #78189
 pkg runtime/jit, func GetCallingConventionForType(reflect.Type) CallingConvention #78189
+pkg runtime/jit, func GetMemoryLayout(reflect.Type) MemoryLayout #78189
 pkg runtime/jit, func PatchFrame(CodeBuffer, FrameFixup, int32) #78189
+pkg runtime/jit, func PatchPreemptCheck(CodeBuffer, PreemptCheckFixup, int) #78189
 pkg runtime/jit, func PatchStackCheck(CodeBuffer, StackCheckFixup, uintptr, int) #78189
+pkg runtime/jit, func PatchWriteBarrierCheck(CodeBuffer, BarrierCheckFixup, int) #78189
 pkg runtime/jit, func Preempt() bool #78189
 pkg runtime/jit, func Register(Region) Handle #78189
 pkg runtime/jit, func RegisterConfig() Registers #78189
 pkg runtime/jit, func ReleaseCallFrame(CodeBuffer, int32) #78189
 pkg runtime/jit, func StackCheckConfig() StackCheck #78189
+pkg runtime/jit, func Store[$0 interface{}](*$0, $0) #78189
 pkg runtime/jit, func SupportedEmitters() bool #78189
 pkg runtime/jit, func TailTypeFor[$0 interface{}](uintptr) TailType #78189
 pkg runtime/jit, func ValidateRegion(Region) error #78189
@@ -50,6 +60,7 @@ pkg runtime/jit, method (Handle) Unregister() #78189
 pkg runtime/jit, method (Handle) WriteTo(io.Writer) (int64, error) #78189
 pkg runtime/jit, method (RegisterSet) Contains(PhysicalRegister) bool #78189
 pkg runtime/jit, method (TailType) Alloc() unsafe.Pointer #78189
+pkg runtime/jit, type BarrierCheckFixup struct #78189
 pkg runtime/jit, type CallEmission struct #78189
 pkg runtime/jit, type CallEmission struct, Clobbers RegisterSet #78189
 pkg runtime/jit, type CallEmission struct, End int #78189
@@ -89,6 +100,15 @@ pkg runtime/jit, type Location struct, Kind LocationKind #78189
 pkg runtime/jit, type Location struct, Register PhysicalRegister #78189
 pkg runtime/jit, type Location struct, StackOffset uintptr #78189
 pkg runtime/jit, type LocationKind uint8 #78189
+pkg runtime/jit, type MemoryLayout struct #78189
+pkg runtime/jit, type MemoryLayout struct, Align uintptr #78189
+pkg runtime/jit, type MemoryLayout struct, Parts []MemoryPart #78189
+pkg runtime/jit, type MemoryLayout struct, Size uintptr #78189
+pkg runtime/jit, type MemoryLayout struct, Type reflect.Type #78189
+pkg runtime/jit, type MemoryPart struct #78189
+pkg runtime/jit, type MemoryPart struct, Offset uintptr #78189
+pkg runtime/jit, type MemoryPart struct, Pointer bool #78189
+pkg runtime/jit, type MemoryPart struct, Size uintptr #78189
 pkg runtime/jit, type MetadataError struct #78189
 pkg runtime/jit, type MetadataError struct, End uintptr #78189
 pkg runtime/jit, type MetadataError struct, Field string #78189
@@ -98,6 +118,7 @@ pkg runtime/jit, type MetadataError struct, Start uintptr #78189
 pkg runtime/jit, type PhysicalRegister struct #78189
 pkg runtime/jit, type PhysicalRegister struct, Class RegisterClass #78189
 pkg runtime/jit, type PhysicalRegister struct, Number uint8 #78189
+pkg runtime/jit, type PreemptCheckFixup struct #78189
 pkg runtime/jit, type Region struct #78189
 pkg runtime/jit, type Region struct, Describe func(uintptr) (string, string, int, bool) #78189
 pkg runtime/jit, type Region struct, End uintptr #78189
