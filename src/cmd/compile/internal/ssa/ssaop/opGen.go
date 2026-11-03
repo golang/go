@@ -11243,10 +11243,11 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "SBBLcarrymask",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ASBBL,
+		Name:         "SBBLcarrymask",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ASBBL,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 239, V2: 0}}, // AX CX DX BX BP SI DI
@@ -19021,10 +19022,11 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "SBBQcarrymask",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ASBBQ,
+		Name:         "SBBQcarrymask",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ASBBQ,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -19034,6 +19036,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:          "SBBLcarrymask",
 		ArgLen:        1,
+		ClobberFlags:  true,
 		EarlyOk:       true,
 		asm:           x86.ASBBL,
 		ZeroUpperBits: 32,
