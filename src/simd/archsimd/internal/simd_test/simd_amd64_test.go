@@ -1650,3 +1650,18 @@ func TestMaskedZeroingResultSize(t *testing.T) {
 	y.ConvertToFloat32().Masked(archsimd.Mask32x4FromBits(0b1010)).Store(got32)
 	checkSlices(t, got32, []float32{0, 2, 0, 4})
 }
+
+func TestMaskedMergingResultSize(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VPMADDWD produces 32-bit elements from 16-bit
+	// inputs. Merging the result must convert the mask using the 32-bit
+	// result element size, not the 16-bit input element size.
+	x := archsimd.LoadInt16x8([]int16{1, 2, 3, 4, 5, 6, 7, 8})
+	y := archsimd.LoadInt16x8([]int16{1, 1, 1, 1, 1, 1, 1, 1})
+	dst := archsimd.LoadInt32x4([]int32{10, 20, 30, 40})
+	got := make([]int32, 4)
+	x.DotProductPairs(y).Merge(dst, archsimd.Mask32x4FromBits(0b0010)).Store(got)
+	checkSlices(t, got, []int32{10, 7, 30, 40})
+}

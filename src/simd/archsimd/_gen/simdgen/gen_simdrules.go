@@ -88,49 +88,97 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	return fmt.Sprintf("(%s (%s %s) mask) => (%s %s mask)\n", zeroMove, asmNoMask, d.Args, d.Asm, d.Args)
 }
 
+// zeroMaskedForm and mergeMaskedForm express o's zeroing-masked and
+// merging-masked machine ops in terms of its unmasked machine op asmNoMask
+// followed by a masking operation (a zeroing move or a blend) on the result.
+//
+// In both cases, the AVX-512 opmask applies to the elements of the result, so
+// the masking operation has the result's element width and vector width, which
+// can differ from the inputs' shape (for example, in conversions that change
+// the element size).
+//
+// Note that asmNoMask is the name the unmasked machine op would have, which
+// may not exist as a machine op (for example, if the mask is required).
+
 // zeroMaskedForm reports whether o, an amd64 operation, is the zeroing-masked
 // form of the unmasked machine op asmNoMask. That is, for any args,
 //
 //	(machineOp args mask) == (zeroMove (asmNoMask args) mask)
 //
 // where machineOp is o's machine op and zeroMove is a zeroing masked move.
-// asmNoMask is the name the unmasked machine op would have, but there may not
-// be such a machine op. For example, there's none if the mask is required.
 func (o *Operation) zeroMaskedForm() (asmNoMask, zeroMove string, ok bool) {
 	if o.Zeroing != nil && !*o.Zeroing {
 		// The masked op merges.
 		return "", "", false
 	}
-	var mask *types.Operand
+	if len(o.Out) != 1 || o.Out[0].Class != "vreg" || o.Out[0].ElemBits == nil {
+		// Only operations that produce a single vector register have a
+		// zeroing masked move form. (For example, comparisons produce a
+		// mask.)
+		return "", "", false
+	}
+	// Check that o is masked by a write opmask (rather than a control mask
+	// like VPBLENDM or VCOMPRESS).
+	hasOpmask := false
 	for i := range o.In {
 		if in := &o.In[i]; in.MaskRole != nil && *in.MaskRole == "opmask" {
-			mask = in
+			hasOpmask = true
 			break
 		}
 	}
-	if mask == nil || len(o.Out) != 1 {
+	if !hasOpmask {
 		return "", "", false
 	}
+	elemBits, size := o.resultShape()
+	return machineOpName(NoMask, *o), fmt.Sprintf("VMOVDQU%dMasked%d", elemBits, size), true
+}
 
-	// The opmask applies to the elements of the result, so zeroMove must
-	// have the result's shape. This can differ from the inputs' shape, for
-	// example in conversions that change the element size.
-	out := o.Out[0]
-	if out.Class != "vreg" || out.ElemBits == nil {
-		return "", "", false
+// mergeMaskedForm reports whether o has a merging-masked machine op (see
+// hasMaskedMerging) and returns how to express it in terms of the unmasked
+// machine op asmNoMask. That is, for any args,
+//
+//	(machineOpMerging dst args kmask) == (blend dst (asmNoMask args) mask)
+//
+// where machineOpMerging is o's merging-masked machine op and blend takes the
+// elements of its second argument where mask is true and of dst elsewhere. If
+// vecToMask is "", blend takes an AVX-512 mask and kmask == mask. Otherwise,
+// blend takes a vector mask and kmask == (vecToMask mask).
+func (o *Operation) mergeMaskedForm(maskType maskShape, outType outShape) (asmNoMask, blend, vecToMask string, ok bool) {
+	if !o.hasMaskedMerging(maskType, outType) {
+		return "", "", "", false
 	}
-	size := o.VectorWidth()
+	elemBits, size := o.resultShape()
+	asmNoMask = machineOpName(NoMask, *o)
 	switch size {
-	case 128, 256, 512:
-	default:
-		panic(fmt.Errorf("unexpected vector width %d on %v", size, o))
+	case 128, 256:
+		// There are no 128- or 256-bit VPBLENDM machine ops, so these
+		// come from VPBLENDVB, which takes a vector mask.
+		return asmNoMask, fmt.Sprintf("VPBLENDVB%d", size), fmt.Sprintf("VPMOVVec%dx%dToM", elemBits, size/elemBits), true
+	case 512:
+		letter := map[int]string{8: "B", 16: "W", 32: "D", 64: "Q"}[elemBits]
+		return asmNoMask, fmt.Sprintf("VPBLENDM%sMasked512", letter), "", true
 	}
-	switch *out.ElemBits {
+	panic("unreachable")
+}
+
+// resultShape returns the element width and vector width of o's result.
+func (o *Operation) resultShape() (elemBits, vectorWidth int) {
+	if len(o.Out) != 1 || o.Out[0].Class != "vreg" || o.Out[0].ElemBits == nil {
+		panic(fmt.Errorf("unexpected result of %v", o))
+	}
+	elemBits = *o.Out[0].ElemBits
+	switch elemBits {
 	case 8, 16, 32, 64:
 	default:
-		panic(fmt.Errorf("unexpected result element width %d on %v", *out.ElemBits, o))
+		panic(fmt.Errorf("unexpected result element width %d on %v", elemBits, o))
 	}
-	return machineOpName(NoMask, *o), fmt.Sprintf("VMOVDQU%dMasked%d", *out.ElemBits, size), true
+	vectorWidth = o.VectorWidth()
+	switch vectorWidth {
+	case 128, 256, 512:
+	default:
+		panic(fmt.Errorf("unexpected vector width %d on %v", vectorWidth, o))
+	}
+	return elemBits, vectorWidth
 }
 
 func compareTplRuleData(x, y tplRuleData) int {
@@ -472,7 +520,6 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 
 	// asm -> masked merging rules
 	maskedMergeOpts := make(map[string]string)
-	s2n := map[int]string{8: "B", 16: "W", 32: "D", 64: "Q"}
 	asmCheck := map[string]bool{}    // for masked merge optimizations.
 	sftimmCheck := map[string]bool{} // deduplicate sftimm rules
 	var allData []tplRuleData
@@ -772,42 +819,20 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 			}
 		}
 		// Generate the masked merging optimization rules
-		if gOp.hasMaskedMerging(maskType, opOutShape) {
+		if noMaskName, blend, vecToMask, ok := gOp.mergeMaskedForm(maskType, opOutShape); ok {
 			// TODO: handle customized operand order and special lower.
-			maskElem := gOp.In[len(gOp.In)-1]
-			if maskElem.Bits.Scalable {
-				panic("scalable mask not supported in masked merging")
+			var rule string
+			if vecToMask != "" {
+				rule = fmt.Sprintf("(%s dst (%s %s) mask) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (%sMerging dst %s (%s <types.TypeMask> mask))\n",
+					blend, noMaskName, data.Args, data.Asm, data.Args, vecToMask)
+			} else {
+				rule = fmt.Sprintf("(%s dst (%s %s) mask) => (%sMerging dst %s mask)\n",
+					blend, noMaskName, data.Args, data.Asm, data.Args)
 			}
-			if maskElem.ElemBits == nil {
-				panic("mask has no elemBits")
+			if ruleExisting, ok := maskedMergeOpts[noMaskName]; ok && ruleExisting != rule {
+				panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 			}
-			if maskElem.Lanes == nil {
-				panic("mask has no lanes")
-			}
-			switch maskElem.Bits.N() {
-			case 128, 256:
-				// VPBLENDVB cases.
-				noMaskName := machineOpName(NoMask, gOp)
-				ruleExisting, ok := maskedMergeOpts[noMaskName]
-				rule := fmt.Sprintf("(VPBLENDVB%d dst (%s %s) mask) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (%sMerging dst %s (VPMOVVec%dx%dToM <types.TypeMask> mask))\n",
-					maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args, *maskElem.ElemBits, *maskElem.Lanes)
-				if ok && ruleExisting != rule {
-					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
-				} else {
-					maskedMergeOpts[noMaskName] = rule
-				}
-			case 512:
-				// VPBLENDM[BWDQ] cases.
-				noMaskName := machineOpName(NoMask, gOp)
-				ruleExisting, ok := maskedMergeOpts[noMaskName]
-				rule := fmt.Sprintf("(VPBLENDM%sMasked%d dst (%s %s) mask) => (%sMerging dst %s mask)\n",
-					s2n[*maskElem.ElemBits], maskElem.Bits.N(), noMaskName, data.Args, data.Asm, data.Args)
-				if ok && ruleExisting != rule {
-					panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
-				} else {
-					maskedMergeOpts[noMaskName] = rule
-				}
-			}
+			maskedMergeOpts[noMaskName] = rule
 		}
 
 		if tplName == "pureVreg" && data.Args == data.ArgsOut {
