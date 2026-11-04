@@ -8453,3 +8453,154 @@ func TestServerCONNECTFailure(t *testing.T) {
 		conn.wantClosed()
 	})
 }
+
+// TestServerHEADMethodModifiedByHandler tests that the response to a HEAD request
+// has no body when the handler changes the request's method, as a middleware
+// layer that serves HEAD requests with GET handlers does.
+func TestServerHEADMethodModifiedByHandler(t *testing.T) {
+	const body = "body"
+	for _, test := range []struct {
+		name    string
+		handler func(w ResponseWriter)
+	}{{
+		name: "short body",
+		handler: func(w ResponseWriter) {
+			io.WriteString(w, body)
+		},
+	}, {
+		name: "flush",
+		handler: func(w ResponseWriter) {
+			io.WriteString(w, body)
+			w.(Flusher).Flush()
+			io.WriteString(w, body)
+		},
+	}, {
+		// The body is shorter than declared, which closes the connection
+		// after a GET response, but not after a HEAD response.
+		name: "short content-length",
+		handler: func(w ResponseWriter) {
+			w.Header().Set("Content-Length", strconv.Itoa(2*len(body)))
+			io.WriteString(w, body)
+		},
+	}} {
+		synctest.Subtest(t, test.name, func(t *testing.T) {
+			st := newHTTP1ServerTest(t, func(w ResponseWriter, r *Request) {
+				r.Method = "GET"
+				test.handler(w)
+			})
+			conn := st.dial()
+			for range 2 {
+				conn.writeMessage(
+					"HEAD / HTTP/1.1",
+					"Host: example.tld",
+					"",
+				)
+				conn.wantResponse("HTTP/1.1 200 OK", nil)
+				conn.wantIdle()
+			}
+		})
+	}
+}
+
+// TestServerHEADMethodModifiedByHandlerReaderFrom is TestServerHEADMethodModifiedByHandler
+// for ResponseWriter.ReadFrom, which can write to the connection directly.
+//
+// It reads the responses from a raw connection: a Transport discards
+// unexpected bytes on an idle connection and retries on a new one.
+func TestServerHEADMethodModifiedByHandlerReaderFrom(t *testing.T) {
+	runNoSynctest(t, testServerHEADMethodModifiedByHandlerReaderFrom, []testMode{http1Mode})
+}
+func testServerHEADMethodModifiedByHandlerReaderFrom(t *testing.T, mode testMode) {
+	// Body is large enough to exceed the content-sniffing length.
+	body := strings.Repeat("a", 4096)
+	// Uses optRealNet because this depends on the underlying net.Conn
+	// implementing ReadFrom, which nettest.Conn currently does not.
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		r.Method = "GET"
+		w.(io.ReaderFrom).ReadFrom(strings.NewReader(body))
+	}), optRealNet)
+	conn, err := net.Dial("tcp", cst.ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	io.WriteString(conn, "HEAD / HTTP/1.1\r\nHost: example.tld\r\n\r\n"+
+		"GET / HTTP/1.1\r\nHost: example.tld\r\nConnection: close\r\n\r\n")
+	br := bufio.NewReader(conn)
+	for _, method := range []string{"HEAD", "GET"} {
+		res, err := ReadResponse(br, &Request{Method: method})
+		if err != nil {
+			t.Fatalf("reading %v response: %v", method, err)
+		}
+		got, err := io.ReadAll(res.Body)
+		res.Body.Close()
+		if err != nil {
+			t.Fatalf("reading %v response body: %v", method, err)
+		}
+		want := body
+		if method == "HEAD" {
+			want = ""
+		}
+		if string(got) != want {
+			t.Errorf("%v response body is %v bytes, want %v", method, len(got), len(want))
+		}
+	}
+}
+
+// TestServerProtoModifiedByHandler tests that the server frames its response
+// by the protocol version of the request it read, when the handler changes it.
+func TestServerProtoModifiedByHandler(t *testing.T) {
+	// Long enough that the response header is written before the handler returns,
+	// so the response has no Content-Length.
+	body := strings.Repeat("a", 4096)
+	for _, test := range []struct {
+		name         string
+		proto        string // of the request
+		handlerProto string // set by the handler
+		wantChunked  bool
+		wantClosed   bool
+	}{{
+		name:         "HTTP 1.0 to 1.1",
+		proto:        "HTTP/1.0",
+		handlerProto: "HTTP/1.1",
+		wantChunked:  false,
+		wantClosed:   true,
+	}, {
+		name:         "HTTP 1.1 to 1.0",
+		proto:        "HTTP/1.1",
+		handlerProto: "HTTP/1.0",
+		wantChunked:  true,
+		wantClosed:   false,
+	}} {
+		synctest.Subtest(t, test.name, func(t *testing.T) {
+			st := newHTTP1ServerTest(t, func(w ResponseWriter, r *Request) {
+				r.Proto = test.handlerProto
+				r.ProtoMajor, r.ProtoMinor, _ = ParseHTTPVersion(test.handlerProto)
+				io.WriteString(w, body)
+			})
+			conn := st.dial()
+			conn.writeMessage(
+				"GET / "+test.proto,
+				"Host: example.tld",
+				"Connection: keep-alive",
+				"",
+			)
+			resp := conn.readResponse()
+			if resp.Proto != test.proto {
+				t.Errorf("response protocol is %q, want %q", resp.Proto, test.proto)
+			}
+			if got := slices.Equal(resp.TransferEncoding, []string{"chunked"}); got != test.wantChunked {
+				t.Errorf("response Transfer-Encoding is %q, want chunked: %v", resp.TransferEncoding, test.wantChunked)
+			}
+			got, err := io.ReadAll(resp.Body)
+			if err != nil || string(got) != body {
+				t.Errorf("reading response body: %v bytes, %v; want %v bytes", len(got), err, len(body))
+			}
+			if test.wantClosed {
+				conn.wantClosed()
+			} else {
+				conn.wantIdle()
+			}
+		})
+	}
+}

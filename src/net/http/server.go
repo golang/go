@@ -384,7 +384,7 @@ func (cw *chunkWriter) Write(p []byte) (n int, err error) {
 	if !cw.wroteHeader {
 		cw.writeHeader(p)
 	}
-	if cw.res.req.Method == "HEAD" {
+	if cw.res.reqMethod == "HEAD" {
 		// Eat writes.
 		return len(p), nil
 	}
@@ -438,6 +438,8 @@ type response struct {
 	wroteHeader      bool               // a non-1xx header has been (logically) written
 	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
 	wantsClose       bool               // HTTP request has Connection "close"
+	reqMethod        string             // HTTP request method
+	reqHTTP11        bool               // HTTP request is HTTP/1.1 or greater
 	ecReader         *expectContinueReader
 
 	// canWriteContinue is an atomic boolean that says whether or
@@ -640,7 +642,7 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
 	w.cw.flush() // make sure Header is written; flush data to rwc
 
 	// Now that cw has been flushed, its chunking field is guaranteed initialized.
-	if !w.cw.chunking && w.bodyAllowed() && w.req.Method != "HEAD" {
+	if !w.cw.chunking && w.bodyAllowed() && w.reqMethod != "HEAD" {
 		// When a content length is declared, but exceeded; any excess bytes
 		// from src should be ignored, and ErrContentLength should be returned.
 		// This mirrors the behavior of response.Write.
@@ -1197,10 +1199,12 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 		contentLength: -1,
 
 		// We populate these ahead of time so we're not
-		// reading from req.Header after their Handler starts
+		// reading from req after their Handler starts
 		// and maybe mutates it (Issue 14940)
 		wants10KeepAlive: req.wantsHttp10KeepAlive(),
 		wantsClose:       req.wantsClose(),
+		reqMethod:        req.Method,
+		reqHTTP11:        req.ProtoAtLeast(1, 1),
 	}
 	if isH2Upgrade {
 		w.closeAfterReply = true
@@ -1313,7 +1317,7 @@ func (w *response) WriteHeader(code int) {
 	if code >= 100 && code <= 199 && code != StatusSwitchingProtocols {
 		w.writeContinueMu.Lock()
 		defer w.writeContinueMu.Unlock()
-		writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
+		writeStatusLine(w.conn.bufw, w.reqHTTP11, code, w.statusBuf[:])
 
 		// Per RFC 8297 we must not clear the current header map
 		w.handlerHeader.WriteSubset(w.conn.bufw, excludedHeadersNoBody)
@@ -1407,10 +1411,10 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	w := cw.res
 	keepAlivesEnabled := w.conn.server.doKeepAlives()
 
-	// Consult w.conn.lastMethod instead of w.req.Method,
+	// Consult w.reqMethod instead of w.req.Method,
 	// just in case a middleware layer modified w.req.
-	isHEAD := w.conn.lastMethod == "HEAD"
-	isCONNECT := w.conn.lastMethod == "CONNECT"
+	isHEAD := w.reqMethod == "HEAD"
+	isCONNECT := w.reqMethod == "CONNECT"
 
 	// header is written out to w.conn.buf below. Depending on the
 	// state of the handler, we either own the map or not. If we
@@ -1484,7 +1488,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		if !connectionHeaderSet {
 			setHeader.connection = "keep-alive"
 		}
-	} else if !w.req.ProtoAtLeast(1, 1) || w.wantsClose {
+	} else if !w.reqHTTP11 || w.wantsClose {
 		w.closeAfterReply = true
 	}
 
@@ -1532,7 +1536,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// before reading a response may deadlock in this case.
 	// This behavior has been present since CL 5268043 (2011), however,
 	// so it doesn't seem to be causing problems.
-	if w.req.ContentLength != 0 && w.reqBody != nil && !w.closeAfterReply && !w.fullDuplex {
+	if w.reqBody != nil && !w.closeAfterReply && !w.fullDuplex {
 		var discard, tooBig bool
 		w.reqBody.mu.Lock()
 		switch {
@@ -1604,7 +1608,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	} else if hasCL {
 		// Content-Length has been provided, so no chunking is to be done.
 		delHeader("Transfer-Encoding")
-	} else if w.req.ProtoAtLeast(1, 1) {
+	} else if w.reqHTTP11 {
 		// HTTP/1.1 or greater: Transfer-Encoding has been set to identity, and no
 		// content-length has been provided. The connection must be closed after the
 		// reply is written, and no chunking is to be done. This is the setup
@@ -1636,9 +1640,6 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	if cw.chunking {
 		delHeader("Content-Length")
 	}
-	if !w.req.ProtoAtLeast(1, 0) {
-		return
-	}
 
 	if code == StatusSwitchingProtocols {
 		// Don't continue using a connection after sending 101 Switching Protocols.
@@ -1656,14 +1657,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		// Don't set Connection: close on a 2xx CONNECT response,
 		// even though we will close the connection if the handler doesn't hijack it.
 		// If the handler does hijack the connection, the Connection: close is confusing.
-		if w.req.ProtoAtLeast(1, 1) && !isSuccessfulCONNECT {
+		if w.reqHTTP11 && !isSuccessfulCONNECT {
 			setHeader.connection = "close"
 		} else {
 			setHeader.connection = ""
 		}
 	}
 
-	writeStatusLine(w.conn.bufw, w.req.ProtoAtLeast(1, 1), code, w.statusBuf[:])
+	writeStatusLine(w.conn.bufw, w.reqHTTP11, code, w.statusBuf[:])
 	cw.header.WriteSubset(w.conn.bufw, excludeHeader)
 	setHeader.Write(w.conn.bufw)
 	w.conn.bufw.Write(crlf)
@@ -1831,7 +1832,7 @@ func (w *response) shouldReuseConnection() bool {
 		return false
 	}
 
-	if w.req.Method != "HEAD" && w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
+	if w.reqMethod != "HEAD" && w.contentLength != -1 && w.bodyAllowed() && w.contentLength != w.written {
 		// Did not write enough. Avoid getting out of sync.
 		return false
 	}
