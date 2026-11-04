@@ -1,0 +1,29 @@
+-- A.Play --
+package main
+
+import (
+	"fmt"
+)
+
+func square(i int) int {
+	// Multiply i by itself.
+	return i * i
+}
+
+type T struct {
+	// X is a field.
+	X int // trailing
+}
+
+var a = 1
+
+func main() {
+	fmt.Println(square(a), T{})
+}
+-- B.Play --
+package main
+
+import ()
+
+func main() {
+}
