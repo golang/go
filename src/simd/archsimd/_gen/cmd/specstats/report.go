@@ -66,7 +66,7 @@ func (m *metrics) coverage(w *bytes.Buffer) {
 
 	note(w, "\nHigh-drift-risk names (emitted by >1 generator):")
 	frac(w, "  covered", m.covMulti.result(), "spec-all")
-	frac(w, "  portable core (comments.yaml .common_methods)", m.covCommon.result(), "spec-common")
+	frac(w, "  portable core (simd_emulated.go methods)", m.covCommon.result(), "spec-common")
 
 	fmt.Fprintf(w, "\n")
 	kv(w, "spec operations written so far", len(m.ops))

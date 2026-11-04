@@ -305,9 +305,9 @@ func readYAML(path string) *yaml.Node {
 // eachEntry calls fn for every key/value pair of every mapping under n, depth
 // first.
 //
-// It does not follow aliases. comments.yaml merges a shared block into fourteen
-// receivers with "<<: *common_methods", and those entries are counted where
-// they are defined; expanding the merge would count them fifteen times over.
+// It does not follow aliases, so an entry merged into several mappings with
+// "<<: *anchor" is counted once, where it is defined, rather than once per
+// merge.
 func eachEntry(n *yaml.Node, fn func(key, val *yaml.Node)) {
 	if n == nil || n.Kind == yaml.AliasNode {
 		return

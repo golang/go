@@ -35,9 +35,8 @@ type MethodSet map[string]*ast.FuncDecl
 type TypeMethods map[string]MethodSet
 
 type Comments struct {
-	Types     map[string]string            `yaml:"types"`
-	Functions map[string]string            `yaml:"functions"`
-	Methods   map[string]map[string]string `yaml:"methods"`
+	Types     map[string]string `yaml:"types"`
+	Functions map[string]string `yaml:"functions"`
 }
 
 var genFlags = gentools.RegisterFlags(nil)
@@ -522,15 +521,7 @@ package simd
 			for _, m := range intersection {
 				fd := signatureByElemMethod[ElemMethod{elem, m}]
 				elems := elem + "s"
-				methodComment := ""
-				if typeMethods, ok := comments.Methods[elem+"s"]; ok {
-					methodComment = typeMethods[m]
-				}
-				if methodComment != "" {
-					pf("// %s\n", methodComment)
-				} else {
-					checkSpec(elems, m)
-				}
+				checkSpec(elems, m)
 				pf("func (x %s) %s(", elems, m)
 
 				if !emulated[TypeMethod{elems, m}] {

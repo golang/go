@@ -24,7 +24,7 @@ spec coverage gaps in defined names (§5)            8 -> 0       [spec-all, con
 hand-written doc conflicts with spec (§3)           0 -> 0       [doc-triage]
 simd mirror drift (§3)                              0 -> 0       [comments-yaml]
 categories.yaml entries (§4)                      229 -> 0       [cat-rehome, compiler-ops-impl, cat-delete]
-midway/comments.yaml entries spec covers (§4)       2 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml, spec-all]
 
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
@@ -51,7 +51,7 @@ By generator (declarations per tool, counted once per tool per pair):
 High-drift-risk names (emitted by >1 generator):
 
   covered                                         137 / 145    94%  [spec-all]
-  portable core (comments.yaml .common_methods)    67 / 67    100%  [spec-common]
+  portable core (simd_emulated.go methods)         67 / 67    100%  [spec-common]
 
 spec operations written so far                     92
   expanding to distinct names                     289
@@ -119,7 +119,7 @@ compiler-only categories.yaml entries              42 -> 0       [compiler-ops-i
     regexpTag                                      25 -> 0       [cat-rehome]
     signed                                          6 -> 0       [cat-rehome]
 
-midway/comments.yaml entries spec covers            2 -> 0       [comments-yaml, spec-all]
+midway/comments.yaml entries spec covers            0 -> 0       [comments-yaml, spec-all]
 
 commutativity disagreements, spec vs categories.yaml     9 -> 0       [spec-all]
 
