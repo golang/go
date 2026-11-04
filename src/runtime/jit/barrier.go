@@ -29,7 +29,7 @@ func barrierCheckCode(base, slow int) instructionBlock {
 		b.u32(0xb4000040 | uint32(r.Scratch.Number)) // CBZ scratch,+8
 		b.jump(base, slow)
 	case "riscv64":
-		b.u32(uint32(r.Scratch.Number)<<15 | 4<<8 | 0x63) // BEQ scratch,zero,+8
+		b.u32(uint32(r.Scratch.Number)<<15 | 6<<8 | 0x63) // BEQ scratch,zero,+12
 		b.jump(base, slow)
 	}
 	return b

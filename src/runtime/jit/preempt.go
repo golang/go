@@ -39,7 +39,7 @@ func preemptCheckCode(base, slow int) instructionBlock {
 			panic("runtime/jit: preempt flag offset out of range")
 		}
 		b.u32(uint32(off)<<20 | g<<15 | 4<<12 | d<<7 | 3) // LBU
-		b.u32(d<<15 | 4<<8 | 0x63)                        // BEQ scratch,zero,+8
+		b.u32(d<<15 | 6<<8 | 0x63)                        // BEQ scratch,zero,+12
 		b.jump(base, slow)
 	}
 	return b

@@ -14,7 +14,11 @@ import (
 // allocExecutable allocates a page of executable memory and copies code into it.
 func allocExecutable(code []byte) (uintptr, int, error) {
 	pageSize := syscall.Getpagesize()
-	mem, err := syscall.Mmap(-1, 0, pageSize,
+	size := (len(code) + pageSize - 1) &^ (pageSize - 1)
+	if size == 0 {
+		size = pageSize
+	}
+	mem, err := syscall.Mmap(-1, 0, size,
 		syscall.PROT_READ|syscall.PROT_WRITE,
 		syscall.MAP_PRIVATE|syscall.MAP_ANONYMOUS)
 	if err != nil {
@@ -26,7 +30,7 @@ func allocExecutable(code []byte) (uintptr, int, error) {
 		syscall.Munmap(mem)
 		return 0, 0, err
 	}
-	return uintptr(unsafe.Pointer(&mem[0])), pageSize, nil
+	return uintptr(unsafe.Pointer(&mem[0])), size, nil
 }
 
 func freeExecutable(addr uintptr, size int) {

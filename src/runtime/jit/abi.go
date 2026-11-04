@@ -88,7 +88,9 @@ func registerConfig() Registers {
 		for i := uint8(0); i < 16; i++ {
 			ints = append(ints, i)
 		}
-		r.Stack, r.Frame, r.Goroutine, r.Closure, r.Scratch = gp(31), gp(29), gp(28), gp(26), gp(27)
+		// Reuse native instruction temporary X17 outside the Go argument bank.
+		// X27 remains available to clients as a call-clobbered temporary.
+		r.Stack, r.Frame, r.Goroutine, r.Closure, r.Scratch = gp(31), gp(29), gp(28), gp(26), gp(17)
 		r.Allocatable = RegisterSet{(uint64(1)<<31 - 1) &^ (1<<18 | 1<<28 | 1<<29 | 1<<30), uint64(1)<<32 - 1}
 		r.StackArgumentOffset = 8
 	case "riscv64":
