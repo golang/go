@@ -430,6 +430,39 @@ func expectUnhandledCriticalExtension(t *testing.T, err error) {
 	}
 }
 
+// TestExpiredErrorUsesUTC checks that both times in the error for an expired
+// or not yet valid certificate are in UTC, even when CurrentTime is not
+// (Issue 58551).
+func TestExpiredErrorUsesUTC(t *testing.T) {
+	leaf, err := certificateFromPEM(googleLeaf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loc := time.FixedZone("UTC-8", -8*60*60)
+	for _, tc := range []struct {
+		now  time.Time
+		want string
+	}{
+		{
+			now:  leaf.NotBefore.Add(-time.Hour).In(loc),
+			want: fmt.Sprintf("current time %s is before %s", leaf.NotBefore.Add(-time.Hour).UTC().Format(time.RFC3339), leaf.NotBefore.Format(time.RFC3339)),
+		},
+		{
+			now:  leaf.NotAfter.Add(time.Hour).In(loc),
+			want: fmt.Sprintf("current time %s is after %s", leaf.NotAfter.Add(time.Hour).UTC().Format(time.RFC3339), leaf.NotAfter.Format(time.RFC3339)),
+		},
+	} {
+		_, err := leaf.Verify(VerifyOptions{Roots: NewCertPool(), CurrentTime: tc.now})
+		var inval CertificateInvalidError
+		if !errors.As(err, &inval) || inval.Reason != Expired {
+			t.Fatalf("Verify at %v: got %v, want an Expired CertificateInvalidError", tc.now, err)
+		}
+		if inval.Detail != tc.want {
+			t.Errorf("Verify at %v: got detail %q, want %q", tc.now, inval.Detail, tc.want)
+		}
+	}
+}
+
 func certificateFromPEM(pemBytes string) (*Certificate, error) {
 	block, _ := pem.Decode([]byte(pemBytes))
 	if block == nil {
