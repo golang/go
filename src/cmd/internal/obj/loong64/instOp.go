@@ -542,6 +542,22 @@ var oprrr = map[obj.As]uint32{
 	AXVSHUFH:       0x0eaf5 << 15,       // xvshuf.h
 	AXVSHUFW:       0x0eaf6 << 15,       // xvshuf.w
 	AXVSHUFV:       0x0eaf7 << 15,       // xvshuf.d
+	AVFADDF:        0xe261 << 15,        // vfadd.s
+	AVFADDD:        0xe262 << 15,        // vfadd.s
+	AVFSUBF:        0xe265 << 15,        // vfsub.s
+	AVFSUBD:        0xe266 << 15,        // vfsub.d
+	AVFMULF:        0xe271 << 15,        // vfmul.s
+	AVFMULD:        0xe272 << 15,        // vfmul.d
+	AVFDIVF:        0xe275 << 15,        // vfdiv.s
+	AVFDIVD:        0xe276 << 15,        // vfdiv.d
+	AXVFADDF:       0xea61 << 15,        // xvfadd.s
+	AXVFADDD:       0xea62 << 15,        // xvfadd.s
+	AXVFSUBF:       0xea65 << 15,        // xvfsub.s
+	AXVFSUBD:       0xea66 << 15,        // xvfsub.d
+	AXVFMULF:       0xea71 << 15,        // xvfmul.s
+	AXVFMULD:       0xea72 << 15,        // xvfmul.d
+	AXVFDIVF:       0xea75 << 15,        // xvfdiv.s
+	AXVFDIVD:       0xea76 << 15,        // xvfdiv.d
 }
 
 var oprr = map[obj.As]uint32{

@@ -1850,6 +1850,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AVMADDWODWHUH, r0)
 			opset(AVMADDWODVWUW, r0)
 			opset(AVMADDWODQVUV, r0)
+			opset(AVFADDF, r0)
+			opset(AVFADDD, r0)
+			opset(AVFSUBF, r0)
+			opset(AVFSUBD, r0)
+			opset(AVFMULF, r0)
+			opset(AVFMULD, r0)
+			opset(AVFDIVF, r0)
+			opset(AVFDIVD, r0)
 
 		// xvadd.b xd, xj, xk
 		case AXVADDB:
@@ -2019,6 +2027,14 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVMADDWODWHUH, r0)
 			opset(AXVMADDWODVWUW, r0)
 			opset(AXVMADDWODQVUV, r0)
+			opset(AXVFADDF, r0)
+			opset(AXVFADDD, r0)
+			opset(AXVFSUBF, r0)
+			opset(AXVFSUBD, r0)
+			opset(AXVFMULF, r0)
+			opset(AXVFMULD, r0)
+			opset(AXVFDIVF, r0)
+			opset(AXVFDIVD, r0)
 
 		// vpcnt.b vd, vj
 		case AVPCNTB:
