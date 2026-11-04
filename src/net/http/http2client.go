@@ -113,7 +113,6 @@ func http2RoundTrip(req *Request, rt func(*http2.ClientRequest) (*http2.ClientRe
 		Trailer:       http2.Header(req.Trailer),
 		Body:          req.Body,
 		Host:          req.Host,
-		GetBody:       req.GetBody,
 		ContentLength: req.ContentLength,
 		Cancel:        req.Cancel,
 		Close:         req.Close,
@@ -146,7 +145,10 @@ func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (generic
 	if err != nil {
 		return nil, err
 	}
-	return &altClientConn{rt: http2RoundTripper{t.h2Transport, false}}, nil
+	return &altClientConn{
+		rt:    http2RoundTripper{t.h2Transport, false},
+		proto: 2,
+	}, nil
 }
 
 // http2NewClientConn creates an HTTP/2 genericClientConn (used to implement ClientConn) from nc.
@@ -159,7 +161,7 @@ func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (g
 	if err != nil {
 		return nil, err
 	}
-	return externalConn{http2ClientConn{cc}}, nil
+	return externalHTTP2Conn{http2ClientConn{cc}}, nil
 }
 
 // http2NewClientConnFromContext creates a *ClientConn from a net.Conn.

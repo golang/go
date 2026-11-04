@@ -7,6 +7,7 @@ package http2
 import (
 	"errors"
 	"fmt"
+	"net/http/internal"
 	"reflect"
 )
 
@@ -91,8 +92,17 @@ func (e StreamError) Error() string {
 	return fmt.Sprintf("stream error: stream ID %d; %v", e.StreamID, e.Code)
 }
 
-// This As function permits converting a StreamError into a x/net/http2.StreamError.
+// This As function permits converting a StreamError into a x/net/http2.StreamError
+// (as well as reporting retryable errors).
 func (e StreamError) As(target any) bool {
+	if p, ok := target.(*internal.RetryableError); ok {
+		if e.Code == ErrCodeRefusedStream {
+			*p = internal.RetryableError{Backoff: true}
+			return true
+		}
+		return false
+	}
+
 	dst := reflect.ValueOf(target).Elem()
 	dstType := dst.Type()
 	if dstType.Kind() != reflect.Struct {

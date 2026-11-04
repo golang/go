@@ -90,12 +90,14 @@ func TestClientConnMethods(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var called bool
 		hook := func() {
+			t.Helper()
 			if called {
 				t.Error("state hook was unexpectedly called")
 			}
 			called = true
 		}
 		verifyHookWasCalled := func() {
+			t.Helper()
 			if !called {
 				t.Error("state hook was unexpectedly not called")
 			}
@@ -168,6 +170,23 @@ func TestClientConnMethods(t *testing.T) {
 			resp.Body.Close()
 			if inFlight := tc.cc.InFlight(); inFlight != 0 {
 				t.Errorf("after body close, cc.InFlight() = %v, want 0", inFlight)
+			}
+			verifyHookWasCalled()
+		}
+
+		// RoundTrip with NoBody response.
+		{
+			req, _ := http.NewRequest("HEAD", "https://example.com/", nil)
+			rt := tc.roundTrip(req)
+			st := tc.wantStream(streamTypeRequest)
+			st.wantHeaders(nil)
+			st.writeHeaders(http.Header{":status": []string{"200"}})
+			resp := rt.response()
+			if resp.StatusCode != 200 {
+				t.Errorf("resp.StatusCode = %v, want 200", resp.StatusCode)
+			}
+			if inFlight := tc.cc.InFlight(); inFlight != 0 {
+				t.Errorf("after RoundTrip with no response body, cc.InFlight() = %v, want 0", inFlight)
 			}
 			verifyHookWasCalled()
 		}

@@ -1941,7 +1941,7 @@ func (x Uint32x8) ConcatSubPairsGrouped(y Uint32x8) (z Uint32x8)
 // ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
 // x and y with saturation and returns the concatenated result.
 //
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
+//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
 //
 // Asm: VPHSUBSW, CPU Feature: AVX
 func (x Int16x8) ConcatSubPairsSaturated(y Int16x8) (z Int16x8)

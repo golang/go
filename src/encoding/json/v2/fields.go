@@ -245,9 +245,9 @@ func makeStructFields(root reflect.Type) (fs structFields, serr *SemanticError) 
 						return vm.IsNil() || vm.Interface().(isZeroer).IsZero()
 					}
 				case sf.Type.Implements(isZeroerType):
-					f.isZero = func(vm maybeAddressableValue) bool { return vm.Interface().(isZeroer).IsZero() }
+					f.isZero = func(vm maybeAddressableValue) bool { return vm.typeAssertInterface[isZeroer](false).IsZero() }
 				case reflect.PointerTo(sf.Type).Implements(isZeroerType):
-					f.isZero = func(vm maybeAddressableValue) bool { return vm.ensureAddr().Addr().Interface().(isZeroer).IsZero() }
+					f.isZero = func(vm maybeAddressableValue) bool { return vm.typeAssertInterface[isZeroer](true).IsZero() }
 				}
 
 				// Provide a function that can determine whether the value would

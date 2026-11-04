@@ -11,6 +11,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"path"
 	"reflect"
@@ -120,49 +121,46 @@ var jsonFuncs = func() (funcs struct {
 // but a different type to avoid any optimizations for bytes.Buffer.
 type bytesBuffer struct{ *bytes.Buffer }
 
-func addr[T any](v T) *T {
-	return &v
-}
-
 func len64[Bytes ~[]byte | ~string](in Bytes) int64 {
 	return int64(len(in))
 }
 
 var arshalTestdata = []struct {
-	name   string
-	raw    []byte
-	val    any
-	new    func() any
-	skipV1 bool
+	name         string
+	raw          []byte
+	val          any
+	new          func() any
+	skipV1       bool
+	marshalDeref bool // deref the value before performing marshal
 }{{
 	name: "Bool",
 	raw:  []byte("true"),
-	val:  addr(true),
+	val:  new(true),
 	new:  func() any { return new(bool) },
 }, {
 	name: "String",
 	raw:  []byte(`"hello, world!"`),
-	val:  addr("hello, world!"),
+	val:  new("hello, world!"),
 	new:  func() any { return new(string) },
 }, {
 	name: "Int",
 	raw:  []byte("-1234"),
-	val:  addr(int64(-1234)),
+	val:  new(int64(-1234)),
 	new:  func() any { return new(int64) },
 }, {
 	name: "Uint",
 	raw:  []byte("1234"),
-	val:  addr(uint64(1234)),
+	val:  new(uint64(1234)),
 	new:  func() any { return new(uint64) },
 }, {
 	name: "Float",
 	raw:  []byte("12.34"),
-	val:  addr(float64(12.34)),
+	val:  new(float64(12.34)),
 	new:  func() any { return new(float64) },
 }, {
 	name: "Map/ManyEmpty",
 	raw:  []byte(`[{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]`),
-	val: addr(func() (out []map[string]string) {
+	val: new(func() (out []map[string]string) {
 		for range 100 {
 			out = append(out, map[string]string{})
 		}
@@ -172,24 +170,24 @@ var arshalTestdata = []struct {
 }, {
 	name: "Map/OneLarge",
 	raw:  []byte(`{"A":"A","B":"B","C":"C","D":"D","E":"E","F":"F","G":"G","H":"H","I":"I","J":"J","K":"K","L":"L","M":"M","N":"N","O":"O","P":"P","Q":"Q","R":"R","S":"S","T":"T","U":"U","V":"V","W":"W","X":"X","Y":"Y","Z":"Z"}`),
-	val:  addr(map[string]string{"A": "A", "B": "B", "C": "C", "D": "D", "E": "E", "F": "F", "G": "G", "H": "H", "I": "I", "J": "J", "K": "K", "L": "L", "M": "M", "N": "N", "O": "O", "P": "P", "Q": "Q", "R": "R", "S": "S", "T": "T", "U": "U", "V": "V", "W": "W", "X": "X", "Y": "Y", "Z": "Z"}),
+	val:  new(map[string]string{"A": "A", "B": "B", "C": "C", "D": "D", "E": "E", "F": "F", "G": "G", "H": "H", "I": "I", "J": "J", "K": "K", "L": "L", "M": "M", "N": "N", "O": "O", "P": "P", "Q": "Q", "R": "R", "S": "S", "T": "T", "U": "U", "V": "V", "W": "W", "X": "X", "Y": "Y", "Z": "Z"}),
 	new:  func() any { return new(map[string]string) },
 }, {
 	name: "Map/ManySmall",
 	raw:  []byte(`{"A":{"K":"V"},"B":{"K":"V"},"C":{"K":"V"},"D":{"K":"V"},"E":{"K":"V"},"F":{"K":"V"},"G":{"K":"V"},"H":{"K":"V"},"I":{"K":"V"},"J":{"K":"V"},"K":{"K":"V"},"L":{"K":"V"},"M":{"K":"V"},"N":{"K":"V"},"O":{"K":"V"},"P":{"K":"V"},"Q":{"K":"V"},"R":{"K":"V"},"S":{"K":"V"},"T":{"K":"V"},"U":{"K":"V"},"V":{"K":"V"},"W":{"K":"V"},"X":{"K":"V"},"Y":{"K":"V"},"Z":{"K":"V"}}`),
-	val:  addr(map[string]map[string]string{"A": {"K": "V"}, "B": {"K": "V"}, "C": {"K": "V"}, "D": {"K": "V"}, "E": {"K": "V"}, "F": {"K": "V"}, "G": {"K": "V"}, "H": {"K": "V"}, "I": {"K": "V"}, "J": {"K": "V"}, "K": {"K": "V"}, "L": {"K": "V"}, "M": {"K": "V"}, "N": {"K": "V"}, "O": {"K": "V"}, "P": {"K": "V"}, "Q": {"K": "V"}, "R": {"K": "V"}, "S": {"K": "V"}, "T": {"K": "V"}, "U": {"K": "V"}, "V": {"K": "V"}, "W": {"K": "V"}, "X": {"K": "V"}, "Y": {"K": "V"}, "Z": {"K": "V"}}),
+	val:  new(map[string]map[string]string{"A": {"K": "V"}, "B": {"K": "V"}, "C": {"K": "V"}, "D": {"K": "V"}, "E": {"K": "V"}, "F": {"K": "V"}, "G": {"K": "V"}, "H": {"K": "V"}, "I": {"K": "V"}, "J": {"K": "V"}, "K": {"K": "V"}, "L": {"K": "V"}, "M": {"K": "V"}, "N": {"K": "V"}, "O": {"K": "V"}, "P": {"K": "V"}, "Q": {"K": "V"}, "R": {"K": "V"}, "S": {"K": "V"}, "T": {"K": "V"}, "U": {"K": "V"}, "V": {"K": "V"}, "W": {"K": "V"}, "X": {"K": "V"}, "Y": {"K": "V"}, "Z": {"K": "V"}}),
 	new:  func() any { return new(map[string]map[string]string) },
 }, {
 	name: "Struct/ManyEmpty",
 	raw:  []byte(`[{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{},{}]`),
-	val:  addr(make([]struct{}, 100)),
+	val:  new(make([]struct{}, 100)),
 	new: func() any {
 		return new([]struct{})
 	},
 }, {
 	name: "Struct/OneLarge",
 	raw:  []byte(`{"A":"A","B":"B","C":"C","D":"D","E":"E","F":"F","G":"G","H":"H","I":"I","J":"J","K":"K","L":"L","M":"M","N":"N","O":"O","P":"P","Q":"Q","R":"R","S":"S","T":"T","U":"U","V":"V","W":"W","X":"X","Y":"Y","Z":"Z"}`),
-	val:  addr(struct{ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z string }{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
+	val:  new(struct{ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z string }{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
 	new: func() any {
 		return new(struct{ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z string })
 	},
@@ -198,7 +196,7 @@ var arshalTestdata = []struct {
 	raw:  []byte(`{"A":{"K":"V"},"B":{"K":"V"},"C":{"K":"V"},"D":{"K":"V"},"E":{"K":"V"},"F":{"K":"V"},"G":{"K":"V"},"H":{"K":"V"},"I":{"K":"V"},"J":{"K":"V"},"K":{"K":"V"},"L":{"K":"V"},"M":{"K":"V"},"N":{"K":"V"},"O":{"K":"V"},"P":{"K":"V"},"Q":{"K":"V"},"R":{"K":"V"},"S":{"K":"V"},"T":{"K":"V"},"U":{"K":"V"},"V":{"K":"V"},"W":{"K":"V"},"X":{"K":"V"},"Y":{"K":"V"},"Z":{"K":"V"}}`),
 	val: func() any {
 		V := struct{ K string }{"V"}
-		return addr(struct{ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z struct{ K string } }{
+		return new(struct{ A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z struct{ K string } }{
 			V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V, V,
 		})
 	}(),
@@ -208,7 +206,7 @@ var arshalTestdata = []struct {
 }, {
 	name: "Slice/ManyEmpty",
 	raw:  []byte(`[[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]`),
-	val: addr(func() (out [][]string) {
+	val: new(func() (out [][]string) {
 		for range 100 {
 			out = append(out, []string{})
 		}
@@ -218,38 +216,38 @@ var arshalTestdata = []struct {
 }, {
 	name: "Slice/OneLarge",
 	raw:  []byte(`["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]`),
-	val:  addr([]string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
+	val:  new([]string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
 	new:  func() any { return new([]string) },
 }, {
 	name: "Slice/ManySmall",
 	raw:  []byte(`[["A"],["B"],["C"],["D"],["E"],["F"],["G"],["H"],["I"],["J"],["K"],["L"],["M"],["N"],["O"],["P"],["Q"],["R"],["S"],["T"],["U"],["V"],["W"],["X"],["Y"],["Z"]]`),
-	val:  addr([][]string{{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}, {"I"}, {"J"}, {"K"}, {"L"}, {"M"}, {"N"}, {"O"}, {"P"}, {"Q"}, {"R"}, {"S"}, {"T"}, {"U"}, {"V"}, {"W"}, {"X"}, {"Y"}, {"Z"}}),
+	val:  new([][]string{{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}, {"I"}, {"J"}, {"K"}, {"L"}, {"M"}, {"N"}, {"O"}, {"P"}, {"Q"}, {"R"}, {"S"}, {"T"}, {"U"}, {"V"}, {"W"}, {"X"}, {"Y"}, {"Z"}}),
 	new:  func() any { return new([][]string) },
 }, {
 	name: "Array/OneLarge",
 	raw:  []byte(`["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"]`),
-	val:  addr([26]string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
+	val:  new([26]string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"}),
 	new:  func() any { return new([26]string) },
 }, {
 	name: "Array/ManySmall",
 	raw:  []byte(`[["A"],["B"],["C"],["D"],["E"],["F"],["G"],["H"],["I"],["J"],["K"],["L"],["M"],["N"],["O"],["P"],["Q"],["R"],["S"],["T"],["U"],["V"],["W"],["X"],["Y"],["Z"]]`),
-	val:  addr([26][1]string{{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}, {"I"}, {"J"}, {"K"}, {"L"}, {"M"}, {"N"}, {"O"}, {"P"}, {"Q"}, {"R"}, {"S"}, {"T"}, {"U"}, {"V"}, {"W"}, {"X"}, {"Y"}, {"Z"}}),
+	val:  new([26][1]string{{"A"}, {"B"}, {"C"}, {"D"}, {"E"}, {"F"}, {"G"}, {"H"}, {"I"}, {"J"}, {"K"}, {"L"}, {"M"}, {"N"}, {"O"}, {"P"}, {"Q"}, {"R"}, {"S"}, {"T"}, {"U"}, {"V"}, {"W"}, {"X"}, {"Y"}, {"Z"}}),
 	new:  func() any { return new([26][1]string) },
 }, {
 	name: "Bytes/Slice",
 	raw:  []byte(`"47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="`),
-	val:  addr([]byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}),
+	val:  new([]byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}),
 	new:  func() any { return new([]byte) },
 }, {
 	name:   "Bytes/Array",
 	raw:    []byte(`"47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="`),
-	val:    addr([32]byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}),
+	val:    new([32]byte{0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55}),
 	new:    func() any { return new([32]byte) },
 	skipV1: true,
 }, {
 	name: "Pointer",
 	raw:  []byte("true"),
-	val:  addr(addr(addr(addr(addr(addr(addr(addr(addr(addr(addr(true))))))))))),
+	val:  new(new(new(new(new(new(new(new(new(new(new(true))))))))))),
 	new:  func() any { return new(**********bool) },
 }, {
 	name: "TextArshal",
@@ -268,17 +266,52 @@ var arshalTestdata = []struct {
 	new:    func() any { return new(jsonArshalerV2) },
 	skipV1: true,
 }, {
+	name: "IsZero/AddrValue/ValueReceiver",
+	raw:  []byte(`{}`),
+	val:  new(omitZeroValueIsZeroer),
+	new:  func() any { return new(omitZeroValueIsZeroer) },
+}, {
+	name:         "IsZero/NoAddrValue/ValueReceiver",
+	raw:          []byte(`{}`),
+	val:          new(omitZeroValueIsZeroer),
+	new:          func() any { return new(omitZeroValueIsZeroer) },
+	skipV1:       true,
+	marshalDeref: true,
+}, {
+	name: "IsZero/AddrValue/PointerReceiver",
+	raw:  []byte(`{}`),
+	val:  new(omitZeroPointerIsZeroer),
+	new:  func() any { return new(omitZeroPointerIsZeroer) },
+}, {
+	name:         "IsZero/NoAddrValue/PointerReceiver",
+	raw:          []byte(`{}`),
+	val:          new(omitZeroPointerIsZeroer),
+	new:          func() any { return new(omitZeroPointerIsZeroer) },
+	skipV1:       true,
+	marshalDeref: true,
+}, {
 	/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 	name:   "Duration",
 	raw:    []byte(`"1h1m1s"`),
-	val:    addr(time.Hour + time.Minute + time.Second),
+	val:    new(time.Hour + time.Minute + time.Second),
 	new:    func() any { return new(time.Duration) },
 	skipV1: true,
 	}, { */
 	name: "Time",
 	raw:  []byte(`"2006-01-02T22:04:05Z"`),
-	val:  addr(time.Unix(1136239445, 0).UTC()),
+	val:  new(time.Unix(1136239445, 0).UTC()),
 	new:  func() any { return new(time.Time) },
+}, {
+	name: "AddrPointer",
+	raw:  []byte(`"192.168.1.1"`),
+	val:  new(netip.AddrFrom4([4]byte{192, 168, 1, 1})),
+	new:  func() any { return new(netip.Addr) },
+}, {
+	name:         "AddrValue",
+	raw:          []byte(`"192.168.1.1"`),
+	val:          new(netip.AddrFrom4([4]byte{192, 168, 1, 1})),
+	new:          func() any { return new(netip.Addr) },
+	marshalDeref: true,
 }}
 
 type textArshaler struct{ _ [4]int }
@@ -317,6 +350,20 @@ func (*jsonArshalerV2) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	}
 	return err
 }
+
+type omitZeroValueIsZeroer struct {
+	V valueAlwaysZero `json:",omitzero"`
+}
+type valueAlwaysZero string
+
+func (valueAlwaysZero) IsZero() bool { return true }
+
+type omitZeroPointerIsZeroer struct {
+	P pointerAlwaysZero `json:",omitzero"`
+}
+type pointerAlwaysZero string
+
+func (*pointerAlwaysZero) IsZero() bool { return true }
 
 func TestBenchmarkUnmarshal(t *testing.T) { runUnmarshal(t) }
 func BenchmarkUnmarshal(b *testing.B)     { runUnmarshal(b) }
@@ -454,9 +501,13 @@ func runMarshal(tb testing.TB) {
 
 		// Setup the marshal operation.
 		var raw []byte
+		val := tt.val
+		if tt.marshalDeref {
+			val = reflect.ValueOf(val).Elem().Interface()
+		}
 		run := func(tb testing.TB) {
 			var err error
-			raw, err = jsonFuncs.marshal(tt.val)
+			raw, err = jsonFuncs.marshal(val)
 			if err != nil {
 				tb.Fatalf("Marshal error: %v", err)
 			}

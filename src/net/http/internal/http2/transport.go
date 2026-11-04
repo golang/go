@@ -18,7 +18,6 @@ import (
 	"log"
 	"math"
 	"math/bits"
-	mathrand "math/rand"
 	"net"
 	"net/http/httptrace"
 	"net/http/internal"
@@ -412,59 +411,34 @@ func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 	}
 
 	addr := authorityAddr(req.URL.Scheme, req.URL.Host)
-	for retry := 0; ; retry++ {
-		cc, err := t.connPool.GetClientConn(req, addr)
-		if err != nil {
-			t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
-			return nil, err
-		}
-		reused := !cc.reused.CompareAndSwap(false, true)
-		traceGotConn(req, cc, reused)
-		res, err := cc.RoundTrip(req)
-		if err != nil && retry <= 6 {
-			roundTripErr := err
-			if req, err = shouldRetryRequest(req, err); err == nil {
-				// After the first retry, do exponential backoff with 10% jitter.
-				if retry == 0 {
-					t.vlogf("RoundTrip retrying after failure: %v", roundTripErr)
-					continue
-				}
-				backoff := float64(uint(1) << (uint(retry) - 1))
-				backoff += backoff * (0.1 * mathrand.Float64())
-				d := time.Second * time.Duration(backoff)
-				tm := time.NewTimer(d)
-				select {
-				case <-tm.C:
-					t.vlogf("RoundTrip retrying after failure: %v", roundTripErr)
-					continue
-				case <-req.Context.Done():
-					tm.Stop()
-					err = req.Context.Err()
-				}
-			}
-		}
-		if err == errClientConnNotEstablished {
-			// This ClientConn was created recently,
-			// this is the first request to use it,
-			// and the connection is closed and not usable.
-			//
-			// In this state, cc.idleTimer will remove the conn from the pool
-			// when it fires. Stop the timer and remove it here so future requests
-			// won't try to use this connection.
-			//
-			// If the timer has already fired and we're racing it, the redundant
-			// call to MarkDead is harmless.
-			if cc.idleTimer != nil {
-				cc.idleTimer.Stop()
-			}
-			t.connPool.MarkDead(cc)
-		}
-		if err != nil {
-			t.vlogf("RoundTrip failure: %v", err)
-			return nil, err
-		}
-		return res, nil
+	cc, err := t.connPool.GetClientConn(req, addr)
+	if err != nil {
+		t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
+		return nil, err
 	}
+	reused := !cc.reused.CompareAndSwap(false, true)
+	traceGotConn(req, cc, reused)
+	res, err := cc.RoundTrip(req)
+	if err == errClientConnNotEstablished {
+		// This ClientConn was created recently,
+		// this is the first request to use it,
+		// and the connection is closed and not usable.
+		//
+		// In this state, cc.idleTimer will remove the conn from the pool
+		// when it fires. Stop the timer and remove it here so future requests
+		// won't try to use this connection.
+		//
+		// If the timer has already fired and we're racing it, the redundant
+		// call to MarkDead is harmless.
+		if cc.idleTimer != nil {
+			cc.idleTimer.Stop()
+		}
+		t.connPool.MarkDead(cc)
+	}
+	if err != nil {
+		t.vlogf("RoundTrip failure: %v", err)
+	}
+	return res, err
 }
 
 func (t *Transport) IdleConnStrsForTesting() []string {
@@ -491,56 +465,11 @@ func (t *Transport) CloseIdleConnections() {
 
 var (
 	errClientConnClosed         = errors.New("http2: client conn is closed")
-	errClientConnUnusable       = errors.New("http2: client conn not usable")
+	errClientConnUnusable       = error(internal.RetryableError{Err: "http2: client conn not usable"})
 	errClientConnNotEstablished = errors.New("http2: client conn could not be established")
-	errClientConnGotGoAway      = errors.New("http2: Transport received Server's graceful shutdown GOAWAY")
+	errClientConnGotGoAway      = error(internal.RetryableError{Err: "http2: Transport received Server's graceful shutdown GOAWAY", Backoff: true})
 	errClientConnForceClosed    = errors.New("http2: client connection force closed via ClientConn.Close")
 )
-
-// shouldRetryRequest is called by RoundTrip when a request fails to get
-// response headers. It is always called with a non-nil error.
-// It returns either a request to retry or an error if the request can't be replayed.
-// If the request is retried, it always clones the request (since requests
-// contain an unreusable clientStream).
-func shouldRetryRequest(req *ClientRequest, err error) (*ClientRequest, error) {
-	if !canRetryError(err) {
-		return nil, err
-	}
-	// If the Body is nil (or http.NoBody), it's safe to reuse this request's Body.
-	if req.Body == nil || req.Body == NoBody {
-		return req.Clone(), nil
-	}
-
-	// If the request body can be reset back to its original
-	// state via the optional req.GetBody, do that.
-	if req.GetBody != nil {
-		body, err := req.GetBody()
-		if err != nil {
-			return nil, err
-		}
-		newReq := req.Clone()
-		newReq.Body = body
-		return newReq, nil
-	}
-
-	// The Request.Body can't reset back to the beginning, but we
-	// don't seem to have started to read from it yet, so reuse the body.
-	if err == errClientConnUnusable {
-		return req.Clone(), nil
-	}
-
-	return nil, fmt.Errorf("http2: Transport: cannot retry err [%v] after Request.Body was written; define Request.GetBody to avoid this error", err)
-}
-
-func canRetryError(err error) bool {
-	if err == errClientConnUnusable || err == errClientConnGotGoAway {
-		return true
-	}
-	if se, ok := err.(StreamError); ok {
-		return se.Code == ErrCodeRefusedStream
-	}
-	return false
-}
 
 // disableKeepAlives reports whether connections should be closed as
 // soon as possible after handling the first request.
@@ -1162,7 +1091,12 @@ func (cc *ClientConn) roundTrip(req *ClientRequest, streamf func(*clientStream))
 				// golang.org/issue/49645
 				return handleResponseHeaders()
 			default:
-				waitDone()
+				if err := waitDone(); err != nil {
+					// If request cancellation races the abort cleaning up
+					// the request, prefer the cancellation error.
+					// We only return abortErr if the request really is done.
+					return nil, cancelRequest(cs, err)
+				}
 				return nil, cs.abortErr
 			}
 		case <-ctx.Done():
@@ -2306,6 +2240,9 @@ func (rl *clientConnReadLoop) handleResponse(cs *clientStream, f *MetaHeadersFra
 	if statusCode >= 100 && statusCode <= 199 {
 		if f.StreamEnded() {
 			return nil, errors.New("1xx informational response with END_STREAM flag")
+		}
+		if statusCode == 101 {
+			return nil, errors.New("unsupported 101 response")
 		}
 		if fn := cs.get1xxTraceFunc(); fn != nil {
 			// If the 1xx response is being delivered to the user,

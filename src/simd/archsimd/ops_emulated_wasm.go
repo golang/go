@@ -19,6 +19,8 @@ var evenInt32s = [4]int32{-1, 0, -1, 0}
 // comparison operations.
 
 // Less return a mask vector of x[i] < y[i]
+//
+// Emulated
 func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 	signs := LoadInt64x2Array(&nn)
 	ix := x.BitsToInt64().Xor(signs)
@@ -27,6 +29,8 @@ func (x Uint64x2) Less(y Uint64x2) (z Mask64x2) {
 }
 
 // LessEqual return a mask vector of x[i] <= y[i]
+//
+// Emulated
 func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 	signs := LoadInt64x2Array(&nn)
 	ix := x.BitsToInt64().Xor(signs)
@@ -35,6 +39,8 @@ func (x Uint64x2) LessEqual(y Uint64x2) (z Mask64x2) {
 }
 
 // Greater return a mask vector of x[i] > y[i]
+//
+// Emulated
 func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
 	signs := LoadInt64x2Array(&nn)
 	ix := x.BitsToInt64().Xor(signs)
@@ -43,6 +49,8 @@ func (x Uint64x2) Greater(y Uint64x2) (z Mask64x2) {
 }
 
 // GreaterEqual return a mask vector of x[i] >= y[i]
+//
+// Emulated
 func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
 	signs := LoadInt64x2Array(&nn)
 	ix := x.BitsToInt64().Xor(signs)
@@ -51,30 +59,40 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2) {
 }
 
 // Max returns the elementswise maximum of elements in x and y
+//
+// Emulated
 func (x Int64x2) Max(y Int64x2) (z Int64x2) {
 	mask := x.Greater(y).ToInt64x2()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
 // Min returns the elementswise minimum of elements in x and y
+//
+// Emulated
 func (x Int64x2) Min(y Int64x2) (z Int64x2) {
 	mask := x.Less(y).ToInt64x2()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
 // Max returns the elementswise maximum of elements in x and y
+//
+// Emulated
 func (x Uint64x2) Max(y Uint64x2) (z Uint64x2) {
 	mask := x.Greater(y).ToInt64x2().ToBits()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
 // Min returns the elementswise minimum of elements in x and y
+//
+// Emulated
 func (x Uint64x2) Min(y Uint64x2) (z Uint64x2) {
 	mask := x.Less(y).ToInt64x2().ToBits()
 	return x.And(mask).Or(y.AndNot(mask))
 }
 
 // Mul returns the elementswise product of elements in x and y
+//
+// Emulated
 func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
 	// To obtain an 8-bit multiply, split the vectors into even and odd
 	// elements, shift odds into even position, widen elements in both
@@ -92,6 +110,8 @@ func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
 }
 
 // Mul returns the elementswise product of elements in x and y
+//
+// Emulated
 func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
 	mask := LoadInt8x16Array(&evenInt8s).ToBits()
 	mask16 := mask.ReshapeToUint16s()
@@ -105,6 +125,8 @@ func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Int16x8) OnesCount() (z Int16x8) {
 	mask8 := LoadInt8x16Array(&evenInt8s)
 	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                         // per-byte counts
@@ -114,6 +136,8 @@ func (x Int16x8) OnesCount() (z Int16x8) {
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Int32x4) OnesCount() (z Int32x4) {
 	mask8 := LoadInt8x16Array(&evenInt8s)
 	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()                         // per-byte counts
@@ -127,6 +151,8 @@ func (x Int32x4) OnesCount() (z Int32x4) {
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Int64x2) OnesCount() (z Int64x2) {
 	mask8 := LoadInt8x16Array(&evenInt8s)
 	c8 := x.ToBits().ReshapeToUint8s().BitsToInt8().OnesCount()
@@ -144,31 +170,43 @@ func (x Int64x2) OnesCount() (z Int64x2) {
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Uint8x16) OnesCount() (z Uint8x16) {
 	return x.BitsToInt8().OnesCount().ToBits()
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Uint16x8) OnesCount() (z Uint16x8) {
 	return x.BitsToInt16().OnesCount().ToBits()
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Uint32x4) OnesCount() (z Uint32x4) {
 	return x.BitsToInt32().OnesCount().ToBits()
 }
 
 // OnesCount returns the number of set bits in each vector element
+//
+// Emulated
 func (x Uint64x2) OnesCount() (z Uint64x2) {
 	return x.BitsToInt64().OnesCount().ToBits()
 }
 
 // MulAdd returns elementwise x * y + z.
+//
+// Emulated
 func (x Float32x4) MulAdd(y Float32x4, z Float32x4) (w Float32x4) {
 	return x.Mul(y).Add(z)
 }
 
 // MulAdd returns elementwise x * y + z.
+//
+// Emulated
 func (x Float64x2) MulAdd(y Float64x2, z Float64x2) (w Float64x2) {
 	return x.Mul(y).Add(z)
 }

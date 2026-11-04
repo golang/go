@@ -247,10 +247,6 @@ func TestOmitEmptyOption(t *testing.T) {
 	}
 }
 
-func addr[T any](v T) *T {
-	return &v
-}
-
 // In v1, the "string" option specifies that Go strings, bools, and numeric
 // values are encoded within a JSON string when marshaling and
 // are unmarshaled from its native representation escaped within a JSON string.
@@ -327,8 +323,8 @@ func TestStringOption(t *testing.T) {
 				Slice:      []int{1},
 				Array:      [1]int{1},
 				PointerA:   nil,
-				PointerB:   addr(1),
-				PointerC:   addr(addr(1)),
+				PointerB:   new(1),
+				PointerC:   new(new(1)),
 				InterfaceA: nil,
 				InterfaceB: 1,
 			}
@@ -419,7 +415,7 @@ func TestStringOption(t *testing.T) {
 
 		t.Run(path.Join("Unmarshal/Shallow", json.Version), func(t *testing.T) {
 			var got V2Types
-			want := V2Types{Int: 1, PointerA: addr(1)}
+			want := V2Types{Int: 1, PointerA: new(1)}
 			err := json.Unmarshal([]byte(`{
 				"Int":      "1",
 				"PointerA": "1"
@@ -1054,13 +1050,13 @@ func TestEmptyStructs(t *testing.T) {
 		wantError func(string) bool
 	}{
 		// It is okay to marshal a truly empty struct in v1 and v2.
-		{in: addr(struct{}{}), wantError: never},
+		{in: new(struct{}{}), wantError: never},
 		// In v1, a non-empty struct without exported fields
 		// is equivalent to an empty struct, but is rejected in v2.
 		// Note that errors.errorString type has only unexported fields.
 		{in: errors.New("error"), wantError: onlyV2},
 		// A mix of exported and unexported fields is permitted.
-		{in: addr(struct{ Exported, unexported int }{}), wantError: never},
+		{in: new(struct{ Exported, unexported int }{}), wantError: never},
 	}
 
 	for _, json := range jsonPackages {

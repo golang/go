@@ -471,7 +471,7 @@ wherever its prerequisites and track allow.
 | [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
-| [ ] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
+| [x] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
 | [x] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
 | [ ] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
 | [ ] | E | `template-docs` | Retire generator-supplied API docs | `gen-docs`, `spec-all` | — |
@@ -1161,9 +1161,9 @@ other than the permanent residue named in §1.7 (`String`, `Len`).
 Retiring the other documentation sources, then `categories.yaml` itself.
 
 ### `doc-triage` — Hand-written doc conflict triage
-**Done:** [ ] · **Needs:** `specfill` · **Prefers:** `spec-common` · **Blocks:** `handwritten-fill` · **Risk:** `risk-silent-doc-loss`
+**Done:** [x] · **Needs:** `specfill` · **Prefers:** `spec-common` · **Blocks:** `handwritten-fill` · **Risk:** `risk-silent-doc-loss`
 
-Make it safe for `handwritten-fill` to rewrite hand-written files, by emptying
+Make it safe for `handwritten-fill` to rewrite hand-written files, by triaging
 the conflict set first.
 
 A conflict is a declaration where spec has a doc *and* the hand-written file has
@@ -1188,8 +1188,9 @@ The `slicepart_*.go` files matter most: they declare the `Load*Part` family spec
 *already* covers via `LoadZPart`, so their prose conflicts on day one — and one
 of them documents `LoadUint32x4Part` as loading "a Int32x4".
 
-**Done when** `specfill -no-fill-names -diff` is empty and `specfill` reports
-zero check (a) violations.
+**Done when** every conflict in `specfill -diff` has been triaged so rewriting
+with `specfill -w` loses no useful documentation, and `specfill` reports zero
+check (a) violations.
 
 ### `comments-yaml` — Drop spec-covered docs from `midway/comments.yaml`
 **Done:** [x] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`

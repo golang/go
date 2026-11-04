@@ -933,6 +933,31 @@ func TestRoundTrip103EarlyHints(t *testing.T) {
 	})
 }
 
+func TestRoundTrip101SwitchingProtocols(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		trace := &httptrace.ClientTrace{
+			Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+				t.Errorf("Got1xxResponse called with code %v", code)
+				return nil
+			},
+		}
+		req, _ := http.NewRequestWithContext(httptrace.WithClientTrace(t.Context(), trace), "GET", "https://example.tld/", nil)
+
+		tc := newTestClientConn(t)
+		tc.greet()
+		rt := tc.roundTrip(req)
+		st := tc.wantStream(streamTypeRequest)
+
+		st.wantHeaders(nil)
+		st.writeHeaders({
+			":status": {"101"},
+		})
+
+		rt.wantError("unsupported 101 response")
+		st.wantClosed("closed after error")
+	})
+}
+
 func TestRoundTripGzipEnabled(t *testing.T) {
 	tests := []struct {
 		name     string

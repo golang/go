@@ -420,3 +420,25 @@ func testClientConnRoundTripBlocks(t *testing.T, mode testMode) {
 		}
 	}
 }
+
+func TestClientConnCloseInStateHook(t *testing.T) {
+	runSynctest(t, testClientConnCloseInStateHook)
+}
+func testClientConnCloseInStateHook(t *testing.T, mode testMode) {
+	_, cc := newClientConnTest(t, mode, nil)
+	cc.SetStateHook(func(cc *http.ClientConn) {})
+	synctest.Wait()
+	if err := cc.Reserve(); err != nil {
+		t.Fatalf("cc.Reserve() = %v, want nil", err)
+	}
+	cc.SetStateHook(func(cc *http.ClientConn) {
+		cc.Close()
+		synctest.Wait()
+	})
+	req, _ := http.NewRequest("GET", mode.Scheme()+"://example.tld/", nil)
+	resp, err := cc.RoundTrip(req)
+	if err != nil {
+		t.Fatalf("cc.RoundTrip() = %v, want nil", err)
+	}
+	resp.Body.Close()
+}
