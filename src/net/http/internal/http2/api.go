@@ -74,10 +74,8 @@ type TransportConfig interface {
 	MaxHeaderListSize() int64
 	MaxResponseHeaderBytes() int64
 	DisableCompression() bool
-	DisableKeepAlives() bool
 	ExpectContinueTimeout() time.Duration
 	ResponseHeaderTimeout() time.Duration
-	IdleConnTimeout() time.Duration
 	HTTP2Config() Config
 }
 

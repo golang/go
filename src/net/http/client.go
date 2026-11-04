@@ -326,8 +326,6 @@ func knownRoundTripperImpl(rt RoundTripper, req *Request) bool {
 			return knownRoundTripperImpl(altRT, req)
 		}
 		return true
-	case http2RoundTripper:
-		return true
 	}
 	// There's a very minor chance of a false positive with this.
 	// Instead of detecting our golang.org/x/net/http2.Transport,

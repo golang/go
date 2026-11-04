@@ -2094,10 +2094,6 @@ func TestTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T) {
 	runSynctest(t, testTransportPersistConnContextLeakMaxConnsPerHost, http3SkippedMode)
 }
 func testTransportPersistConnContextLeakMaxConnsPerHost(t *testing.T, mode testMode) {
-	if mode == http2Mode {
-		t.Skip("https://go.dev/issue/56021")
-	}
-
 	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
 		runtime.Gosched()
 		w.WriteHeader(StatusOK)

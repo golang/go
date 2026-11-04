@@ -5728,19 +5728,12 @@ func testTransportUnusedConnImmediateFailureUsed(t *testing.T) {
 	// The connection encounters an error before we send a request that uses it.
 	tc1 := tt.getConn()
 	tc1.closeWrite()
+	synctest.Wait()
 
 	// Send a request on the Transport.
 	//
-	// It should fail, because we have no usable connections, but not with ErrNoCachedConn.
+	// It should get a new connection.
 	req := Must(http.NewRequest("GET", "https://dummy.tld/", nil))
-	rt := tt.roundTrip(req)
-	if err := rt.err(); err == nil || errors.Is(err, ErrNoCachedConn) {
-		t.Fatalf("RoundTrip with broken conn: got %v, want an error other than ErrNoCachedConn", err)
-	}
-
-	// Send the request again.
-	// This time it is sent on a new conn
-	// because the dead conn has been removed from the pool.
 	_ = tt.roundTrip(req)
 	tc2 := tt.getConn()
 	tc2.wantFrameType(FrameSettings)

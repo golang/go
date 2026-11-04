@@ -26,14 +26,11 @@ import (
 	"net/textproto"
 	"slices"
 	"strconv"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2/hpack"
-	"golang.org/x/net/idna"
 )
 
 const (
@@ -63,8 +60,7 @@ const (
 // A Transport internally caches connections to servers. It is safe
 // for concurrent use by multiple goroutines.
 type Transport struct {
-	t1       TransportConfig
-	connPool *clientConnPool
+	t1 TransportConfig
 	*transportTestHooks
 }
 
@@ -99,44 +95,21 @@ func (t *Transport) disableCompression() bool {
 
 func NewTransport(t1 TransportConfig) *Transport {
 	return &Transport{
-		connPool: new(clientConnPool),
-		t1:       t1,
+		t1: t1,
 	}
-}
-
-func (t *Transport) AddConn(scheme, authority string, c net.Conn) error {
-	addr := authorityAddr(scheme, authority)
-	used, err := t.connPool.addConnIfNeeded(addr, t, c)
-	if !used {
-		go c.Close()
-	}
-	return err
-}
-
-// unencryptedTransport is a Transport with a RoundTrip method that
-// always permits http:// URLs.
-type unencryptedTransport Transport
-
-func (t *unencryptedTransport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	return (*Transport)(t).RoundTrip(req)
 }
 
 // ClientConn is the state of a single HTTP/2 client connection to an
 // HTTP/2 server.
 type ClientConn struct {
-	t             *Transport
-	tconn         net.Conn             // usually *tls.Conn, except specialized impls
-	tlsState      *tls.ConnectionState // nil only for specialized impls
-	reused        atomic.Bool          // whether conn is being reused
-	singleUse     bool                 // whether being used for a single http.Request
-	getConnCalled bool                 // used by clientConnPool
+	t         *Transport
+	tconn     net.Conn             // usually *tls.Conn, except specialized impls
+	tlsState  *tls.ConnectionState // nil only for specialized impls
+	closeOnce sync.Once
 
 	// readLoop goroutine fields:
 	readerDone chan struct{} // closed on error
 	readerErr  error         // set before readerDone is closed
-
-	idleTimeout time.Duration // or 0 for never
-	idleTimer   *time.Timer
 
 	mu               sync.Mutex  // guards following
 	cond             *sync.Cond  // hold mu; broadcast on flow/closed changes
@@ -144,7 +117,6 @@ type ClientConn struct {
 	inflow           inflow      // peer's conn-level flow control
 	draining         bool        // do not use for future requests, close when drained
 	closed           bool
-	closedOnIdle     bool                     // true if conn was closed for idleness
 	seenSettings     bool                     // true if we've seen a settings frame, false otherwise
 	seenSettingsChan chan struct{}            // closed when seenSettings is true or frame reading fails
 	wantSettingsAck  bool                     // we sent a SETTINGS frame and haven't heard back
@@ -156,8 +128,6 @@ type ClientConn struct {
 	pendingRequests  int                       // requests in RoundTrip not yet assigned a stream ID
 	pings            map[[8]byte]chan struct{} // in flight ping data to notification channel
 	br               *bufio.Reader
-	lastActive       time.Time
-	lastIdle         time.Time // time last idle
 	// Settings from peer: (also guarded by wmu)
 	maxFrameSize                uint32
 	maxConcurrentStreams        uint32
@@ -374,121 +344,30 @@ func (noCachedConnError) Error() string             { return "http2: no cached c
 
 var ErrNoCachedConn error = noCachedConnError{}
 
-// authorityAddr returns a given authority (a host/IP, or host:port / ip:port)
-// and returns a host:port. The port 443 is added if needed.
-func authorityAddr(scheme string, authority string) (addr string) {
-	host, port, err := net.SplitHostPort(authority)
-	if err != nil { // authority didn't have a port
-		host = authority
-		port = ""
-	}
-	if port == "" { // authority's port was empty
-		port = "443"
-		if scheme == "http" {
-			port = "80"
-		}
-	}
-	// Same as net/http.
-	if !ascii.Is(host) {
-		if a, err := idna.Lookup.ToASCII(host); err == nil && a != "" {
-			host = a
-		}
-	}
-	// IPv6 address literal, without a port:
-	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
-		return host + ":" + port
-	}
-	return net.JoinHostPort(host, port)
-}
-
-func (t *Transport) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
-	switch req.URL.Scheme {
-	case "https":
-	case "http":
-	default:
-		return nil, errors.New("http2: unsupported scheme")
-	}
-
-	addr := authorityAddr(req.URL.Scheme, req.URL.Host)
-	cc, err := t.connPool.GetClientConn(req, addr)
-	if err != nil {
-		t.vlogf("http2: Transport failed to get client conn for %s: %v", addr, err)
-		return nil, err
-	}
-	reused := !cc.reused.CompareAndSwap(false, true)
-	traceGotConn(req, cc, reused)
-	res, err := cc.RoundTrip(req)
-	if err == errClientConnNotEstablished {
-		// This ClientConn was created recently,
-		// this is the first request to use it,
-		// and the connection is closed and not usable.
-		//
-		// In this state, cc.idleTimer will remove the conn from the pool
-		// when it fires. Stop the timer and remove it here so future requests
-		// won't try to use this connection.
-		//
-		// If the timer has already fired and we're racing it, the redundant
-		// call to MarkDead is harmless.
-		if cc.idleTimer != nil {
-			cc.idleTimer.Stop()
-		}
-		t.connPool.MarkDead(cc)
-	}
-	if err != nil {
-		t.vlogf("RoundTrip failure: %v", err)
-	}
-	return res, err
-}
-
-func (t *Transport) IdleConnStrsForTesting() []string {
-	var ret []string
-	t.connPool.mu.Lock()
-	defer t.connPool.mu.Unlock()
-	for k, ccs := range t.connPool.conns {
-		for _, cc := range ccs {
-			if cc.idleState().canTakeNewRequest {
-				ret = append(ret, k)
-			}
-		}
-	}
-	slices.Sort(ret)
-	return ret
-}
-
-// CloseIdleConnections closes any connections which were previously
-// connected from previous requests but are now sitting idle.
-// It does not interrupt any connections currently in use.
-func (t *Transport) CloseIdleConnections() {
-	t.connPool.closeIdleConnections()
-}
-
 var (
 	errClientConnClosed         = errors.New("http2: client conn is closed")
 	errClientConnUnusable       = error(internal.RetryableError{Err: "http2: client conn not usable"})
 	errClientConnNotEstablished = errors.New("http2: client conn could not be established")
 	errClientConnGotGoAway      = error(internal.RetryableError{Err: "http2: Transport received Server's graceful shutdown GOAWAY", Backoff: true})
+	errClientConnZeroStreams    = error(internal.RetryableError{Err: "http2: server lowered stream limit to zero", Backoff: true})
 	errClientConnForceClosed    = errors.New("http2: client connection force closed via ClientConn.Close")
 )
-
-// disableKeepAlives reports whether connections should be closed as
-// soon as possible after handling the first request.
-func (t *Transport) disableKeepAlives() bool {
-	return t.t1.DisableKeepAlives()
-}
 
 func (t *Transport) expectContinueTimeout() time.Duration {
 	return t.t1.ExpectContinueTimeout()
 }
 
-func (t *Transport) NewClientConn(c net.Conn, internalStateHook func() error) (NetHTTPClientConn, error) {
+func (t *Transport) NewClientConn(c net.Conn, isClientConn bool, internalStateHook func() error) (NetHTTPClientConn, error) {
 	cc, err := t.newClientConn(c, internalStateHook)
 	if err != nil {
 		return NetHTTPClientConn{}, err
 	}
 
-	// RoundTrip should block when the conn is at its concurrency limit,
-	// not return an error. Setting strictMaxConcurrentStreams enables this.
-	cc.strictMaxConcurrentStreams = true
+	if isClientConn {
+		// RoundTrip should block when the conn is at its concurrency limit,
+		// not return an error. Setting strictMaxConcurrentStreams enables this.
+		cc.strictMaxConcurrentStreams = true
+	}
 
 	return NetHTTPClientConn{cc}, nil
 }
@@ -506,14 +385,12 @@ func (t *Transport) newClientConn(c net.Conn, internalStateHook func() error) (*
 		strictMaxConcurrentStreams:  conf.StrictMaxConcurrentRequests,
 		peerMaxHeaderListSize:       0xffffffffffffffff, // "infinite", per spec. Use 2^64-1 instead.
 		streams:                     make(map[uint32]*clientStream),
-		singleUse:                   t.disableKeepAlives(),
 		seenSettingsChan:            make(chan struct{}),
 		wantSettingsAck:             true,
 		readIdleTimeout:             conf.SendPingTimeout,
 		pingTimeout:                 conf.PingTimeout,
 		pings:                       make(map[[8]byte]chan struct{}),
 		reqHeaderMu:                 make(chan struct{}, 1),
-		lastActive:                  time.Now(),
 		internalStateHook:           internalStateHook,
 	}
 	if t.transportTestHooks != nil {
@@ -575,12 +452,6 @@ func (t *Transport) newClientConn(c net.Conn, internalStateHook func() error) (*
 		return nil, cc.werr
 	}
 
-	// Start the idle timer after the connection is fully initialized.
-	if d := t.idleConnTimeout(); d != 0 {
-		cc.idleTimeout = d
-		cc.idleTimer = time.AfterFunc(d, cc.onIdleTimeout)
-	}
-
 	go cc.readLoop()
 	return cc, nil
 }
@@ -601,11 +472,13 @@ func (cc *ClientConn) healthCheck() {
 	}
 }
 
-// SetDoNotReuse marks cc as not reusable for future HTTP requests.
-func (cc *ClientConn) SetDoNotReuse() {
-	cc.mu.Lock()
-	defer cc.mu.Unlock()
+func (cc *ClientConn) setDrainingLocked() {
+	// Cancel all reservations on the connection when draining:
+	// We can no longer send new requests to the conn,
+	// and we don't want stale reservations to contribute to the in-flight request count.
 	cc.draining = true
+	cc.streamsReserved = 0
+	cc.pendingResets = 0
 	if cc.cond != nil {
 		cc.cond.Broadcast()
 	}
@@ -648,9 +521,6 @@ func (cc *ClientConn) idleState() clientConnIdleState {
 }
 
 func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
-	if cc.singleUse && cc.currentRequestCountLocked() > 0 {
-		return
-	}
 	var maxConcurrentOkay bool
 	if cc.strictMaxConcurrentStreams {
 		// We'll tell the caller we can take a new request to
@@ -678,7 +548,7 @@ func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
 	//
 	// This avoids a situation where an error early in a connection's lifetime
 	// goes unreported.
-	if cc.nextStreamID == 1 && cc.streamsReserved == 0 && cc.pendingRequests == 0 && cc.closed && !cc.closedOnIdle {
+	if cc.nextStreamID == 1 && cc.streamsReserved == 0 && cc.pendingRequests == 0 && cc.closed {
 		st.canTakeNewRequest = true
 	}
 
@@ -687,8 +557,7 @@ func (cc *ClientConn) idleStateLocked() (st clientConnIdleState) {
 
 func (cc *ClientConn) isUsableLocked() bool {
 	return !cc.closed &&
-		!cc.draining &&
-		!cc.tooIdleLocked()
+		!cc.draining
 }
 
 // canReserveLocked reports whether a net/http.ClientConn can reserve a slot on this conn.
@@ -698,9 +567,6 @@ func (cc *ClientConn) isUsableLocked() bool {
 // This differs from ClientConn.ReserveNewRequest, which permits reservations
 // past the limit when StrictMaxConcurrentStreams is set.
 func (cc *ClientConn) canReserveLocked() bool {
-	if cc.singleUse && cc.currentRequestCountLocked() > 0 {
-		return false
-	}
 	if cc.currentRequestCountLocked() >= int(cc.maxConcurrentStreams) {
 		return false
 	}
@@ -727,37 +593,15 @@ func (cc *ClientConn) availableLocked() int {
 	if !cc.canTakeNewRequestLocked() {
 		return 0
 	}
-	avail := max(0, int(cc.maxConcurrentStreams)-cc.currentRequestCountLocked())
-	if cc.singleUse {
-		return min(1, avail)
-	}
-	return avail
-}
-
-// tooIdleLocked reports whether this connection has been been sitting idle
-// for too much wall time.
-func (cc *ClientConn) tooIdleLocked() bool {
-	// The Round(0) strips the monontonic clock reading so the
-	// times are compared based on their wall time. We don't want
-	// to reuse a connection that's been sitting idle during
-	// VM/laptop suspend if monotonic time was also frozen.
-	return cc.idleTimeout != 0 && !cc.lastIdle.IsZero() && time.Since(cc.lastIdle.Round(0)) > cc.idleTimeout
-}
-
-// onIdleTimeout is called from a time.AfterFunc goroutine. It will
-// only be called when we're idle, but because we're coming from a new
-// goroutine, there could be a new request coming in at the same time,
-// so this simply calls the synchronized closeIfIdle to shut down this
-// connection. The timer could just call closeIfIdle, but this is more
-// clear.
-func (cc *ClientConn) onIdleTimeout() {
-	cc.closeIfIdle()
+	return max(0, int(cc.maxConcurrentStreams)-cc.currentRequestCountLocked())
 }
 
 func (cc *ClientConn) closeConn() {
-	t := time.AfterFunc(250*time.Millisecond, cc.forceCloseConn)
-	defer t.Stop()
-	cc.tconn.Close()
+	cc.closeOnce.Do(func() {
+		t := time.AfterFunc(250*time.Millisecond, cc.forceCloseConn)
+		defer t.Stop()
+		cc.tconn.Close()
+	})
 	cc.maybeCallStateHook()
 }
 
@@ -771,24 +615,6 @@ func (cc *ClientConn) forceCloseConn() {
 	if nc := tc.NetConn(); nc != nil {
 		nc.Close()
 	}
-}
-
-func (cc *ClientConn) closeIfIdle() {
-	cc.mu.Lock()
-	if len(cc.streams) > 0 || cc.streamsReserved > 0 || cc.pendingRequests > 0 {
-		cc.mu.Unlock()
-		return
-	}
-	cc.closed = true
-	cc.closedOnIdle = true
-	nextID := cc.nextStreamID
-	// TODO: do clients send GOAWAY too? maybe? Just Close:
-	cc.mu.Unlock()
-
-	if VerboseLogs {
-		cc.vlogf("http2: Transport closing idle conn %p (maxStream=%v)", cc, nextID-2)
-	}
-	cc.closeConn()
 }
 
 var shutdownEnterWaitStateHook = func() {}
@@ -834,9 +660,8 @@ func (cc *ClientConn) Shutdown(ctx context.Context) error {
 func (cc *ClientConn) sendGoAway() error {
 	cc.mu.Lock()
 	draining := cc.draining
-	cc.draining = true
+	cc.setDrainingLocked()
 	maxStreamID := cc.nextStreamID
-	cc.cond.Broadcast()
 	cc.mu.Unlock()
 	if draining {
 		// Already draining.
@@ -872,7 +697,7 @@ func (cc *ClientConn) closeForError(err error) {
 func (cc *ClientConn) goAwayAndClose(code ErrCode) {
 	cc.mu.Lock()
 	closed := cc.closed
-	cc.draining = true
+	cc.setDrainingLocked()
 	cc.closed = true
 	cc.mu.Unlock()
 	if closed {
@@ -1185,20 +1010,20 @@ func (cs *clientStream) writeRequest(req *ClientRequest, streamf func(*clientStr
 	}
 
 	cc.mu.Lock()
-	if cc.idleTimer != nil {
-		cc.idleTimer.Stop()
-	}
 	if err := cc.awaitOpenSlotForStreamLocked(cs); err != nil {
 		cc.mu.Unlock()
 		<-cc.reqHeaderMu
 		return err
 	}
 	cc.addStreamLocked(cs) // assigns stream ID
-	if isConnectionCloseRequest(req) {
-		cc.draining = true
-		cc.cond.Broadcast()
+	isConnClose := isConnectionCloseRequest(req)
+	if isConnClose {
+		cc.setDrainingLocked()
 	}
 	cc.mu.Unlock()
+	if isConnClose {
+		cc.maybeCallStateHook()
+	}
 
 	if streamf != nil {
 		streamf(cs)
@@ -1491,10 +1316,6 @@ func (cs *clientStream) cleanupWriteRequest(err error) {
 
 func (cc *ClientConn) checkIdleLocked() (closeConn bool) {
 	isIdle := cc.streamsReserved == 0 && cc.pendingRequests == 0 && len(cc.streams) == 0
-	if !cc.draining && isIdle && cc.idleTimer != nil {
-		cc.idleTimer.Reset(cc.idleTimeout)
-		cc.lastIdle = time.Now()
-	}
 	if cc.draining && isIdle && !cc.closed {
 		if VerboseLogs {
 			cc.vlogf("http2: Transport closing idle conn %p (maxStream=%v)", cc, cc.nextStreamID-2)
@@ -1530,20 +1351,24 @@ func (cc *ClientConn) awaitOpenSlotForStreamLocked(cs *clientStream) error {
 		if err := cc.goAwayErrorLocked(cc.nextStreamID); err != nil {
 			return err
 		}
-		if cc.closed && !cc.closedOnIdle && cc.nextStreamID == 1 {
+		if cc.closed && cc.nextStreamID == 1 {
 			// No requests have been sent to this connection, but it's closed.
 			// Return a fatal error which aborts the retry loop.
 			return errClientConnNotEstablished
 		}
-		cc.lastActive = time.Now()
 		if !cc.isUsableLocked() {
 			return errClientConnUnusable
 		}
-		cc.lastIdle = time.Time{}
 		if len(cc.streams)+cc.pendingResets < int(cc.maxConcurrentStreams) {
 			return nil
 		}
 		if !cc.strictMaxConcurrentStreams {
+			if cc.maxConcurrentStreams == 0 {
+				// If the server has set MAX_CONCURRENT_STREAMS to 0,
+				// return an error with backoff (since it's asking us
+				// to enhance our calm).
+				return errClientConnZeroStreams
+			}
 			return errClientConnUnusable
 		}
 		cc.cond.Wait()
@@ -1862,9 +1687,8 @@ func (cc *ClientConn) addStreamLocked(cs *clientStream) {
 	if cs.ID == 0 {
 		panic("assigned stream ID 0")
 	}
-	if cc.singleUse || cc.nextStreamID >= math.MaxInt32 {
-		cc.draining = true
-		cc.cond.Broadcast()
+	if cc.nextStreamID >= math.MaxInt32 {
+		cc.setDrainingLocked()
 	}
 }
 
@@ -1874,7 +1698,6 @@ func (cc *ClientConn) forgetStreamIDLocked(id uint32) {
 	if len(cc.streams) != slen-1 {
 		panic("forgetting unknown stream id")
 	}
-	cc.lastActive = time.Now()
 	// Wake up writeRequestBody via clientStream.awaitFlowControl and
 	// wake up RoundTrip if there is a pending request.
 	cc.cond.Broadcast()
@@ -1935,10 +1758,6 @@ func (rl *clientConnReadLoop) cleanup() {
 	defer cc.closeConn()
 	defer close(cc.readerDone)
 
-	if cc.idleTimer != nil {
-		cc.idleTimer.Stop()
-	}
-
 	// Close any response bodies if the server closes prematurely.
 	// TODO: also do this if we've written the headers but not
 	// gotten a response yet.
@@ -1954,27 +1773,6 @@ func (rl *clientConnReadLoop) cleanup() {
 		err = io.ErrUnexpectedEOF
 	}
 	cc.closed = true
-
-	// If the connection has never been used, and has been open for only a short time,
-	// leave it in the connection pool for a little while.
-	//
-	// This avoids a situation where new connections are constantly created,
-	// added to the pool, fail, and are removed from the pool, without any error
-	// being surfaced to the user.
-	unusedWaitTime := 5 * time.Second
-	if cc.idleTimeout > 0 && unusedWaitTime > cc.idleTimeout {
-		unusedWaitTime = cc.idleTimeout
-	}
-	idleTime := time.Now().Sub(cc.lastActive)
-	if !cc.reused.Load() && idleTime < unusedWaitTime && !cc.closedOnIdle {
-		cc.idleTimer = time.AfterFunc(unusedWaitTime-idleTime, func() {
-			cc.t.connPool.MarkDead(cc)
-		})
-	} else {
-		cc.mu.Unlock() // avoid any deadlocks in MarkDead
-		cc.t.connPool.MarkDead(cc)
-		cc.mu.Lock()
-	}
 
 	for _, cs := range cc.streams {
 		select {
@@ -2648,7 +2446,7 @@ func (cs *clientStream) copyTrailers() {
 
 func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error {
 	cc := rl.cc
-	cc.t.connPool.MarkDead(cc)
+	defer cc.maybeCallStateHook()
 	if f.ErrCode != 0 {
 		// TODO: deal with GOAWAY more. particularly the error code
 		cc.vlogf("transport got GOAWAY with error code = %v", f.ErrCode)
@@ -2662,8 +2460,7 @@ func (rl *clientConnReadLoop) processGoAway(f *GoAwayFrame) error {
 
 	old := cc.goAway
 	cc.goAway = f
-	cc.draining = true
-	cc.cond.Broadcast()
+	cc.setDrainingLocked()
 
 	// Merge the previous and current GoAway error frames.
 	if cc.goAwayDebug == "" {
@@ -2819,7 +2616,10 @@ func (rl *clientConnReadLoop) processResetStream(f *RSTStreamFrame) error {
 	serr := streamError(cs.ID, f.ErrCode)
 	serr.Cause = errFromPeer
 	if f.ErrCode == ErrCodeProtocol {
-		rl.cc.SetDoNotReuse()
+		rl.cc.mu.Lock()
+		rl.cc.setDrainingLocked()
+		rl.cc.mu.Unlock()
+		rl.cc.maybeCallStateHook()
 	}
 	if fn := cs.cc.fr.countError; fn != nil {
 		fn("recv_rststream_" + f.ErrCode.stringToken())
@@ -2977,6 +2777,14 @@ type NetHTTPClientConn struct {
 	cc *ClientConn
 }
 
+func (cc NetHTTPClientConn) NetConn() net.Conn {
+	return cc.cc.tconn
+}
+
+func (cc NetHTTPClientConn) Proto() int {
+	return 2
+}
+
 func (cc NetHTTPClientConn) RoundTrip(req *ClientRequest) (*ClientResponse, error) {
 	return cc.cc.RoundTrip(req)
 }
@@ -2985,17 +2793,23 @@ func (cc NetHTTPClientConn) Close() error {
 	return cc.cc.Close()
 }
 
+func (cc NetHTTPClientConn) CloseWithError(err error) {
+	cc.cc.Close()
+}
+
 func (cc NetHTTPClientConn) Err() error {
 	cc.cc.mu.Lock()
 	defer cc.cc.mu.Unlock()
 	if cc.cc.closed {
 		return errors.New("connection closed")
 	}
+	if cc.cc.draining {
+		return errors.New("connection is draining")
+	}
 	return nil
 }
 
 func (cc NetHTTPClientConn) Reserve() error {
-	defer cc.cc.maybeCallStateHook()
 	cc.cc.mu.Lock()
 	defer cc.cc.mu.Unlock()
 	if !cc.cc.canReserveLocked() {
@@ -3006,7 +2820,6 @@ func (cc NetHTTPClientConn) Reserve() error {
 }
 
 func (cc NetHTTPClientConn) Release() {
-	defer cc.cc.maybeCallStateHook()
 	cc.cc.mu.Lock()
 	defer cc.cc.mu.Unlock()
 	// We don't complain if streamsReserved is 0.
@@ -3034,39 +2847,27 @@ func (cc NetHTTPClientConn) Ping(ctx context.Context) error {
 	return cc.cc.Ping(ctx)
 }
 
+type clientConnState struct {
+	streamsActive        int
+	maxConcurrentStreams int
+}
+
+func (s clientConnState) StreamsActive() int        { return s.streamsActive }
+func (s clientConnState) MaxConcurrentStreams() int { return s.maxConcurrentStreams }
+
+func (cc NetHTTPClientConn) State() any {
+	cc.cc.mu.Lock()
+	defer cc.cc.mu.Unlock()
+	return clientConnState{
+		streamsActive:        len(cc.cc.streams) + cc.cc.pendingResets,
+		maxConcurrentStreams: int(cc.cc.maxConcurrentStreams),
+	}
+}
+
 func (cc *ClientConn) maybeCallStateHook() {
 	if cc.internalStateHook != nil {
 		cc.internalStateHook()
 	}
-}
-
-func (t *Transport) idleConnTimeout() time.Duration {
-	return t.t1.IdleConnTimeout()
-}
-
-func traceGetConn(req *ClientRequest, hostPort string) {
-	trace := httptrace.ContextClientTrace(req.Context)
-	if trace == nil || trace.GetConn == nil {
-		return
-	}
-	trace.GetConn(hostPort)
-}
-
-func traceGotConn(req *ClientRequest, cc *ClientConn, reused bool) {
-	trace := httptrace.ContextClientTrace(req.Context)
-	if trace == nil || trace.GotConn == nil {
-		return
-	}
-	ci := httptrace.GotConnInfo{Conn: cc.tconn}
-	ci.Reused = reused
-	cc.mu.Lock()
-	ci.WasIdle = len(cc.streams) == 0 && reused
-	if ci.WasIdle && !cc.lastActive.IsZero() {
-		ci.IdleTime = time.Since(cc.lastActive)
-	}
-	cc.mu.Unlock()
-
-	trace.GotConn(ci)
 }
 
 func traceWroteHeaders(trace *httptrace.ClientTrace) {

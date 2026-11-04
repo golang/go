@@ -78,7 +78,6 @@ func (t *Transport) configureHTTP2(protocols Protocols) {
 	t2 := http2.NewTransport(transportConfig{t})
 	t.h2Transport = t2
 
-	t.registerProtocol("https", http2RoundTripper{t2, true})
 	if t.TLSNextProto == nil {
 		t.TLSNextProto = make(map[string]func(authority string, c *tls.Conn) RoundTripper)
 	}
@@ -96,6 +95,24 @@ func (t *Transport) configureHTTP2(protocols Protocols) {
 	// http2configureTransport will have already set NextProtos, but adjust it again
 	// here to remove HTTP/1.1 if the user has disabled it.
 	t.TLSClientConfig.NextProtos = adjustNextProtos(t.TLSClientConfig.NextProtos, protocols)
+}
+
+func (t *Transport) registerHTTP2Config() {
+	t.h2Config.Registered(t)
+	if f, ok := t.h2Config.(interface {
+		GetClientConnStateFunc(func(*ClientConn) any)
+	}); ok {
+		f.GetClientConnStateFunc(http2GetClientConnState)
+	}
+}
+
+// http2GetClientConnState is a function x/net/http2 can call to get some additional
+// state the ClientConn API doesn't currently provide.
+func http2GetClientConnState(cc *ClientConn) any {
+	if c, ok := cc.cc.(http2ClientConn); ok {
+		return c.NetHTTPClientConn.State()
+	}
+	return nil
 }
 
 type http2ErringRoundTripper struct{ err error }
@@ -136,32 +153,15 @@ func http2RoundTrip(req *Request, rt func(*http2.ClientRequest) (*http2.ClientRe
 	return resp, nil
 }
 
-// http2AddConn adds nc to the HTTP/2 connection pool.
-func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (genericClientConn, error) {
+func (t *Transport) http2NewClientConn(nc net.Conn, isClientConn bool, internalStateHook func() error) (genericClientConn, error) {
 	if t.h2Transport == nil {
 		return nil, errors.ErrUnsupported
 	}
-	err := t.h2Transport.AddConn(scheme, authority, nc)
+	cc, err := t.h2Transport.NewClientConn(nc, isClientConn, internalStateHook)
 	if err != nil {
 		return nil, err
 	}
-	return &altClientConn{
-		rt:    http2RoundTripper{t.h2Transport, false},
-		proto: 2,
-	}, nil
-}
-
-// http2NewClientConn creates an HTTP/2 genericClientConn (used to implement ClientConn) from nc.
-// The connection is not added to the HTTP/2 connection pool.
-func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func() error) (genericClientConn, error) {
-	if t.h2Transport == nil {
-		return nil, errors.ErrUnsupported
-	}
-	cc, err := t.h2Transport.NewClientConn(nc, internalStateHook)
-	if err != nil {
-		return nil, err
-	}
-	return externalHTTP2Conn{http2ClientConn{cc}}, nil
+	return http2ClientConn{cc}, nil
 }
 
 // http2NewClientConnFromContext creates a *ClientConn from a net.Conn.
@@ -189,7 +189,8 @@ func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientC
 		return nil, errors.New("http: Transport does not support HTTP/2")
 	}
 	cc := &ClientConn{}
-	gc, err := t.http2NewClientConn(nc, cc.maybeRunStateHook)
+	const isClientConn = true
+	gc, err := t.http2NewClientConn(nc, isClientConn, cc.maybeRunStateHook)
 	if err != nil {
 		return nil, err
 	}
@@ -207,7 +208,7 @@ func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientC
 // If the RoundTrip needs to create a new connection,
 // the historical behavior is for it to use the http2.Transport's DialTLS or DialTLSContext
 // functions, and not any dial functions on the http.Transport.
-func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (genericClientConn, error) {
+func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func() error) (genericClientConn, error) {
 	if t.h2Config == nil {
 		return nil, errors.ErrUnsupported
 	}
@@ -215,23 +216,7 @@ func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (ge
 	if err != nil {
 		return nil, err
 	}
-	return t.http2AddConn(cm.targetScheme, cm.targetAddr, nc)
-}
-
-type http2RoundTripper struct {
-	t                *http2.Transport
-	mapCachedConnErr bool
-}
-
-func (rt http2RoundTripper) RoundTrip(req *Request) (*Response, error) {
-	resp, err := http2RoundTrip(req, rt.t.RoundTrip)
-	if err != nil {
-		if rt.mapCachedConnErr && http2isNoCachedConnError(err) {
-			err = ErrSkipAltProtocol
-		}
-		return nil, err
-	}
-	return resp, nil
+	return t.http2NewClientConn(nc, isClientConn, internalStateHook)
 }
 
 type http2ClientConn struct {
@@ -252,7 +237,6 @@ type transportConfig struct {
 }
 
 func (t transportConfig) MaxResponseHeaderBytes() int64        { return t.t.MaxResponseHeaderBytes }
-func (t transportConfig) DisableKeepAlives() bool              { return t.t.DisableKeepAlives }
 func (t transportConfig) ExpectContinueTimeout() time.Duration { return t.t.ExpectContinueTimeout }
 func (t transportConfig) ResponseHeaderTimeout() time.Duration { return t.t.ResponseHeaderTimeout }
 
@@ -268,17 +252,6 @@ func (t transportConfig) DisableCompression() bool {
 		return true
 	}
 	return t.t.DisableCompression
-}
-
-func (t transportConfig) IdleConnTimeout() time.Duration {
-	// Unlike most config settings, historically IdleConnTimeout prefers the
-	// http2.Transport's setting over the http.Transport.
-	if t.t.h2Config != nil {
-		if timeout := t.t.h2Config.IdleConnTimeout(); timeout != 0 {
-			return timeout
-		}
-	}
-	return t.t.IdleConnTimeout
 }
 
 func (t transportConfig) HTTP2Config() http2.Config {

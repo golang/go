@@ -611,25 +611,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 
 	retry := 0
 	if altRT := t.alternateRoundTripper(req); altRT != nil {
-		_, isInternalH2 := altRT.(http2RoundTripper)
-		resp, err := altRT.RoundTrip(req)
-		switch {
-		case err == nil:
-			// Success.
-			return resp, err
-		case err == ErrSkipAltProtocol:
-			// Dial a connection and try again.
-		case isInternalH2:
-			if _, ok := errors.AsType[internal.RetryableError](err); ok {
-				// Retryable failure (usually a GOAWAY from the server).
-				// (Backoff doesn't matter, we don't backoff on the first retry.)
-				retry++
-				testHookRoundTripRetried()
-			} else {
-				return resp, err
-			}
-		default:
-			// Hard failure.
+		if resp, err := altRT.RoundTrip(req); err != ErrSkipAltProtocol {
 			return resp, err
 		}
 		req, err = rewindBody(req)
@@ -916,7 +898,7 @@ func (t *Transport) registerProtocol(scheme string, rt RoundTripper) error {
 		if t.h2Config, ok = rt.(http2ExternalTransportConfig); !ok {
 			panic("http: HTTP/2 configuration does not implement ExternalTransportConfig")
 		}
-		t.h2Config.Registered(t)
+		t.registerHTTP2Config()
 	}
 
 	if scheme == "http/3" {
@@ -961,10 +943,6 @@ func (t *Transport) CloseIdleConnections() {
 
 	// Tell various associated transports to close their connections.
 
-	// net/http/internal/http2 transport. This is the common case for HTTP/2 users.
-	if tr2 := t.h2Transport; tr2 != nil {
-		tr2.CloseIdleConnections()
-	}
 	// Probably an older x/net/http2 transport registered via Transport.RegisterProtocol.
 	// This is a legacy path; modern users just use internal/http2.
 	// (Note that we don't use this path when x/net/http2 wraps the net/http transport;
@@ -1288,7 +1266,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		return err
 	}
 
-	if cc, err := t.http2ExternalDial(ctx, cm); err != errors.ErrUnsupported {
+	if cc, err := t.http2ExternalDial(ctx, cm, isClientConn, internalStateHook); err != errors.ErrUnsupported {
 		if err != nil {
 			return nil, err
 		}
@@ -1468,26 +1446,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 
 	if http2 && t.h2Transport != nil {
 		// HTTP/2, backed by internal/http2.
-		if isClientConn {
-			// NewClientConn, creating a connection.
-			cc, err := t.http2NewClientConn(pconn.conn, internalStateHook)
-			if err == nil {
-				return cc, nil
-			}
-			if err != errors.ErrUnsupported {
-				return nil, err
-			}
-		} else {
-			// RoundTrip, adding a net.Conn to internal/http2.Transport's pool.
-			// The "connection" returned by http2AddConn is just a reference
-			// to the http2.Transport.
-			cc, err := t.http2AddConn(cm.targetScheme, cm.targetAddr, pconn.conn)
-			if err == nil {
-				return cc, nil
-			}
-			if err != errors.ErrUnsupported {
-				return nil, err
-			}
+		cc, err := t.http2NewClientConn(pconn.conn, isClientConn, internalStateHook)
+		if err == nil {
+			return cc, nil
+		}
+		if err != errors.ErrUnsupported {
+			return nil, err
 		}
 	}
 

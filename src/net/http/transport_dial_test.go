@@ -496,8 +496,6 @@ func TestTransportPoolClosesConnsPastMaxIdleConnsPerHost(t *testing.T) {
 	})
 }
 
-// Current (but probably wrong) behavior:
-// MaxIdleConnsPerHost doesn't apply to HTTP/2 connections.
 func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {
@@ -521,15 +519,20 @@ func TestTransportPoolMaxIdleConnsPerHostHTTP2(t *testing.T) {
 		rt2.wantDone(c2, "HTTP/2.0")
 
 		// Both requests finish.
-		// We have two idle conns for this host, but we keep them both.
+		// We have two idle conns for this host, so we discard one.
 		rt1.finish()
 		rt2.finish()
 
-		// Two new requests use the existing connections.
+		c1.wantAlive()
+		c2.wantClosed()
+
+		// Two new requests use the existing connection and a new one.
 		rt3 := dt.roundTrip()
 		rt3.wantDone(c1, "HTTP/2.0")
 		rt4 := dt.roundTrip()
-		rt4.wantDone(c2, "HTTP/2.0")
+		c3 := dt.wantDial()
+		c3.finish(nil)
+		rt4.wantDone(c3, "HTTP/2.0")
 	})
 }
 
