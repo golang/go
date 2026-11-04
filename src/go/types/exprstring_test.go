@@ -27,6 +27,8 @@ var testExprs = []testEntry{
 	{"func(){}", "(func() literal)"},
 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
 	{"[]int{1, 2, 3}", "[]int{…}"},
+	{"{1, 2, 3}", "{…}"},
+	dup("{}"),
 
 	// type expressions
 	dup("[1 << 10]byte"),

@@ -52,7 +52,9 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
 		buf.WriteString(" literal)") // shortened
 
 	case *ast.CompositeLit:
-		WriteExpr(buf, x.Type)
+		if x.Type != nil {
+			WriteExpr(buf, x.Type)
+		}
 		buf.WriteByte('{')
 		if len(x.Elts) > 0 {
 			buf.WriteString("…")
