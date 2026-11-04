@@ -9,7 +9,13 @@ import (
 	entropy "crypto/internal/entropy/v1.0.0"
 )
 
+var testingOnlyGetEntropy func()
+
 func getEntropy() *[SeedSize]byte {
+	if testingOnlyGetEntropy != nil {
+		testingOnlyGetEntropy()
+	}
+
 	b := scratch.Acquire(len(entropy.ScratchBuffer{}))
 	defer scratch.Release(b)
 	buf := (*entropy.ScratchBuffer)(b)

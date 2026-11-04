@@ -12,19 +12,67 @@ import (
 	"crypto/internal/fips140"
 	"crypto/internal/sysrand"
 	"io"
+	"math/rand/v2"
+	"slices"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 )
 
-// getEntropy is very slow (~500µs), so we don't want it on the hot path.
-// We keep both a persistent DRBG instance and a pool of additional instances.
-// Occasional uses will use drbgInstance, even if the pool was emptied since the
-// last use. Frequent concurrent uses will fill the pool and use it.
-var drbgInstance atomic.Pointer[Counter]
-var drbgPool = sync.Pool{
-	New: func() any {
-		return NewCounter(getEntropy())
-	},
+// Seeding a DRBG with getEntropy is very slow and needs a 32 MiB scratch
+// buffer, so we keep a set of DRBG instances for the lifetime of the program.
+//
+// A new slot is added only when all the existing ones are in use.
+var slots struct {
+	all  atomic.Pointer[[]*slot]
+	grow sync.Mutex // held while replacing all
+}
+
+type slot struct {
+	sync.Mutex
+	drbg *Counter // nil until seeded
+
+	// Prevent false sharing between slots allocated next to each other.
+	_ [128 - unsafe.Sizeof(sync.Mutex{}) - unsafe.Sizeof((*Counter)(nil))]byte
+}
+
+// acquireSlot returns a locked slot.
+// The slot's drbg is nil if it is not seeded yet.
+// The caller must call [slot.Unlock] once done.
+func acquireSlot() *slot {
+	for {
+		var all []*slot
+		if p := slots.all.Load(); p != nil {
+			all = *p
+		}
+
+		n := len(all)
+		if n > 0 {
+			// Try all slots, starting from a random one.
+			start := rand.IntN(n)
+			for i := range n {
+				if s := all[(start+i)%n]; s.TryLock() {
+					return s
+				}
+			}
+		}
+
+		// All slots are in use, add a new one.
+		slots.grow.Lock()
+		if p := slots.all.Load(); p != nil && len(*p) != n {
+			// Another goroutine added a slot in the meantime.
+			slots.grow.Unlock()
+			continue
+		}
+		s := new(slot)
+		s.Lock()
+		// Clip all to force append to make a copy, so that next never shares
+		// a backing array with a slice other goroutines might be reading.
+		next := append(slices.Clip(all), s)
+		slots.all.Store(&next)
+		slots.grow.Unlock()
+		return s
+	}
 }
 
 // Read fills b with cryptographically secure random bytes. In FIPS mode, it
@@ -53,24 +101,20 @@ func Read(b []byte) {
 	additionalInput := new([SeedSize]byte)
 	sysrand.Read(additionalInput[:16])
 
-	drbg := drbgInstance.Swap(nil)
-	if drbg == nil {
-		drbg = drbgPool.Get().(*Counter)
+	s := acquireSlot()
+	defer s.Unlock()
+	if s.drbg == nil {
+		s.drbg = NewCounter(getEntropy())
 	}
-	defer func() {
-		if !drbgInstance.CompareAndSwap(nil, drbg) {
-			drbgPool.Put(drbg)
-		}
-	}()
 
 	for len(b) > 0 {
 		size := min(len(b), maxRequestSize)
-		if reseedRequired := drbg.Generate(b[:size], additionalInput); reseedRequired {
+		if reseedRequired := s.drbg.Generate(b[:size], additionalInput); reseedRequired {
 			// See SP 800-90A Rev. 1, Section 9.3.1, Steps 6-8, as explained in
 			// Section 9.3.2: if Generate reports a reseed is required, the
 			// additional input is passed to Reseed along with the entropy and
 			// then nulled before the next Generate call.
-			drbg.Reseed(getEntropy(), additionalInput)
+			s.drbg.Reseed(getEntropy(), additionalInput)
 			additionalInput = nil
 			continue
 		}
