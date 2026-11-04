@@ -1784,6 +1784,23 @@
 (StoreMasked16 {t} ptr mask val mem) && t.Size() == 64 => (VPMASK16store512 ptr (VPMOVVec16x32ToM <types.TypeMask> mask) val mem)
 (StoreMasked8  {t} ptr mask val mem) && t.Size() == 64 => (VPMASK8store512  ptr (VPMOVVec8x64ToM  <types.TypeMask> mask) val mem)
 
+// SIMD vector Masked and IfElse
+(Masked(8|16|32|64) <t> x mask) && t.Size() == 16 => (VPAND128 x mask)
+(Masked(8|16|32|64) <t> x mask) && t.Size() == 32 => (VPAND256 x mask)
+(Masked(8|16|32|64) <t> x mask) && t.Size() == 64 => (VPANDD512 x mask)
+// Keep 128- and 256-bit float masking in the floating-point domain so 256-bit
+// vectors only require AVX1, even though logically there is no difference.
+(MaskedFloat(32|64) <t> x mask) && t.Size() == 16 => (VANDP(S|D)128 x mask)
+(MaskedFloat(32|64) <t> x mask) && t.Size() == 32 => (VANDP(S|D)256 x mask)
+(MaskedFloat(32|64) <t> x mask) && t.Size() == 64 => (VPANDD512 x mask)
+
+(IfElse(8|16|32|64) <t> x mask y) && t.Size() == 16 => (VPBLENDVB128 y x mask)
+(IfElse(8|16|32|64) <t> x mask y) && t.Size() == 32 => (VPBLENDVB256 y x mask)
+(IfElse(8|16|32|64) <t> x mask y) && t.Size() == 64 => (VPBLENDM(B|W|D|Q)Masked512 y x (VPMOVVec(8x64|16x32|32x16|64x8)ToM <types.TypeMask> mask))
+(IfElseFloat(32|64) <t> x mask y) && t.Size() == 16 => (VBLENDVP(S|D)128 y x mask)
+(IfElseFloat(32|64) <t> x mask y) && t.Size() == 32 => (VBLENDVP(S|D)256 y x mask)
+(IfElseFloat(32|64) <t> x mask y) && t.Size() == 64 => (VPBLENDM(D|Q)Masked512 y x (VPMOVVec(32x16|64x8)ToM <types.TypeMask> mask))
+
 (ZeroSIMD <t>) && t.Size() == 16 => (Zero128 <t>)
 (ZeroSIMD <t>) && t.Size() == 32 => (Zero256 <t>)
 (ZeroSIMD <t>) && t.Size() == 64 => (Zero512 <t>)
@@ -1925,6 +1942,9 @@
 (VPAND256 x (VPMOVMToVec16x16 k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU16Masked256 x k)
 (VPAND256 x (VPMOVMToVec32x8 k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU32Masked256 x k)
 (VPAND256 x (VPMOVMToVec64x4 k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU64Masked256 x k)
+
+(VANDP(S|D)128 x (VPMOVMToVec(32x4|64x2) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU(32|64)Masked128 x k)
+(VANDP(S|D)256 x (VPMOVMToVec(32x8|64x4) k)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VMOVDQU(32|64)Masked256 x k)
 
 // Insert to zero of 32/64 bit floats and ints to a zero is just MOVS[SD]
 (VPINSRQ128 [0] (Zero128 <t>) y) && y.Type.IsFloat() => (VMOVSDf2v <types.TypeVec128> y)

@@ -3,6 +3,15 @@
   commutative: true
   documentation: !string |-
     // NAME performs a bitwise x & y.
+# AVX1/2 have different AND operations for integer (VPAND) and floating-point
+# (VANDP[SD]) vectors; andFloat generates the VANDP[SD] machine ops for
+# MaskedFloat32/64 lowering.
+- go: andFloat
+  commutative: true
+  noTypes: "true"
+  noGenericOps: "true"
+  documentation: !string |-
+    // NAME performs a bitwise x & y for floating-point values.
 - go: Or
   commutative: true
   documentation: !string |-

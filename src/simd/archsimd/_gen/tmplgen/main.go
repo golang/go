@@ -1122,86 +1122,23 @@ func pa{{.VType}}(s []{{.Etype}}) *[{{.Count}}]{{.Etype}} {
 }
 `)
 
-var avx2MaskedTemplate = shapedTemplateOf(avx2Shapes, "avx2 .Masked methods", `
-// Masked returns x but with elements zeroed where mask is false.
-//
-// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
-func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
-	im := mask.ToInt{{.WxC}}()
-{{- if eq .Base "Int" }}
-	return im.And(x)
-{{- else}}
-    return x.AsInt{{.WxC}}().And(im).As{{.VType}}()
-{{- end -}}
-}
+var maskedTemplate = shapedTemplateOf(allShapes, ".Masked and .IfElse methods", `
+// CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}}
 
 // Merge returns x but with elements set to y where mask is false.
 //
-// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 //
 // Deprecated: use x.IfElse(mask, y)
 //
 //go:fix inline
 func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
-   return x.IfElse(mask, y)
+	return x.IfElse(mask, y)
 }
 
-// IfElse returns x but with elements set to y where mask is false.
-//
-// Emulated, CPU Feature: {{if eq .Vwidth 256}}AVX2{{else}}AVX{{end}}
-func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
-{{- if eq .BxC .WxC -}}
-	im := mask.ToInt{{.BxC}}()
-{{- else}}
-    im := mask.ToInt{{.WxC}}().AsInt{{.BxC}}()
-{{- end -}}
-{{- if and (eq .Base "Int") (eq .BxC .WxC) }}
-	return y.blend(x, im)
-{{- else}}
-	ix := x.AsInt{{.BxC}}()
-	iy := y.AsInt{{.BxC}}()
-	return iy.blend(ix, im).As{{.VType}}()
-{{- end -}}
-}
-`)
-
-// TODO perhaps write these in ways that work better on AVX512
-var avx512MaskedTemplate = shapedTemplateOf(avx512Shapes, "avx512 .Masked methods", `
-// Masked returns x but with elements zeroed where mask is false.
-//
-// Emulated, CPU Feature: AVX512
-func (x {{.VType}}) Masked(mask Mask{{.WxC}}) {{.VType}} {
-	im := mask.ToInt{{.WxC}}()
-{{- if eq .Base "Int" }}
-	return im.And(x)
-{{- else}}
-    return x.AsInt{{.WxC}}().And(im).As{{.VType}}()
-{{- end -}}
-}
-
-// Merge returns x but with elements set to y where mask is false.
-//
-// Emulated, CPU Feature: AVX512
-//
-// Deprecated: use x.IfElse(mask, y)
-//
-//go:fix inline
-func (x {{.VType}}) Merge(y {{.VType}}, mask Mask{{.WxC}}) {{.VType}} {
-   return x.IfElse(mask, y)
-}
-
-// IfElse returns x but with elements set to y where mask is false.
-//
-// Emulated, CPU Feature: AVX512
-func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}} {
-{{- if eq .Base "Int" }}
-	return y.blendMasked(x, mask)
-{{- else}}
-	ix := x.AsInt{{.WxC}}()
-	iy := y.AsInt{{.WxC}}()
-	return iy.blendMasked(ix, mask).As{{.VType}}()
-{{- end -}}
-}
+// CPU Feature: {{.CPUfeature}}
+func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}}
 `)
 
 func (t templateData) CPUfeatureBC() string {
@@ -1503,8 +1440,7 @@ func main() {
 	}
 	if *mm != "" {
 		one(*mm, prologue,
-			avx2MaskedTemplate,
-			avx512MaskedTemplate,
+			maskedTemplate,
 		)
 	}
 	if *op != "" {

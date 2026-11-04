@@ -392,18 +392,14 @@
   out:
   - go: $t
 
-# For now a non-public method because
-# (1) [OverwriteClass] must be set together with [OverwriteBase]
-# (2) "simdgen does not support [OverwriteClass] in inputs".
-# That means the signature is wrong.
 - go: blend
-  asm: VPBLENDVB
+  asm: VPBLENDVB|VBLENDVP[SD]
   zeroing: false
   in:
   - &v
     go: $t
     class: vreg
-    base: int
+    base: int|float
   - *v
   -
     class: vreg

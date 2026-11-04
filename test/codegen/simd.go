@@ -81,6 +81,46 @@ func simdMaskedMerge() archsimd.Int16x16 {
 	return x.Add(y).Merge(x, mask) // amd64:`VPBLENDVB .*$`
 }
 
+func simdFloat32x8Masked(x, y archsimd.Float32x8) archsimd.Float32x8 {
+	if archsimd.X86.AVX512() {
+		// Check that Masked folds into a zeroing AVX-512 op.
+		mask := archsimd.Mask32x8FromBits(5)
+		// amd64:`VADDPS.Z .*$` -`VANDPS` -`VPAND`
+		return x.Add(y).Masked(mask)
+	}
+	// Check that we produce the AVX1 floating-point AND, not the AVX2 integer AND.
+	mask := x.Less(y)
+	// amd64:`VANDPS .*$` -`VPAND`
+	return x.Add(y).Masked(mask)
+}
+
+func simdFloat64x4Masked(x, y archsimd.Float64x4) archsimd.Float64x4 {
+	if archsimd.X86.AVX512() {
+		// Check that Masked folds into a zeroing AVX-512 op.
+		mask := archsimd.Mask64x4FromBits(5)
+		// amd64:`VADDPD.Z .*$` -`VANDPD` -`VPAND`
+		return x.Add(y).Masked(mask)
+	}
+	// Check that we produce the AVX1 floating-point AND, not the AVX2 integer AND.
+	mask := x.Less(y)
+	// amd64:`VANDPD .*$` -`VPAND`
+	return x.Add(y).Masked(mask)
+}
+
+func simdFloat32x8IfElse(x, y archsimd.Float32x8) archsimd.Float32x8 {
+	// Check that we produce the AVX1 floating-point blend, not the AVX2 integer blend.
+	mask := x.Less(y)
+	// amd64:`VBLENDVPS .*$` -`VPBLENDVB`
+	return x.Add(y).IfElse(mask, x)
+}
+
+func simdFloat64x4IfElse(x, y archsimd.Float64x4) archsimd.Float64x4 {
+	// Check that we produce the AVX1 floating-point blend, not the AVX2 integer blend.
+	mask := x.Less(y)
+	// amd64:`VBLENDVPD .*$` -`VPBLENDVB`
+	return x.Add(y).IfElse(mask, x)
+}
+
 var nan = math.NaN()
 var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14, 15}
 var sinkInt64s = make([]int64, 100)

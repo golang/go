@@ -309,43 +309,61 @@ func TestBitMaskToBitsStore(t *testing.T) {
 }
 
 func TestMergeFloat(t *testing.T) {
-	if !archsimd.X86.AVX2() {
-		t.Skip("Test requires X86.AVX2, not available on this hardware")
-		return
-	}
-	k := make([]int64, 4, 4)
 	s := make([]float64, 4, 4)
 
 	a := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
 	b := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
 	g := a.Greater(b)
-	g.ToInt64x4().Store(k)
 	c := a.Merge(b, g)
+	d := a.Masked(g)
 
 	c.Store(s)
-
-	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
+
+	d.Store(s)
+	checkSlices[float64](t, s, []float64{0, 0, 0, 4})
+
+	if archsimd.X86.AVX2() {
+		k := make([]int64, 4, 4)
+		g.ToInt64x4().Store(k)
+		checkSlices[int64](t, k, []int64{0, 0, 0, -1})
+	}
 }
 
 func TestIfElseFloat(t *testing.T) {
-	if !archsimd.X86.AVX2() {
-		t.Skip("Test requires X86.AVX2, not available on this hardware")
-		return
+	s64 := make([]float64, 4, 4)
+
+	a64 := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
+	b64 := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
+	g64 := a64.Greater(b64)
+	c64 := a64.IfElse(g64, b64)
+	d64 := a64.Masked(g64)
+
+	c64.Store(s64)
+	checkSlices[float64](t, s64, []float64{4, 2, 3, 4})
+
+	d64.Store(s64)
+	checkSlices[float64](t, s64, []float64{0, 0, 0, 4})
+
+	s32 := make([]float32, 8, 8)
+
+	a32 := archsimd.LoadFloat32x8([]float32{1, 2, 3, 4, 5, 6, 7, 8})
+	b32 := archsimd.LoadFloat32x8([]float32{8, 7, 6, 5, 4, 2, 3, 1})
+	g32 := a32.Greater(b32)
+	c32 := a32.IfElse(g32, b32)
+	d32 := a32.Masked(g32)
+
+	c32.Store(s32)
+	checkSlices[float32](t, s32, []float32{8, 7, 6, 5, 5, 6, 7, 8})
+
+	d32.Store(s32)
+	checkSlices[float32](t, s32, []float32{0, 0, 0, 0, 5, 6, 7, 8})
+
+	if archsimd.X86.AVX2() {
+		k := make([]int64, 4, 4)
+		g64.ToInt64x4().Store(k)
+		checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	}
-	k := make([]int64, 4, 4)
-	s := make([]float64, 4, 4)
-
-	a := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
-	b := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
-	g := a.Greater(b)
-	g.ToInt64x4().Store(k)
-	c := a.IfElse(g, b)
-
-	c.Store(s)
-
-	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
-	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
 
 func TestMergeFloat512(t *testing.T) {

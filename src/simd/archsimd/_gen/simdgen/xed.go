@@ -51,9 +51,10 @@ var skipMemOpsInstrs = map[string]bool{
 	"SHA256MSG1":  true,
 	"SHA256MSG2":  true,
 	"SHA256RNDS2": true,
-	// We don't support 3 input instructions with a memory operand (this appears
-	// to be the only one).
+	// We don't support 3 input instructions with a memory operand.
 	"VPBLENDVB": true,
+	"VBLENDVPS": true,
+	"VBLENDVPD": true,
 }
 
 // TODO: Doc. Returns Values with Def domains.
