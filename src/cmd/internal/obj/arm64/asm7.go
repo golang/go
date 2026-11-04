@@ -478,6 +478,12 @@ var optab = []Optab{
 	{AVFADDP, C_ARNG, C_ARNG, C_NONE, C_ARNG, C_NONE, 72, 4, 0, 0, 0},
 	{AVFADDP, C_ARNG, C_NONE, C_NONE, C_FREG, C_NONE, 111, 4, 0, 0, 0},
 
+	/* indexed element forms: vfmla/vfmls/vfmul Vm.<T>[index], Rn, Rd
+	   Use AVFMLA as the root opcode so buildop includes these in the AVFMLA oprange,
+	   which is shared with AVFMLS and AVFMUL via oprangeset. */
+	{AVFMLA, C_ELEM, C_FREG, C_NONE, C_FREG, C_NONE, 112, 4, 0, 0, 0},
+	{AVFMLA, C_ELEM, C_ARNG, C_NONE, C_ARNG, C_NONE, 112, 4, 0, 0, 0},
+
 	/* logical operations */
 	{AAND, C_ZREG, C_ZREG, C_NONE, C_ZREG, C_NONE, 1, 4, 0, 0, 0},
 	{AAND, C_ZREG, C_NONE, C_NONE, C_ZREG, C_NONE, 1, 4, 0, 0, 0},
@@ -6383,6 +6389,82 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
 			}
 		}
 		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
+
+	case 112: /* indexed element: vfmla/vfmls/vfmul Vm.<T>[index], Rn, Rd */
+		// AdvSIMD scalar x indexed element (C_FREG dest):
+		//   0 1 0 1 1 1 1 1 1 sz L M Rm opcode H 0 Rn Rd  (base: 0x5f800000)
+		// AdvSIMD vector x indexed element (C_ARNG dest):
+		//   0 Q 0 0 1 1 1 1 1 sz L M Rm opcode H 0 Rn Rd  (base: 0x0f800000)
+		// For .S type: sz=0, L=index[0], M=Vm[4], Rm[3:0]=Vm[3:0], H=index[1]
+		// For .D type: sz=1, L=0, M=Vm[4], Rm[3:0]=Vm[3:0], H=index
+		af := int((p.From.Reg >> 5) & 15) // arrangement of C_ELEM (ARNG_S or ARNG_D)
+		index := int(p.From.Index)
+		rm := int(p.From.Reg & 31)
+		rn := uint32(p.Reg & 31)
+		rd := uint32(p.To.Reg & 31)
+		var sz, H, L, M uint32
+		switch af {
+		case ARNG_S:
+			c.checkindex(p, index, 3)
+			sz = 0
+			H = uint32(index>>1) & 1
+			L = uint32(index) & 1
+			M = uint32(rm>>4) & 1
+		case ARNG_D:
+			c.checkindex(p, index, 1)
+			sz = 1
+			H = uint32(index) & 1
+			L = 0
+			M = uint32(rm>>4) & 1
+		default:
+			c.ctxt.Diag("invalid arrangement: %v", p)
+		}
+		var opcode uint32
+		switch p.As {
+		case AVFMLA:
+			opcode = 0x1
+		case AVFMLS:
+			opcode = 0x5
+		case AVFMUL:
+			opcode = 0x9
+		default:
+			// AVFMLA roots the oprange, so ops that share it but have no
+			// indexed-element form reach this case instead of being rejected
+			// by oplook. Report what oplook would have reported.
+			c.ctxt.Diag("illegal combination: %v", p)
+		}
+		rmLow := uint32(rm) & 0xf
+		if p.To.Reg >= REG_F0 && p.To.Reg <= REG_F31 {
+			// scalar indexed element
+			o1 = 0x5f800000 | sz<<22 | L<<21 | M<<20 | rmLow<<16 | opcode<<12 | H<<11 | rn<<5 | rd
+		} else {
+			// Vector indexed element. Q comes from the destination
+			// arrangement and sz from the indexed operand, so the two have to
+			// agree on element width or the encoding names a different
+			// instruction than the source does. ae is the element type the
+			// destination arrangement requires.
+			at := int((p.To.Reg >> 5) & 15)
+			a := int((p.Reg >> 5) & 15)
+			var Q uint32
+			ae := -1
+			switch at {
+			case ARNG_2S:
+				Q, ae = 0, ARNG_S
+			case ARNG_4S:
+				Q, ae = 1, ARNG_S
+			case ARNG_2D:
+				Q, ae = 1, ARNG_D
+			}
+			if ae == -1 {
+				c.ctxt.Diag("invalid arrangement: %v", p)
+				break
+			}
+			if a != at || af != ae {
+				c.ctxt.Diag("operand mismatch: %v", p)
+				break
+			}
+			o1 = 0x0f800000 | Q<<30 | sz<<22 | L<<21 | M<<20 | rmLow<<16 | opcode<<12 | H<<11 | rn<<5 | rd
+		}
 
 	case 127:
 		// Generic SVE instruction encoding
