@@ -98,49 +98,6 @@ func ResetCachedEnvironment() {
 	resetProxyConfig()
 }
 
-func (t *Transport) IdleConnKeysForTesting() (keys []string) {
-	for _, ent := range t.poolCopyEntries() {
-		ent.lock()
-		if len(ent.idleConns) > 0 {
-			keys = append(keys, ent.key.String())
-		}
-		ent.unlock(t)
-	}
-	slices.Sort(keys)
-	return
-}
-
-func (t *Transport) IdleConnKeyCountForTesting() int {
-	return len(t.IdleConnKeysForTesting())
-}
-
-func (t *Transport) IdleConnStrsForTesting() []string {
-	var ret []string
-	for _, ent := range t.poolCopyEntries() {
-		ent.lock()
-		for _, pconn := range ent.idleConns {
-			c := pconn.cc.NetConn()
-			if c == nil {
-				continue
-			}
-			ret = append(ret, c.LocalAddr().String()+"/"+c.RemoteAddr().String())
-		}
-		ent.unlock(t)
-	}
-	if t.h2Transport != nil {
-		ret = append(ret, t.h2Transport.IdleConnStrsForTesting()...)
-	}
-	slices.Sort(ret)
-	return ret
-}
-
-func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
-	key := connectMethodKey{"", scheme, addr, false}
-	ent := t.getLockedPoolEntry(key, false)
-	defer ent.unlock(t)
-	return len(ent.idleConns)
-}
-
 func (t *Transport) PoolEntryCountForTesting() int {
 	t.pool.mu.Lock()
 	defer t.pool.mu.Unlock()
