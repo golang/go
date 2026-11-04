@@ -20,10 +20,12 @@ import (
 //   - "open/create -- file is locked" (cwfs, kfs)
 //   - "exclusive lock" (fossil)
 //   - "exclusive use file already open" (ramfs)
+//   - "file locked" (hjfs)
 var lockedErrStrings = [...]string{
 	"file is locked",
 	"exclusive lock",
 	"exclusive use file already open",
+	"file locked",
 }
 
 // Even though plan9 doesn't support the Lock/RLock/Unlock functions to
