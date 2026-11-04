@@ -19,9 +19,9 @@ func (check *Checker) directCycles() {
 
 // directCycle checks if the declaration of the type given by tname contains a direct cycle.
 // A direct cycle exists if the path from tname's declaration's RHS leads from type name to
-// type name and eventually ends up on that path again, via regular or alias declarations;
-// in other words if there are no type literals (or basic types) on the path, and the path
-// doesn't end in an undeclared object.
+// type name (incl. instantiated types) and eventually ends up on that path again, via regular
+// or alias declarations; in other words if there are no type literals (or basic types) on the
+// path, and the path doesn't end in an undeclared object.
 // If a cycle is detected, a cycle error is reported and the type at the start of the cycle
 // is marked as invalid.
 //
@@ -70,8 +70,14 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 		path = append(path, tname)
 
 		// For direct cycle detection, we don't care about whether we have an alias or not.
-		// If the associated type is not a name, we're at the end of the path and we're done.
-		rhs, ok := check.objMap[tname].tdecl.Type.(*syntax.Name)
+		// If the associated (RHS) type is not a (possibly instantiated) name, we're at the
+		// end of the path and we're done.
+		rhs := check.objMap[tname].tdecl.Type
+		// Unpack instantiated type.
+		if x, _ := unpackIndexExpr(rhs); x != nil {
+			rhs = x
+		}
+		rhsName, ok := rhs.(*syntax.Name)
 		if !ok {
 			break
 		}
@@ -81,7 +87,7 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 		// (universe scope, file scope via dot-import) and a cycle is not possible in
 		// the first place. If it is not a type name, we cannot have a direct cycle
 		// either. In all these cases we can stop.
-		tname1, ok := check.pkg.scope.Lookup(rhs.Value).(*TypeName)
+		tname1, ok := check.pkg.scope.Lookup(rhsName.Value).(*TypeName)
 		if !ok {
 			break
 		}

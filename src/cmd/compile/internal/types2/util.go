@@ -87,3 +87,17 @@ func splitOr(e syntax.Expr) (x, y syntax.Expr) {
 func newIdent(pos syntax.Pos, name string) *syntax.Name {
 	return syntax.NewName(pos, name)
 }
+
+// If x represents an index expression, unpackIndexExpr returns the indexed expression and its indices.
+// Otherwise it returns (nil, nil).
+func unpackIndexExpr(x syntax.Expr) (indexed syntax.Expr, indices []syntax.Expr) {
+	if ix, _ := x.(*syntax.IndexExpr); ix != nil {
+		indexed = ix.X
+		if l, _ := ix.Index.(*syntax.ListExpr); l != nil {
+			indices = l.ElemList
+		} else {
+			indices = []syntax.Expr{ix.Index}
+		}
+	}
+	return
+}

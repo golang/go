@@ -132,7 +132,7 @@ var filemap = map[string]action{
 	"conversions.go":  nil,
 	"cycles.go": func(f *ast.File) {
 		renameImportPath(f, `"cmd/compile/internal/syntax"->"go/ast"`)
-		renameSelectorExprs(f, "syntax.Name->ast.Ident", "rhs.Value->rhs.Name")
+		renameSelectorExprs(f, "syntax.Name->ast.Ident", "rhsName.Value->rhsName.Name")
 		renameSelectors(f, "Trace->_Trace")
 	},
 	"errorcalls_test.go": func(f *ast.File) {
