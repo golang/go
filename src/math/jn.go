@@ -70,7 +70,10 @@ func Jn(n int, x float64) float64 {
 		return J0(x)
 	}
 	if x == 0 {
-		return 0
+		if n < 0 {
+			return -x
+		}
+		return x
 	}
 	if n < 0 {
 		n, x = -n, -x

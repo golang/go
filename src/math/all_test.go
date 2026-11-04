@@ -2738,14 +2738,14 @@ func TestJ1(t *testing.T) {
 	}
 
 	// https://go.dev/issue/82101
-	for _, x := range []float64{SmallestNonzeroFloat64, 1e-30, 1e-9, 1.0 / (1 << 27), 1e-4, 1, 2.5, 1e10} {
-		if f, g := J1(-x), -J1(x); f != g {
+	for _, x := range []float64{0, SmallestNonzeroFloat64, 1e-30, 1e-9, 1.0 / (1 << 27), 1e-4, 1, 2.5, 1e10} {
+		if f, g := J1(-x), -J1(x); !alike(f, g) {
 			t.Errorf("J1(%g) = %g, want %g", -x, f, g)
 		}
-		if f, g := Jn(1, -x), -J1(x); f != g {
+		if f, g := Jn(1, -x), -J1(x); !alike(f, g) {
 			t.Errorf("Jn(1, %g) = %g, want %g", -x, f, g)
 		}
-		if f, g := Jn(-1, x), -J1(x); f != g {
+		if f, g := Jn(-1, x), -J1(x); !alike(f, g) {
 			t.Errorf("Jn(-1, %g) = %g, want %g", x, f, g)
 		}
 	}

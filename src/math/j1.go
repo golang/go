@@ -91,8 +91,10 @@ func J1(x float64) float64 {
 	switch {
 	case IsNaN(x):
 		return x
-	case IsInf(x, 0) || x == 0:
+	case IsInf(x, 0):
 		return 0
+	case x == 0:
+		return x
 	}
 
 	sign := false
