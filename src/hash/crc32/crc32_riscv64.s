@@ -76,32 +76,26 @@ GLOBL mask32<>(SB), RODATA, $8
 // Computes CRC32-IEEE using carry-less multiplication (Zbc extension).
 // Expects non-inverted CRC input. Returns non-inverted CRC.
 //
-// Handles arbitrary len(p) (including misaligned pointers): misaligned input
-// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so every LD in the
-// fold loop is 8-byte aligned. 16-byte alignment serves the fold algorithm
-// (each 16-byte block starts at a boundary); the LD loads only require
-// 8-byte alignment, which the 16-byte boundary implies. Remaining bytes are
-// processed one byte at a time with the same table. The Go caller
-// (archUpdateIEEE) only passes complete 16-byte blocks.
+// Only handles len(p) >= 16: the caller archUpdateIEEE passes complete
+// 16-byte blocks (len(p) &^ 15); shorter inputs go through slicingUpdate.
+// A misaligned p is byte-aligned to a 16-byte boundary first (CRC_BYTE), so
+// every LD in the fold loop is at least 8-byte aligned.
 TEXT ·ieeeUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
 	MOV	tab+8(FP), X30		// table pointer
 	MOV	p+16(FP), X6		// data pointer
 	MOV	p_len+24(FP), X7	// len(p)
 
-	// Byte-align input to a 16-byte boundary (algorithm requirement; the
-	// fold-loop LDs only need 8-byte alignment). ANDI gives the offset from
-	// the previous 16-byte boundary; negating it yields the bytes until the
-	// next boundary, which is how many the loop must consume.
-	ANDI	$15, X6, X23
-	BEQ	X23, ZERO, ieee_aligned
-	SUB	X6, X0, X23
-	ANDI	$15, X23, X23
+	// Byte-align to a 16-byte boundary: (-X6)&15 is both the alignment check
+	// (0 when already aligned) and the number of bytes to consume.
+	SUB	X0, X6, X24		// X24 = -X6
+	ANDI	$15, X24, X24		// X24 = bytes until next 16-byte boundary
+	BEQ	X24, ZERO, ieee_aligned
 
 ieee_align_head:
 	CRC_BYTE()
-	ADD	$-1, X23
-	BNE	X23, ZERO, ieee_align_head
+	ADD	$-1, X24
+	BNE	X24, ZERO, ieee_align_head
 
 ieee_aligned:
 	// If fewer than 16 bytes remain, skip the fold loop entirely and go
@@ -196,32 +190,26 @@ ieee_ret:
 // Computes CRC32-C (Castagnoli) using carry-less multiplication (Zbc extension).
 // Expects non-inverted CRC input. Returns non-inverted CRC.
 //
-// Handles arbitrary len(p) (including misaligned pointers): misaligned input
-// is byte-aligned to a 16-byte boundary first (CRC_BYTE), so every LD in the
-// fold loop is 8-byte aligned. 16-byte alignment serves the fold algorithm
-// (each 16-byte block starts at a boundary); the LD loads only require
-// 8-byte alignment, which the 16-byte boundary implies. Remaining bytes are
-// processed one byte at a time with the same table. The Go caller
-// (archUpdateCastagnoli) only passes complete 16-byte blocks.
+// Only handles len(p) >= 16: the caller archUpdateCastagnoli passes complete
+// 16-byte blocks (len(p) &^ 15); shorter inputs go through slicingUpdate.
+// A misaligned p is byte-aligned to a 16-byte boundary first (CRC_BYTE), so
+// every LD in the fold loop is at least 8-byte aligned.
 TEXT ·castagnoliUpdateCLMUL(SB), NOSPLIT, $0-44
 	MOVWU	crc+0(FP), X5		// CRC value (non-inverted)
 	MOV	tab+8(FP), X30		// table pointer
 	MOV	p+16(FP), X6		// data pointer
 	MOV	p_len+24(FP), X7	// len(p)
 
-	// Byte-align input to a 16-byte boundary (algorithm requirement; the
-	// fold-loop LDs only need 8-byte alignment). ANDI gives the offset from
-	// the previous 16-byte boundary; negating it yields the bytes until the
-	// next boundary, which is how many the loop must consume.
-	ANDI	$15, X6, X23
-	BEQ	X23, ZERO, cast_aligned
-	SUB	X6, X0, X23
-	ANDI	$15, X23, X23
+	// Byte-align to a 16-byte boundary: (-X6)&15 is both the alignment check
+	// (0 when already aligned) and the number of bytes to consume.
+	SUB	X0, X6, X24		// X24 = -X6
+	ANDI	$15, X24, X24		// X24 = bytes until next 16-byte boundary
+	BEQ	X24, ZERO, cast_aligned
 
 cast_align_head:
 	CRC_BYTE()
-	ADD	$-1, X23
-	BNE	X23, ZERO, cast_align_head
+	ADD	$-1, X24
+	BNE	X24, ZERO, cast_align_head
 
 cast_aligned:
 	// If fewer than 16 bytes remain, skip the fold loop entirely and go
