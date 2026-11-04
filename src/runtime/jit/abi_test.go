@@ -242,3 +242,24 @@ func TestStackCheckRejectsUnreachableSlowPath(t *testing.T) {
 	far := uint64(1) << 33
 	jit.EmitStackCheck(b, 0, int(far))
 }
+
+func TestCallingConventionTextAndErrorResults(t *testing.T) {
+	if !jit.SupportedEmitters() {
+		t.Skip("native ABI helpers")
+	}
+	c := jit.GetCallingConventionForFunc((func() (string, error))(nil))
+	if len(c.Outputs) != 2 || len(c.Outputs[0].Parts) != 2 || len(c.Outputs[1].Parts) != 2 {
+		t.Fatalf("text/error result components: %+v", c.Outputs)
+	}
+	want := [][]bool{{true, false}, {false, true}}
+	for i, value := range c.Outputs {
+		for j, part := range value.Parts {
+			if part.Pointer != want[i][j] {
+				t.Fatalf("result %d part %d pointer=%v, want %v", i, j, part.Pointer, want[i][j])
+			}
+			if part.ValueOffset != uintptr(j)*reflect.TypeFor[uintptr]().Size() {
+				t.Fatalf("result %d part %d has unexpected memory offset", i, j)
+			}
+		}
+	}
+}

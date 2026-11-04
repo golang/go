@@ -378,12 +378,15 @@ func (b *instructionBlock) jump(base, target int) {
 		}
 		b.u32(0x14000000 | uint32(d/4)&0x3ffffff)
 	case "riscv64":
-		d := branchDisplacement(target, pos, 0, 21)
-		if d%2 != 0 || d < -(1<<20) || d >= 1<<20 {
+		d := branchDisplacement(target, pos, 0, 32)
+		if d%2 != 0 || d > (1<<31)-2049 {
 			panic("runtime/jit: jump out of range")
 		}
-		v := uint32(d)
-		b.u32((v>>20&1)<<31 | (v>>1&1023)<<21 | (v>>11&1)<<20 | (v>>12&255)<<12 | 0x6f)
+		// Fixed-size PC-relative far jump. Large generated functions can place
+		// their slow path beyond JAL's one-megabyte range.
+		r := uint32(nativeRegisterConfig().Scratch.Number)
+		b.u32(uint32((d+0x800)>>12)<<12 | r<<7 | 0x17)
+		b.u32(uint32(d&4095)<<20 | r<<15 | 0x67)
 	}
 }
 
@@ -427,11 +430,11 @@ func stackCheckCode(base int, frameBytes uintptr, grow int) instructionBlock {
 		b.jump(base, grow)
 	case "riscv64":
 		b.immediate(r.Scratch, uint64(demand))
-		b.u32(31<<20 | 2<<15 | 7<<12 | 4<<8 | 0x63) // BGEU SP,demand,+8
+		b.u32(31<<20 | 2<<15 | 7<<12 | 6<<8 | 0x63) // BGEU SP,demand,+12
 		b.jump(base, grow)
 		b.u32(0x40000033 | 31<<20 | 2<<15 | 30<<7) // SUB X30,SP,demand
 		b.memory(true, r.Scratch, r.Goroutine, int32(config.StackGuardOffset))
-		b.u32(30<<20 | 31<<15 | 6<<12 | 4<<8 | 0x63) // BLTU guard,X30,+8
+		b.u32(30<<20 | 31<<15 | 6<<12 | 6<<8 | 0x63) // BLTU guard,X30,+12
 		b.jump(base, grow)
 	}
 	return b

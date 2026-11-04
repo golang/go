@@ -249,3 +249,35 @@ func emitTestFrameSpill(b *jit.SliceBuffer, load bool, offset uintptr) {
 		}
 	}
 }
+
+// A large consumer function can place its growth path beyond JAL's reach.
+// Exercise the emitted forward check and backward retry, rather than merely
+// accepting a large displacement during encoding.
+func TestEmissionLargeRiscvGrowth(t *testing.T) {
+	if runtime.GOARCH != "riscv64" {
+		t.Skip("RISC-V far growth branches")
+	}
+	c := jit.GetCallingConventionForFunc((func([]byte) uintptr)(nil))
+	b := &jit.SliceBuffer{Bytes: make([]byte, 2<<20)}
+	check := jit.EmitStackCheck(b, 0, 0)
+	jit.EmitFrame(b, jit.FramePlan{LocalBytes: 32768})
+	result, input := c.Outputs[0].Parts[0].Location.Register.Number, c.Inputs[0].Parts[1].Location.Register.Number
+	var move [4]byte
+	binary.LittleEndian.PutUint32(move[:], uint32(input)<<15|uint32(result)<<7|0x13)
+	b.Write(move[:])
+	jit.EmitReturn(b, c.Registers.Frame)
+	b.Write(make([]byte, (1<<20)+4096-b.Offset())) // Unreachable padding.
+	grow := b.Offset()
+	m := jit.EmitStackGrow(b, c, c.Registers.Frame, 0)
+	jit.PatchStackCheck(b, check, 32768+16, grow)
+	addr, cleanup := registerReturnCode(t, b, []jit.StackMap{m})
+	defer cleanup()
+	h := new(jit.FunctionHeader)
+	h.SetEntry(addr)
+	fn := jit.Function[func([]byte) uintptr](h)
+	done := make(chan uintptr, 1)
+	go func() { done <- fn(make([]byte, 123)) }()
+	if got := <-done; got != 123 {
+		t.Fatalf("argument lost across far growth path: %d", got)
+	}
+}
