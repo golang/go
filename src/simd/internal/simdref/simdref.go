@@ -351,6 +351,606 @@ func (x Mask64s) Len() int {
 	return spec.Len[spec.Mask64, spec.WidthScalable](x.v)
 }
 
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Float32x4) GetElem(i uint8) (z float32) {
+	return spec.GetElem[float32, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Float32x8) GetElem(i uint8) (z float32) {
+	return spec.GetElem[float32, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Float32x16) GetElem(i uint8) (z float32) {
+	return spec.GetElem[float32, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Float32s) GetElem(i uint8) (z float32) {
+	return spec.GetElem[float32, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+func (x Float64x2) GetElem(i uint8) (z float64) {
+	return spec.GetElem[float64, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Float64x4) GetElem(i uint8) (z float64) {
+	return spec.GetElem[float64, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Float64x8) GetElem(i uint8) (z float64) {
+	return spec.GetElem[float64, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Float64s) GetElem(i uint8) (z float64) {
+	return spec.GetElem[float64, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Int8x16) GetElem(i uint8) (z int8) {
+	return spec.GetElem[int8, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 32, it panics.
+//
+//	z = x[i]
+func (x Int8x32) GetElem(i uint8) (z int8) {
+	return spec.GetElem[int8, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 64, it panics.
+//
+//	z = x[i]
+func (x Int8x64) GetElem(i uint8) (z int8) {
+	return spec.GetElem[int8, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Int8s) GetElem(i uint8) (z int8) {
+	return spec.GetElem[int8, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Int16x8) GetElem(i uint8) (z int16) {
+	return spec.GetElem[int16, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Int16x16) GetElem(i uint8) (z int16) {
+	return spec.GetElem[int16, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 32, it panics.
+//
+//	z = x[i]
+func (x Int16x32) GetElem(i uint8) (z int16) {
+	return spec.GetElem[int16, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Int16s) GetElem(i uint8) (z int16) {
+	return spec.GetElem[int16, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Int32x4) GetElem(i uint8) (z int32) {
+	return spec.GetElem[int32, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Int32x8) GetElem(i uint8) (z int32) {
+	return spec.GetElem[int32, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Int32x16) GetElem(i uint8) (z int32) {
+	return spec.GetElem[int32, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Int32s) GetElem(i uint8) (z int32) {
+	return spec.GetElem[int32, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+func (x Int64x2) GetElem(i uint8) (z int64) {
+	return spec.GetElem[int64, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Int64x4) GetElem(i uint8) (z int64) {
+	return spec.GetElem[int64, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Int64x8) GetElem(i uint8) (z int64) {
+	return spec.GetElem[int64, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Int64s) GetElem(i uint8) (z int64) {
+	return spec.GetElem[int64, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Uint8x16) GetElem(i uint8) (z uint8) {
+	return spec.GetElem[uint8, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 32, it panics.
+//
+//	z = x[i]
+func (x Uint8x32) GetElem(i uint8) (z uint8) {
+	return spec.GetElem[uint8, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 64, it panics.
+//
+//	z = x[i]
+func (x Uint8x64) GetElem(i uint8) (z uint8) {
+	return spec.GetElem[uint8, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Uint8s) GetElem(i uint8) (z uint8) {
+	return spec.GetElem[uint8, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Uint16x8) GetElem(i uint8) (z uint16) {
+	return spec.GetElem[uint16, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Uint16x16) GetElem(i uint8) (z uint16) {
+	return spec.GetElem[uint16, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 32, it panics.
+//
+//	z = x[i]
+func (x Uint16x32) GetElem(i uint8) (z uint16) {
+	return spec.GetElem[uint16, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Uint16s) GetElem(i uint8) (z uint16) {
+	return spec.GetElem[uint16, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Uint32x4) GetElem(i uint8) (z uint32) {
+	return spec.GetElem[uint32, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Uint32x8) GetElem(i uint8) (z uint32) {
+	return spec.GetElem[uint32, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+func (x Uint32x16) GetElem(i uint8) (z uint32) {
+	return spec.GetElem[uint32, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Uint32s) GetElem(i uint8) (z uint32) {
+	return spec.GetElem[uint32, spec.WidthScalable](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
+func (x Uint64x2) GetElem(i uint8) (z uint64) {
+	return spec.GetElem[uint64, spec.Width128](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
+func (x Uint64x4) GetElem(i uint8) (z uint64) {
+	return spec.GetElem[uint64, spec.Width256](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
+func (x Uint64x8) GetElem(i uint8) (z uint64) {
+	return spec.GetElem[uint64, spec.Width512](x.v, i)
+}
+
+// GetElem returns the i'th element x. If i >= x.Len(), it panics.
+//
+//	z = x[i]
+func (x Uint64s) GetElem(i uint8) (z uint64) {
+	return spec.GetElem[uint64, spec.WidthScalable](x.v, i)
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float32x4) SetElem(i uint8, y float32) (z Float32x4) {
+	return Float32x4{spec.SetElem[float32, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float32x8) SetElem(i uint8, y float32) (z Float32x8) {
+	return Float32x8{spec.SetElem[float32, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float32x16) SetElem(i uint8, y float32) (z Float32x16) {
+	return Float32x16{spec.SetElem[float32, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float32s) SetElem(i uint8, y float32) (z Float32s) {
+	return Float32s{spec.SetElem[float32, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float64x2) SetElem(i uint8, y float64) (z Float64x2) {
+	return Float64x2{spec.SetElem[float64, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float64x4) SetElem(i uint8, y float64) (z Float64x4) {
+	return Float64x4{spec.SetElem[float64, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float64x8) SetElem(i uint8, y float64) (z Float64x8) {
+	return Float64x8{spec.SetElem[float64, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Float64s) SetElem(i uint8, y float64) (z Float64s) {
+	return Float64s{spec.SetElem[float64, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int8x16) SetElem(i uint8, y int8) (z Int8x16) {
+	return Int8x16{spec.SetElem[int8, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 32, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int8x32) SetElem(i uint8, y int8) (z Int8x32) {
+	return Int8x32{spec.SetElem[int8, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 64, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int8x64) SetElem(i uint8, y int8) (z Int8x64) {
+	return Int8x64{spec.SetElem[int8, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int8s) SetElem(i uint8, y int8) (z Int8s) {
+	return Int8s{spec.SetElem[int8, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int16x8) SetElem(i uint8, y int16) (z Int16x8) {
+	return Int16x8{spec.SetElem[int16, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int16x16) SetElem(i uint8, y int16) (z Int16x16) {
+	return Int16x16{spec.SetElem[int16, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 32, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int16x32) SetElem(i uint8, y int16) (z Int16x32) {
+	return Int16x32{spec.SetElem[int16, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int16s) SetElem(i uint8, y int16) (z Int16s) {
+	return Int16s{spec.SetElem[int16, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int32x4) SetElem(i uint8, y int32) (z Int32x4) {
+	return Int32x4{spec.SetElem[int32, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int32x8) SetElem(i uint8, y int32) (z Int32x8) {
+	return Int32x8{spec.SetElem[int32, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int32x16) SetElem(i uint8, y int32) (z Int32x16) {
+	return Int32x16{spec.SetElem[int32, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int32s) SetElem(i uint8, y int32) (z Int32s) {
+	return Int32s{spec.SetElem[int32, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int64x2) SetElem(i uint8, y int64) (z Int64x2) {
+	return Int64x2{spec.SetElem[int64, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int64x4) SetElem(i uint8, y int64) (z Int64x4) {
+	return Int64x4{spec.SetElem[int64, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int64x8) SetElem(i uint8, y int64) (z Int64x8) {
+	return Int64x8{spec.SetElem[int64, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Int64s) SetElem(i uint8, y int64) (z Int64s) {
+	return Int64s{spec.SetElem[int64, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint8x16) SetElem(i uint8, y uint8) (z Uint8x16) {
+	return Uint8x16{spec.SetElem[uint8, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 32, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint8x32) SetElem(i uint8, y uint8) (z Uint8x32) {
+	return Uint8x32{spec.SetElem[uint8, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 64, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint8x64) SetElem(i uint8, y uint8) (z Uint8x64) {
+	return Uint8x64{spec.SetElem[uint8, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint8s) SetElem(i uint8, y uint8) (z Uint8s) {
+	return Uint8s{spec.SetElem[uint8, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint16x8) SetElem(i uint8, y uint16) (z Uint16x8) {
+	return Uint16x8{spec.SetElem[uint16, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint16x16) SetElem(i uint8, y uint16) (z Uint16x16) {
+	return Uint16x16{spec.SetElem[uint16, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 32, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint16x32) SetElem(i uint8, y uint16) (z Uint16x32) {
+	return Uint16x32{spec.SetElem[uint16, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint16s) SetElem(i uint8, y uint16) (z Uint16s) {
+	return Uint16s{spec.SetElem[uint16, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint32x4) SetElem(i uint8, y uint32) (z Uint32x4) {
+	return Uint32x4{spec.SetElem[uint32, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint32x8) SetElem(i uint8, y uint32) (z Uint32x8) {
+	return Uint32x8{spec.SetElem[uint32, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint32x16) SetElem(i uint8, y uint32) (z Uint32x16) {
+	return Uint32x16{spec.SetElem[uint32, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint32s) SetElem(i uint8, y uint32) (z Uint32s) {
+	return Uint32s{spec.SetElem[uint32, spec.WidthScalable](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint64x2) SetElem(i uint8, y uint64) (z Uint64x2) {
+	return Uint64x2{spec.SetElem[uint64, spec.Width128](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint64x4) SetElem(i uint8, y uint64) (z Uint64x4) {
+	return Uint64x4{spec.SetElem[uint64, spec.Width256](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint64x8) SetElem(i uint8, y uint64) (z Uint64x8) {
+	return Uint64x8{spec.SetElem[uint64, spec.Width512](x.v, i, y)}
+}
+
+// SetElem returns x with its i'th element set to y. If i >= x.Len(), it panics.
+//
+//	z = x
+//	z[i] = y
+func (x Uint64s) SetElem(i uint8, y uint64) (z Uint64s) {
+	return Uint64s{spec.SetElem[uint64, spec.WidthScalable](x.v, i, y)}
+}
+
 // String returns x in the form "{x[0],x[1],...}".
 func (x Float32x4) String() string {
 	return spec.String[float32, spec.Width128](x.v)
@@ -6551,6 +7151,48 @@ func (x Uint32x16) ExtendLo8ToUint64() (z Uint64x8) {
 	return Uint64x8{spec.ExtendLoLToZ[uint32, spec.Width512, uint64](x.v)}
 }
 
+// ExtendHi8ToInt16 sign-extends the high-indexed 8 elements of x to int16.
+//
+//	z[i] = int16(x[8+i])
+func (x Int8x16) ExtendHi8ToInt16() (z Int16x8) {
+	return Int16x8{spec.ExtendHiLToZ[int8, int16](x.v)}
+}
+
+// ExtendHi4ToInt32 sign-extends the high-indexed 4 elements of x to int32.
+//
+//	z[i] = int32(x[4+i])
+func (x Int16x8) ExtendHi4ToInt32() (z Int32x4) {
+	return Int32x4{spec.ExtendHiLToZ[int16, int32](x.v)}
+}
+
+// ExtendHi2ToInt64 sign-extends the high-indexed 2 elements of x to int64.
+//
+//	z[i] = int64(x[2+i])
+func (x Int32x4) ExtendHi2ToInt64() (z Int64x2) {
+	return Int64x2{spec.ExtendHiLToZ[int32, int64](x.v)}
+}
+
+// ExtendHi8ToUint16 zero-extends the high-indexed 8 elements of x to uint16.
+//
+//	z[i] = uint16(x[8+i])
+func (x Uint8x16) ExtendHi8ToUint16() (z Uint16x8) {
+	return Uint16x8{spec.ExtendHiLToZ[uint8, uint16](x.v)}
+}
+
+// ExtendHi4ToUint32 zero-extends the high-indexed 4 elements of x to uint32.
+//
+//	z[i] = uint32(x[4+i])
+func (x Uint16x8) ExtendHi4ToUint32() (z Uint32x4) {
+	return Uint32x4{spec.ExtendHiLToZ[uint16, uint32](x.v)}
+}
+
+// ExtendHi2ToUint64 zero-extends the high-indexed 2 elements of x to uint64.
+//
+//	z[i] = uint64(x[2+i])
+func (x Uint32x4) ExtendHi2ToUint64() (z Uint64x2) {
+	return Uint64x2{spec.ExtendHiLToZ[uint32, uint64](x.v)}
+}
+
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
 //
 //	z[i] = float64(x[i])
@@ -10190,6 +10832,294 @@ func (x Mask64x8) Not() (z Mask64x8) {
 //	z[i] = ^x[i]
 func (x Mask64s) Not() (z Mask64s) {
 	return Mask64s{spec.Not[spec.Mask64, spec.WidthScalable](x.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int8x16) BitSelect(y Int8x16, cond Uint8x16) (z Int8x16) {
+	return Int8x16{spec.BitSelect[int8, spec.Width128, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int8x32) BitSelect(y Int8x32, cond Uint8x32) (z Int8x32) {
+	return Int8x32{spec.BitSelect[int8, spec.Width256, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int8x64) BitSelect(y Int8x64, cond Uint8x64) (z Int8x64) {
+	return Int8x64{spec.BitSelect[int8, spec.Width512, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int8s) BitSelect(y Int8s, cond Uint8s) (z Int8s) {
+	return Int8s{spec.BitSelect[int8, spec.WidthScalable, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint8x16) BitSelect(y Uint8x16, cond Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.BitSelect[uint8, spec.Width128, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint8x32) BitSelect(y Uint8x32, cond Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.BitSelect[uint8, spec.Width256, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint8x64) BitSelect(y Uint8x64, cond Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.BitSelect[uint8, spec.Width512, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint8s) BitSelect(y Uint8s, cond Uint8s) (z Uint8s) {
+	return Uint8s{spec.BitSelect[uint8, spec.WidthScalable, uint8](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int16x8) BitSelect(y Int16x8, cond Uint16x8) (z Int16x8) {
+	return Int16x8{spec.BitSelect[int16, spec.Width128, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int16x16) BitSelect(y Int16x16, cond Uint16x16) (z Int16x16) {
+	return Int16x16{spec.BitSelect[int16, spec.Width256, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int16x32) BitSelect(y Int16x32, cond Uint16x32) (z Int16x32) {
+	return Int16x32{spec.BitSelect[int16, spec.Width512, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int16s) BitSelect(y Int16s, cond Uint16s) (z Int16s) {
+	return Int16s{spec.BitSelect[int16, spec.WidthScalable, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint16x8) BitSelect(y Uint16x8, cond Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.BitSelect[uint16, spec.Width128, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint16x16) BitSelect(y Uint16x16, cond Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.BitSelect[uint16, spec.Width256, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint16x32) BitSelect(y Uint16x32, cond Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.BitSelect[uint16, spec.Width512, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint16s) BitSelect(y Uint16s, cond Uint16s) (z Uint16s) {
+	return Uint16s{spec.BitSelect[uint16, spec.WidthScalable, uint16](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int32x4) BitSelect(y Int32x4, cond Uint32x4) (z Int32x4) {
+	return Int32x4{spec.BitSelect[int32, spec.Width128, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int32x8) BitSelect(y Int32x8, cond Uint32x8) (z Int32x8) {
+	return Int32x8{spec.BitSelect[int32, spec.Width256, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int32x16) BitSelect(y Int32x16, cond Uint32x16) (z Int32x16) {
+	return Int32x16{spec.BitSelect[int32, spec.Width512, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int32s) BitSelect(y Int32s, cond Uint32s) (z Int32s) {
+	return Int32s{spec.BitSelect[int32, spec.WidthScalable, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint32x4) BitSelect(y Uint32x4, cond Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.BitSelect[uint32, spec.Width128, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint32x8) BitSelect(y Uint32x8, cond Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.BitSelect[uint32, spec.Width256, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint32x16) BitSelect(y Uint32x16, cond Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.BitSelect[uint32, spec.Width512, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint32s) BitSelect(y Uint32s, cond Uint32s) (z Uint32s) {
+	return Uint32s{spec.BitSelect[uint32, spec.WidthScalable, uint32](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int64x2) BitSelect(y Int64x2, cond Uint64x2) (z Int64x2) {
+	return Int64x2{spec.BitSelect[int64, spec.Width128, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int64x4) BitSelect(y Int64x4, cond Uint64x4) (z Int64x4) {
+	return Int64x4{spec.BitSelect[int64, spec.Width256, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int64x8) BitSelect(y Int64x8, cond Uint64x8) (z Int64x8) {
+	return Int64x8{spec.BitSelect[int64, spec.Width512, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Int64s) BitSelect(y Int64s, cond Uint64s) (z Int64s) {
+	return Int64s{spec.BitSelect[int64, spec.WidthScalable, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint64x2) BitSelect(y Uint64x2, cond Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.BitSelect[uint64, spec.Width128, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint64x4) BitSelect(y Uint64x4, cond Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.BitSelect[uint64, spec.Width256, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint64x8) BitSelect(y Uint64x8, cond Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.BitSelect[uint64, spec.Width512, uint64](x.v, y.v, cond.v)}
+}
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+func (x Uint64s) BitSelect(y Uint64s, cond Uint64s) (z Uint64s) {
+	return Uint64s{spec.BitSelect[uint64, spec.WidthScalable, uint64](x.v, y.v, cond.v)}
 }
 
 // Mask8x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -17205,6 +18135,950 @@ func (x Float64s) Sqrt() (z Float64s) {
 	return Float64s{spec.Sqrt[float64, spec.WidthScalable](x.v)}
 }
 
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32x4) Ceil() (z Float32x4) {
+	return Float32x4{spec.Ceil[float32, spec.Width128](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32x8) Ceil() (z Float32x8) {
+	return Float32x8{spec.Ceil[float32, spec.Width256](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32x16) Ceil() (z Float32x16) {
+	return Float32x16{spec.Ceil[float32, spec.Width512](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32s) Ceil() (z Float32s) {
+	return Float32s{spec.Ceil[float32, spec.WidthScalable](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64x2) Ceil() (z Float64x2) {
+	return Float64x2{spec.Ceil[float64, spec.Width128](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64x4) Ceil() (z Float64x4) {
+	return Float64x4{spec.Ceil[float64, spec.Width256](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64x8) Ceil() (z Float64x8) {
+	return Float64x8{spec.Ceil[float64, spec.Width512](x.v)}
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64s) Ceil() (z Float64s) {
+	return Float64s{spec.Ceil[float64, spec.WidthScalable](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32x4) Floor() (z Float32x4) {
+	return Float32x4{spec.Floor[float32, spec.Width128](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32x8) Floor() (z Float32x8) {
+	return Float32x8{spec.Floor[float32, spec.Width256](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32x16) Floor() (z Float32x16) {
+	return Float32x16{spec.Floor[float32, spec.Width512](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32s) Floor() (z Float32s) {
+	return Float32s{spec.Floor[float32, spec.WidthScalable](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64x2) Floor() (z Float64x2) {
+	return Float64x2{spec.Floor[float64, spec.Width128](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64x4) Floor() (z Float64x4) {
+	return Float64x4{spec.Floor[float64, spec.Width256](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64x8) Floor() (z Float64x8) {
+	return Float64x8{spec.Floor[float64, spec.Width512](x.v)}
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64s) Floor() (z Float64s) {
+	return Float64s{spec.Floor[float64, spec.WidthScalable](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32x4) Round() (z Float32x4) {
+	return Float32x4{spec.Round[float32, spec.Width128](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32x8) Round() (z Float32x8) {
+	return Float32x8{spec.Round[float32, spec.Width256](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32x16) Round() (z Float32x16) {
+	return Float32x16{spec.Round[float32, spec.Width512](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32s) Round() (z Float32s) {
+	return Float32s{spec.Round[float32, spec.WidthScalable](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64x2) Round() (z Float64x2) {
+	return Float64x2{spec.Round[float64, spec.Width128](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64x4) Round() (z Float64x4) {
+	return Float64x4{spec.Round[float64, spec.Width256](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64x8) Round() (z Float64x8) {
+	return Float64x8{spec.Round[float64, spec.Width512](x.v)}
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64s) Round() (z Float64s) {
+	return Float64s{spec.Round[float64, spec.WidthScalable](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32x4) Trunc() (z Float32x4) {
+	return Float32x4{spec.Trunc[float32, spec.Width128](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32x8) Trunc() (z Float32x8) {
+	return Float32x8{spec.Trunc[float32, spec.Width256](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32x16) Trunc() (z Float32x16) {
+	return Float32x16{spec.Trunc[float32, spec.Width512](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32s) Trunc() (z Float32s) {
+	return Float32s{spec.Trunc[float32, spec.WidthScalable](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64x2) Trunc() (z Float64x2) {
+	return Float64x2{spec.Trunc[float64, spec.Width128](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64x4) Trunc() (z Float64x4) {
+	return Float64x4{spec.Trunc[float64, spec.Width256](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64x8) Trunc() (z Float64x8) {
+	return Float64x8{spec.Trunc[float64, spec.Width512](x.v)}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64s) Trunc() (z Float64s) {
+	return Float64s{spec.Trunc[float64, spec.WidthScalable](x.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8) {
+	return Int16x8{spec.MulWidenLo[int8, spec.Width128, int16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x32) MulWidenLo(y Int8x32) (z Int16x16) {
+	return Int16x16{spec.MulWidenLo[int8, spec.Width256, int16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x64) MulWidenLo(y Int8x64) (z Int16x32) {
+	return Int16x32{spec.MulWidenLo[int8, spec.Width512, int16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8s) MulWidenLo(y Int8s) (z Int16s) {
+	return Int16s{spec.MulWidenLo[int8, spec.WidthScalable, int16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4) {
+	return Int32x4{spec.MulWidenLo[int16, spec.Width128, int32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x16) MulWidenLo(y Int16x16) (z Int32x8) {
+	return Int32x8{spec.MulWidenLo[int16, spec.Width256, int32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x32) MulWidenLo(y Int16x32) (z Int32x16) {
+	return Int32x16{spec.MulWidenLo[int16, spec.Width512, int32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16s) MulWidenLo(y Int16s) (z Int32s) {
+	return Int32s{spec.MulWidenLo[int16, spec.WidthScalable, int32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2) {
+	return Int64x2{spec.MulWidenLo[int32, spec.Width128, int64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x8) MulWidenLo(y Int32x8) (z Int64x4) {
+	return Int64x4{spec.MulWidenLo[int32, spec.Width256, int64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x16) MulWidenLo(y Int32x16) (z Int64x8) {
+	return Int64x8{spec.MulWidenLo[int32, spec.Width512, int64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32s) MulWidenLo(y Int32s) (z Int64s) {
+	return Int64s{spec.MulWidenLo[int32, spec.WidthScalable, int64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8) {
+	return Uint16x8{spec.MulWidenLo[uint8, spec.Width128, uint16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x32) MulWidenLo(y Uint8x32) (z Uint16x16) {
+	return Uint16x16{spec.MulWidenLo[uint8, spec.Width256, uint16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x64) MulWidenLo(y Uint8x64) (z Uint16x32) {
+	return Uint16x32{spec.MulWidenLo[uint8, spec.Width512, uint16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8s) MulWidenLo(y Uint8s) (z Uint16s) {
+	return Uint16s{spec.MulWidenLo[uint8, spec.WidthScalable, uint16](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4) {
+	return Uint32x4{spec.MulWidenLo[uint16, spec.Width128, uint32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x16) MulWidenLo(y Uint16x16) (z Uint32x8) {
+	return Uint32x8{spec.MulWidenLo[uint16, spec.Width256, uint32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x32) MulWidenLo(y Uint16x32) (z Uint32x16) {
+	return Uint32x16{spec.MulWidenLo[uint16, spec.Width512, uint32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16s) MulWidenLo(y Uint16s) (z Uint32s) {
+	return Uint32s{spec.MulWidenLo[uint16, spec.WidthScalable, uint32](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2) {
+	return Uint64x2{spec.MulWidenLo[uint32, spec.Width128, uint64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x8) MulWidenLo(y Uint32x8) (z Uint64x4) {
+	return Uint64x4{spec.MulWidenLo[uint32, spec.Width256, uint64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x16) MulWidenLo(y Uint32x16) (z Uint64x8) {
+	return Uint64x8{spec.MulWidenLo[uint32, spec.Width512, uint64](x.v, y.v)}
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32s) MulWidenLo(y Uint32s) (z Uint64s) {
+	return Uint64s{spec.MulWidenLo[uint32, spec.WidthScalable, uint64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[8+i]) * int16(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x16) MulWidenHi(y Int8x16) (z Int16x8) {
+	return Int16x8{spec.MulWidenHi[int8, spec.Width128, int16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[16+i]) * int16(y[16+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x32) MulWidenHi(y Int8x32) (z Int16x16) {
+	return Int16x16{spec.MulWidenHi[int8, spec.Width256, int16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[32+i]) * int16(y[32+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8x64) MulWidenHi(y Int8x64) (z Int16x32) {
+	return Int16x32{spec.MulWidenHi[int8, spec.Width512, int16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int16(x[z.Len()+i]) * int16(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int8s) MulWidenHi(y Int8s) (z Int16s) {
+	return Int16s{spec.MulWidenHi[int8, spec.WidthScalable, int16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[4+i]) * int32(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x8) MulWidenHi(y Int16x8) (z Int32x4) {
+	return Int32x4{spec.MulWidenHi[int16, spec.Width128, int32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[8+i]) * int32(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x16) MulWidenHi(y Int16x16) (z Int32x8) {
+	return Int32x8{spec.MulWidenHi[int16, spec.Width256, int32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[16+i]) * int32(y[16+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16x32) MulWidenHi(y Int16x32) (z Int32x16) {
+	return Int32x16{spec.MulWidenHi[int16, spec.Width512, int32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int32(x[z.Len()+i]) * int32(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int16s) MulWidenHi(y Int16s) (z Int32s) {
+	return Int32s{spec.MulWidenHi[int16, spec.WidthScalable, int32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[2+i]) * int64(y[2+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x4) MulWidenHi(y Int32x4) (z Int64x2) {
+	return Int64x2{spec.MulWidenHi[int32, spec.Width128, int64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[4+i]) * int64(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x8) MulWidenHi(y Int32x8) (z Int64x4) {
+	return Int64x4{spec.MulWidenHi[int32, spec.Width256, int64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[8+i]) * int64(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32x16) MulWidenHi(y Int32x16) (z Int64x8) {
+	return Int64x8{spec.MulWidenHi[int32, spec.Width512, int64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[z.Len()+i]) * int64(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Int32s) MulWidenHi(y Int32s) (z Int64s) {
+	return Int64s{spec.MulWidenHi[int32, spec.WidthScalable, int64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[8+i]) * uint16(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x16) MulWidenHi(y Uint8x16) (z Uint16x8) {
+	return Uint16x8{spec.MulWidenHi[uint8, spec.Width128, uint16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[16+i]) * uint16(y[16+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x32) MulWidenHi(y Uint8x32) (z Uint16x16) {
+	return Uint16x16{spec.MulWidenHi[uint8, spec.Width256, uint16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[32+i]) * uint16(y[32+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8x64) MulWidenHi(y Uint8x64) (z Uint16x32) {
+	return Uint16x32{spec.MulWidenHi[uint8, spec.Width512, uint16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[z.Len()+i]) * uint16(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint8s) MulWidenHi(y Uint8s) (z Uint16s) {
+	return Uint16s{spec.MulWidenHi[uint8, spec.WidthScalable, uint16](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[4+i]) * uint32(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x8) MulWidenHi(y Uint16x8) (z Uint32x4) {
+	return Uint32x4{spec.MulWidenHi[uint16, spec.Width128, uint32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[8+i]) * uint32(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x16) MulWidenHi(y Uint16x16) (z Uint32x8) {
+	return Uint32x8{spec.MulWidenHi[uint16, spec.Width256, uint32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[16+i]) * uint32(y[16+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16x32) MulWidenHi(y Uint16x32) (z Uint32x16) {
+	return Uint32x16{spec.MulWidenHi[uint16, spec.Width512, uint32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint32(x[z.Len()+i]) * uint32(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint16s) MulWidenHi(y Uint16s) (z Uint32s) {
+	return Uint32s{spec.MulWidenHi[uint16, spec.WidthScalable, uint32](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[2+i]) * uint64(y[2+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x4) MulWidenHi(y Uint32x4) (z Uint64x2) {
+	return Uint64x2{spec.MulWidenHi[uint32, spec.Width128, uint64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[4+i]) * uint64(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x8) MulWidenHi(y Uint32x8) (z Uint64x4) {
+	return Uint64x4{spec.MulWidenHi[uint32, spec.Width256, uint64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[8+i]) * uint64(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32x16) MulWidenHi(y Uint32x16) (z Uint64x8) {
+	return Uint64x8{spec.MulWidenHi[uint32, spec.Width512, uint64](x.v, y.v)}
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[z.Len()+i]) * uint64(y[z.Len()+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+func (x Uint32s) MulWidenHi(y Uint32s) (z Uint64s) {
+	return Uint64s{spec.MulWidenHi[uint32, spec.WidthScalable, uint64](x.v, y.v)}
+}
+
 // ToBits reinterprets the bits of each element of x as type uint8.
 func (x Int8x16) ToBits() (z Uint8x16) {
 	return Uint8x16{spec.ToBits[int8, spec.Width128, uint8](x.v)}
@@ -20243,4 +22117,356 @@ func (x Uint64x8) Permute(indices Uint64x8) (z Uint64x8) {
 //	z[i] = x[indices[i] % len(x)]
 func (x Uint64s) Permute(indices Uint64s) (z Uint64s) {
 	return Uint64s{spec.Permute[uint64, spec.WidthScalable, uint64](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8x16) LookupOrZero(indices Int8x16) (z Int8x16) {
+	return Int8x16{spec.LookupOrZero[int8, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8x32) LookupOrZero(indices Int8x32) (z Int8x32) {
+	return Int8x32{spec.LookupOrZero[int8, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 64 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8x64) LookupOrZero(indices Int8x64) (z Int8x64) {
+	return Int8x64{spec.LookupOrZero[int8, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8s) LookupOrZero(indices Int8s) (z Int8s) {
+	return Int8s{spec.LookupOrZero[int8, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int16x8) LookupOrZero(indices Int16x8) (z Int16x8) {
+	return Int16x8{spec.LookupOrZero[int16, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int16x16) LookupOrZero(indices Int16x16) (z Int16x16) {
+	return Int16x16{spec.LookupOrZero[int16, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int16x32) LookupOrZero(indices Int16x32) (z Int16x32) {
+	return Int16x32{spec.LookupOrZero[int16, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int16s) LookupOrZero(indices Int16s) (z Int16s) {
+	return Int16s{spec.LookupOrZero[int16, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 4 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int32x4) LookupOrZero(indices Int32x4) (z Int32x4) {
+	return Int32x4{spec.LookupOrZero[int32, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int32x8) LookupOrZero(indices Int32x8) (z Int32x8) {
+	return Int32x8{spec.LookupOrZero[int32, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int32x16) LookupOrZero(indices Int32x16) (z Int32x16) {
+	return Int32x16{spec.LookupOrZero[int32, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int32s) LookupOrZero(indices Int32s) (z Int32s) {
+	return Int32s{spec.LookupOrZero[int32, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 2 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int64x2) LookupOrZero(indices Int64x2) (z Int64x2) {
+	return Int64x2{spec.LookupOrZero[int64, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 4 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int64x4) LookupOrZero(indices Int64x4) (z Int64x4) {
+	return Int64x4{spec.LookupOrZero[int64, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int64x8) LookupOrZero(indices Int64x8) (z Int64x8) {
+	return Int64x8{spec.LookupOrZero[int64, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int64s) LookupOrZero(indices Int64s) (z Int64s) {
+	return Int64s{spec.LookupOrZero[int64, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint8x16) LookupOrZero(indices Uint8x16) (z Uint8x16) {
+	return Uint8x16{spec.LookupOrZero[uint8, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint8x32) LookupOrZero(indices Uint8x32) (z Uint8x32) {
+	return Uint8x32{spec.LookupOrZero[uint8, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 64 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint8x64) LookupOrZero(indices Uint8x64) (z Uint8x64) {
+	return Uint8x64{spec.LookupOrZero[uint8, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint8s) LookupOrZero(indices Uint8s) (z Uint8s) {
+	return Uint8s{spec.LookupOrZero[uint8, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint16x8) LookupOrZero(indices Uint16x8) (z Uint16x8) {
+	return Uint16x8{spec.LookupOrZero[uint16, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint16x16) LookupOrZero(indices Uint16x16) (z Uint16x16) {
+	return Uint16x16{spec.LookupOrZero[uint16, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint16x32) LookupOrZero(indices Uint16x32) (z Uint16x32) {
+	return Uint16x32{spec.LookupOrZero[uint16, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint16s) LookupOrZero(indices Uint16s) (z Uint16s) {
+	return Uint16s{spec.LookupOrZero[uint16, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 4 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint32x4) LookupOrZero(indices Uint32x4) (z Uint32x4) {
+	return Uint32x4{spec.LookupOrZero[uint32, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint32x8) LookupOrZero(indices Uint32x8) (z Uint32x8) {
+	return Uint32x8{spec.LookupOrZero[uint32, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint32x16) LookupOrZero(indices Uint32x16) (z Uint32x16) {
+	return Uint32x16{spec.LookupOrZero[uint32, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint32s) LookupOrZero(indices Uint32s) (z Uint32s) {
+	return Uint32s{spec.LookupOrZero[uint32, spec.WidthScalable](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 2 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint64x2) LookupOrZero(indices Uint64x2) (z Uint64x2) {
+	return Uint64x2{spec.LookupOrZero[uint64, spec.Width128](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 4 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint64x4) LookupOrZero(indices Uint64x4) (z Uint64x4) {
+	return Uint64x4{spec.LookupOrZero[uint64, spec.Width256](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < 8 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint64x8) LookupOrZero(indices Uint64x8) (z Uint64x8) {
+	return Uint64x8{spec.LookupOrZero[uint64, spec.Width512](x.v, indices.v)}
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if 0 <= indices[i] && indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint64s) LookupOrZero(indices Uint64s) (z Uint64s) {
+	return Uint64s{spec.LookupOrZero[uint64, spec.WidthScalable](x.v, indices.v)}
 }

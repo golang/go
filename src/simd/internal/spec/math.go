@@ -563,3 +563,97 @@ func Sqrt[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
 		return E(math.Sqrt(float64(x)))
 	})
 }
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func Ceil[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Ceil(float64(x)))
+	})
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func Floor[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Floor(float64(x)))
+	})
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func Round[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.RoundToEven(float64(x)))
+	})
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func Trunc[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Trunc(float64(x)))
+	})
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[i]) * {{.zE}}(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenLo[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	for i := range z {
+		z[i] = zE(x[i]) * zE(y[i])
+	}
+	return z
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[{{lanes .z "z"}}+i]) * {{.zE}}(y[{{lanes .z "z"}}+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:experiment
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	half := z.len()
+	for i := range z {
+		z[i] = zE(x[half+i]) * zE(y[half+i])
+	}
+	return z
+}

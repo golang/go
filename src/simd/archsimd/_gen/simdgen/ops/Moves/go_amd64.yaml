@@ -5,7 +5,7 @@
   - class: immediate
     immOffset: 0
     immMax: 15
-    name: index
+    name: i
   - &t
     class: vreg
     base: $b
@@ -20,7 +20,7 @@
   - class: immediate
     immOffset: 0
     immMax: 7
-    name: index
+    name: i
   - &t
     class: vreg
     base: $b
@@ -35,7 +35,7 @@
   - class: immediate
     immOffset: 0
     immMax: 3
-    name: index
+    name: i
   - &t
     class: vreg
     base: $b
@@ -50,7 +50,7 @@
   - class: immediate
     immOffset: 0
     immMax: 1
-    name: index
+    name: i
   - &t
     class: vreg
     base: $b
@@ -66,7 +66,7 @@
   - class: immediate
     immOffset: 0
     immMax: 3
-    name: index
+    name: i
   - &t
     class: vreg
     base: int
@@ -83,7 +83,7 @@
   - class: immediate
     immOffset: 0
     immMax: 1
-    name: index
+    name: i
   - &t
     class: vreg
     base: int
@@ -101,7 +101,7 @@
   - class: immediate
     immOffset: 0
     immMax: 15
-    name: index
+    name: i
   - bits: 128
     base: $b
     class: vreg
@@ -118,7 +118,7 @@
   - class: immediate
     immOffset: 0
     immMax: 7
-    name: index
+    name: i
   - bits: 128
     base: $b
     class: vreg
@@ -135,7 +135,7 @@
   - class: immediate
     immOffset: 0
     immMax: 3
-    name: index
+    name: i
   - class: vreg
     base: $b
     elemBits: $e
@@ -150,7 +150,7 @@
   - class: immediate
     immOffset: 0
     immMax: 1
-    name: index
+    name: i
   - class: vreg
     base: $b
     elemBits: $e
@@ -165,7 +165,7 @@
   - class: immediate
     immOffset: 0
     immMax: 3
-    name: index
+    name: i
   - class: vreg
     base: int
     elemBits: $e
@@ -182,7 +182,7 @@
   - class: immediate
     immOffset: 0
     immMax: 1
-    name: index
+    name: i
   - class: vreg
     base: int
     elemBits: $e
@@ -201,7 +201,7 @@
   - &imm01 # This immediate should be only 0 or 1
     class: immediate
     const: 0 # place holder
-    name: index
+    name: i
   - &i8x2N
     class: vreg
     base: $t

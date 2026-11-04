@@ -328,15 +328,29 @@ func (x Uint32x4) Average(y Uint32x4) (z Uint32x4)
 
 /* Ceil */
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VFRINTP
-func (x Float32x4) Ceil() Float32x4
+func (x Float32x4) Ceil() (z Float32x4)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VFRINTP
-func (x Float64x2) Ceil() Float64x2
+func (x Float64x2) Ceil() (z Float64x2)
 
 /* ConcatAddPairs */
 
@@ -843,87 +857,119 @@ func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
 
 /* Floor */
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VFRINTM
-func (x Float32x4) Floor() Float32x4
+func (x Float32x4) Floor() (z Float32x4)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VFRINTM
-func (x Float64x2) Floor() Float64x2
+func (x Float64x2) Floor() (z Float64x2)
 
 /* GetElem */
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
 //
-// Asm: VDUP
-func (x Float32x4) GetElem(index uint8) float32
-
-// GetElem returns the index'th element of x.
-//
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VDUP
-func (x Float64x2) GetElem(index uint8) float64
+func (x Float32x4) GetElem(i uint8) (z float32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
+//
+// Asm: VDUP
+func (x Float64x2) GetElem(i uint8) (z float64)
+
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VSMOV
-func (x Int8x16) GetElem(index uint8) int8
+func (x Int8x16) GetElem(i uint8) (z int8)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VSMOV
-func (x Int16x8) GetElem(index uint8) int16
+func (x Int16x8) GetElem(i uint8) (z int16)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VSMOV
-func (x Int32x4) GetElem(index uint8) int32
+func (x Int32x4) GetElem(i uint8) (z int32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Int64x2) GetElem(index uint8) int64
+func (x Int64x2) GetElem(i uint8) (z int64)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint8x16) GetElem(index uint8) uint8
+func (x Uint8x16) GetElem(i uint8) (z uint8)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint16x8) GetElem(index uint8) uint16
+func (x Uint16x8) GetElem(i uint8) (z uint16)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint32x4) GetElem(index uint8) uint32
+func (x Uint32x4) GetElem(i uint8) (z uint32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint64x2) GetElem(index uint8) uint64
+func (x Uint64x2) GetElem(i uint8) (z uint64)
 
 /* Greater */
 
@@ -1353,27 +1399,27 @@ func (x Uint32x4) LeadingZeros() (z Uint32x4)
 
 /* LookupOrZero */
 
-// LookupOrZero looks up table. If an index is out of range, the result is 0.
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
-//	if 0 <= indices[i] && indices[i] < len(table) {
-//	    result[i] = table[indices[i]]
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
 //	} else {
-//	    result[i] = 0
+//	    z[i] = 0
 //	}
 //
 // Asm: VTBL
-func (table Int8x16) LookupOrZero(indices Int8x16) Int8x16
+func (x Int8x16) LookupOrZero(indices Int8x16) (z Int8x16)
 
-// LookupOrZero looks up table. If an index is out of range, the result is 0.
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
-//	if 0 <= indices[i] && indices[i] < len(table) {
-//	    result[i] = table[indices[i]]
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
 //	} else {
-//	    result[i] = 0
+//	    z[i] = 0
 //	}
 //
 // Asm: VTBL
-func (table Uint8x16) LookupOrZero(indices Uint8x16) Uint8x16
+func (x Uint8x16) LookupOrZero(indices Uint8x16) (z Uint8x16)
 
 /* Max */
 
@@ -1681,53 +1727,77 @@ func (x Uint32x4) MulAdd(y Uint32x4, z Uint32x4) (w Uint32x4)
 
 /* MulWidenLo */
 
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+//	z[i] = int16(x[i]) * int16(y[i])
 //
-// Asm: VSMULL
-func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
-
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
-//
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VSMULL
-func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
+func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8)
 
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VSMULL
-func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
+func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4)
 
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+// Asm: VSMULL
+func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2)
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VUMULL
-func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
+func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8)
 
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VUMULL
-func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
+func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4)
 
-// MulWidenLo multiplies corresponding low-indexed elements and produces a result with double the element width.
-// For the high-indexed elements, use HiToLo:
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	x.HiToLo().MulWidenLo(y.HiToLo())
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VUMULL
-func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
+func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2)
 
 /* Neg */
 
@@ -1951,15 +2021,29 @@ func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
 
 /* Round */
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VFRINTN
-func (x Float32x4) Round() Float32x4
+func (x Float32x4) Round() (z Float32x4)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VFRINTN
-func (x Float64x2) Round() Float64x2
+func (x Float64x2) Round() (z Float64x2)
 
 /* SaturateToInt8 */
 
@@ -2137,75 +2221,105 @@ func (x Uint64x2) ScaleSaturated(scale Int8x16) (z Uint64x2)
 
 /* SetElem */
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Int8x16) SetElem(index uint8, y int8) Int8x16
+func (x Int8x16) SetElem(i uint8, y int8) (z Int8x16)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Int16x8) SetElem(index uint8, y int16) Int16x8
+func (x Int16x8) SetElem(i uint8, y int16) (z Int16x8)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Int32x4) SetElem(index uint8, y int32) Int32x4
+func (x Int32x4) SetElem(i uint8, y int32) (z Int32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Int64x2) SetElem(index uint8, y int64) Int64x2
+func (x Int64x2) SetElem(i uint8, y int64) (z Int64x2)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
+func (x Uint8x16) SetElem(i uint8, y uint8) (z Uint8x16)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
+func (x Uint16x8) SetElem(i uint8, y uint16) (z Uint16x8)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
+func (x Uint32x4) SetElem(i uint8, y uint32) (z Uint32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VMOV
-func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
+func (x Uint64x2) SetElem(i uint8, y uint64) (z Uint64x2)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//	z = x
+//	z[i] = y
+//
+// Performance: i results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VMOV
-func (x Float32x4) SetElem(index uint8, y float32) Float32x4
+func (x Float32x4) SetElem(i uint8, y float32) (z Float32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: index results in better performance when it's a constant, a non-constant value will be translated into a jump table.
+//	z = x
+//	z[i] = y
+//
+// Performance: i results in better performance when it's a constant, a non-constant value will be translated into a jump table.
 //
 // Asm: VMOV
-func (x Float64x2) SetElem(index uint8, y float64) Float64x2
+func (x Float64x2) SetElem(i uint8, y float64) (z Float64x2)
 
 /* Shift */
 
@@ -2545,15 +2659,27 @@ func (x Uint64x2) SubSaturated(y Uint64x2) (z Uint64x2)
 
 /* Trunc */
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VFRINTZ
-func (x Float32x4) Trunc() Float32x4
+func (x Float32x4) Trunc() (z Float32x4)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VFRINTZ
-func (x Float64x2) Trunc() Float64x2
+func (x Float64x2) Trunc() (z Float64x2)
 
 /* TruncToInt8 */
 

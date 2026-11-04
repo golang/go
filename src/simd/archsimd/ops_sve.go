@@ -284,15 +284,29 @@ func (x Uint64s) AndNot(y Uint64s) (z Uint64s)
 
 /* Ceil */
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: ZFRINTP, CPU Feature: SVE
-func (x Float32s) Ceil() Float32s
+func (x Float32s) Ceil() (z Float32s)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: ZFRINTP, CPU Feature: SVE
-func (x Float64s) Ceil() Float64s
+func (x Float64s) Ceil() (z Float64s)
 
 /* ConvertToInt32 */
 
@@ -433,15 +447,27 @@ func (x Uint64s) Equal(y Uint64s) (z Mask64s)
 
 /* Floor */
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: ZFRINTM, CPU Feature: SVE
-func (x Float32s) Floor() Float32s
+func (x Float32s) Floor() (z Float32s)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: ZFRINTM, CPU Feature: SVE
-func (x Float64s) Floor() Float64s
+func (x Float64s) Floor() (z Float64s)
 
 /* Greater */
 
@@ -1193,15 +1219,29 @@ func (x Float64s) ReduceSum() (z float64)
 
 /* Round */
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: ZFRINTN, CPU Feature: SVE
-func (x Float32s) Round() Float32s
+func (x Float32s) Round() (z Float32s)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: ZFRINTN, CPU Feature: SVE
-func (x Float64s) Round() Float64s
+func (x Float64s) Round() (z Float64s)
 
 /* ShiftAllLeft */
 
@@ -1425,15 +1465,27 @@ func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s)
 
 /* Trunc */
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: ZFRINTZ, CPU Feature: SVE
-func (x Float32s) Trunc() Float32s
+func (x Float32s) Trunc() (z Float32s)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: ZFRINTZ, CPU Feature: SVE
-func (x Float64s) Trunc() Float64s
+func (x Float64s) Trunc() (z Float64s)
 
 /* Xor */
 

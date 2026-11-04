@@ -13,7 +13,7 @@
   - &immIndex
     class: immediate
     go: Immediate
-    name: index
+    name: i
   - go: $t
     base: int
     elemBits: 8|16|32
@@ -193,21 +193,17 @@
   regexpTag: "move"
   asm: "VTBL"
   in:
-  - &bytesTable
+  - &bytes
     go: $t
     base: int|uint
     elemBits: 8
-    name: table
   - &byteIndices
     go: $t
     base: int|uint
     elemBits: 8
     name: indices
   out:
-  - &bytes
-    go: $t
-    base: int|uint
-    elemBits: 8
+  - *bytes
 
 # LookupOrKeep — TBX (table lookup extended, keeps original for out-of-range)
 - go: lookupOrKeep
@@ -220,7 +216,10 @@
     base: int|uint
     elemBits: 8
     name: keep
-  - *bytesTable
+  - go: $t
+    base: int|uint
+    elemBits: 8
+    name: table
   - *byteIndices
   out:
   - *bytes

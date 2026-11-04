@@ -290,6 +290,7 @@ type wasmOp struct {
 	immName  string // The parameter name for an immediate operations
 	arg1Name string // The 1st (non-immediate) arg name. Arg1Name() defaults to "y"
 	arg2Name string // The 2nd (non-immediate) arg name. Arg2Name() defaults to "z"
+	arg2Type string // The 2nd (non-immediate) arg type. Arg2Type() defaults to t.Name
 }
 
 func (o *wasmOp) String() string {
@@ -562,6 +563,13 @@ func (o *wasmOp) Arg2Name() string {
 		return n
 	}
 	return "z"
+}
+
+func (o *wasmOp) Arg2Type() string {
+	if n := o.arg2Type; n != "" {
+		return n
+	}
+	return o.T().Name
 }
 
 func (o *wasmOp) Arg1Name() string {
@@ -866,6 +874,7 @@ func initWasmOps() {
 	bitSelect := func(op *wasmOp) {
 		op.opFlags = IsBitwise
 		op.arg2Name = "cond"
+		op.arg2Type = op.T().UintFor().Name
 	}
 
 	addWasmOps(ints, iv_1, 1, isBitwise)  // because reasons, not floats
@@ -913,7 +922,7 @@ func initWasmOps() {
 	extractImmediate := func(op *wasmOp) {
 		op.resultType = op.t.Elem
 		op.immRange = uint8(op.t.Count)
-		op.immName = "index"
+		op.immName = "i"
 	}
 
 	addWasmOpsDetail(nge32, nge32_x, 1, extractImmediate)
@@ -923,7 +932,7 @@ func initWasmOps() {
 	replaceImmediate := func(op *wasmOp) {
 		op.argType = op.t.Elem
 		op.immRange = uint8(op.t.Count)
-		op.immName = "index"
+		op.immName = "i"
 	}
 	addWasmOpsDetail(allTypes, n_x, 2, replaceImmediate)
 
@@ -1281,7 +1290,7 @@ var ternOp = templateOf("ternaryOp", `
 	// {{.Method}}{{.DocRest}}
 	//
 	// Asm: {{.AsmOp}}
-	func (x {{.RcvrType}}) {{.Method}}(y {{.RcvrType}}, {{.Arg2Name}} {{.ArgType}}) {{.ResultType}}
+	func (x {{.RcvrType}}) {{.Method}}(y {{.RcvrType}}, {{.Arg2Name}} {{.Arg2Type}}) {{.ResultType}}
 `)
 
 var unOpImm = templateOf("unaryOpImm", `
@@ -1349,7 +1358,7 @@ func (x {{.Name}}) Masked(mask Mask{{.ElemSize}}x{{.Count}}) {{.Name}} {
 
 // IfElse returns x but with elements set to y where mask is false.
 func (x {{.Name}}) IfElse(mask Mask{{.ElemSize}}x{{.Count}}, y {{.Name}}) {{.Name}} {
-	im := mask.ToInt{{.ElemSize}}x{{.Count}}()
+	im := mask.ToInt{{.ElemSize}}x{{.Count}}().ToBits()
 	return x.BitSelect(y, im)
 }
 `)

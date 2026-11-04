@@ -143,6 +143,8 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 					case "name", "commutative", "require":
 						// Gather other directives to process with decls
 						directives[comment] = dir
+					case "experiment":
+						// do nothing for now; this indicates that the operation should remain a GOEXPERIMENT
 					default:
 						ctx.at(dir.Pos()).errorf("unknown //specgen directive")
 					}

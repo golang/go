@@ -13,8 +13,8 @@ String, Len, ToArch, and FromArch are excluded throughout (§2.7).
 
 Heading for 100%:
 
-spec coverage, by (receiver, name) (§1)          1935 / 3025   64%  [spec-common, spec-all]
-docs sourced from spec (§3)                      3414 / 3414  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+spec coverage, by (receiver, name) (§1)          2007 / 3025   66%  [spec-common, spec-all]
+docs sourced from spec (§3)                      3549 / 3549  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 Heading for zero:
 
@@ -29,33 +29,33 @@ midway/comments.yaml entries spec covers (§4)       0 -> 0       [comments-yaml
 
 ## 1. Spec coverage of API   [spec-common, spec-all]
 
-by (target, receiver, name)                      4190 / 5444   77%
-by (receiver, name)                              1935 / 3025   64%
-by name                                           279 / 464    60%
+by (target, receiver, name)                      4325 / 5444   79%
+by (receiver, name)                              2007 / 3025   66%
+by name                                           295 / 464    64%
 
 By build configuration:
 
-  amd64                                          1849 / 2788   66%
-  arm64                                          1171 / 1383   85%
-  wasm                                            798 / 877    91%
+  amd64                                          1885 / 2788   68%
+  arm64                                          1215 / 1383   88%
+  wasm                                            853 / 877    97%
   portable                                        372 / 396    94%
 
 By generator (declarations per tool, counted once per tool per pair):
 
   hand-written                                    542 / 585    93%
   midway                                          372 / 372   100%
-  simdgen                                        1347 / 2326   58%
+  simdgen                                        1399 / 2326   60%
   tmplgen                                         415 / 463    90%
-  wasmgen                                         361 / 416    87%
+  wasmgen                                         416 / 416   100%
 
 High-drift-risk names (emitted by >1 generator):
 
-  covered                                         137 / 145    94%  [spec-all]
+  covered                                         145 / 145   100%  [spec-all]
   portable core (simd_emulated.go methods)         67 / 67    100%  [spec-common]
 
-spec operations written so far                     93
-  expanding to distinct names                     290
-  expanding to (receiver, name) pairs            2708
+spec operations written so far                    104
+  expanding to distinct names                     306
+  expanding to (receiver, name) pairs            2938
 
 
 ## 2. Signatures and names   [named-results, fill-enforce]
@@ -87,7 +87,7 @@ argument agrees with any name:
 A declaration counts as sourced from spec when its doc comment begins with
 spec's text (a prefix test, because Fill leaves generator notes below).
 
-covered declarations whose doc comes from spec   3414 / 3414  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
+covered declarations whose doc comes from spec   3549 / 3549  100%  [gen-docs, comments-yaml, handwritten-fill, template-docs]
 
 simd ∩ archsimd methods with matching docs        294 / 294   100%  [gen-docs, comments-yaml]
 
@@ -135,28 +135,30 @@ spec misses receivers of a name it defines          8 -> 0       [spec-all, conv
 spec operations implemented nowhere                 1 -> 0       [spec-all]
     TrailingZeros
 
-Every name either side defines, less the 185 spec has never defined at all
-(1082 receivers, counted as coverage in §1 rather than disagreement):
+Every name either side defines, less the 169 spec has never defined at all
+(1010 receivers, counted as coverage in §1 rather than disagreement):
 
   relation         names  Σ|api - spec|  Σ|spec - api|
                                  (-> 0)       (review)
-  api = spec         221              0              0
-  api ⊂ spec          52              0            723
+  api = spec         227              0              0
+  api ⊂ spec          62              0            881
   api ⊃ spec           0              0              0
   overlapping          0              0              0
   disjoint             6              8             16
   api = ∅             11              0             34
-  total              290              8            773
+  total              306              8            931
 
 Names that disagree, with api - spec receivers (the defects):
 
   name                       relation    |api| |spec| |api - spec| |spec - api|
   AddSaturated               api ⊂ spec     24     32            0            8
   Average                    api ⊂ spec     12     32            0           20
+  BitSelect                  api ⊂ spec      8     32            0           24
   CarrylessMultiplyEven      api ⊂ spec      4     16            0           12
   CarrylessMultiplyEvenOdd   api ⊂ spec      3     16            0           13
   CarrylessMultiplyOdd       api ⊂ spec      4     16            0           12
   CarrylessMultiplyOddEven   api ⊂ spec      3     16            0           13
+  Ceil                       api ⊂ spec      6      8            0            2
   ConcatAddPairs             api ⊂ spec     10     40            0           30
   ConcatAddPairsGrouped      api ⊂ spec      6     40            0           34
   ConcatAddPairsSaturated    api ⊂ spec      1     32            0           31
@@ -201,13 +203,18 @@ Names that disagree, with api - spec receivers (the defects):
       api - spec = Uint8x16
   ExtendLo8ToUint64          disjoint        1      3            1            3
       api - spec = Uint8x16
+  Floor                      api ⊂ spec      6      8            0            2
+  GetElem                    api ⊂ spec     10     40            0           30
   IsNaN                      api ⊂ spec      6      8            0            2
   IsZero                     api ⊂ spec     16     32            0           16
   LeadingZeros               api ⊂ spec     16     32            0           16
   Len                        api ⊂ spec     40     56            0           16
   Less                       api ⊂ spec     39     40            0            1
   LessEqual                  api ⊂ spec     39     40            0            1
+  LookupOrZero               api ⊂ spec      2     32            0           30
   MulAdd                     api ⊂ spec     22     40            0           18
+  MulWidenHi                 api ⊂ spec      6     24            0           18
+  MulWidenLo                 api ⊂ spec      6     24            0           18
   NotEqual                   api ⊂ spec     40     56            0           16
   OnesCount                  api ⊂ spec     26     32            0            6
   Permute                    api ⊂ spec     24     40            0           16
@@ -217,7 +224,9 @@ Names that disagree, with api - spec receivers (the defects):
   RotateAllRight             api ⊂ spec     13     16            0            3
   RotateLeft                 api ⊂ spec      6     16            0           10
   RotateRight                api ⊂ spec      6     16            0           10
+  Round                      api ⊂ spec      6      8            0            2
   ScaleSaturated             api ⊂ spec      8     32            0           24
+  SetElem                    api ⊂ spec     10     40            0           30
   ShiftAllLeft               api ⊂ spec     28     32            0            4
   ShiftAllRight              api ⊂ spec     25     32            0            7
   ShiftLeft                  api ⊂ spec     18     32            0           14
@@ -226,3 +235,4 @@ Names that disagree, with api - spec receivers (the defects):
   SubSaturated               api ⊂ spec     24     32            0            8
   ToMask                     api ⊂ spec     16     40            0           24
   TrailingZeros              api ⊂ spec     16     32            0           16
+  Trunc                      api ⊂ spec      6      8            0            2

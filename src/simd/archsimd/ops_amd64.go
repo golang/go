@@ -900,25 +900,53 @@ func (x Uint16x32) Average(y Uint16x32) (z Uint16x32)
 
 /* Ceil */
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) Ceil() Float32x4
+func (x Float32x4) Ceil() (z Float32x4)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) Ceil() Float32x8
+func (x Float32x8) Ceil() (z Float32x8)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) Ceil() Float64x2
+func (x Float64x2) Ceil() (z Float64x2)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) Ceil() Float64x4
+func (x Float64x4) Ceil() (z Float64x4)
 
 /* CeilScaled */
 
@@ -2996,25 +3024,49 @@ func (x Uint32x8) ExtendToUint64() Uint64x8
 
 /* Floor */
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) Floor() Float32x4
+func (x Float32x4) Floor() (z Float32x4)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) Floor() Float32x8
+func (x Float32x8) Floor() (z Float32x8)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) Floor() Float64x2
+func (x Float64x2) Floor() (z Float64x2)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) Floor() Float64x4
+func (x Float64x4) Floor() (z Float64x4)
 
 /* FloorScaled */
 
@@ -3217,75 +3269,95 @@ func (x Uint8x64) GaloisFieldMul(y Uint8x64) Uint8x64
 
 /* GetElem */
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Float32x4) GetElem(index uint8) float32
+func (x Float32x4) GetElem(i uint8) (z float32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Float64x2) GetElem(index uint8) float64
+func (x Float64x2) GetElem(i uint8) (z float64)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
-func (x Int8x16) GetElem(index uint8) int8
+func (x Int8x16) GetElem(i uint8) (z int8)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
-func (x Int16x8) GetElem(index uint8) int16
+func (x Int16x8) GetElem(i uint8) (z int16)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Int32x4) GetElem(index uint8) int32
+func (x Int32x4) GetElem(i uint8) (z int32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Int64x2) GetElem(index uint8) int64
+func (x Int64x2) GetElem(i uint8) (z int64)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRB, CPU Feature: AVX
-func (x Uint8x16) GetElem(index uint8) uint8
+func (x Uint8x16) GetElem(i uint8) (z uint8)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRW, CPU Feature: AVX
-func (x Uint16x8) GetElem(index uint8) uint16
+func (x Uint16x8) GetElem(i uint8) (z uint16)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRD, CPU Feature: AVX
-func (x Uint32x4) GetElem(index uint8) uint32
+func (x Uint32x4) GetElem(i uint8) (z uint32)
 
-// GetElem returns the index'th element of x.
+// GetElem returns the i'th element x. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x[i]
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPEXTRQ, CPU Feature: AVX
-func (x Uint64x2) GetElem(index uint8) uint64
+func (x Uint64x2) GetElem(i uint8) (z uint64)
 
 /* GetHi */
 
@@ -6127,25 +6199,53 @@ func (x Uint64x8) RotateRight(shift Uint64x8) (z Uint64x8)
 
 /* Round */
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) Round() Float32x4
+func (x Float32x4) Round() (z Float32x4)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) Round() Float32x8
+func (x Float32x8) Round() (z Float32x8)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) Round() Float64x2
+func (x Float64x2) Round() (z Float64x2)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) Round() Float64x4
+func (x Float64x4) Round() (z Float64x4)
 
 /* RoundScaled */
 
@@ -6569,75 +6669,105 @@ func (x Float64x8) Scale(y Float64x8) Float64x8
 
 /* SetElem */
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Float32x4) SetElem(index uint8, y float32) Float32x4
+func (x Float32x4) SetElem(i uint8, y float32) (z Float32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
-func (x Float64x2) SetElem(index uint8, y float64) Float64x2
+func (x Float64x2) SetElem(i uint8, y float64) (z Float64x2)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
-func (x Int8x16) SetElem(index uint8, y int8) Int8x16
+func (x Int8x16) SetElem(i uint8, y int8) (z Int8x16)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
-func (x Int16x8) SetElem(index uint8, y int16) Int16x8
+func (x Int16x8) SetElem(i uint8, y int16) (z Int16x8)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Int32x4) SetElem(index uint8, y int32) Int32x4
+func (x Int32x4) SetElem(i uint8, y int32) (z Int32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
-func (x Int64x2) SetElem(index uint8, y int64) Int64x2
+func (x Int64x2) SetElem(i uint8, y int64) (z Int64x2)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRB, CPU Feature: AVX
-func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
+func (x Uint8x16) SetElem(i uint8, y uint8) (z Uint8x16)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRW, CPU Feature: AVX
-func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
+func (x Uint16x8) SetElem(i uint8, y uint16) (z Uint16x8)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRD, CPU Feature: AVX
-func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
+func (x Uint32x4) SetElem(i uint8, y uint32) (z Uint32x4)
 
-// SetElem returns x with the index'th element set to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
 //
-// Performance: A non-constant value of index may result in significantly worse performance for this operation.
+//	z = x
+//	z[i] = y
+//
+// Performance: A non-constant value of i may result in significantly worse performance for this operation.
 //
 // Asm: VPINSRQ, CPU Feature: AVX
-func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
+func (x Uint64x2) SetElem(i uint8, y uint64) (z Uint64x2)
 
 /* SetHi */
 
@@ -8487,25 +8617,49 @@ func (x Uint8x64) SumOf8AbsDiff(y Uint8x64) Uint64x8
 
 /* Trunc */
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x4) Trunc() Float32x4
+func (x Float32x4) Trunc() (z Float32x4)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VROUNDPS, CPU Feature: AVX
-func (x Float32x8) Trunc() Float32x8
+func (x Float32x8) Trunc() (z Float32x8)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x2) Trunc() Float64x2
+func (x Float64x2) Trunc() (z Float64x2)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: VROUNDPD, CPU Feature: AVX
-func (x Float64x4) Trunc() Float64x4
+func (x Float64x4) Trunc() (z Float64x4)
 
 /* TruncScaled */
 

@@ -56,3 +56,18 @@ func Not[E Ints | Uints | MaskElt, W Width](x Vec[E, W]) (z Vec[E, W]) {
 		return ^x
 	})
 }
+
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
+//
+//specgen:require cond=Uint{xN}x{xL}
+func BitSelect[E Ints | Uints, W Width, CondE Uints](x, y Vec[E, W], cond Vec[CondE, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := range z {
+		z[i] = (x[i] & E(cond[i])) | (y[i] &^ E(cond[i]))
+	}
+	return z
+}
