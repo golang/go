@@ -1,0 +1,55 @@
+# The operating system resolves a symbolic link before a ".." that
+# follows it, so testdata/link/../input.txt names docs/input.txt,
+# not p/testdata/input.txt. Check that a change to the file the test
+# read invalidates the cache (go.dev/issue/82849).
+
+[short] skip
+[!symlink] skip
+[GOOS:windows] skip 'Windows resolves .. before symbolic links'
+
+env GOCACHE=$WORK/gocache
+
+mkdir docs/sub p/testdata
+symlink p/testdata/link -> ../../docs/sub
+
+# The go command refuses to cache access to files younger than 2s.
+sleep 2s
+
+go test -v ./p
+stdout 'read: old'
+! stdout '(cached)'
+go test -v ./p
+stdout '(cached)'
+
+cp new.txt docs/input.txt
+sleep 2s
+go test -v ./p
+stdout 'read: new'
+! stdout '(cached)'
+go test -v ./p
+stdout 'read: new'
+stdout '(cached)'
+
+-- go.mod --
+module example.com/dotdot
+
+go 1.27
+-- docs/input.txt --
+old
+-- new.txt --
+new
+-- p/p_test.go --
+package p
+
+import (
+	"os"
+	"testing"
+)
+
+func TestReadThroughLink(t *testing.T) {
+	b, err := os.ReadFile("testdata/link/../input.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("read: %s", b)
+}
