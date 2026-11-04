@@ -2980,7 +2980,7 @@ func TestTimeoutHandlerPanicRecovery(t *testing.T) {
 	}
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, wrapper, ErrAbortHandler)
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestRedirectBadPath(t *testing.T) {
@@ -3153,13 +3153,13 @@ func testZeroLengthPostAndResponse(t *testing.T, mode testMode) {
 func TestHandlerPanicNil(t *testing.T) {
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, nil)
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestHandlerPanic(t *testing.T) {
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, "intentional death for testing")
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {

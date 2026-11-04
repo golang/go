@@ -18,7 +18,7 @@ type http3Transport interface {
 // http3Server is an HTTP/3 server implementation. net/http/internal/http3
 // registers an implementation of this interface by passing it to Server.Serve.
 type http3Server interface {
-	ServeHTTP3(context.Context, net.PacketConn, *tls.Config, Handler) error
+	ServeHTTP3(context.Context, net.PacketConn, *tls.Config) error
 	Shutdown(ctx context.Context) error
 }
 
@@ -52,5 +52,5 @@ func (s *Server) serveHTTP3(conn net.PacketConn, certFile, keyFile string) error
 	if err != nil {
 		return err
 	}
-	return s.h3Server.ServeHTTP3(baseCtx, conn, tlsConfig, serverHandler{s})
+	return s.h3Server.ServeHTTP3(baseCtx, conn, tlsConfig)
 }
