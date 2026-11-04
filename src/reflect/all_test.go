@@ -1627,6 +1627,12 @@ func TestMap(t *testing.T) {
 		}
 	}
 
+	unexportedKey := ValueOf(struct{ x string }{"b"}).Field(0)
+	newmap.SetMapIndex(ValueOf("a"), newmap.MapIndex(unexportedKey))
+	if newm["a"] != newm["b"] {
+		t.Errorf("newm[\"a\"] = %d after setting to newm[\"b\"]", newm["a"])
+	}
+
 	newmap.SetMapIndex(ValueOf("a"), Value{})
 	v, ok := newm["a"]
 	if ok {

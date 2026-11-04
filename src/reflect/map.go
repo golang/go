@@ -186,11 +186,10 @@ func (v Value) MapIndex(key Value) Value {
 
 	// Do not require key to be exported, so that DeepEqual
 	// and other programs can use all the keys returned by
-	// MapKeys as arguments to MapIndex. If either the map
-	// or the key is unexported, though, the result will be
-	// considered unexported. This is consistent with the
-	// behavior for structs, which allow read but not write
-	// of unexported fields.
+	// MapKeys as arguments to MapIndex. The returned value is
+	// unexported only if the map itself is unexported.
+	// This is consistent with the behavior for structs,
+	// which allow read but not write of unexported fields.
 
 	var e unsafe.Pointer
 	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.MapMaxElemBytes {
@@ -210,8 +209,7 @@ func (v Value) MapIndex(key Value) Value {
 		return Value{}
 	}
 	typ := tt.Elem
-	fl := (v.flag | key.flag).ro()
-	fl |= flag(typ.Kind())
+	fl := flag(typ.Kind()) | v.flag.ro()
 	return copyVal(typ, fl, e)
 }
 
