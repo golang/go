@@ -93,12 +93,13 @@ func TestTransportServerCreatesBidirectionalStream(t *testing.T) {
 func TestClientConnMethods(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var called bool
-		hook := func() {
+		hook := func() error {
 			t.Helper()
 			if called {
 				t.Error("state hook was unexpectedly called")
 			}
 			called = true
+			return nil
 		}
 		verifyHookWasCalled := func() {
 			t.Helper()
@@ -620,7 +621,7 @@ type testClientConn struct {
 	control *testQUICStream
 }
 
-func newTestClientConnWithHook(t testing.TB, stateHook func()) *testClientConn {
+func newTestClientConnWithHook(t testing.TB, stateHook func() error) *testClientConn {
 	e1, e2 := newQUICEndpointPair(t)
 	tr := &transport{
 		lazyEndpoint: e1,

@@ -79,6 +79,23 @@ func (list *intrusiveList[T]) all() iter.Seq[*T] {
 	}
 }
 
+func (list *intrusiveList[T]) backward() iter.Seq[*T] {
+	return func(yield func(*T) bool) {
+		if list.head == nil {
+			return
+		}
+		e := list.link(list.head).prev
+		for {
+			prev := list.link(e).prev
+			last := e == list.head
+			if !yield(e) || last {
+				return
+			}
+			e = prev
+		}
+	}
+}
+
 func (list *intrusiveList[T]) contains(e *T) bool {
 	return list.link(e).next != nil
 }

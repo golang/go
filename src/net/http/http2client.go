@@ -153,7 +153,7 @@ func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (generic
 
 // http2NewClientConn creates an HTTP/2 genericClientConn (used to implement ClientConn) from nc.
 // The connection is not added to the HTTP/2 connection pool.
-func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (genericClientConn, error) {
+func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func() error) (genericClientConn, error) {
 	if t.h2Transport == nil {
 		return nil, errors.ErrUnsupported
 	}

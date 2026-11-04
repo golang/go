@@ -88,7 +88,7 @@ func (t netHTTPTransport) RoundTrip(*http.Request) (*http.Response, error) {
 // The internal state hook need not be called after synchronous changes
 // to the state: Close, Reserve, Release, and RoundTrip calls
 // which don't start a request do not need to call the hook.
-func (t netHTTPTransport) DialClientConn(ctx context.Context, addr string, _ *url.URL, tlsConfig *tls.Config, stateHook func()) (http.RoundTripper, error) {
+func (t netHTTPTransport) DialClientConn(ctx context.Context, addr string, _ *url.URL, tlsConfig *tls.Config, stateHook func() error) (http.RoundTripper, error) {
 	return t.transport.dial(ctx, addr, tlsConfig, stateHook)
 }
 
@@ -189,7 +189,7 @@ func (tr *transport) endpoint() (_ *quic.Endpoint, err error) {
 }
 
 // dial creates a new HTTP/3 client connection.
-func (tr *transport) dial(ctx context.Context, target string, tlsConfig *tls.Config, stateHook func()) (*clientConn, error) {
+func (tr *transport) dial(ctx context.Context, target string, tlsConfig *tls.Config, stateHook func() error) (*clientConn, error) {
 	tr.incInFlightDials()
 	defer tr.decInFlightDials()
 
@@ -238,7 +238,7 @@ type clientConn struct {
 	active   int
 	closed   bool
 
-	stateHook func()
+	stateHook func() error
 }
 
 func (tr *transport) registerConn(cc *clientConn) {
@@ -263,7 +263,7 @@ func (tr *transport) maxResponseHeaderBytes() int64 {
 	return 10 << 20 // Matches HTTP/1 and HTTP/2 default of 10 MB.
 }
 
-func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateHook func()) (*clientConn, error) {
+func (tr *transport) newClientConn(ctx context.Context, qconn *quic.Conn, stateHook func() error) (*clientConn, error) {
 	cc := &clientConn{
 		tr:           tr,
 		unregistered: make(chan struct{}),
@@ -304,15 +304,9 @@ func (cc *clientConn) Proto() int {
 	return 3
 }
 
-func (cc *clientConn) IsAlt() bool {
-	return true
-}
-
-func (cc *clientConn) IsReused() bool {
-	return false
-}
-
 func (cc *clientConn) NetConn() net.Conn {
+	// TODO: This should return a fake net.Conn that implements RemoteAddr/LocalAddr.
+	// This fake Conn will be provided to user GotConn trace hooks.
 	return nil
 }
 

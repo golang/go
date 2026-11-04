@@ -90,7 +90,8 @@ func TestTransportPoolConnHTTP2NoStrictMaxConcurrentRequests(t *testing.T) {
 		rt2.finish()
 		rt3.finish()
 
-		// With slots available on both connections, we prefer the oldest.
+		// With slots available on both connections, we prefer the one most recently
+		// added to the idle list.
 		rt4 := dt.roundTrip()
 		rt4.wantDone(c1, "HTTP/2.0")
 		rt5 := dt.roundTrip()
@@ -130,6 +131,7 @@ func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
 
 		// Third request blocks waiting for a slot on the existing connection.
 		rt3 := dt.roundTrip()
+		dt.wantIdle()
 
 		// First request finishing unblocks the thirrd.
 		rt1.finish()
@@ -140,26 +142,75 @@ func TestTransportPoolConnHTTP2StrictMaxConcurrentRequests(t *testing.T) {
 	})
 }
 
-// A new request made while an HTTP/2 dial is in progress will start a second dial.
-func TestTransportPoolConnHTTP2Startup(t *testing.T) {
+// HTTP/1-only dials never coalesce.
+func TestTransportPoolConnHTTP1CoalescedDial(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		dt := newTransportDialTester(t, http2UnencryptedMode, func(srv *http.Server) {})
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.MaxConnsPerHost = 2
+		})
+
+		// Three requests start.
+		// The first two start dials, but the third is blocked by MaxConnsPerHost.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		rt2 := dt.roundTrip()
+		c2 := dt.wantDial()
+		rt3 := dt.roundTrip()
+		dt.wantIdle()
+
+		// A dial fails.
+		// The error is delivered only to the RoundTrip associated with the dial.
+		// The third request can dial now.
+		c1.finish(errors.New("failed"))
+		rt1.wantError()
+		c3 := dt.wantDial()
+
+		// The other dials succeed.
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/1.1")
+		c3.finish(nil)
+		rt3.wantDone(c3, "HTTP/1.1")
+		// The error is delivered to the RoundTrip associated with the dial,
+		// plus the RoundTrip that has not dialed.
+		// The RoundTrip with its own dial keeps going.
+	})
+}
+
+// A new request made while an HTTP/2 dial is in progress will not start a second dial.
+func TestTransportPoolConnHTTP2CoalescedDialSuccess(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
 
 		// Two requests start.
-		// Since the second request starts before the first dial finishes, it starts a second dial.
+		// The second request coalesces behind the first.
 		rt1 := dt.roundTrip()
 		rt2 := dt.roundTrip()
 		c1 := dt.wantDial()
-		c2 := dt.wantDial()
 
-		// Both requests use the conn of the first dial to complete.
+		// Both requests use the new HTTP/2 conn.
 		c1.finish(nil)
 		rt1.wantDone(c1, "HTTP/2.0")
 		rt2.wantDone(c1, "HTTP/2.0")
 
 		rt1.finish()
 		rt2.finish()
-		c2.finish(nil)
+	})
+}
+
+func TestTransportPoolConnHTTP2CoalescedDialFailure(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http2UnencryptedMode)
+
+		// Two requests start.
+		// The second request coalesces behind the first.
+		rt1 := dt.roundTrip()
+		rt2 := dt.roundTrip()
+		c1 := dt.wantDial()
+
+		// Both requests observe the error.
+		c1.finish(errors.New("error"))
+		rt1.wantError()
+		rt2.wantError()
 	})
 }
 

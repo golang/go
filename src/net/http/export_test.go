@@ -200,7 +200,7 @@ type remapHTTP3Dialer struct {
 	remap func(string) string
 }
 
-func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func()) (RoundTripper, error) {
+func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func() error) (RoundTripper, error) {
 	return d.http3Transport.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
 }
 

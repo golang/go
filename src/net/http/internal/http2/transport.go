@@ -203,7 +203,7 @@ type ClientConn struct {
 	// Note that this is different from the user state hook registered by
 	// net/http.ClientConn.SetStateHook: The internal hook calls ClientConn,
 	// which calls the user hook.
-	internalStateHook func()
+	internalStateHook func() error
 
 	// wmu is held while writing.
 	// Acquire BEFORE mu when holding both, to avoid blocking mu on network writes.
@@ -480,7 +480,7 @@ func (t *Transport) expectContinueTimeout() time.Duration {
 	return t.t1.ExpectContinueTimeout()
 }
 
-func (t *Transport) NewClientConn(c net.Conn, internalStateHook func()) (NetHTTPClientConn, error) {
+func (t *Transport) NewClientConn(c net.Conn, internalStateHook func() error) (NetHTTPClientConn, error) {
 	cc, err := t.newClientConn(c, internalStateHook)
 	if err != nil {
 		return NetHTTPClientConn{}, err
@@ -493,7 +493,7 @@ func (t *Transport) NewClientConn(c net.Conn, internalStateHook func()) (NetHTTP
 	return NetHTTPClientConn{cc}, nil
 }
 
-func (t *Transport) newClientConn(c net.Conn, internalStateHook func()) (*ClientConn, error) {
+func (t *Transport) newClientConn(c net.Conn, internalStateHook func() error) (*ClientConn, error) {
 	conf := configFromTransport(t)
 	cc := &ClientConn{
 		t:                           t,

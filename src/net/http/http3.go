@@ -12,7 +12,7 @@ import (
 )
 
 type http3Transport interface {
-	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func()) (RoundTripper, error)
+	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func() error) (RoundTripper, error)
 	Close() error
 }
 

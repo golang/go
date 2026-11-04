@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"time"
 )
 
 // omitHTTP2Client is true when the nethttpomithttp2 or
@@ -26,7 +27,7 @@ func (t *Transport) http2AddConn(scheme, authority string, nc net.Conn) (generic
 func (t *Transport) http2ExternalDial(ctx context.Context, cm connectMethod) (genericClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
-func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func()) (genericClientConn, error) {
+func (t *Transport) http2NewClientConn(nc net.Conn, internalStateHook func() error) (genericClientConn, error) {
 	return nil, errors.ErrUnsupported
 }
 func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientConn, error) {
@@ -35,9 +36,11 @@ func (t *Transport) http2NewClientConnFromContext(ctx context.Context) (*ClientC
 
 type http2Transport struct{}
 type http2ExternalTransportConfig interface {
+	HTTP2Config() HTTP2Config
 	ExternalRoundTrip() bool
 	RoundTrip(*Request) (*Response, error)
 	Registered(*Transport)
+	IdleConnTimeout() time.Duration
 	unimplementable()
 }
 

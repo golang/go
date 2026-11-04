@@ -688,7 +688,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 		// host (for http or https), the http proxy, or the http proxy
 		// pre-CONNECTed to https server. In any case, we'll be ready
 		// to send it requests.
-		pconn, err := t.getConn(ctx, cm)
+		pconn, canRetry, err := t.getConn(ctx, cm, req.wantsClose())
 		if err != nil {
 			req.closeBody()
 			return nil, err
@@ -708,7 +708,7 @@ func (t *Transport) roundTrip(req *Request) (_ *Response, err error) {
 			backoff = false
 			t.poolRemoveConn(pconn)
 		} else {
-			shouldRetry, backoff = shouldRetryRequest(retry, pconn, req, err)
+			shouldRetry, backoff = shouldRetryRequest(retry, canRetry, req, err)
 		}
 		if !shouldRetry {
 			// Issue 16465: return underlying net.Conn.Read error from peek,
@@ -826,7 +826,7 @@ func rewindBody(req *Request) (rewound *Request, err error) {
 // shouldRetryRequest reports whether we should retry sending a failed
 // HTTP request on a new connection. The non-nil input error is the
 // error from roundTrip.
-func shouldRetryRequest(retry int, pconn *poolConn, req *Request, err error) (shouldRetry, backoff bool) {
+func shouldRetryRequest(retry int, canRetry bool, req *Request, err error) (shouldRetry, backoff bool) {
 	if retry > 6 {
 		return false, false
 	}
@@ -852,7 +852,7 @@ func shouldRetryRequest(retry int, pconn *poolConn, req *Request, err error) (sh
 		// limit before processing its initial SETTINGS frame).
 		return true, e.Backoff
 	}
-	if !pconn.cc.IsReused() {
+	if !canRetry {
 		// This was a fresh connection. There's no reason the server
 		// should've hung up on us.
 		//
@@ -1035,12 +1035,12 @@ func (cm *connectMethod) proxyAuth() string {
 
 // error values for debugging and testing, not seen by users.
 var (
-	errKeepAlivesDisabled = errors.New("http: putIdleConn: keep alives disabled")
-	errConnBroken         = errors.New("http: putIdleConn: connection is in bad state")
-	errCloseIdle          = errors.New("http: putIdleConn: CloseIdleConnections was called")
-	errTooManyIdle        = errors.New("http: putIdleConn: too many idle connections")
-	errTooManyIdleHost    = errors.New("http: putIdleConn: too many idle connections for host")
-	errCloseIdleConns     = errors.New("http: CloseIdleConnections called")
+	errKeepAlivesDisabled = errors.New("http: keep alives disabled")
+	errConnBroken         = errors.New("http: connection is in bad state")
+	errCloseIdle          = errors.New("http: CloseIdleConnections was called")
+	errCloseOnIdle        = errors.New("http: connection marked as close-on-idle")
+	errTooManyIdle        = errors.New("http: too many idle connections")
+	errTooManyIdleHost    = errors.New("http: too many idle connections for host")
 	errReadLoopExiting    = errors.New("http: persistConn.readLoop exiting")
 	errIdleConnTimeout    = errors.New("http: idle connection timeout")
 
@@ -1076,15 +1076,13 @@ func (t *Transport) maxIdleConnsPerHost() int {
 	return DefaultMaxIdleConnsPerHost
 }
 
-func (t *Transport) keepAlivesDisabled() bool {
-	return t.DisableKeepAlives || t.MaxIdleConnsPerHost < 0 || t.MaxIdleConns < 0
-}
-
 // roundTripDone records that an in-flight request has completed.
 // It returns an error if the connection should now be closed.
-func (pc *persistConn) roundTripDone() error {
-	if pc.t.keepAlivesDisabled() {
-		return errKeepAlivesDisabled
+func (pc *persistConn) roundTripDone(trace *httptrace.ClientTrace) error {
+	putIdle := func(err error) {
+		if !pc.isClientConn && trace != nil && trace.PutIdleConn != nil && err != errKeepAlivesDisabled && err != errCloseIdle && !pc.t.closeConnsOnIdle() {
+			trace.PutIdleConn(err)
+		}
 	}
 	if err := func() error {
 		pc.mu.Lock()
@@ -1092,7 +1090,6 @@ func (pc *persistConn) roundTripDone() error {
 		if pc.closed != nil {
 			return errConnBroken
 		}
-		pc.reused = true
 		if !pc.inFlight {
 			panic("pconn is not in flight")
 		}
@@ -1104,13 +1101,19 @@ func (pc *persistConn) roundTripDone() error {
 		}
 		return nil
 	}(); err != nil {
+		putIdle(err)
 		return err
 	}
+	var err error
 	if pc.internalStateHook != nil {
-		pc.internalStateHook()
+		err = pc.internalStateHook()
 	}
-	// The state hook could have closed the conn.
-	// If it did, return an error so readLoop can exit quickly.
+	putIdle(err)
+	if err != nil {
+		return err
+	}
+	// The state hook (or another request reusing pc while PutIdleConn ran)
+	// could have closed the conn. If it did, return an error so readLoop can exit quickly.
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	return pc.closed
@@ -1152,40 +1155,22 @@ func (t *Transport) customDialTLS(ctx context.Context, network, addr string) (co
 // specified in the connectMethod. This includes doing a proxy CONNECT
 // and/or setting up TLS. If this doesn't return an error, the connection
 // is ready to write requests to.
-func (t *Transport) getConn(ctx context.Context, cm connectMethod) (_ *poolConn, err error) {
+func (t *Transport) getConn(ctx context.Context, cm connectMethod, connClose bool) (_ *poolConn, canRetry bool, err error) {
 	trace := httptrace.ContextClientTrace(ctx)
 	if trace != nil && trace.GetConn != nil {
 		trace.GetConn(cm.addr())
 	}
 
-	pconn, err := t.poolGetConn(ctx, cm)
+	pconn, info, err := t.poolGetConn(ctx, cm, connClose)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	if !pconn.cc.IsAlt() && trace != nil {
-		if _, ok := pconn.cc.(*persistConn); ok {
-			// Arrange to call PutIdleConn for HTTP/1 connections.
-			// Our documented behavior is to not call PutIdleConn for HTTP/2
-			// (and eventually HTTP/3) connections.
-			//
-			// Setting putIdleHook here is race-free: The conn can only become
-			// idle after RoundTrip sends a request on it, and putIdleHook
-			// is only checked for idle conns.
-			pconn.putIdleHook = trace.PutIdleConn
-		}
-		if trace.GotConn != nil {
-			info := httptrace.GotConnInfo{
-				Conn:   pconn.cc.NetConn(),
-				Reused: pconn.cc.IsReused(),
-			}
-			if !pconn.idleAt.IsZero() {
-				info.WasIdle = true
-				info.IdleTime = time.Since(pconn.idleAt)
-			}
-			trace.GotConn(info)
-		}
+	info.Reused = pconn.reused.Swap(true)
+	if !pconn.isAlt() && trace != nil && trace.GotConn != nil {
+		trace.GotConn(info)
 	}
-	return pconn, nil
+	canRetry = info.Reused || info.WasIdle
+	return pconn, canRetry, nil
 }
 
 func (t *Transport) tlsConfigForDial(host string) (*tls.Config, error) {
@@ -1258,7 +1243,7 @@ type erringRoundTripper interface {
 
 var testHookProxyConnectTimeout = context.WithTimeout
 
-func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func()) (_ genericClientConn, err error) {
+func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn bool, internalStateHook func() error) (_ genericClientConn, err error) {
 	// TODO: actually support HTTP/3. Among other things:
 	// - make HTTP/3 play well with proxy.
 	// - implement happy eyeball between HTTP/3 and HTTP/1 & HTTP/2.
@@ -1291,6 +1276,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		closech:           make(chan struct{}),
 		writeErrCh:        make(chan error, 1),
 		writeLoopDone:     make(chan struct{}),
+		isClientConn:      isClientConn,
 		internalStateHook: internalStateHook,
 	}
 	trace := httptrace.ContextClientTrace(ctx)
@@ -1513,7 +1499,11 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod, isClientConn
 		if !ok {
 			return nil, errors.New("http: HTTP/2 implementation does not support NewClientConn (update golang.org/x/net?)")
 		}
-		rt, err := h2.NewClientConn(pconn.conn, internalStateHook)
+		var stateHook func()
+		if internalStateHook != nil {
+			stateHook = func() { internalStateHook() }
+		}
+		rt, err := h2.NewClientConn(pconn.conn, stateHook)
 		if err != nil {
 			pconn.conn.Close()
 			return nil, err
@@ -1669,20 +1659,21 @@ func (k connectMethodKey) String() string {
 // persistConn wraps an HTTP/1 client connection, usually a persistent one
 // (but may be used for non-keep-alive requests as well).
 type persistConn struct {
-	t         *Transport
-	cacheKey  connectMethodKey
-	conn      net.Conn
-	tlsState  *tls.ConnectionState
-	br        *bufio.Reader       // from conn
-	bw        *bufio.Writer       // to conn
-	nwrite    int64               // bytes written
-	reqch     chan requestAndChan // written by roundTrip; read by readLoop
-	writech   chan writeRequest   // written by roundTrip; read by writeLoop
-	closech   chan struct{}       // closed when conn closed
-	availch   chan struct{}       // contains a value when conn is usable
-	isProxy   bool
-	sawEOF    bool  // whether we've seen EOF from conn; owned by readLoop
-	readLimit int64 // bytes allowed to be read; owned by readLoop
+	t            *Transport
+	cacheKey     connectMethodKey
+	conn         net.Conn
+	tlsState     *tls.ConnectionState
+	br           *bufio.Reader       // from conn
+	bw           *bufio.Writer       // to conn
+	nwrite       int64               // bytes written
+	reqch        chan requestAndChan // written by roundTrip; read by readLoop
+	writech      chan writeRequest   // written by roundTrip; read by writeLoop
+	closech      chan struct{}       // closed when conn closed
+	availch      chan struct{}       // contains a value when conn is usable
+	isProxy      bool
+	isClientConn bool
+	sawEOF       bool  // whether we've seen EOF from conn; owned by readLoop
+	readLimit    int64 // bytes allowed to be read; owned by readLoop
 	// writeErrCh passes the request write error (usually nil)
 	// from the writeLoop goroutine to the readLoop which passes
 	// it off to the res.Body reader, which then uses it to decide
@@ -1693,12 +1684,11 @@ type persistConn struct {
 
 	mu                   sync.Mutex // guards following fields
 	numExpectedResponses int
-	closed               error  // set non-nil when conn is closed, before closech is closed
-	canceledErr          error  // set non-nil if conn is canceled
-	reused               bool   // whether conn has had successful request/response and is being reused.
-	reserved             bool   // concurrency slot reserved
-	inFlight             bool   // request is in flight
-	internalStateHook    func() // called when connection state changes
+	closed               error        // set non-nil when conn is closed, before closech is closed
+	canceledErr          error        // set non-nil if conn is canceled
+	reserved             bool         // concurrency slot reserved
+	inFlight             bool         // request is in flight
+	internalStateHook    func() error // called when connection state changes
 
 	// mutateHeaderFunc is an optional func to modify extra
 	// headers on each outbound request before it's written. (the
@@ -1738,14 +1728,6 @@ func (pc *persistConn) canceled() error {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	return pc.canceledErr
-}
-
-// IsReused reports whether this connection has been used before.
-func (pc *persistConn) IsReused() bool {
-	pc.mu.Lock()
-	r := pc.reused
-	pc.mu.Unlock()
-	return r
 }
 
 func (pc *persistConn) cancelRequest(err error) {
@@ -1868,8 +1850,8 @@ func (pc *persistConn) readLoop() {
 		}
 	}()
 
-	tryPutIdleConn := func() bool {
-		if err := pc.roundTripDone(); err != nil {
+	tryPutIdleConn := func(trace *httptrace.ClientTrace) bool {
+		if err := pc.roundTripDone(trace); err != nil {
 			closeErr = err
 			return false
 		}
@@ -1936,7 +1918,7 @@ func (pc *persistConn) readLoop() {
 		isConnect := rc.treq.Request.Method == "CONNECT"
 		hasBody := rc.treq.Request.Method != "HEAD" && resp.ContentLength != 0
 
-		if resp.Close || rc.treq.Request.Close || resp.StatusCode <= 199 || bodyWritable || isConnect {
+		if resp.Close || rc.treq.Request.wantsClose() || resp.StatusCode <= 199 || bodyWritable || isConnect {
 			// Don't do keep-alive on error if either party requested a close
 			// or we get an unexpected informational (1xx) response.
 			// StatusCode 100 is already handled above.
@@ -1973,7 +1955,7 @@ func (pc *persistConn) readLoop() {
 			alive = alive &&
 				!pc.sawEOF &&
 				pc.wroteRequest() &&
-				tryPutIdleConn()
+				tryPutIdleConn(trace)
 			if bodyWritable {
 				closeErr = errCallerOwnsConn
 			}
@@ -2037,7 +2019,7 @@ func (pc *persistConn) readLoop() {
 				alive = alive &&
 					!pc.sawEOF &&
 					pc.wroteRequest() &&
-					tryPutIdleConn()
+					tryPutIdleConn(trace)
 			}
 			switch status {
 			case bodyReadEOF:
@@ -2046,7 +2028,7 @@ func (pc *persistConn) readLoop() {
 			case bodyReadClosedEarly:
 				// Read resp before signaling eofc: the send lets the caller's
 				// Close return, and resp belongs to the caller after that.
-				tryDrain := alive && !pc.t.keepAlivesDisabled() && resp.ContentLength <= maxPostCloseReadBytes
+				tryDrain := alive && (pc.isClientConn || !pc.t.closeConnsOnIdle()) && resp.ContentLength <= maxPostCloseReadBytes
 				eofc <- struct{}{}
 				if tryDrain && maybeDrainBody(body.body) {
 					tryPutIdle()
@@ -2467,7 +2449,8 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
 
 	if pc.t.DisableKeepAlives &&
 		!req.wantsClose() &&
-		!isProtocolSwitchHeader(req.Header) {
+		!isProtocolSwitchHeader(req.Header) &&
+		!pc.isClientConn {
 		req.extraHeaders().Set("Connection", "close")
 	}
 
