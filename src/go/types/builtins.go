@@ -336,14 +336,15 @@ func (check *Checker) _Complex(z *operand, call *ast.CallExpr) {
 		}
 		return nil
 	}
-	z.typ_ = check.applyTypeFunc(f, x, _Complex)
-	if z.typ() == nil {
+	typ := check.applyTypeFunc(f, x, _Complex)
+	if typ == nil {
 		check.errorf(x, InvalidComplex, invalidArg+"arguments have type %s, expected floating-point", x.typ())
 		return
 	}
 
 	// if both arguments are constants, the result is a constant
 	z.mode_ = value
+	z.typ_ = typ
 	if x.mode() == constant_ && y.mode() == constant_ {
 		z.mode_ = constant_
 		z.val = constant.BinaryOp(constant.ToFloat(x.val), token.ADD, constant.MakeImag(constant.ToFloat(y.val)))
@@ -521,8 +522,8 @@ func (check *Checker) _ImagReal(z *operand, call *ast.CallExpr, id builtinId) {
 		}
 		return nil
 	}
-	z.typ_ = check.applyTypeFunc(f, x, id)
-	if z.typ() == nil {
+	typ := check.applyTypeFunc(f, x, id)
+	if typ == nil {
 		code := InvalidImag
 		if id == _Real {
 			code = InvalidReal
@@ -533,6 +534,7 @@ func (check *Checker) _ImagReal(z *operand, call *ast.CallExpr, id builtinId) {
 
 	// if the argument is a constant, the result is a constant
 	z.mode_ = value
+	z.typ_ = typ
 	if x.mode() == constant_ {
 		z.mode_ = constant_
 		if id == _Real {
