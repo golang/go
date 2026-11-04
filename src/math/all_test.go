@@ -2737,8 +2737,7 @@ func TestJ1(t *testing.T) {
 		}
 	}
 
-	// test for https://github.com/golang/go/issues/82101
-	// J1 is an odd function: J1(-x) = -J1(x).
+	// https://go.dev/issue/82101
 	for _, x := range []float64{SmallestNonzeroFloat64, 1e-30, 1e-9, 1.0 / (1 << 27), 1e-4, 1, 2.5, 1e10} {
 		if f, g := J1(-x), -J1(x); f != g {
 			t.Errorf("J1(%g) = %g, want %g", -x, f, g)
