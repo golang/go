@@ -293,10 +293,20 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
 			if d.Doc != nil {
 				comments = append(comments, d.Doc)
 			}
-			// Check each spec separately, as unused specs may have been
-			// trimmed from the declaration.
+			// Unused specs, names and values may have been trimmed,
+			// so only look inside the parts that remain.
 			for _, s := range d.Specs {
-				commentsInside(s)
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					commentsInside(s)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						commentsInside(s.Type)
+					}
+					for _, v := range s.Values {
+						commentsInside(v)
+					}
+				}
 			}
 		case *ast.FuncDecl:
 			if d.Doc != nil {

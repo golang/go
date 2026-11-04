@@ -17,8 +17,13 @@ type T struct {
 
 var a = 1
 
+var c, e = func() int {
+	// Return one.
+	return 1
+}(), 3
+
 func main() {
-	fmt.Println(square(a), T{})
+	fmt.Println(square(a), T{}, c, e)
 }
 -- B.Play --
 package main

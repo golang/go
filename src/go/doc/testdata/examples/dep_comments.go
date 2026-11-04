@@ -22,8 +22,13 @@ var (
 	b = 2
 )
 
+var c, d, e = func() int {
+	// Return one.
+	return 1
+}(), 2 /* d is not used by the example. */, 3
+
 func ExampleA() {
-	fmt.Println(square(a), T{})
+	fmt.Println(square(a), T{}, c, e)
 }
 
 func ExampleB() {
