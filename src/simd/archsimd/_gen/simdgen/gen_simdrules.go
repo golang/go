@@ -41,6 +41,11 @@ type tplRuleData struct {
 	RuleOut        string // e.g. "y" -- output of an asmRule or argsMatchRule.
 	RuleArgs       string // custom args pattern for argsMatchRule.
 	Rule           string // the whole rule
+	// ConstImm reports that the operation has a constant immediate: the
+	// generic op has no aux (so Args has no "[a]"), but the machine op
+	// carries the immediate in its aux field (ArgsOut starts with "[c]").
+	// Rules that match the machine op must match and keep that aux.
+	ConstImm bool
 }
 
 // Helper type to make template map initialization less repetitive
@@ -578,6 +583,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		}
 		if immType == ConstImm {
 			data.ArgsOut = fmt.Sprintf("[%s] %s", *opr.In[0].Const, data.ArgsOut)
+			data.ConstImm = true
 		} else if immType == VarImm || immType == VarImmLim {
 			data.Args = fmt.Sprintf("[a] %s", data.Args)
 			data.ArgsOut = fmt.Sprintf("[a] %s", data.ArgsOut)
@@ -841,8 +847,16 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		// Generate the masked merging optimization rules
 		if noMaskName, blend, ok := gOp.mergeMaskedForm(maskType, opOutShape); ok {
 			// TODO: handle customized operand order and special lower.
+			// The rule matches the machine op, which carries the immediate
+			// in its aux field even when the generic op has a constant
+			// immediate (and so no [a] in data.Args). Match and pass it
+			// through, so the merging op keeps it.
+			mergeArgs := data.Args
+			if data.ConstImm {
+				mergeArgs = "[a] " + mergeArgs
+			}
 			rule := fmt.Sprintf("(%s dst (%s %s) mask) => (%sMerging dst %s mask)\n",
-				blend, noMaskName, data.Args, data.Asm, data.Args)
+				blend, noMaskName, mergeArgs, data.Asm, mergeArgs)
 			if ruleExisting, ok := maskedMergeOpts[noMaskName]; ok && ruleExisting != rule {
 				panic(fmt.Sprintf("multiple masked merge rules for one op:\n%s\n%s\n", ruleExisting, rule))
 			}
