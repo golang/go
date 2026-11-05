@@ -934,6 +934,30 @@ func TestEscapeSet(t *testing.T) {
 			},
 			`<script>var x= 126 /"42";</script>`,
 		},
+		// Multiple calls to a non-recursive template that ends in a different context.
+		{
+			map[string]string{
+				"main": `<a href="{{template "q"}}{{"a&b"}}">1</a><a href="{{template "q"}}{{"a&b"}}">2</a>`,
+				"q":    `/search?q=`,
+			},
+			`<a href="/search?q=a%26b">1</a><a href="/search?q=a%26b">2</a>`,
+		},
+		{
+			map[string]string{
+				"main":   `<script>var x={{template "helper"}}/{{"42"}}; var y={{template "helper"}}/{{"42"}};</script>`,
+				"helper": "{{126}}",
+			},
+			`<script>var x= 126 /"42"; var y= 126 /"42";</script>`,
+		},
+		{
+			map[string]string{
+				"main": `{{template "t1"}}{{template "t2"}}`,
+				"t1":   `<a href="{{template "q"}}{{"a&b"}}">1</a>`,
+				"t2":   `<a href="{{template "q"}}{{"a&b"}}">2</a>`,
+				"q":    `/search?q=`,
+			},
+			`<a href="/search?q=a%26b">1</a><a href="/search?q=a%26b">2</a>`,
+		},
 		// A recursive template that ends in a similar context.
 		{
 			map[string]string{
@@ -2432,5 +2456,84 @@ func TestIssue81823(t *testing.T) {
 				t.Errorf("got:  %s\nwant: %s", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSubtemplateEndContext(t *testing.T) {
+	// Subtemplate "q" ends in urlPartQueryOrFrag, different from its urlPartNone start context.
+	// Executing "t1" and then "t2" in the same template set should both see the urlPartQueryOrFrag context.
+	const src = `{{define "q"}}/search?q={{end}}` +
+		`{{define "t1"}}<a href="{{template "q"}}{{.}}">1</a>{{end}}` +
+		`{{define "t2"}}<a href="{{template "q"}}{{.}}">2</a>{{end}}`
+	tmpl := Must(New("").Parse(src))
+	for _, name := range []string{"t1", "t2"} {
+		var buf strings.Builder
+		if err := tmpl.ExecuteTemplate(&buf, name, "a&b"); err != nil {
+			t.Fatalf("ExecuteTemplate(%s): %v", name, err)
+		}
+		want := `<a href="/search?q=a%26b">` + string(name[1]) + `</a>`
+		if got := buf.String(); got != want {
+			t.Errorf("template %s: got %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestExecuteFailedSubtemplate(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "ErrOutputContext/stateText",
+			src: `{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}<a title="{{.Head}}{{end}}` +
+				`{{define "caller"}}{{if false}}{{template "t" .}}">{{end}}ok{{end}}`,
+		},
+		{
+			name: "ErrOutputContext/stateURL",
+			src: `{{define "t"}}{{if .Tail}}{{template "t" .Tail}}{{end}}<a title="{{.Head}}{{end}}` +
+				`{{define "caller"}}<a href="{{if false}}{{template "t" .}}{{end}}">ok</a>{{end}}`,
+		},
+		{
+			name: "ErrEndContext",
+			src: `{{define "t"}}<a title="{{end}}` +
+				`{{define "caller"}}{{if false}}{{template "t" .}}">{{end}}ok{{end}}`,
+		},
+		{
+			name: "ErrBranchEnd",
+			src: `{{define "t"}}{{if .}}<a title="{{end}}{{end}}` +
+				`{{define "caller"}}{{if false}}{{template "t" .}}{{end}}ok{{end}}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpl := Must(New("").Parse(tt.src))
+			var buf strings.Builder
+			if err := tmpl.ExecuteTemplate(&buf, "t", nil); err == nil {
+				t.Fatal(`ExecuteTemplate("t") succeeded, want error`)
+			}
+			err := tmpl.ExecuteTemplate(&buf, "caller", nil)
+			if err == nil {
+				t.Fatal(`ExecuteTemplate("caller") succeeded, want error`)
+			}
+			const want = `"t" is an incomplete or empty template`
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf(`ExecuteTemplate("caller") = %q, want substring %q`, err, want)
+			}
+		})
+	}
+}
+
+func TestEscapeErrorMemoization(t *testing.T) {
+	// Deeply nested calls to a failing template should not take exponential time.
+	var src strings.Builder
+	const depth = 30
+	for i := range depth {
+		fmt.Fprintf(&src, `{{define "t%d"}}{{template "t%d"}}{{template "t%d"}}{{end}}`, i, i+1, i+1)
+	}
+	fmt.Fprintf(&src, `{{define "t%d"}}{{if .}}<a href="{{end}}{{end}}`, depth)
+	tmpl := Must(New("").Parse(src.String()))
+	var buf strings.Builder
+	if err := tmpl.ExecuteTemplate(&buf, "t0", nil); err == nil {
+		t.Fatal("ExecuteTemplate succeeded, want error")
 	}
 }
