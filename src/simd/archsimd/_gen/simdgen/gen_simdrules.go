@@ -90,7 +90,13 @@ func (d tplRuleData) MaskOptimization(asmCheck map[string]bool) string {
 	if !ok || !asmCheck[asmNoMask] {
 		return ""
 	}
-	return fmt.Sprintf("(%s (%s %s) mask) => (%s %s mask)\n", zeroMove, asmNoMask, d.Args, d.Asm, d.Args)
+	args := d.Args
+	if d.ConstImm {
+		// Match the machine op's immediate and keep it; otherwise this
+		// would match any immediate and drop it.
+		args = "[a] " + args
+	}
+	return fmt.Sprintf("(%s (%s %s) mask) => (%s %s mask)\n", zeroMove, asmNoMask, args, d.Asm, args)
 }
 
 // zeroMaskedForm and mergeMaskedForm express o's zeroing-masked and
