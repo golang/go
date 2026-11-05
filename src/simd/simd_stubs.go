@@ -674,6 +674,17 @@ func (x Uint8s) ConvertToInt8() (z Int8s)
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint8s) Equal(y Uint8s) (z Mask8s)
 
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8s) Greater(y Uint8s) (z Mask8s)
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8s) GreaterEqual(y Uint8s) (z Mask8s)
+
 // HiToLo returns a vector whose low half is the high half of x and whose high
 // half is zero.
 //
@@ -688,6 +699,17 @@ func (x Uint8s) IfElse(mask Mask8s, y Uint8s) (z Uint8s)
 
 // Len returns the number of elements in x.
 func (x Uint8s) Len() int
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8s) Less(y Uint8s) (z Mask8s)
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8s) LessEqual(y Uint8s) (z Mask8s)
 
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.

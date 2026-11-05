@@ -201,6 +201,10 @@ func TestUint8s(t *testing.T) {
 	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Min, test_helpers.Min)
 	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Equal, test_helpers.Equal)
 	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.GreaterEqual, test_helpers.GreaterEqual)
 
 	// TODO: untested methods: AddSaturated, Average, BitsToInt8, ConvertToInt8,
 	// IfElse, Len, Masked, Not, ReduceSum (tested in TestReduceSum),

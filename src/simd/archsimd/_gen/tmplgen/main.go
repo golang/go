@@ -1040,22 +1040,15 @@ func (x {{.VType}}) Not() {{.VType}} {
 }
 `)
 
-// CPUfeatureAVX2if8 return AVX2 if the element width is 8,
-// otherwise, it returns CPUfeature.  This is for the cpufeature
-// of unsigned comparison emulation, which uses shifts for all
-// the sizes > 8 (shifts are AVX) but must use broadcast (AVX2)
-// for bytes.
-func (t templateData) CPUfeatureAVX2if8() string {
-	if t.EWidth == 8 {
-		return "AVX2"
-	}
-	return t.CPUfeature()
-}
-
+// avx2UnsignedComparisonsTemplate emulates unsigned comparisons, which have
+// no native instructions below AVX512, by flipping the sign bits and using the
+// signed comparison. For 16-, 32-, and 64-bit elements, the sign-bit constant
+// is built from all ones and a shift. There is no 8-bit shift, so for bytes it
+// uses a broadcast. Both are AVX at 128 bits.
 var avx2UnsignedComparisonsTemplate = shapedTemplateOf(avx2UnsignedComparisons, "avx2 unsigned comparisons", `
 // Greater returns a mask whose elements indicate whether x > y.
 //
-// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 {{- if eq .EWidth 8}}
@@ -1069,7 +1062,7 @@ func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
 
 // Less returns a mask whose elements indicate whether x < y.
 //
-// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 {{- if eq .EWidth 8}}
@@ -1083,7 +1076,7 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 
 // GreaterEqual returns a mask whose elements indicate whether x >= y.
 //
-// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
@@ -1097,7 +1090,7 @@ func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
 
 // LessEqual returns a mask whose elements indicate whether x <= y.
 //
-// Emulated, CPU Feature: {{.CPUfeatureAVX2if8}}
+// Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
@@ -1165,7 +1158,7 @@ func (x {{.VType}}) IfElse(mask Mask{{.WxC}}, y {{.VType}}) {{.VType}}
 func (t templateData) CPUfeatureBC() string {
 	switch t.Vwidth {
 	case 128:
-		return "AVX2"
+		return "AVX"
 	case 256:
 		return "AVX2"
 	case 512:
@@ -1174,6 +1167,10 @@ func (t templateData) CPUfeatureBC() string {
 	panic(fmt.Errorf("unexpected vector width %d", t.Vwidth))
 }
 
+// broadcastTemplate generates the amd64 Broadcast functions. These use
+// VPBROADCAST/VBROADCASTS[SD], which require AVX2 even at 128 bits, but the
+// compiler implements 128-bit broadcasts with AVX shuffles unless it knows AVX2
+// is available (see AMD64latelower.rules), so 128-bit broadcasts need only AVX.
 var broadcastTemplate = templateOf("Broadcast functions", `
 // Broadcast{{.VType}} returns a vector with the input
 // x assigned to all elements of the output.

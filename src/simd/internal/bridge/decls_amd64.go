@@ -1972,6 +1972,30 @@ func (x Uint8x64) Equal(y Uint8x64) Mask8x64 {
 	return Mask8x64((archsimd.Uint8x64(x)).Equal(archsimd.Uint8x64(y)))
 }
 
+func (x Uint8x16) Greater(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Greater(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x32) Greater(y Uint8x32) Mask8x32 {
+	return Mask8x32((archsimd.Uint8x32(x)).Greater(archsimd.Uint8x32(y)))
+}
+
+func (x Uint8x64) Greater(y Uint8x64) Mask8x64 {
+	return Mask8x64((archsimd.Uint8x64(x)).Greater(archsimd.Uint8x64(y)))
+}
+
+func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).GreaterEqual(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x32) GreaterEqual(y Uint8x32) Mask8x32 {
+	return Mask8x32((archsimd.Uint8x32(x)).GreaterEqual(archsimd.Uint8x32(y)))
+}
+
+func (x Uint8x64) GreaterEqual(y Uint8x64) Mask8x64 {
+	return Mask8x64((archsimd.Uint8x64(x)).GreaterEqual(archsimd.Uint8x64(y)))
+}
+
 func (x Uint8x16) HiToLo() Uint8x16 {
 	return Uint8x16((archsimd.Uint8x16(x)).HiToLo())
 }
@@ -2006,6 +2030,30 @@ func (x Uint8x32) Len() int {
 
 func (x Uint8x64) Len() int {
 	return (archsimd.Uint8x64(x)).Len()
+}
+
+func (x Uint8x16) Less(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Less(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x32) Less(y Uint8x32) Mask8x32 {
+	return Mask8x32((archsimd.Uint8x32(x)).Less(archsimd.Uint8x32(y)))
+}
+
+func (x Uint8x64) Less(y Uint8x64) Mask8x64 {
+	return Mask8x64((archsimd.Uint8x64(x)).Less(archsimd.Uint8x64(y)))
+}
+
+func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).LessEqual(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x32) LessEqual(y Uint8x32) Mask8x32 {
+	return Mask8x32((archsimd.Uint8x32(x)).LessEqual(archsimd.Uint8x32(y)))
+}
+
+func (x Uint8x64) LessEqual(y Uint8x64) Mask8x64 {
+	return Mask8x64((archsimd.Uint8x64(x)).LessEqual(archsimd.Uint8x64(y)))
 }
 
 func (x Uint8x16) Masked(mask Mask8x16) Uint8x16 {

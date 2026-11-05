@@ -9,19 +9,25 @@ package archsimd
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX
 func (x Float64x2) broadcast1To2() Float64x2
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX
 func (x Int64x2) broadcast1To2() Int64x2
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTQ, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTQ, CPU Feature: AVX
 func (x Uint64x2) broadcast1To2() Uint64x2
 
 /* broadcast1To2Masked */
@@ -55,7 +61,9 @@ func (x Uint64x2) broadcast1To2Masked(mask Mask64x2) Uint64x2
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VBROADCASTSS, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VBROADCASTSS, CPU Feature: AVX
 func (x Float32x4) broadcast1To4() Float32x4
 
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
@@ -67,7 +75,9 @@ func (x Float64x2) broadcast1To4() Float64x4
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTD, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX
 func (x Int32x4) broadcast1To4() Int32x4
 
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
@@ -79,7 +89,9 @@ func (x Int64x2) broadcast1To4() Int64x4
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTD, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTD, CPU Feature: AVX
 func (x Uint32x4) broadcast1To4() Uint32x4
 
 // broadcast1To4 copies the lowest element of its input to all 4 elements of
@@ -155,7 +167,9 @@ func (x Float64x2) broadcast1To8() Float64x8
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTW, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX
 func (x Int16x8) broadcast1To8() Int16x8
 
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
@@ -173,7 +187,9 @@ func (x Int64x2) broadcast1To8() Int64x8
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTW, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTW, CPU Feature: AVX
 func (x Uint16x8) broadcast1To8() Uint16x8
 
 // broadcast1To8 copies the lowest element of its input to all 8 elements of
@@ -265,7 +281,9 @@ func (x Float32x4) broadcast1To16() Float32x16
 // broadcast1To16 copies the lowest element of its input to all 16 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTB, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX
 func (x Int8x16) broadcast1To16() Int8x16
 
 // broadcast1To16 copies the lowest element of its input to all 16 elements of
@@ -283,7 +301,9 @@ func (x Int32x4) broadcast1To16() Int32x16
 // broadcast1To16 copies the lowest element of its input to all 16 elements of
 // the output vector.
 //
-// Asm: VPBROADCASTB, CPU Feature: AVX2
+// Without AVX2, the compiler implements this with an AVX shuffle.
+//
+// Asm: VPBROADCASTB, CPU Feature: AVX
 func (x Uint8x16) broadcast1To16() Uint8x16
 
 // broadcast1To16 copies the lowest element of its input to all 16 elements of

@@ -664,6 +664,14 @@ func (x Uint8x16) Equal(y Uint8x16) Mask8x16 {
 	return Mask8x16((archsimd.Uint8x16(x)).Equal(archsimd.Uint8x16(y)))
 }
 
+func (x Uint8x16) Greater(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Greater(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).GreaterEqual(archsimd.Uint8x16(y)))
+}
+
 func (x Uint8x16) HiToLo() Uint8x16 {
 	return Uint8x16((archsimd.Uint8x16(x)).HiToLo())
 }
@@ -674,6 +682,14 @@ func (x Uint8x16) IfElse(mask Mask8x16, y Uint8x16) Uint8x16 {
 
 func (x Uint8x16) Len() int {
 	return (archsimd.Uint8x16(x)).Len()
+}
+
+func (x Uint8x16) Less(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Less(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).LessEqual(archsimd.Uint8x16(y)))
 }
 
 func (x Uint8x16) Masked(mask Mask8x16) Uint8x16 {
