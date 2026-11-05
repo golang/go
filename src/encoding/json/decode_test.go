@@ -1299,6 +1299,22 @@ var unmarshalTests = []struct {
 		}),
 		err: &UnmarshalTypeError{Value: "number 1.5e1_", Type: reflect.TypeFor[float64](), Field: "X", Offset: len64(`{"X": "1.5e1_"`)},
 	},
+
+	// #82872
+	{
+		CaseName: Name("MapInt/NullKey"),
+		in:       `{"null":"abc"}`,
+		ptr:      new(map[int]string),
+		out:      map[int]string{},
+		err:      &UnmarshalTypeError{Value: "number null", Type: reflect.TypeFor[int](), Offset: len64(`{"`)},
+	},
+	{
+		CaseName: Name("MapUint/NullKey"),
+		in:       `{"null":"abc"}`,
+		ptr:      new(map[uint]string),
+		out:      map[uint]string{},
+		err:      &UnmarshalTypeError{Value: "number null", Type: reflect.TypeFor[uint](), Offset: len64(`{"`)},
+	},
 	{
 		CaseName: Name("UnsupportedTypes"),
 		in:       `{"A":null,"B":[1,2,3],"C":321,"D":"X"}`,
