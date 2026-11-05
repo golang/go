@@ -22968,7 +22968,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22985,7 +22985,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23000,7 +23000,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23017,7 +23017,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23032,7 +23032,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23049,7 +23049,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23064,7 +23064,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23081,7 +23081,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
