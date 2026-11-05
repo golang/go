@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && linux && (386 || amd64 || arm64 || loong64 || riscv64)
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && linux && (386 || amd64 || arm64 || loong64 || ppc64 || ppc64le || riscv64)
 
 package cgo
 
@@ -15,13 +15,23 @@ var libc_sigaction = unsafe.Pointer(&_cgo_libc_sigaction)
 //go:linknamestd _cgoSigaction runtime.cgoSigaction
 var _cgoSigaction = cgoSigaction
 
+// sigactionCall calls the C function fn with up to 3 arguments.
+// It calls the runtime directly rather than through asmcgocall or
+// asmcgocallNoG so that the nosplit chain from cgoSigaction stays
+// within the nosplit stack limit even when compiled with -N -l.
+//
 //go:nosplit
 //go:norace
+//go:nocheckptr
 func sigactionCall(noG bool, fn, a0, a1, a2 uintptr) uintptr {
+	var f cgoCallFrame
+	f.fn, f.a0, f.a1, f.a2 = fn, a0, a1, a2
 	if noG {
-		return asmcgocallNoG(fn, a0, a1, a2, 0, 0, 0)
+		runtime_asmcgocall_no_g(cgoCallTrampolinePC(), unsafe.Pointer(&f))
+	} else {
+		runtime_asmcgocall(cgoCallTrampolinePC(), unsafe.Pointer(&f))
 	}
-	return asmcgocall(fn, a0, a1, a2, 0, 0, 0)
+	return f.r1
 }
 
 // restrictMask restricts act.mask, which must have been filled by

@@ -22,6 +22,7 @@ func load_g()
 func save_g()
 func reginit()
 
+//go:linknamestd asmcgocall_no_g
 //go:noescape
 func asmcgocall_no_g(fn, arg unsafe.Pointer)
 

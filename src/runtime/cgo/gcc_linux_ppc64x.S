@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build linux && (ppc64 || ppc64le)
+//go:build (!goexperiment.runtimecgopurego || msan || tsan) && linux && (ppc64 || ppc64le)
 
 .file "gcc_linux_ppc64x.S"
 
