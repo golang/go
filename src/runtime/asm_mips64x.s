@@ -434,7 +434,13 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 	MOVV	fn+0(FP), R25
 	MOVV	arg+8(FP), R4
+	MOVV	R29, R3
+	MOVV	$-16, R7
+	AND	R7, R29
+	ADDV	$-16, R29
+	MOVV	R3, 8(R29)
 	JAL	(R25)
+	MOVV	8(R29), R29
 	RET
 
 // func asmcgocall(fn, arg unsafe.Pointer) int32
@@ -466,7 +472,9 @@ TEXT ·asmcgocall(SB),NOSPLIT,$0-20
 
 	// Now on a scheduling stack (a pthread-created stack).
 g0:
-	// Save room for two of our pointers.
+	// Align SP to 16 bytes per C ABI and save room for two of our pointers.
+	MOVV	$-16, R7
+	AND	R7, R29
 	ADDV	$-16, R29
 	MOVV	R2, 0(R29)	// save old g on stack
 	MOVV	(g_stack+stack_hi)(R2), R2
@@ -491,6 +499,8 @@ nosave:
 	MOVV	fn+0(FP), R25
 	MOVV	arg+8(FP), R4
 	MOVV	R29, R3
+	MOVV	$-16, R7
+	AND	R7, R29
 	ADDV	$-16, R29
 	MOVV	R0, 0(R29)	// Where above code stores g, in case someone looks during debugging.
 	MOVV	R3, 8(R29)	// Save original stack pointer.
