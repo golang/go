@@ -576,7 +576,8 @@ nosecret:
 	MOVV	(g_sched+gobuf_sp)(g), R3
 
 	// Now on a scheduling stack (a pthread-created stack).
-	// Save room for two of our pointers.
+	// Align SP to 16 bytes per C ABI and save room for two of our pointers.
+	AND	$~15, R3
 	ADDV	$-16, R3
 	MOVV	R13, 0(R3)	// save old g on stack
 	MOVV	(g_stack+stack_hi)(R13), R13
@@ -601,6 +602,7 @@ nosave:
 	MOVV	fn+0(FP), R25
 	MOVV	arg+8(FP), R4
 	MOVV	R3, R12
+	AND	$~15, R3
 	ADDV	$-16, R3
 	MOVV	R0, 0(R3)	// Where above code stores g, in case someone looks during debugging.
 	MOVV	R12, 8(R3)	// Save original stack pointer.
@@ -615,7 +617,12 @@ nosave:
 TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
 	MOVV	fn+0(FP), R25
 	MOVV	arg+8(FP), R4
+	MOVV	R3, R12
+	AND	$~15, R3
+	ADDV	$-16, R3
+	MOVV	R12, 8(R3)
 	JAL	(R25)
+	MOVV	8(R3), R3
 	RET
 
 // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
