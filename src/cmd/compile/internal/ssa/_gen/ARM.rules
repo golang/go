@@ -214,6 +214,7 @@
 
 // fused-multiply-add
 (FMA x y z) => (FMULAD z x y)
+(FMA32 x y z) => (FMULAF z x y)
 
 // comparisons
 (Eq8 x y)  => (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))

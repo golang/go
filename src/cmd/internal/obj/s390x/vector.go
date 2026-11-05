@@ -727,6 +727,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMALE, 1, 0
 	case AVMALEF:
 		return op_VMALE, 2, 0
+	case AVMALEG:
+		return op_VMALE, 3, 0
 	case AVMALH:
 		return op_VMALH, 0, 0
 	case AVMALHB:
@@ -735,6 +737,10 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMALH, 1, 0
 	case AVMALHF:
 		return op_VMALH, 2, 0
+	case AVMALHG:
+		return op_VMALH, 3, 0
+	case AVMALHQ:
+		return op_VMALH, 4, 0
 	case AVMALO:
 		return op_VMALO, 0, 0
 	case AVMALOB:
@@ -743,6 +749,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMALO, 1, 0
 	case AVMALOF:
 		return op_VMALO, 2, 0
+	case AVMALOG:
+		return op_VMALO, 3, 0
 	case AVMAL:
 		return op_VMAL, 0, 0
 	case AVMALB:
@@ -751,6 +759,10 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMAL, 1, 0
 	case AVMALF:
 		return op_VMAL, 2, 0
+	case AVMALG:
+		return op_VMAL, 3, 0
+	case AVMALQ:
+		return op_VMAL, 4, 0
 	case AVMAO:
 		return op_VMAO, 0, 0
 	case AVMAOB:
@@ -783,6 +795,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMLE, 1, 0
 	case AVMLEF:
 		return op_VMLE, 2, 0
+	case AVMLEG:
+		return op_VMLE, 3, 0
 	case AVMLH:
 		return op_VMLH, 0, 0
 	case AVMLHB:
@@ -791,6 +805,10 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMLH, 1, 0
 	case AVMLHF:
 		return op_VMLH, 2, 0
+	case AVMLHG:
+		return op_VMLH, 3, 0
+	case AVMLHQ:
+		return op_VMLH, 4, 0
 	case AVMLO:
 		return op_VMLO, 0, 0
 	case AVMLOB:
@@ -799,6 +817,8 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VMLO, 1, 0
 	case AVMLOF:
 		return op_VMLO, 2, 0
+	case AVMLOG:
+		return op_VMLO, 3, 0
 	case AVML:
 		return op_VML, 0, 0
 	case AVMLB:
@@ -807,6 +827,10 @@ func vop(as obj.As) (opcode, es, cs uint32) {
 		return op_VML, 1, 0
 	case AVMLF:
 		return op_VML, 2, 0
+	case AVMLG:
+		return op_VML, 3, 0
+	case AVMLQ:
+		return op_VML, 4, 0
 	case AVMO:
 		return op_VMO, 0, 0
 	case AVMOB:

@@ -29,7 +29,9 @@ import (
 // read and write operations are defined as follows.
 // [Map.Load], [Map.LoadAndDelete], [Map.LoadOrStore], [Map.Swap], [Map.CompareAndSwap],
 // and [Map.CompareAndDelete] are read operations;
-// [Map.Delete], [Map.LoadAndDelete], [Map.Store], and [Map.Swap] are write operations;
+// [Map.Store] and [Map.Swap] are write operations;
+// [Map.Delete] is a write operation when it deletes an entry;
+// [Map.LoadAndDelete] is a write operation when it returns loaded set to true;
 // [Map.LoadOrStore] is a write operation when it returns loaded set to false;
 // [Map.CompareAndSwap] is a write operation when it returns swapped set to true;
 // and [Map.CompareAndDelete] is a write operation when it returns deleted set to true.

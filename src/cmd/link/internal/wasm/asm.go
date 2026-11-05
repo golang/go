@@ -33,6 +33,7 @@ const (
 	sectionFunction = 3
 	sectionTable    = 4
 	sectionMemory   = 5
+	sectionTag      = 13
 	sectionGlobal   = 6
 	sectionExport   = 7
 	sectionStart    = 8
@@ -150,6 +151,16 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 		{Params: []byte{I32}, Results: []byte{I32}},
 	}
 
+	if buildcfg.GOWASM.StackSwitch {
+		// Force this () -> () function type to be at index 1.
+		lookupType(&wasmFuncType{Params: []byte{}, Results: []byte{}}, &types)
+
+		// Push two placeholders into the types array, so that type indexes won't change when
+		// we add two special types for the suspend/resume implementation.
+		types = append(types, nil)
+		types = append(types, nil)
+	}
+
 	// collect host imports (functions that get imported from the WebAssembly host, usually JavaScript)
 	// we store the import index of each imported function, so the R_WASMIMPORT relocation
 	// can write the correct index after a "call" instruction
@@ -248,6 +259,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 	writeFunctionSec(ctxt, fns)
 	writeTableSec(ctxt, fns)
 	writeMemorySec(ctxt, ldr)
+	writeTagSec(ctxt)
 	writeGlobalSec(ctxt)
 	writeExportSec(ctxt, ldr, len(hostImports))
 	writeElementSec(ctxt, uint64(len(hostImports)), uint64(len(fns)))
@@ -261,7 +273,7 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
 
 func lookupType(sig *wasmFuncType, types *[]*wasmFuncType) uint32 {
 	for i, t := range *types {
-		if bytes.Equal(sig.Params, t.Params) && bytes.Equal(sig.Results, t.Results) {
+		if t != nil && bytes.Equal(sig.Params, t.Params) && bytes.Equal(sig.Results, t.Results) {
 			return uint32(i)
 		}
 	}
@@ -297,7 +309,12 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 
 	writeUleb128(ctxt.Out, uint64(len(types)))
 
-	for _, t := range types {
+	for i, t := range types {
+		if t == nil {
+			// This is a placeholder for the continuation types, which we will insert elsewhere.
+			continue
+		}
+
 		ctxt.Out.WriteByte(0x60) // functype
 		writeUleb128(ctxt.Out, uint64(len(t.Params)))
 		for _, v := range t.Params {
@@ -306,6 +323,27 @@ func writeTypeSec(ctxt *ld.Link, types []*wasmFuncType) {
 		writeUleb128(ctxt.Out, uint64(len(t.Results)))
 		for _, v := range t.Results {
 			ctxt.Out.WriteByte(v)
+		}
+
+		// Insert special continuation type and block type for suspend/resume implementation.
+		if buildcfg.GOWASM.StackSwitch && uint32(i) == uint32(wasm.ContinuationTypeIndex)-1 {
+			emptyFuncType := lookupType(&wasmFuncType{Params: []byte{}, Results: []byte{}}, &types)
+			// emptyFuncType should appear before now.
+			if emptyFuncType > uint32(wasm.ContinuationTypeIndex) {
+				panic("Function type for () -> () is not at the expected index.")
+			}
+			// This will be index wasm.ContinuationTypeIndex + 0.
+			ctxt.Out.WriteByte(0x5d)                      // General tag for a continuation type
+			writeUleb128(ctxt.Out, uint64(emptyFuncType)) // Index of the function type of the continuation type.
+
+			// This will be index wasm.ContinuationTypeIndex + 1.
+			// It is the encoding of [] -> [(ref null <continuation_type>)].
+			// Used to type a block in wasm_pc_f_loop in asm_wasm.s.
+			ctxt.Out.WriteByte(0x60)                             // Function type
+			ctxt.Out.WriteByte(0x00)                             // zero parameters
+			ctxt.Out.WriteByte(0x01)                             // one result
+			ctxt.Out.WriteByte(0x63)                             // ref (nullable)
+			ctxt.Out.WriteByte(byte(wasm.ContinuationTypeIndex)) // our continuation type created above.
 		}
 	}
 
@@ -373,6 +411,21 @@ func writeMemorySec(ctxt *ld.Link, ldr *loader.Loader) {
 	writeUleb128(ctxt.Out, 1)                        // number of memories
 	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
 	writeUleb128(ctxt.Out, initialSize/wasmPageSize) // minimum (initial) memory size
+
+	writeSecSize(ctxt, sizeOffset)
+}
+
+// writeTagSec writes the section that declares effect tags. Currently there is only a single tag,
+// used to implement goroutines with stack-switching instructions (suspend/resume).
+func writeTagSec(ctxt *ld.Link) {
+	if !buildcfg.GOWASM.StackSwitch {
+		return
+	}
+	sizeOffset := writeSecHeader(ctxt, sectionTag)
+
+	writeUleb128(ctxt.Out, 1) // number of tags
+	ctxt.Out.WriteByte(0x00)  // A tag we will call $yield, index 0
+	ctxt.Out.WriteByte(0x01)  //    the tag's function type  (this is forced in writeTypeSec)
 
 	writeSecSize(ctxt, sizeOffset)
 }

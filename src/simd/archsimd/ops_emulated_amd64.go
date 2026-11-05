@@ -6,101 +6,113 @@
 
 package archsimd
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX
+// Emulated, CPU Feature: AVX
 func (x Float32x4) Abs() (z Float32x4) {
 	mask := BroadcastUint32x4(0x80000000)
 	return x.ToBits().AndNot(mask).BitsToFloat32()
 }
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX2
+// Emulated, CPU Feature: AVX2
 func (x Float32x8) Abs() (z Float32x8) {
 	// mask will have a 1 in the sign bit UNLESS x is NaN
 	mask := BroadcastUint32x8(0x80000000)
 	return x.ToBits().AndNot(mask).BitsToFloat32()
 }
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX512
+// Emulated, CPU Feature: AVX512
 func (x Float32x16) Abs() (z Float32x16) {
 	mask := BroadcastUint32x16(0x80000000)
 	return x.ToBits().AndNot(mask).BitsToFloat32()
 }
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX
+// Emulated, CPU Feature: AVX
 func (x Float64x2) Abs() (z Float64x2) {
 	// mask will have a 1 in the sign bit UNLESS x is NaN
 	mask := BroadcastUint64x2(0x8000000000000000)
 	return x.ToBits().AndNot(mask).BitsToFloat64()
 }
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX2
+// Emulated, CPU Feature: AVX2
 func (x Float64x4) Abs() (z Float64x4) {
 	mask := BroadcastUint64x4(0x8000000000000000)
 	return x.ToBits().AndNot(mask).BitsToFloat64()
 }
 
-// Abs returns the absolute values of the elements of x
+// Abs returns the elementwise absolute value of x.
 //
-// Emulated, CPU Feature AVX512
+// Emulated, CPU Feature: AVX512
 func (x Float64x8) Abs() (z Float64x8) {
 	mask := BroadcastUint64x8(0x8000000000000000)
 	return x.ToBits().AndNot(mask).BitsToFloat64()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX
 func (x Float32x4) Neg() (z Float32x4) {
 	mask := BroadcastUint32x4(0x80000000)
 	return x.ToBits().Xor(mask).BitsToFloat32()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX2
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX2
 func (x Float32x8) Neg() (z Float32x8) {
 	// mask will have a 1 in the sign bit UNLESS x is NaN
 	mask := BroadcastUint32x8(0x80000000)
 	return x.ToBits().Xor(mask).BitsToFloat32()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX512
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX512
 func (x Float32x16) Neg() (z Float32x16) {
 	mask := BroadcastUint32x16(0x80000000)
 	return x.ToBits().Xor(mask).BitsToFloat32()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX
 func (x Float64x2) Neg() (z Float64x2) {
 	// mask will have a 1 in the sign bit UNLESS x is NaN
 	mask := BroadcastUint64x2(0x8000000000000000)
 	return x.ToBits().Xor(mask).BitsToFloat64()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX2
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX2
 func (x Float64x4) Neg() (z Float64x4) {
 	mask := BroadcastUint64x4(0x8000000000000000)
 	return x.ToBits().Xor(mask).BitsToFloat64()
 }
 
-// Neg returns the negation of the elements of x
+// Neg returns the elementwise negation of x.
 //
-// Emulated, CPU Feature AVX512
+//	z[i] = -x[i]
+//
+// Emulated, CPU Feature: AVX512
 func (x Float64x8) Neg() (z Float64x8) {
 	mask := BroadcastUint64x8(0x8000000000000000)
 	return x.ToBits().Xor(mask).BitsToFloat64()
@@ -114,7 +126,9 @@ var f0x64 = [64]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
 	-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
 	-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
@@ -129,7 +143,9 @@ func (x Int8x16) Mul(y Int8x16) (z Int8x16) {
 	return pe.Or(po).ReshapeToUint8s().BitsToInt8()
 }
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
@@ -144,7 +160,9 @@ func (x Uint8x16) Mul(y Uint8x16) (z Uint8x16) {
 	return pe.Or(po).ReshapeToUint8s()
 }
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) Mul(y Int8x32) (z Int8x32) {
@@ -159,7 +177,9 @@ func (x Int8x32) Mul(y Int8x32) (z Int8x32) {
 	return pe.Or(po).ReshapeToUint8s().BitsToInt8()
 }
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX512
 func (x Int8x64) Mul(y Int8x64) (z Int8x64) {
@@ -174,7 +194,9 @@ func (x Int8x64) Mul(y Int8x64) (z Int8x64) {
 	return pe.Or(po).ReshapeToUint8s().BitsToInt8()
 }
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) Mul(y Uint8x32) (z Uint8x32) {
@@ -189,7 +211,9 @@ func (x Uint8x32) Mul(y Uint8x32) (z Uint8x32) {
 	return pe.Or(po).ReshapeToUint8s()
 }
 
-// Mul multiplies corresponding elements of two vectors, modulo 2ⁿ.
+// Mul returns the elementwise product of x and y.
+//
+//	z[i] = x[i] * y[i]
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint8x64) Mul(y Uint8x64) (z Uint8x64) {
@@ -210,7 +234,10 @@ var popcnt4x32 = [32]int8{
 	0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated, CPU Feature: AVX
 func (x Int8x16) OnesCount() (z Int8x16) {
@@ -224,7 +251,10 @@ func (x Int8x16) OnesCount() (z Int8x16) {
 	return lut.PermuteOrZero(lo).Add(lut.PermuteOrZero(hi))
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) OnesCount() (z Uint8x16) {
@@ -238,7 +268,10 @@ func (x Uint8x16) OnesCount() (z Uint8x16) {
 	return lut.PermuteOrZero(lo.BitsToInt8()).Add(lut.PermuteOrZero(hi.BitsToInt8()))
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) OnesCount() (z Int8x32) {
@@ -252,7 +285,10 @@ func (x Int8x32) OnesCount() (z Int8x32) {
 	return lut.PermuteOrZeroGrouped(lo).Add(lut.PermuteOrZeroGrouped(hi))
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) OnesCount() (z Uint8x32) {
@@ -266,21 +302,32 @@ func (x Uint8x32) OnesCount() (z Uint8x32) {
 	return lut.PermuteOrZeroGrouped(lo.BitsToInt8()).Add(lut.PermuteOrZeroGrouped(hi.BitsToInt8()))
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512BITALG
 func (x Int8x64) OnesCount() (z Int8x64) {
 	return x.onesCount()
 }
 
-// OnesCount counts the number of set bits in each element.
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
 //
 // Asm: VPOPCNTB, CPU Feature: AVX512BITALG
 func (x Uint8x64) OnesCount() (z Uint8x64) {
 	return x.onesCount()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = (x[0] + x[1]) + (x[2] + x[3])
 //
 // Emulated, CPU Feature: AVX
 func (x Float32x4) ReduceSum() (z float32) {
@@ -289,14 +336,21 @@ func (x Float32x4) ReduceSum() (z float32) {
 	return x.GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1]
 //
 // Emulated, CPU Feature: AVX
 func (x Float64x2) ReduceSum() (z float64) {
 	return x.ConcatAddPairs(x).GetElem(0) // [x0+x1, x0+x1]
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Float32x8) ReduceSum() (z float32) {
@@ -307,7 +361,12 @@ func (x Float32x8) ReduceSum() (z float32) {
 	return x.GetLo().Add(x.GetHi()).GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = (x[0] + x[1]) + (x[2] + x[3])
 //
 // Emulated, CPU Feature: AVX
 func (x Float64x4) ReduceSum() (z float64) {
@@ -315,7 +374,12 @@ func (x Float64x4) ReduceSum() (z float64) {
 	return x.GetLo().Add(x.GetHi()).GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Float32x16) ReduceSum() (z float32) {
@@ -327,7 +391,12 @@ func (x Float32x16) ReduceSum() (z float32) {
 	return w.ConcatAddPairs(w).GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Float64x8) ReduceSum() (z float64) {
@@ -337,7 +406,9 @@ func (x Float64x8) ReduceSum() (z float64) {
 	return w.ConcatAddPairs(w).GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Int16x8) ReduceSum() (z int16) {
@@ -347,7 +418,9 @@ func (x Int16x8) ReduceSum() (z int16) {
 	return x.GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Uint16x8) ReduceSum() (z uint16) {
@@ -357,7 +430,9 @@ func (x Uint16x8) ReduceSum() (z uint16) {
 	return x.GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Int32x4) ReduceSum() (z int32) {
@@ -366,7 +441,9 @@ func (x Int32x4) ReduceSum() (z int32) {
 	return x.GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Uint32x4) ReduceSum() (z uint32) {
@@ -375,63 +452,81 @@ func (x Uint32x4) ReduceSum() (z uint32) {
 	return x.GetElem(0)
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Int16x16) ReduceSum() (z int16) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint16x16) ReduceSum() (z uint16) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Int32x8) ReduceSum() (z int32) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint32x8) ReduceSum() (z uint32) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Int16x32) ReduceSum() (z int16) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint16x32) ReduceSum() (z uint16) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Int32x16) ReduceSum() (z int32) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint32x16) ReduceSum() (z uint32) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Int8x16) ReduceSum() (z int8) {
@@ -439,7 +534,9 @@ func (x Int8x16) ReduceSum() (z int8) {
 	return int8(s.GetElem(0) + s.GetElem(1))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX
 func (x Uint8x16) ReduceSum() (z uint8) {
@@ -447,28 +544,36 @@ func (x Uint8x16) ReduceSum() (z uint8) {
 	return uint8(s.GetElem(0) + s.GetElem(1))
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Int8x32) ReduceSum() (z int8) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX2
 func (x Uint8x32) ReduceSum() (z uint8) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Int8x64) ReduceSum() (z int8) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
 
-// ReduceSum returns the sum of all elements in x.
+// ReduceSum returns the scalar sum of the elements of x.
+//
+//	z = x[0] + x[1] + ...
 //
 // Emulated, CPU Feature: AVX512
 func (x Uint8x64) ReduceSum() (z uint8) {

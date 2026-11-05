@@ -506,8 +506,8 @@ func concurrentBackendAllowed() bool {
 	if buildcfg.Experiment.FieldTrack {
 		return false
 	}
-	// TODO: fix races and enable the following flags
-	if Ctxt.Flag_dynlink || Flag.Race {
+	// TODO: fix races and enable the following flag
+	if Ctxt.Flag_dynlink {
 		return false
 	}
 	return true

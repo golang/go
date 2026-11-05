@@ -49,9 +49,7 @@ const (
 // ConcatPermuteScalars returns the selection of four elements from the two
 // vectors x and y, where selector values in the range 0-3 specify
 // elements from x and values in the range 4-7 specify the 0-3 elements
-// of y.  When the selectors are constants and the selection can be
-// implemented in a single instruction, it will be, otherwise it
-// requires two.  a is the source index of the least element in the
+// of y. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -59,8 +57,9 @@ const (
 //
 // returns {4,8,25,81}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Int32x4) ConcatPermuteScalars(a, b, c, d uint8, y Int32x4) Int32x4 {
@@ -131,9 +130,7 @@ func (x Int32x4) ConcatPermuteScalars(a, b, c, d uint8, y Int32x4) Int32x4 {
 // ConcatPermuteScalars returns the selection of four elements from the two
 // vectors x and y, where selector values in the range 0-3 specify
 // elements from x and values in the range 4-7 specify the 0-3 elements
-// of y.  When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two. a is the source index of the least element in the
+// of y. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -141,8 +138,9 @@ func (x Int32x4) ConcatPermuteScalars(a, b, c, d uint8, y Int32x4) Int32x4 {
 //
 // returns {4,8,25,81}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Uint32x4) ConcatPermuteScalars(a, b, c, d uint8, y Uint32x4) Uint32x4 {
@@ -206,9 +204,7 @@ func (x Uint32x4) ConcatPermuteScalars(a, b, c, d uint8, y Uint32x4) Uint32x4 {
 // ConcatPermuteScalars returns the selection of four elements from the two
 // vectors x and y, where selector values in the range 0-3 specify
 // elements from x and values in the range 4-7 specify the 0-3 elements
-// of y.  When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two. a is the source index of the least element in the
+// of y. a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -216,8 +212,9 @@ func (x Uint32x4) ConcatPermuteScalars(a, b, c, d uint8, y Uint32x4) Uint32x4 {
 //
 // returns {4,8,25,81}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Float32x4) ConcatPermuteScalars(a, b, c, d uint8, y Float32x4) Float32x4 {
@@ -282,9 +279,7 @@ func (x Float32x4) ConcatPermuteScalars(a, b, c, d uint8, y Float32x4) Float32x4
 // the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two. a is the source index of the least element in the
+// a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -292,8 +287,9 @@ func (x Float32x4) ConcatPermuteScalars(a, b, c, d uint8, y Float32x4) Float32x4
 //
 // returns {4,8,25,81,64,128,169,289}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Int32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Int32x8) Int32x8 {
@@ -358,9 +354,7 @@ func (x Int32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Int32x8) Int32x
 // the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two. a is the source index of the least element in the
+// a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -368,8 +362,9 @@ func (x Int32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Int32x8) Int32x
 //
 // returns {4,8,25,81,64,128,169,289}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Uint32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Uint32x8) Uint32x8 {
@@ -434,9 +429,7 @@ func (x Uint32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Uint32x8) Uint
 // the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two. a is the source index of the least element in the
+// a is the source index of the least element in the
 // output, and b, c, and d are the indices of the 2nd, 3rd, and 4th
 // elements in the output.  For example,
 //
@@ -444,8 +437,9 @@ func (x Uint32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Uint32x8) Uint
 //
 // returns {4,8,25,81,64,128,169,289}.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX
 func (x Float32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Float32x8) Float32x8 {
@@ -510,12 +504,10 @@ func (x Float32x8) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Float32x8) Fl
 // of the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Int32x16) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Int32x16) Int32x16 {
@@ -580,12 +572,10 @@ func (x Int32x16) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Int32x16) Int3
 // of the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Uint32x16) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Uint32x16) Uint32x16 {
@@ -650,12 +640,10 @@ func (x Uint32x16) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Uint32x16) Ui
 // of the vectors x and y, the selection of four elements from  x and y,
 // where selector values in the range 0-3 specify elements from x and
 // values in the range 4-7 specify the 0-3 elements of y.
-// When the selectors are constants and can be the selection
-// can be implemented in a single instruction, it will be, otherwise
-// it requires two.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants and the selection can be
+// implemented in a single instruction, it will be, otherwise it requires two.
+// If the selectors are not constant this will translate to a function call.
 //
 // Asm: VSHUFPS, CPU Feature: AVX512
 func (x Float32x16) ConcatPermuteScalarsGrouped(a, b, c, d uint8, y Float32x16) Float32x16 {
@@ -747,11 +735,11 @@ func cscimm2g4(a, b uint8) uint8 {
 // ConcatPermuteScalars returns the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Uint64x2) ConcatPermuteScalars(a, b uint8, y Uint64x2) Uint64x2 {
@@ -776,11 +764,11 @@ func (x Uint64x2) ConcatPermuteScalars(a, b uint8, y Uint64x2) Uint64x2 {
 // the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Uint64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Uint64x4) Uint64x4 {
@@ -805,11 +793,11 @@ func (x Uint64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Uint64x4) Uint64x4 {
 // of the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Uint64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Uint64x8) Uint64x8 {
@@ -833,11 +821,11 @@ func (x Uint64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Uint64x8) Uint64x8 {
 // ConcatPermuteScalars returns the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Float64x2) ConcatPermuteScalars(a, b uint8, y Float64x2) Float64x2 {
@@ -862,11 +850,11 @@ func (x Float64x2) ConcatPermuteScalars(a, b uint8, y Float64x2) Float64x2 {
 // the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Float64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Float64x4) Float64x4 {
@@ -891,11 +879,11 @@ func (x Float64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Float64x4) Float64x
 // of the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Float64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Float64x8) Float64x8 {
@@ -919,11 +907,11 @@ func (x Float64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Float64x8) Float64x
 // ConcatPermuteScalars returns the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Int64x2) ConcatPermuteScalars(a, b uint8, y Int64x2) Int64x2 {
@@ -948,11 +936,11 @@ func (x Int64x2) ConcatPermuteScalars(a, b uint8, y Int64x2) Int64x2 {
 // the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX
 func (x Int64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Int64x4) Int64x4 {
@@ -977,11 +965,11 @@ func (x Int64x4) ConcatPermuteScalarsGrouped(a, b uint8, y Int64x4) Int64x4 {
 // of the vectors x and y, the selection of two elements from the two
 // vectors x and y, where selector values in the range 0-1 specify
 // elements from x and values in the range 2-3 specify the 0-1 elements
-// of y.  When the selectors are constants the selection can be
-// implemented in a single instruction.
+// of y.
 //
-// If the selectors are not constant this will translate to a function
-// call.
+// Performance: When the selectors are constants the selection can be
+// implemented in a single instruction. If the selectors are not constant this
+// will translate to a function call.
 //
 // Asm: VSHUFPD, CPU Feature: AVX512
 func (x Int64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Int64x8) Int64x8 {
@@ -1009,8 +997,9 @@ func (x Int64x8) ConcatPermuteScalarsGrouped(a, b uint8, y Int64x8) Int64x8 {
 //	result = {x[a], x[b], x[c], x[d]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table may be generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table may be generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX
 func (x Int32x4) PermuteScalars(a, b, c, d uint8) Int32x4 {
@@ -1022,8 +1011,9 @@ func (x Int32x4) PermuteScalars(a, b, c, d uint8) Int32x4 {
 //	result = {x[a], x[b], x[c], x[d]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table may be generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table may be generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX
 func (x Uint32x4) PermuteScalars(a, b, c, d uint8) Uint32x4 {
@@ -1037,8 +1027,9 @@ func (x Uint32x4) PermuteScalars(a, b, c, d uint8) Uint32x4 {
 //	result = {x[a], x[b], x[c], x[d], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table may be generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table may be generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX2
 func (x Int32x8) PermuteScalarsGrouped(a, b, c, d uint8) Int32x8 {
@@ -1052,8 +1043,9 @@ func (x Int32x8) PermuteScalarsGrouped(a, b, c, d uint8) Int32x8 {
 //			x[a+8], x[b+8], x[c+8], x[d+8], x[a+12], x[b+12], x[c+12], x[d+12]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table may be generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table may be generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX512
 func (x Int32x16) PermuteScalarsGrouped(a, b, c, d uint8) Int32x16 {
@@ -1065,8 +1057,9 @@ func (x Int32x16) PermuteScalarsGrouped(a, b, c, d uint8) Int32x16 {
 //	result = {x[a], x[b], x[c], x[d], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX2
 func (x Uint32x8) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x8 {
@@ -1080,8 +1073,9 @@ func (x Uint32x8) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x8 {
 //			x[a+8], x[b+8], x[c+8], x[d+8], x[a+12], x[b+12], x[c+12], x[d+12]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFD, CPU Feature: AVX512
 func (x Uint32x16) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x16 {
@@ -1095,8 +1089,9 @@ func (x Uint32x16) PermuteScalarsGrouped(a, b, c, d uint8) Uint32x16 {
 //	result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX
 func (x Int16x8) PermuteScalarsHi(a, b, c, d uint8) Int16x8 {
@@ -1108,8 +1103,9 @@ func (x Int16x8) PermuteScalarsHi(a, b, c, d uint8) Int16x8 {
 //	result = {x[0], x[1], x[2], x[3], x[a+4], x[b+4], x[c+4], x[d+4]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX
 func (x Uint16x8) PermuteScalarsHi(a, b, c, d uint8) Uint16x8 {
@@ -1125,8 +1121,9 @@ func (x Uint16x8) PermuteScalarsHi(a, b, c, d uint8) Uint16x8 {
 //			x[8], x[9], x[10], x[11], x[a+12], x[b+12], x[c+12], x[d+12]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX2
 func (x Int16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x16 {
@@ -1142,8 +1139,9 @@ func (x Int16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x16 {
 //			x[24], x[25], x[26], x[27], x[a+28], x[b+28], x[c+28], x[d+28]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX512
 func (x Int16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x32 {
@@ -1159,8 +1157,9 @@ func (x Int16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Int16x32 {
 // Each group is of size 128-bit.
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX2
 func (x Uint16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x16 {
@@ -1176,8 +1175,9 @@ func (x Uint16x16) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x16 {
 //			x[24], x[25], x[26], x[27], x[a+28], x[b+28], x[c+28], x[d+28]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFHW, CPU Feature: AVX512
 func (x Uint16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x32 {
@@ -1191,8 +1191,9 @@ func (x Uint16x32) PermuteScalarsHiGrouped(a, b, c, d uint8) Uint16x32 {
 //	result = {x[a], x[b], x[c], x[d], x[4], x[5], x[6], x[7]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Int16x8) PermuteScalarsLo(a, b, c, d uint8) Int16x8 {
@@ -1204,8 +1205,9 @@ func (x Int16x8) PermuteScalarsLo(a, b, c, d uint8) Int16x8 {
 //	result = {x[a], x[b], x[c], x[d], x[4], x[5], x[6], x[7]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Uint16x8) PermuteScalarsLo(a, b, c, d uint8) Uint16x8 {
@@ -1221,8 +1223,9 @@ func (x Uint16x8) PermuteScalarsLo(a, b, c, d uint8) Uint16x8 {
 //		 x[a+8], x[b+8], x[c+8], x[d+8], x[12], x[13], x[14], x[15]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX2
 func (x Int16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x16 {
@@ -1238,8 +1241,9 @@ func (x Int16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x16 {
 //		x[a+24], x[b+24], x[c+24], x[d+24], x[28], x[29], x[30], x[31]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Int16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x32 {
@@ -1252,8 +1256,9 @@ func (x Int16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Int16x32 {
 //		x[a+8], x[b+8], x[c+8], x[d+8], x[12], x[13], x[14], x[15]}
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX2
 func (x Uint16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x16 {
@@ -1271,224 +1276,237 @@ func (x Uint16x16) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x16 {
 // Each group is of size 128-bit.
 //
 // Parameters a,b,c,d should have values between 0 and 3.
-// If a through d are constants, then an instruction will be inlined, otherwise
-// a jump table is generated.
+//
+// Performance: If a through d are constants, then an instruction will be
+// inlined, otherwise a jump table is generated.
 //
 // Asm: VPSHUFLW, CPU Feature: AVX512
 func (x Uint16x32) PermuteScalarsLoGrouped(a, b, c, d uint8) Uint16x32 {
 	return x.permuteScalarsLoGrouped(a&3 | (b&3)<<2 | (c&3)<<4 | d<<6)
 }
 
-// CarrylessMultiplyEven computes the carryless
-// multiplications of selected even halves of the elements of x and y.
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
 //
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
 func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0, y)
 }
 
-// CarrylessMultiplyOdd computes the carryless
-// multiplications of selected odd halves of the elements of x and y.
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
-// CarrylessMultiplyOddEven computes the carryless
-// multiplications of selected odd half of x's elements and even half of y's elements.
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
 func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b1, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the carryless
-// multiplications of selected even half of x's elements and odd half of y's elements.
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVXPCLMULQDQ
 func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) (z Uint64x2) {
 	return x.carrylessMultiply(0b10000, y)
 }
 
-// CarrylessMultiplyEven computes the carryless
-// multiplications of selected even halves of the elements of x and y.
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
 //
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
 func (x Uint64x4) CarrylessMultiplyEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0, y)
 }
 
-// CarrylessMultiplyOdd computes the carryless
-// multiplications of selected odd halves of the elements of x and y.
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
 func (x Uint64x4) CarrylessMultiplyOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
-// CarrylessMultiplyOddEven computes the carryless
-// multiplications of selected odd half of x's elements and even half of y's elements.
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
 func (x Uint64x4) CarrylessMultiplyOddEven(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b1, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the carryless
-// multiplications of selected even half of x's elements and odd half of y's elements.
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: VPCLMULQDQ
 func (x Uint64x4) CarrylessMultiplyEvenOdd(y Uint64x4) (z Uint64x4) {
 	return x.carrylessMultiply(0b10000, y)
 }
 
-// CarrylessMultiplyEven computes the carryless
-// multiplications of selected even halves of the elements of x and y.
+// CarrylessMultiplyEven computes the elementwise carryless multiplication of
+// even-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
+// A carryless multiplication uses bitwise XOR instead of add-with-carry.
+// For example, to compute the carryless multiply of 0b1110 and 0b1011:
 //
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+//	     1110
+//	   ⊗ 1011
+//	  ───────
+//	     1110
+//	    1110
+//	   0000
+//	⊕ 1110
+//	  ───────
+//	  1100010
+//
+// Carryless multiply can also be viewed as multiplying polynomials with
+// coefficients from GF(2). For example, the above example can be represented as
+//
+//	  (x^3 + x^2 + x^1) * (x^3 + x^1 + x^0)
+//	= (x^6 + x^5 + (1^1)x^4 + (1^1)x^3 + (1^1)x^2 + x^1)
+//	= (x^6 + x^5 + x^1)
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x8) CarrylessMultiplyEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0, y)
 }
 
-// CarrylessMultiplyOdd computes the carryless
-// multiplications of selected odd halves of the elements of x and y.
+// CarrylessMultiplyOdd computes the elementwise carryless multiplication of
+// odd-indexed elements of x and y. The result of each carryless multiply is
+// twice the width of the input elements. The high bits are stored in elements
+// z[2*i+1] and the low bits are stored in elements z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x8) CarrylessMultiplyOdd(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0b10001, y)
 }
 
-// CarrylessMultiplyOddEven computes the carryless
-// multiplications of selected odd half of x's elements and even half of y's elements.
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x8) CarrylessMultiplyOddEven(y Uint64x8) (z Uint64x8) {
 	return x.carrylessMultiply(0b1, y)
 }
 
-// CarrylessMultiplyEvenOdd computes the carryless
-// multiplications of selected even half of x's elements and odd half of y's elements.
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
 //
-// A carryless multiplication uses bitwise XOR instead of
-// add-with-carry, for example (in base two):
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
 //
-//	11 * 11 = 11 * (10 ^ 1) = (11 * 10) ^ (11 * 1) = 110 ^ 11 = 101
-//
-// This also models multiplication of polynomials with coefficients
-// from GF(2) -- 11 * 11 models (x+1)*(x+1) = x**2 + (1^1)x + 1 =
-// x**2 + 0x + 1 = x**2 + 1 modeled by 101.  (Note that "+" adds
-// polynomial terms, but coefficients "add" with XOR.)
+// See [CarrylessMultiplyEven] for details about carryless multiply.
 //
 // Asm: VPCLMULQDQ, CPU Feature: AVX512VPCLMULQDQ
 func (x Uint64x8) CarrylessMultiplyEvenOdd(y Uint64x8) (z Uint64x8) {

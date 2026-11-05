@@ -91,7 +91,7 @@ type metrics struct {
 	covTarget *pivot[archMethodKey]
 	covGen    *pivot[methodKey]
 	covMulti  *tally[string] // names emitted by more than one tool
-	covCommon *tally[string] // comments.yaml's .common_methods, spec-common's scope
+	covCommon *tally[string] // simd_emulated.go's methods, spec-common's scope
 
 	specPairs, specNames int
 

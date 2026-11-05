@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"net/http/internal"
 	"net/http/internal/httpcommon"
 
 	"golang.org/x/net/http/httpguts"
@@ -57,13 +58,13 @@ func (netHTTPServer) Addr() net.Addr            { return nil }
 //
 // The ctx parameter is used as the base context for request handlers
 // for requests receieved via this port.
-func (s netHTTPServer) ServeHTTP3(ctx context.Context, conn net.PacketConn, tlsConfig *tls.Config, h http.Handler) error {
+func (s netHTTPServer) ServeHTTP3(ctx context.Context, conn net.PacketConn, tlsConfig *tls.Config) error {
 	s.init()
 	e, err := quic.NewEndpoint(conn, newQUICConfig(s.opts.QUICConfig, tlsConfig))
 	if err != nil {
 		return err
 	}
-	return s.serve(ctx, e, h)
+	return s.serve(ctx, e)
 }
 
 // Shutdown shuts down the server.
@@ -104,7 +105,7 @@ func (s *server) init() {
 
 // serve accepts incoming connections on the QUIC endpoint e,
 // and handles requests from those connections.
-func (s *server) serve(ctx context.Context, e *quic.Endpoint, h http.Handler) error {
+func (s *server) serve(ctx context.Context, e *quic.Endpoint) error {
 	s.init()
 	defer e.Close(canceledCtx)
 	for {
@@ -112,7 +113,7 @@ func (s *server) serve(ctx context.Context, e *quic.Endpoint, h http.Handler) er
 		if err != nil {
 			return err
 		}
-		go s.newServerConn(ctx, qconn, h)
+		go s.newServerConn(ctx, qconn)
 	}
 }
 
@@ -215,7 +216,6 @@ type serverConn struct {
 	qconn    *quic.Conn
 	srv      *server
 	baseCtx  context.Context
-	handler  http.Handler
 	tlsState *tls.ConnectionState
 
 	genericConn // for handleUnidirectionalStream
@@ -234,7 +234,7 @@ type serverConn struct {
 
 // newServerConn handles a new connection.
 // The baseCtx parameter is the base context for request handlers on this connection.
-func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http.Handler) {
+func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn) {
 	if localAddr := qconn.LocalAddr(); localAddr.IsValid() {
 		baseCtx = context.WithValue(baseCtx, http.LocalAddrContextKey, net.UDPAddrFromAddrPort(localAddr))
 	}
@@ -245,7 +245,6 @@ func (s *server) newServerConn(baseCtx context.Context, qconn *quic.Conn, h http
 		qconn:               qconn,
 		srv:                 s,
 		baseCtx:             baseCtx,
-		handler:             h,
 		tlsState:            new(qconn.ConnectionState()),
 		maxHeaderBytes:      int64(s.srv1.MaxHeaderBytes),
 		maxHeaderValueCount: int64(s.srv1.MaxHeaderValueCount),
@@ -644,11 +643,12 @@ func (sc *serverConn) handleRequestStream(st *stream) error {
 		req.Body = http.NoBody
 	}
 
-	// TODO: handle panic coming from the HTTP handler.
 	if t := sc.srv.writeTimeout(); t > 0 {
 		st.writeDeadline.set(time.Now().Add(t))
 	}
-	sc.handler.ServeHTTP(rw, req)
+	if err := sc.srv.srv1.HandleRequest(rw, req); err != nil {
+		return err
+	}
 	cancel()
 	return rw.close()
 }
@@ -663,20 +663,6 @@ func (sc *serverConn) abort(err error) {
 	} else {
 		sc.qconn.Abort(err)
 	}
-}
-
-// responseCanHaveBody reports whether a given response status code permits a
-// body. See RFC 7230, section 3.3.
-func responseCanHaveBody(status int) bool {
-	switch {
-	case status >= 100 && status <= 199:
-		return false
-	case status == 204:
-		return false
-	case status == 304:
-		return false
-	}
-	return true
 }
 
 // trailerPrefix is a magic prefix for [responseWriter.Header] map keys that,
@@ -734,7 +720,7 @@ func (rw *responseWriter) writeHeaderLockedOnce() {
 	if rw.wroteHeader {
 		return
 	}
-	if !responseCanHaveBody(rw.statusCode) {
+	if !internal.BodyAllowedForStatus(rw.statusCode) {
 		rw.cannotHaveBody = true
 	}
 	// If there is any Trailer declared, save them so we know which trailers
@@ -1007,7 +993,7 @@ func (bb *bodyBuffer) inferHeader(h http.Header, status int) {
 	// sniff the body. See Issue golang.org/issue/31753.
 	hasCE := len(h.Get("Content-Encoding")) > 0
 	_, hasCT := h["Content-Type"]
-	if !hasCE && !hasCT && responseCanHaveBody(status) && len(*bb) > 0 {
+	if !hasCE && !hasCT && internal.BodyAllowedForStatus(status) && len(*bb) > 0 {
 		h.Set("Content-Type", http.DetectContentType(*bb))
 	}
 	// We can technically infer Content-Length too here, as long as the entire

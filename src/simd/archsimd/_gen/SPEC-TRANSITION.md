@@ -471,9 +471,9 @@ wherever its prerequisites and track allow.
 | [ ] | C | `validate-amd64` | Validate spec bodies against amd64 | `conform-fixed`, `spec-common` | — |
 | [ ] | C | `conform-flip` | Flip conformance direction | `validate-amd64`, `conform-scalable` | — |
 | [ ] | D | `spec-all` | Bulk spec migration | `spec-common`, `convert-lo`, `mask-bits` | `specfill`, `fill-enforce` |
-| [ ] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
+| [x] | E | `doc-triage` | Hand-written doc conflict triage | `specfill` | `spec-common` |
 | [x] | E | `comments-yaml` | Drop spec-covered docs from `midway/comments.yaml` | `gen-docs`, `spec-common` | `fill-enforce` |
-| [ ] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
+| [x] | E | `handwritten-fill` | Enable `-w` on hand-written files | `gen-docs`, `doc-triage` | — |
 | [ ] | E | `template-docs` | Retire generator-supplied API docs | `gen-docs`, `spec-all` | — |
 | [ ] | E | `cat-rehome` | Re-home `categories.yaml` non-doc fields | `template-docs` | — |
 | [ ] | E | `compiler-ops-impl` | Implement compiler-only ops representation | `compiler-ops`, `cat-rehome` | — |
@@ -1161,9 +1161,9 @@ other than the permanent residue named in §1.7 (`String`, `Len`).
 Retiring the other documentation sources, then `categories.yaml` itself.
 
 ### `doc-triage` — Hand-written doc conflict triage
-**Done:** [ ] · **Needs:** `specfill` · **Prefers:** `spec-common` · **Blocks:** `handwritten-fill` · **Risk:** `risk-silent-doc-loss`
+**Done:** [x] · **Needs:** `specfill` · **Prefers:** `spec-common` · **Blocks:** `handwritten-fill` · **Risk:** `risk-silent-doc-loss`
 
-Make it safe for `handwritten-fill` to rewrite hand-written files, by emptying
+Make it safe for `handwritten-fill` to rewrite hand-written files, by triaging
 the conflict set first.
 
 A conflict is a declaration where spec has a doc *and* the hand-written file has
@@ -1188,8 +1188,9 @@ The `slicepart_*.go` files matter most: they declare the `Load*Part` family spec
 *already* covers via `LoadZPart`, so their prose conflicts on day one — and one
 of them documents `LoadUint32x4Part` as loading "a Int32x4".
 
-**Done when** `specfill -no-fill-names -diff` is empty and `specfill` reports
-zero check (a) violations.
+**Done when** every conflict in `specfill -diff` has been triaged so rewriting
+with `specfill -w` loses no useful documentation, and `specfill` reports zero
+check (a) violations.
 
 ### `comments-yaml` — Drop spec-covered docs from `midway/comments.yaml`
 **Done:** [x] · **Needs:** `gen-docs`, `spec-common` · **Prefers:** `fill-enforce`
@@ -1210,21 +1211,21 @@ sources those docs through `specfill`, and `simd_stubs.go` and
 `simd_emulated.go` carry identical spec-derived docs for them.
 
 ### `handwritten-fill` — Enable `-w` on hand-written files
-**Done:** [ ] · **Needs:** `gen-docs`, `doc-triage` · **Risk:** `risk-silent-doc-loss`
+**Done:** [x] · **Needs:** `gen-docs`, `doc-triage` · **Risk:** `risk-silent-doc-loss`
 
-Turn on doc rewriting for hand-written files, once `doc-triage` has emptied the
-conflict set — at which point `-w` rewrites only docs that already match what it
-would write.
+Run `specfill -w` across all hand-written files once `doc-triage` has triaged
+the conflict set, and drop `NoFillDoc: !isGen` from `TestFill` in
+`cmd/specfill` so CI enforces spec-filled doc comments on hand-written files as
+well as generated files.
 
-Two guards, both on `cmd/specfill` only. This does **not** change `gentools`'
-shared `-w`, which every generator uses:
+Two guards on `cmd/specfill` (implemented during `specfill`) protect `-w`:
 
 - `specfill -w` refuses to run when the report has any findings, or if there are
   uncommitted changes, so its diff is the complete story of what it did.
-- `specfill -w` never runs in CI; CI runs report mode (`fill-enforce`).
+- `specfill -w` never runs in CI; CI runs `TestFill` (`fill-enforce`).
 
 **Done when** `specfill -w` over the hand-written files is a no-op on a clean
-tree.
+tree and `TestFill` checks doc comments on hand-written files.
 
 ### `template-docs` — Retire generator-supplied API docs
 **Done:** [ ] · **Needs:** `gen-docs`, `spec-all` · **Blocks:** `cat-rehome`
@@ -1367,7 +1368,7 @@ each is far cheaper to settle before the bodies are written than after.
 | **[ ]** | `risk-ref-impl-effort` | Reference-implementation effort — every migrated operation needs a body that is *correct*, because conformance tests against it; the distribution of difficulty is unknown | `spec-common`, `spec-all` |
 | **[x]** | `risk-conformance-env` | Conformance execution environment — can CI run arm64/SVE/wasm, and at what cost? | `ci-audit` |
 | **[ ]** | `risk-sig-refactor-convergence` | `sig-refactor` may not converge — if it does not, §1.1 needs revisiting | `sig-refactor` |
-| **[ ]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
+| **[x]** | `risk-silent-doc-loss` | Silent doc loss — under §1.6, text without a note prefix is spec-owned, so implementation text nobody prefixed is dropped on the first rewrite; the guards are review of every rewrite's `-diff` and, once generators emit no prose of their own, `AllowDocRewrite` | `gen-docs`, `doc-triage`, `handwritten-fill` |
 | **[ ]** | `risk-cat-unknowns` | Unknown unknowns in `categories.yaml` — the field audit was static | `cat-rehome` |
 
 ---

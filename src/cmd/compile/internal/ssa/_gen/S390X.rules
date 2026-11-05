@@ -142,6 +142,7 @@
 (RoundToEven x) => (FIDBR [4] x)
 (Round       x) => (FIDBR [1] x)
 (FMA     x y z) => (FMADD z x y)
+(FMA32   x y z) => (FMADDS z x y)
 
 (Sqrt32    ...) => (FSQRTS ...)
 
@@ -1107,8 +1108,12 @@
 // to unsigned comparisons.
 // Helps simplify constant comparison detection.
 (CM(P|PU)const (MOV(W|WZ)reg x) [c]) => (CMP(W|WU)const x [c])
-(CM(P|P|PU|PU)const x:(MOV(H|HZ|H|HZ)reg _) [c]) => (CMP(W|W|WU|WU)const x [c])
-(CM(P|P|PU|PU)const x:(MOV(B|BZ|B|BZ)reg _) [c]) => (CMP(W|W|WU|WU)const x [c])
+(CM(P|P|PU)const x:(MOV(H|HZ|HZ)reg _) [c]) => (CMP(W|W|WU)const x [c])
+// A sign-extended value compared unsigned with a 64-bit compare is huge when negative;
+// the 32-bit compare agrees only if the zero-extended immediate is below 1<<31.
+(CMPUconst x:(MOVHreg _) [c]) && c >= 0 => (CMPWUconst x [c])
+(CM(P|P|PU)const x:(MOV(B|BZ|BZ)reg _) [c]) => (CMP(W|W|WU)const x [c])
+(CMPUconst x:(MOVBreg _) [c]) && c >= 0 => (CMPWUconst x [c])
 (CMPconst  (MOV(WZ|W)reg x:(ANDWconst [m] _)) [c]) && int32(m) >= 0 && c >= 0 => (CMPWUconst x [c])
 (CMPUconst (MOV(WZ|W)reg x:(ANDWconst [m] _)) [c]) && int32(m) >= 0           => (CMPWUconst x [c])
 (CMPconst  x:(SRDconst _ [c]) [n]) && c > 0 && n >= 0 => (CMPUconst  x [n])

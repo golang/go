@@ -6,9 +6,12 @@ package test
 
 import (
 	"bytes"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -18,12 +21,14 @@ func TestReproducibleBuilds(t *testing.T) {
 		// Number of concurrent backend compilations. More of them exposes
 		// more of the nondeterminism that comes from the runtime scheduler,
 		// but costs more to run.
-		conc string
+		conc  string
+		flags []string
 	}{
-		{"issue20272.go", "2"},
-		{"issue27013.go", "2"},
-		{"issue30202.go", "2"},
-		{"issue82043.go", "16"},
+		{"issue20272.go", "2", nil},
+		{"issue27013.go", "2", nil},
+		{"issue30202.go", "2", nil},
+		{"issue82043.go", "16", nil},
+		{"race.go", "16", []string{"-race"}},
 	}
 
 	testenv.MustHaveGoBuild(t)
@@ -33,6 +38,9 @@ func TestReproducibleBuilds(t *testing.T) {
 	}
 	t.Parallel()
 	for _, test := range tests {
+		if slices.Contains(test.flags, "-race") && !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+			continue
+		}
 		t.Run(test.file, func(t *testing.T) {
 			t.Parallel()
 			var want []byte
@@ -43,7 +51,10 @@ func TestReproducibleBuilds(t *testing.T) {
 			defer os.Remove(tmp.Name())
 			defer tmp.Close()
 			for i := 0; i < iters; i++ {
-				out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", test.conc, "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test.file)).CombinedOutput()
+				args := []string{"tool", "compile", "-p=p", "-c", test.conc, "-o", tmp.Name()}
+				args = append(args, test.flags...)
+				args = append(args, filepath.Join("testdata", "reproducible", test.file))
+				out, err := testenv.Command(t, testenv.GoToolPath(t), args...).CombinedOutput()
 				if err != nil {
 					t.Fatalf("failed to compile: %v\n%s", err, out)
 				}

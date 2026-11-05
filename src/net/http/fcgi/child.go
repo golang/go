@@ -59,7 +59,7 @@ func (r *request) parseParams() {
 			return
 		}
 		text = text[n:]
-		if int(keyLen)+int(valLen) > len(text) {
+		if uint64(keyLen)+uint64(valLen) > uint64(len(text)) {
 			return
 		}
 		key := readString(text, keyLen)

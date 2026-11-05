@@ -90,7 +90,7 @@ func ToMask[E Elt, W Width, zE MaskElt](x Vec[E, W]) (z Vec[zE, W]) {
 	})
 }
 
-// IsNan returns a mask indicating which elements of x are NaN.
+// IsNaN returns a mask indicating which elements of x are NaN.
 //
 //	z[i] = math.IsNaN(x[i])
 //
@@ -99,4 +99,14 @@ func IsNaN[E Floats, W Width, zE MaskElt](x Vec[E, W]) (z Vec[zE, W]) {
 	return map1[E, W, zE, W](x, func(x E) zE {
 		return bool2mask[zE](math.IsNaN(float64(x)))
 	})
+}
+
+// IsZero returns true if all elements of x are zeros.
+func IsZero[E Ints | Uints, W Width](x Vec[E, W]) bool {
+	for _, elt := range x {
+		if elt != 0 {
+			return false
+		}
+	}
+	return true
 }

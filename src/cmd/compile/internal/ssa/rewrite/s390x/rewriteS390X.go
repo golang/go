@@ -260,6 +260,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpEqPtr(v)
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)
+	case ssaop.OpFMA32:
+		return rewriteValue_OpFMA32(v)
 	case ssaop.OpFloor:
 		return rewriteValue_OpFloor(v)
 	case ssaop.OpGetCallerPC:
@@ -1892,6 +1894,21 @@ func rewriteValue_OpFMA(v *ssa.Value) bool {
 		y := v_1
 		z := v_2
 		v.Reset(ssaop.OpS390XFMADD)
+		v.AddArg3(z, x, y)
+		return true
+	}
+}
+func rewriteValue_OpFMA32(v *ssa.Value) bool {
+	v_2 := v.Args[2]
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (FMA32 x y z)
+	// result: (FMADDS z x y)
+	for {
+		x := v_0
+		y := v_1
+		z := v_2
+		v.Reset(ssaop.OpS390XFMADDS)
 		v.AddArg3(z, x, y)
 		return true
 	}
@@ -6613,19 +6630,6 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (CMPUconst x:(MOVHreg _) [c])
-	// result: (CMPWUconst x [c])
-	for {
-		c := ssa.AuxIntToInt32(v.AuxInt)
-		x := v_0
-		if x.Op != ssaop.OpS390XMOVHreg {
-			break
-		}
-		v.Reset(ssaop.OpS390XCMPWUconst)
-		v.AuxInt = ssa.Int32ToAuxInt(c)
-		v.AddArg(x)
-		return true
-	}
 	// match: (CMPUconst x:(MOVHZreg _) [c])
 	// result: (CMPWUconst x [c])
 	for {
@@ -6639,12 +6643,13 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		v.AddArg(x)
 		return true
 	}
-	// match: (CMPUconst x:(MOVBreg _) [c])
+	// match: (CMPUconst x:(MOVHreg _) [c])
+	// cond: c >= 0
 	// result: (CMPWUconst x [c])
 	for {
 		c := ssa.AuxIntToInt32(v.AuxInt)
 		x := v_0
-		if x.Op != ssaop.OpS390XMOVBreg {
+		if x.Op != ssaop.OpS390XMOVHreg || !(c >= 0) {
 			break
 		}
 		v.Reset(ssaop.OpS390XCMPWUconst)
@@ -6658,6 +6663,20 @@ func rewriteValue_OpS390XCMPUconst(v *ssa.Value) bool {
 		c := ssa.AuxIntToInt32(v.AuxInt)
 		x := v_0
 		if x.Op != ssaop.OpS390XMOVBZreg {
+			break
+		}
+		v.Reset(ssaop.OpS390XCMPWUconst)
+		v.AuxInt = ssa.Int32ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (CMPUconst x:(MOVBreg _) [c])
+	// cond: c >= 0
+	// result: (CMPWUconst x [c])
+	for {
+		c := ssa.AuxIntToInt32(v.AuxInt)
+		x := v_0
+		if x.Op != ssaop.OpS390XMOVBreg || !(c >= 0) {
 			break
 		}
 		v.Reset(ssaop.OpS390XCMPWUconst)

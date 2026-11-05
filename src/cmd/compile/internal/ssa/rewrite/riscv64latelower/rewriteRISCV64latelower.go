@@ -2,6 +2,8 @@
 
 package riscv64latelower
 
+import "internal/buildcfg"
+import "cmd/compile/internal/ssa/block"
 import "cmd/compile/internal/ssa/ssaop"
 import "cmd/compile/internal/ssa"
 
@@ -9,12 +11,16 @@ func RewriteValue(v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpRISCV64AND:
 		return rewriteValue_OpRISCV64AND(v)
+	case ssaop.OpRISCV64ANDI:
+		return rewriteValue_OpRISCV64ANDI(v)
 	case ssaop.OpRISCV64NOT:
 		return rewriteValue_OpRISCV64NOT(v)
 	case ssaop.OpRISCV64OR:
 		return rewriteValue_OpRISCV64OR(v)
 	case ssaop.OpRISCV64SLLI:
 		return rewriteValue_OpRISCV64SLLI(v)
+	case ssaop.OpRISCV64SNEZ:
+		return rewriteValue_OpRISCV64SNEZ(v)
 	case ssaop.OpRISCV64SRAI:
 		return rewriteValue_OpRISCV64SRAI(v)
 	case ssaop.OpRISCV64SRLI:
@@ -41,6 +47,44 @@ func rewriteValue_OpRISCV64AND(v *ssa.Value) bool {
 			return true
 		}
 		break
+	}
+	return false
+}
+func rewriteValue_OpRISCV64ANDI(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (ANDI [1] (SRLI [c] x))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (BEXTI [c] x)
+	for {
+		if ssa.AuxIntToInt64(v.AuxInt) != 1 || v_0.Op != ssaop.OpRISCV64SRLI {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BEXTI)
+		v.AuxInt = ssa.Int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
+	}
+	// match: (ANDI [1] (SRLIW [c] x))
+	// cond: buildcfg.GORISCV64 >= 23
+	// result: (BEXTI [c] x)
+	for {
+		if ssa.AuxIntToInt64(v.AuxInt) != 1 || v_0.Op != ssaop.OpRISCV64SRLIW {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		x := v_0.Args[0]
+		if !(buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BEXTI)
+		v.AuxInt = ssa.Int64ToAuxInt(c)
+		v.AddArg(x)
+		return true
 	}
 	return false
 }
@@ -151,6 +195,37 @@ func rewriteValue_OpRISCV64SLLI(v *ssa.Value) bool {
 			break
 		}
 		x := v_0
+		v.CopyOf(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpRISCV64SNEZ(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (SNEZ (ANDI [c] y))
+	// cond: ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23
+	// result: (BEXTI [ssa.Log64u(uint64(c))] y)
+	for {
+		if v_0.Op != ssaop.OpRISCV64ANDI {
+			break
+		}
+		c := ssa.AuxIntToInt64(v_0.AuxInt)
+		y := v_0.Args[0]
+		if !(ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23) {
+			break
+		}
+		v.Reset(ssaop.OpRISCV64BEXTI)
+		v.AuxInt = ssa.Int64ToAuxInt(ssa.Log64u(uint64(c)))
+		v.AddArg(y)
+		return true
+	}
+	// match: (SNEZ x:(BEXTI [_] _))
+	// result: x
+	for {
+		x := v_0
+		if x.Op != ssaop.OpRISCV64BEXTI {
+			break
+		}
 		v.CopyOf(x)
 		return true
 	}
@@ -329,5 +404,54 @@ func rewriteValue_OpRISCV64XOR(v *ssa.Value) bool {
 	return false
 }
 func RewriteBlock(b *ssa.Block) bool {
+	typ := &b.Func.Config.Types
+	switch b.Kind {
+	case block.BlockRISCV64BEQZ:
+		// match: (BEQZ (ANDI [1] (SRL x y)) yes no)
+		// cond: buildcfg.GORISCV64 >= 23
+		// result: (BEQZ (BEXT <typ.UInt64> x y) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			if ssa.AuxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != ssaop.OpRISCV64SRL {
+				break
+			}
+			y := v_0_0.Args[1]
+			x := v_0_0.Args[0]
+			if !(buildcfg.GORISCV64 >= 23) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, ssaop.OpRISCV64BEXT, typ.UInt64)
+			v0.AddArg2(x, y)
+			b.ResetWithControl(block.BlockRISCV64BEQZ, v0)
+			return true
+		}
+	case block.BlockRISCV64BNEZ:
+		// match: (BNEZ (ANDI [1] (SRL x y)) yes no)
+		// cond: buildcfg.GORISCV64 >= 23
+		// result: (BNEZ (BEXT <typ.UInt64> x y) yes no)
+		for b.Controls[0].Op == ssaop.OpRISCV64ANDI {
+			v_0 := b.Controls[0]
+			if ssa.AuxIntToInt64(v_0.AuxInt) != 1 {
+				break
+			}
+			v_0_0 := v_0.Args[0]
+			if v_0_0.Op != ssaop.OpRISCV64SRL {
+				break
+			}
+			y := v_0_0.Args[1]
+			x := v_0_0.Args[0]
+			if !(buildcfg.GORISCV64 >= 23) {
+				break
+			}
+			v0 := b.NewValue0(v_0.Pos, ssaop.OpRISCV64BEXT, typ.UInt64)
+			v0.AddArg2(x, y)
+			b.ResetWithControl(block.BlockRISCV64BNEZ, v0)
+			return true
+		}
+	}
 	return false
 }

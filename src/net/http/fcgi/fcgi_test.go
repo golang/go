@@ -284,6 +284,17 @@ func TestMalformedParams(t *testing.T) {
 	c.serve()
 }
 
+// Verifies that key and value lengths whose sum overflows
+// a 32-bit int don't cause a crash.
+func TestParamsLengthOverflow(t *testing.T) {
+	r := newRequest(1, 0)
+	r.rawParams = []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 'a'}
+	r.parseParams()
+	if len(r.params) != 0 {
+		t.Errorf("parseParams() = %v, want no params", r.params)
+	}
+}
+
 // a series of FastCGI records that start and end a request
 var streamFullRequestStdin = bytes.Join([][]byte{
 	// set up request

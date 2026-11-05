@@ -26,6 +26,7 @@ package gentools
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"go/format"
@@ -36,7 +37,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 )
 
 // Options contains standard options and CLI flags for code generators.
@@ -135,9 +135,8 @@ type Files struct {
 	fileSet map[string]*fileInfo // By fileInfo.relPath
 
 	// tmpDir is a temporary directory used for communicating with subprocess
-	// gentools.
-	tmpDirOnce sync.Once
-	tmpDir     string
+	// gentools. It is created by ExecFlags and removed by Flush.
+	tmpDir string
 }
 
 func (f *Files) getOptions() Options {
@@ -225,13 +224,13 @@ func (f *Files) AddPostProcessor(fn PostProcessor) {
 // directory back as if this process had written all of those files using f and
 // applies the configured output mode.
 func (f *Files) ExecFlags() []string {
-	f.tmpDirOnce.Do(func() {
+	if f.tmpDir == "" {
 		tmpDir, err := os.MkdirTemp("", "")
 		if err != nil {
 			panic("failed to create tmpdir: " + err.Error())
 		}
 		f.tmpDir = tmpDir
-	})
+	}
 	return []string{"-goroot", f.getOptions().GOROOT, "-w", "-outdir", f.tmpDir}
 }
 
@@ -259,6 +258,13 @@ func (f *Files) Flush() error {
 	if f.tmpDir != "" {
 		root := filepath.Join(f.tmpDir, "src")
 		err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				if path == root && errors.Is(err, fs.ErrNotExist) {
+					// The subprocesses didn't write any files.
+					return fs.SkipAll
+				}
+				return err
+			}
 			if d.IsDir() {
 				return nil
 			}
@@ -277,6 +283,8 @@ func (f *Files) Flush() error {
 			return err
 		}
 		os.RemoveAll(f.tmpDir)
+		// Later subprocesses get a new temporary directory.
+		f.tmpDir = ""
 	}
 
 	for i, fi := range f.files {

@@ -51,6 +51,8 @@ type poolConn struct {
 	poolEnt  *clientConnPoolEntry
 	isInPool bool      // set when counted in pool entry's numConns
 	idleAt   time.Time // time it last became idle
+
+	putIdleHook func(error)
 }
 
 func (pc *poolConn) isBroken() bool {
@@ -271,26 +273,43 @@ func (t *Transport) poolCloseIdleConnections() {
 	}
 }
 
-// poolPutIdleConn indicates that a connection has become idle and may accept new requests.
-func (t *Transport) poolPutIdleConn(pconn *poolConn) error {
-	if pconn == nil || pconn.poolEnt == nil {
-		return errNotInPool
-	}
-	ent := pconn.poolEnt
-	if pconn.cc.IsAlt() {
-		// HTTP/2 and HTTP/3 connections should never appear here.
-		// Ignore them if they do.
-		return nil
-	}
-	err, needExpire := func() (_ error, needExpire bool) {
+// poolConnStateHook is called when the state of a pooled connection changes.
+func (t *Transport) poolConnStateHook(pconn *poolConn) {
+	var (
+		closeErr    error
+		needExpire  bool
+		putIdleHook func(error)
+	)
+	func() {
+		ent := pconn.poolEnt
 		ent.lock()
 		defer ent.unlock(t)
-		return t.poolPutIdleConnLocked(ent, pconn)
+		if pconn.cc == nil || pconn.cc.IsAlt() {
+			return
+		}
+		if pconn.isBroken() {
+			t.poolRemoveConnLocked(ent, pconn)
+			return
+		}
+		if pconn.cc.Available() == 0 {
+			return
+		}
+		putIdleHook = pconn.putIdleHook
+		pconn.putIdleHook = nil
+		closeErr, needExpire = t.poolPutIdleConnLocked(ent, pconn)
+		if closeErr != nil {
+			t.poolRemoveConnLocked(ent, pconn)
+		}
 	}()
+	if closeErr != nil {
+		pconn.cc.CloseWithError(closeErr)
+	}
+	if putIdleHook != nil && closeErr != errKeepAlivesDisabled {
+		putIdleHook(closeErr)
+	}
 	if needExpire {
 		t.expireIdleLRU()
 	}
-	return err
 }
 
 // poolPutIdleConnLocked places pconn in its entry's idle list.
@@ -388,6 +407,10 @@ func (t *Transport) poolRemoveConn(pconn *poolConn) {
 	ent := pconn.poolEnt
 	ent.lock()
 	defer ent.unlock(t)
+	t.poolRemoveConnLocked(ent, pconn)
+}
+
+func (t *Transport) poolRemoveConnLocked(ent *clientConnPoolEntry, pconn *poolConn) {
 	if ent.altConn == pconn {
 		ent.altConn = nil
 	}
@@ -563,7 +586,7 @@ func (t *Transport) poolTryGetForEntryLocked(ent *clientConnPoolEntry) *poolConn
 		}
 		if pconn.isBroken() || tooOld {
 			// If either persistConn.readLoop has marked the connection
-			// broken, but Transport.removeIdleConn has not yet removed it
+			// broken, but poolConnStateHook has not yet removed it
 			// from the idle list, or if this persistConn is too old (it was
 			// idle too long), then ignore it and look for another. In both
 			// cases it's already in the process of being closed.
@@ -596,11 +619,9 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 	pconn := &poolConn{
 		poolEnt: ent,
 	}
-	cc, err := t.dialConn(ctx, dial.cm, false, pconn, nil)
+	cc, err := t.dialConn(ctx, dial.cm, false, func() { t.poolConnStateHook(pconn) })
 	if err != nil {
 		pconn = nil
-	} else {
-		pconn.cc = cc
 	}
 	needClose, needExpire := func() (needClose, needExpire bool) {
 		ent.lock()
@@ -610,6 +631,7 @@ func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 		// the new connection (if any).
 		ent.dials.remove(dial)
 		if err == nil {
+			pconn.cc = cc
 			ent.registerConnLocked(pconn)
 		}
 

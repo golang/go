@@ -271,6 +271,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpFMA:
 		v.Op = ssaop.OpRISCV64FMADDD
 		return true
+	case ssaop.OpFMA32:
+		v.Op = ssaop.OpRISCV64FMADDS
+		return true
 	case ssaop.OpGetCallerPC:
 		v.Op = ssaop.OpRISCV64LoweredGetCallerPC
 		return true
@@ -8993,6 +8996,7 @@ func rewriteValue_OpRISCV64SRA(v *ssa.Value) bool {
 func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SRAI [x] (MOVWreg y))
 	// cond: x >= 0 && x <= 31
 	// result: (SRAIW [x] y)
@@ -9012,9 +9016,8 @@ func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 	}
 	// match: (SRAI <t> [x] (MOVBreg y))
 	// cond: x >= 8
-	// result: (SRAI [63] (SLLI <t> [56] y))
+	// result: (SRAI [63] (SLLI <typ.Int64> [56] y))
 	for {
-		t := v.Type
 		x := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpRISCV64MOVBreg {
 			break
@@ -9025,7 +9028,7 @@ func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpRISCV64SRAI)
 		v.AuxInt = ssa.Int64ToAuxInt(63)
-		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64SLLI, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64SLLI, typ.Int64)
 		v0.AuxInt = ssa.Int64ToAuxInt(56)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -9033,9 +9036,8 @@ func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 	}
 	// match: (SRAI <t> [x] (MOVHreg y))
 	// cond: x >= 16
-	// result: (SRAI [63] (SLLI <t> [48] y))
+	// result: (SRAI [63] (SLLI <typ.Int64> [48] y))
 	for {
-		t := v.Type
 		x := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpRISCV64MOVHreg {
 			break
@@ -9046,7 +9048,7 @@ func rewriteValue_OpRISCV64SRAI(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpRISCV64SRAI)
 		v.AuxInt = ssa.Int64ToAuxInt(63)
-		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64SLLI, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpRISCV64SLLI, typ.Int64)
 		v0.AuxInt = ssa.Int64ToAuxInt(48)
 		v0.AddArg(y)
 		v.AddArg(v0)

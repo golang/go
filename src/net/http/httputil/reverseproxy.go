@@ -355,15 +355,20 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
 }
 
 func rewriteRequestURL(req *http.Request, target *url.URL) {
-	targetQuery := target.RawQuery
-	req.URL.Scheme = target.Scheme
-	req.URL.Host = target.Host
-	req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
-	if targetQuery == "" || req.URL.RawQuery == "" {
-		req.URL.RawQuery = targetQuery + req.URL.RawQuery
-	} else {
-		req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+	u := url.URL{
+		Scheme:     target.Scheme,
+		User:       target.User,
+		Host:       target.Host,
+		OmitHost:   target.OmitHost,
+		ForceQuery: req.URL.ForceQuery,
 	}
+	u.Path, u.RawPath = joinURLPath(target, req.URL)
+	if target.RawQuery == "" || req.URL.RawQuery == "" {
+		u.RawQuery = target.RawQuery + req.URL.RawQuery
+	} else {
+		u.RawQuery = target.RawQuery + "&" + req.URL.RawQuery
+	}
+	*req.URL = u
 }
 
 func copyHeader(dst, src http.Header) {
@@ -525,6 +530,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 		// Remove unparsable query parameters from the outbound request.
 		outreq.URL.RawQuery = cleanQueryParams(outreq.URL.RawQuery)
+
+		// Do not preserve absolute-form URLs such as a:b:/path.
+		outreq.URL.Opaque = ""
+		outreq.URL.OmitHost = false
+
+		// Do not preserve userinfo. RFC 9110 4.2.4 says:
+		// "A sender MUST NOT generate the userinfo subcomponent [...] as a target [...]"
+		outreq.URL.User = nil
 
 		pr := &ProxyRequest{
 			In:  req,

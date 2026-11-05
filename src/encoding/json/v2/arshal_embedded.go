@@ -172,6 +172,9 @@ func unmarshalEmbeddedFallbackNext(dec *jsontext.Decoder, va alwaysAddressableVa
 		v = v.fieldByIndex(f.index, true)
 	}
 	v = v.indirect(true)
+	if !v.IsValid() {
+		return newUnmarshalErrorBeforeWithSkipping(dec, va.Type(), errNilField)
+	}
 
 	if v.Type() == jsontextValueType {
 		b, _ := reflect.TypeAssert[*jsontext.Value](v.Addr())

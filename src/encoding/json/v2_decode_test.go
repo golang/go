@@ -2077,10 +2077,6 @@ func TestNullString(t *testing.T) {
 	}
 }
 
-func addr[T any](v T) *T {
-	return &v
-}
-
 func TestInterfaceSet(t *testing.T) {
 	errUnmarshal := &UnmarshalTypeError{Value: "object", Offset: len64(`{"X":{`), Type: reflect.TypeFor[int](), Field: "X"}
 	tests := []struct {
@@ -2098,41 +2094,41 @@ func TestInterfaceSet(t *testing.T) {
 
 		{Name(""), any(nil), `null`, any(nil)},
 		{Name(""), (*int)(nil), `null`, any(nil)},
-		{Name(""), (*int)(addr(0)), `null`, any(nil)},
-		{Name(""), (*int)(addr(1)), `null`, any(nil)},
+		{Name(""), (*int)(new(0)), `null`, any(nil)},
+		{Name(""), (*int)(new(1)), `null`, any(nil)},
 		{Name(""), (**int)(nil), `null`, any(nil)},
-		{Name(""), (**int)(addr[*int](nil)), `null`, (**int)(addr[*int](nil))},
-		{Name(""), (**int)(addr(addr(1))), `null`, (**int)(addr[*int](nil))},
+		{Name(""), (**int)(new((*int)(nil))), `null`, (**int)(new((*int)(nil)))},
+		{Name(""), (**int)(new(new(1))), `null`, (**int)(new((*int)(nil)))},
 		{Name(""), (***int)(nil), `null`, any(nil)},
-		{Name(""), (***int)(addr[**int](nil)), `null`, (***int)(addr[**int](nil))},
-		{Name(""), (***int)(addr(addr[*int](nil))), `null`, (***int)(addr[**int](nil))},
-		{Name(""), (***int)(addr(addr(addr(1)))), `null`, (***int)(addr[**int](nil))},
+		{Name(""), (***int)(new((**int)(nil))), `null`, (***int)(new((**int)(nil)))},
+		{Name(""), (***int)(new(new((*int)(nil)))), `null`, (***int)(new((**int)(nil)))},
+		{Name(""), (***int)(new(new(new(1)))), `null`, (***int)(new((**int)(nil)))},
 
 		{Name(""), any(nil), `2`, float64(2)},
 		{Name(""), (int)(1), `2`, float64(2)},
 		{Name(""), (*int)(nil), `2`, float64(2)},
-		{Name(""), (*int)(addr(0)), `2`, (*int)(addr(2))},
-		{Name(""), (*int)(addr(1)), `2`, (*int)(addr(2))},
+		{Name(""), (*int)(new(0)), `2`, (*int)(new(2))},
+		{Name(""), (*int)(new(1)), `2`, (*int)(new(2))},
 		{Name(""), (**int)(nil), `2`, float64(2)},
-		{Name(""), (**int)(addr[*int](nil)), `2`, (**int)(addr(addr(2)))},
-		{Name(""), (**int)(addr(addr(1))), `2`, (**int)(addr(addr(2)))},
+		{Name(""), (**int)(new((*int)(nil))), `2`, (**int)(new(new(2)))},
+		{Name(""), (**int)(new(new(1))), `2`, (**int)(new(new(2)))},
 		{Name(""), (***int)(nil), `2`, float64(2)},
-		{Name(""), (***int)(addr[**int](nil)), `2`, (***int)(addr(addr(addr(2))))},
-		{Name(""), (***int)(addr(addr[*int](nil))), `2`, (***int)(addr(addr(addr(2))))},
-		{Name(""), (***int)(addr(addr(addr(1)))), `2`, (***int)(addr(addr(addr(2))))},
+		{Name(""), (***int)(new((**int)(nil))), `2`, (***int)(new(new(new(2))))},
+		{Name(""), (***int)(new(new((*int)(nil)))), `2`, (***int)(new(new(new(2))))},
+		{Name(""), (***int)(new(new(new(1)))), `2`, (***int)(new(new(new(2))))},
 
 		{Name(""), any(nil), `{}`, map[string]any{}},
 		{Name(""), (int)(1), `{}`, map[string]any{}},
 		{Name(""), (*int)(nil), `{}`, map[string]any{}},
-		{Name(""), (*int)(addr(0)), `{}`, errUnmarshal},
-		{Name(""), (*int)(addr(1)), `{}`, errUnmarshal},
+		{Name(""), (*int)(new(0)), `{}`, errUnmarshal},
+		{Name(""), (*int)(new(1)), `{}`, errUnmarshal},
 		{Name(""), (**int)(nil), `{}`, map[string]any{}},
-		{Name(""), (**int)(addr[*int](nil)), `{}`, errUnmarshal},
-		{Name(""), (**int)(addr(addr(1))), `{}`, errUnmarshal},
+		{Name(""), (**int)(new((*int)(nil))), `{}`, errUnmarshal},
+		{Name(""), (**int)(new(new(1))), `{}`, errUnmarshal},
 		{Name(""), (***int)(nil), `{}`, map[string]any{}},
-		{Name(""), (***int)(addr[**int](nil)), `{}`, errUnmarshal},
-		{Name(""), (***int)(addr(addr[*int](nil))), `{}`, errUnmarshal},
-		{Name(""), (***int)(addr(addr(addr(1)))), `{}`, errUnmarshal},
+		{Name(""), (***int)(new((**int)(nil))), `{}`, errUnmarshal},
+		{Name(""), (***int)(new(new((*int)(nil)))), `{}`, errUnmarshal},
+		{Name(""), (***int)(new(new(new(1)))), `{}`, errUnmarshal},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -2564,14 +2560,14 @@ func TestPrefilled(t *testing.T) {
 	}, {
 		CaseName: Name(""),
 		in:       `1e1000`,
-		ptr:      addr(float64(math.Pi)),
-		out:      addr(float64(math.Pi)),
+		ptr:      new(float64(math.Pi)),
+		out:      new(float64(math.Pi)),
 		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
 	}, {
 		CaseName: Name(""),
 		in:       `1e1000`,
-		ptr:      addr(any(float64(0))),
-		out:      addr(any(float64(0))),
+		ptr:      new(any(float64(0))),
+		out:      new(any(float64(0))),
 		wantErr:  &UnmarshalTypeError{Value: "number 1e1000", Type: reflect.TypeFor[float64](), Offset: len64("1e1000")},
 	}}
 	for _, tt := range tests {

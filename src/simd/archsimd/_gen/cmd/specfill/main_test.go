@@ -59,14 +59,10 @@ func TestFill(t *testing.T) {
 
 			filled, err := specdoc.Fill(src, specIdx, specdoc.Options{
 				Filename: filepath.ToSlash(relPath),
-				// Since we're checking generator output files, we expect there
-				// to already be spec-owned doc comments. Don't report these as
-				// errors.
+				// Since we're checking generator output and already-filled
+				// files, we expect there to already be spec-owned doc comments.
+				// Don't report these as errors.
 				AllowDocRewrite: true,
-				// TODO: Docs aren't yet filled by spec in the generators, so
-				// leave them alone in the check. Once they are filled by the
-				// generators and in hand-written files, drop this flag.
-				NoFillDoc: !isGen,
 			})
 			var rep *specdoc.Report
 			if errors.As(err, &rep) {
@@ -76,14 +72,8 @@ func TestFill(t *testing.T) {
 			} else if !bytes.Equal(src, filled) {
 				diff := gentools.Diff(relPath, src, relPath, filled)
 				var fix string
-				switch {
-				case isGen:
-					// Just the regenerate.
-				case filepath.ToSlash(relPath) == "src/simd/simd_emulated.go":
-					// Currently the only file with spec-filled docs.
-					fix = "\tgo run ./cmd/specfill -w ../../simd_emulated.go\n"
-				default:
-					fix = "\tgo run ./cmd/specfill -no-fill-doc -w\n"
+				if !isGen {
+					fix = "\tgo run ./cmd/specfill -w\n"
 				}
 				t.Errorf("%s diverges from internal/spec:\n%s\nTo fix:\n\tcd $GOROOT/src/simd/archsimd/_gen\n%s\tgo run . -w", relPath, diff, fix)
 			}

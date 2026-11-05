@@ -2271,3 +2271,39 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
 		t.Logf("%d types checked\n", typesChecked)
 	}
 }
+
+const locListProg = `
+package main
+
+type T struct{ a, b, c int }
+
+var sink *T
+var isink *int
+
+func esc(n int) *T {
+	t := T{a: n, b: n * 2, c: n * 3}
+	sink = &t
+	for i := 0; i < n; i++ {
+		x := i * n
+		isink = &x
+	}
+	return sink
+}
+
+func main() { println(esc(4).a, *isink) }
+`
+
+// A heap-escaped variable used to get a location list even with location lists
+// turned off, which left putvar asking for the size of a nil loc symbol.
+// See issue 82738.
+func TestDWARFNoLocationLists(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	mustHaveDWARF(t)
+	t.Parallel()
+
+	f := gobuild(t, t.TempDir(), locListProg, "-gcflags=-dwarflocationlists=false")
+	defer f.Close()
+	if _, err := f.DWARF(); err != nil {
+		t.Fatalf("DWARF: %v", err)
+	}
+}

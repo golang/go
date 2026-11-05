@@ -11,4 +11,28 @@ var (
 	ErrBodyNotAllowed  = errors.New("http: request method or response status code does not allow body")
 	ErrRequestCanceled = errors.New("net/http: request canceled")
 	ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
+
+	ErrCloseIdleConnections = errors.New("http: CloseIdleConnections called")
 )
+
+// RetryableError is a retryable error condition.
+type RetryableError struct {
+	Err     string
+	Backoff bool // set if we should back off before retrying
+}
+
+func (e RetryableError) Error() string { return e.Err }
+
+// BodyAllowedForStatus reports whether a given response status code permits a body.
+// https://www.rfc-editor.org/info/rfc9110/#section-6.4.1
+func BodyAllowedForStatus(status int) bool {
+	switch {
+	case status >= 100 && status <= 199:
+		return false
+	case status == 204:
+		return false
+	case status == 304:
+		return false
+	}
+	return true
+}

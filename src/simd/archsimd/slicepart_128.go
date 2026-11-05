@@ -79,9 +79,9 @@ func float32atP64(p *float64) *float32 {
 
 /* 128-bit vector load and store slice parts for 8 and 16-bit int elements */
 
-// LoadUint8x16Part loads a Uint8x16 from the slice s.
-// If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadInt8x16.
+// LoadUint8x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadUint8x16Part(s []uint8) (z Uint8x16, n int) {
 	l := len(s)
 	if l >= 16 {
@@ -132,9 +132,7 @@ func LoadUint8x16Part(s []uint8) (z Uint8x16, n int) {
 	return x, l
 }
 
-// StorePart stores the elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 16 or more elements, the method is equivalent to x.Store.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Uint8x16) StorePart(s []uint8) (n int) {
 	l := len(s)
 	if l >= 16 {
@@ -185,9 +183,9 @@ func (x Uint8x16) StorePart(s []uint8) (n int) {
 	return l
 }
 
-// LoadUint16x8Part loads a Uint16x8 from the slice s.
-// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadInt16x8.
+// LoadUint16x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadUint16x8Part(s []uint16) (z Uint16x8, n int) {
 	l := len(s)
 	if l >= 8 {
@@ -218,9 +216,7 @@ func LoadUint16x8Part(s []uint16) (z Uint16x8, n int) {
 	return x, l
 }
 
-// StorePart stores the elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 8 or more elements, the method is equivalent to x.Store.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Uint16x8) StorePart(s []uint16) (n int) {
 	l := len(s)
 	if l >= 8 {
@@ -251,10 +247,9 @@ func (x Uint16x8) StorePart(s []uint16) (n int) {
 	return l
 }
 
-// LoadInt8x16Part loads a Int8x16 from the slice s, it returns the loaded vector and the
-// number of elements loaded.
-// If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadInt8x16.
+// LoadInt8x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadInt8x16Part(s []int8) (z Int8x16, n int) {
 	if len(s) == 0 {
 		var zero Int8x16
@@ -265,9 +260,7 @@ func LoadInt8x16Part(s []int8) (z Int8x16, n int) {
 	return v.BitsToInt8(), l
 }
 
-// StorePart stores the 16 elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 16 or more elements, the method is equivalent to x.Store.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Int8x16) StorePart(s []int8) (n int) {
 	if len(s) == 0 {
 		return 0
@@ -276,10 +269,9 @@ func (x Int8x16) StorePart(s []int8) (n int) {
 	return x.ToBits().StorePart(t)
 }
 
-// LoadInt16x8Part loads a Int16x8 from the slice s, it returns the loaded vector and the
-// number of elements loaded.
-// If s has fewer than 8 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 8 or more elements, the function is equivalent to LoadInt16x8.
+// LoadInt16x8Part loads n=min(len(s), 8) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 8, the
+// remaining vector elements will be zero.
 func LoadInt16x8Part(s []int16) (z Int16x8, n int) {
 	if len(s) == 0 {
 		var zero Int16x8
@@ -290,9 +282,7 @@ func LoadInt16x8Part(s []int16) (z Int16x8, n int) {
 	return v.BitsToInt16(), l
 }
 
-// StorePart stores the 8 elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 8 or more elements, the method is equivalent to x.Store.
+// StorePart stores n=min(len(s), 8) elements of x into s and returns n.
 func (x Int16x8) StorePart(s []int16) (n int) {
 	if len(s) == 0 {
 		return 0

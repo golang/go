@@ -534,6 +534,19 @@ func (vm maybeAddressableValue) indirect(mayAlloc bool) maybeAddressableValue {
 	return vm
 }
 
+// typeAssertInterface is like [reflect.TypeAssert], but calls Addr if needAddr.
+// If the value is not addressable, then [maybeAddressableValue.ensureAddr]
+// is called where the returned T does not back the original value.
+// T must be an interface kind.
+func (vm maybeAddressableValue) typeAssertInterface[T any](needAddr bool) T {
+	if !needAddr && !vm.CanAddr() {
+		v, _ := reflect.TypeAssert[T](vm.Value) // avoids allocation
+		return v
+	}
+	v, _ := reflect.TypeAssert[T](vm.ensureAddr().Addr()) // allocates if CanAddr is false
+	return v
+}
+
 // ensureAddr returns vm if it is addressable, or an addressable shallow copy.
 // This is often called by marshal functionality for addressable methods.
 //

@@ -4135,6 +4135,7 @@ const (
 	OpARMMULAD
 	OpARMMULSF
 	OpARMMULSD
+	OpARMFMULAF
 	OpARMFMULAD
 	OpARMAND
 	OpARMANDconst
@@ -6216,6 +6217,8 @@ const (
 	OpRISCV64MAX
 	OpRISCV64MINU
 	OpRISCV64MAXU
+	OpRISCV64BEXT
+	OpRISCV64BEXTI
 	OpRISCV64SEQZ
 	OpRISCV64SNEZ
 	OpRISCV64SLT
@@ -7105,6 +7108,7 @@ const (
 	OpMax64FSel
 	OpMax32FSel
 	OpFMA
+	OpFMA32
 	OpPhi
 	OpCopy
 	OpConvert
@@ -11241,10 +11245,11 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "SBBLcarrymask",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ASBBL,
+		Name:         "SBBLcarrymask",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ASBBL,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 239, V2: 0}}, // AX CX DX BX BP SI DI
@@ -19019,10 +19024,11 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:    "SBBQcarrymask",
-		ArgLen:  1,
-		EarlyOk: true,
-		asm:     x86.ASBBQ,
+		Name:         "SBBQcarrymask",
+		ArgLen:       1,
+		ClobberFlags: true,
+		EarlyOk:      true,
+		asm:          x86.ASBBQ,
 		Reg: RegInfo{
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 49135, V2: 0}}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
@@ -19032,6 +19038,7 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:          "SBBLcarrymask",
 		ArgLen:        1,
+		ClobberFlags:  true,
 		EarlyOk:       true,
 		asm:           x86.ASBBL,
 		ZeroUpperBits: 32,
@@ -73264,6 +73271,22 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:         "FMULAF",
+		ArgLen:       3,
+		ResultInArg0: true,
+		asm:          arm.AFMULAF,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{1, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+				{2, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 4294901760, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+			},
+		},
+	},
+	{
 		Name:         "FMULAD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -103474,6 +103497,36 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:    "BEXT",
+		ArgLen:  2,
+		EarlyOk: true,
+		asm:     riscv.ABEXT,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+				{1, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
+		Name:    "BEXTI",
+		AuxType: AuxTypeInt64,
+		ArgLen:  1,
+		EarlyOk: true,
+		asm:     riscv.ABEXTI,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 1006632944, V2: 0}}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+			},
+		},
+	},
+	{
 		Name:    "SEQZ",
 		ArgLen:  1,
 		EarlyOk: true,
@@ -114568,6 +114621,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "FMA",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "FMA32",
 		ArgLen:  3,
 		Generic: true,
 	},

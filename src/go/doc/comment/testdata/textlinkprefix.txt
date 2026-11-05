@@ -1,0 +1,12 @@
+{"TextPrefix":"// ", "TextCodePrefix":"    "}
+-- input --
+See [Go] and [documentation].
+
+[Go]: https://go.dev
+[unused]: https://example.com
+[documentation]: https://go.dev/doc/
+-- text --
+// See Go and documentation.
+//
+// [Go]: https://go.dev
+// [documentation]: https://go.dev/doc/

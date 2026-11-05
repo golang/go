@@ -16,14 +16,18 @@ func bitsCheckConstLeftShiftU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]63," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&(1<<63) != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBNZ [$]60,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]60," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]60," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&(1<<60) != 0 {
 		return 1
 	}
@@ -62,7 +66,9 @@ func bitsCheckConstRightShiftU64(a [8]uint64) (n int) {
 	// amd64:"BTQ [$]60,"
 	// arm64:"TBZ [$]60," -"LSR"
 	// loong64:"SRLV [$]60," "AND [$]1," "BEQ"
-	// riscv64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
+	// riscv64/rva20u64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
+	// riscv64/rva22u64:"SRLI [$]60," "ANDI [$]1," "BEQZ"
+	// riscv64/rva23u64:"BEXTI [$]60," "BEQZ" -"SRLI" -"ANDI"
 	if (a[3]>>60)&1 == 0 {
 		return 1
 	}
@@ -94,14 +100,18 @@ func bitsCheckVarU64(a, b, c uint64) bool {
 	// amd64:"BTQ"
 	// arm64:"MOVD [$]1," "LSL" "TST"
 	// loong64:"MOVV [$]1," "SLLV R" "AND" "BNE"
-	// riscv64:"SRL " "ANDI [$]1," "BNEZ" -"ANDI [$]63," -"MOV [$]1," -"SLL" -"AND "
+	// riscv64/rva20u64:"SRL " "ANDI [$]1," "BNEZ" -"ANDI [$]63," -"MOV [$]1," -"SLL" -"AND "
+	// riscv64/rva22u64:"SRL " "ANDI [$]1," "BNEZ" -"ANDI [$]63," -"MOV [$]1," -"SLL" -"AND "
+	// riscv64/rva23u64:"BEXT " "BNEZ" -"SRL" -"SLL" -"AND"
 	if a&(1<<(b&63)) != 0 {
 		return true
 	}
 	// amd64:"BTQ" -"BT. [$]0,"
 	// arm64:"LSR" "TBZ [$]0,"
 	// loong64:"SRLV" "AND [$]1," "BEQ"
-	// riscv64:"SRL " "ANDI [$]1," "BEQZ" -"ANDI [$]63," -"MOV [$]1,"
+	// riscv64/rva20u64:"SRL " "ANDI [$]1," "BEQZ" -"ANDI [$]63," -"MOV [$]1,"
+	// riscv64/rva22u64:"SRL " "ANDI [$]1," "BEQZ" -"ANDI [$]63," -"MOV [$]1,"
+	// riscv64/rva23u64:"BEXT " "BEQZ" -"SRL" -"AND"
 	if (b>>(a&63))&1 != 0 {
 		return true
 	}
@@ -113,14 +123,18 @@ func bitsCheckMaskU64(a uint64) (n int) {
 	// amd64:"BTQ [$]63,"
 	// arm64:"TBNZ [$]63,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]63," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]63," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&0x8000000000000000 != 0 {
 		return 1
 	}
 	// amd64:"BTQ [$]59,"
 	// arm64:"TBNZ [$]59,"
 	// loong64:"MOVV [$]" "AND" "BNE"
-	// riscv64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]59," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]59," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&0x800000000000000 != 0 {
 		return 1
 	}
@@ -242,14 +256,18 @@ func bitsCheckConstShiftLeftU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]31," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&(1<<31) != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]28,"
 	// arm64:"TBNZ [$]28,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"SRLI [$]28," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]28," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]28," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]28," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&(1<<28) != 0 {
 		return 1
 	}
@@ -288,14 +306,18 @@ func bitsCheckConstRightShiftU32(a [8]uint32) (n int) {
 	// amd64:"BTL [$]28,"
 	// arm64:"UBFX [$]28," "TBZ"
 	// loong64:"SRL [$]28," "AND [$]1," "BEQ"
-	// riscv64:"SRLIW [$]28," "ANDI [$]1," "BEQZ"
+	// riscv64/rva20u64:"SRLIW [$]28," "ANDI [$]1," "BEQZ"
+	// riscv64/rva22u64:"SRLIW [$]28," "ANDI [$]1," "BEQZ"
+	// riscv64/rva23u64:"BEXTI [$]28," "BEQZ" -"SRLIW" -"ANDI"
 	if (a[3]>>28)&1 == 0 {
 		return 1
 	}
 	// amd64:"BTL [$]1,"
 	// arm64:"UBFX [$]1," "TBZ"
 	// loong64:"SRL [$]1," "AND [$]1," "BEQ"
-	// riscv64:"SRLIW [$]1," "ANDI [$]1," "BEQZ"
+	// riscv64/rva20u64:"SRLIW [$]1," "ANDI [$]1," "BEQZ"
+	// riscv64/rva22u64:"SRLIW [$]1," "ANDI [$]1," "BEQZ"
+	// riscv64/rva23u64:"BEXTI [$]1," "BEQZ" -"SRLIW" -"ANDI"
 	if (a[4]>>1)&1 == 0 {
 		return 1
 	}
@@ -339,14 +361,18 @@ func bitsCheckMaskU32(a uint32) (n int) {
 	// amd64:"BTL [$]31,"
 	// arm64:"TBNZ [$]31,"
 	// loong64:"AND [$]" "MOVWU" "BNE"
-	// riscv64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]31," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]31," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&0x80000000 != 0 {
 		return 1
 	}
 	// amd64:"BTL [$]27,"
 	// arm64:"TBNZ [$]27,"
 	// loong64:"AND [$]" "BNE"
-	// riscv64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva20u64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva22u64:"SRLI [$]27," "ANDI [$]1," "BNEZ" -"MOV [$]"
+	// riscv64/rva23u64:"BEXTI [$]27," "BNEZ" -"MOV [$]" -"SRLI" -"ANDI"
 	if a&0x8000000 != 0 {
 		return 1
 	}
@@ -459,7 +485,9 @@ func bitsCheckMostNegative(b uint8) bool {
 	// amd64:"TESTB"
 	// arm64:"TSTW" "CSET"
 	// loong64:"AND [$]128," "SGTU"
-	// riscv64:"ANDI [$]128," "SNEZ" -"ADDI"
+	// riscv64/rva20u64:"ANDI [$]128," "SNEZ" -"ADDI"
+	// riscv64/rva22u64:"ANDI [$]128," "SNEZ" -"ADDI"
+	// riscv64/rva23u64:"BEXTI [$]7," -"SNEZ" -"ADDI"
 	return b&0x80 == 0x80
 }
 
@@ -529,7 +557,9 @@ func bitsNotOr(x int64, a []int64) {
 func bitsSetPowerOf2Test(x int) bool {
 	// amd64:"BTL [$]3"
 	// loong64:"AND [$]8," "SGTU"
-	// riscv64:"ANDI [$]8," "SNEZ" -"ADDI"
+	// riscv64/rva20u64:"ANDI [$]8," "SNEZ" -"ADDI"
+	// riscv64/rva22u64:"ANDI [$]8," "SNEZ" -"ADDI"
+	// riscv64/rva23u64:"BEXTI [$]3," -"SNEZ" -"ADDI"
 	return x&8 == 8
 }
 

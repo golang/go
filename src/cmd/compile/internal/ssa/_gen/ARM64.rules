@@ -58,6 +58,7 @@
 (RoundToEven ...) => (FRINTND ...)
 (Trunc       ...) => (FRINTZD ...)
 (FMA       x y z) => (FMADDD z x y)
+(FMA32     x y z) => (FMADDS z x y)
 
 (Sqrt32 ...) => (FSQRTS ...)
 
@@ -1431,7 +1432,7 @@
 (CSNEG [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSNEG [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (NEG y)
 (CSINV [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
-(CSINV [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (Not y)
+(CSINV [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (MVN y)
 (CSINC [cc] x _ flag) && ccARM64Eval(cc, flag) > 0 => x
 (CSINC [cc] _ y flag) && ccARM64Eval(cc, flag) < 0 => (ADDconst [1] y)
 (CSETM [cc]     flag) && ccARM64Eval(cc, flag) > 0 => (MOVDconst [-1])

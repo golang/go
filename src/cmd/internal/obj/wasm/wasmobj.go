@@ -97,6 +97,9 @@ var Register = map[string]int16{
 	"PC_B": REG_PC_B,
 }
 
+// The index at which to insert special continuation and its block type, for WasmFX extension.
+const ContinuationTypeIndex = 2
+
 var registerNames []string
 
 func init() {
@@ -131,6 +134,7 @@ var unaryDst = map[obj.As]bool{
 	AI64Store16:   true,
 	AI64Store32:   true,
 	AV128Store:    true,
+	ASuspend:      true,
 	ACALLNORESUME: true,
 }
 
@@ -1291,6 +1295,23 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				writeUleb128(w, idx)
 			}
 
+		case ARefFunc:
+			// This instruction looks like ACall but instead of jumping to the function,
+			// it leaves a reference to it on the stack.
+			if p.From.Name != obj.NAME_EXTERN && p.From.Name != obj.NAME_STATIC {
+				panic("bad name for RefFunc")
+			}
+			typ := objabi.R_CALL
+			if p.Mark&WasmImport != 0 {
+				typ = objabi.R_WASMIMPORT
+			}
+			s.AddRel(ctxt, obj.Reloc{
+				Type: typ,
+				Off:  int32(w.Len()),
+				Siz:  1, // actually variable sized
+				Sym:  p.From.Sym,
+			})
+
 		case ACall:
 			switch p.To.Type {
 			case obj.TYPE_CONST:
@@ -1394,10 +1415,34 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		case ACurrentMemory, AGrowMemory, AMemoryFill:
 			w.WriteByte(0x00)
 
+		case ARefNull:
+			// Note this is the type index of the one type we use this
+			// instruction for.
+			w.WriteByte(ContinuationTypeIndex)
+
+		case AContNew:
+			// As with ARefNull, there is only one type at which we use this instruction.
+			w.WriteByte(ContinuationTypeIndex)
+
+		case ASuspend:
+			// Hard coded tag index: We only need one tag, call it "yield" for
+			// the WasmFX implementation of the goroutine scheduler.
+			w.WriteByte(0x00)
+
+		case ASwitch:
+			panic("Unimplemented: Wasm Switch instruction.")
+
+		case AResume:
+			// As with ARefNull, there is only one type at which we use this instruction.
+			w.WriteByte(ContinuationTypeIndex) // Continuation type index.
+			w.WriteByte(0x01)                  // size of handler table
+			w.WriteByte(0x00)                  // "on" clause with handler, not switch
+			w.WriteByte(0x00)                  // tag 0 ->
+			w.WriteByte(0x00)                  //   label 0  (hard-coded for the implementation in asm_wasm.s)
+
 		case AMemoryCopy:
 			w.WriteByte(0x00)
 			w.WriteByte(0x00)
-
 		}
 	}
 
@@ -1425,8 +1470,12 @@ func writeOpcode(w *bytes.Buffer, as obj.As) {
 		w.WriteByte(byte(as - ADrop + 0x1A))
 	case as < AI32Load:
 		w.WriteByte(byte(as - ALocalGet + 0x20))
-	case as < AI32TruncSatF32S:
+	case as < ARefNull:
 		w.WriteByte(byte(as - AI32Load + 0x28))
+	case as < AContNew:
+		w.WriteByte(byte(as - ARefNull + 0xD0))
+	case as < AI32TruncSatF32S:
+		w.WriteByte(byte(as - AContNew + 0xE0))
 	case as < AV128Load:
 		w.WriteByte(0xFC)
 		w.WriteByte(byte(as - AI32TruncSatF32S + 0x00))

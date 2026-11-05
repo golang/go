@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"io"
 	"math"
 	"net"
@@ -147,6 +149,14 @@ type (
 		*structOmitZeroAll
 		FizzBuzz int
 		*structNestedAddr
+	}
+	structUnexportedEmbeddedPointerMapStringInt struct {
+		A int `json:",omitzero"`
+		*structEmbedMapStringInt
+	}
+	structUnexportedEmbeddedPointerTextValue struct {
+		A int `json:",omitzero"`
+		*structEmbedEmbedPointerTextValue
 	}
 	structNestedAddr struct {
 		Addr netip.Addr
@@ -734,10 +744,6 @@ func (*pointerNeverZero) IsZero() bool  { return false }
 func (valueStringer) String() string    { return "" }
 func (*pointerStringer) String() string { return "" }
 
-func addr[T any](v T) *T {
-	return &v
-}
-
 func mustParseTime(layout, value string) time.Time {
 	t, err := time.Parse(layout, value)
 	if err != nil {
@@ -767,6 +773,27 @@ func TestMarshalAppendTextNewSameCapacity(t *testing.T) {
 	}
 	if want := "\"hello\"\n"; dst.String() != want {
 		t.Fatalf("MarshalEncode = %q, want %q", dst.String(), want)
+	}
+}
+
+// TestMarshalInterfaceNoCopy checks that values held in interfaces are
+// marshaled without a per-element copy to addressable storage.
+func TestMarshalInterfaceNoCopy(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping malloc count under race detector")
+	}
+	type namedAny any
+	for _, in := range [][2]any{
+		{[]any{"a"}, []any{"a", "b", "c", "d", "e", "f", "g", "h"}},
+		{[]any{1}, []any{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]namedAny{1}, []namedAny{1, 2, 3, 4, 5, 6, 7, 8}},
+	} {
+		n1 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[0]) })
+		n8 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[1]) })
+		if n8 > n1 {
+			t.Errorf("MarshalWrite(%T): %v allocs for 8 elements, want at most %v (1 element)", in[0], n8, n1)
+		}
 	}
 }
 
@@ -969,12 +996,12 @@ func TestMarshal(t *testing.T) {
 		want:         `{"-9223372036854775808":"MinInt64","0":"Zero","9223372036854775807":"MaxInt64"}`,
 	}, {
 		name:         jsontest.Name("Maps/ValidKey/PointerInt"),
-		in:           map[*int64]string{addr(int64(math.MinInt64)): "MinInt64", addr(int64(0)): "Zero", addr(int64(math.MaxInt64)): "MaxInt64"},
+		in:           map[*int64]string{new(int64(math.MinInt64)): "MinInt64", new(int64(0)): "Zero", new(int64(math.MaxInt64)): "MaxInt64"},
 		canonicalize: true,
 		want:         `{"-9223372036854775808":"MinInt64","0":"Zero","9223372036854775807":"MaxInt64"}`,
 	}, {
 		name:         jsontest.Name("Maps/DuplicateName/PointerInt"),
-		in:           map[*int64]string{addr(int64(0)): "0", addr(int64(0)): "0"},
+		in:           map[*int64]string{new(int64(0)): "0", new(int64(0)): "0"},
 		canonicalize: true,
 		want:         `{"0":"0"`,
 		wantErr:      newDuplicateNameError("", []byte(`"0"`), len64(`{"0":"0",`)),
@@ -1813,14 +1840,14 @@ func TestMarshal(t *testing.T) {
 			ValueNeverZero:                  valueNeverZero("nonzero"),
 			PointerAlwaysZero:               pointerAlwaysZero("nonzero"),
 			PointerNeverZero:                pointerNeverZero("nonzero"),
-			PointerValueAlwaysZero:          addr(valueAlwaysZero("nonzero")),
-			PointerValueNeverZero:           addr(valueNeverZero("nonzero")),
-			PointerPointerAlwaysZero:        addr(pointerAlwaysZero("nonzero")),
-			PointerPointerNeverZero:         addr(pointerNeverZero("nonzero")),
-			PointerPointerValueAlwaysZero:   addr(addr(valueAlwaysZero("nonzero"))), // marshaled since **valueAlwaysZero does not implement IsZero
-			PointerPointerValueNeverZero:    addr(addr(valueNeverZero("nonzero"))),
-			PointerPointerPointerAlwaysZero: addr(addr(pointerAlwaysZero("nonzero"))), // marshaled since **pointerAlwaysZero does not implement IsZero
-			PointerPointerPointerNeverZero:  addr(addr(pointerNeverZero("nonzero"))),
+			PointerValueAlwaysZero:          new(valueAlwaysZero("nonzero")),
+			PointerValueNeverZero:           new(valueNeverZero("nonzero")),
+			PointerPointerAlwaysZero:        new(pointerAlwaysZero("nonzero")),
+			PointerPointerNeverZero:         new(pointerNeverZero("nonzero")),
+			PointerPointerValueAlwaysZero:   new(new(valueAlwaysZero("nonzero"))), // marshaled since **valueAlwaysZero does not implement IsZero
+			PointerPointerValueNeverZero:    new(new(valueNeverZero("nonzero"))),
+			PointerPointerPointerAlwaysZero: new(new(pointerAlwaysZero("nonzero"))), // marshaled since **pointerAlwaysZero does not implement IsZero
+			PointerPointerPointerNeverZero:  new(new(pointerNeverZero("nonzero"))),
 		},
 		want: `{
 	"ValueNeverZero": "nonzero",
@@ -1857,10 +1884,10 @@ func TestMarshal(t *testing.T) {
 		in: structOmitZeroMethodInterfaceAll{
 			ValueAlwaysZero:          valueAlwaysZero("nonzero"),
 			ValueNeverZero:           valueNeverZero("nonzero"),
-			PointerValueAlwaysZero:   addr(valueAlwaysZero("nonzero")),
-			PointerValueNeverZero:    addr(valueNeverZero("nonzero")),
-			PointerPointerAlwaysZero: addr(pointerAlwaysZero("nonzero")),
-			PointerPointerNeverZero:  addr(pointerNeverZero("nonzero")),
+			PointerValueAlwaysZero:   new(valueAlwaysZero("nonzero")),
+			PointerValueNeverZero:    new(valueNeverZero("nonzero")),
+			PointerPointerAlwaysZero: new(pointerAlwaysZero("nonzero")),
+			PointerPointerNeverZero:  new(pointerNeverZero("nonzero")),
 		},
 		want: `{
 	"ValueNeverZero": "nonzero",
@@ -1892,27 +1919,27 @@ func TestMarshal(t *testing.T) {
 			String:                string(""),
 			StringEmpty:           stringMarshalEmpty(""),
 			StringNonEmpty:        stringMarshalNonEmpty(""),
-			PointerString:         addr(string("")),
-			PointerStringEmpty:    addr(stringMarshalEmpty("")),
-			PointerStringNonEmpty: addr(stringMarshalNonEmpty("")),
+			PointerString:         new(string("")),
+			PointerStringEmpty:    new(stringMarshalEmpty("")),
+			PointerStringNonEmpty: new(stringMarshalNonEmpty("")),
 			Bytes:                 []byte(""),
 			BytesEmpty:            bytesMarshalEmpty([]byte("")),
 			BytesNonEmpty:         bytesMarshalNonEmpty([]byte("")),
-			PointerBytes:          addr([]byte("")),
-			PointerBytesEmpty:     addr(bytesMarshalEmpty([]byte(""))),
-			PointerBytesNonEmpty:  addr(bytesMarshalNonEmpty([]byte(""))),
+			PointerBytes:          new([]byte("")),
+			PointerBytesEmpty:     new(bytesMarshalEmpty([]byte(""))),
+			PointerBytesNonEmpty:  new(bytesMarshalNonEmpty([]byte(""))),
 			Map:                   map[string]string{},
 			MapEmpty:              mapMarshalEmpty{},
 			MapNonEmpty:           mapMarshalNonEmpty{},
-			PointerMap:            addr(map[string]string{}),
-			PointerMapEmpty:       addr(mapMarshalEmpty{}),
-			PointerMapNonEmpty:    addr(mapMarshalNonEmpty{}),
+			PointerMap:            new(map[string]string{}),
+			PointerMapEmpty:       new(mapMarshalEmpty{}),
+			PointerMapNonEmpty:    new(mapMarshalNonEmpty{}),
 			Slice:                 []string{},
 			SliceEmpty:            sliceMarshalEmpty{},
 			SliceNonEmpty:         sliceMarshalNonEmpty{},
-			PointerSlice:          addr([]string{}),
-			PointerSliceEmpty:     addr(sliceMarshalEmpty{}),
-			PointerSliceNonEmpty:  addr(sliceMarshalNonEmpty{}),
+			PointerSlice:          new([]string{}),
+			PointerSliceEmpty:     new(sliceMarshalEmpty{}),
+			PointerSliceNonEmpty:  new(sliceMarshalNonEmpty{}),
 			Pointer:               &structOmitZeroEmptyAll{},
 			Interface:             []string{},
 		},
@@ -1945,33 +1972,33 @@ func TestMarshal(t *testing.T) {
 		opts: []Options{jsontext.Multiline(true)},
 		in: structOmitEmptyAll{
 			Bool:                  true,
-			PointerBool:           addr(true),
+			PointerBool:           new(true),
 			String:                string("value"),
 			StringEmpty:           stringMarshalEmpty("value"),
 			StringNonEmpty:        stringMarshalNonEmpty("value"),
-			PointerString:         addr(string("value")),
-			PointerStringEmpty:    addr(stringMarshalEmpty("value")),
-			PointerStringNonEmpty: addr(stringMarshalNonEmpty("value")),
+			PointerString:         new(string("value")),
+			PointerStringEmpty:    new(stringMarshalEmpty("value")),
+			PointerStringNonEmpty: new(stringMarshalNonEmpty("value")),
 			Bytes:                 []byte("value"),
 			BytesEmpty:            bytesMarshalEmpty([]byte("value")),
 			BytesNonEmpty:         bytesMarshalNonEmpty([]byte("value")),
-			PointerBytes:          addr([]byte("value")),
-			PointerBytesEmpty:     addr(bytesMarshalEmpty([]byte("value"))),
-			PointerBytesNonEmpty:  addr(bytesMarshalNonEmpty([]byte("value"))),
+			PointerBytes:          new([]byte("value")),
+			PointerBytesEmpty:     new(bytesMarshalEmpty([]byte("value"))),
+			PointerBytesNonEmpty:  new(bytesMarshalNonEmpty([]byte("value"))),
 			Float:                 math.Copysign(0, -1),
-			PointerFloat:          addr(math.Copysign(0, -1)),
+			PointerFloat:          new(math.Copysign(0, -1)),
 			Map:                   map[string]string{"": ""},
 			MapEmpty:              mapMarshalEmpty{"key": "value"},
 			MapNonEmpty:           mapMarshalNonEmpty{"key": "value"},
-			PointerMap:            addr(map[string]string{"": ""}),
-			PointerMapEmpty:       addr(mapMarshalEmpty{"key": "value"}),
-			PointerMapNonEmpty:    addr(mapMarshalNonEmpty{"key": "value"}),
+			PointerMap:            new(map[string]string{"": ""}),
+			PointerMapEmpty:       new(mapMarshalEmpty{"key": "value"}),
+			PointerMapNonEmpty:    new(mapMarshalNonEmpty{"key": "value"}),
 			Slice:                 []string{""},
 			SliceEmpty:            sliceMarshalEmpty{"value"},
 			SliceNonEmpty:         sliceMarshalNonEmpty{"value"},
-			PointerSlice:          addr([]string{""}),
-			PointerSliceEmpty:     addr(sliceMarshalEmpty{"value"}),
-			PointerSliceNonEmpty:  addr(sliceMarshalNonEmpty{"value"}),
+			PointerSlice:          new([]string{""}),
+			PointerSliceEmpty:     new(sliceMarshalEmpty{"value"}),
+			PointerSliceNonEmpty:  new(sliceMarshalNonEmpty{"value"}),
 			Pointer:               &structOmitZeroEmptyAll{Float: math.SmallestNonzeroFloat64},
 			Interface:             []string{""},
 		},
@@ -2033,33 +2060,33 @@ func TestMarshal(t *testing.T) {
 		opts: []Options{jsontext.Multiline(true), jsonflags.OmitEmptyWithLegacySemantics | 1},
 		in: structOmitEmptyAll{
 			Bool:                  true,
-			PointerBool:           addr(true),
+			PointerBool:           new(true),
 			String:                string("value"),
 			StringEmpty:           stringMarshalEmpty("value"),
 			StringNonEmpty:        stringMarshalNonEmpty("value"),
-			PointerString:         addr(string("value")),
-			PointerStringEmpty:    addr(stringMarshalEmpty("value")),
-			PointerStringNonEmpty: addr(stringMarshalNonEmpty("value")),
+			PointerString:         new(string("value")),
+			PointerStringEmpty:    new(stringMarshalEmpty("value")),
+			PointerStringNonEmpty: new(stringMarshalNonEmpty("value")),
 			Bytes:                 []byte("value"),
 			BytesEmpty:            bytesMarshalEmpty([]byte("value")),
 			BytesNonEmpty:         bytesMarshalNonEmpty([]byte("value")),
-			PointerBytes:          addr([]byte("value")),
-			PointerBytesEmpty:     addr(bytesMarshalEmpty([]byte("value"))),
-			PointerBytesNonEmpty:  addr(bytesMarshalNonEmpty([]byte("value"))),
+			PointerBytes:          new([]byte("value")),
+			PointerBytesEmpty:     new(bytesMarshalEmpty([]byte("value"))),
+			PointerBytesNonEmpty:  new(bytesMarshalNonEmpty([]byte("value"))),
 			Float:                 math.Copysign(0, -1),
-			PointerFloat:          addr(math.Copysign(0, -1)),
+			PointerFloat:          new(math.Copysign(0, -1)),
 			Map:                   map[string]string{"": ""},
 			MapEmpty:              mapMarshalEmpty{"key": "value"},
 			MapNonEmpty:           mapMarshalNonEmpty{"key": "value"},
-			PointerMap:            addr(map[string]string{"": ""}),
-			PointerMapEmpty:       addr(mapMarshalEmpty{"key": "value"}),
-			PointerMapNonEmpty:    addr(mapMarshalNonEmpty{"key": "value"}),
+			PointerMap:            new(map[string]string{"": ""}),
+			PointerMapEmpty:       new(mapMarshalEmpty{"key": "value"}),
+			PointerMapNonEmpty:    new(mapMarshalNonEmpty{"key": "value"}),
 			Slice:                 []string{""},
 			SliceEmpty:            sliceMarshalEmpty{"value"},
 			SliceNonEmpty:         sliceMarshalNonEmpty{"value"},
-			PointerSlice:          addr([]string{""}),
-			PointerSliceEmpty:     addr(sliceMarshalEmpty{"value"}),
-			PointerSliceNonEmpty:  addr(sliceMarshalNonEmpty{"value"}),
+			PointerSlice:          new([]string{""}),
+			PointerSliceEmpty:     new(sliceMarshalEmpty{"value"}),
+			PointerSliceNonEmpty:  new(sliceMarshalNonEmpty{"value"}),
 			Pointer:               &structOmitZeroEmptyAll{Float: math.Copysign(0, -1)},
 			Interface:             []string{""},
 		},
@@ -2303,10 +2330,10 @@ func TestMarshal(t *testing.T) {
 		name: jsontest.Name("Structs/Format/Floats"),
 		opts: []Options{jsonopts.ExperimentalSupportFormatTag(true), jsontext.Multiline(true)},
 		in: []structFormatFloats{
-			{NonFinite: math.Pi, PointerNonFinite: addr(math.Pi)},
-			{NonFinite: math.NaN(), PointerNonFinite: addr(math.NaN())},
-			{NonFinite: math.Inf(-1), PointerNonFinite: addr(math.Inf(-1))},
-			{NonFinite: math.Inf(+1), PointerNonFinite: addr(math.Inf(+1))},
+			{NonFinite: math.Pi, PointerNonFinite: new(math.Pi)},
+			{NonFinite: math.NaN(), PointerNonFinite: new(math.NaN())},
+			{NonFinite: math.Inf(-1), PointerNonFinite: new(math.Inf(-1))},
+			{NonFinite: math.Inf(+1), PointerNonFinite: new(math.Inf(+1))},
 		},
 		want: `[
 	{
@@ -2330,17 +2357,17 @@ func TestMarshal(t *testing.T) {
 		name: jsontest.Name("Structs/Format/Maps"),
 		opts: []Options{jsonopts.ExperimentalSupportFormatTag(true), jsontext.Multiline(true)},
 		in: []structFormatMaps{{
-			EmitNull: map[string]string(nil), PointerEmitNull: addr(map[string]string(nil)),
-			EmitEmpty: map[string]string(nil), PointerEmitEmpty: addr(map[string]string(nil)),
-			EmitDefault: map[string]string(nil), PointerEmitDefault: addr(map[string]string(nil)),
+			EmitNull: map[string]string(nil), PointerEmitNull: new(map[string]string(nil)),
+			EmitEmpty: map[string]string(nil), PointerEmitEmpty: new(map[string]string(nil)),
+			EmitDefault: map[string]string(nil), PointerEmitDefault: new(map[string]string(nil)),
 		}, {
-			EmitNull: map[string]string{}, PointerEmitNull: addr(map[string]string{}),
-			EmitEmpty: map[string]string{}, PointerEmitEmpty: addr(map[string]string{}),
-			EmitDefault: map[string]string{}, PointerEmitDefault: addr(map[string]string{}),
+			EmitNull: map[string]string{}, PointerEmitNull: new(map[string]string{}),
+			EmitEmpty: map[string]string{}, PointerEmitEmpty: new(map[string]string{}),
+			EmitDefault: map[string]string{}, PointerEmitDefault: new(map[string]string{}),
 		}, {
-			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: addr(map[string]string{"k": "v"}),
-			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: addr(map[string]string{"k": "v"}),
-			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: addr(map[string]string{"k": "v"}),
+			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: new(map[string]string{"k": "v"}),
+			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: new(map[string]string{"k": "v"}),
+			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: new(map[string]string{"k": "v"}),
 		}},
 		want: `[
 	{
@@ -2388,17 +2415,17 @@ func TestMarshal(t *testing.T) {
 			jsontext.Multiline(true),
 		},
 		in: []structFormatMaps{{
-			EmitNull: map[string]string(nil), PointerEmitNull: addr(map[string]string(nil)),
-			EmitEmpty: map[string]string(nil), PointerEmitEmpty: addr(map[string]string(nil)),
-			EmitDefault: map[string]string(nil), PointerEmitDefault: addr(map[string]string(nil)),
+			EmitNull: map[string]string(nil), PointerEmitNull: new(map[string]string(nil)),
+			EmitEmpty: map[string]string(nil), PointerEmitEmpty: new(map[string]string(nil)),
+			EmitDefault: map[string]string(nil), PointerEmitDefault: new(map[string]string(nil)),
 		}, {
-			EmitNull: map[string]string{}, PointerEmitNull: addr(map[string]string{}),
-			EmitEmpty: map[string]string{}, PointerEmitEmpty: addr(map[string]string{}),
-			EmitDefault: map[string]string{}, PointerEmitDefault: addr(map[string]string{}),
+			EmitNull: map[string]string{}, PointerEmitNull: new(map[string]string{}),
+			EmitEmpty: map[string]string{}, PointerEmitEmpty: new(map[string]string{}),
+			EmitDefault: map[string]string{}, PointerEmitDefault: new(map[string]string{}),
 		}, {
-			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: addr(map[string]string{"k": "v"}),
-			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: addr(map[string]string{"k": "v"}),
-			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: addr(map[string]string{"k": "v"}),
+			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: new(map[string]string{"k": "v"}),
+			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: new(map[string]string{"k": "v"}),
+			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: new(map[string]string{"k": "v"}),
 		}},
 		want: `[
 	{
@@ -2442,17 +2469,17 @@ func TestMarshal(t *testing.T) {
 		name: jsontest.Name("Structs/Format/Slices"),
 		opts: []Options{jsonopts.ExperimentalSupportFormatTag(true), jsontext.Multiline(true)},
 		in: []structFormatSlices{{
-			EmitNull: []string(nil), PointerEmitNull: addr([]string(nil)),
-			EmitEmpty: []string(nil), PointerEmitEmpty: addr([]string(nil)),
-			EmitDefault: []string(nil), PointerEmitDefault: addr([]string(nil)),
+			EmitNull: []string(nil), PointerEmitNull: new([]string(nil)),
+			EmitEmpty: []string(nil), PointerEmitEmpty: new([]string(nil)),
+			EmitDefault: []string(nil), PointerEmitDefault: new([]string(nil)),
 		}, {
-			EmitNull: []string{}, PointerEmitNull: addr([]string{}),
-			EmitEmpty: []string{}, PointerEmitEmpty: addr([]string{}),
-			EmitDefault: []string{}, PointerEmitDefault: addr([]string{}),
+			EmitNull: []string{}, PointerEmitNull: new([]string{}),
+			EmitEmpty: []string{}, PointerEmitEmpty: new([]string{}),
+			EmitDefault: []string{}, PointerEmitDefault: new([]string{}),
 		}, {
-			EmitNull: []string{"v"}, PointerEmitNull: addr([]string{"v"}),
-			EmitEmpty: []string{"v"}, PointerEmitEmpty: addr([]string{"v"}),
-			EmitDefault: []string{"v"}, PointerEmitDefault: addr([]string{"v"}),
+			EmitNull: []string{"v"}, PointerEmitNull: new([]string{"v"}),
+			EmitEmpty: []string{"v"}, PointerEmitEmpty: new([]string{"v"}),
+			EmitDefault: []string{"v"}, PointerEmitDefault: new([]string{"v"}),
 		}},
 		want: `[
 	{
@@ -2671,7 +2698,7 @@ func TestMarshal(t *testing.T) {
 		want: `{}`,
 	}, {
 		name: jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/NonEmpty"),
-		in:   structEmbedPointerTextValue{X: addr(jsontext.Value(` { "fizz" : "buzz" } `))},
+		in:   structEmbedPointerTextValue{X: new(jsontext.Value(` { "fizz" : "buzz" } `))},
 		want: `{"fizz":"buzz"}`,
 	}, {
 		name: jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Nested/Nil"),
@@ -2739,7 +2766,7 @@ func TestMarshal(t *testing.T) {
 		want: `{}`,
 	}, {
 		name: jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/NonEmpty"),
-		in:   structEmbedPointerMapStringAny{X: addr(jsonObject{"name": "value"})},
+		in:   structEmbedPointerMapStringAny{X: new(jsonObject{"name": "value"})},
 		want: `{"name":"value"}`,
 	}, {
 		name: jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Nested/Nil"),
@@ -3186,27 +3213,27 @@ func TestMarshal(t *testing.T) {
 		want: `null`,
 	}, {
 		name: jsontest.Name("Pointers/Bool"),
-		in:   addr(addr(bool(true))),
+		in:   new(new(bool(true))),
 		want: `true`,
 	}, {
 		name: jsontest.Name("Pointers/String"),
-		in:   addr(addr(string("string"))),
+		in:   new(new(string("string"))),
 		want: `"string"`,
 	}, {
 		name: jsontest.Name("Pointers/Bytes"),
-		in:   addr(addr([]byte("bytes"))),
+		in:   new(new([]byte("bytes"))),
 		want: `"Ynl0ZXM="`,
 	}, {
 		name: jsontest.Name("Pointers/Int"),
-		in:   addr(addr(int(-100))),
+		in:   new(new(int(-100))),
 		want: `-100`,
 	}, {
 		name: jsontest.Name("Pointers/Uint"),
-		in:   addr(addr(uint(100))),
+		in:   new(new(uint(100))),
 		want: `100`,
 	}, {
 		name: jsontest.Name("Pointers/Float"),
-		in:   addr(addr(float64(3.14159))),
+		in:   new(new(float64(3.14159))),
 		want: `3.14159`,
 	}, {
 		name: jsontest.Name("Pointers/CyclicPointer"),
@@ -3220,7 +3247,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Pointers/IgnoreInvalidFormat"),
 		opts: []Options{invalidFormatOption},
-		in:   addr(addr(bool(true))),
+		in:   new(new(bool(true))),
 		want: `true`,
 	}, {
 		name: jsontest.Name("Interfaces/Nil/Empty"),
@@ -3597,7 +3624,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Methods/Invalid/MapKey/JSONv2/Syntax"),
 		in: map[any]string{
-			addr(marshalJSONv2Func(func(enc *jsontext.Encoder) error {
+			new(marshalJSONv2Func(func(enc *jsontext.Encoder) error {
 				return enc.WriteToken(jsontext.Null)
 			})): "invalid",
 		},
@@ -3606,7 +3633,7 @@ func TestMarshal(t *testing.T) {
 	}, {
 		name: jsontest.Name("Methods/Invalid/MapKey/JSONv1/Syntax"),
 		in: map[any]string{
-			addr(marshalJSONv1Func(func() ([]byte, error) {
+			new(marshalJSONv1Func(func() ([]byte, error) {
 				return []byte(`null`), nil
 			})): "invalid",
 		},
@@ -4078,7 +4105,7 @@ func TestMarshal(t *testing.T) {
 				return enc.WriteValue([]byte(`"called"`))
 			})),
 		},
-		in:   struct{ X *bool }{addr(false)},
+		in:   struct{ X *bool }{new(false)},
 		want: `{"X":"called"}`,
 	}, {
 		name: jsontest.Name("Functions/Interface/Nil"),
@@ -4188,57 +4215,57 @@ func TestMarshal(t *testing.T) {
 				}
 
 				wantAny := []PV{
-					{P{0, 0}, addr([]any{
+					{P{0, 0}, new([]any{
 						nil,
 						valueStringer{},
 						(*valueStringer)(nil),
-						addr(valueStringer{}),
+						new(valueStringer{}),
 						(**valueStringer)(nil),
-						addr((*valueStringer)(nil)),
-						addr(addr(valueStringer{})),
+						new((*valueStringer)(nil)),
+						new(new(valueStringer{})),
 						pointerStringer{},
 						(*pointerStringer)(nil),
-						addr(pointerStringer{}),
+						new(pointerStringer{}),
 						(**pointerStringer)(nil),
-						addr((*pointerStringer)(nil)),
-						addr(addr(pointerStringer{})),
+						new((*pointerStringer)(nil)),
+						new(new(pointerStringer{})),
 						"LAST",
 					})},
-					{P{1, 0}, addr(any(nil))},
-					{P{1, 1}, addr(any(valueStringer{}))},
-					{P{1, 1}, addr(valueStringer{})},
-					{P{1, 2}, addr(any((*valueStringer)(nil)))},
-					{P{1, 2}, addr((*valueStringer)(nil))},
-					{P{1, 3}, addr(any(addr(valueStringer{})))},
-					{P{1, 3}, addr(addr(valueStringer{}))},
-					{P{1, 3}, addr(valueStringer{})},
-					{P{1, 4}, addr(any((**valueStringer)(nil)))},
-					{P{1, 4}, addr((**valueStringer)(nil))},
-					{P{1, 5}, addr(any(addr((*valueStringer)(nil))))},
-					{P{1, 5}, addr(addr((*valueStringer)(nil)))},
-					{P{1, 5}, addr((*valueStringer)(nil))},
-					{P{1, 6}, addr(any(addr(addr(valueStringer{}))))},
-					{P{1, 6}, addr(addr(addr(valueStringer{})))},
-					{P{1, 6}, addr(addr(valueStringer{}))},
-					{P{1, 6}, addr(valueStringer{})},
-					{P{1, 7}, addr(any(pointerStringer{}))},
-					{P{1, 7}, addr(pointerStringer{})},
-					{P{1, 8}, addr(any((*pointerStringer)(nil)))},
-					{P{1, 8}, addr((*pointerStringer)(nil))},
-					{P{1, 9}, addr(any(addr(pointerStringer{})))},
-					{P{1, 9}, addr(addr(pointerStringer{}))},
-					{P{1, 9}, addr(pointerStringer{})},
-					{P{1, 10}, addr(any((**pointerStringer)(nil)))},
-					{P{1, 10}, addr((**pointerStringer)(nil))},
-					{P{1, 11}, addr(any(addr((*pointerStringer)(nil))))},
-					{P{1, 11}, addr(addr((*pointerStringer)(nil)))},
-					{P{1, 11}, addr((*pointerStringer)(nil))},
-					{P{1, 12}, addr(any(addr(addr(pointerStringer{}))))},
-					{P{1, 12}, addr(addr(addr(pointerStringer{})))},
-					{P{1, 12}, addr(addr(pointerStringer{}))},
-					{P{1, 12}, addr(pointerStringer{})},
-					{P{1, 13}, addr(any("LAST"))},
-					{P{1, 13}, addr("LAST")},
+					{P{1, 0}, new(any(nil))},
+					{P{1, 1}, new(any(valueStringer{}))},
+					{P{1, 1}, new(valueStringer{})},
+					{P{1, 2}, new(any((*valueStringer)(nil)))},
+					{P{1, 2}, new((*valueStringer)(nil))},
+					{P{1, 3}, new(any(new(valueStringer{})))},
+					{P{1, 3}, new(new(valueStringer{}))},
+					{P{1, 3}, new(valueStringer{})},
+					{P{1, 4}, new(any((**valueStringer)(nil)))},
+					{P{1, 4}, new((**valueStringer)(nil))},
+					{P{1, 5}, new(any(new((*valueStringer)(nil))))},
+					{P{1, 5}, new(new((*valueStringer)(nil)))},
+					{P{1, 5}, new((*valueStringer)(nil))},
+					{P{1, 6}, new(any(new(new(valueStringer{}))))},
+					{P{1, 6}, new(new(new(valueStringer{})))},
+					{P{1, 6}, new(new(valueStringer{}))},
+					{P{1, 6}, new(valueStringer{})},
+					{P{1, 7}, new(any(pointerStringer{}))},
+					{P{1, 7}, new(pointerStringer{})},
+					{P{1, 8}, new(any((*pointerStringer)(nil)))},
+					{P{1, 8}, new((*pointerStringer)(nil))},
+					{P{1, 9}, new(any(new(pointerStringer{})))},
+					{P{1, 9}, new(new(pointerStringer{}))},
+					{P{1, 9}, new(pointerStringer{})},
+					{P{1, 10}, new(any((**pointerStringer)(nil)))},
+					{P{1, 10}, new((**pointerStringer)(nil))},
+					{P{1, 11}, new(any(new((*pointerStringer)(nil))))},
+					{P{1, 11}, new(new((*pointerStringer)(nil)))},
+					{P{1, 11}, new((*pointerStringer)(nil))},
+					{P{1, 12}, new(any(new(new(pointerStringer{}))))},
+					{P{1, 12}, new(new(new(pointerStringer{})))},
+					{P{1, 12}, new(new(pointerStringer{}))},
+					{P{1, 12}, new(pointerStringer{})},
+					{P{1, 13}, new(any("LAST"))},
+					{P{1, 13}, new("LAST")},
 				}
 				checkAny := makeValueChecker("any", wantAny)
 				anyMarshaler := MarshalToFunc(func(enc *jsontext.Encoder, v any) error {
@@ -4325,19 +4352,19 @@ func TestMarshal(t *testing.T) {
 			}()),
 		},
 		in: []any{
-			nil,                           // nil
-			valueStringer{},               // T
-			(*valueStringer)(nil),         // *T
-			addr(valueStringer{}),         // *T
-			(**valueStringer)(nil),        // **T
-			addr((*valueStringer)(nil)),   // **T
-			addr(addr(valueStringer{})),   // **T
-			pointerStringer{},             // T
-			(*pointerStringer)(nil),       // *T
-			addr(pointerStringer{}),       // *T
-			(**pointerStringer)(nil),      // **T
-			addr((*pointerStringer)(nil)), // **T
-			addr(addr(pointerStringer{})), // **T
+			nil,                          // nil
+			valueStringer{},              // T
+			(*valueStringer)(nil),        // *T
+			new(valueStringer{}),         // *T
+			(**valueStringer)(nil),       // **T
+			new((*valueStringer)(nil)),   // **T
+			new(new(valueStringer{})),    // **T
+			pointerStringer{},            // T
+			(*pointerStringer)(nil),      // *T
+			new(pointerStringer{}),       // *T
+			(**pointerStringer)(nil),     // **T
+			new((*pointerStringer)(nil)), // **T
+			new(new(pointerStringer{})),  // **T
 			"LAST",
 		},
 		want: `[null,{},null,{},null,null,{},{},null,{},null,null,{},"LAST"]`,
@@ -4718,150 +4745,150 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Bools/TrailingJunk"),
 		inBuf:   `falsetrue`,
-		inVal:   addr(true),
-		want:    addr(false),
+		inVal:   new(true),
+		want:    new(false),
 		wantErr: newInvalidCharacterError("t", "after top-level value", len64(`false`), ""),
 	}, {
 		name:  jsontest.Name("Bools/Null"),
 		inBuf: `null`,
-		inVal: addr(true),
-		want:  addr(false),
+		inVal: new(true),
+		want:  new(false),
 	}, {
 		name:  jsontest.Name("Bools"),
 		inBuf: `[null,false,true]`,
 		inVal: new([]bool),
-		want:  addr([]bool{false, false, true}),
+		want:  new([]bool{false, false, true}),
 	}, {
 		name:  jsontest.Name("Bools/Named"),
 		inBuf: `[null,false,true]`,
 		inVal: new([]namedBool),
-		want:  addr([]namedBool{false, false, true}),
+		want:  new([]namedBool{false, false, true}),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/StringifiedFalse"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"false"`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('"', boolType),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/StringifiedTrue"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"true"`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('"', boolType),
 	}, {
 		name:  jsontest.Name("Bools/StringifiedBool/True"),
 		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"true"`,
-		inVal: addr(false),
-		want:  addr(true),
+		inVal: new(false),
+		want:  new(true),
 	}, {
 		name:  jsontest.Name("Bools/StringifiedBool/False"),
 		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"false"`,
-		inVal: addr(true),
-		want:  addr(false),
+		inVal: new(true),
+		want:  new(false),
 	}, {
 		name:    jsontest.Name("Bools/StringifiedBool/InvalidWhitespace"),
 		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `"false "`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"false "`).withType('"', boolType),
 	}, {
 		name:    jsontest.Name("Bools/StringifiedBool/InvalidBool"),
 		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf:   `false`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('f', boolType),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/Number"),
 		inBuf:   `0`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('0', boolType),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/String"),
 		inBuf:   `""`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('"', boolType),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('{', boolType),
 	}, {
 		name:    jsontest.Name("Bools/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr(true),
-		want:    addr(true),
+		inVal:   new(true),
+		want:    new(true),
 		wantErr: EU(nil).withType('[', boolType),
 	}, {
 		name:  jsontest.Name("Bools/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `false`,
-		inVal: addr(true),
-		want:  addr(false),
+		inVal: new(true),
+		want:  new(false),
 	}, {
 		name:  jsontest.Name("Strings/Null"),
 		inBuf: `null`,
-		inVal: addr("something"),
-		want:  addr(""),
+		inVal: new("something"),
+		want:  new(""),
 	}, {
 		name:  jsontest.Name("Strings"),
 		inBuf: `[null,"","hello","世界"]`,
 		inVal: new([]string),
-		want:  addr([]string{"", "", "hello", "世界"}),
+		want:  new([]string{"", "", "hello", "世界"}),
 	}, {
 		name:  jsontest.Name("Strings/Escaped"),
 		inBuf: `[null,"","\u0068\u0065\u006c\u006c\u006f","\u4e16\u754c"]`,
 		inVal: new([]string),
-		want:  addr([]string{"", "", "hello", "世界"}),
+		want:  new([]string{"", "", "hello", "世界"}),
 	}, {
 		name:  jsontest.Name("Strings/Named"),
 		inBuf: `[null,"","hello","世界"]`,
 		inVal: new([]namedString),
-		want:  addr([]namedString{"", "", "hello", "世界"}),
+		want:  new([]namedString{"", "", "hello", "世界"}),
 	}, {
 		name:    jsontest.Name("Strings/Invalid/False"),
 		inBuf:   `false`,
-		inVal:   addr("nochange"),
-		want:    addr("nochange"),
+		inVal:   new("nochange"),
+		want:    new("nochange"),
 		wantErr: EU(nil).withType('f', stringType),
 	}, {
 		name:    jsontest.Name("Strings/Invalid/True"),
 		inBuf:   `true`,
-		inVal:   addr("nochange"),
-		want:    addr("nochange"),
+		inVal:   new("nochange"),
+		want:    new("nochange"),
 		wantErr: EU(nil).withType('t', stringType),
 	}, {
 		name:    jsontest.Name("Strings/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr("nochange"),
-		want:    addr("nochange"),
+		inVal:   new("nochange"),
+		want:    new("nochange"),
 		wantErr: EU(nil).withType('{', stringType),
 	}, {
 		name:    jsontest.Name("Strings/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr("nochange"),
-		want:    addr("nochange"),
+		inVal:   new("nochange"),
+		want:    new("nochange"),
 		wantErr: EU(nil).withType('[', stringType),
 	}, {
 		name:  jsontest.Name("Strings/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `"hello"`,
-		inVal: addr("goodbye"),
-		want:  addr("hello"),
+		inVal: new("goodbye"),
+		want:  new("hello"),
 	}, {
 		name:  jsontest.Name("Strings/StringifiedString"),
 		opts:  []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
 		inBuf: `"\"foo\""`,
 		inVal: new(string),
-		want:  addr("foo"),
+		want:  new("foo"),
 	}, {
 		name:    jsontest.Name("Strings/StringifiedString/InvalidWhitespace"),
 		opts:    []Options{jsonflags.StringTag | jsonflags.StringifyWithLegacySemantics | 1},
@@ -4879,63 +4906,63 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Bytes/Null"),
 		inBuf: `null`,
-		inVal: addr([]byte("something")),
-		want:  addr([]byte(nil)),
+		inVal: new([]byte("something")),
+		want:  new([]byte(nil)),
 	}, {
 		name:  jsontest.Name("Bytes"),
 		inBuf: `[null,"","AQ==","AQI=","AQID"]`,
 		inVal: new([][]byte),
-		want:  addr([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
+		want:  new([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
 	}, {
 		name:  jsontest.Name("Bytes/Large"),
 		inBuf: `"dGhlIHF1aWNrIGJyb3duIGZveCBqdW1wZWQgb3ZlciB0aGUgbGF6eSBkb2cgYW5kIGF0ZSB0aGUgaG9tZXdvcmsgdGhhdCBJIHNwZW50IHNvIG11Y2ggdGltZSBvbi4="`,
 		inVal: new([]byte),
-		want:  addr([]byte("the quick brown fox jumped over the lazy dog and ate the homework that I spent so much time on.")),
+		want:  new([]byte("the quick brown fox jumped over the lazy dog and ate the homework that I spent so much time on.")),
 	}, {
 		name:  jsontest.Name("Bytes/Reuse"),
 		inBuf: `"AQID"`,
-		inVal: addr([]byte("changed")),
-		want:  addr([]byte{1, 2, 3}),
+		inVal: new([]byte("changed")),
+		want:  new([]byte{1, 2, 3}),
 	}, {
 		name:  jsontest.Name("Bytes/Escaped"),
 		inBuf: `[null,"","\u0041\u0051\u003d\u003d","\u0041\u0051\u0049\u003d","\u0041\u0051\u0049\u0044"]`,
 		inVal: new([][]byte),
-		want:  addr([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
+		want:  new([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
 	}, {
 		name:  jsontest.Name("Bytes/Named"),
 		inBuf: `[null,"","AQ==","AQI=","AQID"]`,
 		inVal: new([]namedBytes),
-		want:  addr([]namedBytes{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
+		want:  new([]namedBytes{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
 	}, {
 		name:  jsontest.Name("Bytes/NotStringified"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `[null,"","AQ==","AQI=","AQID"]`,
 		inVal: new([][]byte),
-		want:  addr([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
+		want:  new([][]byte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
 	}, {
 		// NOTE: []namedByte is not assignable to []byte,
 		// so the following should be treated as a slice of uints.
 		name:  jsontest.Name("Bytes/Invariant"),
 		inBuf: `[null,[],[1],[1,2],[1,2,3]]`,
 		inVal: new([][]namedByte),
-		want:  addr([][]namedByte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
+		want:  new([][]namedByte{nil, {}, {1}, {1, 2}, {1, 2, 3}}),
 	}, {
 		// NOTE: This differs in behavior from v1,
 		// but keeps the representation of slices and arrays more consistent.
 		name:  jsontest.Name("Bytes/ByteArray"),
 		inBuf: `"aGVsbG8="`,
 		inVal: new([5]byte),
-		want:  addr([5]byte{'h', 'e', 'l', 'l', 'o'}),
+		want:  new([5]byte{'h', 'e', 'l', 'l', 'o'}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray0/Valid"),
 		inBuf: `""`,
 		inVal: new([0]byte),
-		want:  addr([0]byte{}),
+		want:  new([0]byte{}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray0/Invalid"),
 		inBuf: `"A"`,
 		inVal: new([0]byte),
-		want:  addr([0]byte{}),
+		want:  new([0]byte{}),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 0), []byte("A"))
 			return err
@@ -4944,18 +4971,18 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Bytes/ByteArray0/Overflow"),
 		inBuf:   `"AA=="`,
 		inVal:   new([0]byte),
-		want:    addr([0]byte{}),
+		want:    new([0]byte{}),
 		wantErr: EU(errors.New("decoded length of 1 mismatches array length of 0")).withType('"', T[[0]byte]()),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray1/Valid"),
 		inBuf: `"AQ=="`,
 		inVal: new([1]byte),
-		want:  addr([1]byte{1}),
+		want:  new([1]byte{1}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray1/Invalid"),
 		inBuf: `"$$=="`,
 		inVal: new([1]byte),
-		want:  addr([1]byte{}),
+		want:  new([1]byte{}),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 1), []byte("$$=="))
 			return err
@@ -4964,24 +4991,24 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Bytes/ByteArray1/Underflow"),
 		inBuf:   `""`,
 		inVal:   new([1]byte),
-		want:    addr([1]byte{}),
+		want:    new([1]byte{}),
 		wantErr: EU(errors.New("decoded length of 0 mismatches array length of 1")).withType('"', T[[1]byte]()),
 	}, {
 		name:    jsontest.Name("Bytes/ByteArray1/Overflow"),
 		inBuf:   `"AQI="`,
 		inVal:   new([1]byte),
-		want:    addr([1]byte{1}),
+		want:    new([1]byte{1}),
 		wantErr: EU(errors.New("decoded length of 2 mismatches array length of 1")).withType('"', T[[1]byte]()),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray2/Valid"),
 		inBuf: `"AQI="`,
 		inVal: new([2]byte),
-		want:  addr([2]byte{1, 2}),
+		want:  new([2]byte{1, 2}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray2/Invalid"),
 		inBuf: `"$$$="`,
 		inVal: new([2]byte),
-		want:  addr([2]byte{}),
+		want:  new([2]byte{}),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 2), []byte("$$$="))
 			return err
@@ -4990,36 +5017,36 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Bytes/ByteArray2/Underflow"),
 		inBuf:   `"AQ=="`,
 		inVal:   new([2]byte),
-		want:    addr([2]byte{1, 0}),
+		want:    new([2]byte{1, 0}),
 		wantErr: EU(errors.New("decoded length of 1 mismatches array length of 2")).withType('"', T[[2]byte]()),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray2/Underflow/Allowed"),
 		opts:  []Options{jsonflags.UnmarshalArrayFromAnyLength | 1},
 		inBuf: `"AQ=="`,
 		inVal: new([2]byte),
-		want:  addr([2]byte{1, 0}),
+		want:  new([2]byte{1, 0}),
 	}, {
 		name:    jsontest.Name("Bytes/ByteArray2/Overflow"),
 		inBuf:   `"AQID"`,
 		inVal:   new([2]byte),
-		want:    addr([2]byte{1, 2}),
+		want:    new([2]byte{1, 2}),
 		wantErr: EU(errors.New("decoded length of 3 mismatches array length of 2")).withType('"', T[[2]byte]()),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray2/Overflow/Allowed"),
 		opts:  []Options{jsonflags.UnmarshalArrayFromAnyLength | 1},
 		inBuf: `"AQID"`,
 		inVal: new([2]byte),
-		want:  addr([2]byte{1, 2}),
+		want:  new([2]byte{1, 2}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray3/Valid"),
 		inBuf: `"AQID"`,
 		inVal: new([3]byte),
-		want:  addr([3]byte{1, 2, 3}),
+		want:  new([3]byte{1, 2, 3}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray3/Invalid"),
 		inBuf: `"$$$$"`,
 		inVal: new([3]byte),
-		want:  addr([3]byte{}),
+		want:  new([3]byte{}),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 3), []byte("$$$$"))
 			return err
@@ -5027,25 +5054,25 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Bytes/ByteArray3/Underflow"),
 		inBuf:   `"AQI="`,
-		inVal:   addr([3]byte{0xff, 0xff, 0xff}),
-		want:    addr([3]byte{1, 2, 0}),
+		inVal:   new([3]byte{0xff, 0xff, 0xff}),
+		want:    new([3]byte{1, 2, 0}),
 		wantErr: EU(errors.New("decoded length of 2 mismatches array length of 3")).withType('"', T[[3]byte]()),
 	}, {
 		name:    jsontest.Name("Bytes/ByteArray3/Overflow"),
 		inBuf:   `"AQIDAQ=="`,
 		inVal:   new([3]byte),
-		want:    addr([3]byte{1, 2, 3}),
+		want:    new([3]byte{1, 2, 3}),
 		wantErr: EU(errors.New("decoded length of 4 mismatches array length of 3")).withType('"', T[[3]byte]()),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray4/Valid"),
 		inBuf: `"AQIDBA=="`,
 		inVal: new([4]byte),
-		want:  addr([4]byte{1, 2, 3, 4}),
+		want:  new([4]byte{1, 2, 3, 4}),
 	}, {
 		name:  jsontest.Name("Bytes/ByteArray4/Invalid"),
 		inBuf: `"$$$$$$=="`,
 		inVal: new([4]byte),
-		want:  addr([4]byte{}),
+		want:  new([4]byte{}),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 4), []byte("$$$$$$=="))
 			return err
@@ -5054,13 +5081,13 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Bytes/ByteArray4/Underflow"),
 		inBuf:   `"AQID"`,
 		inVal:   new([4]byte),
-		want:    addr([4]byte{1, 2, 3, 0}),
+		want:    new([4]byte{1, 2, 3, 0}),
 		wantErr: EU(errors.New("decoded length of 3 mismatches array length of 4")).withType('"', T[[4]byte]()),
 	}, {
 		name:    jsontest.Name("Bytes/ByteArray4/Overflow"),
 		inBuf:   `"AQIDBAU="`,
 		inVal:   new([4]byte),
-		want:    addr([4]byte{1, 2, 3, 4}),
+		want:    new([4]byte{1, 2, 3, 4}),
 		wantErr: EU(errors.New("decoded length of 5 mismatches array length of 4")).withType('"', T[[4]byte]()),
 	}, {
 		// NOTE: []namedByte is not assignable to []byte,
@@ -5068,17 +5095,17 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Bytes/NamedByteArray"),
 		inBuf: `[104,101,108,108,111]`,
 		inVal: new([5]namedByte),
-		want:  addr([5]namedByte{'h', 'e', 'l', 'l', 'o'}),
+		want:  new([5]namedByte{'h', 'e', 'l', 'l', 'o'}),
 	}, {
 		name:  jsontest.Name("Bytes/Valid/Denormalized"),
 		inBuf: `"AR=="`,
 		inVal: new([]byte),
-		want:  addr([]byte{1}),
+		want:  new([]byte{1}),
 	}, {
 		name:  jsontest.Name("Bytes/Invalid/Unpadded1"),
 		inBuf: `"AQ="`,
-		inVal: addr([]byte("nochange")),
-		want:  addr([]byte("nochange")),
+		inVal: new([]byte("nochange")),
+		want:  new([]byte("nochange")),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 0), []byte("AQ="))
 			return err
@@ -5086,8 +5113,8 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Bytes/Invalid/Unpadded2"),
 		inBuf: `"AQ"`,
-		inVal: addr([]byte("nochange")),
-		want:  addr([]byte("nochange")),
+		inVal: new([]byte("nochange")),
+		want:  new([]byte("nochange")),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 0), []byte("AQ"))
 			return err
@@ -5095,8 +5122,8 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Bytes/Invalid/Character"),
 		inBuf: `"@@@@"`,
-		inVal: addr([]byte("nochange")),
-		want:  addr([]byte("nochange")),
+		inVal: new([]byte("nochange")),
+		want:  new([]byte("nochange")),
 		wantErr: EU(func() error {
 			_, err := base64.StdEncoding.Decode(make([]byte, 3), []byte("@@@@"))
 			return err
@@ -5104,142 +5131,142 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Bytes/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr([]byte("nochange")),
-		want:    addr([]byte("nochange")),
+		inVal:   new([]byte("nochange")),
+		want:    new([]byte("nochange")),
 		wantErr: EU(nil).withType('t', bytesType),
 	}, {
 		name:    jsontest.Name("Bytes/Invalid/Number"),
 		inBuf:   `0`,
-		inVal:   addr([]byte("nochange")),
-		want:    addr([]byte("nochange")),
+		inVal:   new([]byte("nochange")),
+		want:    new([]byte("nochange")),
 		wantErr: EU(nil).withType('0', bytesType),
 	}, {
 		name:    jsontest.Name("Bytes/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr([]byte("nochange")),
-		want:    addr([]byte("nochange")),
+		inVal:   new([]byte("nochange")),
+		want:    new([]byte("nochange")),
 		wantErr: EU(nil).withType('{', bytesType),
 	}, {
 		name:    jsontest.Name("Bytes/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr([]byte("nochange")),
-		want:    addr([]byte("nochange")),
+		inVal:   new([]byte("nochange")),
+		want:    new([]byte("nochange")),
 		wantErr: EU(nil).withType('[', bytesType),
 	}, {
 		name:  jsontest.Name("Bytes/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `"aGVsbG8="`,
 		inVal: new([]byte),
-		want:  addr([]byte("hello")),
+		want:  new([]byte("hello")),
 	}, {
 		name:  jsontest.Name("Ints/Null"),
 		inBuf: `null`,
-		inVal: addr(int(1)),
-		want:  addr(int(0)),
+		inVal: new(int(1)),
+		want:  new(int(0)),
 	}, {
 		name:  jsontest.Name("Ints/Int"),
 		inBuf: `1`,
-		inVal: addr(int(0)),
-		want:  addr(int(1)),
+		inVal: new(int(0)),
+		want:  new(int(1)),
 	}, {
 		name:    jsontest.Name("Ints/Int8/MinOverflow"),
 		inBuf:   `-129`,
-		inVal:   addr(int8(-1)),
-		want:    addr(int8(-1)),
+		inVal:   new(int8(-1)),
+		want:    new(int8(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`-129`).withType('0', T[int8]()),
 	}, {
 		name:  jsontest.Name("Ints/Int8/Min"),
 		inBuf: `-128`,
-		inVal: addr(int8(0)),
-		want:  addr(int8(-128)),
+		inVal: new(int8(0)),
+		want:  new(int8(-128)),
 	}, {
 		name:  jsontest.Name("Ints/Int8/Max"),
 		inBuf: `127`,
-		inVal: addr(int8(0)),
-		want:  addr(int8(127)),
+		inVal: new(int8(0)),
+		want:  new(int8(127)),
 	}, {
 		name:    jsontest.Name("Ints/Int8/MaxOverflow"),
 		inBuf:   `128`,
-		inVal:   addr(int8(-1)),
-		want:    addr(int8(-1)),
+		inVal:   new(int8(-1)),
+		want:    new(int8(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`128`).withType('0', T[int8]()),
 	}, {
 		name:    jsontest.Name("Ints/Int16/MinOverflow"),
 		inBuf:   `-32769`,
-		inVal:   addr(int16(-1)),
-		want:    addr(int16(-1)),
+		inVal:   new(int16(-1)),
+		want:    new(int16(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`-32769`).withType('0', T[int16]()),
 	}, {
 		name:  jsontest.Name("Ints/Int16/Min"),
 		inBuf: `-32768`,
-		inVal: addr(int16(0)),
-		want:  addr(int16(-32768)),
+		inVal: new(int16(0)),
+		want:  new(int16(-32768)),
 	}, {
 		name:  jsontest.Name("Ints/Int16/Max"),
 		inBuf: `32767`,
-		inVal: addr(int16(0)),
-		want:  addr(int16(32767)),
+		inVal: new(int16(0)),
+		want:  new(int16(32767)),
 	}, {
 		name:    jsontest.Name("Ints/Int16/MaxOverflow"),
 		inBuf:   `32768`,
-		inVal:   addr(int16(-1)),
-		want:    addr(int16(-1)),
+		inVal:   new(int16(-1)),
+		want:    new(int16(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`32768`).withType('0', T[int16]()),
 	}, {
 		name:    jsontest.Name("Ints/Int32/MinOverflow"),
 		inBuf:   `-2147483649`,
-		inVal:   addr(int32(-1)),
-		want:    addr(int32(-1)),
+		inVal:   new(int32(-1)),
+		want:    new(int32(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`-2147483649`).withType('0', T[int32]()),
 	}, {
 		name:  jsontest.Name("Ints/Int32/Min"),
 		inBuf: `-2147483648`,
-		inVal: addr(int32(0)),
-		want:  addr(int32(-2147483648)),
+		inVal: new(int32(0)),
+		want:  new(int32(-2147483648)),
 	}, {
 		name:  jsontest.Name("Ints/Int32/Max"),
 		inBuf: `2147483647`,
-		inVal: addr(int32(0)),
-		want:  addr(int32(2147483647)),
+		inVal: new(int32(0)),
+		want:  new(int32(2147483647)),
 	}, {
 		name:    jsontest.Name("Ints/Int32/MaxOverflow"),
 		inBuf:   `2147483648`,
-		inVal:   addr(int32(-1)),
-		want:    addr(int32(-1)),
+		inVal:   new(int32(-1)),
+		want:    new(int32(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`2147483648`).withType('0', T[int32]()),
 	}, {
 		name:    jsontest.Name("Ints/Int64/MinOverflow"),
 		inBuf:   `-9223372036854775809`,
-		inVal:   addr(int64(-1)),
-		want:    addr(int64(-1)),
+		inVal:   new(int64(-1)),
+		want:    new(int64(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`-9223372036854775809`).withType('0', T[int64]()),
 	}, {
 		name:  jsontest.Name("Ints/Int64/Min"),
 		inBuf: `-9223372036854775808`,
-		inVal: addr(int64(0)),
-		want:  addr(int64(-9223372036854775808)),
+		inVal: new(int64(0)),
+		want:  new(int64(-9223372036854775808)),
 	}, {
 		name:  jsontest.Name("Ints/Int64/Max"),
 		inBuf: `9223372036854775807`,
-		inVal: addr(int64(0)),
-		want:  addr(int64(9223372036854775807)),
+		inVal: new(int64(0)),
+		want:  new(int64(9223372036854775807)),
 	}, {
 		name:    jsontest.Name("Ints/Int64/MaxOverflow"),
 		inBuf:   `9223372036854775808`,
-		inVal:   addr(int64(-1)),
-		want:    addr(int64(-1)),
+		inVal:   new(int64(-1)),
+		want:    new(int64(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`9223372036854775808`).withType('0', T[int64]()),
 	}, {
 		name:  jsontest.Name("Ints/Named"),
 		inBuf: `-6464`,
-		inVal: addr(namedInt64(0)),
-		want:  addr(namedInt64(-6464)),
+		inVal: new(namedInt64(0)),
+		want:  new(namedInt64(-6464)),
 	}, {
 		name:  jsontest.Name("Ints/Stringified"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"-6464"`,
 		inVal: new(int),
-		want:  addr(int(-6464)),
+		want:  new(int(-6464)),
 	}, {
 		name:    jsontest.Name("Ints/Stringified/Invalid"),
 		opts:    []Options{StringifyNumbers(true)},
@@ -5251,186 +5278,186 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Ints/Stringified/LeadingZero"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"00"`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"00"`).withType('"', T[int]()),
 	}, {
 		name:  jsontest.Name("Ints/Escaped"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"\u002d\u0036\u0034\u0036\u0034"`,
 		inVal: new(int),
-		want:  addr(int(-6464)),
+		want:  new(int(-6464)),
 	}, {
 		name:  jsontest.Name("Ints/Valid/NegativeZero"),
 		inBuf: `-0`,
-		inVal: addr(int(1)),
-		want:  addr(int(0)),
+		inVal: new(int(1)),
+		want:  new(int(0)),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Fraction"),
 		inBuf:   `1.0`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`1.0`).withType('0', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Exponent"),
 		inBuf:   `1e0`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`1e0`).withType('0', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/StringifiedFraction"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1.0"`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1.0"`).withType('"', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/StringifiedExponent"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1e0"`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1e0"`).withType('"', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Overflow"),
 		inBuf:   `100000000000000000000000000000`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrRange).withVal(`100000000000000000000000000000`).withType('0', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/OverflowSyntax"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"100000000000000000000000000000x"`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"100000000000000000000000000000x"`).withType('"', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Whitespace"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"0 "`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"0 "`).withType('"', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(nil).withType('t', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/String"),
 		inBuf:   `"0"`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(nil).withType('"', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(nil).withType('{', T[int]()),
 	}, {
 		name:    jsontest.Name("Ints/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr(int(-1)),
-		want:    addr(int(-1)),
+		inVal:   new(int(-1)),
+		want:    new(int(-1)),
 		wantErr: EU(nil).withType('[', T[int]()),
 	}, {
 		name:  jsontest.Name("Ints/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `1`,
-		inVal: addr(int(0)),
-		want:  addr(int(1)),
+		inVal: new(int(0)),
+		want:  new(int(1)),
 	}, {
 		name:  jsontest.Name("Uints/Null"),
 		inBuf: `null`,
-		inVal: addr(uint(1)),
-		want:  addr(uint(0)),
+		inVal: new(uint(1)),
+		want:  new(uint(0)),
 	}, {
 		name:  jsontest.Name("Uints/Uint"),
 		inBuf: `1`,
-		inVal: addr(uint(0)),
-		want:  addr(uint(1)),
+		inVal: new(uint(0)),
+		want:  new(uint(1)),
 	}, {
 		name:  jsontest.Name("Uints/Uint8/Min"),
 		inBuf: `0`,
-		inVal: addr(uint8(1)),
-		want:  addr(uint8(0)),
+		inVal: new(uint8(1)),
+		want:  new(uint8(0)),
 	}, {
 		name:  jsontest.Name("Uints/Uint8/Max"),
 		inBuf: `255`,
-		inVal: addr(uint8(0)),
-		want:  addr(uint8(255)),
+		inVal: new(uint8(0)),
+		want:  new(uint8(255)),
 	}, {
 		name:    jsontest.Name("Uints/Uint8/MaxOverflow"),
 		inBuf:   `256`,
-		inVal:   addr(uint8(1)),
-		want:    addr(uint8(1)),
+		inVal:   new(uint8(1)),
+		want:    new(uint8(1)),
 		wantErr: EU(strconv.ErrRange).withVal(`256`).withType('0', T[uint8]()),
 	}, {
 		name:  jsontest.Name("Uints/Uint16/Min"),
 		inBuf: `0`,
-		inVal: addr(uint16(1)),
-		want:  addr(uint16(0)),
+		inVal: new(uint16(1)),
+		want:  new(uint16(0)),
 	}, {
 		name:  jsontest.Name("Uints/Uint16/Max"),
 		inBuf: `65535`,
-		inVal: addr(uint16(0)),
-		want:  addr(uint16(65535)),
+		inVal: new(uint16(0)),
+		want:  new(uint16(65535)),
 	}, {
 		name:    jsontest.Name("Uints/Uint16/MaxOverflow"),
 		inBuf:   `65536`,
-		inVal:   addr(uint16(1)),
-		want:    addr(uint16(1)),
+		inVal:   new(uint16(1)),
+		want:    new(uint16(1)),
 		wantErr: EU(strconv.ErrRange).withVal(`65536`).withType('0', T[uint16]()),
 	}, {
 		name:  jsontest.Name("Uints/Uint32/Min"),
 		inBuf: `0`,
-		inVal: addr(uint32(1)),
-		want:  addr(uint32(0)),
+		inVal: new(uint32(1)),
+		want:  new(uint32(0)),
 	}, {
 		name:  jsontest.Name("Uints/Uint32/Max"),
 		inBuf: `4294967295`,
-		inVal: addr(uint32(0)),
-		want:  addr(uint32(4294967295)),
+		inVal: new(uint32(0)),
+		want:  new(uint32(4294967295)),
 	}, {
 		name:    jsontest.Name("Uints/Uint32/MaxOverflow"),
 		inBuf:   `4294967296`,
-		inVal:   addr(uint32(1)),
-		want:    addr(uint32(1)),
+		inVal:   new(uint32(1)),
+		want:    new(uint32(1)),
 		wantErr: EU(strconv.ErrRange).withVal(`4294967296`).withType('0', T[uint32]()),
 	}, {
 		name:  jsontest.Name("Uints/Uint64/Min"),
 		inBuf: `0`,
-		inVal: addr(uint64(1)),
-		want:  addr(uint64(0)),
+		inVal: new(uint64(1)),
+		want:  new(uint64(0)),
 	}, {
 		name:  jsontest.Name("Uints/Uint64/Max"),
 		inBuf: `18446744073709551615`,
-		inVal: addr(uint64(0)),
-		want:  addr(uint64(18446744073709551615)),
+		inVal: new(uint64(0)),
+		want:  new(uint64(18446744073709551615)),
 	}, {
 		name:    jsontest.Name("Uints/Uint64/MaxOverflow"),
 		inBuf:   `18446744073709551616`,
-		inVal:   addr(uint64(1)),
-		want:    addr(uint64(1)),
+		inVal:   new(uint64(1)),
+		want:    new(uint64(1)),
 		wantErr: EU(strconv.ErrRange).withVal(`18446744073709551616`).withType('0', T[uint64]()),
 	}, {
 		name:  jsontest.Name("Uints/Uintptr"),
 		inBuf: `1`,
-		inVal: addr(uintptr(0)),
-		want:  addr(uintptr(1)),
+		inVal: new(uintptr(0)),
+		want:  new(uintptr(1)),
 	}, {
 		name:  jsontest.Name("Uints/Named"),
 		inBuf: `6464`,
-		inVal: addr(namedUint64(0)),
-		want:  addr(namedUint64(6464)),
+		inVal: new(namedUint64(0)),
+		want:  new(namedUint64(6464)),
 	}, {
 		name:  jsontest.Name("Uints/Stringified"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"6464"`,
 		inVal: new(uint),
-		want:  addr(uint(6464)),
+		want:  new(uint(6464)),
 	}, {
 		name:    jsontest.Name("Uints/Stringified/Invalid"),
 		opts:    []Options{StringifyNumbers(true)},
@@ -5442,169 +5469,169 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Uints/Stringified/LeadingZero"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"00"`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"00"`).withType('"', T[uint]()),
 	}, {
 		name:  jsontest.Name("Uints/Escaped"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"\u0036\u0034\u0036\u0034"`,
 		inVal: new(uint),
-		want:  addr(uint(6464)),
+		want:  new(uint(6464)),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/NegativeOne"),
 		inBuf:   `-1`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`-1`).withType('0', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/NegativeZero"),
 		inBuf:   `-0`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`-0`).withType('0', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Fraction"),
 		inBuf:   `1.0`,
-		inVal:   addr(uint(10)),
-		want:    addr(uint(10)),
+		inVal:   new(uint(10)),
+		want:    new(uint(10)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`1.0`).withType('0', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Exponent"),
 		inBuf:   `1e0`,
-		inVal:   addr(uint(10)),
-		want:    addr(uint(10)),
+		inVal:   new(uint(10)),
+		want:    new(uint(10)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`1e0`).withType('0', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/StringifiedFraction"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1.0"`,
-		inVal:   addr(uint(10)),
-		want:    addr(uint(10)),
+		inVal:   new(uint(10)),
+		want:    new(uint(10)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1.0"`).withType('"', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/StringifiedExponent"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1e0"`,
-		inVal:   addr(uint(10)),
-		want:    addr(uint(10)),
+		inVal:   new(uint(10)),
+		want:    new(uint(10)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1e0"`).withType('"', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Overflow"),
 		inBuf:   `100000000000000000000000000000`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrRange).withVal(`100000000000000000000000000000`).withType('0', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/OverflowSyntax"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"100000000000000000000000000000x"`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"100000000000000000000000000000x"`).withType('"', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Whitespace"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"0 "`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"0 "`).withType('"', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(nil).withType('t', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/String"),
 		inBuf:   `"0"`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(nil).withType('"', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(nil).withType('{', T[uint]()),
 	}, {
 		name:    jsontest.Name("Uints/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr(uint(1)),
-		want:    addr(uint(1)),
+		inVal:   new(uint(1)),
+		want:    new(uint(1)),
 		wantErr: EU(nil).withType('[', T[uint]()),
 	}, {
 		name:  jsontest.Name("Uints/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `1`,
-		inVal: addr(uint(0)),
-		want:  addr(uint(1)),
+		inVal: new(uint(0)),
+		want:  new(uint(1)),
 	}, {
 		name:  jsontest.Name("Floats/Null"),
 		inBuf: `null`,
-		inVal: addr(float64(64.64)),
-		want:  addr(float64(0)),
+		inVal: new(float64(64.64)),
+		want:  new(float64(0)),
 	}, {
 		name:  jsontest.Name("Floats/Float32/Pi"),
 		inBuf: `3.14159265358979323846264338327950288419716939937510582097494459`,
-		inVal: addr(float32(32.32)),
-		want:  addr(float32(math.Pi)),
+		inVal: new(float32(32.32)),
+		want:  new(float32(math.Pi)),
 	}, {
 		name:  jsontest.Name("Floats/Float32/Underflow"),
 		inBuf: `1e-1000`,
-		inVal: addr(float32(32.32)),
-		want:  addr(float32(0)),
+		inVal: new(float32(32.32)),
+		want:  new(float32(0)),
 	}, {
 		name:    jsontest.Name("Floats/Float32/Overflow"),
 		inBuf:   `-1e1000`,
-		inVal:   addr(float32(32.32)),
-		want:    addr(float32(32.32)),
+		inVal:   new(float32(32.32)),
+		want:    new(float32(32.32)),
 		wantErr: EU(strconv.ErrRange).withVal(`-1e1000`).withType('0', T[float32]()),
 	}, {
 		name:  jsontest.Name("Floats/Float64/Pi"),
 		inBuf: `3.14159265358979323846264338327950288419716939937510582097494459`,
-		inVal: addr(float64(64.64)),
-		want:  addr(float64(math.Pi)),
+		inVal: new(float64(64.64)),
+		want:  new(float64(math.Pi)),
 	}, {
 		name:  jsontest.Name("Floats/Float64/Underflow"),
 		inBuf: `1e-1000`,
-		inVal: addr(float64(64.64)),
-		want:  addr(float64(0)),
+		inVal: new(float64(64.64)),
+		want:  new(float64(0)),
 	}, {
 		name:    jsontest.Name("Floats/Float64/Overflow"),
 		inBuf:   `-1e1000`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(strconv.ErrRange).withVal(`-1e1000`).withType('0', T[float64]()),
 	}, {
 		name:    jsontest.Name("Floats/Any/Overflow"),
 		inBuf:   `1e1000`,
 		inVal:   new(any),
-		want:    addr(any(float64(0))),
+		want:    new(any(float64(0))),
 		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float64]()),
 	}, {
 		name:    jsontest.Name("Floats/Any/ExistingFloat32/Overflow"),
 		inBuf:   `1e1000`,
-		inVal:   addr(any(float32(32.32))),
-		want:    addr(any(float32(32.32))),
+		inVal:   new(any(float32(32.32))),
+		want:    new(any(float32(32.32))),
 		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float32]()),
 	}, {
 		name:    jsontest.Name("Floats/Any/ExistingFloat64/Overflow"),
 		inBuf:   `1e1000`,
-		inVal:   addr(any(float64(64.64))),
-		want:    addr(any(float64(64.64))),
+		inVal:   new(any(float64(64.64))),
+		want:    new(any(float64(64.64))),
 		wantErr: EU(strconv.ErrRange).withVal(`1e1000`).withType('0', T[float64]()),
 	}, {
 		name:  jsontest.Name("Floats/Named"),
 		inBuf: `64.64`,
-		inVal: addr(namedFloat64(0)),
-		want:  addr(namedFloat64(64.64)),
+		inVal: new(namedFloat64(0)),
+		want:  new(namedFloat64(64.64)),
 	}, {
 		name:  jsontest.Name("Floats/Stringified"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"64.64"`,
 		inVal: new(float64),
-		want:  addr(float64(64.64)),
+		want:  new(float64(64.64)),
 	}, {
 		name:    jsontest.Name("Floats/Stringified/Invalid"),
 		opts:    []Options{StringifyNumbers(true)},
@@ -5617,183 +5644,183 @@ func TestUnmarshal(t *testing.T) {
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `"\u0036\u0034\u002e\u0036\u0034"`,
 		inVal: new(float64),
-		want:  addr(float64(64.64)),
+		want:  new(float64(64.64)),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/NaN"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"NaN"`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"NaN"`).withType('"', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/Infinity"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"Infinity"`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"Infinity"`).withType('"', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/Whitespace"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1 "`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1 "`).withType('"', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/GoSyntax"),
 		opts:    []Options{StringifyNumbers(true)},
 		inBuf:   `"1p-2"`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(strconv.ErrSyntax).withVal(`"1p-2"`).withType('"', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(nil).withType('t', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/String"),
 		inBuf:   `"0"`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(nil).withType('"', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(nil).withType('{', float64Type),
 	}, {
 		name:    jsontest.Name("Floats/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr(float64(64.64)),
-		want:    addr(float64(64.64)),
+		inVal:   new(float64(64.64)),
+		want:    new(float64(64.64)),
 		wantErr: EU(nil).withType('[', float64Type),
 	}, {
 		name:  jsontest.Name("Floats/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `1`,
-		inVal: addr(float64(0)),
-		want:  addr(float64(1)),
+		inVal: new(float64(0)),
+		want:  new(float64(1)),
 	}, {
 		name:  jsontest.Name("Maps/Null"),
 		inBuf: `null`,
-		inVal: addr(map[string]string{"key": "value"}),
+		inVal: new(map[string]string{"key": "value"}),
 		want:  new(map[string]string),
 	}, {
 		name:    jsontest.Name("Maps/InvalidKey/Bool"),
 		inBuf:   `{"true":"false"}`,
 		inVal:   new(map[bool]bool),
-		want:    addr(make(map[bool]bool)),
+		want:    new(make(map[bool]bool)),
 		wantErr: EU(nil).withPos(`{`, "/true").withType('"', boolType),
 	}, {
 		name:    jsontest.Name("Maps/InvalidKey/NamedBool"),
 		inBuf:   `{"true":"false"}`,
 		inVal:   new(map[namedBool]bool),
-		want:    addr(make(map[namedBool]bool)),
+		want:    new(make(map[namedBool]bool)),
 		wantErr: EU(nil).withPos(`{`, "/true").withType('"', T[namedBool]()),
 	}, {
 		name:    jsontest.Name("Maps/InvalidKey/Array"),
 		inBuf:   `{"key":"value"}`,
 		inVal:   new(map[[1]string]string),
-		want:    addr(make(map[[1]string]string)),
+		want:    new(make(map[[1]string]string)),
 		wantErr: EU(nil).withPos(`{`, "/key").withType('"', T[[1]string]()),
 	}, {
 		name:    jsontest.Name("Maps/InvalidKey/Channel"),
 		inBuf:   `{"key":"value"}`,
 		inVal:   new(map[chan string]string),
-		want:    addr(make(map[chan string]string)),
+		want:    new(make(map[chan string]string)),
 		wantErr: EU(nil).withPos(`{`, "").withType(0, T[chan string]()),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/Int"),
 		inBuf: `{"0":0,"-1":1,"2":2,"-3":3}`,
 		inVal: new(map[int]int),
-		want:  addr(map[int]int{0: 0, -1: 1, 2: 2, -3: 3}),
+		want:  new(map[int]int{0: 0, -1: 1, 2: 2, -3: 3}),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/NamedInt"),
 		inBuf: `{"0":0,"-1":1,"2":2,"-3":3}`,
 		inVal: new(map[namedInt64]int),
-		want:  addr(map[namedInt64]int{0: 0, -1: 1, 2: 2, -3: 3}),
+		want:  new(map[namedInt64]int{0: 0, -1: 1, 2: 2, -3: 3}),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/Uint"),
 		inBuf: `{"0":0,"1":1,"2":2,"3":3}`,
 		inVal: new(map[uint]uint),
-		want:  addr(map[uint]uint{0: 0, 1: 1, 2: 2, 3: 3}),
+		want:  new(map[uint]uint{0: 0, 1: 1, 2: 2, 3: 3}),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/NamedUint"),
 		inBuf: `{"0":0,"1":1,"2":2,"3":3}`,
 		inVal: new(map[namedUint64]uint),
-		want:  addr(map[namedUint64]uint{0: 0, 1: 1, 2: 2, 3: 3}),
+		want:  new(map[namedUint64]uint{0: 0, 1: 1, 2: 2, 3: 3}),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/Float"),
 		inBuf: `{"1.234":1.234,"12.34":12.34,"123.4":123.4}`,
 		inVal: new(map[float64]float64),
-		want:  addr(map[float64]float64{1.234: 1.234, 12.34: 12.34, 123.4: 123.4}),
+		want:  new(map[float64]float64{1.234: 1.234, 12.34: 12.34, 123.4: 123.4}),
 	}, {
 		name:    jsontest.Name("Maps/DuplicateName/Int"),
 		inBuf:   `{"0":1,"-0":-1}`,
 		inVal:   new(map[int]int),
-		want:    addr(map[int]int{0: 1}),
+		want:    new(map[int]int{0: 1}),
 		wantErr: newDuplicateNameError("", []byte(`"-0"`), len64(`{"0":1,`)),
 	}, {
 		name:    jsontest.Name("Maps/DuplicateName/Int/MergeWithLegacySemantics"),
 		opts:    []Options{jsonflags.MergeWithLegacySemantics | 1},
 		inBuf:   `{"0":1,"-0":-1}`,
 		inVal:   new(map[int]int),
-		want:    addr(map[int]int{0: 1}),
+		want:    new(map[int]int{0: 1}),
 		wantErr: newDuplicateNameError("", []byte(`"-0"`), len64(`{"0":1,`)),
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/Int/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"0":1,"-0":-1}`,
 		inVal: new(map[int]int),
-		want:  addr(map[int]int{0: -1}), // latter takes precedence
+		want:  new(map[int]int{0: -1}), // latter takes precedence
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/Int/OverwriteExisting"),
 		inBuf: `{"-0":-1}`,
-		inVal: addr(map[int]int{0: 1}),
-		want:  addr(map[int]int{0: -1}),
+		inVal: new(map[int]int{0: 1}),
+		want:  new(map[int]int{0: -1}),
 	}, {
 		name:    jsontest.Name("Maps/DuplicateName/Float"),
 		inBuf:   `{"1.0":"1.0","1":"1","1e0":"1e0"}`,
 		inVal:   new(map[float64]string),
-		want:    addr(map[float64]string{1: "1.0"}),
+		want:    new(map[float64]string{1: "1.0"}),
 		wantErr: newDuplicateNameError("", []byte(`"1"`), len64(`{"1.0":"1.0",`)),
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/Float/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"1.0":"1.0","1":"1","1e0":"1e0"}`,
 		inVal: new(map[float64]string),
-		want:  addr(map[float64]string{1: "1e0"}), // latter takes precedence
+		want:  new(map[float64]string{1: "1e0"}), // latter takes precedence
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/Float/OverwriteExisting"),
 		inBuf: `{"1.0":"1.0"}`,
-		inVal: addr(map[float64]string{1: "1"}),
-		want:  addr(map[float64]string{1: "1.0"}),
+		inVal: new(map[float64]string{1: "1"}),
+		want:  new(map[float64]string{1: "1.0"}),
 	}, {
 		name:    jsontest.Name("Maps/DuplicateName/NoCaseString"),
 		inBuf:   `{"hello":"hello","HELLO":"HELLO"}`,
 		inVal:   new(map[nocaseString]string),
-		want:    addr(map[nocaseString]string{"hello": "hello"}),
+		want:    new(map[nocaseString]string{"hello": "hello"}),
 		wantErr: newDuplicateNameError("", []byte(`"HELLO"`), len64(`{"hello":"hello",`)),
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/NoCaseString/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"hello":"hello","HELLO":"HELLO"}`,
 		inVal: new(map[nocaseString]string),
-		want:  addr(map[nocaseString]string{"hello": "HELLO"}), // latter takes precedence
+		want:  new(map[nocaseString]string{"hello": "HELLO"}), // latter takes precedence
 	}, {
 		name:  jsontest.Name("Maps/DuplicateName/NoCaseString/OverwriteExisting"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"HELLO":"HELLO"}`,
-		inVal: addr(map[nocaseString]string{"hello": "hello"}),
-		want:  addr(map[nocaseString]string{"hello": "HELLO"}),
+		inVal: new(map[nocaseString]string{"hello": "hello"}),
+		want:  new(map[nocaseString]string{"hello": "HELLO"}),
 	}, {
 		name:  jsontest.Name("Maps/ValidKey/Interface"),
 		inBuf: `{"false":"false","true":"true","string":"string","0":"0","[]":"[]","{}":"{}"}`,
 		inVal: new(map[any]string),
-		want: addr(map[any]string{
+		want: new(map[any]string{
 			"false":  "false",
 			"true":   "true",
 			"string": "string",
@@ -5805,7 +5832,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Maps/InvalidValue/Channel"),
 		inBuf: `{"key":"value"}`,
 		inVal: new(map[string]chan string),
-		want: addr(map[string]chan string{
+		want: new(map[string]chan string{
 			"key": nil,
 		}),
 		wantErr: EU(nil).withPos(`{"key":`, "/key").withType(0, T[chan string]()),
@@ -5813,7 +5840,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Maps/RecursiveMap"),
 		inBuf: `{"buzz":{},"fizz":{"bar":{},"foo":{}}}`,
 		inVal: new(recursiveMap),
-		want: addr(recursiveMap{
+		want: new(recursiveMap{
 			"fizz": {
 				"foo": {},
 				"bar": {},
@@ -5827,57 +5854,57 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Maps/Merge"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"k1":{"k2":"v2"},"k2":{"k1":"v1"},"k2":{"k2":"v2"}}`,
-		inVal: addr(map[string]map[string]string{
+		inVal: new(map[string]map[string]string{
 			"k1": {"k1": "v1"},
 		}),
-		want: addr(map[string]map[string]string{
+		want: new(map[string]map[string]string{
 			"k1": {"k1": "v1", "k2": "v2"},
 			"k2": {"k1": "v1", "k2": "v2"},
 		}),
 	}, {
 		name:    jsontest.Name("Maps/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr(map[string]string{"key": "value"}),
-		want:    addr(map[string]string{"key": "value"}),
+		inVal:   new(map[string]string{"key": "value"}),
+		want:    new(map[string]string{"key": "value"}),
 		wantErr: EU(nil).withType('t', T[map[string]string]()),
 	}, {
 		name:    jsontest.Name("Maps/Invalid/String"),
 		inBuf:   `""`,
-		inVal:   addr(map[string]string{"key": "value"}),
-		want:    addr(map[string]string{"key": "value"}),
+		inVal:   new(map[string]string{"key": "value"}),
+		want:    new(map[string]string{"key": "value"}),
 		wantErr: EU(nil).withType('"', T[map[string]string]()),
 	}, {
 		name:    jsontest.Name("Maps/Invalid/Number"),
 		inBuf:   `0`,
-		inVal:   addr(map[string]string{"key": "value"}),
-		want:    addr(map[string]string{"key": "value"}),
+		inVal:   new(map[string]string{"key": "value"}),
+		want:    new(map[string]string{"key": "value"}),
 		wantErr: EU(nil).withType('0', T[map[string]string]()),
 	}, {
 		name:    jsontest.Name("Maps/Invalid/Array"),
 		inBuf:   `[]`,
-		inVal:   addr(map[string]string{"key": "value"}),
-		want:    addr(map[string]string{"key": "value"}),
+		inVal:   new(map[string]string{"key": "value"}),
+		want:    new(map[string]string{"key": "value"}),
 		wantErr: EU(nil).withType('[', T[map[string]string]()),
 	}, {
 		name:  jsontest.Name("Maps/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `{"hello":"goodbye"}`,
-		inVal: addr(map[string]string{}),
-		want:  addr(map[string]string{"hello": "goodbye"}),
+		inVal: new(map[string]string{}),
+		want:  new(map[string]string{"hello": "goodbye"}),
 	}, {
 		name:  jsontest.Name("Structs/Null"),
 		inBuf: `null`,
-		inVal: addr(structAll{String: "something"}),
-		want:  addr(structAll{}),
+		inVal: new(structAll{String: "something"}),
+		want:  new(structAll{}),
 	}, {
 		name:  jsontest.Name("Structs/Empty"),
 		inBuf: `{}`,
-		inVal: addr(structAll{
+		inVal: new(structAll{
 			String: "hello",
 			Map:    map[string]string{},
 			Slice:  []string{},
 		}),
-		want: addr(structAll{
+		want: new(structAll{
 			String: "hello",
 			Map:    map[string]string{},
 			Slice:  []string{},
@@ -5922,7 +5949,7 @@ func TestUnmarshal(t *testing.T) {
 	"Interface": null
 }`,
 		inVal: new(structAll),
-		want: addr(structAll{
+		want: new(structAll{
 			Bool:   true,
 			String: "hello",
 			Bytes:  []byte{1, 2, 3},
@@ -5991,7 +6018,7 @@ func TestUnmarshal(t *testing.T) {
 	"Pointer": {},
 	"Interface": {"k2":"v2"}
 }`,
-		inVal: addr(structAll{
+		inVal: new(structAll{
 			Bool:   true,
 			String: "hello",
 			Bytes:  []byte{1, 2, 3},
@@ -6022,7 +6049,7 @@ func TestUnmarshal(t *testing.T) {
 			Pointer:   new(structAll),
 			Interface: map[string]string{"k1": "v1"},
 		}),
-		want: addr(structAll{
+		want: new(structAll{
 			Bool:   false,
 			String: "goodbye",
 			Bytes:  []byte{1, 2, 3},
@@ -6070,7 +6097,7 @@ func TestUnmarshal(t *testing.T) {
 	"PointerFloat": "3.14159"
 }`,
 		inVal: new(structStringified),
-		want: addr(structStringified{
+		want: new(structStringified{
 			Int:          -64,
 			Uint:         +64,
 			Float:        3.14159,
@@ -6213,7 +6240,7 @@ func TestUnmarshal(t *testing.T) {
 	"PointerFloat": "3.14159"
 }`,
 		inVal: new(structStringifiedLegacy),
-		want: addr(structStringifiedLegacy{
+		want: new(structStringifiedLegacy{
 			Bool:          true,
 			String:        "hello",
 			Int:           -64,
@@ -6366,7 +6393,7 @@ func TestUnmarshal(t *testing.T) {
 	"Array": [1, 2, 3, 4]
 }`,
 		inVal: new(structFormatBytes),
-		want: addr(structFormatBytes{
+		want: new(structFormatBytes{
 			Base16:    []byte("\x01\x23\x45\x67\x89\xab\xcd\xef"),
 			Base32:    []byte("\x00D2\x14\xc7BT\xb65τe:V\xd7\xc6u\xbew\xdf"),
 			Base32Hex: []byte("\x00D2\x14\xc7BT\xb65τe:V\xd7\xc6u\xbew\xdf"),
@@ -6387,7 +6414,7 @@ func TestUnmarshal(t *testing.T) {
 	"Default": "AQIDBA=="
 }`,
 		inVal: new(structFormatArrayBytes),
-		want: addr(structFormatArrayBytes{
+		want: new(structFormatArrayBytes{
 			Base16:    [4]byte{1, 2, 3, 4},
 			Base32:    [4]byte{1, 2, 3, 4},
 			Base32Hex: [4]byte{1, 2, 3, 4},
@@ -6409,7 +6436,7 @@ func TestUnmarshal(t *testing.T) {
 	"Default": [1, 2, 3, 4]
 }`,
 		inVal: new(structFormatArrayBytes),
-		want: addr(structFormatArrayBytes{
+		want: new(structFormatArrayBytes{
 			Base16:    [4]byte{1, 2, 3, 4},
 			Base32:    [4]byte{1, 2, 3, 4},
 			Base32Hex: [4]byte{1, 2, 3, 4},
@@ -6435,7 +6462,7 @@ func TestUnmarshal(t *testing.T) {
 		inVal: new(struct {
 			Array []byte `json:",format:array"`
 		}),
-		want: addr(struct {
+		want: new(struct {
 			Array []byte `json:",format:array"`
 		}{
 			Array: []byte{0, 1, 0, 1, 0, 1},
@@ -6511,7 +6538,7 @@ func TestUnmarshal(t *testing.T) {
 			{"Base32": "NBSWY3DP"}
 		]`,
 		inVal: new([]structFormatBytes),
-		want: addr([]structFormatBytes{
+		want: new([]structFormatBytes{
 			{Base32: []byte("h")},
 			{Base32: []byte("he")},
 			{Base32: []byte("hel")},
@@ -6620,10 +6647,10 @@ func TestUnmarshal(t *testing.T) {
 	{"NonFinite": "Infinity", "PointerNonFinite": "Infinity"}
 ]`,
 		inVal: new([]structFormatFloats),
-		want: addr([]structFormatFloats{
-			{NonFinite: math.Pi, PointerNonFinite: addr(math.Pi)},
-			{NonFinite: math.Inf(-1), PointerNonFinite: addr(math.Inf(-1))},
-			{NonFinite: math.Inf(+1), PointerNonFinite: addr(math.Inf(+1))},
+		want: new([]structFormatFloats{
+			{NonFinite: math.Pi, PointerNonFinite: new(math.Pi)},
+			{NonFinite: math.Inf(-1), PointerNonFinite: new(math.Inf(-1))},
+			{NonFinite: math.Inf(+1), PointerNonFinite: new(math.Inf(+1))},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/Format/Floats/NaN"),
@@ -6658,18 +6685,18 @@ func TestUnmarshal(t *testing.T) {
 	{"EmitNull": {"k": "v"}, "PointerEmitNull": {"k": "v"}, "EmitEmpty": {"k": "v"}, "PointerEmitEmpty": {"k": "v"}, "EmitDefault": {"k": "v"}, "PointerEmitDefault": {"k": "v"}}
 ]`,
 		inVal: new([]structFormatMaps),
-		want: addr([]structFormatMaps{{
+		want: new([]structFormatMaps{{
 			EmitNull: map[string]string(nil), PointerEmitNull: (*map[string]string)(nil),
 			EmitEmpty: map[string]string(nil), PointerEmitEmpty: (*map[string]string)(nil),
 			EmitDefault: map[string]string(nil), PointerEmitDefault: (*map[string]string)(nil),
 		}, {
-			EmitNull: map[string]string{}, PointerEmitNull: addr(map[string]string{}),
-			EmitEmpty: map[string]string{}, PointerEmitEmpty: addr(map[string]string{}),
-			EmitDefault: map[string]string{}, PointerEmitDefault: addr(map[string]string{}),
+			EmitNull: map[string]string{}, PointerEmitNull: new(map[string]string{}),
+			EmitEmpty: map[string]string{}, PointerEmitEmpty: new(map[string]string{}),
+			EmitDefault: map[string]string{}, PointerEmitDefault: new(map[string]string{}),
 		}, {
-			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: addr(map[string]string{"k": "v"}),
-			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: addr(map[string]string{"k": "v"}),
-			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: addr(map[string]string{"k": "v"}),
+			EmitNull: map[string]string{"k": "v"}, PointerEmitNull: new(map[string]string{"k": "v"}),
+			EmitEmpty: map[string]string{"k": "v"}, PointerEmitEmpty: new(map[string]string{"k": "v"}),
+			EmitDefault: map[string]string{"k": "v"}, PointerEmitDefault: new(map[string]string{"k": "v"}),
 		}}),
 	}, {
 		name: jsontest.Name("Structs/Format/Slices"),
@@ -6680,18 +6707,18 @@ func TestUnmarshal(t *testing.T) {
 	{"EmitNull": ["v"], "PointerEmitNull": ["v"], "EmitEmpty": ["v"], "PointerEmitEmpty": ["v"], "EmitDefault": ["v"], "PointerEmitDefault": ["v"]}
 ]`,
 		inVal: new([]structFormatSlices),
-		want: addr([]structFormatSlices{{
+		want: new([]structFormatSlices{{
 			EmitNull: []string(nil), PointerEmitNull: (*[]string)(nil),
 			EmitEmpty: []string(nil), PointerEmitEmpty: (*[]string)(nil),
 			EmitDefault: []string(nil), PointerEmitDefault: (*[]string)(nil),
 		}, {
-			EmitNull: []string{}, PointerEmitNull: addr([]string{}),
-			EmitEmpty: []string{}, PointerEmitEmpty: addr([]string{}),
-			EmitDefault: []string{}, PointerEmitDefault: addr([]string{}),
+			EmitNull: []string{}, PointerEmitNull: new([]string{}),
+			EmitEmpty: []string{}, PointerEmitEmpty: new([]string{}),
+			EmitDefault: []string{}, PointerEmitDefault: new([]string{}),
 		}, {
-			EmitNull: []string{"v"}, PointerEmitNull: addr([]string{"v"}),
-			EmitEmpty: []string{"v"}, PointerEmitEmpty: addr([]string{"v"}),
-			EmitDefault: []string{"v"}, PointerEmitDefault: addr([]string{"v"}),
+			EmitNull: []string{"v"}, PointerEmitNull: new([]string{"v"}),
+			EmitEmpty: []string{"v"}, PointerEmitEmpty: new([]string{"v"}),
+			EmitDefault: []string{"v"}, PointerEmitDefault: new([]string{"v"}),
 		}}),
 	}, {
 		name:    jsontest.Name("Structs/Format/Invalid/Bool"),
@@ -6768,7 +6795,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/Embed/Alloc"),
 		inBuf: `{"E":"","F":"","G":"","A":"","B":"","D":""}`,
 		inVal: new(structEmbedded),
-		want: addr(structEmbedded{
+		want: new(structEmbedded{
 			X: structEmbeddedL1{
 				X:            &structEmbeddedL2{},
 				StructEmbed1: StructEmbed1{},
@@ -6779,7 +6806,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/Embed/NonZero"),
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
 		inVal: new(structEmbedded),
-		want: addr(structEmbedded{
+		want: new(structEmbedded{
 			X: structEmbeddedL1{
 				X:            &structEmbeddedL2{A: "A1", B: "B1" /* C: "C1" */},
 				StructEmbed1: StructEmbed1{ /* C: "C2" */ D: "D2" /* E: "E2" */},
@@ -6789,14 +6816,14 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/Embed/Merge"),
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
-		inVal: addr(structEmbedded{
+		inVal: new(structEmbedded{
 			X: structEmbeddedL1{
 				X:            &structEmbeddedL2{B: "##", C: "C1"},
 				StructEmbed1: StructEmbed1{C: "C2", E: "E2"},
 			},
 			StructEmbed2: &StructEmbed2{E: "##", G: "G3"},
 		}),
-		want: addr(structEmbedded{
+		want: new(structEmbedded{
 			X: structEmbeddedL1{
 				X:            &structEmbeddedL2{A: "A1", B: "B1", C: "C1"},
 				StructEmbed1: StructEmbed1{C: "C2", D: "D2", E: "E2"},
@@ -6807,70 +6834,70 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Noop"),
 		inBuf: `{"A":1,"B":2}`,
 		inVal: new(structEmbedTextValue),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(nil), B: 2}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(nil), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedTextValue),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedTextValue{X: jsontext.Value{}}),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		inVal: new(structEmbedTextValue{X: jsontext.Value{}}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Whitespace"),
 		inBuf:   `{"A":1,"fizz":"buzz","B":2}`,
-		inVal:   addr(structEmbedTextValue{X: jsontext.Value("\n\r\t ")}),
-		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value("")}),
+		inVal:   new(structEmbedTextValue{X: jsontext.Value("\n\r\t ")}),
+		want:    new(structEmbedTextValue{A: 1, X: jsontext.Value("")}),
 		wantErr: EU(errRawEmbedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/Null"),
 		inBuf:   `{"A":1,"fizz":"buzz","B":2}`,
-		inVal:   addr(structEmbedTextValue{X: jsontext.Value("null")}),
-		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value("null")}),
+		inVal:   new(structEmbedTextValue{X: jsontext.Value("null")}),
+		want:    new(structEmbedTextValue{A: 1, X: jsontext.Value("null")}),
 		wantErr: EU(errRawEmbedNotObject).withPos(`{"A":1,`, "/fizz").withType('"', T[jsontext.Value]()),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN1/ObjectN0"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedTextValue{X: jsontext.Value(` { } `)}),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(` {"fizz":"buzz"}`), B: 2}),
+		inVal: new(structEmbedTextValue{X: jsontext.Value(` { } `)}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(` {"fizz":"buzz"}`), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)}),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(` { "fizz" : "buzz","fizz":"buzz","foo":[ 1 , 2 , 3 ]}`), B: 2}),
+		inVal: new(structEmbedTextValue{X: jsontext.Value(` { "fizz" : "buzz" } `)}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(` { "fizz" : "buzz","fizz":"buzz","foo":[ 1 , 2 , 3 ]}`), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Merge/EndObject"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedTextValue{X: jsontext.Value(` } `)}),
+		inVal: new(structEmbedTextValue{X: jsontext.Value(` } `)}),
 		// NOTE: This produces invalid output,
 		// but the value being merged into is already invalid.
-		want: addr(structEmbedTextValue{A: 1, X: jsontext.Value(`,"fizz":"buzz"}`), B: 2}),
+		want: new(structEmbedTextValue{A: 1, X: jsontext.Value(`,"fizz":"buzz"}`), B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
 		inVal:   new(structEmbedTextValue),
-		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":`)}),
+		want:    new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":`)}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
 		inVal: new(structEmbedTextValue),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","a":3}`), B: 2}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","a":3}`), B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/TextValue/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
 		inVal:   new(structEmbedTextValue),
-		want:    addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
+		want:    new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz"}`), B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
 		inVal: new(structEmbedTextValue),
-		want:  addr(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`), B: 2}),
+		want:  new(structEmbedTextValue{A: 1, X: jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Noop"),
 		inBuf: `{}`,
@@ -6880,7 +6907,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz"}`,
 		inVal: new(structEmbedPointerEmbedTextValue),
-		want: addr(structEmbedPointerEmbedTextValue{
+		want: new(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
 				X jsontext.Value `json:",embed"`
@@ -6889,13 +6916,13 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/TextValue/Nested/Merge"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: addr(structEmbedPointerEmbedTextValue{
+		inVal: new(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
 				X jsontext.Value `json:",embed"`
 			}{A: 1},
 		}),
-		want: addr(structEmbedPointerEmbedTextValue{
+		want: new(structEmbedPointerEmbedTextValue{
 			X: &struct {
 				A int
 				X jsontext.Value `json:",embed"`
@@ -6905,49 +6932,49 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Noop"),
 		inBuf: `{"A":1,"B":2}`,
 		inVal: new(structEmbedPointerTextValue),
-		want:  addr(structEmbedPointerTextValue{A: 1, X: nil, B: 2}),
+		want:  new(structEmbedPointerTextValue{A: 1, X: nil, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedPointerTextValue),
-		want:  addr(structEmbedPointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz"}`)), B: 2}),
+		want:  new(structEmbedPointerTextValue{A: 1, X: new(jsontext.Value(`{"fizz":"buzz"}`)), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Merge"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedPointerTextValue{X: addr(jsontext.Value(`{"fizz":"buzz"}`))}),
-		want:  addr(structEmbedPointerTextValue{A: 1, X: addr(jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`)), B: 2}),
+		inVal: new(structEmbedPointerTextValue{X: new(jsontext.Value(`{"fizz":"buzz"}`))}),
+		want:  new(structEmbedPointerTextValue{A: 1, X: new(jsontext.Value(`{"fizz":"buzz","fizz":"buzz"}`)), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerTextValue/Nested/Nil"),
 		inBuf: `{"fizz":"buzz"}`,
 		inVal: new(structEmbedEmbedPointerTextValue),
-		want: addr(structEmbedEmbedPointerTextValue{
+		want: new(structEmbedEmbedPointerTextValue{
 			X: struct {
 				X *jsontext.Value `json:",embed"`
-			}{X: addr(jsontext.Value(`{"fizz":"buzz"}`))},
+			}{X: new(jsontext.Value(`{"fizz":"buzz"}`))},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
 		inVal: new(structEmbedMapStringAny),
-		want:  addr(structEmbedMapStringAny{A: 1, X: nil, B: 2}),
+		want:  new(structEmbedMapStringAny{A: 1, X: nil, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedMapStringAny),
-		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		want:  new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedMapStringAny{X: jsonObject{}}),
-		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		inVal: new(structEmbedMapStringAny{X: jsonObject{}}),
+		want:  new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN1/ObjectN1"),
 		inBuf: `{"A":1,"fizz":{"charlie":"DELTA","echo":"foxtrot"},"B":2}`,
-		inVal: addr(structEmbedMapStringAny{X: jsonObject{"fizz": jsonObject{
+		inVal: new(structEmbedMapStringAny{X: jsonObject{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "delta",
 		}}}),
-		want: addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{
+		want: new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "DELTA",
 			"echo":    "foxtrot",
@@ -6955,38 +6982,38 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structEmbedMapStringAny{X: jsonObject{"fizz": "wuzz"}}),
-		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
+		inVal: new(structEmbedMapStringAny{X: jsonObject{"fizz": "wuzz"}}),
+		want:  new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
 		inVal:   new(structEmbedMapStringAny),
-		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": nil}}),
+		want:    new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": nil}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/MergeInvalidValue/Existing"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
-		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
+		inVal:   new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
+		want:    new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": true}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
 		inVal: new(structEmbedMapStringAny),
-		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "a": 3.0}, B: 2}),
+		want:  new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz", "a": 3.0}, B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapStringAny/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
 		inVal:   new(structEmbedMapStringAny),
-		want:    addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
+		want:    new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": "buzz"}, B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":{"one":1,"two":-2},"B":2,"fizz":{"two":2,"three":3}}`,
 		inVal: new(structEmbedMapStringAny),
-		want:  addr(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
+		want:  new(structEmbedMapStringAny{A: 1, X: jsonObject{"fizz": jsonObject{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Noop"),
 		inBuf: `{}`,
@@ -6996,7 +7023,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz"}`,
 		inVal: new(structEmbedPointerEmbedMapStringAny),
-		want: addr(structEmbedPointerEmbedMapStringAny{
+		want: new(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
 				X jsonObject `json:",embed"`
@@ -7005,13 +7032,13 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringAny/Nested/Merge"),
 		inBuf: `{"fizz":"buzz"}`,
-		inVal: addr(structEmbedPointerEmbedMapStringAny{
+		inVal: new(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
 				X jsonObject `json:",embed"`
 			}{A: 1},
 		}),
-		want: addr(structEmbedPointerEmbedMapStringAny{
+		want: new(structEmbedPointerEmbedMapStringAny{
 			X: &struct {
 				A int
 				X jsonObject `json:",embed"`
@@ -7028,50 +7055,50 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"D":"1.1","E":"2.2","F":"3.3"}`,
 		inVal: new(structEmbedMapStringAny),
-		want:  addr(structEmbedMapStringAny{X: jsonObject{"D": 1.1, "E": 2.2, "F": 3.3}}),
+		want:  new(structEmbedMapStringAny{X: jsonObject{"D": 1.1, "E": 2.2, "F": 3.3}}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
 		inVal: new(structEmbedPointerMapStringAny),
-		want:  addr(structEmbedPointerMapStringAny{A: 1, X: nil, B: 2}),
+		want:  new(structEmbedPointerMapStringAny{A: 1, X: nil, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Alloc"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedPointerMapStringAny),
-		want:  addr(structEmbedPointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "buzz"}), B: 2}),
+		want:  new(structEmbedPointerMapStringAny{A: 1, X: new(jsonObject{"fizz": "buzz"}), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Merge"),
 		inBuf: `{"A":1,"fizz":"wuzz","B":2}`,
-		inVal: addr(structEmbedPointerMapStringAny{X: addr(jsonObject{"fizz": "buzz"})}),
-		want:  addr(structEmbedPointerMapStringAny{A: 1, X: addr(jsonObject{"fizz": "wuzz"}), B: 2}),
+		inVal: new(structEmbedPointerMapStringAny{X: new(jsonObject{"fizz": "buzz"})}),
+		want:  new(structEmbedPointerMapStringAny{A: 1, X: new(jsonObject{"fizz": "wuzz"}), B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/PointerMapStringAny/Nested/Nil"),
 		inBuf: `{"fizz":"buzz"}`,
 		inVal: new(structEmbedEmbedPointerMapStringAny),
-		want: addr(structEmbedEmbedPointerMapStringAny{
+		want: new(structEmbedEmbedPointerMapStringAny{
 			X: struct {
 				X *jsonObject `json:",embed"`
-			}{X: addr(jsonObject{"fizz": "buzz"})},
+			}{X: new(jsonObject{"fizz": "buzz"})},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt"),
 		inBuf: `{"zero": 0, "one": 1, "two": 2}`,
 		inVal: new(structEmbedMapStringInt),
-		want: addr(structEmbedMapStringInt{
+		want: new(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Null"),
 		inBuf: `{"zero": 0, "one": null, "two": 2}`,
 		inVal: new(structEmbedMapStringInt),
-		want: addr(structEmbedMapStringInt{
+		want: new(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 0, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapStringInt/Invalid"),
 		inBuf: `{"zero": 0, "one": {}, "two": 2}`,
 		inVal: new(structEmbedMapStringInt),
-		want: addr(structEmbedMapStringInt{
+		want: new(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": 0, "one": `, "/one").withType('{', T[int]()),
@@ -7080,7 +7107,7 @@ func TestUnmarshal(t *testing.T) {
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
 		inVal: new(structEmbedMapStringInt),
-		want: addr(structEmbedMapStringInt{
+		want: new(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
@@ -7097,28 +7124,28 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
 		inVal: new(structEmbedMapStringInt),
-		want: addr(structEmbedMapStringInt{
+		want: new(structEmbedMapStringInt{
 			X: map[string]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt"),
 		inBuf: `{"zero": 0, "one": 1, "two": 2}`,
 		inVal: new(structEmbedMapNamedStringInt),
-		want: addr(structEmbedMapNamedStringInt{
+		want: new(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/Null"),
 		inBuf: `{"zero": 0, "one": null, "two": 2}`,
 		inVal: new(structEmbedMapNamedStringInt),
-		want: addr(structEmbedMapNamedStringInt{
+		want: new(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringInt/Invalid"),
 		inBuf: `{"zero": 0, "one": {}, "two": 2}`,
 		inVal: new(structEmbedMapNamedStringInt),
-		want: addr(structEmbedMapNamedStringInt{
+		want: new(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": 0, "one": `, "/one").withType('{', T[int]()),
@@ -7127,7 +7154,7 @@ func TestUnmarshal(t *testing.T) {
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `{"zero": "0", "one": 1, "two": "2"}`,
 		inVal: new(structEmbedMapNamedStringInt),
-		want: addr(structEmbedMapNamedStringInt{
+		want: new(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 0},
 		}),
 		wantErr: EU(nil).withPos(`{"zero": "0", "one": `, "/one").withType('0', T[int]()),
@@ -7145,32 +7172,32 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"zero": "0", "one": "1", "two": "2"}`,
 		inVal: new(structEmbedMapNamedStringInt),
-		want: addr(structEmbedMapNamedStringInt{
+		want: new(structEmbedMapNamedStringInt{
 			X: map[namedString]int{"zero": 0, "one": 1, "two": 2},
 		}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/Noop"),
 		inBuf: `{"A":1,"B":2}`,
 		inVal: new(structEmbedMapNamedStringAny),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: nil, B: 2}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: nil, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/Nil"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedMapNamedStringAny),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/Empty"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
-		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{}}),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny{X: map[namedString]any{}}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN1/ObjectN1"),
 		inBuf: `{"A":1,"fizz":{"charlie":"DELTA","echo":"foxtrot"},"B":2}`,
-		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": jsonObject{
+		inVal: new(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "delta",
 		}}}),
-		want: addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": jsonObject{
+		want: new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": jsonObject{
 			"alpha":   "bravo",
 			"charlie": "DELTA",
 			"echo":    "foxtrot",
@@ -7178,44 +7205,44 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeN2/ObjectN1"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"foo": [ 1 , 2 , 3 ]}`,
-		inVal: addr(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": "wuzz"}}),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
+		inVal: new(structEmbedMapNamedStringAny{X: map[namedString]any{"fizz": "wuzz"}}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "foo": jsonArray{1.0, 2.0, 3.0}}, B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeInvalidValue"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
 		inVal:   new(structEmbedMapNamedStringAny),
-		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": nil}}),
+		want:    new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": nil}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/MergeInvalidValue/Existing"),
 		inBuf:   `{"A":1,"fizz":nil,"B":2}`,
-		inVal:   addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
-		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
+		inVal:   new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
+		want:    new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": true}}),
 		wantErr: newInvalidCharacterError("i", "in literal null (expecting 'u')", len64(`{"A":1,"fizz":n`), "/fizz"),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/CaseSensitive"),
 		inBuf: `{"A":1,"fizz":"buzz","B":2,"a":3}`,
 		inVal: new(structEmbedMapNamedStringAny),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "a": 3.0}, B: 2}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz", "a": 3.0}, B: 2}),
 	}, {
 		name:    jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/RejectDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"A":1,"fizz":"buzz","B":2,"fizz":"buzz"}`,
 		inVal:   new(structEmbedMapNamedStringAny),
-		want:    addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
+		want:    new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": "buzz"}, B: 2}),
 		wantErr: newDuplicateNameError("", []byte(`"fizz"`), len64(`{"A":1,"fizz":"buzz","B":2,`)),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/MapNamedStringAny/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf: `{"A":1,"fizz":{"one":1,"two":-2},"B":2,"fizz":{"two":2,"three":3}}`,
 		inVal: new(structEmbedMapNamedStringAny),
-		want:  addr(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": map[string]any{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
+		want:  new(structEmbedMapNamedStringAny{A: 1, X: map[namedString]any{"fizz": map[string]any{"one": 1.0, "two": 2.0, "three": 3.0}}, B: 2}),
 	}, {
 		name:  jsontest.Name("Structs/EmbeddedFallback/RejectUnknownMembers"),
 		opts:  []Options{RejectUnknownMembers(true)},
 		inBuf: `{"A":1,"fizz":"buzz","B":2}`,
 		inVal: new(structEmbedTextValue),
-		want: addr(structEmbedTextValue{
+		want: new(structEmbedTextValue{
 			A: 1,
 			X: jsontext.Value(`{"fizz":"buzz"}`),
 			B: 2,
@@ -7247,184 +7274,210 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Structs/NoCase/Exact"),
 		inBuf: `{"Aaa":"Aaa","AA_A":"AA_A","AaA":"AaA","AAa":"AAa","AAA":"AAA"}`,
 		inVal: new(structNoCase),
-		want:  addr(structNoCase{AaA: "AaA", AAa: "AAa", Aaa: "Aaa", AAA: "AAA", AA_A: "AA_A"}),
+		want:  new(structNoCase{AaA: "AaA", AAa: "AAa", Aaa: "Aaa", AAA: "AAA", AA_A: "AA_A"}),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/CaseInsensitiveDefault/Ambiguous"),
 		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"aa_a":"aa_a"}`,
 		inVal: new(structNoCase),
-		want:  addr(structNoCase{AaA: "aa_a"}),
+		want:  new(structNoCase{AaA: "aa_a"}),
 	}, {
 		name:    jsontest.Name("Structs/NoCase/CaseInsensitiveDefault/Ambiguous"),
 		inBuf:   `{"aa_a":"aa_a"}`,
 		inVal:   new(structNoCase),
-		want:    addr(structNoCase{}),
+		want:    new(structNoCase{}),
 		wantErr: EU(errAmbiguousName).withPos(`{`, "/aa_a").withType('"', T[structNoCase]()),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/MatchCaseSensitiveDelimiter"),
 		opts:  []Options{jsonflags.MatchCaseSensitiveDelimiter | 1},
 		inBuf: `{"aa_a":"aa_a"}`,
 		inVal: new(structNoCase),
-		want:  addr(structNoCase{}),
+		want:  new(structNoCase{}),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/MatchCaseInsensitiveNames+MatchCaseSensitiveDelimiter"),
 		opts:  []Options{MatchCaseInsensitiveNames(true), jsonflags.MatchCaseSensitiveDelimiter | 1},
 		inBuf: `{"aa_a":"aa_a"}`,
 		inVal: new(structNoCase),
-		want:  addr(structNoCase{AA_A: "aa_a"}),
+		want:  new(structNoCase{AA_A: "aa_a"}),
 	}, {
 		name:  jsontest.Name("Structs/NoCase/Merge/AllowDuplicateNames"),
 		opts:  []Options{jsontext.AllowDuplicateNames(true), jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"AaA":"AaA","aaa":"aaa","aAa":"aAa"}`,
 		inVal: new(structNoCase),
-		want:  addr(structNoCase{AaA: "aAa"}),
+		want:  new(structNoCase{AaA: "aAa"}),
 	}, {
 		name:    jsontest.Name("Structs/NoCase/Merge/AllowDuplicateNames/Ambiguous"),
 		opts:    []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf:   `{"AaA":"AaA","aaa":"aaa","aAa":"aAa"}`,
 		inVal:   new(structNoCase),
-		want:    addr(structNoCase{AaA: "AaA"}),
+		want:    new(structNoCase{AaA: "AaA"}),
 		wantErr: EU(errAmbiguousName).withPos(`{"AaA":"AaA",`, "/aaa").withType('"', T[structNoCase]()),
 	}, {
 		name:    jsontest.Name("Structs/NoCase/Merge/RejectDuplicateNames/Ambiguous"),
 		opts:    []Options{jsontext.AllowDuplicateNames(false)},
 		inBuf:   `{"AaA":"AaA","aaa":"aaa"}`,
 		inVal:   new(structNoCase),
-		want:    addr(structNoCase{AaA: "AaA"}),
+		want:    new(structNoCase{AaA: "AaA"}),
 		wantErr: EU(errAmbiguousName).withPos(`{"AaA":"AaA",`, "/aaa").withType('"', T[structNoCase]()),
 	}, {
 		name:  jsontest.Name("Structs/CaseSensitive"),
 		inBuf: `{"BOOL": true, "STRING": "hello", "BYTES": "AQID", "INT": -64, "UINT": 64, "FLOAT": 3.14159}`,
 		inVal: new(structScalars),
-		want:  addr(structScalars{}),
+		want:  new(structScalars{}),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/NoCase/ExactDifferent"),
 		inBuf: `{"AAA":"AAA","AaA":"AaA","AAa":"AAa","Aaa":"Aaa"}`,
-		inVal: addr(structNoCaseEmbedTextValue{}),
-		want:  addr(structNoCaseEmbedTextValue{AAA: "AAA", AaA: "AaA", AAa: "AAa", Aaa: "Aaa"}),
+		inVal: new(structNoCaseEmbedTextValue{}),
+		want:  new(structNoCaseEmbedTextValue{AAA: "AAA", AaA: "AaA", AAa: "AAa", Aaa: "Aaa"}),
 	}, {
 		name:    jsontest.Name("Structs/DuplicateName/NoCase/ExactConflict"),
 		inBuf:   `{"AAA":"AAA","AAA":"AAA"}`,
-		inVal:   addr(structNoCaseEmbedTextValue{}),
-		want:    addr(structNoCaseEmbedTextValue{AAA: "AAA"}),
+		inVal:   new(structNoCaseEmbedTextValue{}),
+		want:    new(structNoCaseEmbedTextValue{AAA: "AAA"}),
 		wantErr: newDuplicateNameError("", []byte(`"AAA"`), len64(`{"AAA":"AAA",`)),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/NoCase/OverwriteExact"),
 		inBuf: `{"AAA":"after"}`,
-		inVal: addr(structNoCaseEmbedTextValue{AAA: "before"}),
-		want:  addr(structNoCaseEmbedTextValue{AAA: "after"}),
+		inVal: new(structNoCaseEmbedTextValue{AAA: "before"}),
+		want:  new(structNoCaseEmbedTextValue{AAA: "after"}),
 	}, {
 		name:    jsontest.Name("Structs/AmbiguousName/NoCase"),
 		inBuf:   `{"aaa":"aaa"}`,
-		inVal:   addr(structNoCaseEmbedTextValue{}),
-		want:    addr(structNoCaseEmbedTextValue{}),
+		inVal:   new(structNoCaseEmbedTextValue{}),
+		want:    new(structNoCaseEmbedTextValue{}),
 		wantErr: EU(errAmbiguousName).withPos(`{`, "/aaa").withType('"', T[structNoCaseEmbedTextValue]()),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/Embed/Unknown"),
 		inBuf: `{"unknown":""}`,
-		inVal: addr(structNoCaseEmbedTextValue{}),
-		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
+		inVal: new(structNoCaseEmbedTextValue{}),
+		want:  new(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/Embed/UnknownMerge"),
 		inBuf: `{"unknown":""}`,
-		inVal: addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
-		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":"","unknown":""}`)}),
+		inVal: new(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":""}`)}),
+		want:  new(structNoCaseEmbedTextValue{X: jsontext.Value(`{"unknown":"","unknown":""}`)}),
 	}, {
 		name:  jsontest.Name("Structs/DuplicateName/Embed/NoCaseOkay"),
 		inBuf: `{"b":"","B":""}`,
-		inVal: addr(structNoCaseEmbedTextValue{}),
-		want:  addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":"","B":""}`)}),
+		inVal: new(structNoCaseEmbedTextValue{}),
+		want:  new(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":"","B":""}`)}),
 	}, {
 		name:    jsontest.Name("Structs/DuplicateName/Embed/ExactConflict"),
 		inBuf:   `{"b":"","b":""}`,
-		inVal:   addr(structNoCaseEmbedTextValue{}),
-		want:    addr(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":""}`)}),
+		inVal:   new(structNoCaseEmbedTextValue{}),
+		want:    new(structNoCaseEmbedTextValue{X: jsontext.Value(`{"b":""}`)}),
 		wantErr: newDuplicateNameError("", []byte(`"b"`), len64(`{"b":"",`)),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/ErrUnexpectedEOF"),
 		inBuf:   ``,
-		inVal:   addr(structAll{}),
-		want:    addr(structAll{}),
+		inVal:   new(structAll{}),
+		want:    new(structAll{}),
 		wantErr: &jsontext.SyntacticError{Err: io.ErrUnexpectedEOF},
 	}, {
 		name:    jsontest.Name("Structs/Invalid/ErrUnexpectedEOF"),
 		inBuf:   " \n\r\t",
-		inVal:   addr(structAll{}),
-		want:    addr(structAll{}),
+		inVal:   new(structAll{}),
+		want:    new(structAll{}),
 		wantErr: &jsontext.SyntacticError{Err: io.ErrUnexpectedEOF, ByteOffset: len64(" \n\r\t")},
 	}, {
 		name:    jsontest.Name("Structs/Invalid/NestedErrUnexpectedEOF"),
 		inBuf:   `{"Pointer":`,
-		inVal:   addr(structAll{}),
-		want:    addr(structAll{Pointer: new(structAll)}),
+		inVal:   new(structAll{}),
+		want:    new(structAll{Pointer: new(structAll)}),
 		wantErr: &jsontext.SyntacticError{ByteOffset: len64(`{"Pointer":`), JSONPointer: "/Pointer", Err: io.ErrUnexpectedEOF},
 	}, {
 		name:    jsontest.Name("Structs/Invalid/Conflicting"),
 		inBuf:   `{}`,
-		inVal:   addr(structConflicting{}),
-		want:    addr(structConflicting{}),
+		inVal:   new(structConflicting{}),
+		want:    new(structConflicting{}),
 		wantErr: EU(errors.New(`Go struct fields A and B conflict over JSON object name "conflict"`)).withType('{', T[structConflicting]()),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/NoneExported"),
 		inBuf:   ` {}`,
-		inVal:   addr(structNoneExported{}),
-		want:    addr(structNoneExported{}),
+		inVal:   new(structNoneExported{}),
+		want:    new(structNoneExported{}),
 		wantErr: EU(errNoExportedFields).withPos(` `, "").withType('{', T[structNoneExported]()),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/MalformedTag"),
 		inBuf:   `{}`,
-		inVal:   addr(structMalformedTag{}),
-		want:    addr(structMalformedTag{}),
+		inVal:   new(structMalformedTag{}),
+		want:    new(structMalformedTag{}),
 		wantErr: EU(errors.New("Go struct field Malformed has malformed `json` tag: invalid character '\"' at start of option (expecting Unicode letter)")).withType('{', T[structMalformedTag]()),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/UnexportedTag"),
 		inBuf:   `{}`,
-		inVal:   addr(structUnexportedTag{}),
-		want:    addr(structUnexportedTag{}),
+		inVal:   new(structUnexportedTag{}),
+		want:    new(structUnexportedTag{}),
 		wantErr: EU(errors.New("unexported Go struct field unexported cannot have non-ignored `json:\"name\"` tag")).withType('{', T[structUnexportedTag]()),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/ExportedEmbedded"),
 		inBuf:   `{"NamedString":"hello"}`,
-		inVal:   addr(structExportedEmbedded{}),
-		want:    addr(structExportedEmbedded{}),
+		inVal:   new(structExportedEmbedded{}),
+		want:    new(structExportedEmbedded{}),
 		wantErr: EU(errors.New("embedded Go struct field NamedString of non-struct type must be explicitly given a JSON name")).withType('{', T[structExportedEmbedded]()),
 	}, {
 		name:  jsontest.Name("Structs/Valid/ExportedEmbedded"),
 		opts:  []Options{jsonflags.ReportErrorsWithLegacySemantics | 1},
 		inBuf: `{"NamedString":"hello"}`,
-		inVal: addr(structExportedEmbedded{}),
-		want:  addr(structExportedEmbedded{"hello"}),
+		inVal: new(structExportedEmbedded{}),
+		want:  new(structExportedEmbedded{"hello"}),
 	}, {
 		name:  jsontest.Name("Structs/Valid/ExportedEmbeddedTag"),
 		inBuf: `{"name":"hello"}`,
-		inVal: addr(structExportedEmbeddedTag{}),
-		want:  addr(structExportedEmbeddedTag{"hello"}),
+		inVal: new(structExportedEmbeddedTag{}),
+		want:  new(structExportedEmbeddedTag{"hello"}),
 	}, {
 		name:    jsontest.Name("Structs/Invalid/UnexportedEmbedded"),
 		inBuf:   `{}`,
-		inVal:   addr(structUnexportedEmbedded{}),
-		want:    addr(structUnexportedEmbedded{}),
+		inVal:   new(structUnexportedEmbedded{}),
+		want:    new(structUnexportedEmbedded{}),
 		wantErr: EU(errors.New("embedded Go struct field namedString of non-struct type must be explicitly given a JSON name")).withType('{', T[structUnexportedEmbedded]()),
 	}, {
 		name:  jsontest.Name("Structs/UnexportedEmbeddedStruct"),
 		inBuf: `{"Bool":true,"FizzBuzz":5,"Addr":"192.168.0.1"}`,
-		inVal: addr(structUnexportedEmbeddedStruct{}),
-		want:  addr(structUnexportedEmbeddedStruct{structOmitZeroAll{Bool: true}, 5, structNestedAddr{netip.AddrFrom4([4]byte{192, 168, 0, 1})}}),
+		inVal: new(structUnexportedEmbeddedStruct{}),
+		want:  new(structUnexportedEmbeddedStruct{structOmitZeroAll{Bool: true}, 5, structNestedAddr{netip.AddrFrom4([4]byte{192, 168, 0, 1})}}),
 	}, {
 		name:    jsontest.Name("Structs/UnexportedEmbeddedStructPointer/Nil"),
 		inBuf:   `{"Bool":true,"FizzBuzz":5}`,
-		inVal:   addr(structUnexportedEmbeddedStructPointer{}),
+		inVal:   new(structUnexportedEmbeddedStructPointer{}),
 		wantErr: EU(errNilField).withPos(`{"Bool":`, "/Bool").withType(0, T[structUnexportedEmbeddedStructPointer]()),
 	}, {
 		name:    jsontest.Name("Structs/UnexportedEmbeddedStructPointer/Nil"),
 		inBuf:   `{"FizzBuzz":5,"Addr":"192.168.0.1"}`,
-		inVal:   addr(structUnexportedEmbeddedStructPointer{}),
+		inVal:   new(structUnexportedEmbeddedStructPointer{}),
 		wantErr: EU(errNilField).withPos(`{"FizzBuzz":5,"Addr":`, "/Addr").withType(0, T[structUnexportedEmbeddedStructPointer]()),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerMapStringInt),
+		want:    new(structUnexportedEmbeddedPointerMapStringInt{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerMapStringInt]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: new(structUnexportedEmbeddedPointerMapStringInt{structEmbedMapStringInt: new(structEmbedMapStringInt)}),
+		want:  new(structUnexportedEmbeddedPointerMapStringInt{1, &structEmbedMapStringInt{map[string]int{"fizz": 2, "buzz": 3}}}),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerTextValue),
+		want:    new(structUnexportedEmbeddedPointerTextValue{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerTextValue]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: new(structUnexportedEmbeddedPointerTextValue{structEmbedEmbedPointerTextValue: new(structEmbedEmbedPointerTextValue)}),
+		want: new(structUnexportedEmbeddedPointerTextValue{A: 1, structEmbedEmbedPointerTextValue: &structEmbedEmbedPointerTextValue{
+			X: struct {
+				X *jsontext.Value `json:",embed"`
+			}{new(jsontext.Value(`{"fizz":2,"buzz":3}`))},
+		}}),
 	}, {
 		name:  jsontest.Name("Structs/UnexportedEmbeddedStructPointer/Nil"),
 		inBuf: `{"Bool":true,"FizzBuzz":10,"Addr":"192.168.0.1"}`,
-		inVal: addr(structUnexportedEmbeddedStructPointer{&structOmitZeroAll{Int: 5}, 5, &structNestedAddr{netip.AddrFrom4([4]byte{127, 0, 0, 1})}}),
-		want:  addr(structUnexportedEmbeddedStructPointer{&structOmitZeroAll{Bool: true, Int: 5}, 10, &structNestedAddr{netip.AddrFrom4([4]byte{192, 168, 0, 1})}}),
+		inVal: new(structUnexportedEmbeddedStructPointer{&structOmitZeroAll{Int: 5}, 5, &structNestedAddr{netip.AddrFrom4([4]byte{127, 0, 0, 1})}}),
+		want:  new(structUnexportedEmbeddedStructPointer{&structOmitZeroAll{Bool: true, Int: 5}, 10, &structNestedAddr{netip.AddrFrom4([4]byte{192, 168, 0, 1})}}),
 	}, {
 		name: jsontest.Name("Structs/Unknown"),
 		inBuf: `{
@@ -7438,68 +7491,68 @@ func TestUnmarshal(t *testing.T) {
 	"array": [[[]]],
 	"scalars": [null, false, true, "string", 12.345]
 }`,
-		inVal: addr(struct{}{}),
-		want:  addr(struct{}{}),
+		inVal: new(struct{}{}),
+		want:  new(struct{}{}),
 	}, {
 		name:  jsontest.Name("Structs/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `{"Field":"Value"}`,
-		inVal: addr(struct{ Field string }{}),
-		want:  addr(struct{ Field string }{"Value"}),
+		inVal: new(struct{ Field string }{}),
+		want:  new(struct{ Field string }{"Value"}),
 	}, {
 		name:  jsontest.Name("Slices/Null"),
 		inBuf: `null`,
-		inVal: addr([]string{"something"}),
-		want:  addr([]string(nil)),
+		inVal: new([]string{"something"}),
+		want:  new([]string(nil)),
 	}, {
 		name:  jsontest.Name("Slices/Bool"),
 		inBuf: `[true,false]`,
 		inVal: new([]bool),
-		want:  addr([]bool{true, false}),
+		want:  new([]bool{true, false}),
 	}, {
 		name:  jsontest.Name("Slices/String"),
 		inBuf: `["hello","goodbye"]`,
 		inVal: new([]string),
-		want:  addr([]string{"hello", "goodbye"}),
+		want:  new([]string{"hello", "goodbye"}),
 	}, {
 		name:  jsontest.Name("Slices/Bytes"),
 		inBuf: `["aGVsbG8=","Z29vZGJ5ZQ=="]`,
 		inVal: new([][]byte),
-		want:  addr([][]byte{[]byte("hello"), []byte("goodbye")}),
+		want:  new([][]byte{[]byte("hello"), []byte("goodbye")}),
 	}, {
 		name:  jsontest.Name("Slices/Int"),
 		inBuf: `[-2,-1,0,1,2]`,
 		inVal: new([]int),
-		want:  addr([]int{-2, -1, 0, 1, 2}),
+		want:  new([]int{-2, -1, 0, 1, 2}),
 	}, {
 		name:  jsontest.Name("Slices/Uint"),
 		inBuf: `[0,1,2,3,4]`,
 		inVal: new([]uint),
-		want:  addr([]uint{0, 1, 2, 3, 4}),
+		want:  new([]uint{0, 1, 2, 3, 4}),
 	}, {
 		name:  jsontest.Name("Slices/Float"),
 		inBuf: `[3.14159,12.34]`,
 		inVal: new([]float64),
-		want:  addr([]float64{3.14159, 12.34}),
+		want:  new([]float64{3.14159, 12.34}),
 	}, {
 		// NOTE: The semantics differs from v1, where the slice length is reset
 		// and new elements are appended to the end.
 		// See https://go.dev/issue/21092.
 		name:  jsontest.Name("Slices/Merge"),
 		inBuf: `[{"k3":"v3"},{"k4":"v4"}]`,
-		inVal: addr([]map[string]string{{"k1": "v1"}, {"k2": "v2"}}[:1]),
-		want:  addr([]map[string]string{{"k3": "v3"}, {"k4": "v4"}}),
+		inVal: new([]map[string]string{{"k1": "v1"}, {"k2": "v2"}}[:1]),
+		want:  new([]map[string]string{{"k3": "v3"}, {"k4": "v4"}}),
 	}, {
 		name:    jsontest.Name("Slices/Invalid/Channel"),
 		inBuf:   `["hello"]`,
 		inVal:   new([]chan string),
-		want:    addr([]chan string{nil}),
+		want:    new([]chan string{nil}),
 		wantErr: EU(nil).withPos(`[`, "/0").withType(0, T[chan string]()),
 	}, {
 		name:  jsontest.Name("Slices/RecursiveSlice"),
 		inBuf: `[[],[],[[]],[[],[]]]`,
 		inVal: new(recursiveSlice),
-		want: addr(recursiveSlice{
+		want: new(recursiveSlice{
 			{},
 			{},
 			{{}},
@@ -7508,75 +7561,75 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:    jsontest.Name("Slices/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr([]string{"nochange"}),
-		want:    addr([]string{"nochange"}),
+		inVal:   new([]string{"nochange"}),
+		want:    new([]string{"nochange"}),
 		wantErr: EU(nil).withType('t', T[[]string]()),
 	}, {
 		name:    jsontest.Name("Slices/Invalid/String"),
 		inBuf:   `""`,
-		inVal:   addr([]string{"nochange"}),
-		want:    addr([]string{"nochange"}),
+		inVal:   new([]string{"nochange"}),
+		want:    new([]string{"nochange"}),
 		wantErr: EU(nil).withType('"', T[[]string]()),
 	}, {
 		name:    jsontest.Name("Slices/Invalid/Number"),
 		inBuf:   `0`,
-		inVal:   addr([]string{"nochange"}),
-		want:    addr([]string{"nochange"}),
+		inVal:   new([]string{"nochange"}),
+		want:    new([]string{"nochange"}),
 		wantErr: EU(nil).withType('0', T[[]string]()),
 	}, {
 		name:    jsontest.Name("Slices/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr([]string{"nochange"}),
-		want:    addr([]string{"nochange"}),
+		inVal:   new([]string{"nochange"}),
+		want:    new([]string{"nochange"}),
 		wantErr: EU(nil).withType('{', T[[]string]()),
 	}, {
 		name:  jsontest.Name("Slices/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `[false,true]`,
-		inVal: addr([]bool{true, false}),
-		want:  addr([]bool{false, true}),
+		inVal: new([]bool{true, false}),
+		want:  new([]bool{false, true}),
 	}, {
 		name:  jsontest.Name("Arrays/Null"),
 		inBuf: `null`,
-		inVal: addr([1]string{"something"}),
-		want:  addr([1]string{}),
+		inVal: new([1]string{"something"}),
+		want:  new([1]string{}),
 	}, {
 		name:  jsontest.Name("Arrays/Bool"),
 		inBuf: `[true,false]`,
 		inVal: new([2]bool),
-		want:  addr([2]bool{true, false}),
+		want:  new([2]bool{true, false}),
 	}, {
 		name:  jsontest.Name("Arrays/String"),
 		inBuf: `["hello","goodbye"]`,
 		inVal: new([2]string),
-		want:  addr([2]string{"hello", "goodbye"}),
+		want:  new([2]string{"hello", "goodbye"}),
 	}, {
 		name:  jsontest.Name("Arrays/Bytes"),
 		inBuf: `["aGVsbG8=","Z29vZGJ5ZQ=="]`,
 		inVal: new([2][]byte),
-		want:  addr([2][]byte{[]byte("hello"), []byte("goodbye")}),
+		want:  new([2][]byte{[]byte("hello"), []byte("goodbye")}),
 	}, {
 		name:  jsontest.Name("Arrays/Int"),
 		inBuf: `[-2,-1,0,1,2]`,
 		inVal: new([5]int),
-		want:  addr([5]int{-2, -1, 0, 1, 2}),
+		want:  new([5]int{-2, -1, 0, 1, 2}),
 	}, {
 		name:  jsontest.Name("Arrays/Uint"),
 		inBuf: `[0,1,2,3,4]`,
 		inVal: new([5]uint),
-		want:  addr([5]uint{0, 1, 2, 3, 4}),
+		want:  new([5]uint{0, 1, 2, 3, 4}),
 	}, {
 		name:  jsontest.Name("Arrays/Float"),
 		inBuf: `[3.14159,12.34]`,
 		inVal: new([2]float64),
-		want:  addr([2]float64{3.14159, 12.34}),
+		want:  new([2]float64{3.14159, 12.34}),
 	}, {
 		// NOTE: The semantics differs from v1, where elements are not merged.
 		// This is to maintain consistent merge semantics with slices.
 		name:  jsontest.Name("Arrays/Merge"),
 		inBuf: `[{"k3":"v3"},{"k4":"v4"}]`,
-		inVal: addr([2]map[string]string{{"k1": "v1"}, {"k2": "v2"}}),
-		want:  addr([2]map[string]string{{"k3": "v3"}, {"k4": "v4"}}),
+		inVal: new([2]map[string]string{{"k1": "v1"}, {"k2": "v2"}}),
+		want:  new([2]map[string]string{{"k3": "v3"}, {"k4": "v4"}}),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/Channel"),
 		inBuf:   `["hello"]`,
@@ -7587,107 +7640,107 @@ func TestUnmarshal(t *testing.T) {
 		name:    jsontest.Name("Arrays/Invalid/Underflow"),
 		inBuf:   `{"F":[   ]}`,
 		inVal:   new(struct{ F [1]string }),
-		want:    addr(struct{ F [1]string }{}),
+		want:    new(struct{ F [1]string }{}),
 		wantErr: EU(errArrayUnderflow).withPos(`{"F":[   `, "/F").withType(']', T[[1]string]()),
 	}, {
 		name:  jsontest.Name("Arrays/Invalid/Underflow/UnmarshalArrayFromAnyLength"),
 		opts:  []Options{jsonflags.UnmarshalArrayFromAnyLength | 1},
 		inBuf: `[-1,-2]`,
-		inVal: addr([4]int{1, 2, 3, 4}),
-		want:  addr([4]int{-1, -2, 0, 0}),
+		inVal: new([4]int{1, 2, 3, 4}),
+		want:  new([4]int{-1, -2, 0, 0}),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/Overflow"),
 		inBuf:   `["1","2"]`,
 		inVal:   new([1]string),
-		want:    addr([1]string{"1"}),
+		want:    new([1]string{"1"}),
 		wantErr: EU(errArrayOverflow).withPos(`["1","2"`, "").withType(']', T[[1]string]()),
 	}, {
 		name:  jsontest.Name("Arrays/Invalid/Overflow/UnmarshalArrayFromAnyLength"),
 		opts:  []Options{jsonflags.UnmarshalArrayFromAnyLength | 1},
 		inBuf: `[-1,-2,-3,-4,-5,-6]`,
-		inVal: addr([4]int{1, 2, 3, 4}),
-		want:  addr([4]int{-1, -2, -3, -4}),
+		inVal: new([4]int{1, 2, 3, 4}),
+		want:  new([4]int{-1, -2, -3, -4}),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/Bool"),
 		inBuf:   `true`,
-		inVal:   addr([1]string{"nochange"}),
-		want:    addr([1]string{"nochange"}),
+		inVal:   new([1]string{"nochange"}),
+		want:    new([1]string{"nochange"}),
 		wantErr: EU(nil).withType('t', T[[1]string]()),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/String"),
 		inBuf:   `""`,
-		inVal:   addr([1]string{"nochange"}),
-		want:    addr([1]string{"nochange"}),
+		inVal:   new([1]string{"nochange"}),
+		want:    new([1]string{"nochange"}),
 		wantErr: EU(nil).withType('"', T[[1]string]()),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/Number"),
 		inBuf:   `0`,
-		inVal:   addr([1]string{"nochange"}),
-		want:    addr([1]string{"nochange"}),
+		inVal:   new([1]string{"nochange"}),
+		want:    new([1]string{"nochange"}),
 		wantErr: EU(nil).withType('0', T[[1]string]()),
 	}, {
 		name:    jsontest.Name("Arrays/Invalid/Object"),
 		inBuf:   `{}`,
-		inVal:   addr([1]string{"nochange"}),
-		want:    addr([1]string{"nochange"}),
+		inVal:   new([1]string{"nochange"}),
+		want:    new([1]string{"nochange"}),
 		wantErr: EU(nil).withType('{', T[[1]string]()),
 	}, {
 		name:  jsontest.Name("Arrays/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `[false,true]`,
-		inVal: addr([2]bool{true, false}),
-		want:  addr([2]bool{false, true}),
+		inVal: new([2]bool{true, false}),
+		want:  new([2]bool{false, true}),
 	}, {
 		name:  jsontest.Name("Pointers/NullL0"),
 		inBuf: `null`,
 		inVal: new(*string),
-		want:  addr((*string)(nil)),
+		want:  new((*string)(nil)),
 	}, {
 		name:  jsontest.Name("Pointers/NullL1"),
 		inBuf: `null`,
-		inVal: addr(new(*string)),
-		want:  addr((**string)(nil)),
+		inVal: new(new(*string)),
+		want:  new((**string)(nil)),
 	}, {
 		name:  jsontest.Name("Pointers/Bool"),
 		inBuf: `true`,
-		inVal: addr(new(bool)),
-		want:  addr(addr(true)),
+		inVal: new(new(bool)),
+		want:  new(new(true)),
 	}, {
 		name:  jsontest.Name("Pointers/String"),
 		inBuf: `"hello"`,
-		inVal: addr(new(string)),
-		want:  addr(addr("hello")),
+		inVal: new(new(string)),
+		want:  new(new("hello")),
 	}, {
 		name:  jsontest.Name("Pointers/Bytes"),
 		inBuf: `"aGVsbG8="`,
-		inVal: addr(new([]byte)),
-		want:  addr(addr([]byte("hello"))),
+		inVal: new(new([]byte)),
+		want:  new(new([]byte("hello"))),
 	}, {
 		name:  jsontest.Name("Pointers/Int"),
 		inBuf: `-123`,
-		inVal: addr(new(int)),
-		want:  addr(addr(int(-123))),
+		inVal: new(new(int)),
+		want:  new(new(int(-123))),
 	}, {
 		name:  jsontest.Name("Pointers/Uint"),
 		inBuf: `123`,
-		inVal: addr(new(int)),
-		want:  addr(addr(int(123))),
+		inVal: new(new(int)),
+		want:  new(new(int(123))),
 	}, {
 		name:  jsontest.Name("Pointers/Float"),
 		inBuf: `123.456`,
-		inVal: addr(new(float64)),
-		want:  addr(addr(float64(123.456))),
+		inVal: new(new(float64)),
+		want:  new(new(float64(123.456))),
 	}, {
 		name:  jsontest.Name("Pointers/Allocate"),
 		inBuf: `"hello"`,
-		inVal: addr((*string)(nil)),
-		want:  addr(addr("hello")),
+		inVal: new((*string)(nil)),
+		want:  new(new("hello")),
 	}, {
 		name:  jsontest.Name("Points/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `true`,
-		inVal: addr(new(bool)),
-		want:  addr(addr(true)),
+		inVal: new(new(bool)),
+		want:  new(new(true)),
 	}, {
 		name:  jsontest.Name("Interfaces/Empty/Null"),
 		inBuf: `null`,
@@ -7816,18 +7869,18 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Interfaces/Any"),
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{nil, false, true, "", 0.0, map[string]any{}, []any{}}}),
+		want:  new(struct{ X any }{[]any{nil, false, true, "", 0.0, map[string]any{}, []any{}}}),
 	}, {
 		name:  jsontest.Name("Interfaces/Any/Named"),
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X namedAny }),
-		want:  addr(struct{ X namedAny }{[]any{nil, false, true, "", 0.0, map[string]any{}, []any{}}}),
+		want:  new(struct{ X namedAny }{[]any{nil, false, true, "", 0.0, map[string]any{}, []any{}}}),
 	}, {
 		name:  jsontest.Name("Interfaces/Any/Stringified"),
 		opts:  []Options{StringifyNumbers(true)},
 		inBuf: `{"X":"0"}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{"0"}),
+		want:  new(struct{ X any }{"0"}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/Any"),
 		opts: []Options{
@@ -7838,7 +7891,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{"called"}),
+		want:  new(struct{ X any }{"called"}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/Bool"),
 		opts: []Options{
@@ -7849,7 +7902,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{nil, true, false, "", 0.0, map[string]any{}, []any{}}}),
+		want:  new(struct{ X any }{[]any{nil, true, false, "", 0.0, map[string]any{}, []any{}}}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/String"),
 		opts: []Options{
@@ -7860,7 +7913,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{nil, false, true, "called", 0.0, map[string]any{}, []any{}}}),
+		want:  new(struct{ X any }{[]any{nil, false, true, "called", 0.0, map[string]any{}, []any{}}}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/Float64"),
 		opts: []Options{
@@ -7871,7 +7924,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{nil, false, true, "", 3.14159, map[string]any{}, []any{}}}),
+		want:  new(struct{ X any }{[]any{nil, false, true, "", 3.14159, map[string]any{}, []any{}}}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/MapStringAny"),
 		opts: []Options{
@@ -7882,7 +7935,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{nil, false, true, "", 0.0, map[string]any{"called": nil}, []any{}}}),
+		want:  new(struct{ X any }{[]any{nil, false, true, "", 0.0, map[string]any{"called": nil}, []any{}}}),
 	}, {
 		name: jsontest.Name("Interfaces/Any/UnmarshalFunc/SliceAny"),
 		opts: []Options{
@@ -7893,115 +7946,115 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"X":[null,false,true,"",0,{},[]]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{"called"}}),
+		want:  new(struct{ X any }{[]any{"called"}}),
 	}, {
 		name:  jsontest.Name("Interfaces/Any/Maps/NonEmpty"),
 		inBuf: `{"X":{"fizz":"buzz"}}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{map[string]any{"fizz": "buzz"}}),
+		want:  new(struct{ X any }{map[string]any{"fizz": "buzz"}}),
 	}, {
 		name:    jsontest.Name("Interfaces/Any/Maps/RejectDuplicateNames"),
 		inBuf:   `{"X":{"fizz":"buzz","fizz":true}}`,
 		inVal:   new(struct{ X any }),
-		want:    addr(struct{ X any }{map[string]any{"fizz": "buzz"}}),
+		want:    new(struct{ X any }{map[string]any{"fizz": "buzz"}}),
 		wantErr: newDuplicateNameError("/X", []byte(`"fizz"`), len64(`{"X":{"fizz":"buzz",`)),
 	}, {
 		name:    jsontest.Name("Interfaces/Any/Maps/AllowDuplicateNames"),
 		opts:    []Options{jsontext.AllowDuplicateNames(true)},
 		inBuf:   `{"X":{"fizz":"buzz","fizz":true}}`,
 		inVal:   new(struct{ X any }),
-		want:    addr(struct{ X any }{map[string]any{"fizz": "buzz"}}),
+		want:    new(struct{ X any }{map[string]any{"fizz": "buzz"}}),
 		wantErr: EU(nil).withPos(`{"X":{"fizz":"buzz","fizz":`, "/X/fizz").withType('t', T[string]()),
 	}, {
 		name:  jsontest.Name("Interfaces/Any/Slices/NonEmpty"),
 		inBuf: `{"X":["fizz","buzz"]}`,
 		inVal: new(struct{ X any }),
-		want:  addr(struct{ X any }{[]any{"fizz", "buzz"}}),
+		want:  new(struct{ X any }{[]any{"fizz", "buzz"}}),
 	}, {
 		name:  jsontest.Name("Methods/NilPointer/Null"),
 		inBuf: `{"X":null}`,
-		inVal: addr(struct{ X *allMethods }{X: (*allMethods)(nil)}),
-		want:  addr(struct{ X *allMethods }{X: (*allMethods)(nil)}), // method should not be called
+		inVal: new(struct{ X *allMethods }{X: (*allMethods)(nil)}),
+		want:  new(struct{ X *allMethods }{X: (*allMethods)(nil)}), // method should not be called
 	}, {
 		name:  jsontest.Name("Methods/NilPointer/Value"),
 		inBuf: `{"X":"value"}`,
-		inVal: addr(struct{ X *allMethods }{X: (*allMethods)(nil)}),
-		want:  addr(struct{ X *allMethods }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"value"`)}}),
+		inVal: new(struct{ X *allMethods }{X: (*allMethods)(nil)}),
+		want:  new(struct{ X *allMethods }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"value"`)}}),
 	}, {
 		name:  jsontest.Name("Methods/NilInterface/Null"),
 		inBuf: `{"X":null}`,
-		inVal: addr(struct{ X MarshalerTo }{X: (*allMethods)(nil)}),
-		want:  addr(struct{ X MarshalerTo }{X: nil}), // interface value itself is nil'd out
+		inVal: new(struct{ X MarshalerTo }{X: (*allMethods)(nil)}),
+		want:  new(struct{ X MarshalerTo }{X: nil}), // interface value itself is nil'd out
 	}, {
 		name:  jsontest.Name("Methods/NilInterface/Value"),
 		inBuf: `{"X":"value"}`,
-		inVal: addr(struct{ X MarshalerTo }{X: (*allMethods)(nil)}),
-		want:  addr(struct{ X MarshalerTo }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"value"`)}}),
+		inVal: new(struct{ X MarshalerTo }{X: (*allMethods)(nil)}),
+		want:  new(struct{ X MarshalerTo }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"value"`)}}),
 	}, {
 		name:  jsontest.Name("Methods/AllMethods"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *allMethods }),
-		want:  addr(struct{ X *allMethods }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}),
+		want:  new(struct{ X *allMethods }{X: &allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}),
 	}, {
 		name:  jsontest.Name("Methods/AllMethodsExceptJSONv2"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *allMethodsExceptJSONv2 }),
-		want:  addr(struct{ X *allMethodsExceptJSONv2 }{X: &allMethodsExceptJSONv2{allMethods: allMethods{method: "UnmarshalJSON", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X *allMethodsExceptJSONv2 }{X: &allMethodsExceptJSONv2{allMethods: allMethods{method: "UnmarshalJSON", value: []byte(`"hello"`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/AllMethodsExceptJSONv1"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *allMethodsExceptJSONv1 }),
-		want:  addr(struct{ X *allMethodsExceptJSONv1 }{X: &allMethodsExceptJSONv1{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X *allMethodsExceptJSONv1 }{X: &allMethodsExceptJSONv1{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/AllMethodsExceptText"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *allMethodsExceptText }),
-		want:  addr(struct{ X *allMethodsExceptText }{X: &allMethodsExceptText{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X *allMethodsExceptText }{X: &allMethodsExceptText{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/OnlyMethodJSONv2"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *onlyMethodJSONv2 }),
-		want:  addr(struct{ X *onlyMethodJSONv2 }{X: &onlyMethodJSONv2{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X *onlyMethodJSONv2 }{X: &onlyMethodJSONv2{allMethods: allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/OnlyMethodJSONv1"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *onlyMethodJSONv1 }),
-		want:  addr(struct{ X *onlyMethodJSONv1 }{X: &onlyMethodJSONv1{allMethods: allMethods{method: "UnmarshalJSON", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X *onlyMethodJSONv1 }{X: &onlyMethodJSONv1{allMethods: allMethods{method: "UnmarshalJSON", value: []byte(`"hello"`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/OnlyMethodText"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X *onlyMethodText }),
-		want:  addr(struct{ X *onlyMethodText }{X: &onlyMethodText{allMethods: allMethods{method: "UnmarshalText", value: []byte(`hello`)}}}),
+		want:  new(struct{ X *onlyMethodText }{X: &onlyMethodText{allMethods: allMethods{method: "UnmarshalText", value: []byte(`hello`)}}}),
 	}, {
 		name:  jsontest.Name("Methods/Text/Null"),
 		inBuf: `{"X":null}`,
-		inVal: addr(struct{ X unmarshalTextFunc }{unmarshalTextFunc(func(b []byte) error {
+		inVal: new(struct{ X unmarshalTextFunc }{unmarshalTextFunc(func(b []byte) error {
 			return errMustNotCall
 		})}),
-		want: addr(struct{ X unmarshalTextFunc }{nil}),
+		want: new(struct{ X unmarshalTextFunc }{nil}),
 	}, {
 		name:  jsontest.Name("Methods/IP"),
 		inBuf: `"192.168.0.100"`,
 		inVal: new(net.IP),
-		want:  addr(net.IPv4(192, 168, 0, 100)),
+		want:  new(net.IPv4(192, 168, 0, 100)),
 	}, {
 		// NOTE: Fixes https://go.dev/issue/46516.
 		name:  jsontest.Name("Methods/Anonymous"),
 		inBuf: `{"X":"hello"}`,
 		inVal: new(struct{ X struct{ allMethods } }),
-		want:  addr(struct{ X struct{ allMethods } }{X: struct{ allMethods }{allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
+		want:  new(struct{ X struct{ allMethods } }{X: struct{ allMethods }{allMethods{method: "UnmarshalJSONFrom", value: []byte(`"hello"`)}}}),
 	}, {
 		// NOTE: Fixes https://go.dev/issue/22967.
 		name:  jsontest.Name("Methods/Addressable"),
 		inBuf: `{"V":"hello","M":{"K":"hello"},"I":"hello"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			V allMethods
 			M map[string]allMethods
 			I any
 		}{
 			I: allMethods{}, // need to initialize with concrete value
 		}),
-		want: addr(struct {
+		want: new(struct {
 			V allMethods
 			M map[string]allMethods
 			I any
@@ -8014,42 +8067,42 @@ func TestUnmarshal(t *testing.T) {
 		// NOTE: Fixes https://go.dev/issue/29732.
 		name:  jsontest.Name("Methods/MapKey/JSONv2"),
 		inBuf: `{"k1":"v1b","k2":"v2"}`,
-		inVal: addr(map[structMethodJSONv2]string{{"k1"}: "v1a", {"k3"}: "v3"}),
-		want:  addr(map[structMethodJSONv2]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
+		inVal: new(map[structMethodJSONv2]string{{"k1"}: "v1a", {"k3"}: "v3"}),
+		want:  new(map[structMethodJSONv2]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
 	}, {
 		// NOTE: Fixes https://go.dev/issue/29732.
 		name:  jsontest.Name("Methods/MapKey/JSONv1"),
 		inBuf: `{"k1":"v1b","k2":"v2"}`,
-		inVal: addr(map[structMethodJSONv1]string{{"k1"}: "v1a", {"k3"}: "v3"}),
-		want:  addr(map[structMethodJSONv1]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
+		inVal: new(map[structMethodJSONv1]string{{"k1"}: "v1a", {"k3"}: "v3"}),
+		want:  new(map[structMethodJSONv1]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
 	}, {
 		name:  jsontest.Name("Methods/MapKey/Text"),
 		inBuf: `{"k1":"v1b","k2":"v2"}`,
-		inVal: addr(map[structMethodText]string{{"k1"}: "v1a", {"k3"}: "v3"}),
-		want:  addr(map[structMethodText]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
+		inVal: new(map[structMethodText]string{{"k1"}: "v1a", {"k3"}: "v3"}),
+		want:  new(map[structMethodText]string{{"k1"}: "v1b", {"k2"}: "v2", {"k3"}: "v3"}),
 	}, {
 		name:  jsontest.Name("Methods/JSONv2/ErrUnsupported"),
 		inBuf: `{"fizz":123}`,
-		inVal: addr(unsupportedMethodJSONv2{}),
-		want:  addr(unsupportedMethodJSONv2{"called": 1, "fizz": 123}),
+		inVal: new(unsupportedMethodJSONv2{}),
+		want:  new(unsupportedMethodJSONv2{"called": 1, "fizz": 123}),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv2/Error"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
+		inVal: new(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return errSomeError
 		})),
 		wantErr: EU(errSomeError).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv2/TooFew"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
+		inVal: new(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return nil // do nothing
 		})),
 		wantErr: EU(errNonSingularValue).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv2/TooMany"),
 		inBuf: `{}{}`,
-		inVal: addr(unmarshalJSONv2Func(func(dec *jsontext.Decoder) error {
+		inVal: new(unmarshalJSONv2Func(func(dec *jsontext.Decoder) error {
 			dec.ReadValue()
 			dec.ReadValue()
 			return nil
@@ -8058,42 +8111,42 @@ func TestUnmarshal(t *testing.T) {
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv2/ErrUnsupported"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
+		inVal: new(unmarshalJSONv2Func(func(*jsontext.Decoder) error {
 			return errors.ErrUnsupported
 		})),
 		wantErr: EU(nil).withType(0, T[unmarshalJSONv2Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv1/Error"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalJSONv1Func(func([]byte) error {
+		inVal: new(unmarshalJSONv1Func(func([]byte) error {
 			return errSomeError
 		})),
 		wantErr: EU(errSomeError).withType('{', T[unmarshalJSONv1Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/JSONv1/ErrUnsupported"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalJSONv1Func(func([]byte) error {
+		inVal: new(unmarshalJSONv1Func(func([]byte) error {
 			return errors.ErrUnsupported
 		})),
 		wantErr: EU(wrapErrUnsupported(errors.ErrUnsupported, "UnmarshalJSON method")).withType('{', T[unmarshalJSONv1Func]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/Text/Error"),
 		inBuf: `"value"`,
-		inVal: addr(unmarshalTextFunc(func([]byte) error {
+		inVal: new(unmarshalTextFunc(func([]byte) error {
 			return errSomeError
 		})),
 		wantErr: EU(errSomeError).withType('"', T[unmarshalTextFunc]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/Text/Syntax"),
 		inBuf: `{}`,
-		inVal: addr(unmarshalTextFunc(func([]byte) error {
+		inVal: new(unmarshalTextFunc(func([]byte) error {
 			panic("should not be called")
 		})),
 		wantErr: EU(errNonStringValue).withType('{', T[unmarshalTextFunc]()),
 	}, {
 		name:  jsontest.Name("Methods/Invalid/Text/ErrUnsupported"),
 		inBuf: `"value"`,
-		inVal: addr(unmarshalTextFunc(func([]byte) error {
+		inVal: new(unmarshalTextFunc(func([]byte) error {
 			return errors.ErrUnsupported
 		})),
 		wantErr: EU(wrapErrUnsupported(errors.ErrUnsupported, "UnmarshalText method")).withType('"', T[unmarshalTextFunc]()),
@@ -8109,14 +8162,14 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name:  jsontest.Name("Functions/String/Empty"),
 		opts:  []Options{WithUnmarshalers(nil)},
 		inBuf: `"hello"`,
-		inVal: addr(""),
-		want:  addr("hello"),
+		inVal: new(""),
+		want:  new("hello"),
 	}, {
 		name: jsontest.Name("Functions/NamedString/V1/NoMatch"),
 		opts: []Options{
@@ -8125,8 +8178,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/NamedString/V1/Match"),
 		opts: []Options{
@@ -8139,8 +8192,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(namedString("")),
-		want:  addr(namedString("called")),
+		inVal: new(namedString("")),
+		want:  new(namedString("called")),
 	}, {
 		name: jsontest.Name("Functions/String/V2"),
 		opts: []Options{
@@ -8156,8 +8209,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name: jsontest.Name("Functions/NamedString/V2/NoMatch"),
 		opts: []Options{
@@ -8166,8 +8219,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/NamedString/V2/Match"),
 		opts: []Options{
@@ -8183,24 +8236,24 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(namedString("")),
-		want:  addr(namedString("called")),
+		inVal: new(namedString("")),
+		want:  new(namedString("called")),
 	}, {
 		name: jsontest.Name("Functions/String/Empty1/NoMatch"),
 		opts: []Options{
 			WithUnmarshalers(new(Unmarshalers)),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/String/Empty2/NoMatch"),
 		opts: []Options{
 			WithUnmarshalers(JoinUnmarshalers()),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/String/V1/DirectError"),
 		opts: []Options{
@@ -8209,8 +8262,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `""`,
-		inVal:   addr(""),
-		want:    addr(""),
+		inVal:   new(""),
+		want:    new(""),
 		wantErr: EU(errSomeError).withType('"', reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V1/SkipError"),
@@ -8220,8 +8273,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `""`,
-		inVal:   addr(""),
-		want:    addr(""),
+		inVal:   new(""),
+		want:    new(""),
 		wantErr: EU(wrapErrUnsupported(errors.ErrUnsupported, "unmarshal function of type func([]byte, T) error")).withType('"', reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V2/DirectError"),
@@ -8231,8 +8284,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `""`,
-		inVal:   addr(""),
-		want:    addr(""),
+		inVal:   new(""),
+		want:    new(""),
 		wantErr: EU(errSomeError).withType(0, reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V2/TooFew"),
@@ -8242,8 +8295,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `""`,
-		inVal:   addr(""),
-		want:    addr(""),
+		inVal:   new(""),
+		want:    new(""),
 		wantErr: EU(errNonSingularValue).withType(0, reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V2/TooMany"),
@@ -8259,8 +8312,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `{"X":["",""]}`,
-		inVal:   addr(struct{ X []string }{}),
-		want:    addr(struct{ X []string }{[]string{""}}),
+		inVal:   new(struct{ X []string }{}),
+		want:    new(struct{ X []string }{[]string{""}}),
 		wantErr: EU(errNonSingularValue).withPos(`{"X":["",`, "/X").withType(0, reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V2/Skipped"),
@@ -8270,8 +8323,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/String/V2/ProcessBeforeSkip"),
 		opts: []Options{
@@ -8283,8 +8336,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `""`,
-		inVal:   addr(""),
-		want:    addr(""),
+		inVal:   new(""),
+		want:    new(""),
 		wantErr: EU(errUnsupportedMutation).withType(0, reflect.PointerTo(stringType)),
 	}, {
 		name: jsontest.Name("Functions/String/V2/WrappedUnsupported"),
@@ -8294,8 +8347,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `""`,
-		inVal: addr(""),
-		want:  addr(""),
+		inVal: new(""),
+		want:  new(""),
 	}, {
 		name: jsontest.Name("Functions/Map/Key/NoCaseString/V1"),
 		opts: []Options{
@@ -8308,8 +8361,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[nocaseString]string{}),
-		want:  addr(map[nocaseString]string{"called": "world"}),
+		inVal: new(map[nocaseString]string{}),
+		want:  new(map[nocaseString]string{"called": "world"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Key/TextMarshaler/V1"),
 		opts: []Options{
@@ -8322,8 +8375,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[nocaseString]string{}),
-		want:  addr(map[nocaseString]string{"called": "world"}),
+		inVal: new(map[nocaseString]string{}),
+		want:  new(map[nocaseString]string{"called": "world"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Key/NoCaseString/V2"),
 		opts: []Options{
@@ -8339,8 +8392,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[nocaseString]string{}),
-		want:  addr(map[nocaseString]string{"called": "world"}),
+		inVal: new(map[nocaseString]string{}),
+		want:  new(map[nocaseString]string{"called": "world"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Key/TextMarshaler/V2"),
 		opts: []Options{
@@ -8356,8 +8409,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[nocaseString]string{}),
-		want:  addr(map[nocaseString]string{"called": "world"}),
+		inVal: new(map[nocaseString]string{}),
+		want:  new(map[nocaseString]string{"called": "world"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Key/String/V1/DuplicateName"),
 		opts: []Options{
@@ -8371,8 +8424,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `{"name":"value","name":"value"}`,
-		inVal:   addr(map[string]string{}),
-		want:    addr(map[string]string{"1-1": "1-2"}),
+		inVal:   new(map[string]string{}),
+		want:    new(map[string]string{"1-1": "1-2"}),
 		wantErr: newDuplicateNameError("", []byte(`"name"`), len64(`{"name":"value",`)),
 	}, {
 		name: jsontest.Name("Functions/Map/Value/NoCaseString/V1"),
@@ -8386,8 +8439,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[string]nocaseString{}),
-		want:  addr(map[string]nocaseString{"hello": "called"}),
+		inVal: new(map[string]nocaseString{}),
+		want:  new(map[string]nocaseString{"hello": "called"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Value/TextMarshaler/V1"),
 		opts: []Options{
@@ -8400,8 +8453,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[string]nocaseString{}),
-		want:  addr(map[string]nocaseString{"hello": "called"}),
+		inVal: new(map[string]nocaseString{}),
+		want:  new(map[string]nocaseString{"hello": "called"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Value/NoCaseString/V2"),
 		opts: []Options{
@@ -8417,8 +8470,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[string]nocaseString{}),
-		want:  addr(map[string]nocaseString{"hello": "called"}),
+		inVal: new(map[string]nocaseString{}),
+		want:  new(map[string]nocaseString{"hello": "called"}),
 	}, {
 		name: jsontest.Name("Functions/Map/Value/TextMarshaler/V2"),
 		opts: []Options{
@@ -8434,8 +8487,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"hello":"world"}`,
-		inVal: addr(map[string]nocaseString{}),
-		want:  addr(map[string]nocaseString{"hello": "called"}),
+		inVal: new(map[string]nocaseString{}),
+		want:  new(map[string]nocaseString{"hello": "called"}),
 	}, {
 		name: jsontest.Name("Funtions/Struct/Fields"),
 		opts: []Options{
@@ -8477,8 +8530,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `{"Bool":"called1","String":"called2","Bytes":"called3","Int":"called4","Uint":456,"Float":789}`,
-		inVal: addr(structScalars{}),
-		want:  addr(structScalars{Bool: true, String: "called2", Bytes: []byte("called3"), Int: 123, Uint: 456, Float: 789}),
+		inVal: new(structScalars{}),
+		want:  new(structScalars{Bool: true, String: "called2", Bytes: []byte("called3"), Int: 123, Uint: 456, Float: 789}),
 	}, {
 		name: jsontest.Name("Functions/Struct/Embedded"),
 		opts: []Options{
@@ -8493,7 +8546,7 @@ func TestUnmarshal(t *testing.T) {
 		},
 		inBuf: `{"E":"E3","F":"F3","G":"G3","A":"A1","B":"B1","D":"D2"}`,
 		inVal: new(structEmbedded),
-		want: addr(structEmbedded{
+		want: new(structEmbedded{
 			X: structEmbeddedL1{
 				X:            &structEmbeddedL2{A: "A1", B: "B1" /* C: "C1" */},
 				StructEmbed1: StructEmbed1{ /* C: "C2" */ D: "D2" /* E: "E2" */},
@@ -8509,8 +8562,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `["hello","World"]`,
-		inVal: addr([]string{}),
-		want:  addr([]string{"HELLO", "WORLD"}),
+		inVal: new([]string{}),
+		want:  new([]string{"HELLO", "WORLD"}),
 	}, {
 		name: jsontest.Name("Functions/Array/Elem"),
 		opts: []Options{
@@ -8520,8 +8573,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `["hello","World"]`,
-		inVal: addr([2]string{}),
-		want:  addr([2]string{"HELLO", "WORLD"}),
+		inVal: new([2]string{}),
+		want:  new([2]string{"HELLO", "WORLD"}),
 	}, {
 		name: jsontest.Name("Functions/Pointer/Nil"),
 		opts: []Options{
@@ -8532,8 +8585,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"X":"hello"}`,
-		inVal: addr(struct{ X *string }{nil}),
-		want:  addr(struct{ X *string }{addr("HELLO")}),
+		inVal: new(struct{ X *string }{nil}),
+		want:  new(struct{ X *string }{new("HELLO")}),
 	}, {
 		name: jsontest.Name("Functions/Pointer/NonNil"),
 		opts: []Options{
@@ -8544,8 +8597,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"X":"hello"}`,
-		inVal: addr(struct{ X *string }{addr("")}),
-		want:  addr(struct{ X *string }{addr("HELLO")}),
+		inVal: new(struct{ X *string }{new("")}),
+		want:  new(struct{ X *string }{new("HELLO")}),
 	}, {
 		name: jsontest.Name("Functions/Interface/Nil"),
 		opts: []Options{
@@ -8554,8 +8607,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf:   `{"X":"hello"}`,
-		inVal:   addr(struct{ X fmt.Stringer }{nil}),
-		want:    addr(struct{ X fmt.Stringer }{nil}),
+		inVal:   new(struct{ X fmt.Stringer }{nil}),
+		want:    new(struct{ X fmt.Stringer }{nil}),
 		wantErr: EU(internal.ErrNilInterface).withPos(`{"X":`, "/X").withType(0, T[fmt.Stringer]()),
 	}, {
 		name: jsontest.Name("Functions/Interface/NetIP"),
@@ -8566,8 +8619,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"X":"1.1.1.1"}`,
-		inVal: addr(struct{ X fmt.Stringer }{nil}),
-		want:  addr(struct{ X fmt.Stringer }{net.IPv4(1, 1, 1, 1)}),
+		inVal: new(struct{ X fmt.Stringer }{nil}),
+		want:  new(struct{ X fmt.Stringer }{net.IPv4(1, 1, 1, 1)}),
 	}, {
 		name: jsontest.Name("Functions/Interface/NewPointerNetIP"),
 		opts: []Options{
@@ -8577,8 +8630,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"X":"1.1.1.1"}`,
-		inVal: addr(struct{ X fmt.Stringer }{nil}),
-		want:  addr(struct{ X fmt.Stringer }{addr(net.IPv4(1, 1, 1, 1))}),
+		inVal: new(struct{ X fmt.Stringer }{nil}),
+		want:  new(struct{ X fmt.Stringer }{new(net.IPv4(1, 1, 1, 1))}),
 	}, {
 		name: jsontest.Name("Functions/Interface/NilPointerNetIP"),
 		opts: []Options{
@@ -8588,8 +8641,8 @@ func TestUnmarshal(t *testing.T) {
 			})),
 		},
 		inBuf: `{"X":"1.1.1.1"}`,
-		inVal: addr(struct{ X fmt.Stringer }{nil}),
-		want:  addr(struct{ X fmt.Stringer }{addr(net.IPv4(1, 1, 1, 1))}),
+		inVal: new(struct{ X fmt.Stringer }{nil}),
+		want:  new(struct{ X fmt.Stringer }{new(net.IPv4(1, 1, 1, 1))}),
 	}, {
 		name: jsontest.Name("Functions/Interface/NilPointerNetIP/Override"),
 		opts: []Options{
@@ -8605,8 +8658,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `{"X":"1.1.1.1"}`,
-		inVal: addr(struct{ X fmt.Stringer }{nil}),
-		want:  addr(struct{ X fmt.Stringer }{addr(net.IPv4(8, 8, 8, 8))}),
+		inVal: new(struct{ X fmt.Stringer }{nil}),
+		want:  new(struct{ X fmt.Stringer }{new(net.IPv4(8, 8, 8, 8))}),
 	}, {
 		name: jsontest.Name("Functions/Interface/Any"),
 		opts: []Options{
@@ -8681,49 +8734,49 @@ func TestUnmarshal(t *testing.T) {
 				// In contrast to marshal, unmarshal automatically allocates for
 				// nil pointers, which causes unmarshal to visit more values.
 				wantAny := []PV{
-					{P{1, 0}, addr(any(nil))},
-					{P{1, 1}, addr(any(valueStringer{}))},
-					{P{1, 1}, addr(valueStringer{})},
-					{P{1, 2}, addr(any((*valueStringer)(nil)))},
-					{P{1, 2}, addr((*valueStringer)(nil))},
-					{P{1, 2}, addr(valueStringer{})},
-					{P{1, 3}, addr(any(addr(valueStringer{})))},
-					{P{1, 3}, addr(addr(valueStringer{}))},
-					{P{1, 3}, addr(valueStringer{})},
-					{P{1, 4}, addr(any((**valueStringer)(nil)))},
-					{P{1, 4}, addr((**valueStringer)(nil))},
-					{P{1, 4}, addr((*valueStringer)(nil))},
-					{P{1, 4}, addr(valueStringer{})},
-					{P{1, 5}, addr(any(addr((*valueStringer)(nil))))},
-					{P{1, 5}, addr(addr((*valueStringer)(nil)))},
-					{P{1, 5}, addr((*valueStringer)(nil))},
-					{P{1, 5}, addr(valueStringer{})},
-					{P{1, 6}, addr(any(addr(addr(valueStringer{}))))},
-					{P{1, 6}, addr(addr(addr(valueStringer{})))},
-					{P{1, 6}, addr(addr(valueStringer{}))},
-					{P{1, 6}, addr(valueStringer{})},
-					{P{1, 7}, addr(any(pointerStringer{}))},
-					{P{1, 7}, addr(pointerStringer{})},
-					{P{1, 8}, addr(any((*pointerStringer)(nil)))},
-					{P{1, 8}, addr((*pointerStringer)(nil))},
-					{P{1, 8}, addr(pointerStringer{})},
-					{P{1, 9}, addr(any(addr(pointerStringer{})))},
-					{P{1, 9}, addr(addr(pointerStringer{}))},
-					{P{1, 9}, addr(pointerStringer{})},
-					{P{1, 10}, addr(any((**pointerStringer)(nil)))},
-					{P{1, 10}, addr((**pointerStringer)(nil))},
-					{P{1, 10}, addr((*pointerStringer)(nil))},
-					{P{1, 10}, addr(pointerStringer{})},
-					{P{1, 11}, addr(any(addr((*pointerStringer)(nil))))},
-					{P{1, 11}, addr(addr((*pointerStringer)(nil)))},
-					{P{1, 11}, addr((*pointerStringer)(nil))},
-					{P{1, 11}, addr(pointerStringer{})},
-					{P{1, 12}, addr(any(addr(addr(pointerStringer{}))))},
-					{P{1, 12}, addr(addr(addr(pointerStringer{})))},
-					{P{1, 12}, addr(addr(pointerStringer{}))},
-					{P{1, 12}, addr(pointerStringer{})},
-					{P{1, 13}, addr(any("LAST"))},
-					{P{1, 13}, addr("LAST")},
+					{P{1, 0}, new(any(nil))},
+					{P{1, 1}, new(any(valueStringer{}))},
+					{P{1, 1}, new(valueStringer{})},
+					{P{1, 2}, new(any((*valueStringer)(nil)))},
+					{P{1, 2}, new((*valueStringer)(nil))},
+					{P{1, 2}, new(valueStringer{})},
+					{P{1, 3}, new(any(new(valueStringer{})))},
+					{P{1, 3}, new(new(valueStringer{}))},
+					{P{1, 3}, new(valueStringer{})},
+					{P{1, 4}, new(any((**valueStringer)(nil)))},
+					{P{1, 4}, new((**valueStringer)(nil))},
+					{P{1, 4}, new((*valueStringer)(nil))},
+					{P{1, 4}, new(valueStringer{})},
+					{P{1, 5}, new(any(new((*valueStringer)(nil))))},
+					{P{1, 5}, new(new((*valueStringer)(nil)))},
+					{P{1, 5}, new((*valueStringer)(nil))},
+					{P{1, 5}, new(valueStringer{})},
+					{P{1, 6}, new(any(new(new(valueStringer{}))))},
+					{P{1, 6}, new(new(new(valueStringer{})))},
+					{P{1, 6}, new(new(valueStringer{}))},
+					{P{1, 6}, new(valueStringer{})},
+					{P{1, 7}, new(any(pointerStringer{}))},
+					{P{1, 7}, new(pointerStringer{})},
+					{P{1, 8}, new(any((*pointerStringer)(nil)))},
+					{P{1, 8}, new((*pointerStringer)(nil))},
+					{P{1, 8}, new(pointerStringer{})},
+					{P{1, 9}, new(any(new(pointerStringer{})))},
+					{P{1, 9}, new(new(pointerStringer{}))},
+					{P{1, 9}, new(pointerStringer{})},
+					{P{1, 10}, new(any((**pointerStringer)(nil)))},
+					{P{1, 10}, new((**pointerStringer)(nil))},
+					{P{1, 10}, new((*pointerStringer)(nil))},
+					{P{1, 10}, new(pointerStringer{})},
+					{P{1, 11}, new(any(new((*pointerStringer)(nil))))},
+					{P{1, 11}, new(new((*pointerStringer)(nil)))},
+					{P{1, 11}, new((*pointerStringer)(nil))},
+					{P{1, 11}, new(pointerStringer{})},
+					{P{1, 12}, new(any(new(new(pointerStringer{}))))},
+					{P{1, 12}, new(new(new(pointerStringer{})))},
+					{P{1, 12}, new(new(pointerStringer{}))},
+					{P{1, 12}, new(pointerStringer{})},
+					{P{1, 13}, new(any("LAST"))},
+					{P{1, 13}, new("LAST")},
 				}
 				checkAny := makeValueChecker("any", wantAny)
 				anyUnmarshaler := UnmarshalFromFunc(func(dec *jsontext.Decoder, v any) error {
@@ -8815,20 +8868,20 @@ func TestUnmarshal(t *testing.T) {
 			}()),
 		},
 		inBuf: `[null,{},{},{},{},{},{},{},{},{},{},{},{},"LAST"]`,
-		inVal: addr([...]any{
-			nil,                           // nil
-			valueStringer{},               // T
-			(*valueStringer)(nil),         // *T
-			addr(valueStringer{}),         // *T
-			(**valueStringer)(nil),        // **T
-			addr((*valueStringer)(nil)),   // **T
-			addr(addr(valueStringer{})),   // **T
-			pointerStringer{},             // T
-			(*pointerStringer)(nil),       // *T
-			addr(pointerStringer{}),       // *T
-			(**pointerStringer)(nil),      // **T
-			addr((*pointerStringer)(nil)), // **T
-			addr(addr(pointerStringer{})), // **T
+		inVal: new([...]any{
+			nil,                          // nil
+			valueStringer{},              // T
+			(*valueStringer)(nil),        // *T
+			new(valueStringer{}),         // *T
+			(**valueStringer)(nil),       // **T
+			new((*valueStringer)(nil)),   // **T
+			new(new(valueStringer{})),    // **T
+			pointerStringer{},            // T
+			(*pointerStringer)(nil),      // *T
+			new(pointerStringer{}),       // *T
+			(**pointerStringer)(nil),     // **T
+			new((*pointerStringer)(nil)), // **T
+			new(new(pointerStringer{})),  // **T
 			"LAST",
 		}),
 	}, {
@@ -8848,8 +8901,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `"called"`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name: jsontest.Name("Functions/Precedence/V2First"),
 		opts: []Options{
@@ -8870,8 +8923,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `"called"`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name: jsontest.Name("Functions/Precedence/V2Skipped"),
 		opts: []Options{
@@ -8889,8 +8942,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `"called"`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name: jsontest.Name("Functions/Precedence/NestedFirst"),
 		opts: []Options{
@@ -8910,8 +8963,8 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `"called"`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name: jsontest.Name("Functions/Precedence/NestedLast"),
 		opts: []Options{
@@ -8931,17 +8984,17 @@ func TestUnmarshal(t *testing.T) {
 			)),
 		},
 		inBuf: `"called"`,
-		inVal: addr(""),
-		want:  addr("called"),
+		inVal: new(""),
+		want:  new("called"),
 	}, {
 		name:  jsontest.Name("Duration/Null"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D1":null,"D2":null}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{1, 1}),
-		want: addr(struct {
+		want: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
@@ -8949,11 +9002,11 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Zero"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D1":"0s","D2":0}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{1, 1}),
-		want: addr(struct {
+		want: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{0, 0}),
@@ -8965,7 +9018,7 @@ func TestUnmarshal(t *testing.T) {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}),
-		want: addr(struct {
+		want: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
@@ -8980,7 +9033,7 @@ func TestUnmarshal(t *testing.T) {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}),
-		want: addr(struct {
+		want: new(struct {
 			D1 time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 			D2 time.Duration `json:",format:nano"`
 		}{
@@ -8991,20 +9044,20 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Nanos/String"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":"12345"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",string,format:nano"`
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",string,format:nano"`
 		}{12345}),
 	}, {
 		name:  jsontest.Name("Duration/Nanos/String/Invalid"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":"+12345"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",string,format:nano"`
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",string,format:nano"`
 		}{1}),
 		wantErr: EU(fmt.Errorf(`invalid duration "+12345": %w`, strconv.ErrSyntax)).withPos(`{"D":`, "/D").withType('"', timeDurationType),
@@ -9012,10 +9065,10 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Nanos/Mismatch"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":"34293h33m9.123456789s"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:nano"`
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:nano"`
 		}{1}),
 		wantErr: EU(nil).withPos(`{"D":`, "/D").withType('"', timeDurationType),
@@ -9023,20 +9076,20 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Nanos"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":1.324}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:nano"`
 		}{-1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:nano"`
 		}{1}),
 	}, {
 		name:  jsontest.Name("Duration/String/Mismatch"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":-123456789123456789}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: EU(nil).withPos(`{"D":`, "/D").withType('0', timeDurationType),
@@ -9044,10 +9097,10 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/String/Invalid"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":"5minkutes"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: EU(func() error {
@@ -9058,10 +9111,10 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Syntax/Invalid"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":x}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:units"` // TODO(https://go.dev/issue/71631): Remove the format flag.
 		}{1}),
 		wantErr: newInvalidCharacterError("x", "at start of value", len64(`{"D":`), "/D"),
@@ -9082,7 +9135,7 @@ func TestUnmarshal(t *testing.T) {
 			"D11": "PT12H34M56.078090012S"
         }`,
 		inVal: new(structDurationFormat),
-		want: addr(structDurationFormat{
+		want: new(structDurationFormat{
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
@@ -9099,10 +9152,10 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/Format/Invalid"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"D":"0s"}`,
-		inVal: addr(struct {
+		inVal: new(struct {
 			D time.Duration `json:",format:invalid"`
 		}{1}),
-		want: addr(struct {
+		want: new(struct {
 			D time.Duration `json:",format:invalid"`
 		}{1}),
 		wantErr: EU(errInvalidFormatFlag).withPos(`{"D":`, "/D").withType(0, timeDurationType),
@@ -9112,7 +9165,7 @@ func TestUnmarshal(t *testing.T) {
 		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inBuf: `{"D1":45296078090012,"D2":"12h34m56.078090012s"}`,
 		inVal: new(structDurationFormat),
-		want: addr(structDurationFormat{
+		want: new(structDurationFormat{
 			D1: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 			D2: 12*time.Hour + 34*time.Minute + 56*time.Second + 78*time.Millisecond + 90*time.Microsecond + 12*time.Nanosecond,
 		}),
@@ -9121,20 +9174,20 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Duration/MapKey"),
 		inBuf: `{"1s":""}`,
 		inVal: new(map[time.Duration]string),
-		want:  addr(map[time.Duration]string{time.Second: ""}),
+		want:  new(map[time.Duration]string{time.Second: ""}),
 		}, { */
 		name:  jsontest.Name("Duration/MapKey/Legacy"),
 		opts:  []Options{jsonflags.FormatDurationAsNano | 1},
 		inBuf: `{"1000000000":""}`,
 		inVal: new(map[time.Duration]string),
-		want:  addr(map[time.Duration]string{time.Second: ""}),
+		want:  new(map[time.Duration]string{time.Second: ""}),
 	}, {
 		/* TODO(https://go.dev/issue/71631): Re-enable this test case.
 		name:  jsontest.Name("Duration/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `"1s"`,
-		inVal: addr(time.Duration(0)),
-		want:  addr(time.Second),
+		inVal: new(time.Duration(0)),
+		want:  new(time.Second),
 		}, { */
 		name:  jsontest.Name("Time/Zero"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
@@ -9146,7 +9199,7 @@ func TestUnmarshal(t *testing.T) {
 			T4 time.Time `json:",omitzero"`
 			T5 time.Time `json:",omitempty"`
 		}),
-		want: addr(struct {
+		want: new(struct {
 			T1 time.Time
 			T2 time.Time `json:",format:RFC822"`
 			T3 time.Time `json:",format:'2006-01-02'"`
@@ -9194,7 +9247,7 @@ func TestUnmarshal(t *testing.T) {
 			"T29": "-23225777754999999994"
 		}`,
 		inVal: new(structTimeFormat),
-		want: addr(structTimeFormat{
+		want: new(structTimeFormat{
 			mustParseTime(time.RFC3339Nano, "1234-01-02T03:04:05.000000006Z"),
 			mustParseTime(time.ANSIC, "Mon Jan  2 03:04:05 1234"),
 			mustParseTime(time.UnixDate, "Mon Jan  2 03:04:05 UTC 1234"),
@@ -9260,7 +9313,7 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Time/Format/Null"),
 		opts:  []Options{jsonopts.ExperimentalSupportFormatTag(true)},
 		inBuf: `{"T1":null,"T2":null,"T3":null,"T4":null,"T5":null,"T6":null,"T7":null,"T8":null,"T9":null,"T10":null,"T11":null,"T12":null,"T13":null,"T14":null,"T15":null,"T16":null,"T17":null,"T18":null,"T19":null,"T20":null,"T21":null,"T22":null,"T23":null,"T24":null,"T25":null,"T26":null,"T27":null,"T28":null,"T29":null}`,
-		inVal: addr(structTimeFormat{
+		inVal: new(structTimeFormat{
 			mustParseTime(time.RFC3339Nano, "1234-01-02T03:04:05.000000006Z"),
 			mustParseTime(time.ANSIC, "Mon Jan  2 03:04:05 1234"),
 			mustParseTime(time.UnixDate, "Mon Jan  2 03:04:05 UTC 1234"),
@@ -9348,8 +9401,8 @@ func TestUnmarshal(t *testing.T) {
 		name:  jsontest.Name("Time/IgnoreInvalidFormat"),
 		opts:  []Options{invalidFormatOption},
 		inBuf: `"2000-01-01T00:00:00Z"`,
-		inVal: addr(time.Time{}),
-		want:  addr(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
+		inVal: new(time.Time{}),
+		want:  new(time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}}
 
 	for _, tt := range tests {
@@ -9424,8 +9477,8 @@ func TestUnmarshalInvalidNamespace(t *testing.T) {
 		name jsontest.CaseName
 		val  any
 	}{
-		{jsontest.Name("Map"), addr(map[string]int{})},
-		{jsontest.Name("Struct"), addr(struct{ X int }{})},
+		{jsontest.Name("Map"), new(map[string]int{})},
+		{jsontest.Name("Struct"), new(struct{ X int }{})},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name.Name, func(t *testing.T) {
@@ -9478,7 +9531,7 @@ func TestUnmarshalReuse(t *testing.T) {
 		}
 	})
 	t.Run("Pointers", func(t *testing.T) {
-		in := addr(addr(addr("hello")))
+		in := new(new(new("hello")))
 		want := **in
 		if err := Unmarshal([]byte(`"goodbye"`), &in); err != nil {
 			t.Fatalf("Unmarshal error: %v", err)

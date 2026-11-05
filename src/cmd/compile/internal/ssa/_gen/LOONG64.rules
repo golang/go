@@ -713,6 +713,7 @@
 
 // FMA
 (FMA ...) => (FMADDD ...)
+(FMA32 ...) => (FMADDF ...)
 ((ADD|SUB)F (MULF x y) z) && z.Block.Func.UseFMA(v) => (FM(ADD|SUB)F x y z)
 ((ADD|SUB)D (MULD x y) z) && z.Block.Func.UseFMA(v) => (FM(ADD|SUB)D x y z)
 // z - xy -> -(xy - z)

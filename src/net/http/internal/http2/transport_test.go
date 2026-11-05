@@ -1037,6 +1037,41 @@ code=114 header=map[Foo-Bar:[114]]
 	}
 }
 
+// Issue 82814: 101 Switching Protocols is not supported in HTTP/2
+func TestTransport101SwitchingProtocols(t *testing.T) {
+	synctest.Test(t, testTransport101SwitchingProtocols)
+}
+func testTransport101SwitchingProtocols(t *testing.T) {
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	ctx := httptrace.WithClientTrace(t.Context(), {
+		Got1xxResponse: func(code int, header textproto.MIMEHeader) error {
+			t.Errorf("Got1xxResponse called with code %v", code)
+			return nil
+		},
+	})
+
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	tc.wantFrameType(FrameHeaders)
+
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:   rt.streamID(),
+		EndHeaders: true,
+		EndStream:  false,
+		BlockFragment: tc.makeHeaderBlockFragment(
+			":status", "101",
+		),
+	})
+	if !rt.done() {
+		t.Errorf("after receiving 101 status: RoundTrip still running, want error")
+	}
+	if err := rt.err(); err == nil {
+		t.Errorf("after receiving 101 status: RoundTrip succeeded, want error")
+	}
+}
+
 func TestTransportReceiveUndeclaredTrailer(t *testing.T) {
 	synctest.Test(t, testTransportReceiveUndeclaredTrailer)
 }
@@ -3369,6 +3404,58 @@ func testTransportRetryHasLimit(t *testing.T) {
 	}
 }
 
+// https://go.dev/issue/52459 -- ensure RoundTrip limits retries and backs off
+// when the server repeatedly sends GOAWAY and forces new connections to be dialed.
+func TestTransportRetryAfterGOAWAYHasLimit(t *testing.T) {
+	synctest.Test(t, testTransportRetryAfterGOAWAYHasLimit)
+}
+func testTransportRetryAfterGOAWAYHasLimit(t *testing.T) {
+	tt := newTestTransport(t)
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tt.roundTrip(req)
+
+	count := 0
+	start := time.Now()
+	for {
+		// Wait for a conn, or RoundTrip to finish.
+		select {
+		case <-tt.hasCC:
+			tt.hasCC <- struct{}{}
+		case <-rt.donec:
+		}
+		if rt.done() {
+			break
+		}
+		count++
+		if count > 20 {
+			t.Fatalf("RoundTrip made %v attempts, should have given up", count)
+		}
+		tc := tt.getConn()
+		tc.wantFrameType(FrameSettings)
+		tc.wantFrameType(FrameWindowUpdate)
+		tc.wantHeaders(wantHeader{
+			streamID:  1,
+			endStream: true,
+		})
+		tc.writeSettings()
+		tc.writeGoAway(0 /*max id*/, ErrCodeNo, nil)
+		tc.closeWrite()
+
+		if totalDelay := time.Since(start); totalDelay > 5*time.Minute {
+			t.Fatalf("RoundTrip still retrying after %v, should have given up", totalDelay)
+		}
+	}
+	if got, want := count, 5; got < want {
+		t.Errorf("RoundTrip made %v attempts, want at least %v", got, want)
+	}
+	if totalDelay, minDelay := time.Since(start), 30*time.Second; totalDelay < minDelay {
+		t.Errorf("RoundTrip took %v, want at least %v of backoff", totalDelay, minDelay)
+	}
+	if rt.err() == nil {
+		t.Errorf("RoundTrip succeeded, want error")
+	}
+}
+
 func TestTransportResponseDataBeforeHeaders(t *testing.T) {
 	synctest.Test(t, testTransportResponseDataBeforeHeaders)
 }
@@ -4211,38 +4298,60 @@ func testTransportRoundtripCloseOnWriteError(t *testing.T) {
 // already. If the request body has started to be sent, one must wait until it
 // is completed.
 func TestTransportBodyRewindRace(t *testing.T) {
-	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+	synctest.Test(t, testTransportBodyRewindRace)
+}
+func testTransportBodyRewindRace(t *testing.T) {
+	ts := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor != 2 {
+			t.Errorf("Request.ProtoMajor = %v, want 2", r.ProtoMajor)
+		}
 		w.Header().Set("Connection", "close")
 		w.WriteHeader(http.StatusOK)
-		return
-	})
+	}))
 
-	tr := newTransport(t)
-	tr.MaxConnsPerHost = 1
-	client := &http.Client{
-		Transport: tr,
-	}
+	// Use unencrypted HTTP/2; this test creates a lot of connections,
+	// and the cost of TLS handshakes adds up.
+	ts.Config.Protocols = new(http.Protocols)
+	ts.Config.Protocols.SetUnencryptedHTTP2(true)
 
-	const clients = 50
+	client := ts.Client()
+	client.Transport.(*http.Transport).MaxConnsPerHost = 1
+	client.Transport.(*http.Transport).Protocols = ts.Config.Protocols
 
+	const clients = 20
+
+	var done atomic.Int64
 	var wg sync.WaitGroup
-	wg.Add(clients)
 	for range clients {
-		req, err := http.NewRequest("POST", ts.URL, bytes.NewBufferString("abcdef"))
+		req, err := http.NewRequest("POST", "http://example.tld/", bytes.NewBufferString("abcdef"))
 		if err != nil {
 			t.Fatalf("unexpected new request error: %v", err)
 		}
 
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
+			defer done.Add(1)
 			res, err := client.Do(req)
-			if err == nil {
-				res.Body.Close()
+			if err != nil {
+				t.Errorf("Do: %v", err)
+				return
 			}
-		}()
+			res.Body.Close()
+			if got, want := res.StatusCode, 200; got != want {
+				t.Errorf("res.StatusCode = %v, want %v", got, want)
+			}
+		})
 	}
 
+	// Retried requests will trigger backoff, so wait for everything to complete
+	// (and verify that the total backoff time is within expectations).
+	start := time.Now()
 	wg.Wait()
+	if got, want := done.Load(), int64(clients); got != want {
+		t.Errorf("%v requests done, want %v", got, want)
+	}
+	if got, want := time.Since(start), 2*time.Second; got > want {
+		t.Errorf("requests took %v, want <= %v", got, want)
+	}
 }
 
 type errorReader struct{ err error }

@@ -46,7 +46,6 @@ type ClientRequest struct {
 	Trailer       Header
 	Body          io.ReadCloser
 	Host          string
-	GetBody       func() (io.ReadCloser, error)
 	ContentLength int64
 	Cancel        <-chan struct{}
 	Close         bool
@@ -54,27 +53,6 @@ type ClientRequest struct {
 
 	// Include the per-request stream in the ClientRequest to avoid an allocation.
 	stream clientStream
-}
-
-// Clone makes a shallow copy of ClientRequest.
-//
-// Clone is only used in shouldRetryRequest.
-// We can drop it if we ever get rid of or rework that function.
-func (req *ClientRequest) Clone() *ClientRequest {
-	return &ClientRequest{
-		Context:       req.Context,
-		Method:        req.Method,
-		URL:           req.URL,
-		Header:        req.Header,
-		Trailer:       req.Trailer,
-		Body:          req.Body,
-		Host:          req.Host,
-		GetBody:       req.GetBody,
-		ContentLength: req.ContentLength,
-		Cancel:        req.Cancel,
-		Close:         req.Close,
-		ResTrailer:    req.ResTrailer,
-	}
 }
 
 // A ClientResponse is a Request used by the HTTP/2 client (Transport).
@@ -116,10 +94,6 @@ type ServerConfig interface {
 	HTTP2Config() Config
 	DisableClientPriority() bool
 	IdleTimeout() time.Duration
-}
-
-type Handler interface {
-	ServeHTTP(*ResponseWriter, *ServerRequest)
 }
 
 type ResponseWriter = responseWriter
