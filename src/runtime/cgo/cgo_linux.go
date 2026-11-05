@@ -7,15 +7,18 @@
 package cgo
 
 import (
-	"internal/abi"
+	"internal/goarch"
 	"unsafe"
 )
 
 const (
-	_SIG_SETMASK             = 2
+	// SIG_SETMASK is 3 on MIPS Linux and 2 on all other Linux architectures.
+	_SIG_SETMASK             = 2 + (goarch.IsMips | goarch.IsMipsle | goarch.IsMips64 | goarch.IsMips64le)
 	_EAGAIN                  = 11
 	_PTHREAD_CREATE_DETACHED = 1
 )
+
+type pthreadKey uint32
 
 //go:linkname _libc_pthread_attr_getstacksize libc_pthread_attr_getstacksize
 var _libc_pthread_attr_getstacksize byte
@@ -92,17 +95,6 @@ func cgoClearenv() {
 	tsanRelease()
 }
 
-// cgoSyscallFrame holds the target libc syscall function, the errno location
-// function, up to 3 arguments, and the result (0 on success, or errno on
-// failure) for cgoSyscallTrampoline.
-type cgoSyscallFrame struct {
-	fn         uintptr
-	a0, a1, a2 uintptr
-	r1         uintptr
-}
-
-func cgoSyscallTrampoline()
-
 //go:linknamestd _cgoSyscall runtime.cgoSyscall
 var _cgoSyscall = cgoSyscall
 
@@ -110,13 +102,31 @@ var _cgoSyscall = cgoSyscall
 //go:norace
 //go:nocheckptr
 func cgoSyscall(fn unsafe.Pointer, a0, a1, a2 uintptr) uintptr {
-	var f cgoSyscallFrame
-	f.fn = uintptr(fn)
-	f.a0 = a0
-	f.a1 = a1
-	f.a2 = a2
-	runtime_cgocall(unsafe.Pointer(abi.FuncPCABI0(cgoSyscallTrampoline)), unsafe.Pointer(&f))
-	return f.r1
+	if fn != cgo_libc_setgroups {
+		// The other functions take only uid_t or gid_t arguments.
+		a0, a1, a2 = cUint32Arg(a0), cUint32Arg(a1), cUint32Arg(a2)
+	}
+	r := int32(cgocall(uintptr(fn), a0, a1, a2, 0, 0, 0))
+	if r == -1 {
+		errnoPtr := asmcgocall(uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
+		return uintptr(*(*int32)(unsafe.Pointer(errnoPtr)))
+	}
+	return uintptr(int(r))
+}
+
+// cUint32Arg converts x, holding a 32-bit unsigned C argument such as a
+// uid_t, to the register representation required by the C ABI. Callers
+// pass values like uintptr(-1), which must not leak into the upper bits:
+// 64-bit RISC-V, LoongArch, and MIPS require 32-bit values to be
+// sign-extended, while the other 64-bit ABIs zero-extend them (or ignore
+// the upper bits).
+//
+//go:nosplit
+func cUint32Arg(x uintptr) uintptr {
+	if goarch.IsRiscv64|goarch.IsLoong64|goarch.IsMips64|goarch.IsMips64le != 0 {
+		return uintptr(int32(x))
+	}
+	return uintptr(uint32(x))
 }
 
 //go:nosplit

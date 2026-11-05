@@ -125,7 +125,10 @@ func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
 		if len(args) > 2 {
 			a2 = args[2]
 		}
-		return cgoSyscall(noescape(fn), a0, a1, a2)
+		lockOSThread()
+		r := cgoSyscall(noescape(fn), a0, a1, a2)
+		unlockOSThread()
+		return r
 	}
 	as := argset{args: unsafe.Pointer(&args[0])}
 	cgocall(fn, unsafe.Pointer(&as))

@@ -6,10 +6,13 @@
 
 package cgo
 
-// cSigaction matches libc's struct sigaction on 64-bit Linux (glibc and musl).
+import "unsafe"
+
+// cSigaction matches libc's struct sigaction on Linux (glibc and musl) across
+// 32-bit and 64-bit architectures supporting cgoSigaction.
 type cSigaction struct {
 	handler  uintptr
-	mask     [16]uintptr // sigset_t
+	mask     [128 / unsafe.Sizeof(uintptr(0))]uintptr // sigset_t
 	flags    int32
 	restorer uintptr
 }

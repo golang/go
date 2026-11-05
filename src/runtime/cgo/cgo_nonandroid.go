@@ -8,7 +8,7 @@ package cgo
 
 //go:nosplit
 //go:norace
-func cgoInitTLS(tlsg *uintptr, tlsbase uintptr) {}
+func cgoInitTLS(tlsg, tlsbase uintptr) {}
 
 // cgoFatal reports a fatal runtime/cgo error and aborts.
 // msg must end with "\n\x00".

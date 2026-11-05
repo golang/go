@@ -8,14 +8,6 @@ package cgo
 
 import "unsafe"
 
-// cSigaction matches Bionic's struct sigaction on 64-bit Android (LP64).
-type cSigaction struct {
-	flags    int32
-	handler  uintptr
-	mask     [1]uintptr
-	restorer uintptr
-}
-
 //go:linkname _libc_dlclose libc_dlclose
 var _libc_dlclose byte
 var libc_dlclose = unsafe.Pointer(&_libc_dlclose)
@@ -29,9 +21,10 @@ var libc_android_log_write = unsafe.Pointer(&_libc_android_log_write)
 //go:nosplit
 //go:norace
 //go:nocheckptr
-func cgoInitTLS(tlsg *uintptr, tlsbase uintptr) {
+func cgoInitTLS(tlsgAddr, tlsbase uintptr) {
 	// Truncated to a different magic value on 32-bit; that's ok.
 	const magic1 = uintptr(0x23581321345589 & (1<<(8*unsafe.Sizeof(uintptr(0))) - 1))
+	tlsg := (*uintptr)(unsafe.Pointer(tlsgAddr))
 
 	var done bool
 	var msg string
@@ -79,7 +72,7 @@ func cgoInitTLSQ(tlsg *uintptr) (bool, string) {
 //go:norace
 //go:nocheckptr
 func cgoInitTLSKey(tlsg *uintptr, tlsbase, magic1 uintptr) string {
-	var k uint32
+	var k pthreadKey
 	err := int32(asmcgocallNoG(uintptr(libc_pthread_key_create), uintptr(unsafe.Pointer(&k)), 0, 0, 0, 0, 0))
 	if err != 0 {
 		return "runtime/cgo: pthread_key_create failed\n\x00"
@@ -132,6 +125,10 @@ func cgoFatal(msg string) {
 
 //go:cgo_ldflag "-ldl"
 //go:cgo_ldflag "-llog"
+
+//go:cgo_import_dynamic _ _ "libc.so"
+//go:cgo_import_dynamic _ _ "libdl.so"
+//go:cgo_import_dynamic _ _ "liblog.so"
 //go:cgo_import_dynamic libc_dlopen dlopen "libdl.so"
 //go:cgo_import_dynamic libc_dlsym dlsym "libdl.so"
 //go:cgo_import_dynamic libc_dlclose dlclose "libdl.so"

@@ -14,6 +14,8 @@ const (
 	_PTHREAD_CREATE_DETACHED = 2
 )
 
+type pthreadKey uintptr
+
 //go:linkname _libc_pthread_attr_setstacksize libc_pthread_attr_setstacksize
 var _libc_pthread_attr_setstacksize byte
 var libc_pthread_attr_setstacksize = unsafe.Pointer(&_libc_pthread_attr_setstacksize)

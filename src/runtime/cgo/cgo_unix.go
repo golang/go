@@ -125,11 +125,11 @@ type g struct {
 
 // pthreadAttr corresponds to pthread_attr_t.
 type pthreadAttr struct {
-	data [8]uintptr
+	data [9]uintptr
 }
 
 type sigset struct {
-	mask [16]uintptr
+	mask [128 / unsafe.Sizeof(uintptr(0))]uintptr
 }
 
 var (
@@ -146,12 +146,14 @@ func cgoYieldWaitRuntimeInit() {
 //go:norace
 //go:nocheckptr
 func cgoNotifyRuntimeInitDoneOS() {
+	var key pthreadKey
 	tsanAcquire()
 	r := asmcgocall(uintptr(libc_pthread_key_create),
-		uintptr(unsafe.Pointer(&pthread_g)),
+		uintptr(unsafe.Pointer(&key)),
 		abi.FuncPCABI0(pthreadKeyDestructor), 0, 0, 0, 0)
 	tsanRelease()
 	if int32(r) == 0 {
+		atomic.Storeuintptr(&pthread_g, uintptr(key))
 		atomic.Storeuintptr(&pthread_key_created, 1)
 	}
 }
@@ -168,8 +170,8 @@ func cgoBindM(g uintptr) {
 //go:nosplit
 //go:norace
 //go:nocheckptr
-func cgoInit(g *g, _ uintptr, tlsg *uintptr, tlsbase uintptr) {
-	if tlsg != nil {
+func cgoInit(g *g, _ uintptr, tlsg, tlsbase uintptr) {
+	if tlsg != 0 {
 		cgoInitTLS(tlsg, tlsbase)
 	}
 	asmcgocallNoG(uintptr(libc_sigfillset), uintptr(unsafe.Pointer(&fullSigset)), 0, 0, 0, 0, 0)

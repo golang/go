@@ -24,7 +24,7 @@ var _cgoMmap = cgoMmap
 //go:nocheckptr
 func cgoMmap(addr unsafe.Pointer, length uintptr, prot, flags, fd int32, offset uint32) uintptr {
 	tsanAcquire()
-	p := asmcgocall(uintptr(libc_mmap), uintptr(addr), length, uintptr(uint32(prot)), uintptr(uint32(flags)), uintptr(fd), uintptr(offset))
+	p := asmcgocall(uintptr(libc_mmap), uintptr(addr), length, uintptr(prot), uintptr(flags), uintptr(fd), uintptr(offset))
 	if int(p) == -1 {
 		errnoPtr := asmcgocall(uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
 		errno := uintptr(*(*int32)(unsafe.Pointer(errnoPtr)))
