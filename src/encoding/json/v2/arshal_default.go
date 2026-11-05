@@ -609,7 +609,7 @@ func makeIntUnmarshaler(t reflect.Type) *unmarshaler {
 				// See https://go.dev/issue/75619
 				n, err := strconv.ParseInt(string(val), 10, bits)
 				if err != nil {
-					if string(val) == "null" {
+					if string(val) == "null" && uo.Flags.Get(jsonflags.StringTag) {
 						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 							va.SetInt(0)
 						}
@@ -713,7 +713,7 @@ func makeUintUnmarshaler(t reflect.Type) *unmarshaler {
 				// See https://go.dev/issue/75619
 				n, err := strconv.ParseUint(string(val), 10, bits)
 				if err != nil {
-					if string(val) == "null" {
+					if string(val) == "null" && uo.Flags.Get(jsonflags.StringTag) {
 						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 							va.SetUint(0)
 						}
@@ -845,7 +845,7 @@ func makeFloatUnmarshaler(t reflect.Type) *unmarshaler {
 				// See https://go.dev/issue/75619
 				n, err := strconv.ParseFloat(string(val), bits)
 				if err != nil {
-					if string(val) == "null" {
+					if string(val) == "null" && uo.Flags.Get(jsonflags.StringTag) {
 						if !uo.Flags.Get(jsonflags.MergeWithLegacySemantics) {
 							va.SetFloat(0)
 						}
