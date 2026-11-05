@@ -3688,6 +3688,18 @@ func (x Float32x16) ToBits() Uint32x16 {
 	return Uint32x16((archsimd.Float32x16(x)).ToBits())
 }
 
+func (x Float32x4) Trunc() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Trunc())
+}
+
+func (x Float32x8) Trunc() Float32x8 {
+	return Float32x8((archsimd.Float32x8(x)).Trunc())
+}
+
+func (x Float32x16) Trunc() Float32x16 {
+	return Float32x16((archsimd.Float32x16(x)).Trunc())
+}
+
 func (x Float64x2) Abs() Float64x2 {
 	return Float64x2((archsimd.Float64x2(x)).Abs())
 }
@@ -4010,6 +4022,18 @@ func (x Float64x4) ToBits() Uint64x4 {
 
 func (x Float64x8) ToBits() Uint64x8 {
 	return Uint64x8((archsimd.Float64x8(x)).ToBits())
+}
+
+func (x Float64x2) Trunc() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Trunc())
+}
+
+func (x Float64x4) Trunc() Float64x4 {
+	return Float64x4((archsimd.Float64x4(x)).Trunc())
+}
+
+func (x Float64x8) Trunc() Float64x8 {
+	return Float64x8((archsimd.Float64x8(x)).Trunc())
 }
 
 func (x Mask8x16) All() bool {

@@ -1236,6 +1236,10 @@ func (x Float32x4) ToBits() Uint32x4 {
 	return Uint32x4((archsimd.Float32x4(x)).ToBits())
 }
 
+func (x Float32x4) Trunc() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Trunc())
+}
+
 func (x Float64x2) Abs() Float64x2 {
 	return Float64x2((archsimd.Float64x2(x)).Abs())
 }
@@ -1342,6 +1346,10 @@ func (x Float64x2) Sub(y Float64x2) Float64x2 {
 
 func (x Float64x2) ToBits() Uint64x2 {
 	return Uint64x2((archsimd.Float64x2(x)).ToBits())
+}
+
+func (x Float64x2) Trunc() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Trunc())
 }
 
 func (x Mask8x16) All() bool {

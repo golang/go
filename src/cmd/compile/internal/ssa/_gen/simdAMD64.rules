@@ -1205,8 +1205,10 @@
 (SumOf8AbsDiffUint8x64 ...) => (VPSADBW512 ...) // pureVreg
 (TruncFloat32x4 x) => (VROUNDPS128 [3] x) // pureVreg
 (TruncFloat32x8 x) => (VROUNDPS256 [3] x) // pureVreg
+(TruncFloat32x16 x) => (VRNDSCALEPS512 [3] x) // pureVreg
 (TruncFloat64x2 x) => (VROUNDPD128 [3] x) // pureVreg
 (TruncFloat64x4 x) => (VROUNDPD256 [3] x) // pureVreg
+(TruncFloat64x8 x) => (VRNDSCALEPD512 [3] x) // pureVreg
 (TruncScaledFloat32x4 [a] x) => (VRNDSCALEPS128 [a+3] x) // pureVreg
 (TruncScaledFloat32x8 [a] x) => (VRNDSCALEPS256 [a+3] x) // pureVreg
 (TruncScaledFloat32x16 [a] x) => (VRNDSCALEPS512 [a+3] x) // pureVreg

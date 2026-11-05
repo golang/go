@@ -8982,11 +8982,13 @@ const (
 	OpSumOf8AbsDiffUint8x32
 	OpSumOf8AbsDiffUint8x64
 	OpTruncFloat32s
+	OpTruncFloat32x16
 	OpTruncFloat32x4
 	OpTruncFloat32x8
 	OpTruncFloat64s
 	OpTruncFloat64x2
 	OpTruncFloat64x4
+	OpTruncFloat64x8
 	OpTruncScaledFloat32x16
 	OpTruncScaledFloat32x4
 	OpTruncScaledFloat32x8
@@ -124930,6 +124932,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "TruncFloat32x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "TruncFloat32x4",
 		ArgLen:  1,
 		Generic: true,
@@ -124951,6 +124958,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "TruncFloat64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "TruncFloat64x8",
 		ArgLen:  1,
 		Generic: true,
 	},

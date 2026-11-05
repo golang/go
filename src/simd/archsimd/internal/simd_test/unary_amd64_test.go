@@ -58,8 +58,8 @@ func TestTruncAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Trunc, truncSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Trunc, truncSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Trunc, truncSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Trunc, truncSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Trunc, truncSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Trunc, truncSlice[float64])
 	}
 }
 

@@ -3301,6 +3301,21 @@ func (x Float32s) ToBits() (z Uint32s) {
 	return Uint32s{a: x.a, b: x.b}
 }
 
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32s) Trunc() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Trunc(float64(x.get(i)))))
+	}
+	return res
+}
+
 // LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadFloat64s(s []float64) (z Float64s) {
 	var a, b uint64
@@ -3677,6 +3692,20 @@ func (x Float64s) Sub(y Float64s) (z Float64s) {
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64s) ToBits() (z Uint64s) {
 	return Uint64s{a: x.a, b: x.b}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64s) Trunc() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Trunc(x.get(0)))
+	res.set(1, math.Trunc(x.get(1)))
+	return res
 }
 
 func (x *Mask8s) set(i int, v bool) {

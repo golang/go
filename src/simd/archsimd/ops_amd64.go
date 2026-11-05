@@ -8717,6 +8717,17 @@ func (x Float32x8) Trunc() (z Float32x8)
 // Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
 // a NaN result are unspecified.
 //
+// Asm: VRNDSCALEPS, CPU Feature: AVX512
+func (x Float32x16) Trunc() (z Float32x16)
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Trunc() (z Float64x2)
 
@@ -8730,6 +8741,17 @@ func (x Float64x2) Trunc() (z Float64x2)
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Trunc() (z Float64x4)
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512
+func (x Float64x8) Trunc() (z Float64x8)
 
 /* TruncScaled */
 
