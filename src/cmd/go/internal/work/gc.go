@@ -20,12 +20,14 @@ import (
 	"sync"
 
 	"cmd/go/internal/base"
+	"cmd/go/internal/build"
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/fips140"
 	"cmd/go/internal/fsys"
 	"cmd/go/internal/gover"
 	"cmd/go/internal/load"
 	"cmd/go/internal/str"
+	"cmd/internal/pathcache"
 	"cmd/internal/quoted"
 	"crypto/sha1"
 )
@@ -706,6 +708,9 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
 	}
 	ldflags = append(ldflags, forcedLdflags...)
 	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
+	if err := checkBindingExternalLinker(root, ldBuildmode, cxx, compiler, ldflags); err != nil {
+		return err
+	}
 	ldflags, err := setextld(ldflags, compiler)
 	if err != nil {
 		return err
@@ -742,6 +747,72 @@ func linkGOROOT() string {
 		return ""
 	}
 	return cfg.GOROOT
+}
+
+// checkBindingExternalLinker reports an error if a program built with
+// CGO_ENABLED=bindings must be linked externally on the target platform
+// but no C toolchain for the target is available. Without this check,
+// cross-compiling for such a target would silently invoke the host's C
+// compiler as the external linker (for example, when building for
+// android/amd64 on linux/amd64 with CC unset).
+func checkBindingExternalLinker(root *Action, ldBuildmode string, cxx bool, compiler, ldflags []string) error {
+	if cfg.BuildContext.CgoEnabled != build.CgoBindings || cfg.BuildN {
+		return nil
+	}
+	if !bindingNeedsExternalLink(ldBuildmode) {
+		return nil
+	}
+	if slices.ContainsFunc(ldflags, func(f string) bool {
+		return f == "-extld" || f == "--extld" || strings.HasPrefix(f, "-extld=") || strings.HasPrefix(f, "--extld=")
+	}) {
+		return nil
+	}
+	// The link action depends on all packages in the program.
+	if !slices.ContainsFunc(root.Deps, func(a *Action) bool { return a.Package != nil && a.Package.ImportPath == "runtime/cgo" }) {
+		return nil
+	}
+	envName, defaultCC := "CC", cfg.DefaultCC
+	if cxx {
+		envName, defaultCC = "CXX", cfg.DefaultCXX
+	}
+	// cmd/go sets CC and CXX in its own environment (see cfg.CmdEnv),
+	// so check whether the user changed them rather than whether they
+	// are set.
+	ccChanged := slices.ContainsFunc(cfg.CmdEnv, func(e cfg.EnvVar) bool { return e.Name == envName && e.Changed })
+	crossWithoutCC := (cfg.Goos != runtime.GOOS || cfg.Goarch != runtime.GOARCH) && !ccChanged &&
+		defaultCC(cfg.Goos, cfg.Goarch) == defaultCC(runtime.GOOS, runtime.GOARCH)
+	missingCC := len(compiler) == 0
+	if !missingCC {
+		_, err := pathcache.LookPath(compiler[0])
+		missingCC = err != nil
+	}
+	if !crossWithoutCC && !missingCC {
+		return nil
+	}
+	return fmt.Errorf("cgo bindings on %s/%s require an external linker (C toolchain); set %s or use CGO_ENABLED=0 (or pass -ldflags=-extld=<linker>)", cfg.Goos, cfg.Goarch, envName)
+}
+
+// bindingNeedsExternalLink reports whether cmd/link must use the external
+// linker for a program using cgo bindings built with the given link
+// buildmode. It mirrors mustLinkExternal in cmd/link/internal/ld.
+func bindingNeedsExternalLink(ldBuildmode string) bool {
+	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, false) {
+		return true
+	}
+	// cmd/link can internally link cgo binding programs that have no host
+	// objects on android/arm64.
+	if platform.MustLinkExternal(cfg.Goos, cfg.Goarch, true) && !(cfg.Goos == "android" && cfg.Goarch == "arm64") {
+		return true
+	}
+	switch ldBuildmode {
+	case "c-shared", "plugin", "shared":
+		// c-archive is not listed: the external linker for a c-archive
+		// is the host archiver, not the C compiler.
+		return cfg.Goarch != "wasm"
+	case "pie":
+		return !platform.InternalLinkPIESupported(cfg.Goos, cfg.Goarch)
+	}
+	return false
 }
 
 func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, targetPath, importcfg string, allactions []*Action) error {
