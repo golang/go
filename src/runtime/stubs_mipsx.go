@@ -6,7 +6,7 @@
 
 package runtime
 
-import _ "unsafe" // for linkname
+import "unsafe"
 
 // Called from assembly only; declared for go vet.
 //
@@ -20,6 +20,10 @@ import _ "unsafe" // for linkname
 //go:linkname load_g
 func load_g()
 func save_g()
+
+//go:linknamestd asmcgocall_no_g
+//go:noescape
+func asmcgocall_no_g(fn, arg unsafe.Pointer)
 
 // getfp returns the frame pointer register of its caller or 0 if not implemented.
 // TODO: Make this a compiler intrinsic

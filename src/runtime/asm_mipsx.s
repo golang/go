@@ -474,6 +474,21 @@ g0:
 	MOVW	R2, ret+8(FP)
 	RET
 
+// func asmcgocall_no_g(fn, arg unsafe.Pointer)
+// Call fn(arg) aligned appropriately for the gcc ABI.
+// Called on a system stack, and there may be no g yet (during needm).
+TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
+	MOVW	fn+0(FP), R25
+	MOVW	arg+4(FP), R4
+	MOVW	R29, R3
+	ADDU	$-24, R29
+	MOVW	$-8, R5
+	AND	R5, R29	// O32 ABI expects 8-byte aligned stack on function entry
+	MOVW	R3, 16(R29)
+	JAL	(R25)
+	MOVW	16(R29), R29
+	RET
+
 // cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
 // See cgocall.go for more details.
 TEXT ·cgocallback(SB),NOSPLIT,$12-12

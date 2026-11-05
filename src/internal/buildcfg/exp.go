@@ -82,7 +82,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	switch goos {
 	case "linux":
 		switch goarch {
-		case "386", "amd64", "arm", "arm64", "loong64", "mips64", "mips64le", "riscv64":
+		case "386", "amd64", "arm", "arm64", "loong64", "mips", "mipsle", "mips64", "mips64le", "riscv64":
 			runtimeCgoPuregoSupported = true
 		}
 	case "android", "netbsd":
