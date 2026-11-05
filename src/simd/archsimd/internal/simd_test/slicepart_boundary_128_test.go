@@ -63,6 +63,12 @@ func testLoadPartPageBoundary[T number, V HasLenAndStore[T]](t *testing.T, load 
 					s[i] = T(i + 1)
 				}
 				v, got, fault := loadCatchingFault(load, s)
+				if fault != nil && inQEMU() && runtime.GOARCH == "amd64" && (size == 4 || size == 8) {
+					// The 32- and 64-bit element Load*Part functions use
+					// VMASKMOVPS/PD, and qemu-x86_64 does not suppress
+					// faults on their masked-off elements.
+					t.Skipf("%s faulted with %d elements; skipping because qemu-x86_64 does not suppress faults in masked loads", name, l)
+				}
 				if fault != nil {
 					start := uintptr(unsafe.Pointer(&s[0]))
 					where := "past the end of"

@@ -180,15 +180,22 @@ Every target can be tested from a linux/amd64 workstation except AVX512, which
 needs real hardware. The commands below run from `$GOROOT/src` and test the
 packages with that exercise SIMD operations.
 
+`IN_QEMU=1` tells the tests that they are running under QEMU (some Go builders
+set it, too), so they skip the checks that QEMU is known to fail; see the known
+limitations below.
+
 ```sh
+# amd64 AVX2 without AVX512 (the same features as the gotip-linux-amd64 builder)
+IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu Haswell' simd simd/archsimd/internal/simd_test
+
 # arm64 NEON only (the same features as the gotip-linux-arm64 builder)
-GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n1' simd simd/archsimd/internal/simd_test
+IN_QEMU=1 GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n1' simd simd/archsimd/internal/simd_test
 
 # arm64 SVE with 128-bit vectors
-GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n2' simd simd/archsimd/internal/simd_test
+IN_QEMU=1 GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n2' simd simd/archsimd/internal/simd_test
 
 # arm64 SVE with 256-bit vectors
-GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-v1' simd simd/archsimd/internal/simd_test
+IN_QEMU=1 GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-v1' simd simd/archsimd/internal/simd_test
 
 # wasm under node. go test finds go_js_wasm_exec on $PATH.
 PATH=$(go env GOROOT)/lib/wasm:$PATH GOEXPERIMENT=simd GOOS=js GOARCH=wasm go test simd simd/archsimd/internal/simd_test
@@ -214,14 +221,15 @@ Known limitations:
   run` on cross-compiled test binaries. Intel SDE (`sde64 -spr -- ./x.test`)
   should also work, but is untested.
 
-- **`qemu-x86_64` is not useful even without AVX512.** Its emulation of AVX2
-  masked loads (VMASKMOVPS, VPMASKMOVD) does not suppress faults in masked-off
-  lanes, so the `Load*Part` tests for 32- and 64-bit elements fault on the
-  harness's guard page.
+- **`qemu-x86_64` does not suppress faults in masked-off lanes of masked
+  loads** (VMASKMOVPS/PD, which back the `Load*Part` functions for 32- and
+  64-bit elements), so their page-boundary tests fault on the harness's guard
+  page. With `IN_QEMU=1`, those tests skip when they fault.
 
 - **`qemu-aarch64` 11.1 miscomputes SVE SQSUB on 32- and 64-bit elements**, so
   `Int32s.SubSaturated` and `Int64s.SubSaturated` fail under `neoverse-n2` and
-  `neoverse-v1`. They pass on real SVE hardware (an Axion gomote).
+  `neoverse-v1`. They pass on real SVE hardware (an Axion gomote). With
+  `IN_QEMU=1`, `TestSubSaturatedSVE` skips them.
 
 - A few quirks are not represented in our testing set. Rosetta on Apple Silicon
   supports 128-bit CLMUL but not 256. Some Raspberry Pis have NEON, but not
