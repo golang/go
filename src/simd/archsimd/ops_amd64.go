@@ -933,6 +933,18 @@ func (x Float32x8) Ceil() (z Float32x8)
 // for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
 // are unspecified.
 //
+// Asm: VRNDSCALEPS, CPU Feature: AVX512
+func (x Float32x16) Ceil() (z Float32x16)
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Ceil() (z Float64x2)
 
@@ -947,6 +959,18 @@ func (x Float64x2) Ceil() (z Float64x2)
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Ceil() (z Float64x4)
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512
+func (x Float64x8) Ceil() (z Float64x8)
 
 /* CeilScaled */
 

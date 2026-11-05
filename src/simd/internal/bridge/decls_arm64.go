@@ -2246,6 +2246,14 @@ func (x Float32x4nclm) Add(y Float32x4nclm) Float32x4nclm {
 	return Float32x4nclm((archsimd.Float32x4(x)).Add(archsimd.Float32x4(y)))
 }
 
+func (x Float32x4) Ceil() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Ceil())
+}
+
+func (x Float32x4nclm) Ceil() Float32x4nclm {
+	return Float32x4nclm((archsimd.Float32x4(x)).Ceil())
+}
+
 func (x Float32x4) ConvertToInt32() Int32x4 {
 	return Int32x4((archsimd.Float32x4(x)).ConvertToInt32())
 }
@@ -2452,6 +2460,14 @@ func (x Float64x2) Add(y Float64x2) Float64x2 {
 
 func (x Float64x2nclm) Add(y Float64x2nclm) Float64x2nclm {
 	return Float64x2nclm((archsimd.Float64x2(x)).Add(archsimd.Float64x2(y)))
+}
+
+func (x Float64x2) Ceil() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Ceil())
+}
+
+func (x Float64x2nclm) Ceil() Float64x2nclm {
+	return Float64x2nclm((archsimd.Float64x2(x)).Ceil())
 }
 
 func (x Float64x2) Div(y Float64x2) Float64x2 {

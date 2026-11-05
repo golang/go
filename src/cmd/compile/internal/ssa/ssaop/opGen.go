@@ -7626,11 +7626,13 @@ const (
 	OpBroadcastInt64x2
 	OpBroadcastInt8x16
 	OpCeilFloat32s
+	OpCeilFloat32x16
 	OpCeilFloat32x4
 	OpCeilFloat32x8
 	OpCeilFloat64s
 	OpCeilFloat64x2
 	OpCeilFloat64x4
+	OpCeilFloat64x8
 	OpCeilScaledFloat32x16
 	OpCeilScaledFloat32x4
 	OpCeilScaledFloat32x8
@@ -117800,6 +117802,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "CeilFloat32x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "CeilFloat32x4",
 		ArgLen:  1,
 		Generic: true,
@@ -117821,6 +117828,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "CeilFloat64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "CeilFloat64x8",
 		ArgLen:  1,
 		Generic: true,
 	},

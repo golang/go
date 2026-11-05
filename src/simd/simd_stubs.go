@@ -1366,6 +1366,16 @@ func (x Float32s) Abs() (z Float32s)
 //	z[i] = x[i] + y[i]
 func (x Float32s) Add(y Float32s) (z Float32s)
 
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32s) Ceil() (z Float32s)
+
 // ConvertToInt32 converts each element of x to int32.
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
@@ -1549,6 +1559,16 @@ func (x Float64s) Abs() (z Float64s)
 //
 //	z[i] = x[i] + y[i]
 func (x Float64s) Add(y Float64s) (z Float64s)
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64s) Ceil() (z Float64s)
 
 // Div divides x by y elementwise.
 //

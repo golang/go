@@ -2965,6 +2965,22 @@ func (x Float32s) Add(y Float32s) (z Float32s) {
 	return res
 }
 
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32s) Ceil() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Ceil(float64(x.get(i)))))
+	}
+	return res
+}
+
 // ConvertToInt32 converts each element of x to int32.
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
@@ -3328,6 +3344,21 @@ func (x Float64s) Add(y Float64s) (z Float64s) {
 	var res Float64s
 	res.set(0, x.get(0)+y.get(0))
 	res.set(1, x.get(1)+y.get(1))
+	return res
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64s) Ceil() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Ceil(x.get(0)))
+	res.set(1, math.Ceil(x.get(1)))
 	return res
 }
 

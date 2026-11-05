@@ -3376,6 +3376,18 @@ func (x Float32x16) Add(y Float32x16) Float32x16 {
 	return Float32x16((archsimd.Float32x16(x)).Add(archsimd.Float32x16(y)))
 }
 
+func (x Float32x4) Ceil() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Ceil())
+}
+
+func (x Float32x8) Ceil() Float32x8 {
+	return Float32x8((archsimd.Float32x8(x)).Ceil())
+}
+
+func (x Float32x16) Ceil() Float32x16 {
+	return Float32x16((archsimd.Float32x16(x)).Ceil())
+}
+
 func (x Float32x4) ConvertToInt32() Int32x4 {
 	return Int32x4((archsimd.Float32x4(x)).ConvertToInt32())
 }
@@ -3686,6 +3698,18 @@ func (x Float64x4) Add(y Float64x4) Float64x4 {
 
 func (x Float64x8) Add(y Float64x8) Float64x8 {
 	return Float64x8((archsimd.Float64x8(x)).Add(archsimd.Float64x8(y)))
+}
+
+func (x Float64x2) Ceil() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Ceil())
+}
+
+func (x Float64x4) Ceil() Float64x4 {
+	return Float64x4((archsimd.Float64x4(x)).Ceil())
+}
+
+func (x Float64x8) Ceil() Float64x8 {
+	return Float64x8((archsimd.Float64x8(x)).Ceil())
 }
 
 func (x Float64x2) Div(y Float64x2) Float64x2 {

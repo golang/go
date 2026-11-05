@@ -40,8 +40,8 @@ func TestCeilAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Ceil, ceilSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Ceil, ceilSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Ceil, ceilSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Ceil, ceilSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Ceil, ceilSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Ceil, ceilSlice[float64])
 	}
 }
 

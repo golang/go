@@ -3682,6 +3682,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpCeil:
 		return rewriteValue_OpCeil(v)
+	case ssaop.OpCeilFloat32x16:
+		return rewriteValue_OpCeilFloat32x16(v)
 	case ssaop.OpCeilFloat32x4:
 		return rewriteValue_OpCeilFloat32x4(v)
 	case ssaop.OpCeilFloat32x8:
@@ -3690,6 +3692,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpCeilFloat64x2(v)
 	case ssaop.OpCeilFloat64x4:
 		return rewriteValue_OpCeilFloat64x4(v)
+	case ssaop.OpCeilFloat64x8:
+		return rewriteValue_OpCeilFloat64x8(v)
 	case ssaop.OpCeilScaledFloat32x16:
 		return rewriteValue_OpCeilScaledFloat32x16(v)
 	case ssaop.OpCeilScaledFloat32x4:
@@ -97189,6 +97193,18 @@ func rewriteValue_OpCeil(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpCeilFloat32x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (CeilFloat32x16 x)
+	// result: (VRNDSCALEPS512 [2] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPS512)
+		v.AuxInt = ssa.Uint8ToAuxInt(2)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValue_OpCeilFloat32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (CeilFloat32x4 x)
@@ -97232,6 +97248,18 @@ func rewriteValue_OpCeilFloat64x4(v *ssa.Value) bool {
 	for {
 		x := v_0
 		v.Reset(ssaop.OpAMD64VROUNDPD256)
+		v.AuxInt = ssa.Uint8ToAuxInt(2)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue_OpCeilFloat64x8(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (CeilFloat64x8 x)
+	// result: (VRNDSCALEPD512 [2] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPD512)
 		v.AuxInt = ssa.Uint8ToAuxInt(2)
 		v.AddArg(x)
 		return true
