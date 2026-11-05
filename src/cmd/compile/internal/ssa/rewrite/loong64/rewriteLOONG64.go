@@ -6987,6 +6987,7 @@ func rewriteValue_OpLOONG64SRAV(v *ssa.Value) bool {
 func rewriteValue_OpLOONG64SRAVconst(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	b := v.Block
+	typ := &b.Func.Config.Types
 	// match: (SRAVconst [rc] (MOVWreg y))
 	// cond: rc >= 0 && rc <= 31
 	// result: (SRAconst [int64(rc)] y)
@@ -7006,9 +7007,8 @@ func rewriteValue_OpLOONG64SRAVconst(v *ssa.Value) bool {
 	}
 	// match: (SRAVconst <t> [rc] (MOVBreg y))
 	// cond: rc >= 8
-	// result: (SRAVconst [63] (SLLVconst <t> [56] y))
+	// result: (SRAVconst [63] (SLLVconst <typ.Int64> [56] y))
 	for {
-		t := v.Type
 		rc := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpLOONG64MOVBreg {
 			break
@@ -7019,7 +7019,7 @@ func rewriteValue_OpLOONG64SRAVconst(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpLOONG64SRAVconst)
 		v.AuxInt = ssa.Int64ToAuxInt(63)
-		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, typ.Int64)
 		v0.AuxInt = ssa.Int64ToAuxInt(56)
 		v0.AddArg(y)
 		v.AddArg(v0)
@@ -7027,9 +7027,8 @@ func rewriteValue_OpLOONG64SRAVconst(v *ssa.Value) bool {
 	}
 	// match: (SRAVconst <t> [rc] (MOVHreg y))
 	// cond: rc >= 16
-	// result: (SRAVconst [63] (SLLVconst <t> [48] y))
+	// result: (SRAVconst [63] (SLLVconst <typ.Int64> [48] y))
 	for {
-		t := v.Type
 		rc := ssa.AuxIntToInt64(v.AuxInt)
 		if v_0.Op != ssaop.OpLOONG64MOVHreg {
 			break
@@ -7040,7 +7039,7 @@ func rewriteValue_OpLOONG64SRAVconst(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpLOONG64SRAVconst)
 		v.AuxInt = ssa.Int64ToAuxInt(63)
-		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, t)
+		v0 := b.NewValue0(v.Pos, ssaop.OpLOONG64SLLVconst, typ.Int64)
 		v0.AuxInt = ssa.Int64ToAuxInt(48)
 		v0.AddArg(y)
 		v.AddArg(v0)

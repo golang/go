@@ -676,8 +676,8 @@
 (SRAVconst [rc] (MOVWreg y)) && rc >= 0 && rc <= 31 => (SRAconst [int64(rc)] y)
 
 // Replace right shifts that exceed size of signed type.
-(SRAVconst <t> [rc] (MOVBreg y)) && rc >=  8 => (SRAVconst [63] (SLLVconst <t> [56] y))
-(SRAVconst <t> [rc] (MOVHreg y)) && rc >= 16 => (SRAVconst  [63] (SLLVconst <t> [48] y))
+(SRAVconst <t> [rc] (MOVBreg y)) && rc >=  8 => (SRAVconst [63] (SLLVconst <typ.Int64> [56] y))
+(SRAVconst <t> [rc] (MOVHreg y)) && rc >= 16 => (SRAVconst [63] (SLLVconst <typ.Int64> [48] y))
 (SRAVconst <t> [rc] (MOVWreg y)) && rc >= 32 => (SRAconst [31] y)
 
 // If the shift amount is larger than the datasize(32, 16, 8), we can optimize to constant 0.
