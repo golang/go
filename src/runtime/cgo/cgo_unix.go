@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || (linux && !android && (amd64 || arm64)))
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || (linux && (amd64 || arm64)))
 
 package cgo
 
@@ -168,13 +168,15 @@ func cgoBindM(g uintptr) {
 //go:nosplit
 //go:norace
 //go:nocheckptr
-func cgoInit(g *g, _ uintptr) {
+func cgoInit(g *g, _ uintptr, tlsg *uintptr, tlsbase uintptr) {
+	if tlsg != nil {
+		cgoInitTLS(tlsg, tlsbase)
+	}
 	asmcgocallNoG(uintptr(libc_sigfillset), uintptr(unsafe.Pointer(&fullSigset)), 0, 0, 0, 0, 0)
 	lo, _ := cgoGetStackBound()
 	g.stacklo = lo
 	if g.stacklo >= g.stackhi {
-		runtime_writeErrStr("runtime/cgo: bad stack bounds\n")
-		runtime_abort()
+		cgoFatal("runtime/cgo: bad stack bounds\n\x00")
 	}
 }
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || (linux && !android)) && arm64
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || linux) && arm64
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -98,6 +98,7 @@ TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
 	CGO_PROLOGUE
 	STP	(R0, R1), 8(RSP)
+	STP	(R2, R3), 24(RSP)
 	CALL_GO(·cgoInit)
 	CGO_EPILOGUE
 	RET

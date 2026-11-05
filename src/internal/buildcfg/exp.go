@@ -80,7 +80,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 
 	var runtimeCgoPuregoSupported bool
 	switch goos {
-	case "linux", "darwin":
+	case "linux", "darwin", "android":
 		runtimeCgoPuregoSupported = goarch == "amd64" || goarch == "arm64"
 	case "windows":
 		runtimeCgoPuregoSupported = goarch == "amd64"
@@ -171,7 +171,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
 	}
-	// runtimecgopurego and cgobindings are only supported on linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, and windows/amd64.
+	// Disable runtimecgopurego and cgobindings on unsupported platforms.
 	if !runtimeCgoPuregoSupported {
 		flags.RuntimeCgoPurego = false
 	}

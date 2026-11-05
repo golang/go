@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || (linux && !android)) && amd64
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || linux) && amd64
 
 #include "go_asm.h"
 #include "textflag.h"
@@ -92,11 +92,13 @@ TEXT ·x_cgo_threadentry(SB),NOSPLIT|NOFRAME,$0-0
 
 TEXT x_cgo_init<>(SB),NOSPLIT|NOFRAME,$0-0
 	PUSH_REGS_HOST_TO_ABI0()
-	ADJSP	$16
+	ADJSP	$32
 	MOVQ	DI, 0(SP)
 	MOVQ	SI, 8(SP)
+	MOVQ	DX, 16(SP)
+	MOVQ	CX, 24(SP)
 	CALL	·cgoInit(SB)
-	ADJSP	$-16
+	ADJSP	$-32
 	POP_REGS_HOST_TO_ABI0()
 	RET
 

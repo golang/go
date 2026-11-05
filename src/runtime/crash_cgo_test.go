@@ -349,6 +349,8 @@ func TestCgoCrashTraceback(t *testing.T) {
 	}
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "android/amd64":
+	case "android/arm64":
 	case "darwin/amd64":
 	case "linux/amd64":
 	case "linux/arm64":
@@ -375,6 +377,8 @@ func TestCgoCrashTraceback(t *testing.T) {
 func TestCgoCrashTracebackGo(t *testing.T) {
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
+	case "android/amd64":
+	case "android/arm64":
 	case "darwin/amd64":
 	case "linux/amd64":
 	case "linux/arm64":

@@ -62,6 +62,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		TLSIEtoLE:        tlsIEtoLE,
 
 		ELF: ld.ELFArch{
+			Androiddynld:   "/system/bin/linker64",
 			Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
 			LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
 			Freebsddynld:   "/libexec/ld-elf.so.1",

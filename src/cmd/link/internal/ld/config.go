@@ -136,7 +136,7 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
 		return true, "asan"
 	}
 
-	if iscgo && platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true) {
+	if iscgo && !(buildcfg.Experiment.RuntimeCgoPurego && buildcfg.GOOS == "android" && len(hostobj) == 0) && platform.MustLinkExternal(buildcfg.GOOS, buildcfg.GOARCH, true) {
 		return true, buildcfg.GOARCH + " does not support internal cgo"
 	}
 
