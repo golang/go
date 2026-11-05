@@ -1148,6 +1148,10 @@ func (x Float32x4) Equal(y Float32x4) Mask32x4 {
 	return Mask32x4((archsimd.Float32x4(x)).Equal(archsimd.Float32x4(y)))
 }
 
+func (x Float32x4) Floor() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Floor())
+}
+
 func (x Float32x4) Greater(y Float32x4) Mask32x4 {
 	return Mask32x4((archsimd.Float32x4(x)).Greater(archsimd.Float32x4(y)))
 }
@@ -1250,6 +1254,10 @@ func (x Float64x2) Div(y Float64x2) Float64x2 {
 
 func (x Float64x2) Equal(y Float64x2) Mask64x2 {
 	return Mask64x2((archsimd.Float64x2(x)).Equal(archsimd.Float64x2(y)))
+}
+
+func (x Float64x2) Floor() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Floor())
 }
 
 func (x Float64x2) Greater(y Float64x2) Mask64x2 {

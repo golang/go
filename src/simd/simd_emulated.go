@@ -3018,6 +3018,21 @@ func (x Float32s) Equal(y Float32s) (z Mask32s) {
 	return res
 }
 
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32s) Floor() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Floor(float64(x.get(i)))))
+	}
+	return res
+}
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -3383,6 +3398,20 @@ func (x Float64s) Equal(y Float64s) (z Mask64s) {
 	if x.get(1) == y.get(1) {
 		res.b = ^uint64(0)
 	}
+	return res
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64s) Floor() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Floor(x.get(0)))
+	res.set(1, math.Floor(x.get(1)))
 	return res
 }
 

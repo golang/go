@@ -7972,11 +7972,13 @@ const (
 	OpExtendToUint64Uint32x4
 	OpExtendToUint64Uint32x8
 	OpFloorFloat32s
+	OpFloorFloat32x16
 	OpFloorFloat32x4
 	OpFloorFloat32x8
 	OpFloorFloat64s
 	OpFloorFloat64x2
 	OpFloorFloat64x4
+	OpFloorFloat64x8
 	OpFloorScaledFloat32x16
 	OpFloorScaledFloat32x4
 	OpFloorScaledFloat32x8
@@ -119597,6 +119599,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "FloorFloat32x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "FloorFloat32x4",
 		ArgLen:  1,
 		Generic: true,
@@ -119618,6 +119625,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "FloorFloat64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "FloorFloat64x8",
 		ArgLen:  1,
 		Generic: true,
 	},

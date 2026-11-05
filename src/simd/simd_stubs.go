@@ -1395,6 +1395,15 @@ func (x Float32s) Div(y Float32s) (z Float32s)
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Float32s) Equal(y Float32s) (z Mask32s)
 
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32s) Floor() (z Float32s)
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -1581,6 +1590,15 @@ func (x Float64s) Div(y Float64s) (z Float64s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Float64s) Equal(y Float64s) (z Mask64s)
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64s) Floor() (z Float64s)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //

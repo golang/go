@@ -26,6 +26,7 @@ func ReduceSum[S number](s []S) S {
 
 func Round[S float](x S) S { return S(math.RoundToEven(float64(x))) }
 func Ceil[S float](x S) S  { return S(math.Ceil(float64(x))) }
+func Floor[S float](x S) S { return S(math.Floor(float64(x))) }
 
 func Neg[S number](x S) S {
 	return -x

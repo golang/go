@@ -3078,6 +3078,17 @@ func (x Float32x8) Floor() (z Float32x8)
 // Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
 // Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
+// Asm: VRNDSCALEPS, CPU Feature: AVX512
+func (x Float32x16) Floor() (z Float32x16)
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Floor() (z Float64x2)
 
@@ -3091,6 +3102,17 @@ func (x Float64x2) Floor() (z Float64x2)
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Floor() (z Float64x4)
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512
+func (x Float64x8) Floor() (z Float64x8)
 
 /* FloorScaled */
 

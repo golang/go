@@ -410,8 +410,10 @@
 (ExtendToUint64Uint32x8 ...) => (VPMOVZXDQ512 ...) // pureVreg
 (FloorFloat32x4 x) => (VROUNDPS128 [1] x) // pureVreg
 (FloorFloat32x8 x) => (VROUNDPS256 [1] x) // pureVreg
+(FloorFloat32x16 x) => (VRNDSCALEPS512 [1] x) // pureVreg
 (FloorFloat64x2 x) => (VROUNDPD128 [1] x) // pureVreg
 (FloorFloat64x4 x) => (VROUNDPD256 [1] x) // pureVreg
+(FloorFloat64x8 x) => (VRNDSCALEPD512 [1] x) // pureVreg
 (FloorScaledFloat32x4 [a] x) => (VRNDSCALEPS128 [a+1] x) // pureVreg
 (FloorScaledFloat32x8 [a] x) => (VRNDSCALEPS256 [a+1] x) // pureVreg
 (FloorScaledFloat32x16 [a] x) => (VRNDSCALEPS512 [a+1] x) // pureVreg

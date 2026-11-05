@@ -4625,6 +4625,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpFMA32(v)
 	case ssaop.OpFloor:
 		return rewriteValue_OpFloor(v)
+	case ssaop.OpFloorFloat32x16:
+		return rewriteValue_OpFloorFloat32x16(v)
 	case ssaop.OpFloorFloat32x4:
 		return rewriteValue_OpFloorFloat32x4(v)
 	case ssaop.OpFloorFloat32x8:
@@ -4633,6 +4635,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpFloorFloat64x2(v)
 	case ssaop.OpFloorFloat64x4:
 		return rewriteValue_OpFloorFloat64x4(v)
+	case ssaop.OpFloorFloat64x8:
+		return rewriteValue_OpFloorFloat64x8(v)
 	case ssaop.OpFloorScaledFloat32x16:
 		return rewriteValue_OpFloorScaledFloat32x16(v)
 	case ssaop.OpFloorScaledFloat32x4:
@@ -100616,6 +100620,18 @@ func rewriteValue_OpFloor(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpFloorFloat32x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (FloorFloat32x16 x)
+	// result: (VRNDSCALEPS512 [1] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPS512)
+		v.AuxInt = ssa.Uint8ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValue_OpFloorFloat32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (FloorFloat32x4 x)
@@ -100659,6 +100675,18 @@ func rewriteValue_OpFloorFloat64x4(v *ssa.Value) bool {
 	for {
 		x := v_0
 		v.Reset(ssaop.OpAMD64VROUNDPD256)
+		v.AuxInt = ssa.Uint8ToAuxInt(1)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue_OpFloorFloat64x8(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (FloorFloat64x8 x)
+	// result: (VRNDSCALEPD512 [1] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPD512)
 		v.AuxInt = ssa.Uint8ToAuxInt(1)
 		v.AddArg(x)
 		return true
