@@ -1576,12 +1576,66 @@ func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
 	return res
 }
 
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8s) Greater(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) > y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8s) GreaterEqual(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) >= y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
 // HiToLo returns a vector whose low half is the high half of x and whose high
 // half is zero.
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint8s) HiToLo() (z Uint8s) {
 	return Uint8s{a: x.b}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8s) Less(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) < y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8s) LessEqual(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) <= y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
