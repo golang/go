@@ -1045,6 +1045,12 @@ func (x {{.VType}}) Not() {{.VType}} {
 // signed comparison. For 16-, 32-, and 64-bit elements, the sign-bit constant
 // is built from all ones and a shift. There is no 8-bit shift, so for bytes it
 // uses a broadcast. Both are AVX at 128 bits.
+//
+// For 8-, 16-, and 32-bit elements, GreaterEqual and LessEqual instead use
+// unsigned min/max (VPMAXU[BWD]/VPMINU[BWD], which are available at the same
+// feature level as VPCMPEQ[BWD]), since x >= y iff max(x, y) == x and x <= y
+// iff min(x, y) == x. This is two instructions instead of sign flipping
+// followed by negation. 64-bit unsigned min/max requires AVX512.
 var avx2UnsignedComparisonsTemplate = shapedTemplateOf(avx2UnsignedComparisons, "avx2 unsigned comparisons", `
 // Greater returns a mask whose elements indicate whether x > y.
 //
@@ -1078,28 +1084,28 @@ func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) GreaterEqual(y {{.VType}}) Mask{{.WxC}} {
+{{- if ne .EWidth 64}}
+	return x.Max(y).Equal(x)
+{{- else}}
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
-{{- if eq .EWidth 8}}
-	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
-{{- else}}
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
-{{- end }}
 	return b.Xor(signs).Greater(a.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
+{{- end}}
 }
 
 // LessEqual returns a mask whose elements indicate whether x <= y.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) LessEqual(y {{.VType}}) Mask{{.WxC}} {
+{{- if ne .EWidth 64}}
+	return x.Min(y).Equal(x)
+{{- else}}
 	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
-{{- if eq .EWidth 8}}
-	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
-{{- else}}
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
-{{- end }}
 	return a.Xor(signs).Greater(b.Xor(signs)).ToInt{{.WxC}}().Xor(ones).asMask()
+{{- end}}
 }
 
 // NotEqual returns a mask whose elements indicate whether x != y.
