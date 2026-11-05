@@ -81,7 +81,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	var runtimeCgoPuregoSupported bool
 	switch goos {
 	case "linux", "android", "netbsd", "openbsd":
-		runtimeCgoPuregoSupported = goarch == "386" || goarch == "amd64" || goarch == "arm64"
+		runtimeCgoPuregoSupported = goarch == "386" || goarch == "amd64" || goarch == "arm" || goarch == "arm64"
 	case "darwin":
 		runtimeCgoPuregoSupported = goarch == "amd64" || goarch == "arm64"
 	case "windows":
