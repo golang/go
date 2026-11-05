@@ -218,7 +218,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_ADDR:
-		if ldr.SymType(s) == sym.STEXT && target.IsElf() {
+		if ldr.SymType(s).IsText() && target.IsElf() {
 			// The code is asking for the address of an external
 			// function. We provide it with the address of the
 			// correspondent GOT symbol.
@@ -273,37 +273,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 			// linking, in which case the relocation will be
 			// prepared in the 'reloc' phase and passed to the
 			// external linker in the 'asmb' phase.
-			if ldr.SymType(s) != sym.SDATA && ldr.SymType(s) != sym.SRODATA {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsNOPTRDATA() && !t.IsRODATA() {
 				break
 			}
 		}
 
 		if target.IsElf() {
-			// Generate R_LARCH_RELATIVE relocations for best
-			// efficiency in the dynamic linker.
-			//
-			// As noted above, symbol addresses have not been
-			// assigned yet, so we can't generate the final reloc
-			// entry yet. We ultimately want:
-			//
-			// r_offset = s + r.Off
-			// r_info = R_LARCH_RELATIVE
-			// r_addend = targ + r.Add
-			//
-			// The dynamic linker will set *offset = base address +
-			// addend.
-			//
-			// AddAddrPlus is used for r_offset and r_addend to
-			// generate new R_ADDR relocations that will update
-			// these fields in the 'reloc' phase.
-			rela := ldr.MakeSymbolUpdater(syms.Rela)
-			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			if r.Siz() == 8 {
-				rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_LARCH_RELATIVE)))
-			} else {
-				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
-			}
-			rela.AddAddrPlus(target.Arch, targ, r.Add())
+			ld.ElfAddDynAddrReloc(target, ldr, syms, s, r, rIdx, uint32(elf.R_LARCH_64), uint32(elf.R_LARCH_RELATIVE))
 			return true
 		}
 

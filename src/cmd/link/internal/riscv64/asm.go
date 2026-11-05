@@ -194,6 +194,31 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
 
 		return true
+
+	case objabi.R_ADDR:
+		if ldr.SymType(s).IsText() {
+			// RISC-V text loads addresses with PC-relative
+			// instruction pairs, so an R_ADDR in text cannot be
+			// redirected through the GOT.
+			ldr.Errorf(s, "unsupported R_ADDR relocation in text for dynamic symbol %s", ldr.SymName(targ))
+			return false
+		}
+
+		if target.IsPIE() && target.IsInternal() {
+			switch ldr.SymName(s) {
+			case ".dynsym", ".rela", ".rela.plt", ".got.plt", ".dynamic":
+				return false
+			}
+		} else {
+			if t := ldr.SymType(s); !t.IsDATA() && !t.IsNOPTRDATA() && !t.IsRODATA() {
+				break
+			}
+		}
+
+		if target.IsElf() {
+			ld.ElfAddDynAddrReloc(target, ldr, syms, s, r, rIdx, uint32(elf.R_RISCV_64), uint32(elf.R_RISCV_RELATIVE))
+			return true
+		}
 	}
 
 	return false

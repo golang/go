@@ -5,7 +5,10 @@
 package ld
 
 import (
+	"bytes"
 	"debug/elf"
+	"encoding/binary"
+	"internal/platform"
 	"internal/testenv"
 	"os"
 	"path/filepath"
@@ -306,10 +309,16 @@ func checkText() {
 	}
 }
 `
+	const textNoop = `package main
+func checkText() {}
+`
 
-	arches := []string{"amd64", "arm64"}
-	modes := []string{"exe", "pie"}
+	arches := []string{"386", "amd64", "arm", "arm64", "loong64", "ppc64", "ppc64le", "riscv64", "s390x"}
 	for _, goarch := range arches {
+		modes := []string{"exe"}
+		if platform.InternalLinkPIESupported("linux", goarch) {
+			modes = append(modes, "pie")
+		}
 		for _, mode := range modes {
 			t.Run(goarch+"_"+mode, func(t *testing.T) {
 				t.Parallel()
@@ -317,7 +326,11 @@ func checkText() {
 				if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(baseSrc), 0644); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(dir, "text.go"), []byte(textDirect), 0644); err != nil {
+				extra := textNoop
+				if goarch == "386" || goarch == "amd64" || goarch == "arm64" {
+					extra = textDirect
+				}
+				if err := os.WriteFile(filepath.Join(dir, "text.go"), []byte(extra), 0644); err != nil {
 					t.Fatal(err)
 				}
 				exe := filepath.Join(dir, "dyn.exe")
@@ -342,6 +355,32 @@ func checkText() {
 				}
 				if textrel, err := ef.DynValue(elf.DT_TEXTREL); err == nil && len(textrel) != 0 {
 					t.Errorf("unexpected DT_TEXTREL in linux/%s (%s) binary", goarch, mode)
+				}
+
+				if goarch == "386" || goarch == "arm" {
+					sec := ef.Section(".rel")
+					if sec == nil {
+						t.Fatalf("missing .rel section on linux/%s (%s)", goarch, mode)
+					}
+					data, err := sec.Data()
+					if err != nil {
+						t.Fatal(err)
+					}
+					var types []uint32
+					for r := bytes.NewReader(data); r.Len() > 0; {
+						var rel elf.Rel32
+						if err := binary.Read(r, ef.ByteOrder, &rel); err != nil {
+							t.Fatal(err)
+						}
+						types = append(types, elf.R_TYPE32(rel.Info))
+					}
+					if goarch == "386" {
+						if !slices.Contains(types, uint32(elf.R_386_GLOB_DAT)) || !slices.Contains(types, uint32(elf.R_386_32)) {
+							t.Errorf("386 reloc types = %v, want R_386_GLOB_DAT and R_386_32", types)
+						}
+					} else if !slices.Contains(types, uint32(elf.R_ARM_ABS32)) || slices.Contains(types, uint32(elf.R_ARM_GLOB_DAT)) {
+						t.Errorf("arm reloc types = %v, want R_ARM_ABS32 without R_ARM_GLOB_DAT", types)
+					}
 				}
 			})
 		}

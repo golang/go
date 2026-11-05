@@ -437,44 +437,7 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		}
 
 		if target.IsElf() {
-			rela := ldr.MakeSymbolUpdater(syms.Rela)
-			rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			if r.Siz() != 8 {
-				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
-			}
-
-			if targType == sym.SDYNIMPORT {
-				ld.Adddynsym(ldr, target, syms, targ)
-				rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), uint32(elf.R_AARCH64_ABS64)))
-				rela.AddUint64(target.Arch, uint64(r.Add()))
-				su := ldr.MakeSymbolUpdater(s)
-				su.SetRelocType(rIdx, objabi.ElfRelocOffset)
-				return true
-			}
-
-			// Generate R_AARCH64_RELATIVE relocations for best
-			// efficiency in the dynamic linker.
-			//
-			// As noted above, symbol addresses have not been
-			// assigned yet, so we can't generate the final reloc
-			// entry yet. We ultimately want:
-			//
-			// r_offset = s + r.Off
-			// r_info = R_AARCH64_RELATIVE
-			// r_addend = targ + r.Add
-			//
-			// The dynamic linker will set *offset = base address +
-			// addend.
-			//
-			// AddAddrPlus is used for r_offset and r_addend to
-			// generate new R_ADDR relocations that will update
-			// these fields in the 'reloc' phase.
-			rela.AddUint64(target.Arch, elf.R_INFO(0, uint32(elf.R_AARCH64_RELATIVE)))
-			rela.AddAddrPlus(target.Arch, targ, r.Add())
-			// Not mark r done here. So we still apply it statically,
-			// so in the file content we'll also have the right offset
-			// to the relocation target. So it can be examined statically
-			// (e.g. go version).
+			ld.ElfAddDynAddrReloc(target, ldr, syms, s, r, rIdx, uint32(elf.R_AARCH64_ABS64), uint32(elf.R_AARCH64_RELATIVE))
 			return true
 		}
 

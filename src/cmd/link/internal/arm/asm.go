@@ -224,14 +224,18 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_ADDR:
-		if !ldr.SymType(s).IsDATA() {
+		if t := ldr.SymType(s); !t.IsDATA() && !t.IsNOPTRDATA() && !t.IsRODATA() {
 			break
 		}
 		if target.IsElf() {
+			if r.Siz() != 4 {
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
 			ld.Adddynsym(ldr, target, syms, targ)
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, s, int64(r.Off()))
-			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(targ)), uint32(elf.R_ARM_GLOB_DAT))) // we need a nil + A dynamic reloc
+			rel.AddUint32(target.Arch, elf.R_INFO32(uint32(ldr.SymDynid(targ)), uint32(elf.R_ARM_ABS32)))
 			su := ldr.MakeSymbolUpdater(s)
 			su.SetRelocType(rIdx, objabi.R_CONST) // write r->add during relocsym
 			su.SetRelocSym(rIdx, 0)

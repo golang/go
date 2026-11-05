@@ -40,6 +40,17 @@ import (
 	"log"
 )
 
+const (
+	opMOVL = 0x8b // MOV r32, r/m32
+	opLEAL = 0x8d // LEA r32, m
+
+	// In the ModR/M byte (bits 7:6 = mod, 5:3 = reg, 2:0 = r/m),
+	// mod=00 with r/m=101 (0x05) encodes a 32-bit displacement-only
+	// memory operand ([disp32]) with no base or index register.
+	modrmModRM  = 0b11_000_111 // 0xc7: mask for mod (bits 7:6) and r/m (bits 2:0)
+	modrmDisp32 = 0b00_000_101 // 0x05: mod=00, r/m=101 ([disp32])
+)
+
 func gentext(ctxt *ld.Link, ldr *loader.Loader) {
 	if ctxt.DynlinkingGo() {
 		// We need get_pc_thunk.
@@ -252,10 +263,42 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
 		return true
 
 	case objabi.R_ADDR:
-		if !ldr.SymType(s).IsDATA() {
+		if ldr.SymType(s).IsText() && target.IsElf() && target.IsInternal() {
+			// Loading the address of a dynamic symbol. Rewrite
+			// LEAL sym(SB), reg to MOVL got_entry, reg.
+			//
+			// The compiler only emits R_ADDR in 386 text for the
+			// 4-byte displacement or immediate at the end of an
+			// instruction, and the assembler emits LEAL sym(SB), reg
+			// as the 2-byte opcode and ModR/M sequence 8d /r followed
+			// by that displacement, without prefixes. Other
+			// instructions taking the address of a dynamic symbol
+			// (such as MOVL $sym(SB), reg) are rejected below.
+			if r.Siz() != 4 || r.Add() != 0 {
+				ldr.Errorf(s, "unexpected relocation size or nonzero addend for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
+			sData := ldr.Data(s)
+			if r.Off() >= 2 && sData[r.Off()-2] == opLEAL && sData[r.Off()-1]&modrmModRM == modrmDisp32 {
+				su := ldr.MakeSymbolUpdater(s)
+				su.MakeWritable()
+				su.Data()[r.Off()-2] = opMOVL
+				ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_386_GLOB_DAT))
+				su.SetRelocSym(rIdx, syms.GOT)
+				su.SetRelocAdd(rIdx, int64(ldr.SymGot(targ)))
+				return true
+			}
+			ldr.Errorf(s, "unexpected R_ADDR reloc in text for dynamic symbol %s: not preceded by LEAL instruction", ldr.SymName(targ))
+			return false
+		}
+		if t := ldr.SymType(s); !t.IsDATA() && !t.IsNOPTRDATA() && !t.IsRODATA() {
 			break
 		}
 		if target.IsElf() {
+			if r.Siz() != 4 {
+				ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+				return false
+			}
 			ld.Adddynsym(ldr, target, syms, targ)
 			rel := ldr.MakeSymbolUpdater(syms.Rel)
 			rel.AddAddrPlus(target.Arch, s, int64(r.Off()))

@@ -3174,6 +3174,35 @@ func AddGotSym(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym,
 	}
 }
 
+// ElfAddDynAddrReloc emits an 8-byte ELF dynamic data relocation in .rela for r
+// at s+r.Off(): absReloc against targ when targ is SDYNIMPORT, or relReloc
+// (base-relative) otherwise.
+//
+// Symbol addresses have not been assigned yet when this is called (from
+// adddynrel during dodata), so the r_offset and, for relReloc, r_addend
+// fields are written with AddAddrPlus, which creates new R_ADDR relocations
+// that are resolved in the 'reloc' phase. For a relReloc, r is not marked
+// done, so it is still applied statically and the file contents hold the
+// right offset to the relocation target (e.g. for go version).
+func ElfAddDynAddrReloc(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc, rIdx int, absReloc, relReloc uint32) {
+	targ := r.Sym()
+	rela := ldr.MakeSymbolUpdater(syms.Rela)
+	rela.AddAddrPlus(target.Arch, s, int64(r.Off()))
+	if r.Siz() != 8 {
+		ldr.Errorf(s, "unexpected relocation for dynamic symbol %s", ldr.SymName(targ))
+	}
+	if ldr.SymType(targ) == sym.SDYNIMPORT {
+		Adddynsym(ldr, target, syms, targ)
+		rela.AddUint64(target.Arch, elf.R_INFO(uint32(ldr.SymDynid(targ)), absReloc))
+		rela.AddUint64(target.Arch, uint64(r.Add()))
+		su := ldr.MakeSymbolUpdater(s)
+		su.SetRelocType(rIdx, objabi.ElfRelocOffset)
+		return
+	}
+	rela.AddUint64(target.Arch, elf.R_INFO(0, relReloc))
+	rela.AddAddrPlus(target.Arch, targ, r.Add())
+}
+
 var hostobjcounter int
 
 // captureHostObj writes out the content of a host object (pulled from

@@ -60,6 +60,7 @@ func Init() (*sys.Arch, ld.Arch) {
 		PEreloc1:         pereloc1,
 
 		ELF: ld.ELFArch{
+			Androiddynld:   "/system/bin/linker",
 			Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
 			LinuxdynldMusl: "/lib/ld-musl-arm.so.1",
 			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
