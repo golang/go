@@ -15,6 +15,22 @@ import (
 	"testing"
 )
 
+func testSVEShuffle1[T number, V any](t *testing.T, pool []T, elemBytes, active int,
+	load func([]T) V, f func(V) V, store func(V, []T), want func([]T) []T) {
+	t.Helper()
+	count := sveMaxBytes / elemBytes
+	forSlice(t, pool, count, func(x []T) bool {
+		t.Helper()
+		g := make([]T, count)
+		store(f(load(x)), g)
+		w := want(x[:active])
+		return checkSlicesLogInput(t, g[:active], w, 0.0, func() {
+			t.Helper()
+			t.Logf("x=%v", x[:active])
+		})
+	})
+}
+
 func testSVEShuffle2[T number, V any](t *testing.T, pool []T, elemBytes, active int,
 	load func([]T) V, f func(V, V) V, store func(V, []T), want func([]T, []T) []T) {
 	t.Helper()
@@ -30,6 +46,22 @@ func testSVEShuffle2[T number, V any](t *testing.T, pool []T, elemBytes, active 
 			t.Logf("y=%v", y[:active])
 		})
 	})
+}
+
+func TestHiToLoSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testSVEShuffle1(t, int8s, 1, archsimd.Int8s{}.Len(), archsimd.LoadInt8s, archsimd.Int8s.HiToLo, archsimd.Int8s.Store, hiToLoSlice[int8])
+	testSVEShuffle1(t, int16s, 2, archsimd.Int16s{}.Len(), archsimd.LoadInt16s, archsimd.Int16s.HiToLo, archsimd.Int16s.Store, hiToLoSlice[int16])
+	testSVEShuffle1(t, int32s, 4, archsimd.Int32s{}.Len(), archsimd.LoadInt32s, archsimd.Int32s.HiToLo, archsimd.Int32s.Store, hiToLoSlice[int32])
+	testSVEShuffle1(t, int64s, 8, archsimd.Int64s{}.Len(), archsimd.LoadInt64s, archsimd.Int64s.HiToLo, archsimd.Int64s.Store, hiToLoSlice[int64])
+	testSVEShuffle1(t, uint8s, 1, archsimd.Uint8s{}.Len(), archsimd.LoadUint8s, archsimd.Uint8s.HiToLo, archsimd.Uint8s.Store, hiToLoSlice[uint8])
+	testSVEShuffle1(t, uint16s, 2, archsimd.Uint16s{}.Len(), archsimd.LoadUint16s, archsimd.Uint16s.HiToLo, archsimd.Uint16s.Store, hiToLoSlice[uint16])
+	testSVEShuffle1(t, uint32s, 4, archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.HiToLo, archsimd.Uint32s.Store, hiToLoSlice[uint32])
+	testSVEShuffle1(t, uint64s, 8, archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.HiToLo, archsimd.Uint64s.Store, hiToLoSlice[uint64])
+	testSVEShuffle1(t, float32s, 4, archsimd.Float32s{}.Len(), archsimd.LoadFloat32s, archsimd.Float32s.HiToLo, archsimd.Float32s.Store, hiToLoSlice[float32])
+	testSVEShuffle1(t, float64s, 8, archsimd.Float64s{}.Len(), archsimd.LoadFloat64s, archsimd.Float64s.HiToLo, archsimd.Float64s.Store, hiToLoSlice[float64])
 }
 
 func TestInterleaveLoSVE(t *testing.T) {

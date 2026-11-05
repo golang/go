@@ -60,6 +60,12 @@ func (x Int8s) Greater(y Int8s) (z Mask8s)
 //	z[i] = x[i] >= y[i]
 func (x Int8s) GreaterEqual(y Int8s) (z Mask8s)
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int8s) HiToLo() (z Int8s)
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -215,6 +221,12 @@ func (x Int16s) Greater(y Int16s) (z Mask16s)
 //
 //	z[i] = x[i] >= y[i]
 func (x Int16s) GreaterEqual(y Int16s) (z Mask16s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int16s) HiToLo() (z Int16s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -376,6 +388,12 @@ func (x Int32s) Greater(y Int32s) (z Mask32s)
 //	z[i] = x[i] >= y[i]
 func (x Int32s) GreaterEqual(y Int32s) (z Mask32s)
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int32s) HiToLo() (z Int32s)
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -525,6 +543,12 @@ func (x Int64s) Greater(y Int64s) (z Mask64s)
 //	z[i] = x[i] >= y[i]
 func (x Int64s) GreaterEqual(y Int64s) (z Mask64s)
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int64s) HiToLo() (z Int64s)
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -649,6 +673,12 @@ func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint8s) Equal(y Uint8s) (z Mask8s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint8s) HiToLo() (z Uint8s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -819,6 +849,12 @@ func (x Uint16s) Greater(y Uint16s) (z Mask16s)
 //
 //	z[i] = x[i] >= y[i]
 func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint16s) HiToLo() (z Uint16s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -1009,6 +1045,12 @@ func (x Uint32s) Greater(y Uint32s) (z Mask32s)
 //
 //	z[i] = x[i] >= y[i]
 func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint32s) HiToLo() (z Uint32s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -1233,6 +1275,12 @@ func (x Uint64s) Greater(y Uint64s) (z Mask64s)
 //	z[i] = x[i] >= y[i]
 func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s)
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint64s) HiToLo() (z Uint64s)
+
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
 //
@@ -1414,6 +1462,12 @@ func (x Float32s) Greater(y Float32s) (z Mask32s)
 //
 //	z[i] = x[i] >= y[i]
 func (x Float32s) GreaterEqual(y Float32s) (z Mask32s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float32s) HiToLo() (z Float32s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.
@@ -1619,6 +1673,12 @@ func (x Float64s) Greater(y Float64s) (z Mask64s)
 //
 //	z[i] = x[i] >= y[i]
 func (x Float64s) GreaterEqual(y Float64s) (z Mask64s)
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float64s) HiToLo() (z Float64s)
 
 // IfElse returns a vector with elements from x where mask is true, and y where
 // mask is false.

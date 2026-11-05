@@ -19,6 +19,28 @@ func Permute[E Elt, W Width, E2 Uints](x Vec[E, W], indices Vec[E2, W]) (z Vec[E
 	return z
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+// {{if eq .xL 2}}
+//
+//	z = {x[1], 0}
+//
+// {{else if eq .xL 4}}
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// {{else}}
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = {{lanes .x "x"}}
+//
+// {{end}}
+func HiToLo[E Elt, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	copy(z, x[x.len()/2:])
+	return z
+}
+
 // LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
 //	if 0 <= indices[i] && indices[i] < {{lanes .x "x"}} {

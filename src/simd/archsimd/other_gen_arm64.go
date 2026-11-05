@@ -146,72 +146,92 @@ func (x Float64x2) String() string {
 	return simdfmt.SliceToString(s[:])
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Int8x16) HiToLo() Int8x16 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+func (x Int8x16) HiToLo() (z Int8x16) {
 	var v Int8x16
 	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s().BitsToInt8()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Int16x8) HiToLo() Int16x8 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+func (x Int16x8) HiToLo() (z Int16x8) {
 	var v Int16x8
 	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s().BitsToInt16()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Int32x4) HiToLo() Int32x4 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+func (x Int32x4) HiToLo() (z Int32x4) {
 	var v Int32x4
 	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToInt32()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Int64x2) HiToLo() Int64x2 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+func (x Int64x2) HiToLo() (z Int64x2) {
 	var v Int64x2
 	return v.ToBits().BitsToFloat64().SetElem(0, x.ToBits().BitsToFloat64().GetElem(1)).ToBits().BitsToInt64()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Uint8x16) HiToLo() Uint8x16 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+func (x Uint8x16) HiToLo() (z Uint8x16) {
 	var v Uint8x16
 	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint8s()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Uint16x8) HiToLo() Uint16x8 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+func (x Uint16x8) HiToLo() (z Uint16x8) {
 	var v Uint16x8
 	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint16s()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Uint32x4) HiToLo() Uint32x4 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+func (x Uint32x4) HiToLo() (z Uint32x4) {
 	var v Uint32x4
 	return v.ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Uint64x2) HiToLo() Uint64x2 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+func (x Uint64x2) HiToLo() (z Uint64x2) {
 	var v Uint64x2
 	return v.BitsToFloat64().SetElem(0, x.BitsToFloat64().GetElem(1)).ToBits()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Float32x4) HiToLo() Float32x4 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+func (x Float32x4) HiToLo() (z Float32x4) {
 	var v Float32x4
 	return v.ToBits().ReshapeToUint64s().BitsToFloat64().SetElem(0, x.ToBits().ReshapeToUint64s().BitsToFloat64().GetElem(1)).ToBits().ReshapeToUint32s().BitsToFloat32()
 }
 
-// HiToLo returns a vector with the upper 64 bits zeroed and the lower
-// 64 bits replaced with the upper 64 bits of x.
-func (x Float64x2) HiToLo() Float64x2 {
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+func (x Float64x2) HiToLo() (z Float64x2) {
 	var v Float64x2
 	return v.SetElem(0, x.GetElem(1))
 }

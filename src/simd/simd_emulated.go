@@ -179,6 +179,14 @@ func (x Int8s) GreaterEqual(y Int8s) (z Mask8s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int8s) HiToLo() (z Int8s) {
+	return Int8s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -550,6 +558,14 @@ func (x Int16s) GreaterEqual(y Int16s) (z Mask16s) {
 		}
 	}
 	return res
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int16s) HiToLo() (z Int16s) {
+	return Int16s{a: x.b}
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -940,6 +956,14 @@ func (x Int32s) GreaterEqual(y Int32s) (z Mask32s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int32s) HiToLo() (z Int32s) {
+	return Int32s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -1272,6 +1296,14 @@ func (x Int64s) GreaterEqual(y Int64s) (z Mask64s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int64s) HiToLo() (z Int64s) {
+	return Int64s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -1540,6 +1572,14 @@ func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
 		}
 	}
 	return res
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint8s) HiToLo() (z Uint8s) {
+	return Uint8s{a: x.b}
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
@@ -1895,6 +1935,14 @@ func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s) {
 		}
 	}
 	return res
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint16s) HiToLo() (z Uint16s) {
+	return Uint16s{a: x.b}
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -2304,6 +2352,14 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint32s) HiToLo() (z Uint32s) {
+	return Uint32s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -2682,6 +2738,14 @@ func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint64s) HiToLo() (z Uint64s) {
+	return Uint64s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -3058,6 +3122,14 @@ func (x Float32s) GreaterEqual(y Float32s) (z Mask32s) {
 		}
 	}
 	return res
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float32s) HiToLo() (z Float32s) {
+	return Float32s{a: x.b}
 }
 
 // Len returns the number of elements in x.
@@ -3457,6 +3529,14 @@ func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
 		res.b = ^uint64(0)
 	}
 	return res
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float64s) HiToLo() (z Float64s) {
+	return Float64s{a: x.b}
 }
 
 // Len returns the number of elements in x.

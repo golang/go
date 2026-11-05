@@ -388,6 +388,39 @@ func TestBroadcast(t *testing.T) {
 	testBroadcast(t, float64(112233445599887766), simd.BroadcastFloat64s)
 }
 
+func testHiToLo[E number, V interface {
+	HasStoreLen[E]
+	HiToLo() V
+}](t *testing.T, load func([]E) V) {
+	t.Helper()
+	var zero V
+	n := zero.Len()
+	x := make([]E, n)
+	for i := range x {
+		x[i] = E(i + 1)
+	}
+	got := make([]E, n)
+	load(x).HiToLo().Store(got)
+	want := make([]E, n)
+	copy(want, x[n/2:])
+	if !slices.Equal(want, got) {
+		t.Errorf("%T.HiToLo(%v): want %v, got %v", zero, x, want, got)
+	}
+}
+
+func TestHiToLo(t *testing.T) {
+	testHiToLo(t, simd.LoadInt8s)
+	testHiToLo(t, simd.LoadInt16s)
+	testHiToLo(t, simd.LoadInt32s)
+	testHiToLo(t, simd.LoadInt64s)
+	testHiToLo(t, simd.LoadUint8s)
+	testHiToLo(t, simd.LoadUint16s)
+	testHiToLo(t, simd.LoadUint32s)
+	testHiToLo(t, simd.LoadUint64s)
+	testHiToLo(t, simd.LoadFloat32s)
+	testHiToLo(t, simd.LoadFloat64s)
+}
+
 func TestMaskToInt(t *testing.T) {
 	topBits := simd.BroadcastUint8s(0x80)
 	got := make([]int8, topBits.Len())
