@@ -1,0 +1,39 @@
+!sum
+# InterleaveLo — ZIP1, interleave the low halves of x and y. Unpredicated and
+# defined for every element type.
+- go: InterleaveLo
+  asm: "ZZIP1"
+  in:
+  - &any
+    go: $t
+  - *any
+  out:
+  - *any
+
+# InterleaveHi — ZIP2, interleave the high halves of x and y.
+- go: InterleaveHi
+  asm: "ZZIP2"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+# ConcatEven — UZP1, concatenate the even-indexed elements of x and y.
+- go: ConcatEven
+  asm: "ZUZP1"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+
+# ConcatOdd — UZP2, concatenate the odd-indexed elements of x and y.
+- go: ConcatOdd
+  asm: "ZUZP2"
+  in:
+  - *any
+  - *any
+  out:
+  - *any
+

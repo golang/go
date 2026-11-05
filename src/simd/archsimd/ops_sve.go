@@ -308,6 +308,122 @@ func (x Float32s) Ceil() (z Float32s)
 // Asm: ZFRINTP, CPU Feature: SVE
 func (x Float64s) Ceil() (z Float64s)
 
+/* ConcatEven */
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int8s) ConcatEven(y Int8s) (z Int8s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int16s) ConcatEven(y Int16s) (z Int16s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int32s) ConcatEven(y Int32s) (z Int32s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int64s) ConcatEven(y Int64s) (z Int64s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint8s) ConcatEven(y Uint8s) (z Uint8s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint16s) ConcatEven(y Uint16s) (z Uint16s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint32s) ConcatEven(y Uint32s) (z Uint32s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint64s) ConcatEven(y Uint64s) (z Uint64s)
+
+/* ConcatOdd */
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int8s) ConcatOdd(y Int8s) (z Int8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int16s) ConcatOdd(y Int16s) (z Int16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int32s) ConcatOdd(y Int32s) (z Int32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int64s) ConcatOdd(y Int64s) (z Int64s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint8s) ConcatOdd(y Uint8s) (z Uint8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint16s) ConcatOdd(y Uint16s) (z Uint16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint32s) ConcatOdd(y Uint32s) (z Uint32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint64s) ConcatOdd(y Uint64s) (z Uint64s)
+
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts each element of x to int32.
@@ -622,6 +738,122 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s)
 //
 // Asm: ZCMPHS, CPU Feature: SVE
 func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s)
+
+/* InterleaveHi */
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int8s) InterleaveHi(y Int8s) (z Int8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int16s) InterleaveHi(y Int16s) (z Int16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int32s) InterleaveHi(y Int32s) (z Int32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int64s) InterleaveHi(y Int64s) (z Int64s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint8s) InterleaveHi(y Uint8s) (z Uint8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint16s) InterleaveHi(y Uint16s) (z Uint16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint32s) InterleaveHi(y Uint32s) (z Uint32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint64s) InterleaveHi(y Uint64s) (z Uint64s)
+
+/* InterleaveLo */
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int8s) InterleaveLo(y Int8s) (z Int8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int16s) InterleaveLo(y Int16s) (z Int16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int32s) InterleaveLo(y Int32s) (z Int32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int64s) InterleaveLo(y Int64s) (z Int64s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint8s) InterleaveLo(y Uint8s) (z Uint8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint16s) InterleaveLo(y Uint16s) (z Uint16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint32s) InterleaveLo(y Uint32s) (z Uint32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint64s) InterleaveLo(y Uint64s) (z Uint64s)
 
 /* Max */
 

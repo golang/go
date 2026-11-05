@@ -1077,26 +1077,50 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatAddPairsUint8x16:
 		v.Op = ssaop.OpARM64VADDP16B
 		return true
+	case ssaop.OpConcatEvenInt16s:
+		v.Op = ssaop.OpARM64ZUZP1H
+		return true
 	case ssaop.OpConcatEvenInt16x8:
 		v.Op = ssaop.OpARM64VUZP18H
+		return true
+	case ssaop.OpConcatEvenInt32s:
+		v.Op = ssaop.OpARM64ZUZP1S
 		return true
 	case ssaop.OpConcatEvenInt32x4:
 		v.Op = ssaop.OpARM64VUZP14S
 		return true
+	case ssaop.OpConcatEvenInt64s:
+		v.Op = ssaop.OpARM64ZUZP1D
+		return true
 	case ssaop.OpConcatEvenInt64x2:
 		v.Op = ssaop.OpARM64VUZP12D
+		return true
+	case ssaop.OpConcatEvenInt8s:
+		v.Op = ssaop.OpARM64ZUZP1B
 		return true
 	case ssaop.OpConcatEvenInt8x16:
 		v.Op = ssaop.OpARM64VUZP116B
 		return true
+	case ssaop.OpConcatEvenUint16s:
+		v.Op = ssaop.OpARM64ZUZP1H
+		return true
 	case ssaop.OpConcatEvenUint16x8:
 		v.Op = ssaop.OpARM64VUZP18H
+		return true
+	case ssaop.OpConcatEvenUint32s:
+		v.Op = ssaop.OpARM64ZUZP1S
 		return true
 	case ssaop.OpConcatEvenUint32x4:
 		v.Op = ssaop.OpARM64VUZP14S
 		return true
+	case ssaop.OpConcatEvenUint64s:
+		v.Op = ssaop.OpARM64ZUZP1D
+		return true
 	case ssaop.OpConcatEvenUint64x2:
 		v.Op = ssaop.OpARM64VUZP12D
+		return true
+	case ssaop.OpConcatEvenUint8s:
+		v.Op = ssaop.OpARM64ZUZP1B
 		return true
 	case ssaop.OpConcatEvenUint8x16:
 		v.Op = ssaop.OpARM64VUZP116B
@@ -1149,26 +1173,50 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConcatMinPairsUint8x16:
 		v.Op = ssaop.OpARM64VUMINP16B
 		return true
+	case ssaop.OpConcatOddInt16s:
+		v.Op = ssaop.OpARM64ZUZP2H
+		return true
 	case ssaop.OpConcatOddInt16x8:
 		v.Op = ssaop.OpARM64VUZP28H
+		return true
+	case ssaop.OpConcatOddInt32s:
+		v.Op = ssaop.OpARM64ZUZP2S
 		return true
 	case ssaop.OpConcatOddInt32x4:
 		v.Op = ssaop.OpARM64VUZP24S
 		return true
+	case ssaop.OpConcatOddInt64s:
+		v.Op = ssaop.OpARM64ZUZP2D
+		return true
 	case ssaop.OpConcatOddInt64x2:
 		v.Op = ssaop.OpARM64VUZP22D
+		return true
+	case ssaop.OpConcatOddInt8s:
+		v.Op = ssaop.OpARM64ZUZP2B
 		return true
 	case ssaop.OpConcatOddInt8x16:
 		v.Op = ssaop.OpARM64VUZP216B
 		return true
+	case ssaop.OpConcatOddUint16s:
+		v.Op = ssaop.OpARM64ZUZP2H
+		return true
 	case ssaop.OpConcatOddUint16x8:
 		v.Op = ssaop.OpARM64VUZP28H
+		return true
+	case ssaop.OpConcatOddUint32s:
+		v.Op = ssaop.OpARM64ZUZP2S
 		return true
 	case ssaop.OpConcatOddUint32x4:
 		v.Op = ssaop.OpARM64VUZP24S
 		return true
+	case ssaop.OpConcatOddUint64s:
+		v.Op = ssaop.OpARM64ZUZP2D
+		return true
 	case ssaop.OpConcatOddUint64x2:
 		v.Op = ssaop.OpARM64VUZP22D
+		return true
+	case ssaop.OpConcatOddUint8s:
+		v.Op = ssaop.OpARM64ZUZP2B
 		return true
 	case ssaop.OpConcatOddUint8x16:
 		v.Op = ssaop.OpARM64VUZP216B
@@ -1644,50 +1692,98 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpInterleaveEvenUint8x16:
 		v.Op = ssaop.OpARM64VTRN116B
 		return true
+	case ssaop.OpInterleaveHiInt16s:
+		v.Op = ssaop.OpARM64ZZIP2H
+		return true
 	case ssaop.OpInterleaveHiInt16x8:
 		v.Op = ssaop.OpARM64VZIP28H
+		return true
+	case ssaop.OpInterleaveHiInt32s:
+		v.Op = ssaop.OpARM64ZZIP2S
 		return true
 	case ssaop.OpInterleaveHiInt32x4:
 		v.Op = ssaop.OpARM64VZIP24S
 		return true
+	case ssaop.OpInterleaveHiInt64s:
+		v.Op = ssaop.OpARM64ZZIP2D
+		return true
 	case ssaop.OpInterleaveHiInt64x2:
 		v.Op = ssaop.OpARM64VZIP22D
+		return true
+	case ssaop.OpInterleaveHiInt8s:
+		v.Op = ssaop.OpARM64ZZIP2B
 		return true
 	case ssaop.OpInterleaveHiInt8x16:
 		v.Op = ssaop.OpARM64VZIP216B
 		return true
+	case ssaop.OpInterleaveHiUint16s:
+		v.Op = ssaop.OpARM64ZZIP2H
+		return true
 	case ssaop.OpInterleaveHiUint16x8:
 		v.Op = ssaop.OpARM64VZIP28H
+		return true
+	case ssaop.OpInterleaveHiUint32s:
+		v.Op = ssaop.OpARM64ZZIP2S
 		return true
 	case ssaop.OpInterleaveHiUint32x4:
 		v.Op = ssaop.OpARM64VZIP24S
 		return true
+	case ssaop.OpInterleaveHiUint64s:
+		v.Op = ssaop.OpARM64ZZIP2D
+		return true
 	case ssaop.OpInterleaveHiUint64x2:
 		v.Op = ssaop.OpARM64VZIP22D
+		return true
+	case ssaop.OpInterleaveHiUint8s:
+		v.Op = ssaop.OpARM64ZZIP2B
 		return true
 	case ssaop.OpInterleaveHiUint8x16:
 		v.Op = ssaop.OpARM64VZIP216B
 		return true
+	case ssaop.OpInterleaveLoInt16s:
+		v.Op = ssaop.OpARM64ZZIP1H
+		return true
 	case ssaop.OpInterleaveLoInt16x8:
 		v.Op = ssaop.OpARM64VZIP18H
+		return true
+	case ssaop.OpInterleaveLoInt32s:
+		v.Op = ssaop.OpARM64ZZIP1S
 		return true
 	case ssaop.OpInterleaveLoInt32x4:
 		v.Op = ssaop.OpARM64VZIP14S
 		return true
+	case ssaop.OpInterleaveLoInt64s:
+		v.Op = ssaop.OpARM64ZZIP1D
+		return true
 	case ssaop.OpInterleaveLoInt64x2:
 		v.Op = ssaop.OpARM64VZIP12D
+		return true
+	case ssaop.OpInterleaveLoInt8s:
+		v.Op = ssaop.OpARM64ZZIP1B
 		return true
 	case ssaop.OpInterleaveLoInt8x16:
 		v.Op = ssaop.OpARM64VZIP116B
 		return true
+	case ssaop.OpInterleaveLoUint16s:
+		v.Op = ssaop.OpARM64ZZIP1H
+		return true
 	case ssaop.OpInterleaveLoUint16x8:
 		v.Op = ssaop.OpARM64VZIP18H
+		return true
+	case ssaop.OpInterleaveLoUint32s:
+		v.Op = ssaop.OpARM64ZZIP1S
 		return true
 	case ssaop.OpInterleaveLoUint32x4:
 		v.Op = ssaop.OpARM64VZIP14S
 		return true
+	case ssaop.OpInterleaveLoUint64s:
+		v.Op = ssaop.OpARM64ZZIP1D
+		return true
 	case ssaop.OpInterleaveLoUint64x2:
 		v.Op = ssaop.OpARM64VZIP12D
+		return true
+	case ssaop.OpInterleaveLoUint8s:
+		v.Op = ssaop.OpARM64ZZIP1B
 		return true
 	case ssaop.OpInterleaveLoUint8x16:
 		v.Op = ssaop.OpARM64VZIP116B
