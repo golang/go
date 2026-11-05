@@ -445,11 +445,11 @@ func TestExpiredErrorUsesUTC(t *testing.T) {
 	}{
 		{
 			now:  leaf.NotBefore.Add(-time.Hour).In(loc),
-			want: fmt.Sprintf("current time %s is before %s", leaf.NotBefore.Add(-time.Hour).UTC().Format(time.RFC3339), leaf.NotBefore.Format(time.RFC3339)),
+			want: "current time 2023-01-02T07:19:19Z is before 2023-01-02T08:19:19Z",
 		},
 		{
 			now:  leaf.NotAfter.Add(time.Hour).In(loc),
-			want: fmt.Sprintf("current time %s is after %s", leaf.NotAfter.Add(time.Hour).UTC().Format(time.RFC3339), leaf.NotAfter.Format(time.RFC3339)),
+			want: "current time 2023-03-27T09:19:18Z is after 2023-03-27T08:19:18Z",
 		},
 	} {
 		_, err := leaf.Verify(VerifyOptions{Roots: NewCertPool(), CurrentTime: tc.now})
