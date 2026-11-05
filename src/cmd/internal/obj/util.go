@@ -11,7 +11,6 @@ import (
 	"internal/abi"
 	"internal/buildcfg"
 	"io"
-	"math"
 	"strings"
 )
 
@@ -382,10 +381,9 @@ func writeDconv(w io.Writer, p *Prog, a *Addr, abiDetail bool) {
 		}
 
 	case TYPE_FCONST:
-		fimm := a.Val.(float64)
-		str := fmt.Sprintf("%.17g", fimm)
+		str := fmt.Sprintf("%.17g", a.Val.(float64))
 		// Make sure 1 prints as 1.0
-		if !strings.ContainsAny(str, ".e") && !math.IsNaN(fimm) && !math.IsInf(fimm, -1) && !math.IsInf(fimm, 1) {
+		if !strings.ContainsAny(str, ".e") {
 			str += ".0"
 		}
 		fmt.Fprintf(w, "$(%s)", str)

@@ -4721,11 +4721,10 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 		var index uint32
 		if p.As == AFLIS {
 			f32 := float32(p.From.Val.(float64))
-			// NaN is special as it can't be used in comparison.
 			if idx, ok := flisMapping[f32]; ok {
 				index = idx
 			} else {
-				p.Ctxt.Diag("%v: invalid floating point immediate", f32)
+				p.Ctxt.Diag("%v: invalid floating point immediate", p)
 				return nil
 			}
 		} else {
@@ -4733,10 +4732,12 @@ func instructionsForProg(p *obj.Prog, compress bool) []*instruction {
 			if idx, ok := flidMapping[f64]; ok {
 				index = idx
 			} else {
-				p.Ctxt.Diag("%v: invalid floating point immediate", f64)
+				p.Ctxt.Diag("%v: invalid floating point immediate", p)
 				return nil
 			}
 		}
+		// FLI is encoded like FMV.W.X, so the 5-bit immediate index lives in
+		// the rs2 field.
 		ins.rs2 = REG_ZERO + index
 
 	case AFENCE:
