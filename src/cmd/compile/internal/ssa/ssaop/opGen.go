@@ -8609,11 +8609,13 @@ const (
 	OpRotateRightUint64x4
 	OpRotateRightUint64x8
 	OpRoundFloat32s
+	OpRoundFloat32x16
 	OpRoundFloat32x4
 	OpRoundFloat32x8
 	OpRoundFloat64s
 	OpRoundFloat64x2
 	OpRoundFloat64x4
+	OpRoundFloat64x8
 	OpRoundScaledFloat32x16
 	OpRoundScaledFloat32x4
 	OpRoundScaledFloat32x8
@@ -123000,6 +123002,11 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "RoundFloat32x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
 		Name:    "RoundFloat32x4",
 		ArgLen:  1,
 		Generic: true,
@@ -123021,6 +123028,11 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "RoundFloat64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "RoundFloat64x8",
 		ArgLen:  1,
 		Generic: true,
 	},

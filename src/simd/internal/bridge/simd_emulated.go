@@ -3203,6 +3203,22 @@ func (x Float32s) ReduceSum() (z float32) {
 	return (x.get(0) + x.get(1)) + (x.get(2) + x.get(3))
 }
 
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32s) Round() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.RoundToEven(float64(x.get(i)))))
+	}
+	return res
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
@@ -3538,6 +3554,21 @@ func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
 //	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 func (x Float64s) ReduceSum() (z float64) {
 	return x.get(0) + x.get(1)
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64s) Round() (z Float64s) {
+	var res Float64s
+	res.set(0, math.RoundToEven(x.get(0)))
+	res.set(1, math.RoundToEven(x.get(1)))
+	return res
 }
 
 // Sqrt returns the elementwise square root of x.

@@ -67,8 +67,8 @@ func TestRoundAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Round, roundSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Round, roundSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Round, roundSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Round, roundSlice[float64])
 	}
 }
 

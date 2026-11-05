@@ -3580,6 +3580,18 @@ func (x Float32x16) ReduceSum() float32 {
 	return (archsimd.Float32x16(x)).ReduceSum()
 }
 
+func (x Float32x4) Round() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Round())
+}
+
+func (x Float32x8) Round() Float32x8 {
+	return Float32x8((archsimd.Float32x8(x)).Round())
+}
+
+func (x Float32x16) Round() Float32x16 {
+	return Float32x16((archsimd.Float32x16(x)).Round())
+}
+
 func (x Float32x4) Sqrt() Float32x4 {
 	return Float32x4((archsimd.Float32x4(x)).Sqrt())
 }
@@ -3866,6 +3878,18 @@ func (x Float64x4) ReduceSum() float64 {
 
 func (x Float64x8) ReduceSum() float64 {
 	return (archsimd.Float64x8(x)).ReduceSum()
+}
+
+func (x Float64x2) Round() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Round())
+}
+
+func (x Float64x4) Round() Float64x4 {
+	return Float64x4((archsimd.Float64x4(x)).Round())
+}
+
+func (x Float64x8) Round() Float64x8 {
+	return Float64x8((archsimd.Float64x8(x)).Round())
 }
 
 func (x Float64x2) Sqrt() Float64x2 {

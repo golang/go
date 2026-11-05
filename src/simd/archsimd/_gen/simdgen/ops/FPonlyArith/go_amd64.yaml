@@ -34,6 +34,20 @@
     const: 0 # place holder
   - *fp
   out: *1fp
+# VROUNDP[SD] has no 512-bit form. VRNDSCALEP[SD] with M (imm[7:4]) = 0 and
+# the same rounding mode in imm[1:0] computes the same thing.
+- go: "Round"
+  regexpTag: "fp"
+  asm: "VRNDSCALEP[SD]"
+  in:
+  - class: immediate
+    const: 0 # place holder
+  - &fp512
+    go: $t
+    base: float
+    bits: 512
+  out:
+  - *fp512
 
 - go: "(Round|Ceil|Floor|Trunc)Scaled"
   regexpTag: "fp"

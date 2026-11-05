@@ -835,8 +835,10 @@
 (RotateRightUint64x8 ...) => (VPRORVQ512 ...) // pureVreg
 (RoundFloat32x4 x) => (VROUNDPS128 [0] x) // pureVreg
 (RoundFloat32x8 x) => (VROUNDPS256 [0] x) // pureVreg
+(RoundFloat32x16 x) => (VRNDSCALEPS512 [0] x) // pureVreg
 (RoundFloat64x2 x) => (VROUNDPD128 [0] x) // pureVreg
 (RoundFloat64x4 x) => (VROUNDPD256 [0] x) // pureVreg
+(RoundFloat64x8 x) => (VRNDSCALEPD512 [0] x) // pureVreg
 (RoundScaledFloat32x4 [a] x) => (VRNDSCALEPS128 [a+0] x) // pureVreg
 (RoundScaledFloat32x8 [a] x) => (VRNDSCALEPS256 [a+0] x) // pureVreg
 (RoundScaledFloat32x16 [a] x) => (VRNDSCALEPS512 [a+0] x) // pureVreg

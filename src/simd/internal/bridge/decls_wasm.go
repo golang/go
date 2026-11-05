@@ -1200,6 +1200,10 @@ func (x Float32x4) ReduceSum() float32 {
 	return (archsimd.Float32x4(x)).ReduceSum()
 }
 
+func (x Float32x4) Round() Float32x4 {
+	return Float32x4((archsimd.Float32x4(x)).Round())
+}
+
 func (x Float32x4) Sqrt() Float32x4 {
 	return Float32x4((archsimd.Float32x4(x)).Sqrt())
 }
@@ -1294,6 +1298,10 @@ func (x Float64x2) NotEqual(y Float64x2) Mask64x2 {
 
 func (x Float64x2) ReduceSum() float64 {
 	return (archsimd.Float64x2(x)).ReduceSum()
+}
+
+func (x Float64x2) Round() Float64x2 {
+	return Float64x2((archsimd.Float64x2(x)).Round())
 }
 
 func (x Float64x2) Sqrt() Float64x2 {

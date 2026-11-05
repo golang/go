@@ -6232,6 +6232,18 @@ func (x Float32x8) Round() (z Float32x8)
 // Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
 // of a NaN result are unspecified.
 //
+// Asm: VRNDSCALEPS, CPU Feature: AVX512
+func (x Float32x16) Round() (z Float32x16)
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+//
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x2) Round() (z Float64x2)
 
@@ -6246,6 +6258,18 @@ func (x Float64x2) Round() (z Float64x2)
 //
 // Asm: VROUNDPD, CPU Feature: AVX
 func (x Float64x4) Round() (z Float64x4)
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+//
+// Asm: VRNDSCALEPD, CPU Feature: AVX512
+func (x Float64x8) Round() (z Float64x8)
 
 /* RoundScaled */
 

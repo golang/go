@@ -6087,6 +6087,8 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpRound64F:
 		v.Op = ssaop.OpAMD64LoweredRound64F
 		return true
+	case ssaop.OpRoundFloat32x16:
+		return rewriteValue_OpRoundFloat32x16(v)
 	case ssaop.OpRoundFloat32x4:
 		return rewriteValue_OpRoundFloat32x4(v)
 	case ssaop.OpRoundFloat32x8:
@@ -6095,6 +6097,8 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpRoundFloat64x2(v)
 	case ssaop.OpRoundFloat64x4:
 		return rewriteValue_OpRoundFloat64x4(v)
+	case ssaop.OpRoundFloat64x8:
+		return rewriteValue_OpRoundFloat64x8(v)
 	case ssaop.OpRoundScaledFloat32x16:
 		return rewriteValue_OpRoundScaledFloat32x16(v)
 	case ssaop.OpRoundScaledFloat32x4:
@@ -105362,6 +105366,18 @@ func rewriteValue_OpPopCount8(v *ssa.Value) bool {
 		return true
 	}
 }
+func rewriteValue_OpRoundFloat32x16(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (RoundFloat32x16 x)
+	// result: (VRNDSCALEPS512 [0] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPS512)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
 func rewriteValue_OpRoundFloat32x4(v *ssa.Value) bool {
 	v_0 := v.Args[0]
 	// match: (RoundFloat32x4 x)
@@ -105405,6 +105421,18 @@ func rewriteValue_OpRoundFloat64x4(v *ssa.Value) bool {
 	for {
 		x := v_0
 		v.Reset(ssaop.OpAMD64VROUNDPD256)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+}
+func rewriteValue_OpRoundFloat64x8(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (RoundFloat64x8 x)
+	// result: (VRNDSCALEPD512 [0] x)
+	for {
+		x := v_0
+		v.Reset(ssaop.OpAMD64VRNDSCALEPD512)
 		v.AuxInt = ssa.Uint8ToAuxInt(0)
 		v.AddArg(x)
 		return true
