@@ -4971,7 +4971,11 @@ func (s *state) openDeferExit() {
 		var callArgs []*ssa.Value
 		var call *ssa.Value
 		if r.closure != nil {
-			v := s.load(r.closure.Type.Elem(), r.closure)
+			t := r.closure.Type.Elem()
+			v := s.load(t, r.closure)
+			// The bit was cleared above and panic processing only reads a slot
+			// whose bit is set, so the slot is dead from here.
+			s.store(t, r.closure, s.zeroVal(t))
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
 			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, nil))
