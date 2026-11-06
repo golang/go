@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build netbsd
+//go:build (!goexperiment.runtimecgopurego || msan || tsan) && netbsd
 
 #include <string.h>
 #include <signal.h>
