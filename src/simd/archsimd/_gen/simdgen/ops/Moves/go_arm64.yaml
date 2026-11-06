@@ -201,6 +201,7 @@
     go: $t
     base: int|uint
     elemBits: 8
+    overwriteBase: uint
     name: indices
   out:
   - *bytes

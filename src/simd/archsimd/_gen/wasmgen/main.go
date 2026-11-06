@@ -406,7 +406,7 @@ func (o *wasmOp) SsaResultType() string {
 }
 
 func (o *wasmOp) RegInfo() string {
-	if o.argType == "" {
+	if o.argType == "" || (o.argType[0] >= 'A' && o.argType[0] <= 'Z') {
 		if o.resultType == "" || (o.resultType[0] >= 'A' && o.resultType[0] <= 'Z') {
 			switch o.argCount {
 			case 1:
@@ -912,7 +912,10 @@ func initWasmOps() {
 
 	// Shuffle is a mess, it takes a 8x16 vector in and SIXTEEN immediates specifying the indices.
 	// addWasmOps([]*simdType{vi8}, i8_shuf, 1, nil)
-	addWasmOpsDetail([]*simdType{vi8}, i8_swiz, 2, func(op *wasmOp) { op.arg1Name = "indices" })
+	addWasmOpsDetail([]*simdType{vi8}, i8_swiz, 2, func(op *wasmOp) {
+		op.arg1Name = "indices"
+		op.argType = op.t.UintFor().Name
+	})
 
 	// Masks have some operations.
 	addWasmOps(masks, iv_2, 2, isMask)

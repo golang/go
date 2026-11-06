@@ -1529,18 +1529,18 @@ func (x Uint32x4) LeadingZeros() (z Uint32x4)
 
 // LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
-//	if 0 <= indices[i] && indices[i] < 16 {
+//	if indices[i] < 16 {
 //	    z[i] = x[indices[i]]
 //	} else {
 //	    z[i] = 0
 //	}
 //
 // Asm: VTBL
-func (x Int8x16) LookupOrZero(indices Int8x16) (z Int8x16)
+func (x Int8x16) LookupOrZero(indices Uint8x16) (z Int8x16)
 
 // LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
-//	if 0 <= indices[i] && indices[i] < 16 {
+//	if indices[i] < 16 {
 //	    z[i] = x[indices[i]]
 //	} else {
 //	    z[i] = 0
