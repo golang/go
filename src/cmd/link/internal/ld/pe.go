@@ -992,7 +992,7 @@ func (f *peFile) writeSymbols(ctxt *Link) {
 				// underscore prefix for these 2 symbols. I don't have enough knowledge to
 				// verify whether adding the underscore for all STEXT/STYPE symbols are
 				// fine, even if it could be, that would be done in future CL.
-				name == "go:buildid" || name == "type:*") {
+				name == "go:buildid" || name == "type:*" || name == "_load_config_used") {
 			name = "_" + name
 		}
 
@@ -1340,18 +1340,10 @@ func Peinit(ctxt *Link) {
 	pefile.nextSectOffset = uint32(PESECTHEADR)
 	pefile.nextFileOffset = uint32(PEFILEHEADR)
 
-	if ctxt.LinkMode == LinkInternal {
-		// some mingw libs depend on this symbol, for example, FindPESectionByName
-		for _, name := range [...]string{"__image_base__", "_image_base__", "__ImageBase"} {
-			sb := ctxt.loader.CreateSymForUpdate(name, 0)
-			sb.SetType(sym.SDATA)
-			sb.SetValue(PEBASE)
-			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
-			ctxt.loader.SetAttrLocal(sb.Sym(), true)
-		}
-
-		// The _load_config_used symbol is required to be present on modern
-		// Windows. We later wire this up to the PE data directory.
+	// The _load_config_used symbol is required to be present on modern
+	// Windows. We later wire this up to the PE data directory in internal
+	// linking mode, and export it to the external linker in external linking mode.
+	{
 		sb := ctxt.loader.CreateSymForUpdate("_load_config_used", 0)
 		sb.SetType(sym.SRODATA)
 		sb.SetAlign(int32(ctxt.Arch.PtrSize))
@@ -1372,6 +1364,17 @@ func Peinit(ctxt *Link) {
 		sb.SetData(buf.Bytes())
 		sb.SetSize(int64(buf.Len()))
 		ctxt.loader.SetAttrReachable(sb.Sym(), true)
+	}
+
+	if ctxt.LinkMode == LinkInternal {
+		// some mingw libs depend on this symbol, for example, FindPESectionByName
+		for _, name := range [...]string{"__image_base__", "_image_base__", "__ImageBase"} {
+			sb := ctxt.loader.CreateSymForUpdate(name, 0)
+			sb.SetType(sym.SDATA)
+			sb.SetValue(PEBASE)
+			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
+			ctxt.loader.SetAttrLocal(sb.Sym(), true)
+		}
 
 		// The Windows loader writes this module's static TLS index here.
 		tlsIndex := ctxt.loader.CreateSymForUpdate("_tls_index", 0)

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !goexperiment.cgobindings
+
 #ifdef __CYGWIN__
 #error "don't use the cygwin compiler to build native Windows programs; use MinGW instead"
 #endif
@@ -13,29 +15,6 @@
 #include <stdlib.h>
 
 #include "libcgo.h"
-
-#define IMAGE_GUARD_SECURITY_COOKIE_UNUSED 0x00000800
-// With modern mingw, we can use the normal struct:
-//
-// const IMAGE_LOAD_CONFIG_DIRECTORY _load_config_used = {
-// 	.Size = sizeof(_load_config_used),
-// 	.GuardFlags = IMAGE_GUARD_SECURITY_COOKIE_UNUSED
-// };
-//
-// But we support older toolchains, so instead, fix the offsets:
-#ifdef _WIN64
-const ULONGLONG _load_config_used[40] = {
-	sizeof(_load_config_used),
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	IMAGE_GUARD_SECURITY_COOKIE_UNUSED
-};
-#else
-const DWORD _load_config_used[48] = {
-	sizeof(_load_config_used),
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	IMAGE_GUARD_SECURITY_COOKIE_UNUSED
-};
-#endif
 
 static volatile LONG runtime_init_once_gate = 0;
 static volatile LONG runtime_init_once_done = 0;
