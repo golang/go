@@ -97,3 +97,15 @@ type DISPATCHER_CONTEXT struct {
 func (c *DISPATCHER_CONTEXT) Ctx() *Context {
 	return c.Context
 }
+
+// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-memory_basic_information
+type MemoryBasicInformation struct {
+	BaseAddress       uintptr
+	AllocationBase    uintptr
+	AllocationProtect uint32
+	PartitionId       uint16
+	RegionSize        uintptr
+	State             uint32
+	Protect           uint32
+	Type              uint32
+}

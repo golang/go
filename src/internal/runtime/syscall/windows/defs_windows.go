@@ -140,18 +140,6 @@ type Overlapped struct {
 	HEvent       Handle
 }
 
-// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-memory_basic_information
-type MemoryBasicInformation struct {
-	BaseAddress       uintptr
-	AllocationBase    uintptr
-	AllocationProtect uint32
-	PartitionId       uint16
-	RegionSize        uintptr
-	State             uint32
-	Protect           uint32
-	Type              uint32
-}
-
 // https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
 type OSVERSIONINFOW struct {
 	OSVersionInfoSize uint32
