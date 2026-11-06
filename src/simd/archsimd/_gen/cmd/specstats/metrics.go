@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmp"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"simd/archsimd/_gen/specgen"
@@ -116,6 +117,7 @@ type metrics struct {
 	fromSpec           *tally[declKey]
 	bounded            *tally[declKey]
 	handConflict       int
+	handConflictDecls  []string // the declarations behind handConflict, sorted
 	handConflictByFile []fileCount
 	crossPkg           *tally[methodKey]
 	mirror             *tally[methodKey]
@@ -127,6 +129,7 @@ type metrics struct {
 	catExportedFields                map[string]int
 	comments                         int
 	commentsSpecCovered              int
+	commentsSpecCoveredNames         []string // the entries behind commentsSpecCovered
 	commutDrift                      int
 }
 
@@ -334,8 +337,10 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 		if !seenByFile[dk] {
 			seenByFile[dk] = true
 			byFile[f.file]++
+			m.handConflictDecls = append(m.handConflictDecls, fmt.Sprint(dk))
 		}
 	}
+	slices.Sort(m.handConflictDecls)
 	for _, k := range sortedKeys(byFile) {
 		m.handConflictByFile = append(m.handConflictByFile, fileCount{k, byFile[k]})
 	}
@@ -393,6 +398,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 	eachEntry(root, func(k, v *yaml.Node) {
 		if isString(v) && specNames[k.Value] {
 			m.commentsSpecCovered++
+			m.commentsSpecCoveredNames = append(m.commentsSpecCoveredNames, k.Value)
 		}
 	})
 

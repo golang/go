@@ -23,10 +23,12 @@
 // the grouping, so a new figure is a few lines rather than a new loop.
 //
 // Like Fill, this parses rather than type-checks, so it sees every target's
-// declarations regardless of build tags (SPEC-TRANSITION.md §2.4). It is a
-// measurement tool and not a checker: it reports divergence and does not judge
-// it. fill builds the checker, and should absorb the comparison half of this
-// program rather than leave two implementations to drift.
+// declarations regardless of build tags (SPEC-TRANSITION.md §2.4). It is
+// mostly a measurement tool: it reports divergence and does not judge it. The
+// exception is the counts that have reached zero (see [invariant]), which
+// TestInvariants enforces. fill builds the checker, and should absorb the
+// comparison half of this program rather than leave two implementations to
+// drift.
 package main
 
 import (
@@ -44,6 +46,17 @@ func main() {
 	genOpts := gentools.RegisterFlags(nil)
 	flag.Parse()
 
+	m := load(genOpts)
+
+	var files gentools.Files
+	defer files.FlushOrExit()
+
+	buf := files.NewRawFile("simd/archsimd/_gen/SPEC-STATS.txt")
+	m.report(buf)
+}
+
+// load reads spec and the simd and archsimd APIs and measures them.
+func load(genOpts *gentools.Options) *metrics {
 	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
 	simdDir := filepath.Clean(filepath.Join(specDir, "..", ".."))
 	genDir := filepath.Join(simdDir, "archsimd", "_gen")
@@ -52,10 +65,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("loading spec: %s", err)
 	}
-
-	var files gentools.Files
-	defer files.FlushOrExit()
-
-	buf := files.NewRawFile("simd/archsimd/_gen/SPEC-STATS.txt")
-	measure(loadAPI(genOpts, simdDir), spec, genDir).report(buf)
+	return measure(loadAPI(genOpts, simdDir), spec, genDir)
 }

@@ -90,6 +90,9 @@ type fact struct {
 	target string
 }
 
+func (k methodKey) String() string { return k.recv + "." + k.name }
+func (k declKey) String() string   { return k.file + ": " + k.methodKey.String() }
+
 func (d *decl) methodKey() methodKey        { return methodKey{d.recv, d.name} }
 func (f fact) declKey() declKey             { return declKey{f.file, f.methodKey()} }
 func (f fact) archMethodKey() archMethodKey { return archMethodKey{f.target, f.pkg, f.methodKey()} }
