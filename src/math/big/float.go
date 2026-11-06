@@ -653,13 +653,20 @@ func (z *Float) SetInf(signbit bool) *Float {
 // mode; and z's accuracy reports the result error relative to the
 // exact (not rounded) result.
 func (z *Float) Set(x *Float) *Float {
+	return z.set(x, x.neg)
+}
+
+// set sets z to the (possibly rounded) value of x with sign neg and
+// returns z. The sign is set before rounding so that the rounding mode
+// applies to the result.
+func (z *Float) set(x *Float, neg bool) *Float {
 	if debugFloat {
 		x.validate()
 	}
 	z.acc = Exact
+	z.neg = neg
 	if z != x {
 		z.form = x.form
-		z.neg = x.neg
 		if x.form == finite {
 			z.exp = x.exp
 			z.mant = z.mant.set(x.mant)
@@ -1180,17 +1187,13 @@ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
 // Abs sets z to the (possibly rounded) value |x| (the absolute value of x)
 // and returns z.
 func (z *Float) Abs(x *Float) *Float {
-	z.Set(x)
-	z.neg = false
-	return z
+	return z.set(x, false)
 }
 
 // Neg sets z to the (possibly rounded) value of x with its sign negated,
 // and returns z.
 func (z *Float) Neg(x *Float) *Float {
-	z.Set(x)
-	z.neg = !z.neg
-	return z
+	return z.set(x, !x.neg)
 }
 
 func validateBinaryOperands(x, y *Float) {
