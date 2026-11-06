@@ -934,6 +934,15 @@ func TestEscapeSet(t *testing.T) {
 			},
 			`<script>var x= 126 /"42";</script>`,
 		},
+		// A template that ends in a different context, called twice from
+		// the same context.
+		{
+			map[string]string{
+				"main":   `<a href="{{template "helper"}}{{"a&b"}}"><a href="{{template "helper"}}{{"a&b"}}">`,
+				"helper": `/search?q=`,
+			},
+			`<a href="/search?q=a%26b"><a href="/search?q=a%26b">`,
+		},
 		// A recursive template that ends in a similar context.
 		{
 			map[string]string{
