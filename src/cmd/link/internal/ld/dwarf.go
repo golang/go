@@ -26,6 +26,7 @@ import (
 	"internal/abi"
 	"internal/buildcfg"
 	"log"
+	"os/exec"
 	"path"
 	"runtime"
 	"slices"
@@ -1855,6 +1856,13 @@ func dwarfEnabled(ctxt *Link) bool {
 		case ctxt.HeadType == objabi.Haix:
 			res, err := dwarf.IsDWARFEnabledOnAIXLd(ctxt.extld())
 			if err != nil {
+				if buildcfg.Experiment.RuntimeCgoPurego && iscgo && len(hostobj) == 0 {
+					// Without host objects, a missing external linker is
+					// reported by hostlink with a clearer error.
+					if _, lerr := exec.LookPath(ctxt.extld()[0]); lerr != nil {
+						return false
+					}
+				}
 				Exitf("%v", err)
 			}
 			return res

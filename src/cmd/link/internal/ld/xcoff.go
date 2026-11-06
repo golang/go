@@ -1313,6 +1313,19 @@ func (ctxt *Link) doxcoff() {
 		rt0 := ldr.Lookup("runtime.rt0_go", 0)
 		ldr.SetSymExtname(rt0, "runtime_rt0_go")
 
+		var textMain loader.Sym
+		if main := ldr.Lookup("main", 0); main != 0 && ldr.AttrReachable(main) && ldr.AttrCgoExport(main) && ldr.SymType(main) != sym.SHOSTOBJ {
+			// Expose runtime's _main (paired with the main descriptor in
+			// rt0_aix_ppc64.s) as .main for crt0_64.o, unless a host
+			// object (such as gcc_aix_ppc64.c) defines main itself.
+			textMain = ldr.Lookup("_main", 0)
+			if textMain != 0 && ldr.AttrReachable(textMain) {
+				ldr.SetSymExtname(textMain, ".main")
+			} else {
+				textMain = 0
+			}
+		}
+
 		nsym := loader.Sym(ldr.NSym())
 		for s := loader.Sym(1); s < nsym; s++ {
 			if !ldr.AttrCgoExport(s) {
@@ -1337,6 +1350,20 @@ func (ctxt *Link) doxcoff() {
 				desc.AddUint64(ctxt.Arch, 0)
 			}
 		}
+
+		// Place C-exported text entrypoints (and .main) at the end of Go's
+		// .text section, adjacent to trailing C objects and crt0_64.o, so AIX
+		// ld does not insert branch-fixup CSECT trampolines between Go functions.
+		goText := ctxt.Textp[:0]
+		var cExportText []loader.Sym
+		for _, s := range ctxt.Textp {
+			if s == textMain || ldr.AttrCgoExport(s) {
+				cExportText = append(cExportText, s)
+			} else {
+				goText = append(goText, s)
+			}
+		}
+		ctxt.Textp = append(goText, cExportText...)
 	}
 }
 
@@ -1775,21 +1802,9 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
 
 	ldr := ctxt.loader
 	for s := range ldr.ForAllCgoExportStatic() {
-		extname := ldr.SymExtname(s)
-		if !strings.HasPrefix(extname, "._cgoexp_") {
-			continue
+		if name, ok := cgoExportSymbolName(ldr, s); ok {
+			buf.WriteString(name + "\n")
 		}
-		if ldr.IsFileLocal(s) {
-			continue // Only export non-static symbols
-		}
-
-		// Retrieve the name of the initial symbol
-		// exported by cgo.
-		// The corresponding Go symbol is:
-		// _cgoexp_hashcode_symname.
-		name := strings.SplitN(extname, "_", 4)[3]
-
-		buf.Write([]byte(name + "\n"))
 	}
 
 	err := os.WriteFile(fname, buf.Bytes(), 0666)

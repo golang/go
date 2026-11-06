@@ -1914,6 +1914,9 @@ func (ctxt *Link) hostlink() {
 			args := append(args, "-maix64", "--print-file-name="+file)
 			out, err := exec.Command(name, args...).CombinedOutput()
 			if err != nil {
+				if buildcfg.Experiment.RuntimeCgoPurego && iscgo && len(hostobj) == 0 {
+					Exitf("cgo on %s/%s requires an external linker (C toolchain); set CC or use CGO_ENABLED=0: running %s failed: %v\n%s", buildcfg.GOOS, buildcfg.GOARCH, name, err, out)
+				}
 				log.Fatalf("running %s failed: %v\n%s", extld, err, out)
 			}
 			return strings.Trim(string(out), "\n")
