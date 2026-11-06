@@ -3384,3 +3384,83 @@ func _() {
 		t.Errorf("expression %s not visited", expr)
 	}
 }
+
+func TestComparable(t *testing.T) {
+	t.Parallel()
+	const src = `package p
+
+type (
+	S1 struct{ a int; b string }
+	S2 struct{ a int; b any }
+	S3 struct{ a int; b []int }
+
+	A1 [2]int
+	A2 [2]any
+	A3 [2][]int
+
+	I1 interface{ m() }
+	I2 interface{ ~int | ~string }
+	I3 interface{ ~int | ~[]byte }
+	I4 interface{ int; string } // empty type set
+
+	TP[P any, Q comparable, R ~int | ~string, U ~int | ~[]byte, V I4] struct {
+		sp struct{ f P }
+		sq struct{ f Q }
+	}
+)
+`
+	pkg := mustTypecheck(src, nil, nil)
+	lookup := func(name string) Type { return pkg.Scope().Lookup(name).Type() }
+
+	tp := lookup("TP").(*Named)
+	tparams := tp.TypeParams()
+	tpStruct := tp.Underlying().(*Struct)
+
+	tests := []struct {
+		name               string
+		typ                Type
+		comparable         bool
+		strictlyComparable bool
+	}{
+		{"int", Typ[Int], true, true},
+		{"string", Typ[String], true, true},
+		{"untyped nil", Typ[UntypedNil], false, false},
+		{"*int", NewPointer(Typ[Int]), true, true},
+		{"chan int", NewChan(SendRecv, Typ[Int]), true, true},
+		{"[]int", NewSlice(Typ[Int]), false, false},
+		{"map[string]int", NewMap(Typ[String], Typ[Int]), false, false},
+		{"func()", NewSignatureType(nil, nil, nil, nil, nil, false), false, false},
+
+		{"S1", lookup("S1"), true, true},
+		{"S2", lookup("S2"), true, false},
+		{"S3", lookup("S3"), false, false},
+
+		{"A1", lookup("A1"), true, true},
+		{"A2", lookup("A2"), true, false},
+		{"A3", lookup("A3"), false, false},
+
+		{"any", Universe.Lookup("any").Type(), true, false},
+		{"comparable", Universe.Lookup("comparable").Type(), true, true},
+		{"I1", lookup("I1"), true, false},
+		{"I2", lookup("I2"), true, true},
+		{"I3", lookup("I3"), true, false},
+		{"I4 (empty type set)", lookup("I4"), true, false},
+
+		{"P (any)", tparams.At(0), false, false},
+		{"Q (comparable)", tparams.At(1), true, true},
+		{"R (~int | ~string)", tparams.At(2), true, true},
+		{"U (~int | ~[]byte)", tparams.At(3), false, false},
+		{"V (empty type set)", tparams.At(4), false, false},
+		{"struct{ f P }", tpStruct.Field(0).Type(), false, false},
+		{"struct{ f Q }", tpStruct.Field(1).Type(), true, true},
+	}
+
+	for _, test := range tests {
+		if got := Comparable(test.typ); got != test.comparable {
+			t.Errorf("Comparable(%s) = %v, want %v", test.name, got, test.comparable)
+		}
+		if got := StrictlyComparable(test.typ); got != test.strictlyComparable {
+			t.Errorf("StrictlyComparable(%s) = %v, want %v", test.name, got, test.strictlyComparable)
+		}
+	}
+}
