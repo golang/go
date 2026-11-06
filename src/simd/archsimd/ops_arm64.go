@@ -2027,45 +2027,61 @@ func (x Uint64x2) Or(y Uint64x2) (z Uint64x2)
 
 /* OrNot */
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Int8x16) OrNot(y Int8x16) Int8x16
+func (x Int8x16) OrNot(y Int8x16) (z Int8x16)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Int16x8) OrNot(y Int16x8) Int16x8
+func (x Int16x8) OrNot(y Int16x8) (z Int16x8)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Int32x4) OrNot(y Int32x4) Int32x4
+func (x Int32x4) OrNot(y Int32x4) (z Int32x4)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Int64x2) OrNot(y Int64x2) Int64x2
+func (x Int64x2) OrNot(y Int64x2) (z Int64x2)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Uint8x16) OrNot(y Uint8x16) Uint8x16
+func (x Uint8x16) OrNot(y Uint8x16) (z Uint8x16)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Uint16x8) OrNot(y Uint16x8) Uint16x8
+func (x Uint16x8) OrNot(y Uint16x8) (z Uint16x8)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Uint32x4) OrNot(y Uint32x4) Uint32x4
+func (x Uint32x4) OrNot(y Uint32x4) (z Uint32x4)
 
-// OrNot performs a bitwise x | ^y.
+// OrNot returns the bitwise OR NOT of x and y.
+//
+//	z[i] = x[i] | ^y[i]
 //
 // Asm: VORN
-func (x Uint64x2) OrNot(y Uint64x2) Uint64x2
+func (x Uint64x2) OrNot(y Uint64x2) (z Uint64x2)
 
 /* Round */
 
