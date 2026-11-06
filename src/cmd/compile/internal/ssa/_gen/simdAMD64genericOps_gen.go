@@ -27,8 +27,6 @@ func init() {
 		{name: "AbsInt32x4", argLength: 1},
 		{name: "AbsInt32x8", argLength: 1},
 		{name: "AbsInt32x16", argLength: 1},
-		{name: "AbsInt64x2", argLength: 1},
-		{name: "AbsInt64x4", argLength: 1},
 		{name: "AbsInt64x8", argLength: 1},
 		{name: "AddFloat32x4", argLength: 2, commutative: true},
 		{name: "AddFloat32x8", argLength: 2, commutative: true},

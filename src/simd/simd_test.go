@@ -126,6 +126,8 @@ func TestInt64s(t *testing.T) {
 	load := simd.LoadInt64s
 	shifts := test_helpers.Shift64s()
 	test_helpers.TestV2Ve(t, values, load, simd.Int64s.Neg, test_helpers.Neg)
+	// Include the extremes: Abs(MinInt64) is 1<<63.
+	test_helpers.TestV2Ve(t, append(slices.Clone(values), -1<<63, 1<<63-1), load, simd.Int64s.Abs, test_helpers.Abs)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Add, test_helpers.Add)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Sub, test_helpers.Sub)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.And, test_helpers.And)

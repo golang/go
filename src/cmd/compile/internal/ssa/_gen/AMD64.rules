@@ -1933,6 +1933,13 @@
 (VPANDD512 x (VPMOVMToVec16x32 k)) => (VMOVDQU16Masked512 x k)
 (VPANDD512 x (VPMOVMToVec8x64 k)) => (VMOVDQU8Masked512 x k)
 
+// Int64x2 and Int64x4 Abs are emulated with AVX and AVX2 (see
+// ops_emulated_amd64.go), since VPABSQ needs AVX-512. Where AVX-512 is known
+// to be available, use VPABSQ instead. The emulation is (x ^ m) - m with
+// m = 0 > x.
+(VPSUBQ128 (VPXOR128 x m:(VPCMPGTQ128 (Zero128) x)) m) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPABSQ128 x)
+(VPSUBQ256 (VPXOR256 x m:(VPCMPGTQ256 (Zero256) x)) m) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPABSQ256 x)
+
 // 128- and 256-bit comparisons produce vector masks. If such a mask's only use
 // can take an AVX-512 mask, compare into an AVX-512 mask instead. This is the
 // mask of a blend, or one operand of an AND, which other rules turn into a

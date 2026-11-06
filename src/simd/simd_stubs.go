@@ -509,6 +509,9 @@ func LoadInt64sPart(s []int64) (z Int64s, n int)
 // result.
 func BroadcastInt64s(x int64) (z Int64s)
 
+// Abs returns the elementwise absolute value of x.
+func (x Int64s) Abs() (z Uint64s)
+
 // Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]

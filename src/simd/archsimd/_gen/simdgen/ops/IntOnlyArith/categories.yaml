@@ -8,6 +8,15 @@
   # Unary operation, not commutative
   documentation: !string |-
     // NAME computes the absolute value of each element.
+# VPABSQ at 128 and 256 bits, as machine ops only, so that AMD64.rules can
+# use it in place of the AVX/AVX2 emulation of Abs when AVX-512 is known to be
+# available.
+- go: absInt64AVX512
+  noTypes: "true"
+  noGenericOps: "true"
+  commutative: false
+  documentation: !string |-
+    // NAME computes the absolute value of each element.
 - go: MulSign
   commutative: false
   documentation: !string |-

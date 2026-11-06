@@ -1236,6 +1236,20 @@ func (x *Int64s) set(i int, v int64) {
 	}
 }
 
+// Abs returns the elementwise absolute value of x.
+func (x Int64s) Abs() (z Uint64s) {
+	var res Uint64s
+	for i := 0; i < 2; i++ {
+		v := x.get(i)
+		if v < 0 {
+			res.set(i, uint64(-v))
+		} else {
+			res.set(i, uint64(v))
+		}
+	}
+	return res
+}
+
 // Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]

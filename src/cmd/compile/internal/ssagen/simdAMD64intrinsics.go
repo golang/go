@@ -34,8 +34,6 @@ func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 	addF(simdPackage, "Int32x4.Abs", opLen1(ssaop.OpAbsInt32x4, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int32x8.Abs", opLen1(ssaop.OpAbsInt32x8, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int32x16.Abs", opLen1(ssaop.OpAbsInt32x16, types.TypeVec512), sys.AMD64)
-	addF(simdPackage, "Int64x2.Abs", opLen1(ssaop.OpAbsInt64x2, types.TypeVec128), sys.AMD64)
-	addF(simdPackage, "Int64x4.Abs", opLen1(ssaop.OpAbsInt64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int64x8.Abs", opLen1(ssaop.OpAbsInt64x8, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Float32x4.Add", opLen2(ssaop.OpAddFloat32x4, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Float32x8.Add", opLen2(ssaop.OpAddFloat32x8, types.TypeVec256), sys.AMD64)

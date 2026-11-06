@@ -1054,6 +1054,14 @@ func (x Int32x4nclm) Xor(y Int32x4nclm) Int32x4nclm {
 	return Int32x4nclm((archsimd.Int32x4(x)).Xor(archsimd.Int32x4(y)))
 }
 
+func (x Int64x2) Abs() Uint64x2 {
+	return Uint64x2((archsimd.Int64x2(x)).Abs())
+}
+
+func (x Int64x2nclm) Abs() Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Int64x2(x)).Abs())
+}
+
 func (x Int64x2) Add(y Int64x2) Int64x2 {
 	return Int64x2((archsimd.Int64x2(x)).Add(archsimd.Int64x2(y)))
 }

@@ -182,16 +182,6 @@ func (x Int32x16) Abs() (z Uint32x16)
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x2) Abs() (z Uint64x2)
-
-// Abs returns the elementwise absolute value of x.
-//
-// Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x4) Abs() (z Uint64x4)
-
-// Abs returns the elementwise absolute value of x.
-//
-// Asm: VPABSQ, CPU Feature: AVX512
 func (x Int64x8) Abs() (z Uint64x8)
 
 /* Add */

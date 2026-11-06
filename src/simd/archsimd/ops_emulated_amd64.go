@@ -126,6 +126,29 @@ var f0x64 = [64]int8{-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
 	-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
 	-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0}
 
+// Abs returns the elementwise absolute value of x.
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) Abs() (z Uint64x2) {
+	// VPABSQ needs AVX-512. Negate the negative elements instead:
+	// with m all ones where x < 0 and zero elsewhere, (x ^ m) - m is -x
+	// where x < 0 and x elsewhere. MinInt64 stays MinInt64, which as an
+	// unsigned value is its magnitude, 1<<63.
+	var zero Int64x2
+	m := zero.Greater(x).ToInt64x2()
+	return x.Xor(m).Sub(m).ToBits()
+}
+
+// Abs returns the elementwise absolute value of x.
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) Abs() (z Uint64x4) {
+	// See Int64x2.Abs.
+	var zero Int64x4
+	m := zero.Greater(x).ToInt64x4()
+	return x.Xor(m).Sub(m).ToBits()
+}
+
 // Mul returns the elementwise product of x and y.
 //
 //	z[i] = x[i] * y[i]

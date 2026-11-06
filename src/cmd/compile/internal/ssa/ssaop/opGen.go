@@ -7487,7 +7487,6 @@ const (
 	OpAbsInt32x8
 	OpAbsInt64s
 	OpAbsInt64x2
-	OpAbsInt64x4
 	OpAbsInt64x8
 	OpAbsInt8s
 	OpAbsInt8x16
@@ -117293,11 +117292,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "AbsInt64x2",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "AbsInt64x4",
 		ArgLen:  1,
 		Generic: true,
 	},
