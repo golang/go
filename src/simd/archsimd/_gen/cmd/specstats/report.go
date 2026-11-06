@@ -16,7 +16,9 @@ func (m *metrics) report(w *bytes.Buffer) {
 	fmt.Fprintf(w, "Every fraction heads for 100%%; every count heads for zero. Bracketed\n")
 	fmt.Fprintf(w, "names are SPEC-TRANSITION.md tasks that move the figure. Indented,\n")
 	fmt.Fprintf(w, "untagged numbers are context breaking down the figure above them.\n")
-	fmt.Fprintf(w, "String, Len, ToArch, and FromArch are excluded throughout (§2.7).\n")
+	fmt.Fprintf(w, "String, Len, ToArch, and FromArch are excluded throughout (§2.7), as are\n")
+	fmt.Fprintf(w, "declarations that are not vector operations, such as CPU feature checks,\n")
+	fmt.Fprintf(w, "and the deprecated amd64 Merge (see nonSpecDecl).\n")
 
 	m.summary(w)
 	m.coverage(w)
