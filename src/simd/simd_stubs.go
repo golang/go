@@ -1286,6 +1286,17 @@ func (x Uint64s) BitsToInt64() (z Int64s)
 //	= (x^6 + x^5 + x^1)
 func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s)
 
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s)
+
 // CarrylessMultiplyOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
@@ -1295,6 +1306,17 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s)
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s)
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s)
 
 // ConvertToInt64 converts each element of x to int64.
 //
