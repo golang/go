@@ -494,103 +494,183 @@ func (x Uint64x2) ConcatEven(y Uint64x2) (z Uint64x2)
 
 /* ConcatMaxPairs */
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [max(x0,x1), max(x2,x3), max(y0,y1), max(y2,y3)].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), max(y[0], y[1]), max(y[2], y[3])}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VFMAXP
-func (x Float32x4) ConcatMaxPairs(y Float32x4) Float32x4
+func (x Float32x4) ConcatMaxPairs(y Float32x4) (z Float32x4)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1] and y = [y0, y1], the result is [max(x0,x1), max(y0,y1)].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(y[0], y[1])}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VFMAXP
-func (x Float64x2) ConcatMaxPairs(y Float64x2) Float64x2
+func (x Float64x2) ConcatMaxPairs(y Float64x2) (z Float64x2)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [max(x0,x1), max(x2,x3), ..., max(y0,y1), max(y2,y3), ...].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMAXP
-func (x Int8x16) ConcatMaxPairs(y Int8x16) Int8x16
+func (x Int8x16) ConcatMaxPairs(y Int8x16) (z Int8x16)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [max(x0,x1), max(x2,x3), ..., max(y0,y1), max(y2,y3), ...].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMAXP
-func (x Int16x8) ConcatMaxPairs(y Int16x8) Int16x8
+func (x Int16x8) ConcatMaxPairs(y Int16x8) (z Int16x8)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [max(x0,x1), max(x2,x3), max(y0,y1), max(y2,y3)].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), max(y[0], y[1]), max(y[2], y[3])}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMAXP
-func (x Int32x4) ConcatMaxPairs(y Int32x4) Int32x4
+func (x Int32x4) ConcatMaxPairs(y Int32x4) (z Int32x4)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [max(x0,x1), max(x2,x3), ..., max(y0,y1), max(y2,y3), ...].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMAXP
-func (x Uint8x16) ConcatMaxPairs(y Uint8x16) Uint8x16
+func (x Uint8x16) ConcatMaxPairs(y Uint8x16) (z Uint8x16)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [max(x0,x1), max(x2,x3), ..., max(y0,y1), max(y2,y3), ...].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMAXP
-func (x Uint16x8) ConcatMaxPairs(y Uint16x8) Uint16x8
+func (x Uint16x8) ConcatMaxPairs(y Uint16x8) (z Uint16x8)
 
-// ConcatMaxPairs horizontally computes the maximum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [max(x0,x1), max(x2,x3), max(y0,y1), max(y2,y3)].
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), max(y[0], y[1]), max(y[2], y[3])}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMAXP
-func (x Uint32x4) ConcatMaxPairs(y Uint32x4) Uint32x4
+func (x Uint32x4) ConcatMaxPairs(y Uint32x4) (z Uint32x4)
 
 /* ConcatMinPairs */
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [min(x0,x1), min(x2,x3), min(y0,y1), min(y2,y3)].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), min(y[0], y[1]), min(y[2], y[3])}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VFMINP
-func (x Float32x4) ConcatMinPairs(y Float32x4) Float32x4
+func (x Float32x4) ConcatMinPairs(y Float32x4) (z Float32x4)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1] and y = [y0, y1], the result is [min(x0,x1), min(y0,y1)].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(y[0], y[1])}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VFMINP
-func (x Float64x2) ConcatMinPairs(y Float64x2) Float64x2
+func (x Float64x2) ConcatMinPairs(y Float64x2) (z Float64x2)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [min(x0,x1), min(x2,x3), ..., min(y0,y1), min(y2,y3), ...].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMINP
-func (x Int8x16) ConcatMinPairs(y Int8x16) Int8x16
+func (x Int8x16) ConcatMinPairs(y Int8x16) (z Int8x16)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [min(x0,x1), min(x2,x3), ..., min(y0,y1), min(y2,y3), ...].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMINP
-func (x Int16x8) ConcatMinPairs(y Int16x8) Int16x8
+func (x Int16x8) ConcatMinPairs(y Int16x8) (z Int16x8)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [min(x0,x1), min(x2,x3), min(y0,y1), min(y2,y3)].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), min(y[0], y[1]), min(y[2], y[3])}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VSMINP
-func (x Int32x4) ConcatMinPairs(y Int32x4) Int32x4
+func (x Int32x4) ConcatMinPairs(y Int32x4) (z Int32x4)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [min(x0,x1), min(x2,x3), ..., min(y0,y1), min(y2,y3), ...].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMINP
-func (x Uint8x16) ConcatMinPairs(y Uint8x16) Uint8x16
+func (x Uint8x16) ConcatMinPairs(y Uint8x16) (z Uint8x16)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3, ...] and y = [y0, y1, y2, y3, ...], the result is [min(x0,x1), min(x2,x3), ..., min(y0,y1), min(y2,y3), ...].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMINP
-func (x Uint16x8) ConcatMinPairs(y Uint16x8) Uint16x8
+func (x Uint16x8) ConcatMinPairs(y Uint16x8) (z Uint16x8)
 
-// ConcatMinPairs horizontally computes the minimum of adjacent pairs of elements.
-// For x = [x0, x1, x2, x3] and y = [y0, y1, y2, y3], the result is [min(x0,x1), min(x2,x3), min(y0,y1), min(y2,y3)].
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), min(y[0], y[1]), min(y[2], y[3])}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
 //
 // Asm: VUMINP
-func (x Uint32x4) ConcatMinPairs(y Uint32x4) Uint32x4
+func (x Uint32x4) ConcatMinPairs(y Uint32x4) (z Uint32x4)
 
 /* ConcatOdd */
 
