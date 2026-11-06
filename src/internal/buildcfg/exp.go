@@ -94,7 +94,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		case "386", "amd64", "arm", "arm64", "riscv64":
 			runtimeCgoPuregoSupported = true
 		}
-	case "dragonfly", "windows":
+	case "dragonfly", "solaris", "illumos", "windows":
 		runtimeCgoPuregoSupported = goarch == "amd64"
 	}
 	// So far, cmd/cgo only knows the C ABI of amd64, and of arm64
