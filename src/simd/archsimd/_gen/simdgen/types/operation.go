@@ -141,7 +141,7 @@ type Operand struct {
 	Base       *string // Base Go type ("int", "uint", "float")
 	EncodeBase *regexp.Regexp
 	ElemBits   *int       // Element bit width (omitted for greg)
-	Bits       VectorSize // Total bit width, or scalable
+	Bits       VectorSize // Total bit width of the register, or scalable (see also [GoBits])
 	EncodeBits *VectorSize
 
 	Const *string // Optional constant value for immediates.
@@ -156,7 +156,7 @@ type Operand struct {
 	// resolves its range on SVE (see sveImmRanges).
 	ImmDesc *string
 	Name    *string // optional name in the Go intrinsic declaration
-	Lanes   *int    // Omitted for scalable
+	Lanes   *int    // Lanes of the Go type, omitted for scalable
 	// TreatLikeAScalarOfSize means only the lower $TreatLikeAScalarOfSize bits of the vector
 	// is used, so at the API level we can make it just a scalar value of this size; Then we
 	// can overwrite it to a vector of the right size during intrinsics stage.
@@ -171,9 +171,23 @@ type Operand struct {
 	// because Intel's XED data is inconsistent. e.g. AVX512 VPMADDUBSW marks its operand
 	// elemBits 16, which should be 8.
 	OverwriteElementBits *int
-	// For greg only, specifically VPEXTR[BW], their results are specified by Intel as 32 bits,
+	// For greg, specifically VPEXTR[BW], their results are specified by Intel as 32 bits,
 	// but they really are 8/16 bits.
 	OverwriteBits *int
+	// GoBits sets the bit width of a vreg operand's Go type, which may be wider
+	// than the register the instruction uses for it. For example, an AVX-512 narrowing
+	// conversion from 256 bits writes a 128-bit register, but its Go result type is 256
+	// bits, whose upper half the instruction zeroes. Likewise, a widening conversion to
+	// 256 bits reads only a 128-bit register, the low half of its 256-bit Go input.
+	//
+	// [Bits] is always the register's width, while [Go] and [Lanes] describe the Go
+	// type. Use [Operand.GoWidth] for the Go type's width and [Operand.NarrowReg] to
+	// tell whether the two differ.
+	//
+	// If a vreg output has a narrower register, simdgen treats the operation's
+	// opmask as "opmask-partial" (see [MaskRole]), since the instruction zeroes the
+	// rest of the Go result even when merging.
+	GoBits *int
 	// FixedReg is the name of the fixed registers
 	FixedReg *string
 	// If non-nil, marks this vreg as a register list operand (for TBL/TBX).
@@ -204,7 +218,10 @@ type Operand struct {
 	//	"opmask-partial" - Like "opmask", except the instruction computes
 	//	                   only the low elements of its result and zeroes
 	//	                   the rest regardless of masking (so the upper
-	//	                   elements are zeroed even when merging).
+	//	                   elements are zeroed even when merging). This
+	//	                   includes instructions that write a register
+	//	                   narrower than the result's Go type (see
+	//	                   [GoBits]).
 	//	"select"         - The operand is in the opmask position, but the
 	//	                   instruction uses it to select elements in some
 	//	                   other way, as in blend, compress, and expand.
@@ -266,6 +283,22 @@ func (vs VectorSize) String() string {
 // so is dropped from the API and filled with an all-true predicate at lowering.
 func (o *Operand) IsGoverning() bool {
 	return o.Governing != nil && *o.Governing
+}
+
+// GoWidth returns the bit width of o's Go type. This is [Operand.Bits] unless
+// [Operand.GoBits] makes the Go type wider than o's register.
+func (o *Operand) GoWidth() VectorSize {
+	if o.GoBits != nil {
+		return VectorSize{NRaw: *o.GoBits}
+	}
+	return o.Bits
+}
+
+// NarrowReg reports whether o's register is narrower than its Go type (see
+// [Operand.GoBits]). If so, the instruction reads or writes only the low
+// [Operand.Bits] bits of o's Go vector.
+func (o *Operand) NarrowReg() bool {
+	return o.GoBits != nil && *o.GoBits != o.Bits.N()
 }
 
 func (o Operand) OpName(s string) string {

@@ -473,7 +473,7 @@ func (op Operation) SSAType() string {
 	if op.Out[0].Bits.Scalable {
 		return fmt.Sprintf("types.TypeVec%d", types.MaxVectorBits)
 	}
-	return fmt.Sprintf("types.TypeVec%d", op.Out[0].Bits.N())
+	return fmt.Sprintf("types.TypeVec%d", op.Out[0].GoWidth().N())
 }
 
 // GoType returns the Go type returned by this operation (relative to the simd package),
@@ -920,12 +920,36 @@ func overwrite(ops []Operation) error {
 				*op[idx].Go = strings.ReplaceAll(*op[idx].Go, *op[idx].Base, oBase)
 			}
 			*op[idx].Base = oBase
-		} else if op[idx].OverwriteBits != nil {
+		}
+		// OverwriteBits and GoBits come last, so that the Go type they
+		// construct uses the final element width and base type.
+		if op[idx].OverwriteBits != nil {
 			if op[idx].Class != "greg" {
-				panic(fmt.Errorf("simdgen: [OverwriteBits] is only supported for greg int: %v", op[idx]))
+				panic(fmt.Errorf("simdgen: [OverwriteBits] is only supported for greg int (use [GoBits] for a vreg): %v", op[idx]))
 			}
 			op[idx].Bits = types.VectorSize{Scalable: false, NRaw: *op[idx].OverwriteBits}
 			*op[idx].Go = fmt.Sprintf("%s%d", *op[idx].Base, op[idx].Bits.N())
+		}
+		if op[idx].GoBits != nil {
+			// The register may be narrower than the Go type: the
+			// instruction reads or writes only its low part.
+			if op[idx].Class != "vreg" {
+				panic(fmt.Errorf("simdgen: [GoBits] is only supported for vreg: %v", op[idx]))
+			}
+			if op[idx].Bits.Scalable || op[idx].ElemBits == nil {
+				panic(fmt.Errorf("simdgen: [GoBits] requires a fixed-width vreg with elemBits: %v", op[idx]))
+			}
+			if *op[idx].GoBits < op[idx].Bits.N() {
+				panic(fmt.Errorf("simdgen: [GoBits] cannot make a vreg narrower than its register: %v", op[idx]))
+			}
+			if op[idx].NarrowReg() {
+				// Bits remains the register width from XED; make Lanes
+				// and Go describe the wider Go type.
+				lanes := *op[idx].GoBits / *op[idx].ElemBits
+				op[idx].Lanes = new(lanes)
+				goType := fmt.Sprintf("%s%dx%d", capitalizeFirst(*op[idx].Base), *op[idx].ElemBits, lanes)
+				op[idx].Go = &goType
+			}
 		}
 		return nil
 	}
@@ -942,6 +966,17 @@ func overwrite(ops []Operation) error {
 		for j := range ops[i].Out {
 			if err := overwrite(ops[i].Out, j, o); err != nil {
 				return err
+			}
+		}
+		if len(ops[i].Out) > 0 && ops[i].Out[0].NarrowReg() {
+			// The instruction writes a register narrower than the result's Go
+			// type, and zeroes the rest of the Go vector regardless of masking.
+			// That's a partial result, just like an instruction that computes
+			// fewer elements than its result register holds.
+			for j := range ops[i].In {
+				if in := &ops[i].In[j]; in.MaskRole != nil && *in.MaskRole == "opmask" {
+					in.MaskRole = new("opmask-partial")
+				}
 			}
 		}
 		if hasClassOverwrite {
@@ -1025,6 +1060,22 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
 	return o.OperandOrder == nil && maskType == OneMask && outType == OneVregOut &&
 		len(o.InVariant) == 1 && !strings.Contains(o.Asm, "BLEND") && !strings.Contains(o.Asm, "VMOVDQU")
+}
+
+// hasNarrowReg reports whether any operand of o is in a register narrower than
+// its Go type. See [types.Operand.NarrowReg].
+func (o *Operation) hasNarrowReg() bool {
+	for i := range o.In {
+		if o.In[i].NarrowReg() {
+			return true
+		}
+	}
+	for i := range o.Out {
+		if o.Out[i].NarrowReg() {
+			return true
+		}
+	}
+	return false
 }
 
 func getVbcstData(s string) (string, string) {

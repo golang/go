@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"maps"
 	"simd/archsimd/_gen/simdgen/types"
+	"slices"
 	"sort"
 	"strings"
 	"text/template"
@@ -46,6 +48,15 @@ func ssaGenSIMD{{.FuncInfix}}Value(s *ssagen.State, v *ssa.Value) bool {
 		x86.ParseSuffix(p, "Z")
 	}
 {{end}}
+{{define "narrowRegs"}}
+	// Some operands are in registers narrower than their Go types.
+	switch v.Op {
+{{- range .}}
+	case {{.Cases}}:
+		{{.Fix}}
+{{- end}}
+	}
+{{end}}
 {{define "ending"}}
 	// Ensure p is marked as used (may not be used in all generated code paths)
 	_ = p
@@ -58,6 +69,55 @@ type tplSSAData struct {
 	Cases       string
 	Helper      string
 	Arrangement string // Optional arrangement constant for ARM64, e.g. arm64.ARNG_4S
+}
+
+// tplSSANarrow is a group of machine ops whose operands that are narrower than
+// their Go types are fixed up by the same statements, Fix. These rename those
+// operands' registers to the narrower register (see [narrowRegFixes] and
+// simdNarrowArg in cmd/compile/internal/amd64).
+type tplSSANarrow struct {
+	Cases string
+	Fix   string
+}
+
+// narrowRegFixes returns the statements that fix up the registers of the
+// operands of op that are narrower than their Go types (see
+// [types.Operand.NarrowReg]). Memory operands (for example, from folding a load
+// into op) and mask operands don't need fixing, but count as arguments.
+func narrowRegFixes(op Operation) []string {
+	if !op.hasNarrowReg() {
+		return nil
+	}
+	var fixes []string
+	arg := 0
+	for _, in := range op.In {
+		if in.Class == "immediate" {
+			continue
+		}
+		if in.Class == "vreg" && in.NarrowReg() {
+			fixes = append(fixes, fmt.Sprintf("simdNarrowArg(p, v.Args[%d], %d)", arg, in.Bits.N()/8))
+		}
+		arg++
+	}
+	for _, out := range op.Out {
+		if out.NarrowReg() {
+			fixes = append(fixes, fmt.Sprintf("p.To.Reg = simdRegBySize(v.Reg(), %d)", out.Bits.N()/8))
+		}
+	}
+	return fixes
+}
+
+// mergingOp returns the merging masked form of op, whose result is also its
+// first input (the merge source). This is the operand order of op's merging
+// machine op.
+func (op Operation) mergingOp() Operation {
+	// Copy In, since sorting it would otherwise be visible through other
+	// aliases of the slice.
+	newIn := make([]types.Operand, len(op.In), len(op.In)+1)
+	copy(newIn, op.In)
+	op.In = append(newIn, op.Out[0])
+	op.sortOperand()
+	return op
 }
 
 type tplSSAHeader struct {
@@ -99,6 +159,25 @@ func getArrangementFromOp(archInfo ArchInfo, caseStr string) string {
 func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	archInfo := CurrentArch()
 	var ZeroingMask []string
+	// narrowFix maps the case expression of a machine op, such as
+	// "ssaop.OpAMD64VPMOVSXBD256" (or its Merging or load form), to the Go
+	// statements that fix up its narrow registers (see narrowRegFixes).
+	// Several operations can share a machine op (for example, ExtendLo8ToInt32
+	// and ExtendToInt32 both use VPMOVSXBD256), so this collects fixes from all
+	// of them, not just the first.
+	narrowFix := map[string]string{}
+	addNarrow := func(op Operation, caseStr string) {
+		fixes := narrowRegFixes(op)
+		if len(fixes) == 0 {
+			return
+		}
+		fix := strings.Join(fixes, "\n\t\t")
+		if old, ok := narrowFix[caseStr]; ok && old != fix {
+			panic(fmt.Errorf("conflicting narrow register fixes for %s:\n%s\n%s", caseStr, old, fix))
+		}
+		narrowFix[caseStr] = fix
+	}
+	generated := map[string]bool{} // cases that get a codegen case
 	regInfoKeys := archInfo.RegInfoKeys
 	regInfoSet := map[string][]string{}
 	for _, key := range regInfoKeys {
@@ -152,6 +231,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			allUnseenCaseStr[regShape] = append(allUnseenCaseStr[regShape], caseStr)
 		}
 		regInfoSet[regShape] = append(regInfoSet[regShape], caseStr)
+		generated[caseStr] = true
 	}
 	classifyOp := func(op Operation, maskType maskShape, shapeIn inShape, shapeOut outShape, caseStr string, mem memShape, immOpArg string, immType immShape) error {
 		regShape, err := computeBaseRegShape(op, mem, shapeIn, shapeOut, immOpArg, immType)
@@ -169,13 +249,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 		if mem == NoMem && op.hasMaskedMerging(maskType, shapeOut) {
 			regShapeMerging := regShape
 			if shapeOut != OneVregOutAtIn {
-				// We have to copy the slice here because the sort will be visible from other
-				// aliases when no reslicing is happening.
-				newIn := make([]types.Operand, len(op.In), len(op.In)+1)
-				copy(newIn, op.In)
-				op.In = newIn
-				op.In = append(op.In, op.Out[0])
-				op.sortOperand()
+				op = op.mergingOp()
 				regShapeMerging, err = op.regShape(mem)
 				regShapeMerging += "ResultInArg0"
 			}
@@ -214,6 +288,25 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	for _, op := range ops {
 		shapeIn, shapeOut, maskType, immType, gOp, immOpArg := op.shape()
 		asm := machineOpName(maskType, gOp)
+		// Collect the narrow register fixes for op's machine op and its
+		// merging and load-folded forms. This comes before the seen check
+		// below because op may share its machine op with an earlier operation
+		// that has no narrow operands. For example, VPMOVSXBD256 is first seen
+		// for Int8x16.ExtendLo8ToInt32, whose X register input matches its Go
+		// type, and only Int8x32.ExtendToInt32 needs a fix. The fix is harmless
+		// for the other operation, since it renames a register to the name it
+		// already has.
+		addNarrow(op, fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm))
+		if op.hasMaskedMerging(maskType, shapeOut) {
+			mop := op
+			if shapeOut != OneVregOutAtIn {
+				mop = op.mergingOp()
+			}
+			addNarrow(mop, fmt.Sprintf("ssaop.Op%s%sMerging", archInfo.ArchUpper, asm))
+		}
+		if op.MemFeatures != nil && *op.MemFeatures == "vbcst" {
+			addNarrow(rewriteLastVregToMem(op), fmt.Sprintf("ssaop.Op%s%sload", archInfo.ArchUpper, asm))
+		}
 		if _, ok := seen[asm]; ok {
 			continue
 		}
@@ -328,6 +421,29 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	if len(ZeroingMask) != 0 {
 		if err := ssaTemplates.ExecuteTemplate(buffer, "zeroing", strings.Join(ZeroingMask, ",\n\t\t")); err != nil {
 			panic(fmt.Errorf("failed to execute footer template: %w", err))
+		}
+	}
+
+	// Emit the narrow register fixes as a switch after the main one, with one
+	// case per distinct fix listing all the machine ops that need it. Skip
+	// machine ops that didn't get a codegen case above.
+	narrowCases := map[string][]string{} // fix -> cases
+	for _, caseStr := range slices.Sorted(maps.Keys(narrowFix)) {
+		if generated[caseStr] {
+			fix := narrowFix[caseStr]
+			narrowCases[fix] = append(narrowCases[fix], caseStr)
+		}
+	}
+	if len(narrowCases) != 0 {
+		var groups []tplSSANarrow
+		for _, fix := range slices.Sorted(maps.Keys(narrowCases)) {
+			groups = append(groups, tplSSANarrow{
+				Cases: strings.Join(narrowCases[fix], ",\n\t\t"),
+				Fix:   fix,
+			})
+		}
+		if err := ssaTemplates.ExecuteTemplate(buffer, "narrowRegs", groups); err != nil {
+			panic(fmt.Errorf("failed to execute narrowRegs template: %w", err))
 		}
 	}
 

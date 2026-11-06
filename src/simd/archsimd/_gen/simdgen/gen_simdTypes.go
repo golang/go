@@ -936,7 +936,7 @@ func parseSIMDTypes(ops []Operation) simdTypeMap {
 			Base: base,
 			Bits: specexpr.Int(*arg.ElemBits),
 		}
-		width := arg.Bits.Num()
+		width := arg.GoWidth().Num()
 		shape := specexpr.Vector{Elem: elem, Width: width}
 
 		fields := structFields(shape)

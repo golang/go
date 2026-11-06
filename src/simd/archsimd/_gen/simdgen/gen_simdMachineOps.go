@@ -170,7 +170,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			if gOp.Out[0].Bits.Scalable {
 				outType = fmt.Sprintf("Vec%d", types.MaxVectorBits)
 			} else {
-				outType = fmt.Sprintf("Vec%d", gOp.Out[0].Bits.N())
+				outType = fmt.Sprintf("Vec%d", gOp.Out[0].GoWidth().N())
 			}
 		} else if shapeOut == OneFpregOut {
 			outType = fmt.Sprintf("Float%d", gOp.Out[0].Bits.N())

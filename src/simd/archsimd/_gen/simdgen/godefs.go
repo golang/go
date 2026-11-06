@@ -222,11 +222,11 @@ func (o *Operation) EncodeUnified() *unify.Value {
 func (o *Operation) VectorWidth() int {
 	out := o.Out[0]
 	if out.Class == "vreg" {
-		return out.Bits.N()
+		return out.GoWidth().N()
 	} else if out.Class == "greg" || out.Class == "fpreg" || out.Class == "mask" {
 		for i := range o.In {
 			if o.In[i].Class == "vreg" {
-				return o.In[i].Bits.N()
+				return o.In[i].GoWidth().N()
 			}
 		}
 	}
@@ -443,7 +443,7 @@ func compareOperands(x, y *types.Operand) int {
 		if c := compareIntPointers(x.ElemBits, y.ElemBits); c != 0 {
 			return c
 		}
-		if c := compareVectorSizes(x.Bits, y.Bits); c != 0 {
+		if c := compareVectorSizes(x.GoWidth(), y.GoWidth()); c != 0 {
 			return c
 		}
 		if c := compareIntPointers(x.ListNumber, y.ListNumber); c != 0 {

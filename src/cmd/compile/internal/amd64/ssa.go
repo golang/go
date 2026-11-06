@@ -2779,6 +2779,53 @@ func simdRegBySize(reg int16, size int64) int16 {
 	panic("simdRegBySize: bad size")
 }
 
+// simdNarrowArg changes the source operand of p that is arg's register to
+// name the size-byte register instead. This is for instructions that read
+// only the low part of a SIMD value, such as a widening conversion from the
+// low half of a 256-bit vector, which takes an X register operand.
+//
+// For example, Int8x32.ExtendToInt16 reads only the low 128 bits of its
+// 256-bit Int8x32 receiver. By default, lowering picks register sizes to match
+// Go type sizes, which would lower it to
+//
+//	VPMOVSXBW Y1, Y0
+//
+// but this instruction encoding doesn't exist, because VPMOVSXBW takes a
+// 128-bit input, matching what it actually reads. In this case, the register
+// size does not match the Go type. simdNarrowArg(p, v.Args[0], 16) corrects
+// this lowering to
+//
+//	VPMOVSXBW X1, Y0
+func simdNarrowArg(p *obj.Prog, arg *ssa.Value, size int64) {
+	// Matching the operand by register is sound because the generated code
+	// calls simdNarrowArg right after the helper that built p from some SSA
+	// value v, and arg is one of v's vreg inputs, v.Args[i]. The helper named
+	// each vreg input of v by the full-width register of its Go type, so arg's
+	// full-width register is a source operand of p, and narrow operands are
+	// always vreg inputs. If arg's register matches no source operand, or
+	// more than one, we can't tell which operand to change, so fail rather
+	// than guess.
+	want := simdReg(arg)
+	var found *obj.Addr
+	match := func(a *obj.Addr) {
+		if a.Type != obj.TYPE_REG || a.Reg != want {
+			return
+		}
+		if found != nil {
+			base.Fatalf("simdNarrowArg: %v matches more than one source of %v", arg, p)
+		}
+		found = a
+	}
+	match(&p.From)
+	for i := range p.RestArgs {
+		match(&p.RestArgs[i].Addr)
+	}
+	if found == nil {
+		base.Fatalf("simdNarrowArg: %v is not a source of %v", arg, p)
+	}
+	found.Reg = simdRegBySize(arg.Reg(), size)
+}
+
 // XXX k mask
 func maskReg(v *ssa.Value) int16 {
 	t := v.Type
