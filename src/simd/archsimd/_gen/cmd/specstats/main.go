@@ -3,9 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Specstats reports progress on the internal/spec transition described in
-// SPEC-TRANSITION.md. The checked-in output is archsimd/_gen/SPEC-STATS.txt:
+// SPEC-TRANSITION.md. It prints the report to standard output:
 //
-//	go run ./cmd/specstats -w
+//	go run ./cmd/specstats
+//
+// The report is not checked in. Nearly every figure in it is a total that
+// almost every spec or API change moves, so a checked-in copy made changes in
+// flight conflict with each other and went stale whenever someone forgot to
+// regenerate it. Run it at whatever commit you want numbers for. The figures
+// that must not regress are enforced by TestInvariants instead.
 //
 // Every figure it prints is a fraction heading for 100% or a defect count
 // heading for zero, tied to the tasks that move it. Anything that is merely
@@ -32,8 +38,10 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"log"
+	"os"
 	"path/filepath"
 
 	"simd/archsimd/_gen/gentools"
@@ -45,14 +53,13 @@ func main() {
 	log.SetPrefix("specstats: ")
 	genOpts := gentools.RegisterFlags(nil)
 	flag.Parse()
+	if genOpts.Write || genOpts.Diff {
+		log.Fatal("the report is no longer checked in; run without -w or -diff to print it")
+	}
 
-	m := load(genOpts)
-
-	var files gentools.Files
-	defer files.FlushOrExit()
-
-	buf := files.NewRawFile("simd/archsimd/_gen/SPEC-STATS.txt")
-	m.report(buf)
+	var buf bytes.Buffer
+	load(genOpts).report(&buf)
+	os.Stdout.Write(buf.Bytes())
 }
 
 // load reads spec and the simd and archsimd APIs and measures them.
