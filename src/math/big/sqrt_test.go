@@ -92,6 +92,125 @@ func TestFloatSqrt(t *testing.T) {
 	}
 }
 
+func TestFloatSqrtRoundingMode(t *testing.T) {
+	// √3 = 1.732...; with 2 bits of precision the candidates are 1.5 and 2.
+	x := new(Float).SetPrec(64).SetInt64(3)
+	for _, test := range []struct {
+		mode RoundingMode
+		want string
+	}{
+		{ToNearestEven, "1.5"},
+		{ToNearestAway, "1.5"},
+		{ToZero, "1.5"},
+		{AwayFromZero, "2"},
+		{ToNegativeInf, "1.5"},
+		{ToPositiveInf, "2"},
+	} {
+		z := new(Float).SetPrec(2).SetMode(test.mode).Sqrt(x)
+		if got := z.Text('g', -1); got != test.want {
+			t.Errorf("%s: Sqrt(3) = %s; want %s", test.mode, got, test.want)
+		}
+		if z.Mode() != test.mode {
+			t.Errorf("%s: mode changed to %s", test.mode, z.Mode())
+		}
+
+		// The rounding mode of x must not be used.
+		xm := new(Float).SetPrec(64).SetMode(test.mode).SetInt64(3)
+		z = new(Float).SetPrec(2).Sqrt(xm)
+		if got := z.Text('g', -1); got != "1.5" {
+			t.Errorf("x.Mode() = %s: Sqrt(3) = %s; want 1.5", test.mode, got)
+		}
+	}
+
+	// √1.5625 = 1.25 is the midpoint of the 2-bit floats 1 and 1.5.
+	x = new(Float).SetPrec(64).SetFloat64(1.5625)
+	for _, test := range []struct {
+		mode RoundingMode
+		want string
+		acc  Accuracy
+	}{
+		{ToNearestEven, "1", Below},
+		{ToNearestAway, "1.5", Above},
+		{ToZero, "1", Below},
+		{AwayFromZero, "1.5", Above},
+		{ToNegativeInf, "1", Below},
+		{ToPositiveInf, "1.5", Above},
+	} {
+		z := new(Float).SetPrec(2).SetMode(test.mode).Sqrt(x)
+		if got := z.Text('g', -1); got != test.want || z.Acc() != test.acc {
+			t.Errorf("%s: Sqrt(1.5625) = %s (%s); want %s (%s)", test.mode, got, z.Acc(), test.want, test.acc)
+		}
+	}
+}
+
+var allModes = []RoundingMode{ToNearestEven, ToNearestAway, ToZero, AwayFromZero, ToNegativeInf, ToPositiveInf}
+
+func TestFloatSqrtExact(t *testing.T) {
+	// Perfect squares must give an exact root in every mode.
+	for _, root := range []string{
+		"3",
+		"5",
+		"1.5",
+		"0.25",
+		"0x1p-500",
+		"0x1.6a09e667f3bcc908b2fb1366ea957d3ep+500",
+		"1234567890123456789012345678901234567890",
+	} {
+		for _, prec := range []uint{24, 53, 64, 100, 200, 300} {
+			want, _, err := ParseFloat(root, 0, prec, ToNearestEven)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if want.Acc() != Exact {
+				continue // the root does not fit in prec bits
+			}
+			x := new(Float).SetPrec(2*prec).Mul(want, want)
+			for _, mode := range allModes {
+				z := new(Float).SetPrec(prec).SetMode(mode).Sqrt(x)
+				if z.Cmp(want) != 0 || z.Acc() != Exact {
+					t.Errorf("prec %d, %s: Sqrt(%s**2) = %s (%s); want %s (Exact)", prec, mode, root, z.Text('g', -1), z.Acc(), root)
+				}
+			}
+		}
+	}
+}
+
+func TestFloatSqrtDirected(t *testing.T) {
+	// √2 and √10 are irrational: the directed roundings must bracket them
+	// by one ulp, and the nearest roundings must pick one of the two.
+	for _, xs := range []string{"2", "10", "0.3", "1e99", "0x1.8p-1001"} {
+		x, _, _ := ParseFloat(xs, 0, 1000, ToNearestEven)
+		for _, prec := range []uint{2, 3, 24, 53, 64, 65, 100, 300} {
+			lo := new(Float).SetPrec(prec).SetMode(ToNegativeInf).Sqrt(x)
+			hi := new(Float).SetPrec(prec).SetMode(ToPositiveInf).Sqrt(x)
+			if lo.Acc() != Below || hi.Acc() != Above {
+				t.Errorf("prec %d: Sqrt(%s): accuracies %s, %s", prec, xs, lo.Acc(), hi.Acc())
+			}
+			lo2 := new(Float).SetPrec(2*prec).Mul(lo, lo)
+			hi2 := new(Float).SetPrec(2*prec).Mul(hi, hi)
+			if lo2.Cmp(x) >= 0 || hi2.Cmp(x) <= 0 {
+				t.Errorf("prec %d: Sqrt(%s): %s and %s do not bracket the root", prec, xs, lo.Text('g', -1), hi.Text('g', -1))
+			}
+			ulp := new(Float).SetMantExp(new(Float).SetInt64(1), lo.MantExp(nil)-int(prec))
+			if d := new(Float).SetPrec(2*prec).Sub(hi, lo); d.Cmp(ulp) != 0 {
+				t.Errorf("prec %d: Sqrt(%s): %s and %s are %s apart; want one ulp", prec, xs, lo.Text('g', -1), hi.Text('g', -1), d.Text('g', -1))
+			}
+			if z := new(Float).SetPrec(prec).SetMode(ToZero).Sqrt(x); z.Cmp(lo) != 0 {
+				t.Errorf("prec %d: ToZero: Sqrt(%s) = %s; want %s", prec, xs, z.Text('g', -1), lo.Text('g', -1))
+			}
+			if z := new(Float).SetPrec(prec).SetMode(AwayFromZero).Sqrt(x); z.Cmp(hi) != 0 {
+				t.Errorf("prec %d: AwayFromZero: Sqrt(%s) = %s; want %s", prec, xs, z.Text('g', -1), hi.Text('g', -1))
+			}
+			for _, mode := range []RoundingMode{ToNearestEven, ToNearestAway} {
+				z := new(Float).SetPrec(prec).SetMode(mode).Sqrt(x)
+				if z.Cmp(lo) != 0 && z.Cmp(hi) != 0 {
+					t.Errorf("prec %d: %s: Sqrt(%s) = %s; want %s or %s", prec, mode, xs, z.Text('g', -1), lo.Text('g', -1), hi.Text('g', -1))
+				}
+			}
+		}
+	}
+}
+
 func TestFloatSqrtSpecial(t *testing.T) {
 	for _, test := range []struct {
 		x    *Float
