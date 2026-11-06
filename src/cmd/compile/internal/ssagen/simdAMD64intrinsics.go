@@ -1005,8 +1005,6 @@ func simdAMD64Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamil
 	addF(simdPackage, "Int32x4.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt32x4, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Int32x8.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt32x8, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int32x16.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt32x16, types.TypeVec512), sys.AMD64)
-	addF(simdPackage, "Int64x2.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt64x2, types.TypeVec128), sys.AMD64)
-	addF(simdPackage, "Int64x4.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt64x4, types.TypeVec256), sys.AMD64)
 	addF(simdPackage, "Int64x8.ShiftAllRight", opLen2(ssaop.OpShiftAllRightInt64x8, types.TypeVec512), sys.AMD64)
 	addF(simdPackage, "Uint16x8.ShiftAllRight", opLen2(ssaop.OpShiftAllRightUint16x8, types.TypeVec128), sys.AMD64)
 	addF(simdPackage, "Uint16x16.ShiftAllRight", opLen2(ssaop.OpShiftAllRightUint16x16, types.TypeVec256), sys.AMD64)

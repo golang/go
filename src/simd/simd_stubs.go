@@ -602,6 +602,12 @@ func (x Int64s) Or(y Int64s) (z Int64s)
 //	z[i] = x[i] << shift
 func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s)
 
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
+func (x Int64s) ShiftAllRight(shift uint64) (z Int64s)
+
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int64s) Store(s []int64)
 

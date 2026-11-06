@@ -73,6 +73,15 @@
   documentation: !string |-
     // NAME arithmetically shifts each element of x right by shift bits.
     // If shift is greater than the element width, the result is 0 or -1.
+# VPSRAQ at 128 and 256 bits, as machine ops only, so that AMD64.rules can
+# use it in place of the AVX/AVX2 emulation of ShiftAllRight when AVX-512 is
+# known to be available.
+- go: shiftAllRightInt64AVX512
+  noTypes: "true"
+  noGenericOps: "true"
+  commutative: false
+  documentation: !string |-
+    // NAME arithmetically shifts each element of x right by shift bits.
 - go: shiftAllLeftConst # no APIs, only ssa ops.
   noTypes: "true"
   noGenericOps: "true"

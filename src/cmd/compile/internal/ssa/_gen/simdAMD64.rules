@@ -1018,10 +1018,6 @@
 (VPSRAD256 x (MOVQconst [c])) => (VPSRAD256const [amd64CapAVXShift(c)] x) // sftimm
 (ShiftAllRightInt32x16 ...) => (VPSRAD512 ...) // pureVreg
 (VPSRAD512 x (MOVQconst [c])) => (VPSRAD512const [amd64CapAVXShift(c)] x) // sftimm
-(ShiftAllRightInt64x2 ...) => (VPSRAQ128 ...) // pureVreg
-(VPSRAQ128 x (MOVQconst [c])) => (VPSRAQ128const [amd64CapAVXShift(c)] x) // sftimm
-(ShiftAllRightInt64x4 ...) => (VPSRAQ256 ...) // pureVreg
-(VPSRAQ256 x (MOVQconst [c])) => (VPSRAQ256const [amd64CapAVXShift(c)] x) // sftimm
 (ShiftAllRightInt64x8 ...) => (VPSRAQ512 ...) // pureVreg
 (VPSRAQ512 x (MOVQconst [c])) => (VPSRAQ512const [amd64CapAVXShift(c)] x) // sftimm
 (ShiftAllRightUint16x8 ...) => (VPSRLW128 ...) // pureVreg
@@ -1066,8 +1062,6 @@
 (VPSRADMasked128 x (MOVQconst [c]) mask) => (VPSRADMasked128const [amd64CapAVXShift(c)] x mask) // masksftimm
 (VPSRADMasked256 x (MOVQconst [c]) mask) => (VPSRADMasked256const [amd64CapAVXShift(c)] x mask) // masksftimm
 (VPSRADMasked512 x (MOVQconst [c]) mask) => (VPSRADMasked512const [amd64CapAVXShift(c)] x mask) // masksftimm
-(VPSRAQMasked128 x (MOVQconst [c]) mask) => (VPSRAQMasked128const [amd64CapAVXShift(c)] x mask) // masksftimm
-(VPSRAQMasked256 x (MOVQconst [c]) mask) => (VPSRAQMasked256const [amd64CapAVXShift(c)] x mask) // masksftimm
 (VPSRAQMasked512 x (MOVQconst [c]) mask) => (VPSRAQMasked512const [amd64CapAVXShift(c)] x mask) // masksftimm
 (VPSRLWMasked128 x (MOVQconst [c]) mask) => (VPSRLWMasked128const [amd64CapAVXShift(c)] x mask) // masksftimm
 (VPSRLWMasked256 x (MOVQconst [c]) mask) => (VPSRLWMasked256const [amd64CapAVXShift(c)] x mask) // masksftimm
@@ -1465,6 +1459,10 @@
 (VPSRLQMasked256constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked256 dst x mask) // asmRule
 (VPSRLQMasked512const [a] x mask) && a==0 => (VMOVDQU64Masked512 x mask) // asmRule
 (VPSRLQMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMQMasked512 dst x mask) // asmRule
+(VPSRAQ128 x (MOVQconst [c])) => (VPSRAQ128const [amd64CapAVXShift(c)] x) // sftimm
+(VPSRAQ256 x (MOVQconst [c])) => (VPSRAQ256const [amd64CapAVXShift(c)] x) // sftimm
+(VPSRAQMasked128 x (MOVQconst [c]) mask) => (VPSRAQMasked128const [amd64CapAVXShift(c)] x mask) // masksftimm
+(VPSRAQMasked256 x (MOVQconst [c]) mask) => (VPSRAQMasked256const [amd64CapAVXShift(c)] x mask) // masksftimm
 (ternInt32x4 ...) => (VPTERNLOGD128 ...) // pureVreg
 (ternInt32x8 ...) => (VPTERNLOGD256 ...) // pureVreg
 (ternInt32x16 ...) => (VPTERNLOGD512 ...) // pureVreg
@@ -1900,8 +1898,6 @@
 (VMOVDQU32Masked128 (VPSRAD128 x y) mask) => (VPSRADMasked128 x y mask)
 (VMOVDQU32Masked256 (VPSRAD256 x y) mask) => (VPSRADMasked256 x y mask)
 (VMOVDQU32Masked512 (VPSRAD512 x y) mask) => (VPSRADMasked512 x y mask)
-(VMOVDQU64Masked128 (VPSRAQ128 x y) mask) => (VPSRAQMasked128 x y mask)
-(VMOVDQU64Masked256 (VPSRAQ256 x y) mask) => (VPSRAQMasked256 x y mask)
 (VMOVDQU64Masked512 (VPSRAQ512 x y) mask) => (VPSRAQMasked512 x y mask)
 (VMOVDQU16Masked128 (VPSRLW128 x y) mask) => (VPSRLWMasked128 x y mask)
 (VMOVDQU16Masked256 (VPSRLW256 x y) mask) => (VPSRLWMasked256 x y mask)

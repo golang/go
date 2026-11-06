@@ -183,6 +183,44 @@ func simdAbsInt64x4(x archsimd.Int64x4) archsimd.Uint64x4 {
 	return x.Abs()
 }
 
+func simdShiftAllRightInt64x2(x archsimd.Int64x2, s uint64) archsimd.Int64x2 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX emulation is turned back into VPSRAQ when AVX-512 is known.
+		// amd64:`VPSRAQ X[0-9]+, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
+		return x.ShiftAllRight(s)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	return x.ShiftAllRight(s)
+}
+
+func simdShiftAllRightInt64x4(x archsimd.Int64x4, s uint64) archsimd.Int64x4 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX2 emulation is turned back into VPSRAQ when AVX-512 is known.
+		// amd64:`VPSRAQ X[0-9]+, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
+		return x.ShiftAllRight(s)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	return x.ShiftAllRight(s)
+}
+
+func simdShiftAllRightConstInt64x2(x archsimd.Int64x2) archsimd.Int64x2 {
+	if archsimd.X86.AVX512() {
+		// amd64:`VPSRAQ \$5, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
+		return x.ShiftAllRight(5)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ \$5` -`VPSRAQ`
+	return x.ShiftAllRight(5)
+}
+
+func simdShiftAllRightConstInt64x4(x archsimd.Int64x4) archsimd.Int64x4 {
+	if archsimd.X86.AVX512() {
+		// amd64:`VPSRAQ \$63, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
+		return x.ShiftAllRight(63)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ \$63` -`VPSRAQ`
+	return x.ShiftAllRight(63)
+}
+
 var nan = math.NaN()
 var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14, 15}
 var sinkInt64s = make([]int64, 100)

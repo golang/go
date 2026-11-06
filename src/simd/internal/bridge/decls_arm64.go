@@ -1206,6 +1206,14 @@ func (x Int64x2nclm) ShiftAllLeft(shift uint64) Int64x2nclm {
 	return Int64x2nclm((archsimd.Int64x2(x)).ShiftAllLeft(shift))
 }
 
+func (x Int64x2) ShiftAllRight(shift uint64) Int64x2 {
+	return Int64x2((archsimd.Int64x2(x)).ShiftAllRight(shift))
+}
+
+func (x Int64x2nclm) ShiftAllRight(shift uint64) Int64x2nclm {
+	return Int64x2nclm((archsimd.Int64x2(x)).ShiftAllRight(shift))
+}
+
 func (x Int64x2) Store(s []int64) {
 	(archsimd.Int64x2(x)).Store(s)
 }

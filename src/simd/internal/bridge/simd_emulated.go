@@ -1414,6 +1414,18 @@ func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s) {
 	return Int64s{a: x.a << shift, b: x.b << shift}
 }
 
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
+func (x Int64s) ShiftAllRight(shift uint64) (z Int64s) {
+	var res Int64s
+	for i := 0; i < 2; i++ {
+		res.set(i, x.get(i)>>shift)
+	}
+	return res
+}
+
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int64s) Store(s []int64) {
 	if len(s) > 0 {

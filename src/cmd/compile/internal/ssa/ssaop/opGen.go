@@ -8868,7 +8868,6 @@ const (
 	OpShiftAllRightInt32x4
 	OpShiftAllRightInt32x8
 	OpShiftAllRightInt64x2
-	OpShiftAllRightInt64x4
 	OpShiftAllRightInt64x8
 	OpShiftAllRightInt8x16
 	OpShiftAllRightUint16x16
@@ -124649,11 +124648,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftAllRightInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightInt64x4",
 		ArgLen:  2,
 		Generic: true,
 	},

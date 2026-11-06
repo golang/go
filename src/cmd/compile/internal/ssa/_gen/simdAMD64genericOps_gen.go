@@ -1016,8 +1016,6 @@ func init() {
 		{name: "ShiftAllRightInt32x4", argLength: 2},
 		{name: "ShiftAllRightInt32x8", argLength: 2},
 		{name: "ShiftAllRightInt32x16", argLength: 2},
-		{name: "ShiftAllRightInt64x2", argLength: 2},
-		{name: "ShiftAllRightInt64x4", argLength: 2},
 		{name: "ShiftAllRightInt64x8", argLength: 2},
 		{name: "ShiftAllRightUint16x8", argLength: 2},
 		{name: "ShiftAllRightUint16x16", argLength: 2},

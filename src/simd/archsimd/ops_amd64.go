@@ -7453,22 +7453,6 @@ func (x Int32x16) ShiftAllRight(shift uint64) (z Int32x16)
 //	z[i] = x[i] >> shift
 //
 // Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
-
-// ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
-//
-//	z[i] = x[i] >> shift
-//
-// Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x4) ShiftAllRight(shift uint64) (z Int64x4)
-
-// ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
-//
-//	z[i] = x[i] >> shift
-//
-// Asm: VPSRAQ, CPU Feature: AVX512
 func (x Int64x8) ShiftAllRight(shift uint64) (z Int64x8)
 
 // ShiftAllRight logically shifts each element of x right by shift bits.

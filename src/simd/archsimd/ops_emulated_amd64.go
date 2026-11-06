@@ -149,6 +149,38 @@ func (x Int64x4) Abs() (z Uint64x4) {
 	return x.Xor(m).Sub(m).ToBits()
 }
 
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2) {
+	// VPSRAQ needs AVX-512. Shift logically, and fill the vacated upper
+	// bits with the sign: m is all ones where x < 0, and m << (64-shift)
+	// has ones in exactly the top shift bits. Shifting by 64 or more gives
+	// 0 for both shifts, so clamping shift to 63 handles large shifts, and
+	// shift == 0 gives m << 64 == 0.
+	shift = min(shift, 63)
+	var zero Int64x2
+	m := zero.Greater(x).ToInt64x2().ToBits()
+	return x.ToBits().ShiftAllRight(shift).Or(m.ShiftAllLeft(64 - shift)).BitsToInt64()
+}
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) ShiftAllRight(shift uint64) (z Int64x4) {
+	// See Int64x2.ShiftAllRight.
+	shift = min(shift, 63)
+	var zero Int64x4
+	m := zero.Greater(x).ToInt64x4().ToBits()
+	return x.ToBits().ShiftAllRight(shift).Or(m.ShiftAllLeft(64 - shift)).BitsToInt64()
+}
+
 // Mul returns the elementwise product of x and y.
 //
 //	z[i] = x[i] * y[i]

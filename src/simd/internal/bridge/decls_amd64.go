@@ -1804,6 +1804,18 @@ func (x Int64x8) ShiftAllLeft(shift uint64) Int64x8 {
 	return Int64x8((archsimd.Int64x8(x)).ShiftAllLeft(shift))
 }
 
+func (x Int64x2) ShiftAllRight(shift uint64) Int64x2 {
+	return Int64x2((archsimd.Int64x2(x)).ShiftAllRight(shift))
+}
+
+func (x Int64x4) ShiftAllRight(shift uint64) Int64x4 {
+	return Int64x4((archsimd.Int64x4(x)).ShiftAllRight(shift))
+}
+
+func (x Int64x8) ShiftAllRight(shift uint64) Int64x8 {
+	return Int64x8((archsimd.Int64x8(x)).ShiftAllRight(shift))
+}
+
 func (x Int64x2) Store(s []int64) {
 	(archsimd.Int64x2(x)).Store(s)
 }

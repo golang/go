@@ -135,6 +135,7 @@ func TestInt64s(t *testing.T) {
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Xor, test_helpers.Xor)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.AndNot, test_helpers.AndNot)
 	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.ShiftAllRight, test_helpers.ShiftRight)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Equal, test_helpers.Equal)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.NotEqual, test_helpers.NotEqual)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Less, test_helpers.Less)

@@ -1709,8 +1709,6 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRAD128,
 		ssaop.OpAMD64VPSRAD256,
 		ssaop.OpAMD64VPSRAD512,
-		ssaop.OpAMD64VPSRAQ128,
-		ssaop.OpAMD64VPSRAQ256,
 		ssaop.OpAMD64VPSRAQ512,
 		ssaop.OpAMD64VPSRLW128,
 		ssaop.OpAMD64VPSRLW256,
@@ -1720,7 +1718,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRLD512,
 		ssaop.OpAMD64VPSRLQ128,
 		ssaop.OpAMD64VPSRLQ256,
-		ssaop.OpAMD64VPSRLQ512:
+		ssaop.OpAMD64VPSRLQ512,
+		ssaop.OpAMD64VPSRAQ128,
+		ssaop.OpAMD64VPSRAQ256:
 		p = simdVfpv(s, v)
 
 	case ssaop.OpAMD64VPSLLWMasked128,
@@ -1738,8 +1738,6 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRADMasked128,
 		ssaop.OpAMD64VPSRADMasked256,
 		ssaop.OpAMD64VPSRADMasked512,
-		ssaop.OpAMD64VPSRAQMasked128,
-		ssaop.OpAMD64VPSRAQMasked256,
 		ssaop.OpAMD64VPSRAQMasked512,
 		ssaop.OpAMD64VPSRLWMasked128,
 		ssaop.OpAMD64VPSRLWMasked256,
@@ -1749,7 +1747,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRLDMasked512,
 		ssaop.OpAMD64VPSRLQMasked128,
 		ssaop.OpAMD64VPSRLQMasked256,
-		ssaop.OpAMD64VPSRLQMasked512:
+		ssaop.OpAMD64VPSRLQMasked512,
+		ssaop.OpAMD64VPSRAQMasked128,
+		ssaop.OpAMD64VPSRAQMasked256:
 		p = simdVfpkv(s, v)
 
 	case ssaop.OpAMD64VPINSRD128,
@@ -4080,8 +4080,6 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRADMasked128,
 		ssaop.OpAMD64VPSRADMasked256,
 		ssaop.OpAMD64VPSRADMasked512,
-		ssaop.OpAMD64VPSRAQMasked128,
-		ssaop.OpAMD64VPSRAQMasked256,
 		ssaop.OpAMD64VPSRAQMasked512,
 		ssaop.OpAMD64VPSRLWMasked128,
 		ssaop.OpAMD64VPSRLWMasked256,
@@ -4415,7 +4413,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRLQMasked256const,
 		ssaop.OpAMD64VPSRLQMasked256constload,
 		ssaop.OpAMD64VPSRLQMasked512const,
-		ssaop.OpAMD64VPSRLQMasked512constload:
+		ssaop.OpAMD64VPSRLQMasked512constload,
+		ssaop.OpAMD64VPSRAQMasked128,
+		ssaop.OpAMD64VPSRAQMasked256:
 		x86.ParseSuffix(p, "Z")
 	}
 

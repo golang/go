@@ -27,7 +27,7 @@
 - go: ShiftAllRight
   signed: true
   sftimm: true
-  asm: "VPSRA[WDQ]"
+  asm: "VPSRA[WD]"
   in:
   - &int
     go: $t
@@ -35,6 +35,39 @@
   - *vecAsScalar64
   out:
   - *int
+# VPSRAW and VPSRAD are AVX at 128 bits and AVX2 at 256 bits, the feature
+# levels midway requires of those widths, so ShiftAllRight on signed 16- and
+# 32-bit elements uses them at every width. VPSRAQ, for 64-bit elements, needs
+# AVX-512 at every width, so ShiftAllRight uses it only at 512 bits; at 128 and
+# 256 bits it is emulated with AVX and AVX2 in ops_emulated_amd64.go, and
+# AMD64.rules turns that emulation back into VPSRAQ (shiftAllRightInt64AVX512
+# below) where AVX-512 is known to be available.
+- go: ShiftAllRight
+  signed: true
+  sftimm: true
+  asm: "VPSRAQ"
+  in:
+  - go: $t
+    base: int
+    bits: 512
+  - *vecAsScalar64
+  out:
+  - go: $t
+    base: int
+    bits: 512
+- go: shiftAllRightInt64AVX512
+  signed: true
+  sftimm: true
+  asm: "VPSRAQ"
+  in:
+  - go: $t
+    base: int
+    bits: (128|256)
+  - *vecAsScalar64
+  out:
+  - go: $t
+    base: int
+    bits: (128|256)
 
 - go: shiftAllLeftConst
   ssaVariant: "const" # to avoid its name colliding with reg version of this instruction, amend this to its ssa op name.
