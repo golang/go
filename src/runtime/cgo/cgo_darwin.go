@@ -16,17 +16,17 @@ const (
 
 type pthreadKey uintptr
 
-//go:linkname _libc_pthread_attr_setstacksize libc_pthread_attr_setstacksize
-var _libc_pthread_attr_setstacksize byte
-var libc_pthread_attr_setstacksize = unsafe.Pointer(&_libc_pthread_attr_setstacksize)
+//go:linkname _cgo_libc_pthread_attr_setstacksize _cgo_libc_pthread_attr_setstacksize
+var _cgo_libc_pthread_attr_setstacksize byte
+var libc_pthread_attr_setstacksize = unsafe.Pointer(&_cgo_libc_pthread_attr_setstacksize)
 
-//go:linkname _libc_pthread_get_stackaddr_np libc_pthread_get_stackaddr_np
-var _libc_pthread_get_stackaddr_np byte
-var libc_pthread_get_stackaddr_np = unsafe.Pointer(&_libc_pthread_get_stackaddr_np)
+//go:linkname _cgo_libc_pthread_get_stackaddr_np _cgo_libc_pthread_get_stackaddr_np
+var _cgo_libc_pthread_get_stackaddr_np byte
+var libc_pthread_get_stackaddr_np = unsafe.Pointer(&_cgo_libc_pthread_get_stackaddr_np)
 
-//go:linkname _libc_pthread_get_stacksize_np libc_pthread_get_stacksize_np
-var _libc_pthread_get_stacksize_np byte
-var libc_pthread_get_stacksize_np = unsafe.Pointer(&_libc_pthread_get_stacksize_np)
+//go:linkname _cgo_libc_pthread_get_stacksize_np _cgo_libc_pthread_get_stacksize_np
+var _cgo_libc_pthread_get_stacksize_np byte
+var libc_pthread_get_stacksize_np = unsafe.Pointer(&_cgo_libc_pthread_get_stacksize_np)
 
 //go:nosplit
 //go:norace
@@ -53,17 +53,17 @@ func cgoGetStackBound() (uintptr, uintptr) {
 	return high - size, high
 }
 
-//go:cgo_import_dynamic libc_setenv setenv "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_unsetenv unsetenv "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_key_create pthread_key_create "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_setspecific pthread_setspecific "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_get_stackaddr_np pthread_get_stackaddr_np "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_get_stacksize_np pthread_get_stacksize_np "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_sigfillset sigfillset "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_setenv setenv "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_unsetenv unsetenv "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_init pthread_attr_init "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_setstacksize pthread_attr_setstacksize "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_destroy pthread_attr_destroy "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_key_create pthread_key_create "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_setspecific pthread_setspecific "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_get_stackaddr_np pthread_get_stackaddr_np "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_get_stacksize_np pthread_get_stacksize_np "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_pthread_sigmask pthread_sigmask "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_sigfillset sigfillset "/usr/lib/libSystem.B.dylib"

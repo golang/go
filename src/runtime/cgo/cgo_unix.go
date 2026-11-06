@@ -13,65 +13,65 @@ import (
 	"unsafe"
 )
 
-//go:linkname _libc_setenv libc_setenv
-var _libc_setenv byte
-var libc_setenv = unsafe.Pointer(&_libc_setenv)
+//go:linkname _cgo_libc_setenv _cgo_libc_setenv
+var _cgo_libc_setenv byte
+var libc_setenv = unsafe.Pointer(&_cgo_libc_setenv)
 
-//go:linkname _libc_unsetenv libc_unsetenv
-var _libc_unsetenv byte
-var libc_unsetenv = unsafe.Pointer(&_libc_unsetenv)
+//go:linkname _cgo_libc_unsetenv _cgo_libc_unsetenv
+var _cgo_libc_unsetenv byte
+var libc_unsetenv = unsafe.Pointer(&_cgo_libc_unsetenv)
 
-//go:linkname _libc_pthread_create libc_pthread_create
-var _libc_pthread_create byte
-var libc_pthread_create = unsafe.Pointer(&_libc_pthread_create)
+//go:linkname _cgo_libc_pthread_create _cgo_libc_pthread_create
+var _cgo_libc_pthread_create byte
+var libc_pthread_create = unsafe.Pointer(&_cgo_libc_pthread_create)
 
-//go:linkname _libc_pthread_attr_init libc_pthread_attr_init
-var _libc_pthread_attr_init byte
-var libc_pthread_attr_init = unsafe.Pointer(&_libc_pthread_attr_init)
+//go:linkname _cgo_libc_pthread_attr_init _cgo_libc_pthread_attr_init
+var _cgo_libc_pthread_attr_init byte
+var libc_pthread_attr_init = unsafe.Pointer(&_cgo_libc_pthread_attr_init)
 
-//go:linkname _libc_pthread_attr_setdetachstate libc_pthread_attr_setdetachstate
-var _libc_pthread_attr_setdetachstate byte
-var libc_pthread_attr_setdetachstate = unsafe.Pointer(&_libc_pthread_attr_setdetachstate)
+//go:linkname _cgo_libc_pthread_attr_setdetachstate _cgo_libc_pthread_attr_setdetachstate
+var _cgo_libc_pthread_attr_setdetachstate byte
+var libc_pthread_attr_setdetachstate = unsafe.Pointer(&_cgo_libc_pthread_attr_setdetachstate)
 
-//go:linkname _libc_pthread_attr_destroy libc_pthread_attr_destroy
-var _libc_pthread_attr_destroy byte
-var libc_pthread_attr_destroy = unsafe.Pointer(&_libc_pthread_attr_destroy)
+//go:linkname _cgo_libc_pthread_attr_destroy _cgo_libc_pthread_attr_destroy
+var _cgo_libc_pthread_attr_destroy byte
+var libc_pthread_attr_destroy = unsafe.Pointer(&_cgo_libc_pthread_attr_destroy)
 
-//go:linkname _libc_pthread_key_create libc_pthread_key_create
-var _libc_pthread_key_create byte
-var libc_pthread_key_create = unsafe.Pointer(&_libc_pthread_key_create)
+//go:linkname _cgo_libc_pthread_key_create _cgo_libc_pthread_key_create
+var _cgo_libc_pthread_key_create byte
+var libc_pthread_key_create = unsafe.Pointer(&_cgo_libc_pthread_key_create)
 
-//go:linkname _libc_pthread_setspecific libc_pthread_setspecific
-var _libc_pthread_setspecific byte
-var libc_pthread_setspecific = unsafe.Pointer(&_libc_pthread_setspecific)
+//go:linkname _cgo_libc_pthread_setspecific _cgo_libc_pthread_setspecific
+var _cgo_libc_pthread_setspecific byte
+var libc_pthread_setspecific = unsafe.Pointer(&_cgo_libc_pthread_setspecific)
 
-//go:linkname _libc_pthread_self libc_pthread_self
-var _libc_pthread_self byte
-var libc_pthread_self = unsafe.Pointer(&_libc_pthread_self)
+//go:linkname _cgo_libc_pthread_self _cgo_libc_pthread_self
+var _cgo_libc_pthread_self byte
+var libc_pthread_self = unsafe.Pointer(&_cgo_libc_pthread_self)
 
-//go:linkname _libc_pthread_sigmask libc_pthread_sigmask
-var _libc_pthread_sigmask byte
-var libc_pthread_sigmask = unsafe.Pointer(&_libc_pthread_sigmask)
+//go:linkname _cgo_libc_pthread_sigmask _cgo_libc_pthread_sigmask
+var _cgo_libc_pthread_sigmask byte
+var libc_pthread_sigmask = unsafe.Pointer(&_cgo_libc_pthread_sigmask)
 
-//go:linkname _libc_sigfillset libc_sigfillset
-var _libc_sigfillset byte
-var libc_sigfillset = unsafe.Pointer(&_libc_sigfillset)
+//go:linkname _cgo_libc_sigfillset _cgo_libc_sigfillset
+var _cgo_libc_sigfillset byte
+var libc_sigfillset = unsafe.Pointer(&_cgo_libc_sigfillset)
 
-// libc_dlopen, libc_dlsym, and libc_dlerror are imported only when the
-// cgobindings experiment is enabled (see library_linux.go and
-// library_darwin.go), for Open.
+// libc_dlopen, libc_dlsym, and libc_dlerror are imported for
+// Open only when the cgobindings experiment is enabled (see library_*.go),
+// except on Android, where runtime/cgo initialization uses them.
 
-//go:linkname _libc_dlopen libc_dlopen
-var _libc_dlopen byte
-var libc_dlopen = unsafe.Pointer(&_libc_dlopen)
+//go:linkname _cgo_libc_dlopen _cgo_libc_dlopen
+var _cgo_libc_dlopen byte
+var libc_dlopen = unsafe.Pointer(&_cgo_libc_dlopen)
 
-//go:linkname _libc_dlsym libc_dlsym
-var _libc_dlsym byte
-var libc_dlsym = unsafe.Pointer(&_libc_dlsym)
+//go:linkname _cgo_libc_dlsym _cgo_libc_dlsym
+var _cgo_libc_dlsym byte
+var libc_dlsym = unsafe.Pointer(&_cgo_libc_dlsym)
 
-//go:linkname _libc_dlerror libc_dlerror
-var _libc_dlerror byte
-var libc_dlerror = unsafe.Pointer(&_libc_dlerror)
+//go:linkname _cgo_libc_dlerror _cgo_libc_dlerror
+var _cgo_libc_dlerror byte
+var libc_dlerror = unsafe.Pointer(&_cgo_libc_dlerror)
 
 //go:linknamestd runtime_setg runtime.setg
 func runtime_setg(gg uintptr)

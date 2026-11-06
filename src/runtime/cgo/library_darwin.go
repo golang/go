@@ -19,6 +19,6 @@ const (
 // Open is the only user of dlopen, dlsym, and dlerror, so import them only
 // when the cgobindings experiment is enabled.
 
-//go:cgo_import_dynamic libc_dlopen dlopen "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_dlsym dlsym "/usr/lib/libSystem.B.dylib"
-//go:cgo_import_dynamic libc_dlerror dlerror "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_dlopen dlopen "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_dlsym dlsym "/usr/lib/libSystem.B.dylib"
+//go:cgo_import_dynamic _cgo_libc_dlerror dlerror "/usr/lib/libSystem.B.dylib"

@@ -8,9 +8,9 @@ package cgo
 
 import "unsafe"
 
-//go:linkname _libc_sigaction libc_sigaction
-var _libc_sigaction byte
-var libc_sigaction = unsafe.Pointer(&_libc_sigaction)
+//go:linkname _cgo_libc_sigaction _cgo_libc_sigaction
+var _cgo_libc_sigaction byte
+var libc_sigaction = unsafe.Pointer(&_cgo_libc_sigaction)
 
 //go:linknamestd _cgoSigaction runtime.cgoSigaction
 var _cgoSigaction = cgoSigaction

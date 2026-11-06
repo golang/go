@@ -19,6 +19,6 @@ const (
 
 //go:cgo_ldflag "-ldl"
 
-//go:cgo_import_dynamic libc_dlopen dlopen "libdl.so.2"
-//go:cgo_import_dynamic libc_dlsym dlsym "libdl.so.2"
-//go:cgo_import_dynamic libc_dlerror dlerror "libdl.so.2"
+//go:cgo_import_dynamic _cgo_libc_dlopen dlopen "libdl.so.2"
+//go:cgo_import_dynamic _cgo_libc_dlsym dlsym "libdl.so.2"
+//go:cgo_import_dynamic _cgo_libc_dlerror dlerror "libdl.so.2"

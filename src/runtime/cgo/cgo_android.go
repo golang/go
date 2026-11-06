@@ -8,13 +8,13 @@ package cgo
 
 import "unsafe"
 
-//go:linkname _libc_dlclose libc_dlclose
-var _libc_dlclose byte
-var libc_dlclose = unsafe.Pointer(&_libc_dlclose)
+//go:linkname _cgo_libc_dlclose _cgo_libc_dlclose
+var _cgo_libc_dlclose byte
+var libc_dlclose = unsafe.Pointer(&_cgo_libc_dlclose)
 
-//go:linkname _libc_android_log_write libc_android_log_write
-var _libc_android_log_write byte
-var libc_android_log_write = unsafe.Pointer(&_libc_android_log_write)
+//go:linkname _cgo_libc_android_log_write _cgo_libc_android_log_write
+var _cgo_libc_android_log_write byte
+var libc_android_log_write = unsafe.Pointer(&_cgo_libc_android_log_write)
 
 // cgoInitTLS allocates or verifies a thread-local storage slot for g on Android.
 //
@@ -129,36 +129,36 @@ func cgoFatal(msg string) {
 //go:cgo_import_dynamic _ _ "libc.so"
 //go:cgo_import_dynamic _ _ "libdl.so"
 //go:cgo_import_dynamic _ _ "liblog.so"
-//go:cgo_import_dynamic libc_dlopen dlopen "libdl.so"
-//go:cgo_import_dynamic libc_dlsym dlsym "libdl.so"
-//go:cgo_import_dynamic libc_dlclose dlclose "libdl.so"
-//go:cgo_import_dynamic libc_dlerror dlerror "libdl.so"
-//go:cgo_import_dynamic libc_android_log_write __android_log_write "liblog.so"
-//go:cgo_import_dynamic libc_mmap mmap "libc.so"
-//go:cgo_import_dynamic libc_munmap munmap "libc.so"
-//go:cgo_import_dynamic libc_sigaction sigaction "libc.so"
-//go:cgo_import_dynamic libc_sigfillset sigfillset "libc.so"
-//go:cgo_import_dynamic libc_errno_location __errno "libc.so"
-//go:cgo_import_dynamic libc_setenv setenv "libc.so"
-//go:cgo_import_dynamic libc_unsetenv unsetenv "libc.so"
-//go:cgo_import_dynamic libc_clearenv clearenv "libc.so"
-//go:cgo_import_dynamic libc_pthread_create pthread_create "libc.so"
-//go:cgo_import_dynamic libc_pthread_attr_init pthread_attr_init "libc.so"
-//go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libc.so"
-//go:cgo_import_dynamic libc_pthread_attr_getstacksize pthread_attr_getstacksize "libc.so"
-//go:cgo_import_dynamic libc_pthread_attr_destroy pthread_attr_destroy "libc.so"
-//go:cgo_import_dynamic libc_pthread_key_create pthread_key_create "libc.so"
-//go:cgo_import_dynamic libc_pthread_setspecific pthread_setspecific "libc.so"
-//go:cgo_import_dynamic libc_pthread_self pthread_self "libc.so"
-//go:cgo_import_dynamic libc_pthread_getattr_np pthread_getattr_np "libc.so"
-//go:cgo_import_dynamic libc_pthread_attr_getstack pthread_attr_getstack "libc.so"
-//go:cgo_import_dynamic libc_pthread_sigmask pthread_sigmask "libc.so"
-//go:cgo_import_dynamic libc_setegid setegid "libc.so"
-//go:cgo_import_dynamic libc_seteuid seteuid "libc.so"
-//go:cgo_import_dynamic libc_setgid setgid "libc.so"
-//go:cgo_import_dynamic libc_setgroups setgroups "libc.so"
-//go:cgo_import_dynamic libc_setregid setregid "libc.so"
-//go:cgo_import_dynamic libc_setresgid setresgid "libc.so"
-//go:cgo_import_dynamic libc_setresuid setresuid "libc.so"
-//go:cgo_import_dynamic libc_setreuid setreuid "libc.so"
-//go:cgo_import_dynamic libc_setuid setuid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_dlopen dlopen "libdl.so"
+//go:cgo_import_dynamic _cgo_libc_dlsym dlsym "libdl.so"
+//go:cgo_import_dynamic _cgo_libc_dlclose dlclose "libdl.so"
+//go:cgo_import_dynamic _cgo_libc_dlerror dlerror "libdl.so"
+//go:cgo_import_dynamic _cgo_libc_android_log_write __android_log_write "liblog.so"
+//go:cgo_import_dynamic _cgo_libc_mmap mmap "libc.so"
+//go:cgo_import_dynamic _cgo_libc_munmap munmap "libc.so"
+//go:cgo_import_dynamic _cgo_libc_sigaction sigaction "libc.so"
+//go:cgo_import_dynamic _cgo_libc_sigfillset sigfillset "libc.so"
+//go:cgo_import_dynamic _cgo_libc_errno_location __errno "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setenv setenv "libc.so"
+//go:cgo_import_dynamic _cgo_libc_unsetenv unsetenv "libc.so"
+//go:cgo_import_dynamic _cgo_libc_clearenv clearenv "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_create pthread_create "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_init pthread_attr_init "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_getstacksize pthread_attr_getstacksize "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_destroy pthread_attr_destroy "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_key_create pthread_key_create "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_setspecific pthread_setspecific "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_self pthread_self "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_getattr_np pthread_getattr_np "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_attr_getstack pthread_attr_getstack "libc.so"
+//go:cgo_import_dynamic _cgo_libc_pthread_sigmask pthread_sigmask "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setegid setegid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_seteuid seteuid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setgid setgid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setgroups setgroups "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setregid setregid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setresgid setresgid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setresuid setresuid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setreuid setreuid "libc.so"
+//go:cgo_import_dynamic _cgo_libc_setuid setuid "libc.so"
