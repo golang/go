@@ -7,7 +7,6 @@
 package cgo
 
 import (
-	"internal/abi"
 	"internal/goos"
 	"internal/runtime/atomic"
 	"internal/runtime/sys"
@@ -86,6 +85,10 @@ var libc_pthread_sigmask = unsafe.Pointer(&_cgo_libc_pthread_sigmask)
 var _cgo_libc_sigfillset byte
 var libc_sigfillset = unsafe.Pointer(&_cgo_libc_sigfillset)
 
+//go:linkname _cgo_libc_sigaltstack _cgo_libc_sigaltstack
+var _cgo_libc_sigaltstack byte
+var libc_sigaltstack = unsafe.Pointer(&_cgo_libc_sigaltstack)
+
 // libc_dlopen, libc_dlsym, and libc_dlerror are imported for
 // Open only when the cgobindings experiment is enabled (see library_*.go),
 // except on Android, where runtime/cgo initialization uses them.
@@ -117,10 +120,6 @@ func runtime_writeErrStr(s string)
 
 //go:linkname runtime_abort runtime.abort
 func runtime_abort()
-
-// pthreadKeyDestructor and x_cgo_threadentry are C-callable assembly entrypoints.
-func pthreadKeyDestructor()
-func x_cgo_threadentry()
 
 //go:linknamestd _cgoSetenv runtime.cgoSetenv
 var _cgoSetenv = cgoSetenv
@@ -248,7 +247,7 @@ func cgoNotifyRuntimeInitDoneOS() {
 		tsanAcquire()
 		r = asmcgocall(uintptr(libc_pthread_key_create),
 			uintptr(unsafe.Pointer(&key)),
-			abi.FuncPCABI0(pthreadKeyDestructor), 0, 0, 0, 0)
+			pthreadKeyDestructorPC(), 0, 0, 0, 0)
 		tsanRelease()
 		keyVal = key
 	} else {
@@ -256,7 +255,7 @@ func cgoNotifyRuntimeInitDoneOS() {
 		tsanAcquire()
 		r = asmcgocall(uintptr(libc_pthread_key_create),
 			uintptr(unsafe.Pointer(&key)),
-			abi.FuncPCABI0(pthreadKeyDestructor), 0, 0, 0, 0)
+			pthreadKeyDestructorPC(), 0, 0, 0, 0)
 		tsanRelease()
 		keyVal = uintptr(key)
 	}
@@ -361,7 +360,7 @@ func cgoThreadStart(gp *g) (int32, string) {
 	}
 	gp.stackhi = cgoThreadStackSize(&attr)
 
-	err := cgoTryPthreadCreate(&thread, &attr, abi.FuncPCABI0(x_cgo_threadentry), uintptr(unsafe.Pointer(gp)))
+	err := cgoTryPthreadCreate(&thread, &attr, threadentryPC(), uintptr(unsafe.Pointer(gp)))
 	cgoDestroyThreadAttr(&attr)
 	cgoRestoreSigs(&oset)
 
@@ -375,6 +374,21 @@ func cgoThreadStart(gp *g) (int32, string) {
 //go:norace
 //go:nocheckptr
 func threadentry(v unsafe.Pointer) {
+	if goos.IsNetbsd != 0 {
+		// On NetBSD, a new thread inherits the signal stack of the
+		// creating thread. Remove that signal stack before mstart so
+		// minit can install the new thread's own signal stack.
+		// Do this before setting g: the g0 stack bounds are not
+		// set up yet, so we cannot switch stacks with asmcgocall.
+		const _SS_DISABLE = 4
+		ss := struct {
+			sp    uintptr
+			size  uintptr
+			flags int32
+		}{flags: _SS_DISABLE}
+		msanUnpoisonNoG(unsafe.Pointer(&ss), unsafe.Sizeof(ss))
+		asmcgocallNoG(uintptr(libc_sigaltstack), uintptr(unsafe.Pointer(&ss)), 0, 0, 0, 0, 0)
+	}
 	runtime_setg(uintptr(v))
 	runtime_mstart()
 }

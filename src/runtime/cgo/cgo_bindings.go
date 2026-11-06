@@ -7,7 +7,6 @@
 package cgo
 
 import (
-	"internal/abi"
 	"internal/cpu"
 	"internal/runtime/atomic"
 	"unsafe"
@@ -60,8 +59,6 @@ type cgoCallFrame struct {
 	r1                     uintptr
 }
 
-func cgoCallTrampoline()
-
 // asmcgocall calls a C function pointer fn with up to 6 integer/pointer
 // arguments on the system stack via runtime.asmcgocall without entering
 // the scheduler.
@@ -72,7 +69,7 @@ func cgoCallTrampoline()
 func asmcgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	var f cgoCallFrame
 	f.fn, f.a0, f.a1, f.a2, f.a3, f.a4, f.a5 = fn, a0, a1, a2, a3, a4, a5
-	runtime_asmcgocall(unsafe.Pointer(abi.FuncPCABI0(cgoCallTrampoline)), unsafe.Pointer(&f))
+	runtime_asmcgocall(cgoCallTrampolinePC(), unsafe.Pointer(&f))
 	return f.r1
 }
 
@@ -88,7 +85,7 @@ func asmcgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 func asmcgocallNoG(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	var f cgoCallFrame
 	f.fn, f.a0, f.a1, f.a2, f.a3, f.a4, f.a5 = fn, a0, a1, a2, a3, a4, a5
-	runtime_asmcgocall_no_g(unsafe.Pointer(abi.FuncPCABI0(cgoCallTrampoline)), unsafe.Pointer(&f))
+	runtime_asmcgocall_no_g(cgoCallTrampolinePC(), unsafe.Pointer(&f))
 	return f.r1
 }
 
@@ -110,7 +107,7 @@ func asmcgocallMode(noG bool, fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 func cgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 	var f cgoCallFrame
 	f.fn, f.a0, f.a1, f.a2, f.a3, f.a4, f.a5 = fn, a0, a1, a2, a3, a4, a5
-	runtime_cgocall(unsafe.Pointer(abi.FuncPCABI0(cgoCallTrampoline)), unsafe.Pointer(&f))
+	runtime_cgocall(cgoCallTrampolinePC(), unsafe.Pointer(&f))
 	return f.r1
 }
 
@@ -122,7 +119,7 @@ func cgocall(fn, a0, a1, a2, a3, a4, a5 uintptr) uintptr {
 func cgocallErr(fn, a0, a1, a2, a3, a4, a5 uintptr) (uintptr, uint32) {
 	var f cgoCallFrame
 	f.fn, f.a0, f.a1, f.a2, f.a3, f.a4, f.a5 = fn, a0, a1, a2, a3, a4, a5
-	errno := runtime_cgocall(unsafe.Pointer(abi.FuncPCABI0(cgoCallTrampoline)), unsafe.Pointer(&f))
+	errno := runtime_cgocall(cgoCallTrampolinePC(), unsafe.Pointer(&f))
 	return f.r1, uint32(errno)
 }
 
