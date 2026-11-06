@@ -547,6 +547,18 @@ func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
 	return z
 }
 
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func ReduceMin[E Elt, W Width](x Vec[E, W]) (z E) {
+	// See ReduceMax about the handling of non-finite values.
+	z = x[0]
+	for _, xi := range x[1:] {
+		z = min(z, xi)
+	}
+	return z
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])

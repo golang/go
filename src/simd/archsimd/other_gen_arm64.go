@@ -415,10 +415,12 @@ func (x Int8x16) ReduceMax() (z int8) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Int8x16) ReduceMin() int8 {
+func (x Int8x16) ReduceMin() (z int8) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -431,10 +433,12 @@ func (x Int16x8) ReduceMax() (z int16) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Int16x8) ReduceMin() int16 {
+func (x Int16x8) ReduceMin() (z int16) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -447,10 +451,12 @@ func (x Int32x4) ReduceMax() (z int32) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Int32x4) ReduceMin() int32 {
+func (x Int32x4) ReduceMin() (z int32) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -463,10 +469,12 @@ func (x Uint8x16) ReduceMax() (z uint8) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint8x16) ReduceMin() uint8 {
+func (x Uint8x16) ReduceMin() (z uint8) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -479,10 +487,12 @@ func (x Uint16x8) ReduceMax() (z uint16) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint16x8) ReduceMin() uint16 {
+func (x Uint16x8) ReduceMin() (z uint16) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -495,10 +505,12 @@ func (x Uint32x4) ReduceMax() (z uint32) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Uint32x4) ReduceMin() uint32 {
+func (x Uint32x4) ReduceMin() (z uint32) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -511,10 +523,12 @@ func (x Float32x4) ReduceMax() (z float32) {
 	return x.reduceMax().GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Float32x4) ReduceMin() float32 {
+func (x Float32x4) ReduceMin() (z float32) {
 	return x.reduceMin().GetElem(0)
 }
 
@@ -554,9 +568,11 @@ func (x Float64x2) ReduceMax() (z float64) {
 	return x.ConcatMaxPairs(x).GetElem(0)
 }
 
-// ReduceMin reduces x by taking the minimum of all elements.
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
 //
 // Emulated
-func (x Float64x2) ReduceMin() float64 {
+func (x Float64x2) ReduceMin() (z float64) {
 	return x.ConcatMinPairs(x).GetElem(0)
 }
