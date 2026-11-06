@@ -141,6 +141,10 @@ func TestReader(t *testing.T) {
 		),
 		fail: true,
 	}, {
+		desc:   "incomplete Huffman tree",
+		input:  mustDecodeHex("425a683131415926535958fdd3b000000008007fe02000228630100300797bed2c7a82ee48a70a120b1fba7600"),
+		output: []byte("071876222607"),
+	}, {
 		desc: "bad huffman delta",
 		input: mustDecodeHex("" +
 			"425a6836314159265359b1f7404b000000400040002000217d184682ee48a70a" +
@@ -163,6 +167,21 @@ func TestReader(t *testing.T) {
 		if !v.fail && !bytes.Equal(buf, v.output) {
 			t.Errorf("test %d (%s), output mismatch:\ngot  %s\nwant %s", i, v.desc, trim(buf), trim(v.output))
 		}
+	}
+}
+
+func TestInvalidHuffmanCodes(t *testing.T) {
+	if _, err := newHuffmanTree([]uint8{1, 1, 2}); err == nil {
+		t.Fatal("accepted oversubscribed Huffman tree")
+	}
+
+	tree, err := newHuffmanTree([]uint8{2, 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	br := newBitReader(bytes.NewReader([]byte{0x80}))
+	if symbol := tree.Decode(&br); symbol != invalidHuffmanSymbol {
+		t.Errorf("unused prefix decoded to symbol %d", symbol)
 	}
 }
 

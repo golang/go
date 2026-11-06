@@ -379,6 +379,12 @@ func (bz2 *reader) readBlock() (err error) {
 		}
 
 		v := currentHuffmanTree.Decode(br)
+		if v == invalidHuffmanSymbol {
+			if br.err == nil {
+				br.err = StructuralError("invalid Huffman code")
+			}
+			return br.err
+		}
 		decoded++
 
 		if v < 2 {
