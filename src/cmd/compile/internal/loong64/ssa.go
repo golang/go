@@ -446,17 +446,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssaop.OpLOONG64MOVVload,
 		ssaop.OpLOONG64MOVFload,
 		ssaop.OpLOONG64MOVDload:
-		as := v.Op.Asm()
-		if v.Aux == nil && v.AuxInt&0x3 == 0 && !ssa.Is12Bit(v.AuxInt) {
-			switch v.Op {
-			case ssaop.OpLOONG64MOVWload:
-				as = loong64.AMOVWP
-			case ssaop.OpLOONG64MOVVload:
-				as = loong64.AMOVVP
-			}
-		}
-
-		p := s.Prog(as)
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_MEM
 		p.From.Reg = v.Args[0].Reg()
 		ssagen.AddAux(&p.From, v)
@@ -469,17 +459,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssaop.OpLOONG64MOVVstore,
 		ssaop.OpLOONG64MOVFstore,
 		ssaop.OpLOONG64MOVDstore:
-		as := v.Op.Asm()
-		if v.Aux == nil && v.AuxInt&0x3 == 0 && !ssa.Is12Bit(v.AuxInt) {
-			switch v.Op {
-			case ssaop.OpLOONG64MOVWstore:
-				as = loong64.AMOVWP
-			case ssaop.OpLOONG64MOVVstore:
-				as = loong64.AMOVVP
-			}
-		}
-
-		p := s.Prog(as)
+		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_REG
 		p.From.Reg = v.Args[1].Reg()
 		p.To.Type = obj.TYPE_MEM
