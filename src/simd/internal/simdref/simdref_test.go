@@ -6,10 +6,57 @@ package simdref_test
 
 import (
 	"fmt"
+	"math/bits"
 	"simd/internal/simdref"
 	"simd/internal/spec"
+	"slices"
 	"testing"
 )
+
+func TestScalableMaskToBits(t *testing.T) {
+	for _, width := range []int{128, 256, 512, 1024, 2048} {
+		t.Run(fmt.Sprint(width), func(t *testing.T) {
+			defer spec.SetScalableWidth(width)()
+			s := make([]int8, width/8)
+			for i := range s {
+				if i%3 == 0 || i == len(s)-1 {
+					s[i] = -1
+				}
+			}
+			mask := simdref.LoadInt8s(s).ToMask()
+			n := (len(s) + bits.UintSize - 1) / bits.UintSize
+			dst := make([]uint, n+1)
+			for i := range dst {
+				dst[i] = ^uint(0)
+			}
+			if got := mask.ToBits(dst); got != n {
+				t.Fatalf("ToBits wrote %d words, want %d", got, n)
+			}
+			for i := 0; i < n*bits.UintSize; i++ {
+				want := i < len(s) && s[i] != 0
+				if got := dst[i/bits.UintSize]&(1<<(i%bits.UintSize)) != 0; got != want {
+					t.Errorf("bit %d = %v, want %v", i, got, want)
+				}
+			}
+			if dst[n] != ^uint(0) {
+				t.Error("modified suffix")
+			}
+			before := slices.Clone(dst)
+			func() {
+				defer func() {
+					if recover() == nil {
+						t.Error("short destination did not panic")
+					}
+				}()
+				// The capacity is sufficient, but the length is not.
+				mask.ToBits(dst[:n-1])
+			}()
+			if !slices.Equal(dst, before) {
+				t.Error("short destination modified the bitmap")
+			}
+		})
+	}
+}
 
 func TestScalableExecution(t *testing.T) {
 	// Calling scalable operation before setting width must panic
