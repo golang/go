@@ -358,7 +358,7 @@
   out:
   - *f64xN
 
-- go: Permute
+- go: LookupMod
   asm: "VPERM[BWDQ]|VPERMP[SD]"
   operandOrder: "21Type1"
   in:
@@ -370,7 +370,7 @@
   out:
   - go: $t
 
-- go: ConcatPermute
+- go: ConcatLookupMod
   asm: "VPERMI2[BWDQ]|VPERMI2P[SD]"
   # Because we are overwriting the receiver's type, we
   # have to move the receiver to be a parameter so that
@@ -566,7 +566,7 @@
     base: float
 
 # VPSHUFB for 128-bit byte shuffles will be picked with higher priority than VPERMB, given its lower CPU feature requirement. (It's AVX)
-- go: PermuteOrZero
+- go: LookupModOrZero
   asm: VPSHUFB
   in:
   - &128any
@@ -578,7 +578,7 @@
   out:
   - *128any
 
-- go: PermuteOrZeroGrouped
+- go: LookupModOrZeroGrouped
   asm: VPSHUFB
   in:
   - &256Or512any

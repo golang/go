@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func TestPermute(t *testing.T) {
+func TestLookupMod(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
@@ -32,20 +32,20 @@ func TestPermute(t *testing.T) {
 	indices := []uint64{7, 6, 5, 4, 3, 2, 1, 0}
 	want := []int64{8, 7, 6, 5, 4, 3, 2, 1}
 	got := make([]int64, 8)
-	archsimd.LoadInt64x8(x).Permute(archsimd.LoadUint64x8(indices)).Store(got)
+	archsimd.LoadInt64x8(x).LookupMod(archsimd.LoadUint64x8(indices)).Store(got)
 	checkSlices(t, got, want)
 }
 
-func TestPermuteOrZero(t *testing.T) {
+func TestLookupModOrZero(t *testing.T) {
 	x := []uint8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
 	indices := []int8{7, 6, 5, 4, 3, 2, 1, 0, -1, 8, -1, 9, -1, 10, -1, 11}
 	want := []uint8{8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 0, 10, 0, 11, 0, 12}
 	got := make([]uint8, len(x))
-	archsimd.LoadUint8x16(x).PermuteOrZero(archsimd.LoadInt8x16(indices)).Store(got)
+	archsimd.LoadUint8x16(x).LookupModOrZero(archsimd.LoadInt8x16(indices)).Store(got)
 	checkSlices(t, got, want)
 }
 
-func TestConcatPermute(t *testing.T) {
+func TestConcatLookupMod(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 		return
@@ -55,7 +55,7 @@ func TestConcatPermute(t *testing.T) {
 	indices := []uint64{7 + 8, 6, 5 + 8, 4, 3 + 8, 2, 1 + 8, 0}
 	want := []int64{-8, 7, -6, 5, -4, 3, -2, 1}
 	got := make([]int64, 8)
-	archsimd.LoadInt64x8(x).ConcatPermute(archsimd.LoadInt64x8(y), archsimd.LoadUint64x8(indices)).Store(got)
+	archsimd.LoadInt64x8(x).ConcatLookupMod(archsimd.LoadInt64x8(y), archsimd.LoadUint64x8(indices)).Store(got)
 	checkSlices(t, got, want)
 }
 

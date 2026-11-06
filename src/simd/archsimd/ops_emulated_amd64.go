@@ -248,7 +248,7 @@ func (x Int8x16) OnesCount() (z Int8x16) {
 	mask0f := BroadcastInt8x16(0x0f)
 	lo := x.And(mask0f)
 	hi := x.ToBits().ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().BitsToInt8().And(mask0f)
-	return lut.PermuteOrZero(lo).Add(lut.PermuteOrZero(hi))
+	return lut.LookupModOrZero(lo).Add(lut.LookupModOrZero(hi))
 }
 
 // OnesCount counts the number of one bits ("population count") in
@@ -265,7 +265,7 @@ func (x Uint8x16) OnesCount() (z Uint8x16) {
 	mask0f := BroadcastInt8x16(0x0f).ToBits()
 	lo := x.And(mask0f)
 	hi := x.ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().And(mask0f)
-	return lut.PermuteOrZero(lo.BitsToInt8()).Add(lut.PermuteOrZero(hi.BitsToInt8()))
+	return lut.LookupModOrZero(lo.BitsToInt8()).Add(lut.LookupModOrZero(hi.BitsToInt8()))
 }
 
 // OnesCount counts the number of one bits ("population count") in
@@ -282,7 +282,7 @@ func (x Int8x32) OnesCount() (z Int8x32) {
 	mask0f := BroadcastInt8x32(0x0f)
 	lo := x.And(mask0f)
 	hi := x.ToBits().ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().BitsToInt8().And(mask0f)
-	return lut.PermuteOrZeroGrouped(lo).Add(lut.PermuteOrZeroGrouped(hi))
+	return lut.LookupModOrZeroGrouped(lo).Add(lut.LookupModOrZeroGrouped(hi))
 }
 
 // OnesCount counts the number of one bits ("population count") in
@@ -299,7 +299,7 @@ func (x Uint8x32) OnesCount() (z Uint8x32) {
 	mask0f := BroadcastInt8x32(0x0f).ToBits()
 	lo := x.And(mask0f)
 	hi := x.ReshapeToUint16s().ShiftAllRight(4).ReshapeToUint8s().And(mask0f)
-	return lut.PermuteOrZeroGrouped(lo.BitsToInt8()).Add(lut.PermuteOrZeroGrouped(hi.BitsToInt8()))
+	return lut.LookupModOrZeroGrouped(lo.BitsToInt8()).Add(lut.LookupModOrZeroGrouped(hi.BitsToInt8()))
 }
 
 // OnesCount counts the number of one bits ("population count") in
