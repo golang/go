@@ -1,4 +1,4 @@
-// Copyright 2010 The Go Authors. All rights reserved.
+// Copyright 2010-2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -2210,3 +2210,23 @@ func FuncNamePiecesForPrint(name string) (string, string, string, string, string
 var InHeapOrStack = inHeapOrStack
 
 func SysRSS() (rss, shared uint64, hasShared bool) { return sysRSS() }
+
+// UserFrameMorestackForTest resolves a suspended morestack transition without
+// relying on a profiling signal landing in its short instruction window.
+func UserFrameMorestackForTest(pc, sp uintptr) (resolved, scannedPC, scannedSP uintptr) {
+	systemstack(func() {
+		var mp m
+		var system, user g
+		mp.g0, mp.curg = &system, &user
+		system.m, user.m = &mp, &mp
+		user.sched.pc, user.sched.sp = pc, sp
+		var u unwinder
+		u.g = system.guintptr()
+		u.flags = unwindJumpStack | unwindSilentErrors
+		u.frame.pc = abi.FuncPCABI0(morestack)
+		u.frame.fn = findfunc(u.frame.pc)
+		u.resolveInternal(false, false)
+		resolved, scannedPC, scannedSP = u.frame.pc, u.userFrameScanPC, u.userFrameScanSP
+	})
+	return
+}

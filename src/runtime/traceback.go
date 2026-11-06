@@ -1,4 +1,4 @@
-// Copyright 2009 The Go Authors. All rights reserved.
+// Copyright 2009-2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -350,6 +350,13 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 				u.g.set(gp)
 				frame.pc = gp.sched.pc
 				frame.fn = findfunc(frame.pc)
+				if !frame.fn.valid() {
+					// A registered user-code prologue can request stack growth.
+					// Resolve its saved PC and retain its scan chain through the
+					// same entry path used for an interrupted user-code frame.
+					u.initAt(frame.pc, gp.sched.sp, gp.sched.lr, gp, u.flags)
+					return
+				}
 				f = frame.fn
 				flag = f.flag
 				if usesLR {
