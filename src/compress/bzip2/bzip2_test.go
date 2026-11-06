@@ -105,6 +105,14 @@ func TestReader(t *testing.T) {
 			"ba",
 		),
 	}, {
+		desc:  "missing RLE1 repeat count",
+		input: mustDecodeHex("425a6831314159265359e16e6571000001840020002000211846e0bb9229c284870b732b88"),
+		fail:  true,
+	}, {
+		desc:   "consecutive RLE1 runs with zero repeat counts",
+		input:  mustDecodeHex("425a6831314159265359f59a903a000004c40040002000200020a9a082138bb9229c28487acd481d00"),
+		output: []byte("AAAAAAAA"),
+	}, {
 		desc:  "1MiB sawtooth",
 		input: mustLoadFile("testdata/pass-sawtooth.bz2"),
 		output: func() []byte {
