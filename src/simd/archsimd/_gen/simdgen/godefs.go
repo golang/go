@@ -199,19 +199,6 @@ func (o *Operation) DecodeUnified(v *unify.Value) error {
 		}
 	}
 
-	// For down conversions, the high elements are zeroed if the result has more elements.
-	// TODO: we should encode this logic in the YAML file, instead of hardcoding it here.
-	if len(o.In) > 0 && len(o.Out) > 0 {
-		inLanes := o.In[0].Lanes
-		outLanes := o.Out[0].Lanes
-		if inLanes != nil && outLanes != nil && *inLanes < *outLanes {
-			if (strings.Contains(o.Go, "Saturate") || strings.Contains(o.Go, "TruncTo")) &&
-				!strings.Contains(o.Go, "Concat") {
-				o.Documentation += "\n// Results are packed to low elements in the returned vector, its upper elements are zeroed."
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -231,25 +218,6 @@ func (o *Operation) VectorWidth() int {
 		}
 	}
 	panic(fmt.Errorf("Figure out what the vector width is for %v and implement it", *o))
-}
-
-// Right now simdgen computes the machine op name for most instructions
-// as $Name$OutputSize, by this denotation, these instructions are "overloaded".
-// for example:
-// (Uint16x8) ConvertToInt8
-// (Uint16x16) ConvertToInt8
-// are both VPMOVWB128.
-// To make them distinguishable we need to append the input size to them as well.
-// TODO: document them well in the generated code.
-var demotingConvertOps = map[string]bool{
-	"VPMOVQD128": true, "VPMOVSQD128": true, "VPMOVUSQD128": true, "VPMOVQW128": true, "VPMOVSQW128": true,
-	"VPMOVUSQW128": true, "VPMOVDW128": true, "VPMOVSDW128": true, "VPMOVUSDW128": true, "VPMOVQB128": true,
-	"VPMOVSQB128": true, "VPMOVUSQB128": true, "VPMOVDB128": true, "VPMOVSDB128": true, "VPMOVUSDB128": true,
-	"VPMOVWB128": true, "VPMOVSWB128": true, "VPMOVUSWB128": true,
-	"VPMOVQDMasked128": true, "VPMOVSQDMasked128": true, "VPMOVUSQDMasked128": true, "VPMOVQWMasked128": true, "VPMOVSQWMasked128": true,
-	"VPMOVUSQWMasked128": true, "VPMOVDWMasked128": true, "VPMOVSDWMasked128": true, "VPMOVUSDWMasked128": true, "VPMOVQBMasked128": true,
-	"VPMOVSQBMasked128": true, "VPMOVUSQBMasked128": true, "VPMOVDBMasked128": true, "VPMOVSDBMasked128": true, "VPMOVUSDBMasked128": true,
-	"VPMOVWBMasked128": true, "VPMOVSWBMasked128": true, "VPMOVUSWBMasked128": true,
 }
 
 // sveMaskSuffix returns the machine-op name suffix for a masked operation:
@@ -349,11 +317,6 @@ func machineOpName(maskType maskShape, gOp Operation) string {
 	}
 	if gOp.SSAVariant != nil {
 		asm += *gOp.SSAVariant
-	}
-	if demotingConvertOps[asm] {
-		// Need to append the size of the source as well.
-		// TODO: should be "%sto%d".
-		asm = fmt.Sprintf("%s_%d", asm, gOp.In[0].Bits.N())
 	}
 	return asm
 }

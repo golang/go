@@ -8,6 +8,7 @@ package simd_test
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"simd/archsimd"
 	"slices"
@@ -1648,25 +1649,26 @@ func TestMaskedZeroingResultSize(t *testing.T) {
 	// Int32x8 must not be folded into VCVTPS2PDMasked256, because that
 	// would cause it to be treated as a 64-bit mask (using only bits 0-3
 	// and zeroing the whole result for 0xf0).
-	x := archsimd.LoadFloat32x4([]float32{1, 2, 3, 4})
+	x := archsimd.LoadFloat32x8([]float32{1, 2, 3, 4, 5, 6, 7, 8})
 	got64 := make([]float64, 4)
 	x.ConvertToFloat64().AsInt32x8().Masked(archsimd.Mask32x8FromBits(0xf0)).AsFloat64x4().Store(got64)
 	checkSlices(t, got64, []float64{0, 0, 3, 4})
 
 	// Conversely, VCVTPD2PSY produces four 32-bit elements from four
-	// 64-bit inputs. A 64-bit mask applied after reinterpreting the
-	// result as Int64x2 must not be folded into VCVTPD2PSYMasked256,
-	// because that would treat the 2-bit 64-bit mask 0b10 as the 4-bit
-	// 32-bit mask 0b0010 (producing {0, 2, 0, 0} instead of {0, 0, 3, 4}).
+	// 64-bit inputs, in the low half of a Float32x8. A 64-bit mask applied
+	// after reinterpreting the result as Int64x4 must not be folded into
+	// a masked VCVTPD2PSY, because that would treat the 64-bit mask 0b10
+	// as the 32-bit mask 0b0010 (producing {0, 2, 0, 0, ...} instead of
+	// {0, 0, 3, 4, ...}).
 	y := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
-	got32 := make([]float32, 4)
-	y.ConvertToFloat32().AsInt64x2().Masked(archsimd.Mask64x2FromBits(0b10)).AsFloat32x4().Store(got32)
-	checkSlices(t, got32, []float32{0, 0, 3, 4})
+	got32 := make([]float32, 8)
+	y.ConvertToFloat32().AsInt64x4().Masked(archsimd.Mask64x4FromBits(0b10)).AsFloat32x8().Store(got32)
+	checkSlices(t, got32, []float32{0, 0, 3, 4, 0, 0, 0, 0})
 
-	// And when a 32-bit mask is applied directly to the Float32x4 result,
-	// folding it into VCVTPD2PSYMasked256 must mask all 4 float32 outputs.
-	y.ConvertToFloat32().Masked(archsimd.Mask32x4FromBits(0b1010)).Store(got32)
-	checkSlices(t, got32, []float32{0, 2, 0, 4})
+	// And when a 32-bit mask is applied directly to the Float32x8 result,
+	// folding it into a masked VCVTPD2PSY must mask all 4 float32 outputs.
+	y.ConvertToFloat32().Masked(archsimd.Mask32x8FromBits(0b1010)).Store(got32)
+	checkSlices(t, got32, []float32{0, 2, 0, 4, 0, 0, 0, 0})
 }
 
 func TestMaskedMergingResultSize(t *testing.T) {
@@ -1697,4 +1699,102 @@ func TestMaskedMergePartialResult(t *testing.T) {
 	got := make([]float32, 4)
 	x.ConvertToFloat32().Merge(dst, archsimd.Mask32x4FromBits(0b0001)).Store(got)
 	checkSlices(t, got, []float32{1, 20, 30, 40})
+}
+
+func TestMaskedNarrowingConversion(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// A 256-bit narrowing conversion writes only the low half of its result
+	// (VPMOVWB Y, X). Masking with zeroing can fold into the conversion,
+	// since the upper half is zero either way, but merging can't, since the
+	// conversion would zero the upper half of dst.
+	xs := make([]int16, 16)
+	dsts := make([]int8, 32)
+	for i := range xs {
+		xs[i] = int16(i + 1)
+	}
+	for i := range dsts {
+		dsts[i] = 100
+	}
+	x := archsimd.LoadInt16x16(xs)
+	dst := archsimd.LoadInt8x32(dsts)
+	got := make([]int8, 32)
+
+	x.TruncToInt8().Masked(archsimd.Mask8x32FromBits(0xaaaaaaaa)).Store(got)
+	want := make([]int8, 32)
+	for i := 1; i < 16; i += 2 {
+		want[i] = int8(i + 1)
+	}
+	checkSlices(t, got, want)
+
+	x.TruncToInt8().IfElse(archsimd.Mask8x32FromBits(0x000000ff), dst).Store(got)
+	for i := range want {
+		if i < 8 {
+			want[i] = int8(i + 1)
+		} else {
+			want[i] = 100
+		}
+	}
+	checkSlices(t, got, want)
+
+	// Likewise at 512 bits (VPMOVSDW Z, Y).
+	ys := make([]int32, 16)
+	dsts16 := make([]int16, 32)
+	for i := range ys {
+		ys[i] = int32(i+1) << 16 // Saturates to MaxInt16.
+	}
+	for i := range dsts16 {
+		dsts16[i] = 100
+	}
+	y := archsimd.LoadInt32x16(ys)
+	dst16 := archsimd.LoadInt16x32(dsts16)
+	got16 := make([]int16, 32)
+	y.SaturateToInt16().IfElse(archsimd.Mask16x32FromBits(0x0000000f), dst16).Store(got16)
+	want16 := make([]int16, 32)
+	for i := range want16 {
+		if i < 4 {
+			want16[i] = math.MaxInt16
+		} else {
+			want16[i] = 100
+		}
+	}
+	checkSlices(t, got16, want16)
+}
+
+func TestMaskedWideningConversion(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// A 256-bit widening conversion reads only the low half of its input
+	// (VPMOVSXBW X, Y), and its result fills the whole register, so both
+	// zeroing and merging masks can fold into it.
+	xs := make([]int8, 32)
+	dsts := make([]int16, 16)
+	for i := range xs {
+		xs[i] = int8(-i)
+	}
+	for i := range dsts {
+		dsts[i] = 100
+	}
+	x := archsimd.LoadInt8x32(xs)
+	dst := archsimd.LoadInt16x16(dsts)
+	got := make([]int16, 16)
+
+	x.ExtendToInt16().Masked(archsimd.Mask16x16FromBits(0xff00)).Store(got)
+	want := make([]int16, 16)
+	for i := 8; i < 16; i++ {
+		want[i] = int16(-i)
+	}
+	checkSlices(t, got, want)
+
+	x.ExtendToInt16().IfElse(archsimd.Mask16x16FromBits(0x00f0), dst).Store(got)
+	for i := range want {
+		if 4 <= i && i < 8 {
+			want[i] = int16(-i)
+		} else {
+			want[i] = 100
+		}
+	}
+	checkSlices(t, got, want)
 }
