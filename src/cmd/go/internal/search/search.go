@@ -184,7 +184,25 @@ func (m *Match) MatchPackages() {
 			if !match(name) {
 				return nil
 			}
-			pkg, err := cfg.BuildContext.ImportDir(path, 0)
+			var pkg *build.Package
+			if str.HasFilePathPrefix(path, cfg.GOROOTsrc) {
+				// Reuse the package index used by package loading instead of
+				// rereading every source file while expanding GOROOT patterns.
+				modroot := cfg.GOROOTsrc
+				gorootSrcCmd := filepath.Join(modroot, "cmd")
+				if str.HasFilePathPrefix(path, gorootSrcCmd) {
+					modroot = gorootSrcCmd
+				}
+				if ip, indexErr := modindex.GetPackage(modroot, path); indexErr == nil {
+					pkg, err = ip.Import(cfg.BuildContext, 0)
+				} else if errors.Is(indexErr, modindex.ErrNotIndexed) {
+					pkg, err = cfg.BuildContext.ImportDir(path, 0)
+				} else {
+					return indexErr
+				}
+			} else {
+				pkg, err = cfg.BuildContext.ImportDir(path, 0)
+			}
 			if err != nil {
 				if _, noGo := err.(*build.NoGoError); noGo {
 					// The package does not actually exist, so record neither the package
@@ -200,7 +218,7 @@ func (m *Match) MatchPackages() {
 			// packages under cmd/vendor. At least as of
 			// March, 2017, there is one there for the
 			// vendored pprof tool.
-			if m.pattern == "cmd" && pkg != nil && strings.HasPrefix(pkg.ImportPath, "cmd/vendor") && pkg.Name == "main" {
+			if m.pattern == "cmd" && pkg != nil && strings.HasPrefix(name, "cmd/vendor") && pkg.Name == "main" {
 				return nil
 			}
 

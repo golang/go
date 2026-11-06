@@ -2,5 +2,21 @@
 go list -json math # refresh cache
 env GODEBUG=gofsystrace=1,gofsystracelog=fsys.log
 go list -json math
-! grep math/abs.go fsys.log
+! grep 'math[\\/]abs\.go' fsys.log
 grep 'openIndexPackage .*[\\/]math$' fsys.log
+
+# Expanding GOROOT patterns should reuse the index and match the uncached result.
+env GODEBUG=goindex=0
+go list -find std cmd
+cp stdout packages.txt
+env GODEBUG=
+go list -find std cmd
+cmp stdout packages.txt
+
+env GODEBUG=gofsystrace=1,gofsystracelog=patterns.log
+go list -find std cmd
+cmp stdout packages.txt
+! grep 'Open .*[\\/]math[\\/]abs\.go$' patterns.log
+! grep 'Open .*[\\/]cmd[\\/]go[\\/]main\.go$' patterns.log
+grep 'openIndexPackage .*[\\/]math$' patterns.log
+grep 'openIndexPackage .*[\\/]cmd[\\/]go$' patterns.log
