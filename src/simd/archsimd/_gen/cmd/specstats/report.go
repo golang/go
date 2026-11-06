@@ -33,7 +33,7 @@ func (m *metrics) summary(w *bytes.Buffer) {
 
 	note(w, "Heading for 100%:")
 	frac(w, "spec coverage, by (receiver, name) (§1)", m.covPair.result(), "spec-common, spec-all")
-	frac(w, "docs sourced from spec (§3)", m.fromSpec.result(), "gen-docs, comments-yaml, handwritten-fill, template-docs")
+	frac(w, "spec-covered docs taken from spec (§3)", m.fromSpec.result(), "gen-docs, comments-yaml, handwritten-fill, template-docs")
 
 	note(w, "\nHeading for zero:")
 	count(w, "type mismatches with spec (§2)", m.typeOK.result().miss(), "fill-enforce")
@@ -100,8 +100,12 @@ argument agrees with any name:`)
 
 func (m *metrics) documentation(w *bytes.Buffer) {
 	section(w, "3. Documentation", "gen-docs, comments-yaml, handwritten-fill, template-docs")
-	note(w, `A declaration counts as sourced from spec when its doc comment begins with
-spec's text (a prefix test, because Fill leaves generator notes below).`)
+	note(w, `Of the declarations of (receiver, name) pairs spec covers, counting each
+file a pair is declared in, how many take their doc from spec: their doc
+begins with spec's text (a prefix test, because Fill leaves generator notes
+below). Pairs spec does not cover yet are not counted, and their docs still
+come from categories.yaml, comments.yaml or hand-written text, so this can
+read 100% while spec coverage (§1) does not.`)
 
 	frac(w, "covered declarations whose doc comes from spec", m.fromSpec.result(), "gen-docs, comments-yaml, handwritten-fill, template-docs")
 	fmt.Fprintf(w, "\n")

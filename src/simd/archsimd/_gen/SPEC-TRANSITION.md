@@ -499,7 +499,7 @@ maintain and nothing here to keep in sync.
 | Milestone | Reached after | What it means |
 |---|---|---|
 | **M1 — Enforced** | `fill-enforce` | Spec is authoritative for what it covers: a name or signature that drifts from it fails the build, in both packages, on all four targets. |
-| **M2 — Documented** | `comments-yaml`, `handwritten-fill`, `spec-all`, `template-docs` | Every operation's doc comment in both public packages derives from spec — the specstats report's "docs sourced from spec" reads 100%. |
+| **M2 — Documented** | `comments-yaml`, `handwritten-fill`, `spec-all`, `template-docs` | Every operation's doc comment in both public packages derives from spec — the specstats report's "spec-covered docs taken from spec" reads 100%, and `spec-all` has brought spec coverage of the API to 100% too (the docs figure counts only what spec covers). |
 | **M3 — Gated** | `conform-flip` | Conformance runs spec-first, so an architecture added later must match spec before it can land. |
 | **M4 — Complete** | `cat-delete` | `categories.yaml` is gone and spec is the only hand-written description of the API; see the section below. |
 
