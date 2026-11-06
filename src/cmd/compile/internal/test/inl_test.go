@@ -6,11 +6,15 @@ package test
 
 import (
 	"bufio"
+	"cmd/internal/sys"
 	"internal/testenv"
 	"io"
 	"math/bits"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -433,6 +437,98 @@ func TestIssue56044(t *testing.T) {
 			if _, ok := mcov[k]; !ok {
 				t.Errorf("error: did not find %s in coverage -m output", k)
 			}
+		}
+	}
+}
+
+func TestByteOrderInline(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	for _, a := range sys.Archs {
+		if a.Name == runtime.GOARCH && !a.CanMergeLoads {
+			t.Skipf("%s does not merge loads", runtime.GOARCH)
+		}
+	}
+
+	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build",
+		"-gcflags=encoding/binary=-m=2",
+		"-gcflags=internal/byteorder=-m=2",
+		"encoding/binary", "internal/byteorder",
+	))
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	for _, prefix := range []string{"littleEndian.", "bigEndian.", "LE", "BE"} {
+		for _, op := range []string{"Uint16", "Uint32", "Uint64", "PutUint16", "PutUint32", "PutUint64"} {
+			want := "can inline " + prefix + op + " with cost 1 "
+			if !strings.Contains(string(out), want) {
+				t.Errorf("missing %q in -m=2 output", want)
+			}
+		}
+		for _, op := range []string{"AppendUint16", "AppendUint32", "AppendUint64"} {
+			unwanted := "can inline " + prefix + op + " with cost 1 "
+			if strings.Contains(string(out), unwanted) {
+				t.Errorf("unexpected %q in -m=2 output", unwanted)
+			}
+		}
+	}
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "p.go")
+	const marker = "// big calls"
+	code := `package p
+import "encoding/binary"
+func wrap(b []byte) uint64 { return binary.LittleEndian.Uint64(b) + binary.BigEndian.Uint64(b) }
+func medium(b []byte) uint64 {
+	return uint64(b[0]) + uint64(b[1]) + uint64(b[2]) + uint64(b[3]) + uint64(b[4]) + uint64(b[5]) + uint64(b[6]) + uint64(b[7])
+}
+func big(b []byte) ([]byte, uint64) {
+	var x byte
+` + strings.Repeat("\tx += b[0]\n", 1700) + "\t" + marker + `
+	v := uint64(x) + medium(b) + wrap(b) + uint64(binary.LittleEndian.Uint32(b))
+	binary.LittleEndian.PutUint64(b, v)
+	b = binary.LittleEndian.AppendUint64(b, v)
+	return b, v
+}
+`
+	if err := os.WriteFile(src, []byte(code), 0644); err != nil {
+		t.Fatal(err)
+	}
+	cmd = testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags=-m=2", "-o", filepath.Join(dir, "p.a"), src))
+	out, err = cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("compile p.go failed: %v\n%s", err, out)
+	}
+	s := string(out)
+	if !strings.Contains(s, "function big considered 'big'") {
+		t.Fatalf("big was not considered 'big':\n%s", s)
+	}
+
+	// Collect inlined calls originating at or after the marker inside big,
+	// excluding wrap's own standalone compilation earlier in the file.
+	bigCallLine := 1 + strings.Count(code[:strings.Index(code, marker)], "\n")
+	inlRE := regexp.MustCompile(`p\.go:(\d+):\d+: inlining call to (\S+)`)
+	bigInlined := make(map[string]bool)
+	for _, m := range inlRE.FindAllStringSubmatch(s, -1) {
+		line, err := strconv.Atoi(m[1])
+		if err == nil && line >= bigCallLine {
+			bigInlined[m[2]] = true
+		}
+	}
+	for _, fn := range []string{"medium", "binary.littleEndian.AppendUint64"} {
+		if bigInlined[fn] {
+			t.Errorf("%s unexpectedly inlined into big", fn)
+		}
+	}
+	for _, fn := range []string{
+		"wrap",
+		"binary.littleEndian.Uint64",
+		"binary.bigEndian.Uint64",
+		"binary.littleEndian.Uint32",
+		"binary.littleEndian.PutUint64",
+	} {
+		if !bigInlined[fn] {
+			t.Errorf("expected %s to inline into big:\n%s", fn, s)
 		}
 	}
 }
