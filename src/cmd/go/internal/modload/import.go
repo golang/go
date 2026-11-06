@@ -619,10 +619,15 @@ func queryImport(ld *Loader, ctx context.Context, path string, rs *Requirements)
 		// In vendor mode, we cannot use the network or module cache, so we
 		// shouldn't try to look up the module
 		var queryErr error
-		if cfg.BuildModExplicit {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
-		} else if cfg.BuildModReason != "" {
-			queryErr = fmt.Errorf("import lookup disabled by -mod=%s\n\t(%s)", cfg.BuildMod, cfg.BuildModReason)
+		if cfg.BuildModExplicit || cfg.BuildModReason != "" || cfg.BuildMod == "vendor" {
+			message := "import lookup disabled by -mod=" + cfg.BuildMod
+			if cfg.BuildMod == "vendor" {
+				message = "package is not vendored (" + message + ")"
+			}
+			if !cfg.BuildModExplicit && cfg.BuildModReason != "" {
+				message += "\n\t(" + cfg.BuildModReason + ")"
+			}
+			queryErr = errors.New(message)
 		}
 		return module.Version{}, &ImportMissingError{
 			Path:                      path,
