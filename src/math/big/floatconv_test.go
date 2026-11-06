@@ -559,6 +559,15 @@ func TestFloatText(t *testing.T) {
 		// issue 34343
 		{"0x.8p-2147483648", ToNearestEven, 4, 'p', -1, "0x.8p-2147483648"},
 		{"0x.8p-2147483648", ToNearestEven, 4, 'x', -1, "0x1p-2147483649"},
+
+		// powers of two: the floats below are closer than the floats above
+		// (0.2 would parse to 0.1875 with 2 bits of precision)
+		{"0.25", defaultRound, 2, 'g', -1, "0.3"},
+		{"0.25", defaultRound, 2, 'e', -1, "3e-01"},
+		{"0.25", defaultRound, 2, 'f', -1, "0.3"},
+		{"2", defaultRound, 1, 'g', -1, "2"},
+		{"0x.8p-1018", defaultRound, 53, 'g', -1, "1.7800590868057611e-307"},
+		{"0x.8p-1016", defaultRound, 53, 'g', -1, "7.120236347223045e-307"},
 	} {
 		f, _, err := ParseFloat(test.x, 0, test.prec, ToNearestEven)
 		if err != nil {
@@ -588,6 +597,37 @@ func TestFloatText(t *testing.T) {
 			if got != test.want {
 				t.Errorf("%v: got %s; want %s", test, got, test.want)
 			}
+		}
+	}
+}
+
+// TestFloatTextShortestPowerOfTwo checks that the shortest decimal
+// representation of a power of two parses back to the same value.
+func TestFloatTextShortestPowerOfTwo(t *testing.T) {
+	for prec := uint(1); prec <= 64; prec++ {
+		for exp := -300; exp <= 300; exp++ {
+			x := new(Float).SetPrec(prec).SetMantExp(new(Float).SetPrec(prec).SetInt64(1), exp)
+			s := x.Text('g', -1)
+			y, _, err := ParseFloat(s, 10, prec, ToNearestEven)
+			if err != nil || y.Cmp(x) != 0 {
+				t.Errorf("prec %d: 2**%d: Text = %s, which parses to %s", prec, exp, s, y)
+			}
+		}
+	}
+
+	// For float32 and float64 values the result must match strconv.
+	for exp := -126; exp <= 127; exp++ {
+		f := float32(math.Ldexp(1, exp))
+		x := new(Float).SetPrec(24).SetFloat64(float64(f))
+		if got, want := x.Text('e', -1), strconv.FormatFloat(float64(f), 'e', -1, 32); got != want {
+			t.Errorf("prec 24: 2**%d: got %s; want %s", exp, got, want)
+		}
+	}
+	for exp := -1022; exp <= 1023; exp++ {
+		f := math.Ldexp(1, exp)
+		x := new(Float).SetPrec(53).SetFloat64(f)
+		if got, want := x.Text('e', -1), strconv.FormatFloat(f, 'e', -1, 64); got != want {
+			t.Errorf("prec 53: 2**%d: got %s; want %s", exp, got, want)
 		}
 	}
 }
