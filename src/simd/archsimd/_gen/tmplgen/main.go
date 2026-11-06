@@ -1056,28 +1056,28 @@ var avx2UnsignedComparisonsTemplate = shapedTemplateOf(avx2UnsignedComparisons, 
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Greater(y {{.VType}}) Mask{{.WxC}} {
-	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
-{{- if eq .EWidth 8}}
-	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
+{{- if ne .EWidth 64}}
+	return x.Min(y).Equal(x).Not()
 {{- else}}
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
-{{- end }}
 	return a.Xor(signs).Greater(b.Xor(signs))
+{{- end}}
 }
 
 // Less returns a mask whose elements indicate whether x < y.
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x {{.VType}}) Less(y {{.VType}}) Mask{{.WxC}} {
-	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
-{{- if eq .EWidth 8}}
-	signs := BroadcastInt{{.WxC}}(-1 << ({{.EWidth}}-1))
+{{- if ne .EWidth 64}}
+	return x.Max(y).Equal(x).Not()
 {{- else}}
+	a, b := x.AsInt{{.WxC}}(), y.AsInt{{.WxC}}()
 	ones := x.Equal(x).ToInt{{.WxC}}()
 	signs := ones.ShiftAllLeft({{.EWidth}}-1)
-{{- end }}
 	return b.Xor(signs).Greater(a.Xor(signs))
+{{- end}}
 }
 
 // GreaterEqual returns a mask whose elements indicate whether x >= y.
