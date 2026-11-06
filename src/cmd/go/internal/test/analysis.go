@@ -27,10 +27,20 @@ import (
 // root package.
 var positiveRefs = make(map[*load.AnalysisRef]bool)
 
-// vetAnalysisConfig returns go test's analysis configuration, from
-// the -vet flag: the selected members of the vet suite, or all of them
-// for -vet=all.
-var vetAnalysisConfig = sync.OnceValue(func() *load.AnalysisConfig {
+// vetAnalysisConfig returns go test's analysis configuration for
+// package p, from the -vet flag: the selected members of the vet
+// suite, or all of them for -vet=all.
+//
+// As with cmd/vet, packages in GOROOT are by default checked with
+// nearly all analyzers (see gorootAnalysisConfig).
+func vetAnalysisConfig(p *load.Package) *load.AnalysisConfig {
+	if p.Goroot && !testVet.explicit {
+		return gorootAnalysisConfig()
+	}
+	return userAnalysisConfig()
+}
+
+var userAnalysisConfig = sync.OnceValue(func() *load.AnalysisConfig {
 	if testVet.explicit && testVet.flags == nil {
 		return load.VetAnalysisConfig(nil) // -vet=all
 	}
@@ -41,17 +51,39 @@ var vetAnalysisConfig = sync.OnceValue(func() *load.AnalysisConfig {
 	return load.VetAnalysisConfig(names)
 })
 
+// gorootAnalysisConfig is the default configuration for packages in
+// GOROOT: all vet analyzers except unsafeptr (there is too much
+// unsafe.Pointer code that it does not like in low-level packages)
+// and unreachable (during testing it is common to make changes, such
+// as forced returns, that make code unreachable). See also
+// work.vetFlags.
+var gorootAnalysisConfig = sync.OnceValue(func() *load.AnalysisConfig {
+	config := load.VetAnalysisConfig(nil)
+	// TODO(adonovan): this list is temporary; it will soon move
+	// into a go.vet file in GOROOT/src.
+	for _, name := range []string{"unsafeptr", "unreachable"} {
+		config.Negative = append(config.Negative, &load.AnalysisRef{Negative: true, Name: name})
+	}
+	return config
+})
+
 // addTestAnalysis adds an action to report the analyzers enabled for
 // root package p by go test's analysis configuration.
 //
-// As with cmd/vet (see addTestVet), the test's run action depends on
+// As with cmd/vet before it, the test's run action depends on
 // the report, so the test does not run if the analysis fails. The
 // install action, if any, also depends on it.
 func addTestAnalysis(ld *modload.Loader, b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
 	if testVet.off || testC {
-		return // -vet=off; go test -c runs no analyzers
+		// -vet=off, or go test -c, which is a build, not a test.
+		// Building code must not execute it (go.dev/blog/supply-chain),
+		// and the analyzers declared by configuration files, as
+		// proposed in go.dev/issue/82464, may come from any module,
+		// so -c runs no analysis: for consistency, not even go test's
+		// vet checks. (This differs from cmd/vet, which -c ran.)
+		return
 	}
-	config := vetAnalysisConfig()
+	config := vetAnalysisConfig(p)
 	for _, a := range config.Positive {
 		positiveRefs[a] = true
 	}

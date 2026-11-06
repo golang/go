@@ -6,7 +6,8 @@
 
 env GOEXPERIMENT=vetfiles
 
-# The default vet checks run, via the analysis tool, not cmd/vet.
+# The default vet checks run, via the analysis tool, not cmd/vet. As
+# with cmd/vet, the test does not run if they find problems.
 ! go test -x ./bad
 stderr 'bad.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
 stdout '^FAIL\s+example.com/m/bad \[build failed\]$'
@@ -32,9 +33,33 @@ stderr 'unused.go:5:12: result of fmt.Sprint call not used'
 # Every analyzer of the vet suite passes the driver's validation.
 ! stderr '\(via |suite element|suite contains'
 
-# go test -c runs no analysis.
+# A package without test files is analyzed too.
+! go test ./notests
+stderr 'notests.go:5:39: fmt.Sprintf format %d has arg "x" of wrong type string'
+stdout '^FAIL\s+example.com/m/notests \[build failed\]$'
+
+# printf runs on dependencies too, so it recognizes calls to printf
+# wrappers declared in other packages (using facts).
+! go test ./wrapcall
+stderr 'wrapcall.go:5:26: example.com/m/wrapper.Logf format %d has arg "x" of wrong type string'
+
+# When benchmarking, the checks run before the benchmarks (so as not to
+# disturb them), which do not run if the checks fail.
+! go test -run=^$ -bench=. -benchtime=1x ./bad
+stdout '^FAIL\s+example.com/m/bad \[build failed\]$'
+! stdout 'BenchmarkF'
+
+# Unlike with cmd/vet, go test -c runs no checks, since it is a build.
 go test -c -o=$WORK/bad.test ./bad
+! stderr 'wrong type'
 exists $WORK/bad.test
+
+# With -json, the checks run before the test, which does not run if
+# they fail.
+! go test -json ./bad
+stdout '"Action":"build-fail"'
+stdout '"Action":"fail","Package":"example.com/m/bad",.*"FailedBuild":"example.com/m/bad \[example.com/m/bad.test\]"'
+! stdout '"Test":"TestF"'
 
 # The tool is built in this process, in the tests' build configuration,
 # whatever their build flags: here, -tags, -cover (whose generated
@@ -133,6 +158,18 @@ package bad
 import "testing"
 
 func TestF(t *testing.T) { F() }
+
+func BenchmarkF(b *testing.B) {
+	for b.Loop() {
+		F()
+	}
+}
+-- notests/notests.go --
+package notests
+
+import "fmt"
+
+func F() string { return fmt.Sprintf("%d", "x") }
 -- good/good.go --
 package good
 
@@ -181,3 +218,15 @@ package cgobad
 import "testing"
 
 func TestF(t *testing.T) { F() }
+-- wrapper/wrapper.go --
+package wrapper
+
+import "fmt"
+
+func Logf(format string, args ...any) { fmt.Printf(format, args...) }
+-- wrapcall/wrapcall.go --
+package wrapcall
+
+import "example.com/m/wrapper"
+
+func F() { wrapper.Logf("%d", "x") }

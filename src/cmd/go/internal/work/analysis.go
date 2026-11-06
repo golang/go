@@ -30,10 +30,10 @@ package work
 // Every analysisvet action depends on the analysismeta action, which
 // performs the dynamic stage of resolution: from the metadata (the
 // members of each suite, the Requires graph, and which analyzers use
-// facts) it expands suites, applies selectors, and computes, for
-// each root package, the set of analyzers whose diagnostics are
-// reported, and for each analysisvet action, the set of analyzers
-// whose results it must produce. An analysisvet action whose set is
+// facts) it expands suites, applies selectors and negations, and
+// computes, for each root package, the set of analyzers whose
+// diagnostics are reported, and for each analysisvet action, the set
+// of analyzers whose results it must produce. An analysisvet action whose set is
 // empty merely produces types.
 //
 // Within the tool, analyzers are identified by pointer; in the
@@ -541,8 +541,8 @@ func (b *Builder) planAnalysis(md *protocol.Metadata, driverID cache.ActionID, i
 		return slices.Sorted(maps.Keys(set))
 	}
 
-	// Expand suites, apply selectors, and compute the analyzers
-	// reported for each root package.
+	// Expand suites, apply selectors and negations, and compute
+	// the analyzers reported for each root package.
 	for _, a := range st.roots {
 		plan.reported[a], plan.refErrs[a] = resolveAnalyzers(md, st.rootConfig[a])
 	}
@@ -610,8 +610,8 @@ func (b *Builder) planAnalysis(md *protocol.Metadata, driverID cache.ActionID, i
 
 // resolveAnalyzers performs the dynamic stage of resolution for one
 // root package, whose references are described by config. Using
-// the tool's metadata, it expands suites and applies selectors. It
-// returns the analyzers whose diagnostics are reported, by index, and
+// the tool's metadata, it expands suites, applies selectors, and
+// applies negations by Analyzer.Name. It returns the analyzers whose diagnostics are reported, by index, and
 // errors in the references.
 //
 // Validation is per reference: an invalid reference (or member) is
@@ -688,6 +688,16 @@ func resolveAnalyzers(md *protocol.Metadata, config *load.AnalysisConfig) (map[i
 		for _, m := range members(annot) {
 			if _, ok := enabled[m.index]; !ok {
 				enabled[m.index] = &reportedAnalyzer{name: m.name}
+			}
+		}
+	}
+
+	// Apply negations: a negation by name disables every enabled
+	// analyzer of that name.
+	for _, annot := range config.Negative {
+		for h := range enabled {
+			if md.Analyzers[h].Name == annot.Name {
+				delete(enabled, h)
 			}
 		}
 	}

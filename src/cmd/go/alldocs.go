@@ -1649,7 +1649,7 @@
 // finds any problems, go test reports those and does not run the test
 // binary. Only a high-confidence subset of the default go vet checks are
 // used. That subset is: atomic, bools, buildtag, directive, errorsas,
-// ifaceassert, nilfunc, printf, stdversion, stringintconv, and tests.
+// ifaceassert, nilfunc, printf, slog, stdversion, stringintconv, and tests.
 // You can see the documentation for these and other vet tests via
 // "go doc cmd/vet". To disable the running of go vet, use the -vet=off flag.
 // To run all checks, use the -vet=all flag.

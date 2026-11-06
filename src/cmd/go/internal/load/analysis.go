@@ -29,6 +29,7 @@ import (
 	"iter"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"cmd/go/internal/build"
@@ -52,20 +53,33 @@ type AnalysisVar struct {
 func (v AnalysisVar) String() string { return v.PkgPath + "." + v.Name }
 
 // An AnalysisRef is a reference to an analyzer variable (pkg.Var) or
-// to members of a suite variable (pkg.Var[*] or pkg.Var[A,B]).
+// to members of a suite variable (pkg.Var[*] or pkg.Var[A,B]), or (if
+// Negative) a negation of analyzers of a given Name.
 type AnalysisRef struct {
-	Var     AnalysisVar // the referenced variable
-	Members []string    // nil for an analyzer (pkg.Var); ["*"] or names for a suite (pkg.Var[...])
+	Negative bool        // a negation (disable)
+	Var      AnalysisVar // the referenced variable
+	Members  []string    // nil for an analyzer (pkg.Var); ["*"] or names for a suite (pkg.Var[...])
+	Name     string      // for a negation by name: the Analyzer.Name (Var and Members are empty)
 }
 
-// Ref returns the reference as written, e.g. "pkgpath.Var[A,B]".
+// Ref returns the reference as written, e.g. "pkgpath.Var[A,B]",
+// or the quoted analyzer name of a negation by name.
 func (a *AnalysisRef) Ref() string {
+	if a.ByName() {
+		return strconv.Quote(a.Name)
+	}
 	ref := a.Var.String()
 	if a.Members != nil {
 		ref += "[" + strings.Join(a.Members, ",") + "]"
 	}
 	return ref
 }
+
+// ByName reports whether the reference is a negation that names
+// analyzers by Analyzer.Name rather than by reference. Such a negation
+// is applied only in the dynamic stage, to every analyzer of that name;
+// it is not linked into the tool.
+func (a *AnalysisRef) ByName() bool { return a.Name != "" }
 
 // IsSuite reports whether the reference is to a suite (pkg.Var[...]).
 func (a *AnalysisRef) IsSuite() bool { return a.Members != nil }
@@ -93,8 +107,9 @@ type AnalysisConfig struct {
 	// package, in order of decreasing specificity.
 	Positive []*AnalysisRef
 
-	// (Negations, which disable analyzers, are added in a later
-	// change.)
+	// Negative holds the negations that apply to the package,
+	// which are applied once the analyzers are known.
+	Negative []*AnalysisRef
 }
 
 // VetAnalysisConfig returns go test's built-in analysis configuration:
