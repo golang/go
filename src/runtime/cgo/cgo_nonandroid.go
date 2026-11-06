@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || netbsd || openbsd || (linux && !ppc64 && !ppc64le && !android))
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || dragonfly || freebsd || netbsd || openbsd || (linux && !ppc64 && !ppc64le && !android))
 
 package cgo
 

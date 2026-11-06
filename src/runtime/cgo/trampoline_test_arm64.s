@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || linux || netbsd || openbsd)
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && (darwin || freebsd || linux || netbsd || openbsd)
 
 #include "textflag.h"
 #include "abi_arm64.h"

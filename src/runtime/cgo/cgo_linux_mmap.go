@@ -2,11 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build goexperiment.runtimecgopurego && !msan && !tsan && linux && (amd64 || arm64 || loong64 || riscv64)
+//go:build goexperiment.runtimecgopurego && !msan && !tsan && ((linux && (amd64 || arm64 || loong64 || riscv64)) || (freebsd && amd64))
 
 package cgo
 
 import "unsafe"
+
+// Despite the file name, this file is also used on freebsd/amd64, where the
+// runtime calls mmap and munmap through runtime/cgo as on Linux.
 
 //go:linkname _cgo_libc_mmap _cgo_libc_mmap
 var _cgo_libc_mmap byte
