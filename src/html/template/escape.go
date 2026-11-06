@@ -670,7 +670,9 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 		}
 		t = dt
 	}
-	return e.computeOutCtx(c, t), dname
+	out := e.computeOutCtx(c, t)
+	e.output[dname] = out
+	return out, dname
 }
 
 // computeOutCtx takes a template and its start context and computes the output
