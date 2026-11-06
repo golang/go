@@ -62,3 +62,30 @@ const (
 	LHHH = _LHHH
 	HHHH = _HHHH
 )
+
+// The ExportTestBroadcastLoad functions broadcast element 0 of a vector loaded
+// from memory, which the compiler folds into a broadcast from memory.
+
+func ExportTestBroadcastLoadInt8x16(p *[16]int8) Int8x16 {
+	return LoadInt8x16Array(p).broadcast1To16()
+}
+
+func ExportTestBroadcastLoadInt16x8(p *[8]int16) Int16x8 {
+	return LoadInt16x8Array(p).broadcast1To8()
+}
+
+func ExportTestBroadcastLoadInt32x4(p *[4]int32) Int32x4 {
+	return LoadInt32x4Array(p).broadcast1To4()
+}
+
+func ExportTestBroadcastLoadFloat32x4(p *[4]float32) Float32x4 {
+	return LoadFloat32x4Array(p).broadcast1To4()
+}
+
+func ExportTestBroadcastLoadInt64x2(p *[2]int64) Int64x2 {
+	return LoadInt64x2Array(p).broadcast1To2()
+}
+
+func ExportTestBroadcastLoadFloat64x2(p *[2]float64) Float64x2 {
+	return LoadFloat64x2Array(p).broadcast1To2()
+}

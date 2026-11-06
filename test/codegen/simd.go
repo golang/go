@@ -328,3 +328,49 @@ func simdMaskSpillUsesK(z archsimd.Float32x8, m archsimd.Mask32x8, n int) archsi
 	}
 	return z
 }
+
+// 128-bit broadcasts need only AVX: without AVX2 they use AVX shuffles, and
+// with AVX2 (known from GOAMD64 or a feature check) they use VPBROADCAST.
+
+func broadcast128Int8(x int8) archsimd.Int8x16 {
+	// amd64/v1:`VPSHUFB` -`VPBROADCASTB`
+	// amd64/v3:`VPBROADCASTB` -`VPSHUFB`
+	return archsimd.BroadcastInt8x16(x)
+}
+
+func broadcast128Int16(x int16) archsimd.Int16x8 {
+	// amd64/v1:`VPUNPCKLWD` `VPSHUFD \$0,` -`VPBROADCASTW`
+	// amd64/v3:`VPBROADCASTW` -`VPSHUFD`
+	return archsimd.BroadcastInt16x8(x)
+}
+
+func broadcast128Int32(x int32) archsimd.Int32x4 {
+	// amd64/v1:`VPSHUFD \$0,` -`VPBROADCASTD`
+	// amd64/v3:`VPBROADCASTD` -`VPSHUFD`
+	return archsimd.BroadcastInt32x4(x)
+}
+
+func broadcast128Float32(x float32) archsimd.Float32x4 {
+	// amd64/v1:`VPSHUFD \$0,` -`VBROADCASTSS`
+	// amd64/v3:`VBROADCASTSS` -`VPSHUFD`
+	return archsimd.BroadcastFloat32x4(x)
+}
+
+func broadcast128Int64(x int64) archsimd.Int64x2 {
+	// amd64/v1:`VPSHUFD \$68,` -`VPBROADCASTQ`
+	// amd64/v3:`VPBROADCASTQ` -`VPSHUFD`
+	return archsimd.BroadcastInt64x2(x)
+}
+
+func broadcast128AVX2Checked(x int32) archsimd.Int32x4 {
+	if archsimd.X86.AVX2() {
+		// amd64:`VPBROADCASTD` -`VPSHUFD`
+		return archsimd.BroadcastInt32x4(x)
+	}
+	return archsimd.Int32x4{}
+}
+
+func broadcast128MulToShift(x archsimd.Int32x4) archsimd.Int32x4 {
+	// amd64:`VPSLLD \$3,` -`VPMULLD`
+	return x.Mul(archsimd.BroadcastInt32x4(8))
+}

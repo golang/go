@@ -188,6 +188,12 @@ limitations below.
 # amd64 AVX2 without AVX512 (the same features as the gotip-linux-amd64 builder)
 IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu Haswell' simd simd/archsimd/internal/simd_test
 
+# amd64 AVX without AVX2, the minimum for hardware SIMD in the simd package.
+# Only simd: many archsimd tests of 256-bit types don't check for AVX2
+# (go.dev/issue/82893). +fma because simd's MulAdd currently uses FMA, which
+# Sandy Bridge lacks (go.dev/issue/82892).
+IN_QEMU=1 GOEXPERIMENT=simd go test -exec 'qemu-x86_64 -cpu SandyBridge,+fma' simd
+
 # arm64 NEON only (the same features as the gotip-linux-arm64 builder)
 IN_QEMU=1 GOEXPERIMENT=simd GOARCH=arm64 go test -exec 'qemu-aarch64 -cpu neoverse-n1' simd simd/archsimd/internal/simd_test
 
