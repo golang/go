@@ -407,6 +407,9 @@ func TestWriterCopy(t *testing.T) {
 	}
 	for i, wt := range writeTests {
 		testReadFile(t, r.File[i], &wt)
+		if got, want := r.File[i].Extra, src.File[i].Extra; !bytes.Equal(got, want) {
+			t.Errorf("%s: Extra = %x after Copy; want %x", wt.Name, got, want)
+		}
 	}
 }
 
@@ -530,6 +533,49 @@ func TestWriterCreateRaw(t *testing.T) {
 		if !bytes.Equal(buf, want.content) {
 			t.Errorf("%v: ReadAll returned unexpected bytes", got.Name)
 		}
+	}
+}
+
+func TestWriterCreateRawTime(t *testing.T) {
+	// Test that CreateRaw honors the Modified field in FileHeader.
+	// See https://go.dev/issue/76741
+	content := []byte("test content")
+	modified := time.Date(2023, 6, 15, 10, 30, 45, 0, time.UTC)
+
+	// Write a zip file using CreateRaw with Modified set.
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+
+	h := &FileHeader{
+		Name:               "test.txt",
+		Method:             Store,
+		CRC32:              crc32.ChecksumIEEE(content),
+		CompressedSize64:   uint64(len(content)),
+		UncompressedSize64: uint64(len(content)),
+		Modified:           modified,
+	}
+	raw, err := w.CreateRaw(h)
+	if err != nil {
+		t.Fatalf("CreateRaw: %v", err)
+	}
+	if _, err := raw.Write(content); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// Read it back and verify the Modified time.
+	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
+	if len(r.File) != 1 {
+		t.Fatalf("got %d files; want 1", len(r.File))
+	}
+	got := r.File[0]
+	if !got.Modified.Equal(modified) {
+		t.Errorf("Modified = %v; want %v", got.Modified, modified)
 	}
 }
 
