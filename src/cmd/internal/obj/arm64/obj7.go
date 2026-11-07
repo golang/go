@@ -970,11 +970,15 @@ func nocache(p *obj.Prog) {
 }
 
 var unaryDst = map[obj.As]bool{
-	AWORD:  true,
-	ADWORD: true,
-	ABL:    true,
-	AB:     true,
-	ACLREX: true,
+	AWORD:   true,
+	ADWORD:  true,
+	ABL:     true,
+	AB:      true,
+	ACLREX:  true,
+	APACIZA: true,
+	AAUTIZA: true,
+	AXPACI:  true,
+	AXPACD:  true,
 }
 
 var Linkarm64 = obj.LinkArch{

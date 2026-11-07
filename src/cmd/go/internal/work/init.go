@@ -158,6 +158,12 @@ func instrumentInit() {
 		base.SetExitStatus(2)
 		base.Exit()
 	}
+	if cfg.BuildRace && cfg.Experiment.ARM64E {
+		// The race detector runtime is an arm64 object.
+		fmt.Fprintf(os.Stderr, "-race is not supported with GOEXPERIMENT=arm64e\n")
+		base.SetExitStatus(2)
+		base.Exit()
+	}
 	if cfg.BuildASan && !platform.ASanSupported(cfg.Goos, cfg.Goarch) {
 		fmt.Fprintf(os.Stderr, "-asan is not supported on %s/%s\n", cfg.Goos, cfg.Goarch)
 		base.SetExitStatus(2)
@@ -315,6 +321,11 @@ func buildModeInit() {
 
 	if cfg.BuildBuildmode != "default" && !platform.BuildModeSupported(cfg.BuildToolchainName, cfg.BuildBuildmode, cfg.Goos, cfg.Goarch) {
 		base.Fatalf("-buildmode=%s not supported on %s/%s\n", cfg.BuildBuildmode, cfg.Goos, cfg.Goarch)
+	}
+	if cfg.BuildBuildmode == "plugin" && cfg.Experiment.ARM64E {
+		// The plugin loader does not authenticate the signed symbol
+		// addresses that dlsym returns.
+		base.Fatalf("-buildmode=plugin not supported with GOEXPERIMENT=arm64e")
 	}
 
 	if cfg.BuildLinkshared {

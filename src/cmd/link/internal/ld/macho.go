@@ -93,6 +93,7 @@ const (
 	MACHO_SUBCPU_ARM64_ALL               = 0
 	MACHO_SUBCPU_ARM64_V8                = 1
 	MACHO_SUBCPU_ARM64E                  = 2
+	MACHO_SUBCPU_PTRAUTH_ABI             = 0x80000000
 	MACHO32SYMSIZE                       = 12
 	MACHO64SYMSIZE                       = 16
 	MACHO_X86_64_RELOC_UNSIGNED          = 0
@@ -642,6 +643,9 @@ func asmbMacho(ctxt *Link) {
 	case sys.ARM64:
 		mh.cpu = MACHO_CPU_ARM64
 		mh.subcpu = MACHO_SUBCPU_ARM64_ALL
+		if buildcfg.Experiment.ARM64E {
+			mh.subcpu = MACHO_SUBCPU_ARM64E | MACHO_SUBCPU_PTRAUTH_ABI
+		}
 	}
 
 	var ms *MachoSeg

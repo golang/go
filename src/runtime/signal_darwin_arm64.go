@@ -44,22 +44,12 @@ func (c *sigctxt) r25() uint64 { return c.regs().x[25] }
 func (c *sigctxt) r26() uint64 { return c.regs().x[26] }
 func (c *sigctxt) r27() uint64 { return c.regs().x[27] }
 func (c *sigctxt) r28() uint64 { return c.regs().x[28] }
-func (c *sigctxt) r29() uint64 { return c.regs().fp }
-func (c *sigctxt) lr() uint64  { return c.regs().lr }
-func (c *sigctxt) sp() uint64  { return c.regs().sp }
-
-//go:nosplit
-//go:nowritebarrierrec
-func (c *sigctxt) pc() uint64 { return c.regs().pc }
 
 func (c *sigctxt) fault() uintptr { return uintptr(unsafe.Pointer(c.info.si_addr)) }
 
 func (c *sigctxt) sigcode() uint64 { return uint64(c.info.si_code) }
 func (c *sigctxt) sigaddr() uint64 { return uint64(uintptr(unsafe.Pointer(c.info.si_addr))) }
 
-func (c *sigctxt) set_pc(x uint64)  { c.regs().pc = x }
-func (c *sigctxt) set_sp(x uint64)  { c.regs().sp = x }
-func (c *sigctxt) set_lr(x uint64)  { c.regs().lr = x }
 func (c *sigctxt) set_r28(x uint64) { c.regs().x[28] = x }
 
 func (c *sigctxt) set_sigcode(x uint64) { c.info.si_code = int32(x) }
