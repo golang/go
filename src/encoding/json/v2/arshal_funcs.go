@@ -216,10 +216,14 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 			va := vm.ensureAddr()
 			xe := export.Encoder(enc)
 			prevDepth, prevLength := xe.Tokens.DepthLength()
-			xe.Flags.Set(jsonflags.WithinArshalCall | 1)
+			if !xe.Flags.Get(jsonflags.WithinArshalCall) {
+				xe.Flags.Set(jsonflags.WithinArshalCall | 1)
+				defer func() {
+					xe.Flags.Set(jsonflags.WithinArshalCall | 0)
+				}()
+			}
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			err := fn(enc, v)
-			xe.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xe.Tokens.DepthLength()
 			if err == nil && (prevDepth != currDepth || prevLength+1 != currLength) {
 				err = errNonSingularValue
@@ -300,10 +304,14 @@ func UnmarshalFromFunc[T any](fn func(*jsontext.Decoder, T) error) *Unmarshalers
 			if prevDepth == 1 && xd.AtEOF() {
 				return io.EOF // check EOF early to avoid fn reporting an EOF
 			}
-			xd.Flags.Set(jsonflags.WithinArshalCall | 1)
+			if !xd.Flags.Get(jsonflags.WithinArshalCall) {
+				xd.Flags.Set(jsonflags.WithinArshalCall | 1)
+				defer func() {
+					xd.Flags.Set(jsonflags.WithinArshalCall | 0)
+				}()
+			}
 			v, _ := reflect.TypeAssert[T](va.castTo(t))
 			err := fn(dec, v)
-			xd.Flags.Set(jsonflags.WithinArshalCall | 0)
 			currDepth, currLength := xd.Tokens.DepthLength()
 			if err == nil && (prevDepth != currDepth || prevLength+1 != currLength) {
 				err = errNonSingularValue
