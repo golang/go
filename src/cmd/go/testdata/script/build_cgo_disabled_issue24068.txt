@@ -1,0 +1,84 @@
+# Regression test for https://go.dev/issue/24068.
+# When cgo is disabled and compilation fails, the go command should
+# name the files that were excluded only because cgo is disabled.
+
+env CGO_ENABLED=0
+
+! go build ./needscgo
+stderr 'undefined: add'
+stderr '^note: cgo is disabled \(CGO_ENABLED=0\), so the build excluded .*cadd\.go, .*ctag\.go$'
+! stderr 'ignored\.go'
+
+! go test ./needscgo
+stderr 'undefined: add'
+stderr '^note: cgo is disabled \(CGO_ENABLED=0\), so the build excluded .*cadd\.go'
+
+# Compile errors in packages without cgo files get no note.
+! go build ./nocgo
+stderr 'undefined: missing'
+! stderr 'note:'
+
+# Packages with cgo files that build without cgo print nothing extra.
+go build ./fallback
+! stderr .
+
+-- go.mod --
+module example.com/m
+
+go 1.27
+-- needscgo/sum.go --
+package needscgo
+
+func Sum() int {
+	if tagged {
+		return add(1, 2)
+	}
+	return 0
+}
+-- needscgo/cadd.go --
+package needscgo
+
+// static int cadd(int a, int b) { return a + b; }
+import "C"
+
+func add(a, b int) int {
+	return int(C.cadd(C.int(a), C.int(b)))
+}
+-- needscgo/ctag.go --
+//go:build cgo
+
+package needscgo
+
+const tagged = true
+-- needscgo/ignored.go --
+//go:build ignore
+
+package needscgo
+
+import "C"
+-- needscgo/sum_test.go --
+package needscgo
+
+import "testing"
+
+func TestSum(t *testing.T) {
+	if Sum() != 3 {
+		t.Fatal("wrong sum")
+	}
+}
+-- nocgo/nocgo.go --
+package nocgo
+
+var _ = missing
+-- fallback/c.go --
+package fallback
+
+import "C"
+
+func Value() int { return int(C.int(1)) }
+-- fallback/nocgo.go --
+//go:build !cgo
+
+package fallback
+
+func Value() int { return 1 }
