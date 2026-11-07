@@ -644,6 +644,19 @@ func TestCgoLockOSThreadExit(t *testing.T) {
 	testLockOSThreadExit(t, "testprogcgo")
 }
 
+func TestCgoLockOSThreadParkExit(t *testing.T) {
+	if runtime.GOOS != "aix" {
+		// Elsewhere the per-M semaphore is not a limited
+		// kernel object, so a leak does not cause a failure.
+		t.Skip("skipping AIX-only test")
+	}
+	t.Parallel()
+	got := runTestProg(t, "testprogcgo", "LockOSThreadParkExit")
+	if want := "OK\n"; got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
 func TestWindowsStackMemoryCgo(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("skipping windows specific test")
