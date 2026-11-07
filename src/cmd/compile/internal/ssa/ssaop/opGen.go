@@ -4777,6 +4777,11 @@ const (
 	OpARM64PBICB
 	OpARM64PORRB
 	OpARM64PEORB
+	OpARM64PBRKB
+	OpARM64PCNTPB
+	OpARM64PCNTPH
+	OpARM64PCNTPS
+	OpARM64PCNTPD
 	OpARM64PPTEST
 	OpARM64ZDUPBconst
 	OpARM64ZDUPHconst
@@ -7640,6 +7645,10 @@ const (
 	OpMask16sNot
 	OpMask32sNot
 	OpMask64sNot
+	OpMask8sTrailingZeros
+	OpMask16sTrailingZeros
+	OpMask32sTrailingZeros
+	OpMask64sTrailingZeros
 	OpAESDecryptLastRoundUint8x16
 	OpAESDecryptLastRoundUint8x32
 	OpAESDecryptLastRoundUint8x64
@@ -85940,6 +85949,76 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "PBRKB",
+		ArgLen: 2,
+		asm:    arm64.APBRKB,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+		},
+	},
+	{
+		Name:   "PCNTPB",
+		ArgLen: 2,
+		asm:    arm64.APCNTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "PCNTPH",
+		ArgLen: 2,
+		asm:    arm64.APCNTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "PCNTPS",
+		ArgLen: 2,
+		asm:    arm64.APCNTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
+		Name:   "PCNTPD",
+		ArgLen: 2,
+		asm:    arm64.APCNTP,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+				{1, RegMask{V1: 9223372036854775808, V2: 32767}}, // P0 P1 P2 P3 P4 P5 P6 P7 P8 P9 P10 P11 P12 P13 P14 P15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 335544319, V2: 0}}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+			},
+		},
+	},
+	{
 		Name:   "PPTEST",
 		ArgLen: 2,
 		asm:    arm64.APPTEST,
@@ -122721,6 +122800,26 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "Mask64sNot",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask8sTrailingZeros",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask16sTrailingZeros",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask32sTrailingZeros",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "Mask64sTrailingZeros",
 		ArgLen:  1,
 		Generic: true,
 	},

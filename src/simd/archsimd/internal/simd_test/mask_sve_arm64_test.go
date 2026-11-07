@@ -132,6 +132,17 @@ func testMaskToBool[M sveMask](t *testing.T, name string, laneBytes int, op func
 	}
 }
 
+// testMaskToInt checks a mask-to-int accessor against want.
+func testMaskToInt[M sveMask](t *testing.T, name string, laneBytes int, op func(M) int, want func([]bool) int) {
+	t.Helper()
+	n := archsimd.Int8s{}.Len() / laneBytes
+	for _, bits := range maskPatterns(laneBytes, n) {
+		if got, w := op(maskFromBits[M](bits)), want(lanesOf(bits, laneBytes, n)); got != w {
+			t.Errorf("%s(%#x) = %d, want %d", name, bits, got, w)
+		}
+	}
+}
+
 func firstWant(lanes []bool) []bool {
 	out := make([]bool, len(lanes))
 	for i, l := range lanes {
@@ -389,4 +400,23 @@ func TestMaskFromCountSVE(t *testing.T) {
 	testMaskFromCount(t, "Mask16sFromCount", 2, archsimd.Int16s{}.Len(), archsimd.Mask16sFromCount)
 	testMaskFromCount(t, "Mask32sFromCount", 4, archsimd.Int32s{}.Len(), archsimd.Mask32sFromCount)
 	testMaskFromCount(t, "Mask64sFromCount", 8, archsimd.Int64s{}.Len(), archsimd.Mask64sFromCount)
+}
+
+func trailingZerosWant(lanes []bool) int {
+	for i, l := range lanes {
+		if l {
+			return i
+		}
+	}
+	return len(lanes)
+}
+
+func TestMaskTrailingZerosSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testMaskToInt(t, "Mask8s.TrailingZeros", 1, archsimd.Mask8s.TrailingZeros, trailingZerosWant)
+	testMaskToInt(t, "Mask16s.TrailingZeros", 2, archsimd.Mask16s.TrailingZeros, trailingZerosWant)
+	testMaskToInt(t, "Mask32s.TrailingZeros", 4, archsimd.Mask32s.TrailingZeros, trailingZerosWant)
+	testMaskToInt(t, "Mask64s.TrailingZeros", 8, archsimd.Mask64s.TrailingZeros, trailingZerosWant)
 }

@@ -682,6 +682,28 @@ func sveZeroMask() archsimd.Mask8s {
 	return m
 }
 
+// The all-true mask is built at the lane size, PBRKB is always .B, and PCNTP
+// counts at the lane size.
+func sveMaskTrailingZeros8(m archsimd.Mask8s) int {
+	// arm64:`PWHILELT.*P[0-9]+\.B` `PBRKB\s+P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` `PCNTP\s+P[0-9]+\.B, P[0-9]+, R[0-9]+`
+	return m.TrailingZeros()
+}
+
+func sveMaskTrailingZeros16(m archsimd.Mask16s) int {
+	// arm64:`PWHILELT.*P[0-9]+\.H` `PBRKB\s+P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` `PCNTP\s+P[0-9]+\.H, P[0-9]+, R[0-9]+`
+	return m.TrailingZeros()
+}
+
+func sveMaskTrailingZeros32(m archsimd.Mask32s) int {
+	// arm64:`PWHILELT.*P[0-9]+\.S` `PBRKB\s+P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` `PCNTP\s+P[0-9]+\.S, P[0-9]+, R[0-9]+`
+	return m.TrailingZeros()
+}
+
+func sveMaskTrailingZeros64(m archsimd.Mask64s) int {
+	// arm64:`PWHILELT.*P[0-9]+\.D` `PBRKB\s+P[0-9]+\.B, P[0-9]+\.Z, P[0-9]+\.B` `PCNTP\s+P[0-9]+\.D, P[0-9]+, R[0-9]+`
+	return m.TrailingZeros()
+}
+
 // An operation whose unpredicated encoding needs SVE2 lowers to it only in
 // blocks where the cpufeatures analysis proves SVE2; elsewhere it lowers to
 // its baseline-SVE merging-predicated sibling under an all-true predicate.

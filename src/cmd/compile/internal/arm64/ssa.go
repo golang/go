@@ -844,6 +844,22 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
+	case ssaop.OpARM64PBRKB:
+		// PBRKB P1.B, P0.Z, P2.B: P2 = the lanes of P0 before the first one set in P1.
+		p := s.Prog(v.Op.Asm())
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = pregArng(v.Args[1].Reg(), arm64.ARNG_B)
+		p.AddRestSourceReg(pregMask(v.Args[0].Reg(), arm64.PRED_Z))
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = pregArng(v.Reg(), arm64.ARNG_B)
+	case ssaop.OpARM64PCNTPB:
+		simdPCntp(s, v, arm64.ARNG_B)
+	case ssaop.OpARM64PCNTPH:
+		simdPCntp(s, v, arm64.ARNG_H)
+	case ssaop.OpARM64PCNTPS:
+		simdPCntp(s, v, arm64.ARNG_S)
+	case ssaop.OpARM64PCNTPD:
+		simdPCntp(s, v, arm64.ARNG_D)
 	case ssaop.OpARM64PPTEST:
 		// PPTEST P1.B, P0: flags from the lanes of P1 that P0 governs.
 		p := s.Prog(v.Op.Asm())
@@ -2570,6 +2586,19 @@ func simdPNext(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	p.AddRestSourceReg(v.Args[1].Reg())
 	p.To.Type = obj.TYPE_REG
 	p.To.Reg = pregArng(v.Reg(), arng)
+	return p
+}
+
+// simdPCntp emits a PCNTP with the given element arrangement, e.g.
+// PCNTP P1.H, P0, R0. SSA provides arg0=the governing predicate and
+// arg1=the predicate to count.
+func simdPCntp(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = pregArng(v.Args[1].Reg(), arng)
+	p.AddRestSourceReg(v.Args[0].Reg())
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = v.Reg()
 	return p
 }
 

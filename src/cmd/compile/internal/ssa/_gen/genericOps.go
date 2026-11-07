@@ -907,6 +907,13 @@ var genericOps = []opData{
 	{name: "Mask16sNot", argLength: 1},
 	{name: "Mask32sNot", argLength: 1},
 	{name: "Mask64sNot", argLength: 1},
+
+	// TrailingZeros returns the number of low-order inactive lanes of arg0, or
+	// the number of lanes if none is active.
+	{name: "Mask8sTrailingZeros", argLength: 1},
+	{name: "Mask16sTrailingZeros", argLength: 1},
+	{name: "Mask32sTrailingZeros", argLength: 1},
+	{name: "Mask64sTrailingZeros", argLength: 1},
 }
 
 //     kind          controls          successors   implicit exit

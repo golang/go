@@ -199,6 +199,7 @@ func init() {
 		pred2pred      = regInfo{inputs: []regMask{pred, pred}, outputs: []regMask{pred}}
 		pred3pred      = regInfo{inputs: []regMask{pred, pred, pred}, outputs: []regMask{pred}}
 		pred2flags     = regInfo{inputs: []regMask{pred, pred}}
+		pred2gp        = regInfo{inputs: []regMask{pred, pred}, outputs: []regMask{gp}}
 		fp11           = regInfo{inputs: []regMask{fp}, outputs: []regMask{fp}}
 		fpgp           = regInfo{inputs: []regMask{fp}, outputs: []regMask{gp}}
 		fpgpfp         = regInfo{inputs: []regMask{fp, gp}, outputs: []regMask{fp}}
@@ -877,6 +878,15 @@ func init() {
 		{name: "PBICB", argLength: 3, reg: pred3pred, asm: "PBIC", typ: "Mask"}, // arg0=governing predicate, arg1 AND NOT arg2
 		{name: "PORRB", argLength: 3, reg: pred3pred, asm: "PORR", typ: "Mask"}, // arg0=governing predicate, arg1 OR arg2
 		{name: "PEORB", argLength: 3, reg: pred3pred, asm: "PEOR", typ: "Mask"}, // arg0=governing predicate, arg1 XOR arg2
+		// PBRKB sets the bytes that arg0 governs and that precede the first
+		// governed set byte of arg1; every other byte is zeroed.
+		{name: "PBRKB", argLength: 2, reg: pred2pred, asm: "PBRKB", typ: "Mask"}, // arg0=governing predicate, arg1
+		// PCNTP{B,H,S,D} count the elements of arg1 that arg0 governs and that
+		// are set, at the given element size.
+		{name: "PCNTPB", argLength: 2, reg: pred2gp, asm: "PCNTP"}, // arg0=governing predicate, arg1
+		{name: "PCNTPH", argLength: 2, reg: pred2gp, asm: "PCNTP"}, // arg0=governing predicate, arg1
+		{name: "PCNTPS", argLength: 2, reg: pred2gp, asm: "PCNTP"}, // arg0=governing predicate, arg1
+		{name: "PCNTPD", argLength: 2, reg: pred2gp, asm: "PCNTP"}, // arg0=governing predicate, arg1
 		// PPTEST sets the flags from the lanes of arg1 that arg0 governs: Z if
 		// none is set.
 		{name: "PPTEST", argLength: 2, reg: pred2flags, asm: "PPTEST", typ: "Flags"}, // arg0=governing predicate, arg1

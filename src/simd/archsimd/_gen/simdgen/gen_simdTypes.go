@@ -471,6 +471,9 @@ func (x {{.Name}}) Not() {{.Name}}
 func (x {{.Name}}) To{{.VectorCounterpart}}() {{.VectorCounterpart}} {
 	return Broadcast{{.VectorCounterpart}}(-1).Masked(x)
 }
+
+// Asm: Emulated (BRKB + CNTP), CPU Feature: SVE
+func (x {{.Name}}) TrailingZeros() int
 {{end}}
 
 {{define "sveIfElseTmpl"}}

@@ -2040,6 +2040,14 @@
 (Mask32sNot x) => (PEORB t:(Mask32sAllTrue <types.TypeMask>) x t)
 (Mask64sNot x) => (PEORB t:(Mask64sAllTrue <types.TypeMask>) x t)
 
+// TrailingZeros: PBRKB sets the lanes before the first active one and PCNTP
+// counts them. PBRKB has only a byte form; governing it by the all-true mask
+// of the lane size makes it ignore the bits between lanes.
+(Mask8sTrailingZeros m) => (PCNTPB t:(Mask8sAllTrue <types.TypeMask>) (PBRKB t m))
+(Mask16sTrailingZeros m) => (PCNTPH t:(Mask16sAllTrue <types.TypeMask>) (PBRKB t m))
+(Mask32sTrailingZeros m) => (PCNTPS t:(Mask32sAllTrue <types.TypeMask>) (PBRKB t m))
+(Mask64sTrailingZeros m) => (PCNTPD t:(Mask64sAllTrue <types.TypeMask>) (PBRKB t m))
+
 // == on SIMD vectors and masks. Integer vectors and masks are equal if their
 // XOR is zero. Float vectors are equal if every element compares equal, so NaN
 // elements are unequal and +0 equals -0.

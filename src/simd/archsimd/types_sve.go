@@ -1502,6 +1502,12 @@ func (x Mask8s) ToInt8s() (z Int8s) {
 	return BroadcastInt8s(-1).Masked(x)
 }
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+//
+// Asm: Emulated (BRKB + CNTP), CPU Feature: SVE
+func (x Mask8s) TrailingZeros() int
+
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
 func (x Mask8s) String() string {
@@ -1645,6 +1651,12 @@ func (x Mask16s) Not() (z Mask16s)
 func (x Mask16s) ToInt16s() (z Int16s) {
 	return BroadcastInt16s(-1).Masked(x)
 }
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+//
+// Asm: Emulated (BRKB + CNTP), CPU Feature: SVE
+func (x Mask16s) TrailingZeros() int
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
@@ -1790,6 +1802,12 @@ func (x Mask32s) ToInt32s() (z Int32s) {
 	return BroadcastInt32s(-1).Masked(x)
 }
 
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+//
+// Asm: Emulated (BRKB + CNTP), CPU Feature: SVE
+func (x Mask32s) TrailingZeros() int
+
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
 func (x Mask32s) String() string {
@@ -1933,6 +1951,12 @@ func (x Mask64s) Not() (z Mask64s)
 func (x Mask64s) ToInt64s() (z Int64s) {
 	return BroadcastInt64s(-1).Masked(x)
 }
+
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns x.Len().
+//
+// Asm: Emulated (BRKB + CNTP), CPU Feature: SVE
+func (x Mask64s) TrailingZeros() int
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
 // means true.
