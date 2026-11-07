@@ -323,13 +323,10 @@ func wrapErrUnsupported(err error, what string) error {
 //
 // Once per process, Hyrum-proof the error message by deliberately
 // switching between equivalent renderings of the same error message.
-// The randomization is tied to the Hyrum-proofing already applied
-// on map iteration in Go.
 var errorModalVerb = sync.OnceValue(func() string {
-	for phrase := range map[string]struct{}{"cannot": {}, "unable to": {}} {
-		return phrase // use whichever phrase we get in the first iteration
-	}
-	return ""
+	options := []string{"cannot", "unable to"}
+	index := rand.IntN(len(options))
+	return options[index]
 })
 
 func (e *SemanticError) Error() string {
