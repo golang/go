@@ -208,6 +208,12 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
 	return h, err
 }
 
+// openReadableDir opens the subdirectory name of parent for reading,
+// for use by os.RemoveAll.
+func openReadableDir(parent syscall.Handle, name string) (syscall.Handle, error) {
+	return rootOpenDir(parent, name)
+}
+
 func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
 	var flags uint
 	if lstat {
