@@ -284,7 +284,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
 }
 
 func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) error {
-	if t.Close && !hasToken(t.Header.get("Connection"), "close") {
+	if t.Close && !httpguts.HeaderValuesContainsToken(t.Header["Connection"], "close") {
 		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
 			return err
 		}
@@ -500,7 +500,7 @@ func readTransfer(msg any, r *bufio.Reader, maxTrailerHeaders int64) (err error)
 		t.StatusCode = rr.StatusCode
 		t.ProtoMajor = rr.ProtoMajor
 		t.ProtoMinor = rr.ProtoMinor
-		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header, true)
+		t.Close = shouldClose(t.ProtoMajor, t.ProtoMinor, t.Header)
 		isResponse = true
 		if rr.Request != nil {
 			t.RequestMethod = rr.Request.Method
@@ -782,10 +782,9 @@ func (t *transferReader) determineBodyLength(isResponse bool) error {
 	return nil
 }
 
-// Determine whether to hang up after sending a request and body, or
-// receiving a response and body
-// 'header' is the request headers.
-func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
+// shouldClose reports whether the connection should close after this message.
+// It preserves Connection so intermediaries can remove the fields it names.
+func shouldClose(major, minor int, header Header) bool {
 	if major < 1 {
 		return true
 	}
@@ -794,10 +793,6 @@ func shouldClose(major, minor int, header Header, removeCloseHeader bool) bool {
 	hasClose := httpguts.HeaderValuesContainsToken(conv, "close")
 	if major == 1 && minor == 0 {
 		return hasClose || !httpguts.HeaderValuesContainsToken(conv, "keep-alive")
-	}
-
-	if hasClose && removeCloseHeader {
-		header.Del("Connection")
 	}
 
 	return hasClose
