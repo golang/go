@@ -35,10 +35,11 @@ func (z *Zipf) hinv(x float64) float64 {
 // NewZipf returns a Zipf variate generator.
 // The generator generates values k ∈ [0, imax]
 // such that P(k) is proportional to (v + k) ** (-s).
-// Requirements: s > 1 and v >= 1.
+// Requirements: s > 1 and v >= 1, with both s and v finite.
+// NewZipf returns nil if these requirements are not met.
 func NewZipf(r *Rand, s float64, v float64, imax uint64) *Zipf {
 	z := new(Zipf)
-	if s <= 1.0 || v < 1 {
+	if !(s > 1) || !(v >= 1) || math.IsInf(s, 1) || math.IsInf(v, 1) {
 		return nil
 	}
 	z.r = r
