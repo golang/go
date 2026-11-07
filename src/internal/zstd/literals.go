@@ -53,7 +53,7 @@ func (r *Reader) readRawRLELiterals(data block, off int, hdr byte, outbuf []byte
 	// We are going to use the entire literal block in the output.
 	// The maximum size of one decompressed block is 128K,
 	// so we can't have more literals than that.
-	if regeneratedSize > 128<<10 {
+	if regeneratedSize > blockMaximumSize {
 		return 0, nil, r.makeError(off, "literal size too large")
 	}
 
@@ -121,7 +121,7 @@ func (r *Reader) readHuffLiterals(data block, off int, hdr byte, outbuf []byte) 
 	// We are going to use the entire literal block in the output.
 	// The maximum size of one decompressed block is 128K,
 	// so we can't have more literals than that.
-	if regeneratedSize > 128<<10 {
+	if regeneratedSize > blockMaximumSize {
 		return 0, nil, r.makeError(off, "literal size too large")
 	}
 
