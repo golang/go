@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package traceviewer provides definitions of the JSON data structures
+// Package format provides definitions of the JSON data structures
 // used by the Chrome trace viewer.
 //
 // The official description of the format is in this file:
