@@ -7,6 +7,7 @@
 package os
 
 import (
+	"internal/poll"
 	"internal/testlog"
 	"runtime"
 	"syscall"
@@ -223,7 +224,11 @@ func (f *File) setDeadline(t time.Time) error {
 	if err := f.checkValid("SetDeadline"); err != nil {
 		return err
 	}
-	return f.pfd.SetDeadline(t)
+	err := f.pfd.SetDeadline(t)
+	if err == poll.ErrFileClosing {
+		err = ErrClosed
+	}
+	return err
 }
 
 // setReadDeadline sets the read deadline.
@@ -231,7 +236,11 @@ func (f *File) setReadDeadline(t time.Time) error {
 	if err := f.checkValid("SetReadDeadline"); err != nil {
 		return err
 	}
-	return f.pfd.SetReadDeadline(t)
+	err := f.pfd.SetReadDeadline(t)
+	if err == poll.ErrFileClosing {
+		err = ErrClosed
+	}
+	return err
 }
 
 // setWriteDeadline sets the write deadline.
@@ -239,7 +248,11 @@ func (f *File) setWriteDeadline(t time.Time) error {
 	if err := f.checkValid("SetWriteDeadline"); err != nil {
 		return err
 	}
-	return f.pfd.SetWriteDeadline(t)
+	err := f.pfd.SetWriteDeadline(t)
+	if err == poll.ErrFileClosing {
+		err = ErrClosed
+	}
+	return err
 }
 
 // checkValid checks whether f is valid for use.
