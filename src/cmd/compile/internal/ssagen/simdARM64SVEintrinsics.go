@@ -124,6 +124,8 @@ func simdARM64SVEIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFa
 	addF(simdPackage, "Uint16s.InterleaveLo", opLen2(ssaop.OpInterleaveLoUint16s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint32s.InterleaveLo", opLen2(ssaop.OpInterleaveLoUint32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Uint64s.InterleaveLo", opLen2(ssaop.OpInterleaveLoUint64s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Int8s.LookupOrZero", opLen2(ssaop.OpLookupOrZeroInt8s, types.TypeVec256), sys.ARM64)
+	addF(simdPackage, "Uint8s.LookupOrZero", opLen2(ssaop.OpLookupOrZeroUint8s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float32s.Max", opLen2(ssaop.OpMaxFloat32s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Float64s.Max", opLen2(ssaop.OpMaxFloat64s, types.TypeVec256), sys.ARM64)
 	addF(simdPackage, "Int8s.Max", opLen2(ssaop.OpMaxInt8s, types.TypeVec256), sys.ARM64)

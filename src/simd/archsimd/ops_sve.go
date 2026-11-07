@@ -895,6 +895,30 @@ func (x Uint32s) InterleaveLo(y Uint32s) (z Uint32s)
 // Asm: ZZIP1, CPU Feature: SVE
 func (x Uint64s) InterleaveLo(y Uint64s) (z Uint64s)
 
+/* LookupOrZero */
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Asm: ZTBL, CPU Feature: SVE
+func (x Int8s) LookupOrZero(indices Uint8s) (z Int8s)
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Asm: ZTBL, CPU Feature: SVE
+func (x Uint8s) LookupOrZero(indices Uint8s) (z Uint8s)
+
 /* Max */
 
 // Max returns the elementwise maximum of x and y.

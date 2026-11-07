@@ -66,6 +66,8 @@
 (InterleaveLoUint16s ...) => (ZZIP1H ...) // pureVreg
 (InterleaveLoUint32s ...) => (ZZIP1S ...) // pureVreg
 (InterleaveLoUint64s ...) => (ZZIP1D ...) // pureVreg
+(LookupOrZeroInt8s ...) => (ZTBLB ...) // pureVreg
+(LookupOrZeroUint8s ...) => (ZTBLB ...) // pureVreg
 (MulFloat32s ...) => (ZFMULS ...) // pureVreg
 (MulFloat64s ...) => (ZFMULD ...) // pureVreg
 (OrInt8s ...) => (ZORRD ...) // pureVreg

@@ -122,6 +122,9 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZUQSUBS:
 		p = simdZ21(s, v, arm64.ARNG_S)
 
+	case ssaop.OpARM64ZTBLB:
+		p = simdZ21List(s, v, arm64.ARNG_B)
+
 	case ssaop.OpARM64ZCMPEQB,
 		ssaop.OpARM64ZCMPGTB,
 		ssaop.OpARM64ZCMPHIB,

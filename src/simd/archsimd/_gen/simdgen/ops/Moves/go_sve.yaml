@@ -37,3 +37,18 @@
   out:
   - *any
 
+# LookupOrZero -- TBL, single-register table, bytes only, as on NEON.
+- go: LookupOrZero
+  asm: "ZTBL"
+  in:
+  - &bytes
+    go: $t
+    base: int|uint
+    elemBits: 8
+  - go: $t
+    base: int|uint
+    elemBits: 8
+    overwriteBase: uint
+    name: indices
+  out:
+  - *bytes

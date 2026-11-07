@@ -1908,8 +1908,14 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpLoadMasked8(v)
 	case ssaop.OpLocalAddr:
 		return rewriteValue_OpLocalAddr(v)
+	case ssaop.OpLookupOrZeroInt8s:
+		v.Op = ssaop.OpARM64ZTBLB
+		return true
 	case ssaop.OpLookupOrZeroInt8x16:
 		v.Op = ssaop.OpARM64VTBL16B
+		return true
+	case ssaop.OpLookupOrZeroUint8s:
+		v.Op = ssaop.OpARM64ZTBLB
 		return true
 	case ssaop.OpLookupOrZeroUint8x16:
 		v.Op = ssaop.OpARM64VTBL16B

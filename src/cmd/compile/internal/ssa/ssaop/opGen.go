@@ -5406,6 +5406,7 @@ const (
 	OpARM64ZSUBMergingH
 	OpARM64ZSUBMergingS
 	OpARM64ZSUBS
+	OpARM64ZTBLB
 	OpARM64ZUDIVD
 	OpARM64ZUDIVMergingD
 	OpARM64ZUDIVMergingS
@@ -8406,7 +8407,9 @@ const (
 	OpLookupModUint8x16
 	OpLookupModUint8x32
 	OpLookupModUint8x64
+	OpLookupOrZeroInt8s
 	OpLookupOrZeroInt8x16
+	OpLookupOrZeroUint8s
 	OpLookupOrZeroUint8x16
 	OpMaxFloat32s
 	OpMaxFloat32x16
@@ -95084,6 +95087,20 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "ZTBLB",
+		ArgLen: 2,
+		asm:    arm64.AZTBL,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+				{1, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 9223372034707292160, V2: 0}}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+			},
+		},
+	},
+	{
 		Name:         "ZUDIVD",
 		ArgLen:       3,
 		ResultInArg0: true,
@@ -125694,7 +125711,17 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "LookupOrZeroInt8s",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "LookupOrZeroInt8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupOrZeroUint8s",
 		ArgLen:  2,
 		Generic: true,
 	},

@@ -166,6 +166,7 @@ var sveRegInfoKeys = []string{
 	"z11",      // 1 Z in, 1 Z out (unary, e.g. NEG)
 	"zkv",      // 1 Z in, 1 P (implicit-all-true governing predicate) in, 1 Z out (predicated-only unary, e.g. ZABS)
 	"z21",      // 2 Z in, 1 Z out (binary, e.g. unpredicated ADD)
+	"z21List",  // like z21, but the first input is a single-register list, e.g. ZTBL
 	"z2kk",     // 2 Z in, 1 P (governing predicate) in, 1 P out (predicated compare, e.g. ZCMPGT)
 	"z2kv",     // 2 Z in, 1 P (select predicate) in, 1 Z out (constructive, e.g. ZSEL)
 	"z2kvPred", // 2 Z in, 1 P (governing predicate) in, 1 Z out (destructive, e.g. ZADD/M)

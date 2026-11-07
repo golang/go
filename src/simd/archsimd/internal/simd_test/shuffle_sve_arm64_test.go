@@ -119,3 +119,50 @@ func TestConcatOddSVE(t *testing.T) {
 	testSVEShuffle2(t, uint32s, 4, archsimd.Uint32s{}.Len(), archsimd.LoadUint32s, archsimd.Uint32s.ConcatOdd, archsimd.Uint32s.Store, deinterleaveSlice[uint32](0, true))
 	testSVEShuffle2(t, uint64s, 8, archsimd.Uint64s{}.Len(), archsimd.LoadUint64s, archsimd.Uint64s.ConcatOdd, archsimd.Uint64s.Store, deinterleaveSlice[uint64](0, true))
 }
+
+// lookupIndices returns a pool for LookupOrZero with every in-range index of an
+// n-lane byte vector, the first index past the end, and 255.
+func lookupIndices(n int) []uint8 {
+	pool := []uint8{uint8(n), 255}
+	for i := range n {
+		pool = append(pool, uint8(i))
+	}
+	return nOf(N, pool)
+}
+
+// lookupOrZeroSlice returns, for each index, the table element it selects, or
+// 0 if the index is out of range.
+func lookupOrZeroSlice[T int8 | uint8](table []T, indices []uint8) []T {
+	r := make([]T, len(indices))
+	for i, idx := range indices {
+		if int(idx) < len(table) {
+			r[i] = table[idx]
+		}
+	}
+	return r
+}
+
+func TestLookupOrZeroSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	n := archsimd.Uint8s{}.Len()
+	testSVEShuffle2(t, lookupIndices(n), 1, n, archsimd.LoadUint8s, archsimd.Uint8s.LookupOrZero, archsimd.Uint8s.Store, lookupOrZeroSlice[uint8])
+	// The same pairs, with the table read as Int8s.
+	pool := lookupIndices(n)
+	tables := make([]int8, len(pool))
+	for i, v := range pool {
+		tables[i] = int8(v)
+	}
+	forSliceMixed(t, tables, pool, sveMaxBytes, func(table []int8, indices []uint8) bool {
+		t.Helper()
+		g := make([]int8, sveMaxBytes)
+		archsimd.LoadInt8s(table).LookupOrZero(archsimd.LoadUint8s(indices)).Store(g)
+		w := lookupOrZeroSlice(table[:n], indices[:n])
+		return checkSlicesLogInput(t, g[:n], w, 0.0, func() {
+			t.Helper()
+			t.Logf("table=%v", table[:n])
+			t.Logf("indices=%v", indices[:n])
+		})
+	})
+}

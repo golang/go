@@ -2182,6 +2182,23 @@ func simdZ21(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
 	return p
 }
 
+// simdZ21List emits an unpredicated SVE binary Z-register instruction whose
+// first source is a single-register byte list, e.g. ZTBL Z1.B, [Z0.B], Z2.B.
+func simdZ21List(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {
+	if arng != arm64.ARNG_B {
+		base.Fatalf("simdZ21List: unsupported arrangement %d", arng)
+	}
+	p := s.Prog(v.Op.Asm())
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = zregArng(v.Args[1].Reg(), arng) // Zm
+	// RegisterListOffset wants the register's 0-31 index.
+	regList, _ := arm64.RegisterListOffset(int(v.Args[0].Reg()&31), 1, regListArr("Z", "B"), 0)
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_REGLIST, Offset: regList}) // [Zn.T]
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zregArng(v.Reg(), arng) // Zd
+	return p
+}
+
 // simdZDupConst emits an SVE broadcast of a signed 8-bit immediate to every
 // lane with the given element arrangement, e.g. ZDUP $5, Z0.H.
 func simdZDupConst(s *ssagen.State, v *ssa.Value, arng int16) *obj.Prog {

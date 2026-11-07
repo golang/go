@@ -501,3 +501,17 @@ func sveBroadcastFloatIfElse(x float32, m archsimd.Mask32s, z archsimd.Float32s)
 	// arm64:`ZCPYS\s+V[0-9]+, P[0-9]+\.M, Z[0-9]+\.S` -`ZDUP` -`ZSEL`
 	return archsimd.BroadcastFloat32s(x).IfElse(m, z)
 }
+
+// --- SVE table lookup ---
+
+// SVE TBL takes a single-register table, so it lowers to one instruction with a
+// one-register list and no governing predicate.
+func sveLookupOrZeroBytes(table, indices archsimd.Uint8s) archsimd.Uint8s {
+	// arm64:`ZTBL\s+Z[0-9]+\.B, \[Z[0-9]+\.B\], Z[0-9]+\.B` -`PWHILELT`
+	return table.LookupOrZero(indices)
+}
+
+func sveLookupOrZeroSigned(table archsimd.Int8s, indices archsimd.Uint8s) archsimd.Int8s {
+	// arm64:`ZTBL\s+Z[0-9]+\.B, \[Z[0-9]+\.B\], Z[0-9]+\.B` -`PWHILELT`
+	return table.LookupOrZero(indices)
+}

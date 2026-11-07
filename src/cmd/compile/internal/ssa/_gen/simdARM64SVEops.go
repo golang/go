@@ -274,6 +274,7 @@ func simdARM64SVEOps(z11, z21, zkv, zkfp, zkvPred, z2kk, z2kv, z2kvPred, z3kvPre
 		{name: "ZSUBMergingH", argLength: 3, reg: z2kvPred, asm: "ZSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZSUBMergingS", argLength: 3, reg: z2kvPred, asm: "ZSUB", typ: "Vec256", resultInArg0: true},
 		{name: "ZSUBS", argLength: 2, reg: z21, asm: "ZSUB", typ: "Vec256"},
+		{name: "ZTBLB", argLength: 2, reg: z21, asm: "ZTBL", typ: "Vec256"},
 		{name: "ZUDIVD", argLength: 3, reg: z2kvPred, asm: "ZUDIV", typ: "Vec256", resultInArg0: true},
 		{name: "ZUDIVMergingD", argLength: 3, reg: z2kvPred, asm: "ZUDIV", typ: "Vec256", resultInArg0: true},
 		{name: "ZUDIVMergingS", argLength: 3, reg: z2kvPred, asm: "ZUDIV", typ: "Vec256", resultInArg0: true},

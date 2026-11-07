@@ -117,6 +117,8 @@ func init() {
 		{name: "InterleaveLoUint16s", argLength: 2},
 		{name: "InterleaveLoUint32s", argLength: 2},
 		{name: "InterleaveLoUint64s", argLength: 2},
+		{name: "LookupOrZeroInt8s", argLength: 2},
+		{name: "LookupOrZeroUint8s", argLength: 2},
 		{name: "MaxFloat32s", argLength: 2},
 		{name: "MaxFloat64s", argLength: 2},
 		{name: "MaxInt8s", argLength: 2, commutative: true},
