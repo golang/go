@@ -1,0 +1,45 @@
+# Test that -coverprofile lists each block once when 'go clean -testcache'
+# expires the cached result and the test runs again.
+# The cached cover profile must be merged only when the cached result is used.
+
+[short] skip
+[GODEBUG:gocacheverify=1] skip
+
+# We're testing cache behavior, so start with a clean GOCACHE.
+env GOCACHE=$WORK/cache
+
+go test -coverprofile=cover1.out ./p
+! stdout '\(cached\)'
+
+go test -coverprofile=cover2.out ./p
+stdout '\(cached\)'
+cmp cover2.out cover1.out
+
+go clean -testcache
+go test -coverprofile=cover3.out ./p
+! stdout '\(cached\)'
+cmp cover3.out cover1.out
+
+-- go.mod --
+module m
+
+go 1.21
+-- p/p.go --
+package p
+
+func Abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+-- p/p_test.go --
+package p
+
+import "testing"
+
+func TestAbs(t *testing.T) {
+	if Abs(-1) != 1 {
+		t.Fatal("Abs(-1) != 1")
+	}
+}
