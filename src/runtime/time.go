@@ -120,6 +120,18 @@ type timer struct {
 	// isSending is decremented only when t.sendLock is held.
 	// isSending is read only when both t.mu and t.sendLock are held.
 	isSending atomic.Int32
+
+	// sendSeq is the t.seq value snapshotted by unlockAndRun for the
+	// send accounted for in isSending. The stop/reset code uses it to
+	// tell whether that in-flight send is still valid: an earlier stop
+	// or reset will have incremented t.seq, voiding the send and
+	// reporting the timer stopped at that point. Without it, stop and
+	// reset would each count the same voided send as pending, making
+	// Reset report an active timer right after Stop reported having
+	// stopped it. See go.dev/issue/80760.
+	//
+	// sendSeq is accessed only while holding t.mu.
+	sendSeq uintptr
 }
 
 // init initializes a newly allocated timer t.
@@ -493,18 +505,21 @@ func (t *timer) stop() bool {
 	t.when = 0
 
 	if t.isChan {
+		// If there is a send in progress that has not been voided
+		// by an earlier stop or reset (its seq snapshot still
+		// matches t.seq), incrementing seq below is going to
+		// prevent that send from actually happening. That means
+		// that we should return true: the timer was stopped, even
+		// though t.when may be zero. If the send was already
+		// voided, the call that voided it reported the timer
+		// stopped; it must not be counted again here.
+		if t.period == 0 && t.isSending.Load() > 0 && t.sendSeq == t.seq {
+			pending = true
+		}
+
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
-
-		// If there is currently a send in progress,
-		// incrementing seq is going to prevent that
-		// send from actually happening. That means
-		// that we should return true: the timer was
-		// stopped, even though t.when may be zero.
-		if t.period == 0 && t.isSending.Load() > 0 {
-			pending = true
-		}
 	}
 	t.unlock()
 	if t.isChan {
@@ -619,18 +634,21 @@ func (t *timer) modify(when, period int64, f func(arg any, seq uintptr, delay in
 	}
 
 	if t.isChan {
+		// If there is a send in progress that has not been voided
+		// by an earlier stop or reset (its seq snapshot still
+		// matches t.seq), incrementing seq below is going to
+		// prevent that send from actually happening. That means
+		// that we should return true: the timer was stopped, even
+		// though t.when may be zero. If the send was already
+		// voided, the call that voided it reported the timer
+		// stopped; it must not be counted again here.
+		if oldPeriod == 0 && t.isSending.Load() > 0 && t.sendSeq == t.seq {
+			pending = true
+		}
+
 		// Stop any future sends with stale values.
 		// See timer.unlockAndRun.
 		t.seq++
-
-		// If there is currently a send in progress,
-		// incrementing seq is going to prevent that
-		// send from actually happening. That means
-		// that we should return true: the timer was
-		// stopped, even though t.when may be zero.
-		if oldPeriod == 0 && t.isSending.Load() > 0 {
-			pending = true
-		}
 	}
 	t.unlock()
 	if t.isChan {
@@ -1148,6 +1166,7 @@ func (t *timer) unlockAndRun(now int64, bubble *synctestBubble) {
 		if t.isSending.Add(1) < 0 {
 			throw("too many concurrent timer firings")
 		}
+		t.sendSeq = seq
 	}
 
 	t.unlock()
