@@ -411,7 +411,10 @@ func (s *Summarizer) Event(ev *Event) {
 					g.lastSyscallBlockTime = 0
 
 					// Clear the syscall map.
-					delete(s.syscallingP, s.syscallingG[id])
+					// The P may have been stolen and entered another syscall.
+					if p := s.syscallingG[id]; s.syscallingP[p] == id {
+						delete(s.syscallingP, p)
+					}
 					delete(s.syscallingG, id)
 				}
 			}
