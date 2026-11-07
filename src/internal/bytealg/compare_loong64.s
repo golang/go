@@ -51,49 +51,40 @@ tail:
 generic8_loop:
 	MOVV	(R4), R10
 	MOVV	(R6), R11
-	BEQ	R10, R11, generic8_equal
+	BNE	R10, R11, cmp8
 
-cmp8:
-	AND	$0xff, R10, R16
-	AND	$0xff, R11, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$15, R10, $8, R16
-	BSTRPICKV	$15, R11, $8, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$23, R10, $16, R16
-	BSTRPICKV	$23, R11, $16, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$31, R10, $24, R16
-	BSTRPICKV	$31, R11, $24, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$39, R10, $32, R16
-	BSTRPICKV	$39, R11, $32, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$47, R10, $40, R16
-	BSTRPICKV	$47, R11, $40, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$55, R10, $48, R16
-	BSTRPICKV	$55, R11, $48, R17
-	BNE	R16, R17, cmp_byte
-
-	BSTRPICKV	$63, R10, $56, R16
-	BSTRPICKV	$63, R11, $56, R17
-	BNE	R16, R17, cmp_byte
-
-generic8_equal:
 	ADDV	$-8, R14
 	BEQ	R14, cmp_len
 	ADDV	$8, R4
 	ADDV	$8, R6
 	BGE	R14, R15, generic8_loop
 
+	// 1 <= R14 < 8: overlapping load of the last 8 bytes.
+	// Safe: at least one full 8-byte chunk was compared, so
+	// R4-8/R6-8 stay inside the original buffers.
+	ADDV	R4, R14, R15
+	MOVV	-8(R15), R10
+	ADDV	R6, R14, R15
+	MOVV	-8(R15), R11
+	BNE	R10, R11, cmp8
+	JMP	cmp_len
+
+cmp8:
+	// R10 != R11 guaranteed by callers. XOR isolates differing
+	// bits; CTZV gives the lowest differing bit index.
+	XOR	R10, R11, R16
+	CTZV	R16, R16
+	SRLV	$3, R16		// bit index -> byte index
+	SLLV	$3, R16		// byte index -> bit shift (8*i)
+	SRLV	R16, R11, R17	// b >> 8*i
+	SRLV	R16, R10, R16	// a >> 8*i
+	AND	$0xff, R17, R17	// R17 = differing byte of b
+	AND	$0xff, R16, R16	// R16 = differing byte of a
+	JMP	cmp_byte
+
 lt_8:
+	// Remaining R14 < 8: compare 4/2/1-byte chunks forward.
+	// Reached both for tiny inputs and for lasx/lsx remainders.
 	MOVV	$4, R15
 	BLT	R14, R15, lt_4
 
