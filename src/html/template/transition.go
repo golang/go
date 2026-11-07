@@ -6,6 +6,8 @@ package template
 
 import (
 	"bytes"
+	"html"
+	"slices"
 	"strings"
 )
 
@@ -48,6 +50,215 @@ var transitionFunc = [...]func(context, []byte) (context, int){
 
 var commentStart = []byte("<!--")
 var commentEnd = []byte("-->")
+var cdataStart = []byte("<![CDATA[")
+var cdataEnd = []byte("]]>")
+
+func contextWithHTMLState(c context, state state) context {
+	namespaces := slices.Clone(c.htmlNamespaces)
+	if len(namespaces) == 0 {
+		namespaces = nil
+	}
+	return context{
+		state:          state,
+		htmlNamespaces: namespaces,
+	}
+}
+
+func isForeignBreakoutTag(tag string) bool {
+	switch tag {
+	case "b", "big", "blockquote", "body", "br", "center", "code", "dd", "div", "dl", "dt", "em", "embed", "h1", "h2", "h3", "h4", "h5", "h6", "head", "hr", "i", "img", "li", "listing", "menu", "meta", "nobr", "ol", "p", "pre", "ruby", "s", "small", "span", "strong", "strike", "sub", "sup", "table", "tt", "u", "ul", "var":
+		return true
+	}
+	return false
+}
+
+func isHTMLIntegrationPoint(tag string, math bool) bool {
+	if math {
+		return isMathMLTextIntegrationPoint(tag)
+	}
+	switch tag {
+	case "desc", "foreignobject", "title":
+		return true
+	}
+	return false
+}
+
+func isMathMLTextIntegrationPoint(tag string) bool {
+	switch tag {
+	case "mi", "mo", "mn", "ms", "mtext":
+		return true
+	}
+	return false
+}
+
+// annotationXMLIsHTMLIntegration reports whether static attributes make an
+// annotation-xml element an HTML integration point. A dynamically split tag
+// stays foreign, which preserves the stricter escaping for this bug class.
+func annotationXMLIsHTMLIntegration(s []byte) bool {
+	for i := 0; ; {
+		i = eatWhiteSpace(s, i)
+		if i == len(s) {
+			return false
+		}
+		if s[i] == '>' || s[i] == '/' && i+1 < len(s) && s[i+1] == '>' {
+			return false
+		}
+		j, err := eatAttrName(s, i)
+		if err != nil || j == i {
+			return false
+		}
+		name := strings.ToLower(string(s[i:j]))
+		i = eatWhiteSpace(s, j)
+		if i == len(s) {
+			return false
+		}
+		if s[i] != '=' {
+			continue
+		}
+		i = eatWhiteSpace(s, i+1)
+		if i == len(s) {
+			return false
+		}
+		var value string
+		if s[i] == '\'' || s[i] == '"' {
+			quote := s[i]
+			i++
+			j = bytes.IndexByte(s[i:], quote)
+			if j == -1 {
+				return false
+			}
+			value = string(s[i : i+j])
+			i += j + 1
+		} else {
+			j = bytes.IndexAny(s[i:], " \t\n\f\r>")
+			if j == -1 {
+				return false
+			}
+			value = string(s[i : i+j])
+			i += j
+		}
+		if name == "encoding" {
+			value = html.UnescapeString(value)
+			return strings.EqualFold(value, "text/html") ||
+				strings.EqualFold(value, "application/xhtml+xml")
+		}
+	}
+}
+
+// A font start tag only breaks out of foreign content when one of these three
+// attributes is present. Dynamically split attributes stay foreign.
+func foreignFontBreaksOut(s []byte) bool {
+	for i := 0; ; {
+		i = eatWhiteSpace(s, i)
+		if i == len(s) || s[i] == '>' || s[i] == '/' && i+1 < len(s) && s[i+1] == '>' {
+			return false
+		}
+		j, err := eatAttrName(s, i)
+		if err != nil || j == i {
+			return false
+		}
+		switch strings.ToLower(string(s[i:j])) {
+		case "color", "face", "size":
+			return true
+		}
+		i = eatWhiteSpace(s, j)
+		if i == len(s) {
+			return false
+		}
+		if s[i] != '=' {
+			continue
+		}
+		i = eatWhiteSpace(s, i+1)
+		if i == len(s) {
+			return false
+		}
+		if s[i] == '\'' || s[i] == '"' {
+			quote := s[i]
+			i++
+			j = bytes.IndexByte(s[i:], quote)
+			if j == -1 {
+				return false
+			}
+			i += j + 1
+		} else {
+			j = bytes.IndexAny(s[i:], " \t\n\f\r>")
+			if j == -1 {
+				return false
+			}
+			i += j
+		}
+	}
+}
+
+func hasHTMLNamespaceTag(c context, tag string) bool {
+	for _, frame := range c.htmlNamespaces {
+		if frame.tag == tag {
+			return true
+		}
+	}
+	return false
+}
+
+// updateHTMLNamespaces maintains the subset of the HTML open-elements stack
+// that can change whether subsequent content is parsed as HTML or foreign.
+func updateHTMLNamespaces(c context, tag string, end, forceIntegration, forceBreakout, forceForeign, foreignMath bool) context {
+	c.htmlNamespaces = slices.Clone(c.htmlNamespaces)
+	if end {
+		for i := len(c.htmlNamespaces) - 1; i >= 0; i-- {
+			if c.htmlNamespaces[i].tag == tag {
+				c.htmlNamespaces = c.htmlNamespaces[:i]
+				break
+			}
+		}
+		if len(c.htmlNamespaces) == 0 {
+			c.htmlNamespaces = nil
+		}
+		return c
+	}
+
+	for c.inForeignContent() && (forceBreakout || isForeignBreakoutTag(tag)) {
+		c.htmlNamespaces = c.htmlNamespaces[:len(c.htmlNamespaces)-1]
+		if len(c.htmlNamespaces) == 0 {
+			c.htmlNamespaces = nil
+		}
+	}
+	if forceForeign {
+		c.htmlNamespaces = append(c.htmlNamespaces, htmlNamespaceFrame{
+			tag:     tag,
+			foreign: true,
+			math:    foreignMath,
+		})
+		return c
+	}
+	if c.inForeignContent() {
+		frame := c.htmlNamespaces[len(c.htmlNamespaces)-1]
+		if forceIntegration || isHTMLIntegrationPoint(tag, frame.math) {
+			c.htmlNamespaces = append(c.htmlNamespaces, htmlNamespaceFrame{
+				tag:         tag,
+				math:        frame.math,
+				integration: true,
+			})
+		} else if (tag == "annotation-xml" && frame.math) || hasHTMLNamespaceTag(c, tag) {
+			c.htmlNamespaces = append(c.htmlNamespaces, htmlNamespaceFrame{
+				tag:     tag,
+				foreign: true,
+				math:    frame.math,
+			})
+		}
+		return c
+	}
+	if tag == "svg" || tag == "math" {
+		c.htmlNamespaces = append(c.htmlNamespaces, htmlNamespaceFrame{
+			tag:     tag,
+			foreign: true,
+			math:    tag == "math",
+		})
+	} else if hasHTMLNamespaceTag(c, tag) {
+		math := len(c.htmlNamespaces) != 0 && c.htmlNamespaces[len(c.htmlNamespaces)-1].math
+		c.htmlNamespaces = append(c.htmlNamespaces, htmlNamespaceFrame{tag: tag, math: math})
+	}
+	return c
+}
 
 // tText is the context transition function for the text state.
 func tText(c context, s []byte) (context, int) {
@@ -57,7 +268,7 @@ func tText(c context, s []byte) (context, int) {
 		if i < k || i+1 == len(s) {
 			return c, len(s)
 		} else if i+4 <= len(s) && bytes.Equal(commentStart, s[i:i+4]) {
-			return context{state: stateHTMLCmt}, i + 4
+			return contextWithHTMLState(c, stateHTMLCmt), i + 4
 		}
 		i++
 		end := false
@@ -69,11 +280,37 @@ func tText(c context, s []byte) (context, int) {
 		}
 		j, e := eatTagName(s, i)
 		if j != i {
+			tag := strings.ToLower(string(s[i:j]))
+			wasForeign := c.inForeignContent()
+			var top htmlNamespaceFrame
+			if len(c.htmlNamespaces) != 0 {
+				top = c.htmlNamespaces[len(c.htmlNamespaces)-1]
+			}
+			fontBreakout := !end && wasForeign && tag == "font" && foreignFontBreaksOut(s[j:])
+			annotationSVG := !end && top.math && (top.foreign || top.integration) && top.tag == "annotation-xml" && tag == "svg"
+			mathMLException := !end && top.integration && top.math && isMathMLTextIntegrationPoint(top.tag) &&
+				(tag == "mglyph" || tag == "malignmark")
+			forceForeign := annotationSVG || mathMLException
+			tagInForeign := forceForeign || (wasForeign && !fontBreakout && !isForeignBreakoutTag(tag)) ||
+				!wasForeign && (tag == "svg" || tag == "math")
+			annotationIntegration := !end && wasForeign && tag == "annotation-xml" &&
+				c.htmlNamespaces[len(c.htmlNamespaces)-1].math && annotationXMLIsHTMLIntegration(s[j:])
+			c = updateHTMLNamespaces(c, tag, end, annotationIntegration, fontBreakout, forceForeign, mathMLException)
 			if end {
 				e = elementNone
 			}
 			// We've found an HTML tag.
-			return context{state: stateTag, element: e}, j
+			c.state = stateTag
+			c.element = e
+			c.tagInForeign = !end && tagInForeign
+			if c.tagInForeign {
+				c.tagName = tag
+			} else {
+				c.tagName = ""
+			}
+			c.scriptInForeign = !end && e == elementScript && c.tagInForeign
+			c.scriptCDATA = false
+			return c, j
 		}
 		k = j
 	}
@@ -99,12 +336,20 @@ func tTag(c context, s []byte) (context, int) {
 		// Treat <meta> specially, because it doesn't have an end tag, and we
 		// want to transition into the correct state/element for it.
 		if c.element == elementMeta {
-			return context{state: stateText, element: elementNone}, i + 1
+			return contextWithHTMLState(c, stateText), i + 1
 		}
 		return context{
-			state:   elementContentType[c.element],
-			element: c.element,
+			state:           elementContentType[c.element],
+			element:         c.element,
+			htmlNamespaces:  slices.Clone(c.htmlNamespaces),
+			scriptInForeign: c.scriptInForeign,
 		}, i + 1
+	}
+	if c.tagInForeign && s[i] == '/' && i+1 < len(s) && s[i+1] == '>' {
+		if n := len(c.htmlNamespaces); n != 0 && c.htmlNamespaces[n-1].tag == c.tagName {
+			c.htmlNamespaces = slices.Clone(c.htmlNamespaces[:n-1])
+		}
+		return contextWithHTMLState(c, stateText), i + 2
 	}
 	j, err := eatAttrName(s, i)
 	if err != nil {
@@ -141,7 +386,15 @@ func tTag(c context, s []byte) (context, int) {
 	} else {
 		state = stateAfterName
 	}
-	return context{state: state, element: c.element, attr: attr}, j
+	return context{
+		state:           state,
+		element:         c.element,
+		attr:            attr,
+		htmlNamespaces:  slices.Clone(c.htmlNamespaces),
+		scriptInForeign: c.scriptInForeign,
+		tagInForeign:    c.tagInForeign,
+		tagName:         c.tagName,
+	}, j
 }
 
 // tAttrName is the context transition function for stateAttrName.
@@ -202,7 +455,7 @@ func tBeforeValue(c context, s []byte) (context, int) {
 // tHTMLCmt is the context transition function for stateHTMLCmt.
 func tHTMLCmt(c context, s []byte) (context, int) {
 	if i := bytes.Index(s, commentEnd); i != -1 {
-		return context{}, i + 3
+		return contextWithHTMLState(c, stateText), i + 3
 	}
 	return c, len(s)
 }
@@ -232,7 +485,8 @@ func tSpecialTagEnd(c context, s []byte) (context, int) {
 			return c, len(s)
 		}
 		if i := indexTagEnd(s, specialTagEndMarkers[c.element]); i != -1 {
-			return context{}, i
+			d := contextWithHTMLState(c, stateText)
+			return updateHTMLNamespaces(d, string(specialTagEndMarkers[c.element]), true, false, false, false, false), i
 		}
 	}
 	return c, len(s)
