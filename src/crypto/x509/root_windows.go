@@ -190,8 +190,8 @@ func verifyChain(c *Certificate, chainCtx *syscall.CertChainContext, opts *Verif
 		if parent.PublicKeyAlgorithm != ECDSA {
 			continue
 		}
-		if err := parent.CheckSignature(chain[i].SignatureAlgorithm,
-			chain[i].RawTBSCertificate, chain[i].Signature); err != nil {
+		if err := checkSignature(chain[i].SignatureAlgorithm,
+			chain[i].RawTBSCertificate, chain[i].Signature, parent.PublicKey, true, opts); err != nil {
 			return nil, err
 		}
 	}
