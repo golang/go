@@ -864,6 +864,12 @@ func (b *B) Run(name string, f func(b *B)) bool {
 		}
 	}
 
+	if b.bstate != nil && len(cpuList) > 0 {
+		// processBench reuses sub for the first -cpu value and may report
+		// the result of run1 (always, for b.Loop benchmarks), so run it
+		// with that GOMAXPROCS.
+		runtime.GOMAXPROCS(cpuList[0])
+	}
 	if sub.run1() {
 		sub.run()
 	}
