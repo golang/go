@@ -183,22 +183,25 @@ func decodeRuneSlow(p []byte) (r rune, size int) {
 		return rune(p[0])&^mask | RuneError&mask, 1
 	}
 	sz := int(x & 7)
-	accept := acceptRanges[x>>4]
+	// What follows is a no-op (by construction of first, we have sz >= s1)
+	// but a useful one for eliminating bounds checks below.
+	sz = max(sz, s1)
 	if n < sz {
 		return RuneError, 1
 	}
 	b1 := p[1]
+	accept := acceptRanges[x>>4]
 	if b1 < accept.lo || accept.hi < b1 {
 		return RuneError, 1
 	}
-	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
+	if sz == 2 {
 		return rune(p0&mask2)<<6 | rune(b1&maskx), 2
 	}
 	b2 := p[2]
 	if b2 < locb || hicb < b2 {
 		return RuneError, 1
 	}
-	if sz <= 3 {
+	if sz == 3 {
 		return rune(p0&mask3)<<12 | rune(b1&maskx)<<6 | rune(b2&maskx), 3
 	}
 	b3 := p[3]
@@ -243,22 +246,25 @@ func decodeRuneInStringSlow(s string) (rune, int) {
 		return rune(s[0])&^mask | RuneError&mask, 1
 	}
 	sz := int(x & 7)
-	accept := acceptRanges[x>>4]
+	// What follows is a no-op (by construction of first, we have sz >= s1)
+	// but a useful one for eliminating bounds checks below.
+	sz = max(sz, s1)
 	if n < sz {
 		return RuneError, 1
 	}
 	s1 := s[1]
+	accept := acceptRanges[x>>4]
 	if s1 < accept.lo || accept.hi < s1 {
 		return RuneError, 1
 	}
-	if sz <= 2 { // <= instead of == to help the compiler eliminate some bounds checks
+	if sz == 2 {
 		return rune(s0&mask2)<<6 | rune(s1&maskx), 2
 	}
 	s2 := s[2]
 	if s2 < locb || hicb < s2 {
 		return RuneError, 1
 	}
-	if sz <= 3 {
+	if sz == 3 {
 		return rune(s0&mask3)<<12 | rune(s1&maskx)<<6 | rune(s2&maskx), 3
 	}
 	s3 := s[3]
@@ -286,19 +292,21 @@ func DecodeLastRune(p []byte) (r rune, size int) {
 	if r < RuneSelf {
 		return r, 1
 	}
-	// guard against O(n^2) behavior when traversing
-	// backwards through strings with long sequences of
-	// invalid UTF-8.
-	lim := max(end-UTFMax, 0)
-	for start--; start >= lim; start-- {
+	// Traverse p backwards no further than its fourth last byte (if any) and
+	// stop early if the start of a rune is detected. Doing so guards against
+	// O(n^2) behavior in cases of long sequences of invalid UTF-8.
+	start--
+	for lim := max(end-UTFMax, 0); start > lim; start-- { // up to 2 iterations
 		if RuneStart(p[start]) {
 			break
 		}
 	}
 	if start < 0 {
-		start = 0
+		return RuneError, 1
 	}
-	r, size = DecodeRune(p[start:end])
+	// At this stage, we know that len(p[start:]) >= 2; therefore, we can
+	// bypass DecodeRune's ASCII path and call decodeRuneSlow directly.
+	r, size = decodeRuneSlow(p[start:])
 	if start+size != end {
 		return RuneError, 1
 	}
@@ -323,19 +331,22 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
 	if r < RuneSelf {
 		return r, 1
 	}
-	// guard against O(n^2) behavior when traversing
-	// backwards through strings with long sequences of
-	// invalid UTF-8.
-	lim := max(end-UTFMax, 0)
-	for start--; start >= lim; start-- {
+	// Traverse s backwards no further than its fourth last byte (if any) and
+	// stop early if the start of a rune is detected. Doing so guards against
+	// O(n^2) behavior in cases of long sequences of invalid UTF-8.
+	start--
+	for lim := max(end-UTFMax, 0); start > lim; start-- { // up to 2 iterations
 		if RuneStart(s[start]) {
 			break
 		}
 	}
 	if start < 0 {
-		start = 0
+		return RuneError, 1
 	}
-	r, size = DecodeRuneInString(s[start:end])
+	// At this stage, we know that len(s[start:]) >= 2; therefore, we can
+	// bypass DecodeRuneInString's ASCII path and call decodeRuneInStringSlow
+	// directly.
+	r, size = decodeRuneInStringSlow(s[start:])
 	if start+size != end {
 		return RuneError, 1
 	}
