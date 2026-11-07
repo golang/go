@@ -26,7 +26,7 @@ TEXT ·seek(SB),NOSPLIT,$0-28
 	SWI	$0
 	MOVW	$0xfffff001, R6
 	CMP	R6, R0
-	BLS	okseek
+	BCC	okseek
 	MOVW	$0, R1
 	MOVW	R1, newoffset_lo+16(FP)
 	MOVW	R1, newoffset_hi+20(FP)
@@ -50,7 +50,7 @@ TEXT ·rawVforkSyscall(SB),NOSPLIT|NOFRAME,$0-24
 	SWI	$0
 	MOVW	$0xfffff001, R1
 	CMP	R1, R0
-	BLS	ok
+	BCC	ok
 	MOVW	$-1, R1
 	MOVW	R1, r1+16(FP)
 	RSB	$0, R0, R0
