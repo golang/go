@@ -105,6 +105,30 @@ var reqWriteExcludeHeader = map[string]bool{
 	"Trailer":           true,
 }
 
+// reqWriteExclude returns the keys of h that Request.write skips:
+// those of reqWriteExcludeHeader, and any other spelling in h of Host,
+// Content-Length, Transfer-Encoding or Trailer, whose values are derived
+// from other Request fields. writeSubset matches keys exactly, so a key
+// set directly in the map, such as "transfer-encoding", would otherwise
+// be written next to the derived fields.
+func reqWriteExclude(h Header) map[string]bool {
+	exclude := reqWriteExcludeHeader
+	cloned := false
+	for k := range h {
+		if exclude[k] {
+			continue
+		}
+		if ascii.EqualFold(k, "Host") || ascii.EqualFold(k, "Content-Length") ||
+			ascii.EqualFold(k, "Transfer-Encoding") || ascii.EqualFold(k, "Trailer") {
+			if !cloned {
+				exclude, cloned = maps.Clone(exclude), true
+			}
+			exclude[k] = true
+		}
+	}
+	return exclude
+}
+
 // A Request represents an HTTP request received by a server
 // or to be sent by a client.
 //
@@ -565,7 +589,8 @@ const defaultUserAgent = "Go-http-client/1.1"
 // chunked" to the header. Body is closed after it is sent.
 //
 // Header values for Host, Content-Length, Transfer-Encoding,
-// and Trailer are not used; these are derived from other Request fields.
+// and Trailer are not used, regardless of the case of their keys;
+// these are derived from other Request fields.
 // If the Header does not contain a User-Agent value, Write uses
 // "Go-http-client/1.1".
 func (r *Request) Write(w io.Writer) error {
@@ -722,7 +747,7 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 		return err
 	}
 
-	err = r.Header.writeSubset(w, reqWriteExcludeHeader, trace)
+	err = r.Header.writeSubset(w, reqWriteExclude(r.Header), trace)
 	if err != nil {
 		return err
 	}
