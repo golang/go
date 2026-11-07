@@ -71,7 +71,9 @@ func rewriteFile(fileSet *token.FileSet, pattern, replace ast.Expr, p *ast.File)
 		val = apply(rewriteVal, val)
 		clear(m)
 		if match(m, pat, val) {
-			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
+			if v, ok := subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos())); ok {
+				val = v
+			}
 		}
 		return val
 	}
@@ -245,9 +247,15 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
 // of wildcards and pos used as the position of tokens from the pattern.
 // if m == nil, subst returns a copy of pattern and doesn't change the line
 // number information.
-func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value) reflect.Value {
+//
+// subst reports whether the substitution succeeded. It fails if a wildcard
+// matched an expression that cannot appear where that wildcard is used in
+// the replacement, as in the rule 'a -> p.a': a matches any expression, but
+// the selector p.a requires an identifier. Substituting anyway would build a
+// malformed syntax tree, so the caller leaves such a node unrewritten.
+func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value) (reflect.Value, bool) {
 	if !pattern.IsValid() {
-		return reflect.Value{}
+		return reflect.Value{}, true
 	}
 
 	// Wildcard gets replaced with map value.
@@ -263,9 +271,9 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 	if pos.IsValid() && pattern.Type() == positionType {
 		// use new position only if old position was valid in the first place
 		if old := pattern.Interface().(token.Pos); !old.IsValid() {
-			return pattern
+			return pattern, true
 		}
-		return pos
+		return pos, true
 	}
 
 	// Otherwise copy.
@@ -275,35 +283,56 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
 			// Do not turn nil slices into empty slices. go/ast
 			// guarantees that certain lists will be nil if not
 			// populated.
-			return reflect.Zero(p.Type())
+			return reflect.Zero(p.Type()), true
 		}
 		v := reflect.MakeSlice(p.Type(), p.Len(), p.Len())
 		for i := 0; i < p.Len(); i++ {
-			v.Index(i).Set(subst(m, p.Index(i), pos))
+			if !substInto(v.Index(i), m, p.Index(i), pos) {
+				return reflect.Value{}, false
+			}
 		}
-		return v
+		return v, true
 
 	case reflect.Struct:
 		v := reflect.New(p.Type()).Elem()
 		for i := 0; i < p.NumField(); i++ {
-			v.Field(i).Set(subst(m, p.Field(i), pos))
+			if !substInto(v.Field(i), m, p.Field(i), pos) {
+				return reflect.Value{}, false
+			}
 		}
-		return v
+		return v, true
 
 	case reflect.Pointer:
 		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
-			v.Set(subst(m, elem, pos).Addr())
+			e, ok := subst(m, elem, pos)
+			if !ok {
+				return reflect.Value{}, false
+			}
+			v.Set(e.Addr())
 		}
-		return v
+		return v, true
 
 	case reflect.Interface:
 		v := reflect.New(p.Type()).Elem()
 		if elem := p.Elem(); elem.IsValid() {
-			v.Set(subst(m, elem, pos))
+			if !substInto(v, m, elem, pos) {
+				return reflect.Value{}, false
+			}
 		}
-		return v
+		return v, true
 	}
 
-	return pattern
+	return pattern, true
+}
+
+// substInto substitutes pattern and assigns the result to dst. It reports
+// whether the substitution succeeded and produced a value that dst can hold.
+func substInto(dst reflect.Value, m map[string]reflect.Value, pattern, pos reflect.Value) bool {
+	v, ok := subst(m, pattern, pos)
+	if !ok || !v.Type().AssignableTo(dst.Type()) {
+		return false
+	}
+	dst.Set(v)
+	return true
 }
