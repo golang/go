@@ -108,6 +108,29 @@ func (ci *Frames) Next() (frame Frame, more bool) {
 		}
 		funcInfo := findfunc(pc)
 		if !funcInfo.valid() {
+			lookupPC := pc
+			fr := findUserFrameRegion(lookupPC)
+			if fr == nil && lookupPC > 0 {
+				lookupPC--
+				fr = findUserFrameRegion(lookupPC)
+			}
+			if fr != nil && fr.unwindMode == userFrameUnwindDeclare {
+				name, file, line, ok := "user-frame", "", 0, true
+				if fr.describe != nil {
+					name, file, line, ok = fr.describe(lookupPC)
+				}
+				if ok {
+					ci.frames = append(ci.frames, Frame{
+						PC:        lookupPC,
+						Function:  funcNameForPrint(name),
+						File:      file,
+						Line:      line,
+						Entry:     fr.start,
+						startLine: line,
+					})
+					continue
+				}
+			}
 			if cgoSymbolizerAvailable() {
 				// Pre-expand cgo frames. We could do this
 				// incrementally, too, but there's no way to

@@ -1,4 +1,4 @@
-// Copyright 2022 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -847,6 +847,10 @@ var depsRules = `
 	internal/trace/traceviewer/format,
 	net/http
 	< internal/trace/traceviewer;
+
+	# Experimental cooperative JIT ABI descriptions and diagnostics.
+	FMT, encoding/binary
+	< runtime/jit;
 
 	# Coverage.
 	FMT, hash/fnv, encoding/binary, regexp, sort, text/tabwriter,
