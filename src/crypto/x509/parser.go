@@ -1110,7 +1110,7 @@ func parseCertificate(der []byte) (*Certificate, error) {
 
 	var subjectSeq cryptobyte.String
 	if !tbs.ReadASN1Element(&subjectSeq, cryptobyte_asn1.SEQUENCE) {
-		return nil, errors.New("x509: malformed issuer")
+		return nil, errors.New("x509: malformed subject")
 	}
 	cert.RawSubject = subjectSeq
 	subjectRDNs, err := parseName(subjectSeq)
