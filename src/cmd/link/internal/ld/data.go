@@ -339,7 +339,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
 				}
 				break
 			}
-			if target.IsPIE() && target.IsElf() {
+			if (target.IsPIE() || target.IsExe()) && target.IsElf() {
 				// We are linking the final executable, so we
 				// can optimize any TLS IE relocation to LE.
 				if thearch.TLSIEtoLE == nil {
