@@ -82,6 +82,12 @@ func InCgroupV2(t *testing.T, fn func(*CgroupV2)) {
 		}
 	}()
 
+	// cpu.max only exists when the kernel supports CPU bandwidth control
+	// (CONFIG_CFS_BANDWIDTH), even if the cpu controller is enabled.
+	if _, err := os.Stat(filepath.Join(path, "cpu.max")); err != nil {
+		t.Skipf("cgroup %s does not support cpu.max: %v", path, err)
+	}
+
 	migrateTo(t, path)
 	defer migrateTo(t, orig)
 
