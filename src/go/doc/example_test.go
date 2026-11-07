@@ -12,6 +12,7 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"internal/diff"
 	"internal/txtar"
 	"path/filepath"
@@ -86,6 +87,95 @@ func TestExamples(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExamplesSharedDecls(t *testing.T) {
+	fset := token.NewFileSet()
+	var files []*ast.File
+	var originals []string
+	for i := 1; i <= 2; i++ {
+		src := fmt.Sprintf(`package p%d_test
+type T int
+func (v T) Value() int { return int(v) }
+func helper() T { return %d }
+func ExampleA%d() { println(helper().Value()) }
+func ExampleB%d() { println(helper().Value()) }
+`, i, i, i, i)
+		file, err := parser.ParseFile(fset, fmt.Sprintf("p%d_test.go", i), src, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files = append(files, file)
+		originals = append(originals, formatFile(t, fset, file))
+	}
+	// Examples share dependencies within each file, but declarations with the
+	// same names in different files must not be confused. Reusing the AST must
+	// also produce the same independent, complete programs.
+	wantHelpers := map[string]string{
+		"A1": "return 1",
+		"B1": "return 1",
+		"A2": "return 2",
+		"B2": "return 2",
+	}
+	for range 2 {
+		examples := doc.Examples(files...)
+		if len(examples) != len(wantHelpers) {
+			t.Fatalf("Examples: got %d examples, want %d", len(examples), len(wantHelpers))
+		}
+		for _, ex := range examples {
+			if ex.Play == nil {
+				t.Fatalf("example %s is not playable", ex.Name)
+			}
+			want, ok := wantHelpers[ex.Name]
+			if !ok {
+				t.Fatalf("Examples: unexpected example %q", ex.Name)
+			}
+			if got := formatFile(t, fset, ex.Play); !strings.Contains(got, want) {
+				t.Errorf("example %s: missing %q in:\n%s", ex.Name, want, got)
+			}
+			var conf types.Config
+			if _, err := conf.Check("main", fset, []*ast.File{ex.Play}, nil); err != nil {
+				t.Errorf("example %s: %v", ex.Name, err)
+			}
+		}
+		for i, file := range files {
+			if got := formatFile(t, fset, file); got != originals[i] {
+				t.Errorf("file %d was modified", i)
+			}
+		}
+	}
+}
+
+func BenchmarkExamples(b *testing.B) {
+	for _, n := range []int{1, 100, 2000} {
+		b.Run(fmt.Sprint(n), func(b *testing.B) {
+			var src strings.Builder
+			src.WriteString("package p_test\n")
+			for i := 0; i < n; i++ {
+				fmt.Fprintf(&src, "func ExampleF%d() {}\n", i)
+			}
+			file, err := parser.ParseFile(token.NewFileSet(), "p_test.go", src.String(), 0)
+			if err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			for b.Loop() {
+				if got := len(doc.Examples(file)); got != n {
+					b.Fatalf("got %d examples, want %d", got, n)
+				}
+			}
+		})
+	}
+	b.Run("multiple", func(b *testing.B) {
+		file, err := parser.ParseFile(token.NewFileSet(), filepath.Join("testdata", "examples", "multiple.go"), nil, parser.ParseComments)
+		if err != nil {
+			b.Fatal(err)
+		}
+		b.ReportAllocs()
+		for b.Loop() {
+			doc.Examples(file)
+		}
+	})
 }
 
 func formatFile(t *testing.T, fset *token.FileSet, n *ast.File) string {
