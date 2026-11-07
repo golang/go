@@ -127,8 +127,25 @@ func testCanonMap(t *testing.T, newMap func() *canonMap[string]) {
 			// reachable, but I have no idea by what path.
 			runtime.GC()
 
-			// Drain cleanups so everything is deleted.
-			drainCleanupQueue(t)
+			// Drain cleanups so everything is deleted. drainCleanupQueue
+			// gives up after five seconds, and the entries can be
+			// transiently reachable (see above), so retry a few times.
+			anyPresent := func() bool {
+				for id := range gmp {
+					for _, s := range testData {
+						if m.Load(makeKey(s, id)) != nil {
+							return true
+						}
+					}
+				}
+				return false
+			}
+			for range 10 {
+				drainCleanupQueue(t)
+				if !anyPresent() {
+					break
+				}
+			}
 
 			// Double-check that it's all gone.
 			for id := range gmp {

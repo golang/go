@@ -94,7 +94,9 @@ func drainCleanupQueue(t *testing.T) {
 	t.Helper()
 
 	runtime.GC() // Queue up the cleanups.
-	runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second))
+	if !runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second)) {
+		t.Log("timed out waiting for the cleanup queue to empty")
+	}
 }
 
 func checkMapsFor[T comparable](t *testing.T, value T) {
