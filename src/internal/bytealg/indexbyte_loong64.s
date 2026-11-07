@@ -35,38 +35,54 @@ TEXT indexbytebody<>(SB),NOSPLIT,$0
 	MOVV	$32, R9
 	BGE	R5, R9, lasx
 tail:
+	// Constants for the SWAR zero-byte test in generic8_loop:
+	// R12 = byte to find broadcast to all 8 bytes.
+	MOVV	$0x0101010101010101, R13
+	MULV	R7, R13, R12
+	MOVV	$0x8080808080808080, R14
+
 	MOVV	$8, R9
 	BLT	R5, R9, lt_8
 generic8_loop:
 	MOVV	(R4), R10
 
-	AND	$0xff, R10, R11
-	BEQ	R7, R11, found
-
-	BSTRPICKV	$15, R10, $8, R11
-	BEQ	R7, R11, byte_1th
-
-	BSTRPICKV	$23, R10, $16, R11
-	BEQ	R7, R11, byte_2th
-
-	BSTRPICKV	$31, R10, $24, R11
-	BEQ	R7, R11, byte_3th
-
-	BSTRPICKV	$39, R10, $32, R11
-	BEQ	R7, R11, byte_4th
-
-	BSTRPICKV	$47, R10, $40, R11
-	BEQ	R7, R11, byte_5th
-
-	BSTRPICKV	$55, R10, $48, R11
-	BEQ	R7, R11, byte_6th
-
-	BSTRPICKV	$63, R10, $56, R11
-	BEQ	R7, R11, byte_7th
+	XOR	R12, R10, R11	// bytes equal to R7 become 0
+	// haszero(t) = (t - 0x01..) & ~t & 0x80..
+	SUBV	R13, R11, R15
+	NOR	R11, R0, R16	// ~t
+	AND	R15, R16, R15
+	AND	R14, R15
+	BNE	R15, generic8_found
 
 	ADDV	$8, R4
 	ADDV	$-8, R5
 	BGE	R5, R9, generic8_loop
+
+	// 0 <= R5 < 8: overlapping load of the last 8 bytes.
+	// Safe: at least one full 8-byte chunk was checked, so
+	// R4-8 stays inside the original buffer. Already-checked
+	// bytes contain no match, so the lowest set bit of the
+	// mask is the first match in the unchecked tail.
+	ADDV	R4, R5, R15
+	MOVV	-8(R15), R10
+	XOR	R12, R10, R11
+	SUBV	R13, R11, R15
+	NOR	R11, R0, R16
+	AND	R15, R16, R15
+	AND	R14, R15
+	BEQ	R15, notfound
+	CTZV	R15, R15
+	SRLV	$3, R15		// byte index within last 8 bytes
+	ADDV	R4, R5, R4
+	ADDV	$-8, R4
+	ADDV	R15, R4
+	JMP	found
+
+generic8_found:
+	CTZV	R15, R15
+	SRLV	$3, R15		// byte index of first match
+	ADDV	R15, R4
+	JMP	found
 
 lt_8:
 	BEQ	R4, R8, notfound
@@ -74,39 +90,6 @@ lt_8:
 	BEQ	R7, R10, found
 	ADDV	$1, R4
 	JMP	lt_8
-
-byte_1th:
-	ADDV	$1, R4
-	SUBV	R6, R4
-	RET
-
-byte_2th:
-	ADDV	$2, R4
-	SUBV	R6, R4
-	RET
-
-byte_3th:
-	ADDV	$3, R4
-	SUBV	R6, R4
-	RET
-
-byte_4th:
-	ADDV	$4, R4
-	SUBV	R6, R4
-	RET
-
-byte_5th:
-	ADDV	$5, R4
-	SUBV	R6, R4
-	RET
-
-byte_6th:
-	ADDV	$6, R4
-	SUBV	R6, R4
-	RET
-
-byte_7th:
-	ADDV	$7, R4
 
 found:
 	SUBV	R6, R4
