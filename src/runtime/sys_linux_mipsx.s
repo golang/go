@@ -121,15 +121,14 @@ TEXT runtime·pipe2(SB),NOSPLIT,$0-16
 
 TEXT runtime·usleep(SB),NOSPLIT,$28-4
 	MOVW	usec+0(FP), R3
-	MOVW	R3, R5
 	MOVW	$1000000, R4
 	DIVU	R4, R3
-	MOVW	LO, R3
+	MOVW	LO, R3	// sec = usec / 1e6
 	MOVW	R3, 24(R29)
-	MOVW	$1000, R4
-	MULU	R3, R4
-	MOVW	LO, R4
-	SUBU	R4, R5
+	MOVW	HI, R5	// usec % 1e6
+	MOVW	$1000, R4	// usec to nsec
+	MULU	R4, R5
+	MOVW	LO, R5
 	MOVW	R5, 28(R29)
 
 	// nanosleep(&ts, 0)
