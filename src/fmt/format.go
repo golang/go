@@ -59,6 +59,8 @@ func (f *fmt) clearflags() {
 
 func (f *fmt) init(buf *buffer) {
 	f.buf = buf
+	f.wid = 0
+	f.prec = 0
 	f.clearflags()
 }
 
