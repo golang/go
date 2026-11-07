@@ -6,6 +6,7 @@ package ld
 
 import (
 	imacho "cmd/internal/macho"
+	"log"
 
 	"bytes"
 	"compress/zlib"
@@ -275,7 +276,10 @@ func machoCompressSection(sectBytes []byte) (compressed bool, contents []byte, e
 	binary.BigEndian.PutUint64(sizeBytes[:], uint64(len(sectBytes)))
 	buf.Write(sizeBytes[:])
 
-	z := zlib.NewWriter(&buf)
+	z, err := zlib.NewWriterLevel(&buf, zlib.BestSpeed)
+	if err != nil {
+		log.Fatalf("NewWriterLevel failed: %s", err)
+	}
 	if _, err := z.Write(sectBytes); err != nil {
 		return false, nil, err
 	}
