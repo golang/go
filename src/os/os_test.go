@@ -2990,7 +2990,9 @@ func TestPipeThreads(t *testing.T) {
 		t.Skip("skipping on wasip1; no support for os.Pipe")
 	}
 
-	threads := 100
+	// Blocked reads use idle threads first, like those a GC leaves behind.
+	n, _ := runtime.ThreadCreateProfile(nil)
+	threads := n + 100
 
 	r := make([]*File, threads)
 	w := make([]*File, threads)
@@ -3007,7 +3009,7 @@ func TestPipeThreads(t *testing.T) {
 		w[i] = wp
 	}
 
-	defer debug.SetMaxThreads(debug.SetMaxThreads(threads / 2))
+	defer debug.SetMaxThreads(debug.SetMaxThreads(n + 50))
 
 	creading := make(chan bool, threads)
 	cdone := make(chan bool, threads)
