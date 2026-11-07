@@ -38,12 +38,12 @@ func hasWaitingReaders(rw *sync.RWMutex) bool
 // at the first fork and unlocked when there are no more forks.
 func acquireForkLock() {
 	forkingLock.Lock()
-	defer forkingLock.Unlock()
 
 	if forking == 0 {
 		// There is no current write lock on ForkLock.
 		ForkLock.Lock()
 		forking++
+		forkingLock.Unlock()
 		return
 	}
 
@@ -77,15 +77,16 @@ func acquireForkLock() {
 	}
 
 	forking++
+	forkingLock.Unlock()
 }
 
 // releaseForkLock releases the conceptual write lock on ForkLock
 // acquired by acquireForkLock.
 func releaseForkLock() {
 	forkingLock.Lock()
-	defer forkingLock.Unlock()
 
 	if forking <= 0 {
+		forkingLock.Unlock()
 		panic("syscall.releaseForkLock: negative count")
 	}
 
@@ -95,4 +96,6 @@ func releaseForkLock() {
 		// No more conceptual write locks.
 		ForkLock.Unlock()
 	}
+
+	forkingLock.Unlock()
 }
