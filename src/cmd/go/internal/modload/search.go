@@ -102,7 +102,7 @@ func matchPackages(ld *Loader, ctx context.Context, m *search.Match, tags map[st
 			} else {
 				// Avoid .foo, _foo, and testdata subdirectory trees.
 				_, elem = filepath.Split(pkgDir)
-				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+				if IsIgnoredDirectory(elem) {
 					want = false
 				} else if ignorePatternsMap[cleanRoot] != nil && ignorePatternsMap[cleanRoot].ShouldIgnore(relPkgDir) {
 					if cfg.BuildX {
@@ -231,7 +231,7 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
 		p := reldir
 		for {
 			elem, rest, found := strings.Cut(p, string(filepath.Separator))
-			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+			if IsIgnoredDirectory(elem) {
 				return
 			}
 			if found && elem == "vendor" {
@@ -357,4 +357,10 @@ func parseIgnorePatterns(ld *Loader, ctx context.Context, treeCanMatch func(stri
 		ignorePatternsMap[modRoot] = search.NewIgnorePatterns(ignorePatterns)
 	}
 	return ignorePatternsMap
+}
+
+// IsIgnoredDirectory checks whether the path element should be ignored.
+// That is, if it starts with '.' or '_' or is called 'testdata'.
+func IsIgnoredDirectory(pathElem string) bool {
+	return strings.HasPrefix(pathElem, ".") || strings.HasPrefix(pathElem, "_") || pathElem == "testdata"
 }
