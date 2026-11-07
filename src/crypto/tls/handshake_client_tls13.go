@@ -334,6 +334,11 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		hello.keyShares = hello.keyShares[:1]
 	}
 
+	// Remove early_data before recomputing the PSK binders so they cover the
+	// ClientHello that will be sent after the HelloRetryRequest.
+	rejectedEarlyData := hello.earlyData
+	hello.earlyData = false
+
 	if len(hello.pskIdentities) > 0 {
 		pskSuite := cipherSuiteTLS13ByID(hs.session.cipherSuite)
 		if pskSuite == nil {
@@ -361,8 +366,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 		}
 	}
 
-	if hello.earlyData {
-		hello.earlyData = false
+	if rejectedEarlyData {
 		c.quicRejectedEarlyData()
 	}
 
