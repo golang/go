@@ -85,7 +85,10 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
 		}
 	}
 
-	if hs.echContext != nil {
+	// A HelloRetryRequest that does not confirm ECH rejects ECH for the
+	// remainder of the handshake. In particular, a final ServerHello cannot
+	// accept ECH after an unconfirmed retry.
+	if hs.echContext != nil && !hs.echContext.echRejected {
 		confTranscript := cloneHash(hs.echContext.innerTranscript, hs.suite.hash)
 		confTranscript.Write(hs.serverHello.original[:30])
 		confTranscript.Write(make([]byte, 8))
@@ -278,6 +281,9 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
 				isInnerHello = true
 				c.echAccepted = true
 			}
+		}
+		if !isInnerHello {
+			hs.echContext.echRejected = true
 		}
 
 		if err := transcriptMsg(hs.serverHello, hs.echContext.innerTranscript); err != nil {

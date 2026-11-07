@@ -12,8 +12,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/fips140"
+	"crypto/hkdf"
 	"crypto/internal/boring"
 	"crypto/internal/cryptotest"
+	"crypto/internal/fips140/tls13"
 	"crypto/mldsa"
 	"crypto/rand"
 	"crypto/tls/internal/fips140tls"
@@ -2756,6 +2758,140 @@ func TestECH(t *testing.T) {
 	}
 
 	check()
+
+	for _, tc := range []struct {
+		name            string
+		hrrConfirmation []byte
+	}{
+		{name: "MissingHRRConfirmation"},
+		{name: "InvalidHRRConfirmation", hrrConfirmation: make([]byte, 8)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			clientConfig := testConfigClient()
+			clientConfig.MinVersion = VersionTLS13
+			clientConfig.MaxVersion = VersionTLS13
+			clientConfig.CurvePreferences = []CurveID{X25519}
+			clientConfig.ServerName = "secret.example"
+			clientConfig.EncryptedClientHelloConfigList = echConfigList
+			serverConfig := testConfigServer()
+			serverConfig.MinVersion = VersionTLS13
+			serverConfig.EncryptedClientHelloKeys = []EncryptedClientHelloKey{
+				{Config: echConfig, PrivateKey: echKey.Bytes(), SendAsRetry: true},
+			}
+
+			clientConn, serverConn := localPipe(t)
+			defer clientConn.Close()
+			defer serverConn.Close()
+
+			client := Client(clientConn, clientConfig)
+			handshakeDone := make(chan error, 1)
+			go func() { handshakeDone <- client.Handshake() }()
+
+			server := Server(serverConn, serverConfig)
+			msg, err := server.readHandshake(nil)
+			if err != nil {
+				t.Fatalf("read ECH ClientHello: %v", err)
+			}
+			outerHello, ok := msg.(*clientHelloMsg)
+			if !ok {
+				t.Fatalf("read ECH ClientHello: got %T", msg)
+			}
+			innerHello, _, err := server.processECHClientHello(outerHello, serverConfig.EncryptedClientHelloKeys)
+			if err != nil {
+				t.Fatalf("decrypt ECH ClientHello: %v", err)
+			}
+			// The fake server reads the first hello directly, so initialize the
+			// record layer state that readClientHello normally sets after version
+			// negotiation.
+			server.vers = VersionTLS13
+			server.haveVers = true
+			server.in.version = VersionTLS13
+			server.out.version = VersionTLS13
+
+			suite := cipherSuiteTLS13ByID(TLS_AES_128_GCM_SHA256)
+			if suite == nil {
+				t.Fatal("TLS_AES_128_GCM_SHA256 is unavailable")
+			}
+
+			// Send an HRR without the ECH confirmation. The client must retry with
+			// the outer ClientHello and reject ECH for the rest of the handshake.
+			hrr := &serverHelloMsg{
+				vers:                 VersionTLS12,
+				random:               helloRetryRequestRandom,
+				sessionId:            bytes.Clone(outerHello.sessionId),
+				cipherSuite:          TLS_AES_128_GCM_SHA256,
+				supportedVersion:     VersionTLS13,
+				cookie:               []byte{1},
+				encryptedClientHello: tc.hrrConfirmation,
+			}
+			hrrBytes, err := hrr.marshal()
+			if err != nil {
+				t.Fatalf("marshal HelloRetryRequest: %v", err)
+			}
+			if _, err := server.writeHandshakeRecord(hrr, nil); err != nil {
+				t.Fatalf("write HelloRetryRequest: %v", err)
+			}
+			if msg, err := server.readHandshake(nil); err != nil {
+				t.Fatalf("read second ClientHello: %v", err)
+			} else if _, ok := msg.(*clientHelloMsg); !ok {
+				t.Fatalf("read second ClientHello: got %T", msg)
+			}
+
+			// Forge a valid final ServerHello ECH confirmation over the transcript
+			// before the second ClientHello. This confirmation must not override
+			// the rejected HRR.
+			innerTranscript := suite.hash.New()
+			if err := transcriptMsg(innerHello, innerTranscript); err != nil {
+				t.Fatalf("transcript of inner ClientHello: %v", err)
+			}
+			chHash := innerTranscript.Sum(nil)
+			innerTranscript.Reset()
+			innerTranscript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
+			innerTranscript.Write(chHash)
+			innerTranscript.Write(hrrBytes)
+
+			serverKey, err := ecdh.X25519().GenerateKey(rand.Reader)
+			if err != nil {
+				t.Fatalf("generate X25519 key: %v", err)
+			}
+			finalServerHello := &serverHelloMsg{
+				vers:             VersionTLS12,
+				random:           make([]byte, 32),
+				sessionId:        bytes.Clone(outerHello.sessionId),
+				cipherSuite:      TLS_AES_128_GCM_SHA256,
+				supportedVersion: VersionTLS13,
+				serverShare:      keyShare{group: X25519, data: serverKey.PublicKey().Bytes()},
+			}
+			if _, err := rand.Read(finalServerHello.random); err != nil {
+				t.Fatalf("generate ServerHello random: %v", err)
+			}
+			serverHelloBytes, err := finalServerHello.marshal()
+			if err != nil {
+				t.Fatalf("marshal ServerHello: %v", err)
+			}
+			confTranscript := cloneHash(innerTranscript, suite.hash)
+			confTranscript.Write(serverHelloBytes[:30])
+			confTranscript.Write(make([]byte, 8))
+			confTranscript.Write(serverHelloBytes[38:])
+			prk, err := hkdf.Extract(suite.hash.New, innerHello.random, nil)
+			if err != nil {
+				t.Fatalf("derive ECH confirmation key: %v", err)
+			}
+			confirmation := tls13.ExpandLabel(suite.hash.New, prk, "ech accept confirmation", confTranscript.Sum(nil), 8)
+			copy(finalServerHello.random[24:], confirmation)
+			if _, err := server.writeHandshakeRecord(finalServerHello, nil); err != nil {
+				t.Fatalf("write ServerHello: %v", err)
+			}
+
+			server.Close()
+			if err := <-handshakeDone; err == nil {
+				t.Fatal("expected the handshake to fail after the incomplete ServerHello")
+			}
+			if client.ConnectionState().ECHAccepted {
+				t.Fatal("client accepted ECH based on a final ServerHello confirmation after rejecting the HRR")
+			}
+		})
+	}
 }
 
 func TestMessageSigner(t *testing.T) {
