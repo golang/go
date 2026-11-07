@@ -118,6 +118,14 @@ func (check *Checker) isComplete(t Type) bool {
 		obj = t.obj
 		rhs = t.fromRHS
 	case *Named:
+		// A type that no Checker owns (t.check == nil) was created by an
+		// importer, through the API, or by a type-checking pass that has
+		// finished. It cannot lead back to an object on this Checker's
+		// path. Don't read its fromRHS: unpack sets it lazily, possibly
+		// in another goroutine (go.dev/issue/81122).
+		if t.check == nil {
+			return true
+		}
 		obj = t.obj
 		rhs = t.fromRHS
 	default:
