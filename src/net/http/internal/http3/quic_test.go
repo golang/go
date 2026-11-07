@@ -5,19 +5,17 @@
 package http3
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
+	"internal/nettest"
 	"net"
+	"net/http/internal/testcert"
 	"net/netip"
 	"slices"
-	"sync"
+	"sync/atomic"
 	"testing"
-	"time"
 
 	"golang.org/x/net/quic"
-	"internal/gate"
-	"net/http/internal/testcert"
 )
 
 // TestNewQUICConfig verifies that newQUICConfig always produces a config with
@@ -86,9 +84,9 @@ func newQUICEndpointPair(t testing.TB) (e1, e2 *quic.Endpoint) {
 	config := &quic.Config{
 		TLSConfig: testTLSConfig,
 	}
-	tn := &testNet{}
-	e1 = tn.newQUICEndpoint(t, config)
-	e2 = tn.newQUICEndpoint(t, config)
+	pnet := newPacketNet(t)
+	e1 = newQUICEndpoint(t, pnet, config)
+	e2 = newQUICEndpoint(t, pnet, config)
 	return e1, e2
 }
 
@@ -119,36 +117,32 @@ func newQUICStreamPair(t testing.TB) (s1, s2 *quic.Stream) {
 	return s1, s2
 }
 
-// A testNet is a fake network of net.PacketConns.
-type testNet struct {
-	mu    sync.Mutex
-	conns map[netip.AddrPort]*testPacketConn
+func newPacketNet(t testing.TB) *nettest.PacketNet {
+	pnet := nettest.NewPacketNet()
+	t.Cleanup(pnet.Close)
+	return pnet
 }
 
-// newPacketConn returns a new PacketConn with a unique source address.
-func (tn *testNet) newPacketConn() *testPacketConn {
-	tn.mu.Lock()
-	defer tn.mu.Unlock()
-	if tn.conns == nil {
-		tn.conns = make(map[netip.AddrPort]*testPacketConn)
-	}
-	localAddr := netip.AddrPortFrom(
-		netip.AddrFrom4([4]byte{
-			127, 0, 0, byte(len(tn.conns)),
-		}),
-		443)
-	tc := &testPacketConn{
-		tn:        tn,
-		localAddr: localAddr,
-		gate:      gate.New(false),
-	}
-	tn.conns[localAddr] = tc
-	return tc
-}
+var nextTestAddr atomic.Uint32
 
-func (tn *testNet) newQUICEndpoint(t testing.TB, config *quic.Config) *quic.Endpoint {
+// newPacketConn returns a new PacketConn on pnet with a unique source address.
+func newPacketConn(t testing.TB, pnet *nettest.PacketNet) *nettest.PacketConn {
 	t.Helper()
-	pc := tn.newPacketConn()
+	n := nextTestAddr.Add(1)
+	addr := net.UDPAddrFromAddrPort(netip.AddrPortFrom(
+		netip.AddrFrom4([4]byte{127, byte(n >> 16), byte(n >> 8), byte(n)}),
+		443,
+	))
+	pc, err := pnet.NewConn(addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pc
+}
+
+func newQUICEndpoint(t testing.TB, pnet *nettest.PacketNet, config *quic.Config) *quic.Endpoint {
+	t.Helper()
+	pc := newPacketConn(t, pnet)
 	e, err := quic.NewEndpoint(pc, config)
 	if err != nil {
 		t.Fatal(err)
@@ -157,99 +151,6 @@ func (tn *testNet) newQUICEndpoint(t testing.TB, config *quic.Config) *quic.Endp
 		e.Close(t.Context())
 	})
 	return e
-}
-
-// connForAddr returns the conn with the given source address.
-func (tn *testNet) connForAddr(srcAddr netip.AddrPort) *testPacketConn {
-	tn.mu.Lock()
-	defer tn.mu.Unlock()
-	return tn.conns[srcAddr]
-}
-
-// A testPacketConn is a net.PacketConn on a testNet fake network.
-type testPacketConn struct {
-	tn        *testNet
-	localAddr netip.AddrPort
-
-	gate   gate.Gate
-	queue  []testPacket
-	closed bool
-}
-
-type testPacket struct {
-	b   []byte
-	src netip.AddrPort
-}
-
-func (tc *testPacketConn) unlock() {
-	tc.gate.Unlock(tc.closed || len(tc.queue) > 0)
-}
-
-func (tc *testPacketConn) ReadFrom(p []byte) (n int, srcAddr net.Addr, err error) {
-	if err := tc.gate.WaitAndLock(context.Background()); err != nil {
-		return 0, nil, err
-	}
-	defer tc.unlock()
-	if tc.closed {
-		return 0, nil, net.ErrClosed
-	}
-	n = copy(p, tc.queue[0].b)
-	srcAddr = net.UDPAddrFromAddrPort(tc.queue[0].src)
-	tc.queue = tc.queue[1:]
-	return n, srcAddr, nil
-}
-
-func (tc *testPacketConn) WriteTo(p []byte, dstAddr net.Addr) (n int, err error) {
-	tc.gate.Lock()
-	closed := tc.closed
-	tc.unlock()
-	if closed {
-		return 0, net.ErrClosed
-	}
-
-	ap, err := addrPortFromAddr(dstAddr)
-	if err != nil {
-		return 0, err
-	}
-	dst := tc.tn.connForAddr(ap)
-	if dst == nil {
-		return len(p), nil // sent into the void
-	}
-	dst.gate.Lock()
-	defer dst.unlock()
-	dst.queue = append(dst.queue, testPacket{
-		b:   bytes.Clone(p),
-		src: tc.localAddr,
-	})
-	return len(p), nil
-}
-
-func (tc *testPacketConn) Close() error {
-	tc.tn.mu.Lock()
-	tc.tn.conns[tc.localAddr] = nil
-	tc.tn.mu.Unlock()
-
-	tc.gate.Lock()
-	defer tc.unlock()
-	tc.closed = true
-	tc.queue = nil
-	return nil
-}
-
-func (tc *testPacketConn) LocalAddr() net.Addr {
-	return net.UDPAddrFromAddrPort(tc.localAddr)
-}
-
-func (tc *testPacketConn) SetDeadline(time.Time) error      { panic("unimplemented") }
-func (tc *testPacketConn) SetReadDeadline(time.Time) error  { panic("unimplemented") }
-func (tc *testPacketConn) SetWriteDeadline(time.Time) error { panic("unimplemented") }
-
-func addrPortFromAddr(addr net.Addr) (netip.AddrPort, error) {
-	switch a := addr.(type) {
-	case *net.UDPAddr:
-		return a.AddrPort(), nil
-	}
-	return netip.ParseAddrPort(addr.String())
 }
 
 var testTLSConfig = &tls.Config{

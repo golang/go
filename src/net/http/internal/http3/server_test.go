@@ -7,6 +7,7 @@ package http3
 import (
 	"errors"
 	"fmt"
+	"internal/nettest"
 	"io"
 	"maps"
 	"net/http"
@@ -1978,7 +1979,7 @@ func TestServerWriteTimeoutInProgress(t *testing.T) {
 type testServer struct {
 	t           testing.TB
 	s           *server
-	tn          testNet
+	pnet        *nettest.PacketNet
 	testHandler *testServerHandler
 	*testQUICEndpoint
 
@@ -2015,7 +2016,8 @@ type serverHandlerCall struct {
 func newTestServer(t testing.TB, handler http.Handler) *testServer {
 	t.Helper()
 	ts := &testServer{
-		t: t,
+		t:    t,
+		pnet: newPacketNet(t),
 	}
 	if handler == nil {
 		ts.testHandler = &testServerHandler{
@@ -2029,7 +2031,7 @@ func newTestServer(t testing.TB, handler http.Handler) *testServer {
 			Handler: handler,
 		},
 	}
-	e := ts.tn.newQUICEndpoint(t, &quic.Config{
+	e := newQUICEndpoint(t, ts.pnet, &quic.Config{
 		TLSConfig: testTLSConfig,
 	})
 	ts.addr = e.LocalAddr()
@@ -2040,7 +2042,7 @@ func newTestServer(t testing.TB, handler http.Handler) *testServer {
 func (ts *testServer) connect() *testServerConn {
 	ts.t.Helper()
 	config := &quic.Config{TLSConfig: testTLSConfig}
-	e := ts.tn.newQUICEndpoint(ts.t, nil)
+	e := newQUICEndpoint(ts.t, ts.pnet, nil)
 	qconn, err := e.Dial(ts.t.Context(), "udp", ts.addr.String(), config)
 	if err != nil {
 		ts.t.Fatal(err)
