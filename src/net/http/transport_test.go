@@ -4024,6 +4024,61 @@ func testTransportClosesBodyOnError(t *testing.T, mode testMode) {
 	}
 }
 
+// A TransferEncoding other than chunked turns off chunking, so a request
+// body of unknown length has nothing to mark where it ends on HTTP/1.
+// The Transport must not send it: the server would read the body as the
+// next request on the connection. Issue 38867.
+func TestTransportIdentityTransferEncodingUnknownLength(t *testing.T) {
+	runSynctest(t, testTransportIdentityTransferEncodingUnknownLength, []testMode{http1Mode})
+}
+func testTransportIdentityTransferEncodingUnknownLength(t *testing.T, mode testMode) {
+	var (
+		mu   sync.Mutex
+		reqs []string
+	)
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		body, _ := io.ReadAll(r.Body)
+		mu.Lock()
+		defer mu.Unlock()
+		reqs = append(reqs, fmt.Sprintf("%v %v %q", r.Method, r.URL.Path, body))
+	}))
+	post := func(path string, body io.Reader, te string) error {
+		req, _ := NewRequest("POST", cst.ts.URL+path, body)
+		req.TransferEncoding = []string{te}
+		res, err := cst.c.Do(req)
+		if err != nil {
+			return err
+		}
+		return res.Body.Close()
+	}
+	const wantErr = "with Body of unknown length"
+
+	// io.NopCloser hides the length of the body.
+	const next = "GET /next HTTP/1.1\r\nHost: example.com\r\n\r\n"
+	for _, te := range []string{"identity", "gzip"} {
+		err := post("/unframed", io.NopCloser(strings.NewReader(next)), te)
+		if err == nil || !strings.Contains(err.Error(), wantErr) {
+			t.Errorf("TransferEncoding %q, body of unknown length: Do error = %v, want %q", te, err, wantErr)
+		}
+	}
+	// A body that blocks can't be found to be empty.
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	if err := post("/blocking", pr, "identity"); err == nil || !strings.Contains(err.Error(), wantErr) {
+		t.Errorf("TransferEncoding identity, blocking body: Do error = %v, want %q", err, wantErr)
+	}
+	if err := post("/empty", io.NopCloser(strings.NewReader("")), "identity"); err != nil {
+		t.Errorf("TransferEncoding identity, empty body: %v", err)
+	}
+
+	synctest.Wait()
+	mu.Lock()
+	defer mu.Unlock()
+	if want := []string{`POST /empty ""`}; !slices.Equal(reqs, want) {
+		t.Errorf("server got requests %q, want %q", reqs, want)
+	}
+}
+
 func TestTransportDialTLS(t *testing.T) {
 	runNoSynctest(t, testTransportDialTLS, []testMode{https1Mode, http2Mode})
 }

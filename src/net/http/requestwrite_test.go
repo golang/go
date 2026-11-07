@@ -723,6 +723,59 @@ var reqWriteTests = []reqWriteTest{
 
 		WantError: errors.New(`net/http: invalid trailer field value for "X-Trailer"`),
 	},
+
+	// A TransferEncoding other than chunked turns off chunking, so a body
+	// of unknown length has nothing to mark where it ends. Issue 38867.
+	32: {
+		Req: Request{
+			Method:           "POST",
+			URL:              mustParseURL("/"),
+			Host:             "example.com",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			TransferEncoding: []string{"identity"},
+		},
+
+		Body: []byte("abcdef"),
+
+		WantError: errors.New(`http: Request.TransferEncoding=["identity"] with Body of unknown length`),
+	},
+
+	33: {
+		Req: Request{
+			Method:           "POST",
+			URL:              mustParseURL("/"),
+			Host:             "example.com",
+			ProtoMajor:       1,
+			ProtoMinor:       1,
+			ContentLength:    -1,
+			TransferEncoding: []string{"gzip"},
+		},
+
+		Body: []byte("abcdef"),
+
+		WantError: errors.New(`http: Request.TransferEncoding=["gzip"] with Body of unknown length`),
+	},
+
+	// A CONNECT body is the start of the tunnel; it needs no framing.
+	34: {
+		Req: Request{
+			Method: "CONNECT",
+			URL: &url.URL{
+				Scheme: "https", // of proxy.com
+				Host:   "proxy.com",
+			},
+			TransferEncoding: []string{"identity"},
+		},
+
+		Body: []byte("abcdef"),
+
+		WantWrite: "CONNECT proxy.com HTTP/1.1\r\n" +
+			"Host: proxy.com\r\n" +
+			"User-Agent: Go-http-client/1.1\r\n" +
+			"\r\n" +
+			"abcdef",
+	},
 }
 
 func TestRequestWrite(t *testing.T) {
@@ -822,7 +875,8 @@ func testRequestWriteTransport(t *testing.T) {
 
 	type testCase struct {
 		method string
-		clen   int64 // ContentLength
+		clen   int64    // ContentLength
+		te     []string // TransferEncoding
 		body   io.ReadCloser
 		want   func(string) error
 
@@ -892,6 +946,23 @@ func testRequestWriteTransport(t *testing.T) {
 			},
 			want: matchSubstr("Transfer-Encoding: chunked"),
 		},
+		// A TransferEncoding other than chunked turns off chunking;
+		// an empty body of unknown length is sent as no body.
+		// Issue 38867.
+		{
+			method: "GET",
+			clen:   -1,
+			te:     []string{"identity"},
+			body:   io.NopCloser(strings.NewReader("")),
+			want:   noContentLengthOrTransferEncoding,
+		},
+		{
+			method: "PUT",
+			clen:   -1,
+			te:     []string{"identity"},
+			body:   io.NopCloser(strings.NewReader("")),
+			want:   matchSubstr("Content-Length: 0"),
+		},
 	}
 
 	for i, tt := range tests {
@@ -904,9 +975,10 @@ func testRequestWriteTransport(t *testing.T) {
 				Scheme: "http",
 				Host:   "example.com",
 			},
-			Header:        make(Header),
-			ContentLength: tt.clen,
-			Body:          tt.body,
+			Header:           make(Header),
+			ContentLength:    tt.clen,
+			TransferEncoding: tt.te,
+			Body:             tt.body,
 		}
 		got, err := dumpRequestOut(req, tt.afterReqRead)
 		if err != nil {
