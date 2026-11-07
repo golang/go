@@ -650,6 +650,30 @@ func TestIssue68387(t *testing.T) {
 	}
 }
 
+func TestIssue20614(t *testing.T) {
+	data := "<item b='\n\r\t'/>"
+	dec := NewDecoder(strings.NewReader(data))
+	var tok1, tok2, tok3 Token
+	var err error
+	if tok1, err = dec.RawToken(); err != nil {
+		t.Fatalf("RawToken() failed: %#v", err)
+	}
+	if tok2, err = dec.RawToken(); err != nil {
+		t.Fatalf("RawToken() failed: %#v", err)
+	}
+	if tok3, err = dec.RawToken(); err != io.EOF || tok3 != nil {
+		t.Fatalf("Missed EOF")
+	}
+	s := StartElement{Name{"", "item"}, []Attr{Attr{Name{"","b"}, "   "}}}
+	if !reflect.DeepEqual(tok1.(StartElement), s) {
+		t.Error("Wrong start element")
+	}
+	e := EndElement{Name{"","item"}}
+	if tok2.(EndElement) != e {
+		t.Error("Wrong end element")
+	}
+}
+
 func TestIssue569(t *testing.T) {
 	data := `<item><FieldA>abcd</FieldA></item>`
 	var i item
