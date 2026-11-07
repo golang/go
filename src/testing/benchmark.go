@@ -226,6 +226,24 @@ func (b *B) runN(n int) {
 	}
 }
 
+// signalDone signals that the benchmark has finished, whether it returned
+// normally or by FailNow's runtime.Goexit. If the benchmark function
+// panicked, signalDone instead runs the Cleanup functions registered on the
+// parent benchmarks, which the panic would otherwise skip, and re-panics
+// without signaling, so that the process cannot exit before the panic is
+// reported. See https://go.dev/issue/60129.
+func (b *B) signalDone() {
+	if err := recover(); err != nil {
+		for root := &b.common; root.parent != nil; root = root.parent {
+			if r := root.parent.runCleanup(recoverAndReturnPanic); r != nil {
+				fmt.Fprintf(root.parent.w, "cleanup panicked with %v", r)
+			}
+		}
+		panic(err)
+	}
+	b.signal <- true
+}
+
 // run1 runs the first iteration of benchFunc. It reports whether more
 // iterations of this benchmarks should be run.
 func (b *B) run1() bool {
@@ -236,12 +254,7 @@ func (b *B) run1() bool {
 		}
 	}
 	go func() {
-		// Signal that we're done whether we return normally
-		// or by FailNow's runtime.Goexit.
-		defer func() {
-			b.signal <- true
-		}()
-
+		defer b.signalDone()
 		b.runN(1)
 	}()
 	<-b.signal
@@ -329,11 +342,7 @@ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
 // launch is run by the doBench function as a separate goroutine.
 // run1 must have been called on b.
 func (b *B) launch() {
-	// Signal that we're done whether we return normally
-	// or by FailNow's runtime.Goexit.
-	defer func() {
-		b.signal <- true
-	}()
+	defer b.signalDone()
 
 	// b.Loop does its own ramp-up logic so we just need to run it once.
 	// If b.loop.n is non zero, it means b.Loop has already run.
