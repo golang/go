@@ -868,13 +868,22 @@
 // of its own. Without it, a group of loads covering the copy would be split
 // between the source and the destination, which stops them from being
 // recombined into one wider load.
-(Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
+//
+// The result must not end up less aligned than before: the destination of
+// the copy is aligned like the copied type {t}, but the source pointer can
+// be typed less strictly (it is only as aligned as its own type), so a load
+// forwarded to it may end up misaligned. Forward the load only if the
+// target accepts unaligned loads, or if {t} is at least as aligned as the
+// load and the offset is a multiple of the load's alignment.
+(Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] {t} p2 src mem))
 	&& o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2)
 	&& !ssa.IsVolatile(src)
+	&& (config.UnalignedOK || (t.Alignment() >= t1.Alignment() && o1%t1.Alignment() == 0))
 	=> @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
-(Load <t1> p1 move:(Move [n] p2 src mem))
+(Load <t1> p1 move:(Move [n] {t} p2 src mem))
 	&& t1.Size() <= n && ssa.IsSamePtr(p1, p2)
 	&& !ssa.IsVolatile(src)
+	&& (config.UnalignedOK || t.Alignment() >= t1.Alignment())
 	=> @move.Block (Load <t1> src mem)
 
 // Pass constants through math.Float{32,64}bits and math.Float{32,64}frombits
