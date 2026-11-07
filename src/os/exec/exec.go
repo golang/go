@@ -1358,5 +1358,29 @@ func validateLookPath(s string) error {
 	case "", ".", "..":
 		return ErrNotFound
 	}
+	// Reject paths whose final element consists only of dots, such as
+	// "dir/.", "dir/..", "./", or "..\". Such an element denotes a
+	// directory (or nothing at all), but the platform implementations of
+	// findExecutable and lookPathExts probe for extensions by appending
+	// them to the name, which would resolve a different file: for example,
+	// "dir/.." would resolve "dir/...exe". The operating system's own
+	// executable search never resolves these names, and neither should
+	// LookPath. (Follow-up to CL 685755.)
+	end := len(s)
+	for end > 0 && os.IsPathSeparator(s[end-1]) {
+		end--
+	}
+	start := end
+	for start > 0 && !os.IsPathSeparator(s[start-1]) {
+		start--
+	}
+	for i := start; i < end; i++ {
+		if s[i] != '.' {
+			return nil
+		}
+	}
+	if start < end {
+		return ErrNotFound
+	}
 	return nil
 }
