@@ -94,6 +94,18 @@ func (d *dirInfo) init(h syscall.Handle) {
 }
 
 func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+	controlErr := file.pfd.RawControl(func(fd uintptr) {
+		names, dirents, infos, err = file.readdirHandle(n, mode, syscall.Handle(fd))
+	})
+	runtime.KeepAlive(file)
+	if controlErr != nil {
+		err = file.wrapErr("readdir", controlErr)
+	}
+	return
+}
+
+// readdirHandle reads directory entries while the caller holds a reference to h.
+func (file *File) readdirHandle(n int, mode readdirMode, h syscall.Handle) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
 	// If this file has no dirInfo, create one.
 	var d *dirInfo
 	for {
@@ -102,7 +114,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 			break
 		}
 		d = new(dirInfo)
-		d.init(file.pfd.Sysfd)
+		d.init(h)
 		if file.dirinfo.CompareAndSwap(nil, d) {
 			break
 		}
@@ -122,8 +134,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 	for n != 0 {
 		// Refill the buffer if necessary
 		if d.bufp == 0 {
-			err = windows.GetFileInformationByHandleEx(file.pfd.Sysfd, d.class, (*byte)(unsafe.Pointer(&(*d.buf)[0])), uint32(len(*d.buf)))
-			runtime.KeepAlive(file)
+			err = windows.GetFileInformationByHandleEx(h, d.class, (*byte)(unsafe.Pointer(&(*d.buf)[0])), uint32(len(*d.buf)))
 			if err != nil {
 				if err == syscall.ERROR_NO_MORE_FILES {
 					// Optimization: we can return the buffer to the pool, there is nothing else to read.
@@ -144,7 +155,7 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
 					// [1] https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fsa/fa8194e0-53ec-413b-8315-e8fa85396fd8
 					break
 				}
-				if s, _ := file.Stat(); s != nil && !s.IsDir() {
+				if s, _ := statHandle(file.name, h); s != nil && !s.IsDir() {
 					err = &PathError{Op: "readdir", Path: file.name, Err: syscall.ENOTDIR}
 				} else {
 					err = &PathError{Op: "GetFileInformationByHandleEx", Path: file.name, Err: err}
