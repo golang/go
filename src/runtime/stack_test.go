@@ -615,6 +615,53 @@ func BenchmarkIssue18138(b *testing.B) {
 	}
 }
 
+// BenchmarkDeepGoroutines starts, on every P, a stream of short-lived
+// goroutines that each need a ~100 KiB stack. Without a way to start them
+// with (or reuse) a large enough stack, every one of them grows its stack
+// from the starting size with copystack. See issue 77893.
+func BenchmarkDeepGoroutines(b *testing.B) {
+	benchmarkDeepGoroutines(b, 0)
+}
+
+// BenchmarkDeepGoroutinesFanout is BenchmarkDeepGoroutines where each deep
+// goroutine also starts 16 short-lived helper goroutines and waits for them,
+// as request handlers commonly do. The helpers need only a minimal stack.
+func BenchmarkDeepGoroutinesFanout(b *testing.B) {
+	benchmarkDeepGoroutines(b, 16)
+}
+
+func benchmarkDeepGoroutines(b *testing.B, helpers int) {
+	// run starts one deep goroutine and waits for it to exit.
+	run := func(c chan bool) {
+		go func() {
+			useStackPtrs(80, false) // uses ~84 KiB
+			var wg sync.WaitGroup
+			for range helpers {
+				wg.Go(func() {})
+			}
+			wg.Wait()
+			c <- true
+		}()
+		<-c
+	}
+
+	// Let starting-size heuristics, which learn at GC, and stack caches,
+	// which fill on first use, reach steady state before timing.
+	c := make(chan bool)
+	for range 10 {
+		run(c)
+	}
+	GC()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		c := make(chan bool)
+		for pb.Next() {
+			run(c)
+		}
+	})
+}
+
 func useStackPtrs(n int, b bool) {
 	if b {
 		// This code contributes to the stack frame size, and hence to the
