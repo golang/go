@@ -105,7 +105,8 @@ It is a comma-separated list of name=val pairs setting these named variables:
 	print information about the internal state of the concurrent pacer.
 
 	gcshrinkstackoff: setting gcshrinkstackoff=1 disables moving goroutines
-	onto smaller stacks. In this mode, a goroutine's stack can only grow.
+	onto smaller stacks. In this mode, a goroutine's stack can only grow, and
+	new goroutines do not reuse the grown stacks of dead goroutines.
 
 	gcstoptheworld: setting gcstoptheworld=1 disables concurrent garbage collection,
 	making every garbage collection a stop-the-world event. Setting gcstoptheworld=2
@@ -205,6 +206,11 @@ It is a comma-separated list of name=val pairs setting these named variables:
 
 	schedtrace: setting schedtrace=X causes the scheduler to emit a single line to standard
 	error every X milliseconds, summarizing the scheduler state.
+
+	stackcachetokens: a new goroutine can reuse the grown stack of a dead goroutine,
+	up to 128 KiB. Setting stackcachetokens=N frees such a stack after N goroutines
+	in a row exit without using a quarter of it (default 64, at most 255).
+	Setting stackcachetokens=0 never frees it.
 
 	tracebackancestors: setting tracebackancestors=N extends tracebacks with the stacks at
 	which goroutines were created, where N limits the number of ancestor goroutines to
