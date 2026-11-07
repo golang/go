@@ -16,7 +16,10 @@ const (
 	nssConfigPath = "/etc/nsswitch.conf"
 )
 
-var nssConfig nsswitchConfig
+// ch is created here rather than in init; see resolvConf.
+var nssConfig = nsswitchConfig{
+	ch: make(chan struct{}, 1),
+}
 
 type nsswitchConfig struct {
 	initOnce sync.Once // guards init of nsswitchConfig
@@ -42,7 +45,6 @@ func getSystemNSS() *nssConf {
 func (conf *nsswitchConfig) init() {
 	conf.nssConf = parseNSSConfFile("/etc/nsswitch.conf")
 	conf.lastChecked = time.Now()
-	conf.ch = make(chan struct{}, 1)
 }
 
 // tryUpdate tries to update conf.
