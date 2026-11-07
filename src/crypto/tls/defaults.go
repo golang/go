@@ -42,12 +42,15 @@ func curvePreferenceOrder() []CurveID {
 	}
 }
 
+// tlsmldsa=0 restores the pre-Go 1.27 default signature algorithms.
+var tlsmldsa = godebug.New("tlsmldsa")
+
 // defaultSupportedSignatureAlgorithms returns the signature and hash algorithms that
 // the code advertises and supports in a TLS 1.2+ ClientHello and in a TLS 1.2+
 // CertificateRequest. The two fields are merged to match with TLS 1.3.
 // Note that in TLS 1.2, the ECDSA algorithms are not constrained to P-256, etc.
 func defaultSupportedSignatureAlgorithms() []SignatureScheme {
-	return []SignatureScheme{
+	sigAlgs := []SignatureScheme{
 		MLDSA44,
 		MLDSA65,
 		MLDSA87,
@@ -64,6 +67,12 @@ func defaultSupportedSignatureAlgorithms() []SignatureScheme {
 		PKCS1WithSHA1,
 		ECDSAWithSHA1,
 	}
+	if tlsmldsa.Value() == "0" {
+		sigAlgs = slices.DeleteFunc(sigAlgs, func(s SignatureScheme) bool {
+			return s == MLDSA44 || s == MLDSA65 || s == MLDSA87
+		})
+	}
+	return sigAlgs
 }
 
 func supportedCipherSuites(aesGCMPreferred bool) []uint16 {
