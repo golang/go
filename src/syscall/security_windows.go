@@ -368,6 +368,9 @@ func (t Token) GetUserProfileDirectory() (string, error) {
 		if e == nil {
 			return UTF16ToString(b), nil
 		}
+		if e == ERROR_FILE_NOT_FOUND {
+			return "", nil
+		}
 		if e != ERROR_INSUFFICIENT_BUFFER {
 			return "", e
 		}
