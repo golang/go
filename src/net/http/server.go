@@ -1114,6 +1114,9 @@ const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
 
 var errTooLarge = errors.New("http: request too large")
 
+// errRequestUriTooLong indicates that the request line exceeded the server's read limit.
+var errRequestUriTooLong = errors.New("http: request URI too long")
+
 // Read next request from connection.
 func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	if c.hijacked() {
@@ -1140,6 +1143,9 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
 	req, err := readRequestLimit(c.bufr, int64(c.server.maxHeaderValueCount()))
 	if err != nil {
 		if c.r.hitReadLimit() {
+			if errors.Is(err, errReadingRequestLine) {
+				return nil, errRequestUriTooLong
+			}
 			return nil, errTooLarge
 		}
 		return nil, err
@@ -2010,16 +2016,17 @@ var ErrAbortHandler = internal.ErrAbortHandler
 // client has gone away or had its read fail somehow. This is used to
 // determine which logs are interesting enough to log about.
 func isCommonNetReadError(err error) bool {
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		return true
 	}
-	if neterr, ok := err.(net.Error); ok && neterr.Timeout() {
+
+	var neterr net.Error
+	if errors.As(err, &neterr) && neterr.Timeout() {
 		return true
 	}
-	if oe, ok := err.(*net.OpError); ok && oe.Op == "read" {
-		return true
-	}
-	return false
+
+	var opErr *net.OpError
+	return errors.As(err, &opErr) && opErr.Op == "read"
 }
 
 // Serve a new connection.
@@ -2159,6 +2166,12 @@ func (c *conn) serve(ctx context.Context) {
 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
 
 			switch {
+			case err == errRequestUriTooLong:
+				const publicErr = "414 URI Too Long"
+				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+				c.closeWriteAndWait()
+				return
+
 			case err == errTooLarge:
 				// Their HTTP client may or may not be
 				// able to read this if we're
