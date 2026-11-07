@@ -7,6 +7,7 @@ package ld
 import (
 	"bytes"
 	"debug/pe"
+	"encoding/binary"
 	"fmt"
 	"internal/testenv"
 	"os"
@@ -15,6 +16,153 @@ import (
 	"strings"
 	"testing"
 )
+
+func TestWindowsPluginCrossBuild(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	dir := t.TempDir()
+	source := filepath.Join(dir, "plugin.go")
+	if err := os.WriteFile(source, []byte(`package main
+import "fmt"
+var Value = 42
+func Message() string { return fmt.Sprint(Value) }
+`), 0666); err != nil {
+		t.Fatal(err)
+	}
+	hostSource := filepath.Join(dir, "host.go")
+	if err := os.WriteFile(hostSource, []byte(`package main
+import (
+	"fmt"
+	"os"
+	"plugin"
+)
+func main() {
+	p, err := plugin.Open(os.Args[1])
+	if err != nil { panic(err) }
+	s, err := p.Lookup("Message")
+	if err != nil { panic(err) }
+	fmt.Print(s.(func() string)())
+}
+`), 0666); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []struct {
+		arch    string
+		machine uint16
+	}{
+		{"amd64", pe.IMAGE_FILE_MACHINE_AMD64},
+		{"arm64", pe.IMAGE_FILE_MACHINE_ARM64},
+	} {
+		t.Run(target.arch, func(t *testing.T) {
+			output := filepath.Join(dir, target.arch+".dll")
+			host := filepath.Join(dir, target.arch+".exe")
+			hostCmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", host, hostSource)
+			hostCmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH="+target.arch, "CGO_ENABLED=0", "GOFLAGS=")
+			if out, err := hostCmd.CombinedOutput(); err != nil {
+				t.Fatalf("building host: %v\n%s", err, out)
+			}
+			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-buildmode=plugin", "-o", output, source)
+			cmd.Env = append(os.Environ(), "GOOS=windows", "GOARCH="+target.arch, "CGO_ENABLED=0", "GOFLAGS=")
+			if out, err := cmd.CombinedOutput(); err != nil {
+				t.Fatalf("building plugin: %v\n%s", err, out)
+			}
+			file, err := pe.Open(output)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer file.Close()
+			if file.Machine != target.machine || file.Characteristics&pe.IMAGE_FILE_DLL == 0 {
+				t.Fatalf("unexpected PE header: machine=%#x characteristics=%#x", file.Machine, file.Characteristics)
+			}
+			if target.arch == "arm64" {
+				header, ok := file.OptionalHeader.(*pe.OptionalHeader64)
+				if !ok {
+					t.Fatal("missing PE32+ optional header")
+				}
+				entryFound := false
+				for _, section := range file.Sections {
+					if header.AddressOfEntryPoint < section.VirtualAddress || header.AddressOfEntryPoint-section.VirtualAddress >= section.VirtualSize {
+						continue
+					}
+					data, err := section.Data()
+					if err != nil {
+						t.Fatal(err)
+					}
+					offset := header.AddressOfEntryPoint - section.VirtualAddress
+					if uint64(offset)+8 > uint64(len(data)) {
+						t.Fatal("ARM64 plugin entry point is truncated")
+					}
+					if first, second := binary.LittleEndian.Uint32(data[offset:]), binary.LittleEndian.Uint32(data[offset+4:]); first != 0xb24003e0 || second != 0xd65f03c0 {
+						t.Fatalf("unexpected ARM64 plugin entry point: %#08x %#08x", first, second)
+					}
+					entryFound = true
+					break
+				}
+				if !entryFound {
+					t.Fatal("plugin entry point has no section")
+				}
+				testARM64PluginThunks(t, file)
+			}
+			if runtime.GOOS == "windows" && runtime.GOARCH == target.arch {
+				out, err := testenv.Command(t, host, output).CombinedOutput()
+				if err != nil || string(out) != "42" {
+					t.Fatalf("running plugin: %v\n%s", err, out)
+				}
+			}
+		})
+	}
+}
+
+func testARM64PluginThunks(t *testing.T, file *pe.File) {
+	t.Helper()
+	var slots, metadata *pe.Symbol
+	for _, symbol := range file.Symbols {
+		switch symbol.Name {
+		case "go:plugin.resolveSlots":
+			slots = symbol
+		case "go:plugin.resolveMeta":
+			metadata = symbol
+		}
+	}
+	if slots == nil || metadata == nil || slots.SectionNumber <= 0 || metadata.SectionNumber <= 0 {
+		t.Fatal("plugin slot symbols missing from PE symbol table")
+	}
+	slotSection := file.Sections[slots.SectionNumber-1]
+	metaSection := file.Sections[metadata.SectionNumber-1]
+	metaData, err := metaSection.Data()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uint64(metadata.Value)+12 > uint64(len(metaData)) || string(metaData[metadata.Value:metadata.Value+8]) != "GORESV01" {
+		t.Fatal("invalid plugin slot metadata")
+	}
+	count := binary.LittleEndian.Uint32(metaData[metadata.Value+8:])
+	start := int64(slotSection.VirtualAddress) + int64(slots.Value)
+	end := start + int64(count)*8
+	for _, section := range file.Sections {
+		if section.Characteristics&pe.IMAGE_SCN_CNT_CODE == 0 {
+			continue
+		}
+		data, err := section.Data()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for offset := 0; offset+12 <= len(data); offset += 4 {
+			adrp := binary.LittleEndian.Uint32(data[offset:])
+			load := binary.LittleEndian.Uint32(data[offset+4:])
+			branch := binary.LittleEndian.Uint32(data[offset+8:])
+			if adrp&0x9f00001f != 0x90000010 || load&0xffc003ff != 0xf9400210 || branch != 0xd61f0200 {
+				continue
+			}
+			immediate := ((adrp>>5)&0x7ffff)<<2 | ((adrp >> 29) & 3)
+			pages := int64(int32(immediate<<11) >> 11)
+			address := (int64(section.VirtualAddress)+int64(offset))&^0xfff + pages*4096 + int64((load>>10)&0xfff)*8
+			if address >= start && address < end && (address-start)%8 == 0 {
+				return
+			}
+		}
+	}
+	t.Fatal("no ARM64 thunk targets the plugin slot table")
+}
 
 func TestUndefinedRelocErrors(t *testing.T) {
 	testenv.MustHaveGoBuild(t)

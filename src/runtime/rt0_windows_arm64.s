@@ -20,3 +20,7 @@ TEXT _rt0_arm64_windows_lib(SB),NOSPLIT,$0
 	MOVD	$0, R0
 	MOVD	$0, R1
 	JMP	_rt0_arm64_lib(SB)
+
+TEXT _rt0_arm64_windows_plugin(SB),NOSPLIT|NOFRAME,$0
+	MOVD	$1, R0
+	RET
