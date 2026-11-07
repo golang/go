@@ -25,8 +25,8 @@ func three() *Float {
 //
 // If z's precision is 0, it is changed to x's precision before the
 // operation. Rounding is performed according to z's precision and
-// rounding mode, but z's accuracy is not computed. Specifically, the
-// result of z.Acc() is undefined.
+// rounding mode, and z's accuracy reports the result's error relative
+// to the exact square root.
 //
 // The function panics if z < 0. The value of z is undefined in that
 // case.
@@ -52,12 +52,13 @@ func (z *Float) Sqrt(x *Float) *Float {
 		return z
 	}
 
-	// MantExp sets the argument's precision to the receiver's, and
-	// when z.prec > x.prec this will lower z.prec. Restore it after
-	// the MantExp call.
-	prec := z.prec
+	// MantExp sets the argument's precision and rounding mode to the
+	// receiver's, and when z.prec > x.prec this will lower z.prec.
+	// Restore the precision after the MantExp call; the rounding mode
+	// is restored before the final rounding in sqrtRound.
+	prec, mode := z.prec, z.mode
 	b := x.MantExp(z)
-	z.prec = prec
+	z.prec, z.mode = prec, ToNearestEven
 
 	// Compute √(z·2**b) as
 	//   √( z)·2**(½b)     if b is even
@@ -72,13 +73,90 @@ func (z *Float) Sqrt(x *Float) *Float {
 		z.exp--
 	}
 	// 0.25 <= z < 2.0
+	u := new(Float).Set(z)
 
 	// Solving 1/x² - z = 0 avoids Quo calls and is faster, especially
 	// for high precisions.
 	z.sqrtInverse(z)
 
+	// z is within one ulp of √u; round it according to mode.
+	z.mode = mode
+	z.sqrtRound(u)
+
 	// re-attach halved exponent
-	return z.SetMantExp(z, b/2)
+	acc := z.acc
+	z.SetMantExp(z, b/2)
+	z.acc = acc
+	return z
+}
+
+// sqrtRound sets z to √x rounded according to z's precision and rounding
+// mode, and sets z's accuracy. z must be within one ulp of √x, and x must
+// be finite and > 0.
+func (z *Float) sqrtRound(x *Float) {
+	prec := uint(z.prec)
+
+	// cmp compares r² with x. r has at most prec+1 bits, so the
+	// product is exact.
+	cmp := func(r *Float) int {
+		return new(Float).SetPrec(2*prec+2).Mul(r, r).Cmp(x)
+	}
+
+	// step sets r to the next float of precision prec above (dir > 0)
+	// or below (dir < 0) r.
+	one := new(Float).SetInt64(1)
+	step := func(r *Float, dir int) {
+		e := int(r.exp) - int(prec)
+		if dir < 0 && r.MinPrec() == 1 {
+			e-- // the floats below a power of two are closer
+		}
+		d := new(Float).SetMantExp(one, e)
+		if dir < 0 {
+			d.Neg(d)
+		}
+		r.Add(r, d)
+	}
+
+	// Make z the largest float <= √x and t the smallest float > √x.
+	for cmp(z) > 0 {
+		step(z, -1)
+	}
+	t := new(Float).Set(z)
+	step(t, 1)
+	for cmp(t) <= 0 {
+		z.Set(t)
+		step(t, 1)
+	}
+	if cmp(z) == 0 {
+		z.acc = Exact
+		return
+	}
+	// z < √x < t
+
+	up := false
+	switch z.mode {
+	case ToZero, ToNegativeInf:
+		// z
+	case AwayFromZero, ToPositiveInf:
+		up = true
+	default:
+		// ToNearestEven, ToNearestAway: compare √x with the midpoint
+		m := new(Float).SetPrec(prec+1).Add(z, t)
+		m.exp--
+		switch cmp(m) {
+		case -1:
+			up = true
+		case 0:
+			// z and t have mantissas of different parity
+			up = z.mode == ToNearestAway || z.mant.bit(uint(len(z.mant)*_W-int(prec))) != 0
+		}
+	}
+	if up {
+		z.Set(t)
+		z.acc = Above
+	} else {
+		z.acc = Below
+	}
 }
 
 // Compute √x (to z.prec precision) by solving
