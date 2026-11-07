@@ -336,6 +336,37 @@ func sveCeilIfElseFoldsToMerging(x, z archsimd.Float32s, m archsimd.Mask32s) arc
 	return x.Ceil().IfElse(m, z)
 }
 
+func sveNotSynthesizesAllTrue(x archsimd.Uint8s) archsimd.Uint8s {
+	// arm64:`PWHILELT` `ZNOT.*P[0-9]+\.M`
+	return x.Not()
+}
+
+func sveNotIfElseFoldsToMerging(x, z archsimd.Uint8s, m archsimd.Mask8s) archsimd.Uint8s {
+	// NOT is predicated-only, like ABS, and folds the same way.
+	// arm64:`ZNOT.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`
+	return x.Not().IfElse(m, z)
+}
+
+func sveNotMaskedFoldsToMerging(x archsimd.Uint8s, m archsimd.Mask8s) archsimd.Uint8s {
+	// arm64:`ZNOT.*P[0-9]+\.M` -`ZSEL` -`PWHILELT`
+	return x.Not().Masked(m)
+}
+
+func sveNotIfElseFoldsToMerging16(x, z archsimd.Int16s, m archsimd.Mask16s) archsimd.Int16s {
+	// arm64:`ZNOT\s+Z[0-9]+\.H, P[0-9]+\.M` -`ZSEL`
+	return x.Not().IfElse(m, z)
+}
+
+func sveNotIfElseFoldsToMerging32(x, z archsimd.Uint32s, m archsimd.Mask32s) archsimd.Uint32s {
+	// arm64:`ZNOT\s+Z[0-9]+\.S, P[0-9]+\.M` -`ZSEL`
+	return x.Not().IfElse(m, z)
+}
+
+func sveNotIfElseFoldsToMerging64(x, z archsimd.Int64s, m archsimd.Mask64s) archsimd.Int64s {
+	// arm64:`ZNOT\s+Z[0-9]+\.D, P[0-9]+\.M` -`ZSEL`
+	return x.Not().IfElse(m, z)
+}
+
 func sveIfElseFloat(x, y archsimd.Float64s, m archsimd.Mask64s) archsimd.Float64s {
 	// arm64:`ZFADD.*P[0-9]+\.M` -`ZSEL`
 	return x.Add(y).IfElse(m, x)

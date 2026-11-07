@@ -72,3 +72,21 @@
   - *uint
   out:
   - *uint
+
+# Not -- bitwise complement, ZNOT. Predicated-only, like ZABS, so unlike the
+# ops above it is per-width.
+- go: Not
+  asm: "ZNOT"
+  in:
+  - *int
+  - class: mask # governing predicate
+  out:
+  - *int
+
+- go: Not
+  asm: "ZNOT"
+  in:
+  - *uint
+  - class: mask # governing predicate
+  out:
+  - *uint

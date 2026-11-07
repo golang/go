@@ -211,6 +211,52 @@ func TestNegSVE(t *testing.T) {
 	testFloat64sUnary(t, archsimd.Float64s.Neg, negSlice[float64])
 }
 
+func TestNotSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sUnary(t, archsimd.Int8s.Not, notSlice[int8])
+	testInt16sUnary(t, archsimd.Int16s.Not, notSlice[int16])
+	testInt32sUnary(t, archsimd.Int32s.Not, notSlice[int32])
+	testInt64sUnary(t, archsimd.Int64s.Not, notSlice[int64])
+	testUint8sUnary(t, archsimd.Uint8s.Not, notSlice[uint8])
+	testUint16sUnary(t, archsimd.Uint16s.Not, notSlice[uint16])
+	testUint32sUnary(t, archsimd.Uint32s.Not, notSlice[uint32])
+	testUint64sUnary(t, archsimd.Uint64s.Not, notSlice[uint64])
+}
+
+// TestNotIfElseSVE checks Not under a select, which folds into its
+// merging-predicated form.
+func TestNotIfElseSVE(t *testing.T) {
+	if !archsimd.ARM64.SVE() {
+		t.Skip("no SVE")
+	}
+	testInt8sBinary(t, func(x, y archsimd.Int8s) archsimd.Int8s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[int8]))
+	testInt16sBinary(t, func(x, y archsimd.Int16s) archsimd.Int16s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[int16]))
+	testInt32sBinary(t, func(x, y archsimd.Int32s) archsimd.Int32s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[int32]))
+	testInt64sBinary(t, func(x, y archsimd.Int64s) archsimd.Int64s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[int64]))
+	testUint8sBinary(t, func(x, y archsimd.Uint8s) archsimd.Uint8s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[uint8]))
+	testUint16sBinary(t, func(x, y archsimd.Uint16s) archsimd.Uint16s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[uint16]))
+	testUint32sBinary(t, func(x, y archsimd.Uint32s) archsimd.Uint32s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[uint32]))
+	testUint64sBinary(t, func(x, y archsimd.Uint64s) archsimd.Uint64s {
+		return x.Not().IfElse(x.Greater(y), y)
+	}, ifElseSlice(notSlice[uint64]))
+}
+
 func TestOnesCountSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no SVE")

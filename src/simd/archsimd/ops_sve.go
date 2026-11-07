@@ -1343,6 +1343,64 @@ func (x Int32s) Neg() (z Int32s)
 // Asm: ZNEG, CPU Feature: SVE
 func (x Int64s) Neg() (z Int64s)
 
+/* Not */
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Int8s) Not() (z Int8s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Int16s) Not() (z Int16s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Int32s) Not() (z Int32s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Int64s) Not() (z Int64s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Uint8s) Not() (z Uint8s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Uint16s) Not() (z Uint16s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Uint32s) Not() (z Uint32s)
+
+// Not returns the bitwise negation of x.
+//
+//	z[i] = ^x[i]
+//
+// Asm: ZNOT, CPU Feature: SVE
+func (x Uint64s) Not() (z Uint64s)
+
 /* NotEqual */
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.

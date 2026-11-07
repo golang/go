@@ -15,6 +15,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 	switch v.Op {
 	case ssaop.OpARM64ZABSB,
 		ssaop.OpARM64ZNEGB,
+		ssaop.OpARM64ZNOTB,
 		ssaop.OpARM64ZCNTB:
 		p = simdZkv(s, v, arm64.ARNG_B)
 
@@ -24,6 +25,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMD,
 		ssaop.OpARM64ZFNEGD,
 		ssaop.OpARM64ZNEGD,
+		ssaop.OpARM64ZNOTD,
 		ssaop.OpARM64ZCNTD,
 		ssaop.OpARM64ZFRINTND,
 		ssaop.OpARM64ZFSQRTD,
@@ -32,6 +34,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZABSH,
 		ssaop.OpARM64ZNEGH,
+		ssaop.OpARM64ZNOTH,
 		ssaop.OpARM64ZCNTH:
 		p = simdZkv(s, v, arm64.ARNG_H)
 
@@ -42,6 +45,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMS,
 		ssaop.OpARM64ZFNEGS,
 		ssaop.OpARM64ZNEGS,
+		ssaop.OpARM64ZNOTS,
 		ssaop.OpARM64ZCNTS,
 		ssaop.OpARM64ZFRINTNS,
 		ssaop.OpARM64ZFSQRTS,
@@ -330,6 +334,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZABSMergingB,
 		ssaop.OpARM64ZNEGMergingB,
+		ssaop.OpARM64ZNOTMergingB,
 		ssaop.OpARM64ZCNTMergingB:
 		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_B)
 
@@ -339,6 +344,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMMergingD,
 		ssaop.OpARM64ZFNEGMergingD,
 		ssaop.OpARM64ZNEGMergingD,
+		ssaop.OpARM64ZNOTMergingD,
 		ssaop.OpARM64ZCNTMergingD,
 		ssaop.OpARM64ZFRINTNMergingD,
 		ssaop.OpARM64ZFSQRTMergingD,
@@ -347,6 +353,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 
 	case ssaop.OpARM64ZABSMergingH,
 		ssaop.OpARM64ZNEGMergingH,
+		ssaop.OpARM64ZNOTMergingH,
 		ssaop.OpARM64ZCNTMergingH:
 		p = simdZ2kvPredResultInArg0(s, v, arm64.ARNG_H)
 
@@ -357,6 +364,7 @@ func ssaGenSIMDSVEValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpARM64ZFRINTMMergingS,
 		ssaop.OpARM64ZFNEGMergingS,
 		ssaop.OpARM64ZNEGMergingS,
+		ssaop.OpARM64ZNOTMergingS,
 		ssaop.OpARM64ZCNTMergingS,
 		ssaop.OpARM64ZFRINTNMergingS,
 		ssaop.OpARM64ZFSQRTMergingS,
