@@ -3001,55 +3001,71 @@ func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
 
 /* ExtendLo4ToInt64 */
 
-// ExtendLo4ToInt64 sign-extends 4 lowest vector element values to int64.
+// ExtendLo4ToInt64 sign-extends the low 4 elements of x to int64.
+//
+//	z[i] = int64(x[i])
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX2
-func (x Int8x16) ExtendLo4ToInt64() Int64x4
+func (x Int8x16) ExtendLo4ToInt64() (z Int64x4)
 
-// ExtendLo4ToInt64 sign-extends 4 lowest vector element values to int64.
+// ExtendLo4ToInt64 sign-extends the low 4 elements of x to int64.
+//
+//	z[i] = int64(x[i])
 //
 // Asm: VPMOVSXWQ, CPU Feature: AVX2
-func (x Int16x8) ExtendLo4ToInt64() Int64x4
+func (x Int16x8) ExtendLo4ToInt64() (z Int64x4)
 
 /* ExtendLo4ToUint64 */
 
-// ExtendLo4ToUint64 zero-extends 4 lowest vector element values to uint64.
+// ExtendLo4ToUint64 zero-extends the low 4 elements of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX2
-func (x Uint8x16) ExtendLo4ToUint64() Uint64x4
+func (x Uint8x16) ExtendLo4ToUint64() (z Uint64x4)
 
-// ExtendLo4ToUint64 zero-extends 4 lowest vector element values to uint64.
+// ExtendLo4ToUint64 zero-extends the low 4 elements of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // Asm: VPMOVZXWQ, CPU Feature: AVX2
-func (x Uint16x8) ExtendLo4ToUint64() Uint64x4
+func (x Uint16x8) ExtendLo4ToUint64() (z Uint64x4)
 
 /* ExtendLo8ToInt32 */
 
-// ExtendLo8ToInt32 sign-extends 8 lowest vector element values to int32.
+// ExtendLo8ToInt32 sign-extends the low 8 elements of x to int32.
+//
+//	z[i] = int32(x[i])
 //
 // Asm: VPMOVSXBD, CPU Feature: AVX2
-func (x Int8x16) ExtendLo8ToInt32() Int32x8
+func (x Int8x16) ExtendLo8ToInt32() (z Int32x8)
 
 /* ExtendLo8ToInt64 */
 
-// ExtendLo8ToInt64 sign-extends 8 lowest vector element values to int64.
+// ExtendLo8ToInt64 sign-extends the low 8 elements of x to int64.
+//
+//	z[i] = int64(x[i])
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX512
-func (x Int8x16) ExtendLo8ToInt64() Int64x8
+func (x Int8x16) ExtendLo8ToInt64() (z Int64x8)
 
 /* ExtendLo8ToUint32 */
 
-// ExtendLo8ToUint32 zero-extends 8 lowest vector element values to uint32.
+// ExtendLo8ToUint32 zero-extends the low 8 elements of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // Asm: VPMOVZXBD, CPU Feature: AVX2
-func (x Uint8x16) ExtendLo8ToUint32() Uint32x8
+func (x Uint8x16) ExtendLo8ToUint32() (z Uint32x8)
 
 /* ExtendLo8ToUint64 */
 
-// ExtendLo8ToUint64 zero-extends 8 lowest vector element values to uint64.
+// ExtendLo8ToUint64 zero-extends the low 8 elements of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX512
-func (x Uint8x16) ExtendLo8ToUint64() Uint64x8
+func (x Uint8x16) ExtendLo8ToUint64() (z Uint64x8)
 
 /* ExtendToInt16 */
 

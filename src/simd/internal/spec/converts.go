@@ -14,6 +14,9 @@ import "math"
 // the rest. A widening conversion converts only the low elements of x and
 // ignores the rest. For fixed-width vectors, this composes with GetLo to
 // produce a narrower vector, and with HiToLo to convert the high elements.
+// Because the receiver and result types imply the lane counts, the names of
+// these conversions don't include one (ExtendToInt32, not ExtendLo4ToInt32),
+// and the same name works for fixed-width and scalable vectors.
 //
 // TODO: The narrowing and widening doc paragraphs are duplicated across these
 // functions. It would be nice to share them.
@@ -209,23 +212,36 @@ func SaturateIntToUint[xE Ints, W Width, zE Uints](x Vec[xE, W]) (z Vec[zE, W]) 
 	return map1[xE, W, zE, W](x, saturate[xE, zE])
 }
 
-// TODO: ExtendLo* and ConvertLo* are superseded by ExtendTo* and ConvertTo*,
-// which have the same meaning for 128-bit vectors, work for scalable vectors,
-// and don't put a lane count in the name. Delete these once the ExtendLo* and
-// ConvertLo* APIs are deprecated in favor of those.
+// ExtendLo* and ConvertLo* on 128-bit vectors are superseded by ExtendTo* and
+// ConvertTo*, which have the same meaning there, work for scalable vectors, and
+// don't put a lane count in the name. The APIs remain as deprecated wrappers,
+// and ExtendLoLToZ and ConvertLoLToZ describe exactly those. Delete them when
+// the wrappers are deleted.
+//
+// ExtendLoLToZWiden describes the ExtendLo* conversions from a 128-bit vector
+// to a wider vector, which amd64 provides because each is a single instruction.
+// They have no same-width equivalent: x.ExtendTo*() would need the input in a
+// wider vector.
 
-// ExtendLoLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends
-// the lowest {{.zL}} vector elements to {{.zE}}.
+// ExtendLoLToZ {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
 //
 //specgen:name ExtendLo{{.zL}}To{{.zE | title}}
 //specgen:require zB=xB zN>xN
 //specgen:experiment
-func ExtendLoLToZ[E Ints | Uints, W FixedWidth, zE Ints | Uints](x Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	for i := range z {
-		z[i] = zE(x[i])
-	}
-	return z
+func ExtendLoLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE, Width128]) {
+	return map1[E, Width128, zE, Width128](x, func(x E) zE { return zE(x) })
+}
+
+// ExtendLoLToZWiden {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
+//
+//specgen:name ExtendLo{{.zL}}To{{.zE | title}}
+//specgen:require zB=xB zL<xL zW>xW
+func ExtendLoLToZWiden[E Ints | Uints, zE Ints | Uints, zW FixedWidth](x Vec[E, Width128]) (z Vec[zE, zW]) {
+	return map1[E, Width128, zE, zW](x, func(x E) zE { return zE(x) })
 }
 
 // ExtendHiLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends the high-indexed {{.zL}} elements of x to {{.zE}}.
@@ -248,12 +264,8 @@ func ExtendHiLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE
 //	z[i] = {{.zE}}(x[i])
 //
 //specgen:name ConvertLo{{.zL}}To{{.zE | title}}
-//specgen:require zL<xL
+//specgen:require zN=xN*2
 //specgen:experiment
-func ConvertLoLToZ[E Nums, W FixedWidth, zE Floats](x Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	for i := range z {
-		z[i] = zE(x[i])
-	}
-	return z
+func ConvertLoLToZ[E Floats, zE Floats](x Vec[E, Width128]) (z Vec[zE, Width128]) {
+	return map1[E, Width128, zE, Width128](x, func(x E) zE { return zE(x) })
 }
