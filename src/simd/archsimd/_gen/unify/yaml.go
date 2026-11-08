@@ -122,6 +122,34 @@ type yamlDecoder struct {
 	nSums int
 
 	env envSet
+
+	// constants maps each YAML node that decodes to a constant value to that
+	// value. A constant value contains no variables, so it means the same
+	// thing in any environment, and we decode each such node only once. This
+	// matters for !repeat, which decodes its children again every time it
+	// builds an element, so that each element gets its own variables: the
+	// elements can share the constant parts.
+	//
+	// The keys are the nodes as they appear in the tree, before resolving
+	// aliases, so each value keeps the position it would have had if we
+	// had decoded it again.
+	constants map[*yaml.Node]*Value
+
+	// nVars counts the number of non-constant values decoded so far,
+	// specifically the number of variables and !repeat tuples (which
+	// implicitly introduce variables). This includes the fresh variable that
+	// implements each !sum (and each !import of more than one file), so a !sum
+	// is never constant, though its alternatives may be. The decoder can tell
+	// that a whole subtree is constant if nVars is the same before and after
+	// decoding that subtree.
+	nVars int
+
+	// sumNames maps each !sum node to the name of the variable we created
+	// for it the first time we decoded it. Every decoding of a !sum creates
+	// a fresh variable, but later decodings, such as for each element of a
+	// !repeat, reuse this name. Otherwise, the names would depend on how
+	// many sums we had decoded before, which depends on what we shared.
+	sumNames map[*yaml.Node]string
 }
 
 func (dec *yamlDecoder) read(r io.Reader) (*Value, error) {
@@ -186,12 +214,40 @@ func (dec *yamlDecoder) close(v *Value) Closure {
 func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 	pos := &Pos{Path: dec.path, Line: node.Line}
 
+	// If we've already decoded this node to a constant value, reuse it. We
+	// decode a node again when a !repeat builds an element, which decodes the
+	// element's nodes again, and for the nodes under an anchor, which we
+	// decode again for each alias of it. We key on the node before resolving
+	// aliases (see [yamlDecoder.constants]).
+	site := node
+	if v, ok := dec.constants[site]; ok {
+		return v, nil
+	}
+	enterVars := dec.nVars
+	defer func() {
+		exitVars := dec.nVars
+		if errOut == nil && enterVars == exitVars {
+			if dec.constants == nil {
+				dec.constants = make(map[*yaml.Node]*Value)
+			}
+			dec.constants[site] = vOut
+		}
+	}()
+
 	// Resolve alias nodes.
 	if node.Kind == yaml.AliasNode {
 		node = node.Alias
 	}
 
 	mk := func(d Domain) (*Value, error) {
+		switch d := d.(type) {
+		case Var:
+			dec.nVars++
+		case Tuple:
+			if d.repeat != nil {
+				dec.nVars++
+			}
+		}
 		v := &Value{Domain: d, pos: pos}
 		return v, nil
 	}
@@ -304,7 +360,12 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 
 		// Decode the children to make sure they're well-formed, but otherwise
 		// discard that decoding and do it again every time we need a new
-		// element.
+		// element, so that each element gets its own variables. These
+		// decodings reuse the constant values in the child (see
+		// [yamlDecoder.constants]). This saves a lot of work when, for
+		// example, an element is a sum of many constant values, since each
+		// element needs
+		// a fresh variable for the sum, but not fresh values.
 		var gen []func(e envSet) (*Value, envSet)
 		origEnv := dec.env
 		elts := node.Content
@@ -352,8 +413,16 @@ func (dec *yamlDecoder) value(node *yaml.Node) (vOut *Value, errOut error) {
 
 		// A sum is implemented as a fresh variable that's simultaneously bound
 		// to each of the descendants.
-		id := newIdent(fmt.Sprintf("sum%d", dec.nSums))
-		dec.nSums++
+		name, ok := dec.sumNames[site]
+		if !ok {
+			name = fmt.Sprintf("sum%d", dec.nSums)
+			dec.nSums++
+			if dec.sumNames == nil {
+				dec.sumNames = make(map[*yaml.Node]string)
+			}
+			dec.sumNames[site] = name
+		}
+		id := newIdent(name)
 		dec.env = dec.env.bind(id, vs...)
 		return mk(Var{id: id})
 

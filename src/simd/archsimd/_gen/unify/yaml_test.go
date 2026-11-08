@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"iter"
 	"log"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -199,4 +200,31 @@ func TestImportScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	checkDecode(t, oneValue(t, res), []int{1, 2})
+}
+
+// TestRepeatSharesConstants checks that the elements of a !repeat share values
+// that contain no variables, rather than decoding them again.
+func TestRepeatSharesConstants(t *testing.T) {
+	c, err := Read(strings.NewReader("!repeat [!sum [{a: x}, {a: y}]]"), "<test>", ReadOpts{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gen := c.val.Domain.(Tuple).repeat[0]
+
+	// Generate two elements, and collect the values each sum is bound to.
+	e := c.env
+	var vals [2][]*Value
+	for i := range vals {
+		var v *Value
+		v, e = gen(e)
+		for b := range e.root.bindings(v.Domain.(Var).id) {
+			vals[i] = append(vals[i], b.val)
+		}
+	}
+	if len(vals[0]) != 2 {
+		t.Fatalf("want 2 values, got %v", vals[0])
+	}
+	if !slices.Equal(vals[0], vals[1]) {
+		t.Errorf("elements don't share values: %p and %p", vals[0], vals[1])
+	}
 }
