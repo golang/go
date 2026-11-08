@@ -1538,21 +1538,18 @@ func (r *Request) patIndex(name string) int {
 }
 
 func (r *Request) expectsContinue() bool {
-	return hasToken(r.Header.get("Expect"), "100-continue")
+	return httpguts.HeaderValuesContainsToken(r.Header["Expect"], "100-continue")
 }
 
 func (r *Request) wantsHttp10KeepAlive() bool {
 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
 		return false
 	}
-	return hasToken(r.Header.get("Connection"), "keep-alive")
+	return httpguts.HeaderValuesContainsToken(r.Header["Connection"], "keep-alive")
 }
 
 func (r *Request) wantsClose() bool {
-	if r.Close {
-		return true
-	}
-	return hasToken(r.Header.get("Connection"), "close")
+	return r.Close || httpguts.HeaderValuesContainsToken(r.Header["Connection"], "close")
 }
 
 func (r *Request) closeBody() error {
@@ -1608,6 +1605,6 @@ func requestMethodUsuallyLacksBody(method string) bool {
 // requiresHTTP1 reports whether this request requires being sent on
 // an HTTP/1 connection.
 func (r *Request) requiresHTTP1() bool {
-	return hasToken(r.Header.Get("Connection"), "upgrade") &&
+	return httpguts.HeaderValuesContainsToken(r.Header["Connection"], "upgrade") &&
 		ascii.EqualFold(r.Header.Get("Upgrade"), "websocket")
 }

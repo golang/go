@@ -2891,10 +2891,9 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		// down the TCP connection when idle, like we do for HTTP/1.
 		// TODO: remove more Connection-specific header fields here, in addition
 		// to "Connection".
-		if _, ok := rws.snapHeader["Connection"]; ok {
-			v := rws.snapHeader.Get("Connection")
+		if vv, ok := rws.snapHeader["Connection"]; ok {
 			delete(rws.snapHeader, "Connection")
-			if v == "close" {
+			if httpguts.HeaderValuesContainsToken(vv, "close") {
 				rws.conn.startGracefulShutdown()
 			}
 		}

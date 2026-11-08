@@ -284,7 +284,7 @@ func (t *transferWriter) shouldSendContentLength() bool {
 }
 
 func (t *transferWriter) writeHeader(w io.Writer, trace *httptrace.ClientTrace) error {
-	if t.Close && !hasToken(t.Header.get("Connection"), "close") {
+	if t.Close && !httpguts.HeaderValuesContainsToken(t.Header["Connection"], "close") {
 		if _, err := io.WriteString(w, "Connection: close\r\n"); err != nil {
 			return err
 		}
