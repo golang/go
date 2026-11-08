@@ -154,6 +154,14 @@ func (v *Value) unify1(w *Value, e envSet, swap bool, uf *unifier) (Domain, envS
 
 	// Variables
 	if vd, ok := vd.(Var); ok {
+		if wd, ok := wd.(Var); ok && !debugNoFastPaths && e.fewerValues(wd.id, vd.id) {
+			// Var.unify partitions the environment set by vd and
+			// unifies each value of vd with w. Each of these then
+			// partitions by wd, but can rule out most of wd's values
+			// without unifying them (see [valueFilter]). Hence, it's
+			// faster to partition by the variable with fewer values.
+			return wd.unify(v, e, !swap, uf)
+		}
 		return vd.unify(w, e, swap, uf)
 	}
 

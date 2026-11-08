@@ -546,6 +546,20 @@ func (e *envExpr) terms() []*envExpr {
 	return []*envExpr{e}
 }
 
+// fewerValues returns whether id1 is known to have fewer values than id2 in e.
+// It only knows how many values an ident has if a root factor of e binds it
+// (see [envSet.rootFactorFor]).
+func (e envSet) fewerValues(id1, id2 *ident) bool {
+	factors1, k1 := e.rootFactorFor(id1)
+	factors2, k2 := e.rootFactorFor(id2)
+	if k1 < 0 || k2 < 0 {
+		return false
+	}
+	// Each term of a sum with a discriminator binds it to one value, so the
+	// number of terms is an upper bound on the number of values.
+	return len(factors1[k1].terms()) < len(factors2[k2].terms())
+}
+
 // without returns e with factor f removed. e must be either f or a product with
 // factor f.
 func (e *envExpr) without(f *envExpr) *envExpr {
@@ -704,9 +718,6 @@ func (d Var) WhyNotExact() string {
 }
 
 func (d Var) unify(w *Value, e envSet, swap bool, uf *unifier) (Domain, envSet, error) {
-	// TODO: It may help to special-case Var/Var unification to pick which one
-	// to filter versus enumerate.
-
 	if vd, ok := w.Domain.(Var); ok && d.id == vd.id {
 		// Unifying $x with $x results in $x. If we descend into this we'll have
 		// problems because we strip $x out of the environment to keep ourselves
