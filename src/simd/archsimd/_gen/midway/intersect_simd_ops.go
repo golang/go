@@ -350,9 +350,13 @@ func main() {
 							pv("Skipping Mask ToBits method (has varying return type) %s.%s\n", recvType, methodName)
 							continue
 						}
-						if lastChar := methodName[len(methodName)-1]; unicode.IsDigit(rune(lastChar)) && lastChar != eltType[len(eltType)-1] {
-							pv("Skipping size-changing method %s.%s\n", recvType, methodName)
-							continue
+						if r := funcDecl.Type.Results; r != nil && len(r.List) == 1 {
+							if id, ok := r.List[0].Type.(*ast.Ident); ok {
+								if rs, ok := sizeForType[id.Name]; ok && rs != sizeForType[recvType] {
+									pv("Skipping vector-size-changing method %s.%s\n", recvType, methodName)
+									continue
+								}
+							}
 						}
 					}
 

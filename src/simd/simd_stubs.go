@@ -51,6 +51,14 @@ func (x Int8s) ConvertToUint8() (z Uint8s)
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Int8s) Equal(y Int8s) (z Mask8s)
 
+// ExtendToInt16 sign-extends each element of x to int16.
+//
+//	z[i] = int16(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Int8s) ExtendToInt16() (z Int16s)
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -224,6 +232,14 @@ func (x Int16s) ConvertToUint16() (z Uint16s)
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Int16s) Equal(y Int16s) (z Mask16s)
 
+// ExtendToInt32 sign-extends each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Int16s) ExtendToInt32() (z Int32s)
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -305,6 +321,24 @@ func (x Int16s) Or(y Int16s) (z Int16s)
 //	z = x[0] + x[1] + ...
 func (x Int16s) ReduceSum() (z int16)
 
+// SaturateToInt8 converts each element of x to int8, saturating values
+// that are outside the range of int8.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int16s) SaturateToInt8() (z Int8s)
+
+// SaturateToUint8 converts each element of x to uint8, saturating values
+// that are outside the range of uint8. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int16s) SaturateToUint8() (z Uint8s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -343,6 +377,15 @@ func (x Int16s) ToBits() (z Uint16s)
 //
 //	z[i] = x[i] != 0
 func (x Int16s) ToMask() (z Mask16s)
+
+// TruncToInt8 converts each element of x to int8 by discarding its high
+// bits.
+//
+//	z[i] = int8(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int16s) TruncToInt8() (z Int8s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -393,6 +436,14 @@ func (x Int32s) ConvertToUint32() (z Uint32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Int32s) Equal(y Int32s) (z Mask32s)
+
+// ExtendToInt64 sign-extends each element of x to int64.
+//
+//	z[i] = int64(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Int32s) ExtendToInt64() (z Int64s)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
@@ -475,6 +526,24 @@ func (x Int32s) Or(y Int32s) (z Int32s)
 //	z = x[0] + x[1] + ...
 func (x Int32s) ReduceSum() (z int32)
 
+// SaturateToInt16 converts each element of x to int16, saturating values
+// that are outside the range of int16.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int32s) SaturateToInt16() (z Int16s)
+
+// SaturateToUint16 converts each element of x to uint16, saturating values
+// that are outside the range of uint16. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int32s) SaturateToUint16() (z Uint16s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -508,6 +577,15 @@ func (x Int32s) ToBits() (z Uint32s)
 //
 //	z[i] = x[i] != 0
 func (x Int32s) ToMask() (z Mask32s)
+
+// TruncToInt16 converts each element of x to int16 by discarding its high
+// bits.
+//
+//	z[i] = int16(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int32s) TruncToInt16() (z Int16s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -615,6 +693,24 @@ func (x Int64s) NotEqual(y Int64s) (z Mask64s)
 //	z[i] = x[i] | y[i]
 func (x Int64s) Or(y Int64s) (z Int64s)
 
+// SaturateToInt32 converts each element of x to int32, saturating values
+// that are outside the range of int32.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int64s) SaturateToInt32() (z Int32s)
+
+// SaturateToUint32 converts each element of x to uint32, saturating values
+// that are outside the range of uint32. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int64s) SaturateToUint32() (z Uint32s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -648,6 +744,15 @@ func (x Int64s) ToBits() (z Uint64s)
 //
 //	z[i] = x[i] != 0
 func (x Int64s) ToMask() (z Mask64s)
+
+// TruncToInt32 converts each element of x to int32 by discarding its high
+// bits.
+//
+//	z[i] = int32(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Int64s) TruncToInt32() (z Int32s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -703,6 +808,14 @@ func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint8s) Equal(y Uint8s) (z Mask8s)
+
+// ExtendToUint16 zero-extends each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Uint8s) ExtendToUint16() (z Uint16s)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
@@ -893,6 +1006,14 @@ func (x Uint16s) ConvertToInt16() (z Int16s)
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint16s) Equal(y Uint16s) (z Mask16s)
 
+// ExtendToUint32 zero-extends each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Uint16s) ExtendToUint32() (z Uint32s)
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -1012,6 +1133,15 @@ func (x Uint16s) RotateAllLeft(shift uint64) (z Uint16s)
 //	z[i] = rotateRight(x[i], shift)
 func (x Uint16s) RotateAllRight(shift uint64) (z Uint16s)
 
+// SaturateToUint8 converts each element of x to uint8, saturating values
+// that are outside the range of uint8.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint16s) SaturateToUint8() (z Uint8s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -1042,6 +1172,15 @@ func (x Uint16s) Sub(y Uint16s) (z Uint16s)
 //
 //	z[i] = sat(x[i] - y[i])
 func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s)
+
+// TruncToUint8 converts each element of x to uint8 by discarding its high
+// bits.
+//
+//	z[i] = uint8(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint16s) TruncToUint8() (z Uint8s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1090,6 +1229,14 @@ func (x Uint32s) ConvertToInt32() (z Int32s)
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint32s) Equal(y Uint32s) (z Mask32s)
+
+// ExtendToUint64 zero-extends each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Uint32s) ExtendToUint64() (z Uint64s)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
@@ -1210,6 +1357,15 @@ func (x Uint32s) RotateAllLeft(shift uint64) (z Uint32s)
 //	z[i] = rotateRight(x[i], shift)
 func (x Uint32s) RotateAllRight(shift uint64) (z Uint32s)
 
+// SaturateToUint16 converts each element of x to uint16, saturating values
+// that are outside the range of uint16.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint32s) SaturateToUint16() (z Uint16s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -1235,6 +1391,15 @@ func (x Uint32s) String() string
 //
 //	z[i] = x[i] - y[i]
 func (x Uint32s) Sub(y Uint32s) (z Uint32s)
+
+// TruncToUint16 converts each element of x to uint16 by discarding its high
+// bits.
+//
+//	z[i] = uint16(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint32s) TruncToUint16() (z Uint16s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1443,6 +1608,15 @@ func (x Uint64s) RotateAllLeft(shift uint64) (z Uint64s)
 //	z[i] = rotateRight(x[i], shift)
 func (x Uint64s) RotateAllRight(shift uint64) (z Uint64s)
 
+// SaturateToUint32 converts each element of x to uint32, saturating values
+// that are outside the range of uint32.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint64s) SaturateToUint32() (z Uint32s)
+
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
 //
@@ -1468,6 +1642,15 @@ func (x Uint64s) String() string
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64s) Sub(y Uint64s) (z Uint64s)
+
+// TruncToUint32 converts each element of x to uint32 by discarding its high
+// bits.
+//
+//	z[i] = uint32(x[i])
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Uint64s) TruncToUint32() (z Uint32s)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1503,6 +1686,14 @@ func (x Float32s) Add(y Float32s) (z Float32s)
 // for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
 // are unspecified.
 func (x Float32s) Ceil() (z Float32s)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low z.Len() elements of x are converted.
+// The remaining elements of x are ignored.
+func (x Float32s) ConvertToFloat64() (z Float64s)
 
 // ConvertToInt32 converts each element of x to int32.
 //
@@ -1723,6 +1914,17 @@ func (x Float64s) Add(y Float64s) (z Float64s)
 // for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
 // are unspecified.
 func (x Float64s) Ceil() (z Float64s)
+
+// ConvertToFloat32 converts each element of x to float32.
+//
+//	z[i] = float32(x[i])
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
+//
+// The results are stored in the low x.Len() elements of z.
+// The remaining elements of z are zero.
+func (x Float64s) ConvertToFloat32() (z Float32s)
 
 // Div divides x by y elementwise.
 //
