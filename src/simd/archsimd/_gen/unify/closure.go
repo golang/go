@@ -34,7 +34,7 @@ func (c Closure) Summands() iter.Seq[*Value] {
 		rec = func(v *Value, env envSet) bool {
 			switch d := v.Domain.(type) {
 			case Var:
-				parts := env.partitionBy(d.id)
+				parts := env.partitionBy(d.id, nil)
 				for _, part := range parts {
 					// It may be a sum of sums. Walk into this value.
 					if !rec(part.value, part.env) {
@@ -140,7 +140,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 
 	case Var:
 		// Go each way this variable can be bound.
-		for _, ePart := range e.partitionBy(d.id) {
+		for _, ePart := range e.partitionBy(d.id, nil) {
 			// d.id is no longer bound in this environment partition. We'll may
 			// need it later in the Euler tour, so bind it back to this single
 			// value.

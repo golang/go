@@ -12,6 +12,10 @@ import (
 	"sync/atomic"
 )
 
+// debugNoFastPaths disables optimizations that should not affect the results
+// of unification. This is for testing.
+var debugNoFastPaths = false
+
 // An envSet is an immutable set of environments, where each environment is a
 // mapping from [ident]s to [Value]s.
 //
@@ -296,14 +300,15 @@ type envPartition struct {
 }
 
 // partitionBy splits e by distinct bindings of id and removes id from each
-// partition.
+// partition. It omits partitions where filter rules out the value of id (see
+// [valueFilter.mayUnify]). filter may be nil.
 //
 // If there are environments in e where id is not bound, they will not be
 // reflected in any partition.
 //
 // It panics if e is bottom, since attempting to partition an empty environment
 // set almost certainly indicates a bug.
-func (e envSet) partitionBy(id *ident) []envPartition {
+func (e envSet) partitionBy(id *ident, filter *valueFilter) []envPartition {
 	if e.isEmpty() {
 		// We could return zero partitions, but getting here at all almost
 		// certainly indicates a bug.
@@ -316,6 +321,9 @@ func (e envSet) partitionBy(id *ident) []envPartition {
 	for n := range e.root.bindings(id) {
 		if !seen.Add(n.val) {
 			// Already emitted a partition for this value.
+			continue
+		}
+		if !filter.mayUnify(n.val) {
 			continue
 		}
 
@@ -451,13 +459,8 @@ func (d Var) WhyNotExact() string {
 }
 
 func (d Var) unify(w *Value, e envSet, swap bool, uf *unifier) (Domain, envSet, error) {
-	// TODO: Vars from !sums in the input can have a huge number of values.
-	// Unifying these could be way more efficient with some indexes over any
-	// exact values we can pull out, like Def fields that are exact Strings.
-	// Maybe we try to produce an array of yes/no/maybe matches and then we only
-	// have to do deeper evaluation of the maybes. We could probably cache this
-	// on an envTerm. It may also help to special-case Var/Var unification to
-	// pick which one to index versus enumerate.
+	// TODO: It may help to special-case Var/Var unification to pick which one
+	// to filter versus enumerate.
 
 	if vd, ok := w.Domain.(Var); ok && d.id == vd.id {
 		// Unifying $x with $x results in $x. If we descend into this we'll have
@@ -470,9 +473,10 @@ func (d Var) unify(w *Value, e envSet, swap bool, uf *unifier) (Domain, envSet, 
 
 	// We need to unify w with the value of d in each possible environment. We
 	// can save some work by grouping environments by the value of d, since
-	// there will be a lot of redundancy here.
+	// there will be a lot of redundancy here, and by skipping values that
+	// clearly don't unify with w.
 	var nEnvs []envSet
-	envParts := e.partitionBy(d.id)
+	envParts := e.partitionBy(d.id, newValueFilter(w))
 	for i, envPart := range envParts {
 		exit := uf.enterVar(d.id, i)
 		// Each branch logically gets its own copy of the initial environment
