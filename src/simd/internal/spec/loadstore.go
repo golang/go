@@ -26,7 +26,7 @@ func BroadcastZ[E Elt, W Width](x E) (z Vec[E, W]) {
 //specgen:name Load{{.z}}
 func LoadZ[E Elt, W Width](s []E) (z Vec[E, W]) {
 	z = makeVec[E, W]()
-	_ = s[:z.len()]
+	_ = s[z.len()-1] // Bounds check len(s)
 	copy(z, s)
 	return z
 }
@@ -56,7 +56,7 @@ func LoadZPart[E Elt, W Width](s []E) (z Vec[E, W], n int) {
 
 // Store stores the elements of x into a slice. If len(s) < {{lanes .x "x"}}, it panics.
 func Store[E Elt, W Width](x Vec[E, W], s []E) {
-	_ = s[:x.len()]
+	_ = s[x.len()-1] // Bounds check len(s)
 	copy(s, x)
 }
 
