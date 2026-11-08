@@ -55,6 +55,15 @@ func (t Top) WhyNotExact() string { return "is top" }
 // listed have [Value] [Top].
 type Def struct {
 	fields map[string]*Value
+
+	// keys is the keys of fields, sorted. It is often shared between Defs,
+	// so it must not be modified.
+	keys []string
+}
+
+// newDef returns a Def with the given fields. It takes ownership of fields.
+func newDef(fields map[string]*Value) Def {
+	return Def{fields, slices.Sorted(maps.Keys(fields))}
 }
 
 // A DefBuilder builds a [Def] one field at a time. The zero value is an empty
@@ -75,7 +84,7 @@ func (b *DefBuilder) Add(name string, v *Value) {
 
 // Build constructs a [Def] from the fields added to this builder.
 func (b *DefBuilder) Build() Def {
-	return Def{maps.Clone(b.fields)}
+	return newDef(maps.Clone(b.fields))
 }
 
 // Exact returns true if all field Values are exact.
@@ -99,16 +108,10 @@ func (d Def) WhyNotExact() string {
 	return ""
 }
 
-func (d Def) keys() []string {
-	return slices.Sorted(maps.Keys(d.fields))
-}
-
+// All yields the fields of d in key order.
 func (d Def) All() iter.Seq2[string, *Value] {
-	// TODO: We call All fairly often. It's probably bad to sort this every
-	// time.
-	keys := slices.Sorted(maps.Keys(d.fields))
 	return func(yield func(string, *Value) bool) {
-		for _, k := range keys {
+		for _, k := range d.keys {
 			if !yield(k, d.fields[k]) {
 				return
 			}

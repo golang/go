@@ -91,7 +91,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 		return cont(v, e)
 
 	case Def:
-		fields := d.keys()
+		fields := d.keys
 		// We can reuse this parts slice because we're doing a DFS through the
 		// state space. (Otherwise, we'd have to do some messy threading of an
 		// immutable slice-like value through allElt.)
@@ -104,7 +104,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 			if elt == len(fields) {
 				// Build a new Def from the concrete parts. Clone parts because
 				// we may reuse it on other non-deterministic branches.
-				nVal := newValueFrom(Def{maps.Clone(parts)}, v)
+				nVal := newValueFrom(Def{maps.Clone(parts), d.keys}, v)
 				return cont(nVal, e)
 			}
 
