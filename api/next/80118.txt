@@ -1,0 +1,1 @@
+pkg go/doc, func Deprecated(string) (string, bool) #80118
