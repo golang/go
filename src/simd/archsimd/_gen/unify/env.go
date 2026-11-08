@@ -203,11 +203,24 @@ func (e *envExpr) bindings(id *ident) iter.Seq[*envExpr] {
 // newEnvExprProduct constructs a product node from exprs, performing
 // simplifications. It does NOT check that bindings are disjoint.
 func newEnvExprProduct(exprs ...*envExpr) *envExpr {
-	factors := make([]*envExpr, 0, 2)
+	// Count the factors so we allocate factors only once. Products of
+	// environment sets often have many factors.
+	n := 0
 	for _, expr := range exprs {
 		switch expr.kind {
 		case envZero:
 			return envExprZero
+		case envProduct:
+			n += len(expr.operands)
+		case envUnit:
+		default:
+			n++
+		}
+	}
+
+	factors := make([]*envExpr, 0, n)
+	for _, expr := range exprs {
+		switch expr.kind {
 		case envUnit:
 			// No effect on product
 		case envProduct:
@@ -217,17 +230,28 @@ func newEnvExprProduct(exprs ...*envExpr) *envExpr {
 		}
 	}
 
-	if len(factors) == 0 {
-		return envExprUnit
-	} else if len(factors) == 1 {
-		return factors[0]
-	}
+	return newEnvExprProductOwned(factors)
+}
+
+// newEnvExprProductOwned is like [newEnvExprProduct], but takes ownership of
+// exprs and, if no simplifications are necessary, uses it as the factors of the
+// product.
+func newEnvExprProductOwned(exprs []*envExpr) *envExpr {
 	var mask [2]uint64
-	for _, f := range factors {
-		mask[0] |= f.mask[0]
-		mask[1] |= f.mask[1]
+	for _, expr := range exprs {
+		switch expr.kind {
+		case envZero, envUnit, envProduct:
+			return newEnvExprProduct(exprs...)
+		}
+		mask[0] |= expr.mask[0]
+		mask[1] |= expr.mask[1]
 	}
-	return &envExpr{kind: envProduct, mask: mask, operands: factors}
+	if len(exprs) == 0 {
+		return envExprUnit
+	} else if len(exprs) == 1 {
+		return exprs[0]
+	}
+	return &envExpr{kind: envProduct, mask: mask, operands: exprs}
 }
 
 // newEnvExprSum constructs a sum node from exprs, performing simplifications.
@@ -379,7 +403,7 @@ func (e *envExpr) substitute(id *ident, val *Value) *envExpr {
 			return e
 		}
 		if e.kind == envProduct {
-			return newEnvExprProduct(nOperands...)
+			return newEnvExprProductOwned(nOperands)
 		} else {
 			return newEnvExprSum(nOperands...)
 		}
