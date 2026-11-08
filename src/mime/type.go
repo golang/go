@@ -88,6 +88,7 @@ var builtinTypesLower = map[string]string{
 	".jpeg":  "image/jpeg",
 	".jpg":   "image/jpeg",
 	".js":    "text/javascript; charset=utf-8",
+	".jxl"    "image/jxl",
 	".json":  "application/json",
 	".m4a":   "audio/mp4",
 	".mjs":   "text/javascript; charset=utf-8",
