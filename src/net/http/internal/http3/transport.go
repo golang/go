@@ -30,11 +30,11 @@ type transport struct {
 	opts TransportOpts
 
 	mu sync.Mutex // Guards fields below.
-	// endpoint is the QUIC endpoint used by connections created by the
+	// lazyEndpoint is the QUIC endpoint used by connections created by the
 	// transport. If CloseIdleConnections is called when activeConns is empty,
-	// endpoint will be unset. If unset, endpoint will be initialized by any
+	// it will be unset. If unset, it will be initialized by any
 	// call to dial.
-	endpoint      *quic.Endpoint
+	lazyEndpoint  *quic.Endpoint
 	activeConns   map[*clientConn]struct{}
 	inFlightDials int
 }
@@ -48,6 +48,17 @@ type netHTTPTransport struct {
 // Registered is called to record successful registration with a net/http Transport.
 func (t netHTTPTransport) Registered(tr1 *http.Transport) {
 	t.transport.tr1 = tr1
+}
+
+func (t netHTTPTransport) Close() error {
+	t.mu.Lock()
+	endpoint := t.lazyEndpoint
+	t.lazyEndpoint = nil
+	t.mu.Unlock()
+	if endpoint == nil {
+		return nil
+	}
+	return endpoint.Close(canceledCtx)
 }
 
 // RoundTrip is defined since Transport.RegisterProtocol takes in a
@@ -128,7 +139,7 @@ func (tr *transport) decInFlightDials() {
 	tr.inFlightDials--
 }
 
-func (tr *transport) initEndpoint() (err error) {
+func (tr *transport) endpoint() (_ *quic.Endpoint, err error) {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
 	// This might cause rare issues on Darwin. Unlike Linux, Darwin kernel
@@ -156,25 +167,25 @@ func (tr *transport) initEndpoint() (err error) {
 	// dual-stack binding to avoid this issue, and high socket churn is
 	// probably uncommon for regular use cases. However, finding a workaround
 	// for this eventually would be ideal.
-	if tr.endpoint == nil {
+	if tr.lazyEndpoint == nil {
 		quicConfig := newQUICConfig(tr.opts.QUICConfig, tr.tr1.TLSClientConfig)
 		if tr.opts.ListenQUIC != nil {
-			tr.endpoint, err = tr.opts.ListenQUIC(":0", quicConfig)
+			tr.lazyEndpoint, err = tr.opts.ListenQUIC(":0", quicConfig)
 		} else if tr.opts.ListenPacket != nil {
 			var conn net.PacketConn
 			conn, err = tr.opts.ListenPacket("udp", ":0")
 			if err != nil {
-				return err
+				return nil, err
 			}
-			tr.endpoint, err = quic.NewEndpoint(conn, quicConfig)
+			tr.lazyEndpoint, err = quic.NewEndpoint(conn, quicConfig)
 			if err != nil {
 				conn.Close()
 			}
 		} else {
-			tr.endpoint, err = quic.Listen("udp", ":0", quicConfig)
+			tr.lazyEndpoint, err = quic.Listen("udp", ":0", quicConfig)
 		}
 	}
-	return err
+	return tr.lazyEndpoint, err
 }
 
 // dial creates a new HTTP/3 client connection.
@@ -182,10 +193,11 @@ func (tr *transport) dial(ctx context.Context, target string, tlsConfig *tls.Con
 	tr.incInFlightDials()
 	defer tr.decInFlightDials()
 
-	if err := tr.initEndpoint(); err != nil {
+	endpoint, err := tr.endpoint()
+	if err != nil {
 		return nil, err
 	}
-	qconn, err := tr.endpoint.Dial(ctx, "udp", target, newQUICConfig(tr.opts.QUICConfig, tlsConfig))
+	qconn, err := endpoint.Dial(ctx, "udp", target, newQUICConfig(tr.opts.QUICConfig, tlsConfig))
 	if err != nil {
 		return nil, err
 	}
@@ -201,11 +213,11 @@ func (tr *transport) dial(ctx context.Context, target string, tlsConfig *tls.Con
 func (tr *transport) CloseIdleConnections() {
 	tr.mu.Lock()
 	defer tr.mu.Unlock()
-	if tr.endpoint == nil || len(tr.activeConns) > 0 || tr.inFlightDials > 0 {
+	if tr.lazyEndpoint == nil || len(tr.activeConns) > 0 || tr.inFlightDials > 0 {
 		return
 	}
-	tr.endpoint.Close(canceledCtx)
-	tr.endpoint = nil
+	tr.lazyEndpoint.Close(canceledCtx)
+	tr.lazyEndpoint = nil
 }
 
 // A clientConn is a client HTTP/3 connection.

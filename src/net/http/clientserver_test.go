@@ -324,6 +324,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		if err := http3.RegisterTransport(tr, http3TransportOpts); err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			tr.HTTP3Transport().Close()
+		})
 		tr.SetHTTP3DialAddrForTesting(func(addr string) string {
 			if fakeNet || addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
 				return cst.ts.Listener.Addr().String()

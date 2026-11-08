@@ -256,6 +256,10 @@ func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy
 	return d.http3Transport.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
 }
 
+func (t *Transport) HTTP3Transport() http3Transport {
+	return t.h3Transport
+}
+
 func (t *Transport) SetHTTP3DialAddrForTesting(remap func(string) string) {
 	t.h3Transport = remapHTTP3Dialer{
 		http3Transport:         t.h3Transport,
