@@ -1113,9 +1113,11 @@ func testNoPanicWithBasicAuth(t *testing.T, mode testMode) {
 		URL:    u,
 		Method: "GET",
 	}
-	if _, err := cst.c.Do(req); err != nil {
+	resp, err := cst.c.Do(req)
+	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
+	resp.Body.Close()
 }
 
 // verify that NewRequest sets Request.GetBody and that it works

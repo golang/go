@@ -73,6 +73,7 @@ func testResponseControllerHijack(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	if got, want := res.Header.Get(header), value; got != want {
 		t.Errorf("response header %q = %q, want %q", header, got, want)
 	}

@@ -2446,6 +2446,7 @@ func testIssue3595(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatalf("Post: %v", err)
 	}
+	defer res.Body.Close()
 	got, err := io.ReadAll(res.Body)
 	if err != nil {
 		t.Fatalf("Body ReadAll: %v", err)
