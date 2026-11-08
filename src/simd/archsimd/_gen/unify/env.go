@@ -293,10 +293,6 @@ func newEnvExprSum(exprs ...*envExpr) *envExpr {
 // the discriminator of the resulting sum. If disc is nil or isn't a
 // discriminator of the sum, it infers one, like newEnvExprSum.
 func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
-	// TODO: If all of envs are products (or bindings), factor any common terms.
-	// E.g., x * y + x * z ==> x * (y + z). This is easy to do for binding
-	// terms, but harder to do for more general terms.
-
 	var have smallSet[*envExpr]
 	terms := make([]*envExpr, 0, 2)
 	for _, expr := range exprs {
@@ -321,6 +317,20 @@ func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
 	} else if len(terms) == 1 {
 		return terms[0]
 	}
+
+	// Factor out factors common to every term: x ⨯ y + x ⨯ z = x ⨯ (y + z).
+	// We only look for factors that are the same *envExpr. This is enough to
+	// find independent parts of an environment set, since partitioning and
+	// substitution leave the parts they don't affect alone. Keeping these as
+	// root factors of the environment set means we don't have to keep
+	// walking a copy of them in every term.
+	if common := commonFactors(terms); common != nil && !debugNoFastPaths {
+		for i, t := range terms {
+			terms[i] = t.withoutFactors(common)
+		}
+		return newEnvExprProduct(append(common, newEnvExprDiscSum(disc, terms...))...)
+	}
+
 	var mask [2]uint64
 	for _, t := range terms {
 		mask[0] |= t.mask[0]
@@ -350,12 +360,58 @@ func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
 	return &envExpr{kind: envSum, mask: mask, operands: terms, discriminator: disc}
 }
 
+// commonFactors returns the factors that appear in every one of terms, in the
+// order they appear in terms[0], or nil if there are none. A term that is not a
+// product is its own only factor.
+func commonFactors(terms []*envExpr) []*envExpr {
+	first := terms[0].factors()
+	counts := make(map[*envExpr]int, len(first))
+	for _, f := range first {
+		counts[f] = 1
+	}
+	for i, t := range terms[1:] {
+		// Count factors that have appeared in every term so far.
+		found := false
+		for _, f := range t.factors() {
+			if counts[f] == i+1 {
+				counts[f] = i + 2
+				found = true
+			}
+		}
+		if !found {
+			return nil
+		}
+	}
+	var common []*envExpr
+	for _, f := range first {
+		if counts[f] == len(terms) {
+			common = append(common, f)
+		}
+	}
+	return common
+}
+
 // factors returns the factors of e. If e is not a product, this is just e.
 func (e *envExpr) factors() []*envExpr {
 	if e.kind == envProduct {
 		return e.operands
 	}
 	return []*envExpr{e}
+}
+
+// withoutFactors returns e with factors fs removed. Each of fs must be a
+// factor of e.
+func (e *envExpr) withoutFactors(fs []*envExpr) *envExpr {
+	if e.kind != envProduct {
+		return envExprUnit
+	}
+	rest := make([]*envExpr, 0, len(e.operands)-len(fs))
+	for _, f := range e.operands {
+		if !slices.Contains(fs, f) {
+			rest = append(rest, f)
+		}
+	}
+	return newEnvExprProduct(rest...)
 }
 
 // isDiscriminator returns whether disc is a discriminator of a sum of terms. If
