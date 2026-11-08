@@ -504,9 +504,17 @@ func forEachSAN(der cryptobyte.String, callback func(tag int, data []byte) error
 	return nil
 }
 
-func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL, err error) {
+func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL, srvNames []string, err error) {
 	err = forEachSAN(der, func(tag int, data []byte) error {
 		switch tag {
+		case nameTypeOtherName:
+			name, isSRV, err := parseSRVName(data)
+			if err != nil {
+				return err
+			}
+			if isSRV {
+				srvNames = append(srvNames, name)
+			}
 		case nameTypeEmail:
 			email := string(data)
 			if err := isIA5String(email); err != nil {
@@ -550,6 +558,41 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 	})
 
 	return
+}
+
+// parseSRVName parses the contents of an otherName subject alternative
+// name (RFC 5280, 4.2.1.6) and reports the SRVName it carries
+// (RFC 4985). data holds the contents of the context-specific
+// constructed [0] element: the type-id OBJECT IDENTIFIER followed by
+// the [0] explicitly tagged value.
+//
+// It reports isSRV == false for otherNames with any other type-id,
+// which the caller ignores like any other unrecognized SAN type, and
+// for values too malformed to identify, preserving the previous
+// behavior of ignoring unknown SAN types. A value identified as an
+// SRVName must be well-formed.
+func parseSRVName(data []byte) (name string, isSRV bool, err error) {
+	val := cryptobyte.String(data)
+	var typeID asn1.ObjectIdentifier
+	if !val.ReadASN1ObjectIdentifier(&typeID) {
+		return "", false, nil
+	}
+	if !typeID.Equal(oidSRVName) {
+		return "", false, nil
+	}
+	var explicit cryptobyte.String
+	if !val.ReadASN1(&explicit, cryptobyte_asn1.Tag(0).Constructed().ContextSpecific()) ||
+		!val.Empty() {
+		return "", false, errors.New("x509: SAN SRVName is malformed")
+	}
+	var srv cryptobyte.String
+	if !explicit.ReadASN1(&srv, cryptobyte_asn1.IA5String) || !explicit.Empty() {
+		return "", false, errors.New("x509: SAN SRVName is malformed")
+	}
+	if err := isIA5String(string(srv)); err != nil {
+		return "", false, errors.New("x509: SAN SRVName is malformed")
+	}
+	return string(srv), true, nil
 }
 
 func parseAuthorityKeyIdentifier(e pkix.Extension) ([]byte, error) {
@@ -818,12 +861,12 @@ func processExtensions(out *Certificate) error {
 				out.BasicConstraintsValid = true
 				out.MaxPathLenZero = out.MaxPathLen == 0
 			case 17:
-				out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, err = parseSANExtension(e.Value)
+				out.DNSNames, out.EmailAddresses, out.IPAddresses, out.URIs, out.SRVNames, err = parseSANExtension(e.Value)
 				if err != nil {
 					return err
 				}
 
-				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 && len(out.URIs) == 0 {
+				if len(out.DNSNames) == 0 && len(out.EmailAddresses) == 0 && len(out.IPAddresses) == 0 && len(out.URIs) == 0 && len(out.SRVNames) == 0 {
 					// If we didn't parse anything then we do the critical check, below.
 					unhandled = true
 				}

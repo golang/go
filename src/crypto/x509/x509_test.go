@@ -1587,7 +1587,7 @@ func marshalAndParseCSR(t *testing.T, template *CertificateRequest) *Certificate
 }
 
 func TestCertificateRequestOverrides(t *testing.T) {
-	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil, nil)
+	sanContents, err := marshalSANs([]string{"foo.example.com"}, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1649,7 +1649,7 @@ func TestCertificateRequestOverrides(t *testing.T) {
 		t.Errorf("bad attributes: %#v\n", csr.Attributes)
 	}
 
-	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil, nil)
+	sanContents2, err := marshalSANs([]string{"foo2.example.com"}, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3215,6 +3215,14 @@ func TestIA5SANEnforcement(t *testing.T) {
 			},
 			expectedError: "x509: \"https://example.com/?∞\" cannot be encoded as an IA5String",
 		},
+		{
+			name: "marshal: unicode SRVName",
+			template: &Certificate{
+				SerialNumber: big.NewInt(0),
+				SRVNames:     []string{"∞"},
+			},
+			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
+		},
 	}
 
 	for _, tc := range marshalTests {
@@ -3262,6 +3270,144 @@ func TestIA5SANEnforcement(t *testing.T) {
 			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
 		}
 	}
+}
+
+// srvTestSAN is a SubjectAltName extension value holding a single
+// otherName SRVName (RFC 4985) for "_xmpp-server.example.com".
+const srvTestSAN = "3028a02606082b06010505070807a01a16185f786d70702d7365727665722e6578616d706c652e636f6d"
+
+// xmppTestSAN is a SubjectAltName extension value holding a single
+// otherName with the XMPP type-id (1.3.6.1.5.5.7.8.5), which must be
+// ignored: only the SRVName type-id populates SRVNames.
+const xmppTestSAN = "3020a01e06082b06010505070805a012161075736572406578616d706c652e636f6d"
+
+// malformedSRVTestSAN is a SubjectAltName extension value holding an
+// SRVName otherName whose value is not a valid IA5String.
+const malformedSRVTestSAN = "3013a01106082b06010505070807a005160361ff62"
+
+func TestSRVNames(t *testing.T) {
+	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("ecdsa.GenerateKey failed: %s", err)
+	}
+
+	t.Run("encoding", func(t *testing.T) {
+		der, err := marshalSANs(nil, nil, nil, nil, []string{"_xmpp-server.example.com"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want, err := hex.DecodeString(srvTestSAN)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(der, want) {
+			t.Errorf("marshalSANs(SRVNames) = %x, want %x", der, want)
+		}
+	})
+
+	t.Run("certificate round-trip", func(t *testing.T) {
+		template := &Certificate{
+			SerialNumber: big.NewInt(0),
+			Subject:      pkix.Name{CommonName: "test"},
+			DNSNames:     []string{"example.com"},
+			SRVNames:     []string{"_xmpp-server.example.com", "_imap._tcp.example.com"},
+		}
+		der, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cert, err := ParseCertificate(der)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(cert.SRVNames, template.SRVNames) {
+			t.Errorf("SRVNames = %q, want %q", cert.SRVNames, template.SRVNames)
+		}
+		if !slices.Equal(cert.DNSNames, template.DNSNames) {
+			t.Errorf("DNSNames = %q, want %q", cert.DNSNames, template.DNSNames)
+		}
+	})
+
+	t.Run("request round-trip", func(t *testing.T) {
+		template := &CertificateRequest{
+			Subject:  pkix.Name{CommonName: "test"},
+			SRVNames: []string{"_xmpp-server.example.com"},
+		}
+		csr := marshalAndParseCSR(t, template)
+		if !slices.Equal(csr.SRVNames, template.SRVNames) {
+			t.Errorf("SRVNames = %q, want %q", csr.SRVNames, template.SRVNames)
+		}
+	})
+
+	certWithRawSAN := func(t *testing.T, sanHex string, critical bool) *Certificate {
+		t.Helper()
+		san, err := hex.DecodeString(sanHex)
+		if err != nil {
+			t.Fatal(err)
+		}
+		template := &Certificate{
+			SerialNumber: big.NewInt(0),
+			Subject:      pkix.Name{CommonName: "test"},
+			ExtraExtensions: []pkix.Extension{
+				{
+					Id:       oidExtensionSubjectAltName,
+					Value:    san,
+					Critical: critical,
+				},
+			},
+		}
+		der, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cert, err := ParseCertificate(der)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return cert
+	}
+
+	t.Run("non-SRV otherName ignored", func(t *testing.T) {
+		cert := certWithRawSAN(t, xmppTestSAN, false)
+		if len(cert.SRVNames) != 0 {
+			t.Errorf("SRVNames = %q, want empty", cert.SRVNames)
+		}
+	})
+
+	t.Run("critical SAN with only SRVName", func(t *testing.T) {
+		cert := certWithRawSAN(t, srvTestSAN, true)
+		if !slices.Equal(cert.SRVNames, []string{"_xmpp-server.example.com"}) {
+			t.Errorf("SRVNames = %q, want %q", cert.SRVNames, []string{"_xmpp-server.example.com"})
+		}
+		if len(cert.UnhandledCriticalExtensions) != 0 {
+			t.Errorf("UnhandledCriticalExtensions = %v, want empty", cert.UnhandledCriticalExtensions)
+		}
+	})
+
+	t.Run("malformed SRVName", func(t *testing.T) {
+		san, err := hex.DecodeString(malformedSRVTestSAN)
+		if err != nil {
+			t.Fatal(err)
+		}
+		template := &Certificate{
+			SerialNumber: big.NewInt(0),
+			Subject:      pkix.Name{CommonName: "test"},
+			ExtraExtensions: []pkix.Extension{
+				{
+					Id:    oidExtensionSubjectAltName,
+					Value: san,
+				},
+			},
+		}
+		der, err := CreateCertificate(rand.Reader, template, template, k.Public(), k)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = ParseCertificate(der)
+		if err == nil || err.Error() != "x509: SAN SRVName is malformed" {
+			t.Errorf("ParseCertificate err = %v, want %q", err, "x509: SAN SRVName is malformed")
+		}
+	})
 }
 
 func BenchmarkCreateCertificate(b *testing.B) {
