@@ -8730,14 +8730,11 @@ const (
 	OpSHA256TwoRoundsUint32x4
 	OpSaturateToInt16Int32x16
 	OpSaturateToInt16Int32x4
-	OpSaturateToInt16Int32x8
 	OpSaturateToInt16Int64x2
 	OpSaturateToInt16Int64x4
 	OpSaturateToInt16Int64x8
 	OpSaturateToInt32Int64x2
-	OpSaturateToInt32Int64x4
 	OpSaturateToInt32Int64x8
-	OpSaturateToInt8Int16x16
 	OpSaturateToInt8Int16x32
 	OpSaturateToInt8Int16x8
 	OpSaturateToInt8Int32x16
@@ -8749,16 +8746,13 @@ const (
 	OpSaturateToUint16Int32x4
 	OpSaturateToUint16Uint32x16
 	OpSaturateToUint16Uint32x4
-	OpSaturateToUint16Uint32x8
 	OpSaturateToUint16Uint64x2
 	OpSaturateToUint16Uint64x4
 	OpSaturateToUint16Uint64x8
 	OpSaturateToUint32Int64x2
 	OpSaturateToUint32Uint64x2
-	OpSaturateToUint32Uint64x4
 	OpSaturateToUint32Uint64x8
 	OpSaturateToUint8Int16x8
-	OpSaturateToUint8Uint16x16
 	OpSaturateToUint8Uint16x32
 	OpSaturateToUint8Uint16x8
 	OpSaturateToUint8Uint32x16
@@ -9091,14 +9085,11 @@ const (
 	OpTruncScaledResidueFloat64x8
 	OpTruncToInt16Int32x16
 	OpTruncToInt16Int32x4
-	OpTruncToInt16Int32x8
 	OpTruncToInt16Int64x2
 	OpTruncToInt16Int64x4
 	OpTruncToInt16Int64x8
 	OpTruncToInt32Int64x2
-	OpTruncToInt32Int64x4
 	OpTruncToInt32Int64x8
-	OpTruncToInt8Int16x16
 	OpTruncToInt8Int16x32
 	OpTruncToInt8Int16x8
 	OpTruncToInt8Int32x16
@@ -9109,14 +9100,11 @@ const (
 	OpTruncToInt8Int64x8
 	OpTruncToUint16Uint32x16
 	OpTruncToUint16Uint32x4
-	OpTruncToUint16Uint32x8
 	OpTruncToUint16Uint64x2
 	OpTruncToUint16Uint64x4
 	OpTruncToUint16Uint64x8
 	OpTruncToUint32Uint64x2
-	OpTruncToUint32Uint64x4
 	OpTruncToUint32Uint64x8
-	OpTruncToUint8Uint16x16
 	OpTruncToUint8Uint16x32
 	OpTruncToUint8Uint16x8
 	OpTruncToUint8Uint32x16
@@ -124021,11 +124009,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "SaturateToInt16Int32x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "SaturateToInt16Int64x2",
 		ArgLen:  1,
 		Generic: true,
@@ -124046,17 +124029,7 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "SaturateToInt32Int64x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "SaturateToInt32Int64x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToInt8Int16x16",
 		ArgLen:  1,
 		Generic: true,
 	},
@@ -124116,11 +124089,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "SaturateToUint16Uint32x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "SaturateToUint16Uint64x2",
 		ArgLen:  1,
 		Generic: true,
@@ -124146,22 +124114,12 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "SaturateToUint32Uint64x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "SaturateToUint32Uint64x8",
 		ArgLen:  1,
 		Generic: true,
 	},
 	{
 		Name:    "SaturateToUint8Int16x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "SaturateToUint8Uint16x16",
 		ArgLen:  1,
 		Generic: true,
 	},
@@ -125884,11 +125842,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "TruncToInt16Int32x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "TruncToInt16Int64x2",
 		ArgLen:  1,
 		Generic: true,
@@ -125909,17 +125862,7 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "TruncToInt32Int64x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "TruncToInt32Int64x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "TruncToInt8Int16x16",
 		ArgLen:  1,
 		Generic: true,
 	},
@@ -125974,11 +125917,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "TruncToUint16Uint32x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "TruncToUint16Uint64x2",
 		ArgLen:  1,
 		Generic: true,
@@ -125999,17 +125937,7 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "TruncToUint32Uint64x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "TruncToUint32Uint64x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "TruncToUint8Uint16x16",
 		ArgLen:  1,
 		Generic: true,
 	},

@@ -6933,28 +6933,6 @@ func (x Uint32x4) SHA256TwoRounds(y Uint32x4, z Uint32x4) Uint32x4
 //
 //	z[i] = sat(x[i])
 //
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x8) SaturateToInt8() (z Int8x16)
-
-// SaturateToInt8 converts each element of x to int8, saturating values
-// that are outside the range of int8.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 16 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSWB, CPU Feature: AVX512
-func (x Int16x16) SaturateToInt8() (z Int8x32)
-
-// SaturateToInt8 converts each element of x to int8, saturating values
-// that are outside the range of int8.
-//
-//	z[i] = sat(x[i])
-//
 // The results are stored in the low 32 elements of z.
 // The remaining elements of z are zero.
 //
@@ -7034,28 +7012,6 @@ func (x Int64x8) SaturateToInt8() (z Int8x64)
 //
 //	z[i] = sat(x[i])
 //
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSDW, CPU Feature: AVX512
-func (x Int32x4) SaturateToInt16() (z Int16x8)
-
-// SaturateToInt16 converts each element of x to int16, saturating values
-// that are outside the range of int16.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSDW, CPU Feature: AVX512
-func (x Int32x8) SaturateToInt16() (z Int16x16)
-
-// SaturateToInt16 converts each element of x to int16, saturating values
-// that are outside the range of int16.
-//
-//	z[i] = sat(x[i])
-//
 // The results are stored in the low 16 elements of z.
 // The remaining elements of z are zero.
 //
@@ -7102,28 +7058,6 @@ func (x Int64x8) SaturateToInt16() (z Int16x32)
 //
 //	z[i] = sat(x[i])
 //
-// The results are stored in the low 2 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSQD, CPU Feature: AVX512
-func (x Int64x2) SaturateToInt32() (z Int32x4)
-
-// SaturateToInt32 converts each element of x to int32, saturating values
-// that are outside the range of int32.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVSQD, CPU Feature: AVX512
-func (x Int64x4) SaturateToInt32() (z Int32x8)
-
-// SaturateToInt32 converts each element of x to int32, saturating values
-// that are outside the range of int32.
-//
-//	z[i] = sat(x[i])
-//
 // The results are stored in the low 8 elements of z.
 // The remaining elements of z are zero.
 //
@@ -7131,28 +7065,6 @@ func (x Int64x4) SaturateToInt32() (z Int32x8)
 func (x Int64x8) SaturateToInt32() (z Int32x16)
 
 /* SaturateToUint8 */
-
-// SaturateToUint8 converts each element of x to uint8, saturating values
-// that are outside the range of uint8.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSWB, CPU Feature: AVX512
-func (x Uint16x8) SaturateToUint8() (z Uint8x16)
-
-// SaturateToUint8 converts each element of x to uint8, saturating values
-// that are outside the range of uint8.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 16 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSWB, CPU Feature: AVX512
-func (x Uint16x16) SaturateToUint8() (z Uint8x32)
 
 // SaturateToUint8 converts each element of x to uint8, saturating values
 // that are outside the range of uint8.
@@ -7238,28 +7150,6 @@ func (x Uint64x8) SaturateToUint8() (z Uint8x64)
 //
 //	z[i] = sat(x[i])
 //
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSDW, CPU Feature: AVX512
-func (x Uint32x4) SaturateToUint16() (z Uint16x8)
-
-// SaturateToUint16 converts each element of x to uint16, saturating values
-// that are outside the range of uint16.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSDW, CPU Feature: AVX512
-func (x Uint32x8) SaturateToUint16() (z Uint16x16)
-
-// SaturateToUint16 converts each element of x to uint16, saturating values
-// that are outside the range of uint16.
-//
-//	z[i] = sat(x[i])
-//
 // The results are stored in the low 16 elements of z.
 // The remaining elements of z are zero.
 //
@@ -7300,28 +7190,6 @@ func (x Uint64x4) SaturateToUint16() (z Uint16x16)
 func (x Uint64x8) SaturateToUint16() (z Uint16x32)
 
 /* SaturateToUint32 */
-
-// SaturateToUint32 converts each element of x to uint32, saturating values
-// that are outside the range of uint32.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 2 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSQD, CPU Feature: AVX512
-func (x Uint64x2) SaturateToUint32() (z Uint32x4)
-
-// SaturateToUint32 converts each element of x to uint32, saturating values
-// that are outside the range of uint32.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVUSQD, CPU Feature: AVX512
-func (x Uint64x4) SaturateToUint32() (z Uint32x8)
 
 // SaturateToUint32 converts each element of x to uint32, saturating values
 // that are outside the range of uint32.
@@ -9467,28 +9335,6 @@ func (x Float64x8) TruncScaledResidue(prec uint8) Float64x8
 //
 //	z[i] = int8(x[i])
 //
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x8) TruncToInt8() (z Int8x16)
-
-// TruncToInt8 converts each element of x to int8 by discarding its high
-// bits.
-//
-//	z[i] = int8(x[i])
-//
-// The results are stored in the low 16 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Int16x16) TruncToInt8() (z Int8x32)
-
-// TruncToInt8 converts each element of x to int8 by discarding its high
-// bits.
-//
-//	z[i] = int8(x[i])
-//
 // The results are stored in the low 32 elements of z.
 // The remaining elements of z are zero.
 //
@@ -9568,28 +9414,6 @@ func (x Int64x8) TruncToInt8() (z Int8x64)
 //
 //	z[i] = int16(x[i])
 //
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x4) TruncToInt16() (z Int16x8)
-
-// TruncToInt16 converts each element of x to int16 by discarding its high
-// bits.
-//
-//	z[i] = int16(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Int32x8) TruncToInt16() (z Int16x16)
-
-// TruncToInt16 converts each element of x to int16 by discarding its high
-// bits.
-//
-//	z[i] = int16(x[i])
-//
 // The results are stored in the low 16 elements of z.
 // The remaining elements of z are zero.
 //
@@ -9636,28 +9460,6 @@ func (x Int64x8) TruncToInt16() (z Int16x32)
 //
 //	z[i] = int32(x[i])
 //
-// The results are stored in the low 2 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x2) TruncToInt32() (z Int32x4)
-
-// TruncToInt32 converts each element of x to int32 by discarding its high
-// bits.
-//
-//	z[i] = int32(x[i])
-//
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Int64x4) TruncToInt32() (z Int32x8)
-
-// TruncToInt32 converts each element of x to int32 by discarding its high
-// bits.
-//
-//	z[i] = int32(x[i])
-//
 // The results are stored in the low 8 elements of z.
 // The remaining elements of z are zero.
 //
@@ -9665,28 +9467,6 @@ func (x Int64x4) TruncToInt32() (z Int32x8)
 func (x Int64x8) TruncToInt32() (z Int32x16)
 
 /* TruncToUint8 */
-
-// TruncToUint8 converts each element of x to uint8 by discarding its high
-// bits.
-//
-//	z[i] = uint8(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x8) TruncToUint8() (z Uint8x16)
-
-// TruncToUint8 converts each element of x to uint8 by discarding its high
-// bits.
-//
-//	z[i] = uint8(x[i])
-//
-// The results are stored in the low 16 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVWB, CPU Feature: AVX512
-func (x Uint16x16) TruncToUint8() (z Uint8x32)
 
 // TruncToUint8 converts each element of x to uint8 by discarding its high
 // bits.
@@ -9772,28 +9552,6 @@ func (x Uint64x8) TruncToUint8() (z Uint8x64)
 //
 //	z[i] = uint16(x[i])
 //
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x4) TruncToUint16() (z Uint16x8)
-
-// TruncToUint16 converts each element of x to uint16 by discarding its high
-// bits.
-//
-//	z[i] = uint16(x[i])
-//
-// The results are stored in the low 8 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVDW, CPU Feature: AVX512
-func (x Uint32x8) TruncToUint16() (z Uint16x16)
-
-// TruncToUint16 converts each element of x to uint16 by discarding its high
-// bits.
-//
-//	z[i] = uint16(x[i])
-//
 // The results are stored in the low 16 elements of z.
 // The remaining elements of z are zero.
 //
@@ -9834,28 +9592,6 @@ func (x Uint64x4) TruncToUint16() (z Uint16x16)
 func (x Uint64x8) TruncToUint16() (z Uint16x32)
 
 /* TruncToUint32 */
-
-// TruncToUint32 converts each element of x to uint32 by discarding its high
-// bits.
-//
-//	z[i] = uint32(x[i])
-//
-// The results are stored in the low 2 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x2) TruncToUint32() (z Uint32x4)
-
-// TruncToUint32 converts each element of x to uint32 by discarding its high
-// bits.
-//
-//	z[i] = uint32(x[i])
-//
-// The results are stored in the low 4 elements of z.
-// The remaining elements of z are zero.
-//
-// Asm: VPMOVQD, CPU Feature: AVX512
-func (x Uint64x4) TruncToUint32() (z Uint32x8)
 
 // TruncToUint32 converts each element of x to uint32 by discarding its high
 // bits.

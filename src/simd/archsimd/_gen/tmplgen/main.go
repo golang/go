@@ -1495,6 +1495,7 @@ func main() {
 	mm := flag.String("mm", SIMD+"maskmerge_gen_amd64.go", "file name for mask/merge operations")
 	op := flag.String("op", SIMD+"other_gen_amd64.go", "file name for other operations")
 	ush := flag.String("ush", SIMD+"unsafe_helpers.go", "file name for unsafe helpers")
+	nc := flag.String("nc", SIMD+"converts_gen_amd64.go", "file name for emulated narrowing conversions")
 	bh := flag.String("bh", TD+"binary_helpers_%W_test.go", "file name for binary test helpers")
 	uh := flag.String("uh", TD+"unary_helpers_%W_test.go", "file name for unary test helpers")
 	cvh := flag.String("cvh", TD+"convert_helpers_%W_test.go", "file name for conversion test helpers")
@@ -1560,6 +1561,9 @@ func main() {
 			avx2IsZeroTemplate,
 			hiToLoTemplateAMD64,
 		)
+	}
+	if *nc != "" {
+		narrowConversions(*nc)
 	}
 	if *ush != "" {
 		one(*ush, unsafePrologue, unsafePATemplate)

@@ -274,9 +274,22 @@ func TestExtendLo(t *testing.T) {
 }
 
 func TestTruncate(t *testing.T) {
-	if archsimd.X86.AVX512() {
-		testInt16x8ConvertToInt8(t, archsimd.Int16x8.TruncToInt8, map1n[int16](toInt8, 16))
+	// The 2:1 conversions are emulated on 128- and 256-bit vectors without AVX-512.
+	testInt16x8ConvertToInt8(t, archsimd.Int16x8.TruncToInt8, map1n[int16](toInt8, 16))
+	testInt32x4ConvertToInt16(t, archsimd.Int32x4.TruncToInt16, map1n[int32](toInt16, 8))
+	testInt64x2ConvertToInt32(t, archsimd.Int64x2.TruncToInt32, map1n[int64](toInt32, 4))
+	testUint16x8ConvertToUint8(t, archsimd.Uint16x8.TruncToUint8, map1n[uint16](toUint8, 16))
+	testUint32x4ConvertToUint16(t, archsimd.Uint32x4.TruncToUint16, map1n[uint32](toUint16, 8))
+	testUint64x2ConvertToUint32(t, archsimd.Uint64x2.TruncToUint32, map1n[uint64](toUint32, 4))
+	if archsimd.X86.AVX2() {
 		testInt16x16ConvertToInt8(t, archsimd.Int16x16.TruncToInt8, map1[int16](toInt8))
+		testInt32x8ConvertToInt16(t, archsimd.Int32x8.TruncToInt16, map1[int32](toInt16))
+		testInt64x4ConvertToInt32(t, archsimd.Int64x4.TruncToInt32, map1[int64](toInt32))
+		testUint16x16ConvertToUint8(t, archsimd.Uint16x16.TruncToUint8, map1[uint16](toUint8))
+		testUint32x8ConvertToUint16(t, archsimd.Uint32x8.TruncToUint16, map1[uint32](toUint16))
+		testUint64x4ConvertToUint32(t, archsimd.Uint64x4.TruncToUint32, map1[uint64](toUint32))
+	}
+	if archsimd.X86.AVX512() {
 		testInt16x32ConvertToInt8(t, archsimd.Int16x32.TruncToInt8, map1[int16](toInt8))
 		testInt32x4ConvertToInt8(t, archsimd.Int32x4.TruncToInt8, map1n[int32](toInt8, 16))
 		testInt32x8ConvertToInt8(t, archsimd.Int32x8.TruncToInt8, map1n[int32](toInt8, 16))
@@ -284,18 +297,11 @@ func TestTruncate(t *testing.T) {
 		testInt64x2ConvertToInt8(t, archsimd.Int64x2.TruncToInt8, map1n[int64](toInt8, 16))
 		testInt64x4ConvertToInt8(t, archsimd.Int64x4.TruncToInt8, map1n[int64](toInt8, 16))
 		testInt64x8ConvertToInt8(t, archsimd.Int64x8.TruncToInt8, map1n[int64](toInt8, 16))
-		testInt32x4ConvertToInt16(t, archsimd.Int32x4.TruncToInt16, map1n[int32](toInt16, 8))
-		testInt32x8ConvertToInt16(t, archsimd.Int32x8.TruncToInt16, map1[int32](toInt16))
 		testInt32x16ConvertToInt16(t, archsimd.Int32x16.TruncToInt16, map1[int32](toInt16))
 		testInt64x2ConvertToInt16(t, archsimd.Int64x2.TruncToInt16, map1n[int64](toInt16, 8))
 		testInt64x4ConvertToInt16(t, archsimd.Int64x4.TruncToInt16, map1n[int64](toInt16, 8))
 		testInt64x8ConvertToInt16(t, archsimd.Int64x8.TruncToInt16, map1[int64](toInt16))
-		testInt64x2ConvertToInt32(t, archsimd.Int64x2.TruncToInt32, map1n[int64](toInt32, 4))
-		testInt64x4ConvertToInt32(t, archsimd.Int64x4.TruncToInt32, map1[int64](toInt32))
 		testInt64x8ConvertToInt32(t, archsimd.Int64x8.TruncToInt32, map1[int64](toInt32))
-
-		testUint16x8ConvertToUint8(t, archsimd.Uint16x8.TruncToUint8, map1n[uint16](toUint8, 16))
-		testUint16x16ConvertToUint8(t, archsimd.Uint16x16.TruncToUint8, map1[uint16](toUint8))
 		testUint16x32ConvertToUint8(t, archsimd.Uint16x32.TruncToUint8, map1[uint16](toUint8))
 		testUint32x4ConvertToUint8(t, archsimd.Uint32x4.TruncToUint8, map1n[uint32](toUint8, 16))
 		testUint32x8ConvertToUint8(t, archsimd.Uint32x8.TruncToUint8, map1n[uint32](toUint8, 16))
@@ -303,22 +309,31 @@ func TestTruncate(t *testing.T) {
 		testUint64x2ConvertToUint8(t, archsimd.Uint64x2.TruncToUint8, map1n[uint64](toUint8, 16))
 		testUint64x4ConvertToUint8(t, archsimd.Uint64x4.TruncToUint8, map1n[uint64](toUint8, 16))
 		testUint64x8ConvertToUint8(t, archsimd.Uint64x8.TruncToUint8, map1n[uint64](toUint8, 16))
-		testUint32x4ConvertToUint16(t, archsimd.Uint32x4.TruncToUint16, map1n[uint32](toUint16, 8))
-		testUint32x8ConvertToUint16(t, archsimd.Uint32x8.TruncToUint16, map1[uint32](toUint16))
 		testUint32x16ConvertToUint16(t, archsimd.Uint32x16.TruncToUint16, map1[uint32](toUint16))
 		testUint64x2ConvertToUint16(t, archsimd.Uint64x2.TruncToUint16, map1n[uint64](toUint16, 8))
 		testUint64x4ConvertToUint16(t, archsimd.Uint64x4.TruncToUint16, map1n[uint64](toUint16, 8))
 		testUint64x8ConvertToUint16(t, archsimd.Uint64x8.TruncToUint16, map1[uint64](toUint16))
-		testUint64x2ConvertToUint32(t, archsimd.Uint64x2.TruncToUint32, map1n[uint64](toUint32, 4))
-		testUint64x4ConvertToUint32(t, archsimd.Uint64x4.TruncToUint32, map1[uint64](toUint32))
 		testUint64x8ConvertToUint32(t, archsimd.Uint64x8.TruncToUint32, map1[uint64](toUint32))
 	}
 }
 
 func TestSaturate(t *testing.T) {
-	if archsimd.X86.AVX512() {
-		testInt16x8ConvertToInt8(t, archsimd.Int16x8.SaturateToInt8, map1n[int16](satToInt8, 16))
+	// The 2:1 conversions are emulated on 128- and 256-bit vectors without AVX-512.
+	testInt16x8ConvertToInt8(t, archsimd.Int16x8.SaturateToInt8, map1n[int16](satToInt8, 16))
+	testInt32x4ConvertToInt16(t, archsimd.Int32x4.SaturateToInt16, map1n[int32](satToInt16, 8))
+	testInt64x2ConvertToInt32(t, archsimd.Int64x2.SaturateToInt32, map1n[int64](satToInt32, 4))
+	testUint16x8ConvertToUint8(t, archsimd.Uint16x8.SaturateToUint8, map1n[uint16](satToUint8, 16))
+	testUint32x4ConvertToUint16(t, archsimd.Uint32x4.SaturateToUint16, map1n[uint32](satToUint16, 8))
+	testUint64x2ConvertToUint32(t, archsimd.Uint64x2.SaturateToUint32, map1n[uint64](satToUint32, 4))
+	if archsimd.X86.AVX2() {
 		testInt16x16ConvertToInt8(t, archsimd.Int16x16.SaturateToInt8, map1[int16](satToInt8))
+		testInt32x8ConvertToInt16(t, archsimd.Int32x8.SaturateToInt16, map1[int32](satToInt16))
+		testInt64x4ConvertToInt32(t, archsimd.Int64x4.SaturateToInt32, map1[int64](satToInt32))
+		testUint16x16ConvertToUint8(t, archsimd.Uint16x16.SaturateToUint8, map1[uint16](satToUint8))
+		testUint32x8ConvertToUint16(t, archsimd.Uint32x8.SaturateToUint16, map1[uint32](satToUint16))
+		testUint64x4ConvertToUint32(t, archsimd.Uint64x4.SaturateToUint32, map1[uint64](satToUint32))
+	}
+	if archsimd.X86.AVX512() {
 		testInt16x32ConvertToInt8(t, archsimd.Int16x32.SaturateToInt8, map1[int16](satToInt8))
 		testInt32x4ConvertToInt8(t, archsimd.Int32x4.SaturateToInt8, map1n[int32](satToInt8, 16))
 		testInt32x8ConvertToInt8(t, archsimd.Int32x8.SaturateToInt8, map1n[int32](satToInt8, 16))
@@ -326,18 +341,11 @@ func TestSaturate(t *testing.T) {
 		testInt64x2ConvertToInt8(t, archsimd.Int64x2.SaturateToInt8, map1n[int64](satToInt8, 16))
 		testInt64x4ConvertToInt8(t, archsimd.Int64x4.SaturateToInt8, map1n[int64](satToInt8, 16))
 		testInt64x8ConvertToInt8(t, archsimd.Int64x8.SaturateToInt8, map1n[int64](satToInt8, 16))
-		testInt32x4ConvertToInt16(t, archsimd.Int32x4.SaturateToInt16, map1n[int32](satToInt16, 8))
-		testInt32x8ConvertToInt16(t, archsimd.Int32x8.SaturateToInt16, map1[int32](satToInt16))
 		testInt32x16ConvertToInt16(t, archsimd.Int32x16.SaturateToInt16, map1[int32](satToInt16))
 		testInt64x2ConvertToInt16(t, archsimd.Int64x2.SaturateToInt16, map1n[int64](satToInt16, 8))
 		testInt64x4ConvertToInt16(t, archsimd.Int64x4.SaturateToInt16, map1n[int64](satToInt16, 8))
 		testInt64x8ConvertToInt16(t, archsimd.Int64x8.SaturateToInt16, map1[int64](satToInt16))
-		testInt64x2ConvertToInt32(t, archsimd.Int64x2.SaturateToInt32, map1n[int64](satToInt32, 4))
-		testInt64x4ConvertToInt32(t, archsimd.Int64x4.SaturateToInt32, map1[int64](satToInt32))
 		testInt64x8ConvertToInt32(t, archsimd.Int64x8.SaturateToInt32, map1[int64](satToInt32))
-
-		testUint16x8ConvertToUint8(t, archsimd.Uint16x8.SaturateToUint8, map1n[uint16](satToUint8, 16))
-		testUint16x16ConvertToUint8(t, archsimd.Uint16x16.SaturateToUint8, map1[uint16](satToUint8))
 		testUint16x32ConvertToUint8(t, archsimd.Uint16x32.SaturateToUint8, map1[uint16](satToUint8))
 		testUint32x4ConvertToUint8(t, archsimd.Uint32x4.SaturateToUint8, map1n[uint32](satToUint8, 16))
 		testUint32x8ConvertToUint8(t, archsimd.Uint32x8.SaturateToUint8, map1n[uint32](satToUint8, 16))
@@ -345,15 +353,67 @@ func TestSaturate(t *testing.T) {
 		testUint64x2ConvertToUint8(t, archsimd.Uint64x2.SaturateToUint8, map1n[uint64](satToUint8, 16))
 		testUint64x4ConvertToUint8(t, archsimd.Uint64x4.SaturateToUint8, map1n[uint64](satToUint8, 16))
 		testUint64x8ConvertToUint8(t, archsimd.Uint64x8.SaturateToUint8, map1n[uint64](satToUint8, 16))
-		testUint32x4ConvertToUint16(t, archsimd.Uint32x4.SaturateToUint16, map1n[uint32](satToUint16, 8))
-		testUint32x8ConvertToUint16(t, archsimd.Uint32x8.SaturateToUint16, map1[uint32](satToUint16))
 		testUint32x16ConvertToUint16(t, archsimd.Uint32x16.SaturateToUint16, map1[uint32](satToUint16))
 		testUint64x2ConvertToUint16(t, archsimd.Uint64x2.SaturateToUint16, map1n[uint64](satToUint16, 8))
 		testUint64x4ConvertToUint16(t, archsimd.Uint64x4.SaturateToUint16, map1n[uint64](satToUint16, 8))
 		testUint64x8ConvertToUint16(t, archsimd.Uint64x8.SaturateToUint16, map1[uint64](satToUint16))
-		testUint64x2ConvertToUint32(t, archsimd.Uint64x2.SaturateToUint32, map1n[uint64](satToUint32, 4))
-		testUint64x4ConvertToUint32(t, archsimd.Uint64x4.SaturateToUint32, map1[uint64](satToUint32))
 		testUint64x8ConvertToUint32(t, archsimd.Uint64x8.SaturateToUint32, map1[uint64](satToUint32))
+	}
+}
+
+func TestSaturateIntToUint(t *testing.T) {
+	// The 2:1 conversions are emulated on 128- and 256-bit vectors without AVX-512.
+	testInt16x8ConvertToUint8(t, archsimd.Int16x8.SaturateToUint8, map1[int16](satToUint8))
+	testInt32x4ConvertToUint16(t, archsimd.Int32x4.SaturateToUint16, map1[int32](satToUint16))
+	testInt64x2ConvertToUint32(t, archsimd.Int64x2.SaturateToUint32, map1[int64](satToUint32))
+	if archsimd.X86.AVX2() {
+		testInt16x16ConvertToUint8(t, archsimd.Int16x16.SaturateToUint8, map1[int16](satToUint8))
+		testInt32x8ConvertToUint16(t, archsimd.Int32x8.SaturateToUint16, map1[int32](satToUint16))
+		testInt64x4ConvertToUint32(t, archsimd.Int64x4.SaturateToUint32, map1[int64](satToUint32))
+	}
+	if archsimd.X86.AVX512() {
+		testInt16x32ConvertToUint8(t, archsimd.Int16x32.SaturateToUint8, map1[int16](satToUint8))
+		testInt32x4ConvertToUint8(t, archsimd.Int32x4.SaturateToUint8, map1n[int32](satToUint8, 16))
+		testInt32x8ConvertToUint8(t, archsimd.Int32x8.SaturateToUint8, map1n[int32](satToUint8, 32))
+		testInt32x16ConvertToUint8(t, archsimd.Int32x16.SaturateToUint8, map1n[int32](satToUint8, 64))
+		testInt32x16ConvertToUint16(t, archsimd.Int32x16.SaturateToUint16, map1[int32](satToUint16))
+		testInt64x2ConvertToUint8(t, archsimd.Int64x2.SaturateToUint8, map1n[int64](satToUint8, 16))
+		testInt64x4ConvertToUint8(t, archsimd.Int64x4.SaturateToUint8, map1n[int64](satToUint8, 32))
+		testInt64x8ConvertToUint8(t, archsimd.Int64x8.SaturateToUint8, map1n[int64](satToUint8, 64))
+		testInt64x2ConvertToUint16(t, archsimd.Int64x2.SaturateToUint16, map1n[int64](satToUint16, 8))
+		testInt64x4ConvertToUint16(t, archsimd.Int64x4.SaturateToUint16, map1n[int64](satToUint16, 16))
+		testInt64x8ConvertToUint16(t, archsimd.Int64x8.SaturateToUint16, map1n[int64](satToUint16, 32))
+		testInt64x8ConvertToUint32(t, archsimd.Int64x8.SaturateToUint32, map1[int64](satToUint32))
+	}
+}
+
+func TestNarrowEdges(t *testing.T) {
+	// See TestNarrowEdges128 for the 128-bit conversions.
+	if archsimd.X86.AVX2() {
+		testNarrowEdges(t, narrowEdgesI16, archsimd.LoadInt16x16, archsimd.Int16x16.TruncToInt8, toInt8[int16])
+		testNarrowEdges(t, narrowEdgesU16, archsimd.LoadUint16x16, archsimd.Uint16x16.TruncToUint8, toUint8[uint16])
+		testNarrowEdges(t, narrowEdgesI32, archsimd.LoadInt32x8, archsimd.Int32x8.TruncToInt16, toInt16[int32])
+		testNarrowEdges(t, narrowEdgesU32, archsimd.LoadUint32x8, archsimd.Uint32x8.TruncToUint16, toUint16[uint32])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x4, archsimd.Int64x4.TruncToInt32, toInt32[int64])
+		testNarrowEdges(t, narrowEdgesU64, archsimd.LoadUint64x4, archsimd.Uint64x4.TruncToUint32, toUint32[uint64])
+		testNarrowEdges(t, narrowEdgesI16, archsimd.LoadInt16x16, archsimd.Int16x16.SaturateToInt8, satToInt8[int16])
+		testNarrowEdges(t, narrowEdgesI16, archsimd.LoadInt16x16, archsimd.Int16x16.SaturateToUint8, satToUint8[int16])
+		testNarrowEdges(t, narrowEdgesU16, archsimd.LoadUint16x16, archsimd.Uint16x16.SaturateToUint8, satToUint8[uint16])
+		testNarrowEdges(t, narrowEdgesI32, archsimd.LoadInt32x8, archsimd.Int32x8.SaturateToInt16, satToInt16[int32])
+		testNarrowEdges(t, narrowEdgesI32, archsimd.LoadInt32x8, archsimd.Int32x8.SaturateToUint16, satToUint16[int32])
+		testNarrowEdges(t, narrowEdgesU32, archsimd.LoadUint32x8, archsimd.Uint32x8.SaturateToUint16, satToUint16[uint32])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x4, archsimd.Int64x4.SaturateToInt32, satToInt32[int64])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x4, archsimd.Int64x4.SaturateToUint32, satToUint32[int64])
+		testNarrowEdges(t, narrowEdgesU64, archsimd.LoadUint64x4, archsimd.Uint64x4.SaturateToUint32, satToUint32[uint64])
+	}
+
+	if archsimd.X86.AVX512() {
+		testNarrowEdges(t, narrowEdgesI16, archsimd.LoadInt16x32, archsimd.Int16x32.SaturateToUint8, satToUint8[int16])
+		testNarrowEdges(t, narrowEdgesI32, archsimd.LoadInt32x4, archsimd.Int32x4.SaturateToUint8, satToUint8[int32])
+		testNarrowEdges(t, narrowEdgesI32, archsimd.LoadInt32x16, archsimd.Int32x16.SaturateToUint16, satToUint16[int32])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x8, archsimd.Int64x8.SaturateToUint8, satToUint8[int64])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x4, archsimd.Int64x4.SaturateToUint16, satToUint16[int64])
+		testNarrowEdges(t, narrowEdgesI64, archsimd.LoadInt64x8, archsimd.Int64x8.SaturateToUint32, satToUint32[int64])
 	}
 }
 

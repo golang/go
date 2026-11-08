@@ -1705,32 +1705,33 @@ func TestMaskedNarrowingConversion(t *testing.T) {
 	if !archsimd.X86.AVX512() {
 		t.Skip("Test requires X86.AVX512, not available on this hardware")
 	}
-	// A 256-bit narrowing conversion writes only the low half of its result
-	// (VPMOVWB Y, X). Masking with zeroing can fold into the conversion,
-	// since the upper half is zero either way, but merging can't, since the
-	// conversion would zero the upper half of dst.
-	xs := make([]int16, 16)
+	// A 256-bit narrowing conversion writes only the low part of its result
+	// (VPMOVDB Y, X). Masking with zeroing can fold into the conversion,
+	// since the upper part is zero either way, but merging can't, since the
+	// conversion would zero the upper part of dst. (The 256-bit 2:1
+	// conversions are emulated, so this uses a 4:1 conversion.)
+	xs := make([]int32, 8)
 	dsts := make([]int8, 32)
 	for i := range xs {
-		xs[i] = int16(i + 1)
+		xs[i] = int32(i + 1)
 	}
 	for i := range dsts {
 		dsts[i] = 100
 	}
-	x := archsimd.LoadInt16x16(xs)
+	x := archsimd.LoadInt32x8(xs)
 	dst := archsimd.LoadInt8x32(dsts)
 	got := make([]int8, 32)
 
 	x.TruncToInt8().Masked(archsimd.Mask8x32FromBits(0xaaaaaaaa)).Store(got)
 	want := make([]int8, 32)
-	for i := 1; i < 16; i += 2 {
+	for i := 1; i < 8; i += 2 {
 		want[i] = int8(i + 1)
 	}
 	checkSlices(t, got, want)
 
-	x.TruncToInt8().IfElse(archsimd.Mask8x32FromBits(0x000000ff), dst).Store(got)
+	x.TruncToInt8().IfElse(archsimd.Mask8x32FromBits(0x0000000f), dst).Store(got)
 	for i := range want {
-		if i < 8 {
+		if i < 4 {
 			want[i] = int8(i + 1)
 		} else {
 			want[i] = 100
