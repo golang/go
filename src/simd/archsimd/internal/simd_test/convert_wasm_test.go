@@ -54,3 +54,15 @@ func TestSaturateWasm(t *testing.T) {
 	testInt32x4ConvertToUint16(t, archsimd.Int32x4.SaturateToUint16, map1[int32](satToUint16))
 	testInt64x2ConvertToUint32(t, archsimd.Int64x2.SaturateToUint32, map1[int64](satToUint32))
 }
+
+// TestExtendHiWasm tests x.HiToLo().ExtendTo*(), which compiles to a single
+// instruction that widens the high half of x.
+func TestExtendHiWasm(t *testing.T) {
+	testInt8x16ConvertToInt16(t, func(x archsimd.Int8x16) archsimd.Int16x8 { return x.HiToLo().ExtendToInt16() }, hi[int8](toInt16))
+	testInt16x8ConvertToInt32(t, func(x archsimd.Int16x8) archsimd.Int32x4 { return x.HiToLo().ExtendToInt32() }, hi[int16](toInt32))
+	testInt32x4ConvertToInt64(t, func(x archsimd.Int32x4) archsimd.Int64x2 { return x.HiToLo().ExtendToInt64() }, hi[int32](toInt64))
+
+	testUint8x16ConvertToUint16(t, func(x archsimd.Uint8x16) archsimd.Uint16x8 { return x.HiToLo().ExtendToUint16() }, hi[uint8](toUint16))
+	testUint16x8ConvertToUint32(t, func(x archsimd.Uint16x8) archsimd.Uint32x4 { return x.HiToLo().ExtendToUint32() }, hi[uint16](toUint32))
+	testUint32x4ConvertToUint64(t, func(x archsimd.Uint32x4) archsimd.Uint64x2 { return x.HiToLo().ExtendToUint64() }, hi[uint32](toUint64))
+}

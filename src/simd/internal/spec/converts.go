@@ -244,21 +244,6 @@ func ExtendLoLToZWiden[E Ints | Uints, zE Ints | Uints, zW FixedWidth](x Vec[E, 
 	return map1[E, Width128, zE, zW](x, func(x E) zE { return zE(x) })
 }
 
-// ExtendHiLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends the high-indexed {{.zL}} elements of x to {{.zE}}.
-//
-//	z[i] = {{.zE}}(x[{{.zL}}+i])
-//
-//specgen:name ExtendHi{{.zL}}To{{.zE | title}}
-//specgen:require zB=xB zN=xN*2
-func ExtendHiLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE, Width128]) {
-	z = makeVec[zE, Width128]()
-	half := z.len()
-	for i := range z {
-		z[i] = zE(x[half+i])
-	}
-	return z
-}
-
 // ConvertLoLToZ converts the low-indexed {{.zL}} elements of x to {{.zE}}.
 //
 //	z[i] = {{.zE}}(x[i])

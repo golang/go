@@ -611,48 +611,6 @@ func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
 // Asm: I64x2Eq
 func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2)
 
-// ExtendHi2ToInt64 sign-extends the high-indexed 2 elements of x to int64.
-//
-//	z[i] = int64(x[2+i])
-//
-// Asm: I64x2ExtendHighI32x4S
-func (x Int32x4) ExtendHi2ToInt64() (z Int64x2)
-
-// ExtendHi2ToUint64 zero-extends the high-indexed 2 elements of x to uint64.
-//
-//	z[i] = uint64(x[2+i])
-//
-// Asm: I64x2ExtendHighI32x4U
-func (x Uint32x4) ExtendHi2ToUint64() (z Uint64x2)
-
-// ExtendHi4ToInt32 sign-extends the high-indexed 4 elements of x to int32.
-//
-//	z[i] = int32(x[4+i])
-//
-// Asm: I32x4ExtendHighI16x8S
-func (x Int16x8) ExtendHi4ToInt32() (z Int32x4)
-
-// ExtendHi4ToUint32 zero-extends the high-indexed 4 elements of x to uint32.
-//
-//	z[i] = uint32(x[4+i])
-//
-// Asm: I32x4ExtendHighI16x8U
-func (x Uint16x8) ExtendHi4ToUint32() (z Uint32x4)
-
-// ExtendHi8ToInt16 sign-extends the high-indexed 8 elements of x to int16.
-//
-//	z[i] = int16(x[8+i])
-//
-// Asm: I16x8ExtendHighI8x16S
-func (x Int8x16) ExtendHi8ToInt16() (z Int16x8)
-
-// ExtendHi8ToUint16 zero-extends the high-indexed 8 elements of x to uint16.
-//
-//	z[i] = uint16(x[8+i])
-//
-// Asm: I16x8ExtendHighI8x16U
-func (x Uint8x16) ExtendHi8ToUint16() (z Uint16x8)
-
 // ExtendToInt16 sign-extends each element of x to int16.
 //
 //	z[i] = int16(x[i])

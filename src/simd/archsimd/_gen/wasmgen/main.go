@@ -373,19 +373,18 @@ func (o *wasmOp) T() *simdType {
 // this appears in the Go API declaration files and in the intrinsic registration files.
 func (o *wasmOp) Method() string {
 	goname := gonames[o.op]
-	if o.Flag(NameHasFormat) {
-		// goname is a format string such as "ExtendHi%dTo%s". It accepts two
-		// placeholders: the number of elements converted, and the result
-		// element type. Format it into a specific name.
-		count := o.T().Count / 2
-		resElemType, _, _ := strings.Cut(o.ResultType(), "x")
-		return fmt.Sprintf(goname, count, resElemType)
+	if len(goname) == 1 {
+		// it's something like "-" or "?" or "!"
+		return ""
 	}
-	if len(goname) >= 1 {
-		if len(goname) == 1 {
-			// it's something like "-" or "?" or "!"
-			return ""
-		}
+	if o.Flag(NameHasFormat) {
+		// goname is a format string such as "ExtendTo%s". It accepts one
+		// placeholder: the result element type. Format it into a specific
+		// name.
+		resElemType, _, _ := strings.Cut(o.ResultType(), "x")
+		return fmt.Sprintf(goname, resElemType)
+	}
+	if goname != "" {
 		return goname
 	}
 	return snakeToCamel(o.op)
@@ -804,10 +803,12 @@ var (
 		"relaxed_dot_s":     "?",
 
 		// widen integer types
-		"extend_low_s":  "ExtendTo%[2]s",
-		"extend_high_s": "ExtendHi%dTo%s",
-		"extend_low_u":  "ExtendTo%[2]s",
-		"extend_high_u": "ExtendHi%dTo%s",
+		"extend_low_s": "ExtendTo%s",
+		"extend_low_u": "ExtendTo%s",
+		// extend_high has no API. It's used only by the rules that fold
+		// x.HiToLo().ExtendTo*() into it.
+		"extend_high_s": "-",
+		"extend_high_u": "-",
 
 		// [u]int32x4 to float32x4
 		"convert_s": "ConvertToFloat32",
@@ -828,8 +829,8 @@ var (
 		"demote_zero": "ConvertToFloat32",
 
 		// Internal saturating narrowing, used by SaturateTo* emulations.
-		"narrow_s": "concatSaturateTo%[2]s",
-		"narrow_u": "concatSaturateTo%[2]s",
+		"narrow_s": "concatSaturateTo%s",
+		"narrow_u": "concatSaturateTo%s",
 
 		"swizzle": "LookupOrZero",
 		"splat":   "Broadcast",
@@ -1283,15 +1284,9 @@ var docForOp map[string]string = map[string]string{
 //
 //	Result[i] = x[i] * y[i], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
 	// Size-specific extend operations
-	"ExtendHi8ToInt16":   " extends the higher 8 elements of x to 16-bit integers.",
-	"ExtendHi16ToInt32":  " extends the higher 4 elements of x to 32-bit integers.",
-	"ExtendHi32ToInt64":  " extends the higher 2 elements of x to 64-bit integers.",
-	"ExtendHi8ToUint16":  " extends the higher 8 elements of x to 16-bit unsigned integers.",
-	"ExtendHi16ToUint32": " extends the higher 4 elements of x to 32-bit unsigned integers.",
-	"ExtendHi32ToUint64": " extends the higher 2 elements of x to 64-bit unsigned integers.",
-	"AddSaturated":       " returns the result of adding x and y, saturating instead of overflowing, elementwise.",
-	"SubSaturated":       " returns the result of subtracting x and y, saturating instead of overflowing, elementwise.",
-	"Shuffle":            " returns the elements of y concatenated with z that are selected by elements of x",
+	"AddSaturated": " returns the result of adding x and y, saturating instead of overflowing, elementwise.",
+	"SubSaturated": " returns the result of subtracting x and y, saturating instead of overflowing, elementwise.",
+	"Shuffle":      " returns the elements of y concatenated with z that are selected by elements of x",
 	"LookupOrZero": ` returns the elements of x as indexed by the elements of indices. If an index is out of range, its result is 0.
 //
 //	if 0 <= indices[i] && indices[i] < len(table) {
@@ -1659,6 +1654,20 @@ func genSSARules(f *bytes.Buffer) {
 			panic("Haven't figured out SSA rule for " + op.String())
 		}
 
+	}
+
+	// Fold x.HiToLo().ExtendTo*() into extend_high. HiToLo moves the high
+	// 64 bits of x into the low 64 bits of a zero vector by way of
+	// f64x2.extract_lane and f64x2.replace_lane, and extend_low reads only
+	// the low 64 bits, so the vector being replaced into doesn't matter.
+	fmt.Fprintln(f)
+	fmt.Fprintln(f, "// x.HiToLo().ExtendTo*() => extend_high")
+	for _, op := range wasmOps {
+		if !strings.HasPrefix(op.op, "extend_low") {
+			continue
+		}
+		hi := op.T().Methods[strings.Replace(op.op, "low", "high", 1)]
+		fmt.Fprintf(f, "(%s (F64x2ReplaceLane [0] _ (F64x2ExtractLane [1] x))) => (%s x)\n", op.SsaWasmOp(), hi.SsaWasmOp())
 	}
 }
 

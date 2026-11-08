@@ -413,7 +413,7 @@ func (x Uint32x4) ReduceSum() (z uint32) {
 //
 // Emulated
 func (x Int8x16) ReduceSum() (z int8) {
-	return int8(x.ExtendToInt16().Add(x.ExtendHi8ToInt16()).ReduceSum())
+	return int8(x.ExtendToInt16().Add(x.HiToLo().ExtendToInt16()).ReduceSum())
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
@@ -422,5 +422,5 @@ func (x Int8x16) ReduceSum() (z int8) {
 //
 // Emulated
 func (x Uint8x16) ReduceSum() (z uint8) {
-	return uint8(x.ExtendToUint16().Add(x.ExtendHi8ToUint16()).ReduceSum())
+	return uint8(x.ExtendToUint16().Add(x.HiToLo().ExtendToUint16()).ReduceSum())
 }
