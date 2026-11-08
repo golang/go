@@ -7834,7 +7834,6 @@ const (
 	OpConcatSubPairsSaturatedInt16x8
 	OpConcatSubPairsUint16x8
 	OpConcatSubPairsUint32x4
-	OpConvertLo2ToFloat64Float32x4
 	OpConvertLo2ToFloat64Int32x4
 	OpConvertLo2ToFloat64Uint32x4
 	OpConvertToFloat32Float64x2
@@ -119251,11 +119250,6 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "ConcatSubPairsUint32x4",
 		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ConvertLo2ToFloat64Float32x4",
-		ArgLen:  1,
 		Generic: true,
 	},
 	{

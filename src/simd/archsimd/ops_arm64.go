@@ -740,15 +740,6 @@ func (x Uint64x2) ConcatOdd(y Uint64x2) (z Uint64x2)
 // Asm: VEXT
 func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 
-/* ConvertLo2ToFloat64 */
-
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: VFCVTL
-func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2)
-
 /* ConvertToFloat32 */
 
 // ConvertToFloat32 converts each element of x to float32.
@@ -779,6 +770,16 @@ func (x Int32x4) ConvertToFloat32() (z Float32x4)
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 /* ConvertToFloat64 */
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VFCVTL
+func (x Float32x4) ConvertToFloat64() (z Float64x2)
 
 // ConvertToFloat64 converts each element of x to float64.
 //
@@ -922,53 +923,77 @@ func (x Uint32x4) Equal(y Uint32x4) (z Mask32x4)
 // Asm: VCMEQ
 func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2)
 
-/* ExtendLo2ToInt64 */
+/* ExtendToInt16 */
 
-// ExtendLo2ToInt64 sign-extends
-// the lowest 2 vector elements to int64.
+// ExtendToInt16 sign-extends each element of x to int16.
+//
+//	z[i] = int16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
+func (x Int8x16) ExtendToInt16() (z Int16x8)
 
-/* ExtendLo2ToUint64 */
+/* ExtendToInt32 */
 
-// ExtendLo2ToUint64 zero-extends
-// the lowest 2 vector elements to uint64.
+// ExtendToInt32 sign-extends each element of x to int32.
 //
-// Asm: VUXTL
-func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
-
-/* ExtendLo4ToInt32 */
-
-// ExtendLo4ToInt32 sign-extends
-// the lowest 4 vector elements to int32.
+//	z[i] = int32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
+func (x Int16x8) ExtendToInt32() (z Int32x4)
 
-/* ExtendLo4ToUint32 */
+/* ExtendToInt64 */
 
-// ExtendLo4ToUint32 zero-extends
-// the lowest 4 vector elements to uint32.
+// ExtendToInt64 sign-extends each element of x to int64.
 //
-// Asm: VUXTL
-func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
-
-/* ExtendLo8ToInt16 */
-
-// ExtendLo8ToInt16 sign-extends
-// the lowest 8 vector elements to int16.
+//	z[i] = int64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
+func (x Int32x4) ExtendToInt64() (z Int64x2)
 
-/* ExtendLo8ToUint16 */
+/* ExtendToUint16 */
 
-// ExtendLo8ToUint16 zero-extends
-// the lowest 8 vector elements to uint16.
+// ExtendToUint16 zero-extends each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VUXTL
-func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
+func (x Uint8x16) ExtendToUint16() (z Uint16x8)
+
+/* ExtendToUint32 */
+
+// ExtendToUint32 zero-extends each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VUXTL
+func (x Uint16x8) ExtendToUint32() (z Uint32x4)
+
+/* ExtendToUint64 */
+
+// ExtendToUint64 zero-extends each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VUXTL
+func (x Uint32x4) ExtendToUint64() (z Uint64x2)
 
 /* Floor */
 

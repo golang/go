@@ -408,3 +408,10 @@ func testNarrowEdges[X, Z integer, VX interface{ Len() int }, VZ interface {
 		}
 	}
 }
+
+// hi returns a want function that applies f to the high half of its input.
+func hi[X, Z any](f func(X) Z) func(x []X) []Z {
+	return func(x []X) []Z {
+		return map1(f)(x[len(x)/2:])
+	}
+}

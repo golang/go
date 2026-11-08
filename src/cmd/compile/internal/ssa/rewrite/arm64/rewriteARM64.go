@@ -1242,9 +1242,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpConstBool(v)
 	case ssaop.OpConstNil:
 		return rewriteValue_OpConstNil(v)
-	case ssaop.OpConvertLo2ToFloat64Float32x4:
-		v.Op = ssaop.OpARM64VFCVTL4S
-		return true
 	case ssaop.OpConvertToFloat32Float64x2:
 		v.Op = ssaop.OpARM64VFCVTN2D
 		return true
@@ -1253,6 +1250,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpConvertToFloat32Uint32x4:
 		v.Op = ssaop.OpARM64VUCVTF4S
+		return true
+	case ssaop.OpConvertToFloat64Float32x4:
+		v.Op = ssaop.OpARM64VFCVTL4S
 		return true
 	case ssaop.OpConvertToFloat64Int64x2:
 		v.Op = ssaop.OpARM64VSCVTF2D
@@ -1461,23 +1461,23 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpEqualUint8x16:
 		v.Op = ssaop.OpARM64VCMEQ16B
 		return true
-	case ssaop.OpExtendLo2ToInt64Int32x4:
-		v.Op = ssaop.OpARM64VSXTL4S
-		return true
-	case ssaop.OpExtendLo2ToUint64Uint32x4:
-		v.Op = ssaop.OpARM64VUXTL4S
-		return true
-	case ssaop.OpExtendLo4ToInt32Int16x8:
-		v.Op = ssaop.OpARM64VSXTL8H
-		return true
-	case ssaop.OpExtendLo4ToUint32Uint16x8:
-		v.Op = ssaop.OpARM64VUXTL8H
-		return true
-	case ssaop.OpExtendLo8ToInt16Int8x16:
+	case ssaop.OpExtendToInt16Int8x16:
 		v.Op = ssaop.OpARM64VSXTL16B
 		return true
-	case ssaop.OpExtendLo8ToUint16Uint8x16:
+	case ssaop.OpExtendToInt32Int16x8:
+		v.Op = ssaop.OpARM64VSXTL8H
+		return true
+	case ssaop.OpExtendToInt64Int32x4:
+		v.Op = ssaop.OpARM64VSXTL4S
+		return true
+	case ssaop.OpExtendToUint16Uint8x16:
 		v.Op = ssaop.OpARM64VUXTL16B
+		return true
+	case ssaop.OpExtendToUint32Uint16x8:
+		v.Op = ssaop.OpARM64VUXTL8H
+		return true
+	case ssaop.OpExtendToUint64Uint32x4:
+		v.Op = ssaop.OpARM64VUXTL4S
 		return true
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)

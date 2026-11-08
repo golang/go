@@ -249,6 +249,7 @@ func ExtendHiLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE
 //
 //specgen:name ConvertLo{{.zL}}To{{.zE | title}}
 //specgen:require zL<xL
+//specgen:experiment
 func ConvertLoLToZ[E Nums, W FixedWidth, zE Floats](x Vec[E, W]) (z Vec[zE, W]) {
 	z = makeVec[zE, W]()
 	for i := range z {

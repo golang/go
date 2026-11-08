@@ -166,7 +166,7 @@
       bits: 128
 
 # float32 -> float64 widen
-- go: ConvertLo2ToFloat64
+- go: ConvertToFloat64
   asm: "VFCVTL"
   hiHalfAsm: "VFCVTL2"
   in:
@@ -177,9 +177,15 @@
       elemBits: 64
       bits: 128
 
+# TODO: ExtendTo, TruncTo and SaturateTo are only provided for a 2:1 element
+# size ratio here, which is what NEON does in one instruction, but the spec
+# defines every ratio. Add the 4:1 and 8:1 forms as sequences of 2:1
+# instructions, and perhaps peephole chains of 2:1 conversions into those
+# sequences.
+
 # Integer extend (widen) — signed
 # int8 -> int16
-- go: ExtendLo8ToInt16
+- go: ExtendToInt16
   asm: "VSXTL"
   hiHalfAsm: "VSXTL2"
   in:
@@ -191,7 +197,7 @@
       bits: 128
 
 # int16 -> int32
-- go: ExtendLo4ToInt32
+- go: ExtendToInt32
   asm: "VSXTL"
   hiHalfAsm: "VSXTL2"
   in:
@@ -203,7 +209,7 @@
       bits: 128
 
 # int32 -> int64
-- go: ExtendLo2ToInt64
+- go: ExtendToInt64
   asm: "VSXTL"
   hiHalfAsm: "VSXTL2"
   in:
@@ -216,7 +222,7 @@
 
 # Integer extend (widen) — unsigned
 # uint8 -> uint16
-- go: ExtendLo8ToUint16
+- go: ExtendToUint16
   asm: "VUXTL"
   hiHalfAsm: "VUXTL2"
   in:
@@ -228,7 +234,7 @@
       bits: 128
 
 # uint16 -> uint32
-- go: ExtendLo4ToUint32
+- go: ExtendToUint32
   asm: "VUXTL"
   hiHalfAsm: "VUXTL2"
   in:
@@ -240,7 +246,7 @@
       bits: 128
 
 # uint32 -> uint64
-- go: ExtendLo2ToUint64
+- go: ExtendToUint64
   asm: "VUXTL"
   hiHalfAsm: "VUXTL2"
   in:
