@@ -466,7 +466,7 @@ func (e envSet) partitionBy(id *ident, filter *valueFilter) []envPartition {
 
 	// If all bindings of id are in one root factor of e, we can partition e
 	// much more cheaply.
-	if parts, ok := e.partitionDisc(id, filter); ok {
+	if parts, ok := e.partitionDisc(id, filter, false); ok {
 		return parts
 	}
 
@@ -499,7 +499,9 @@ func (e envSet) partitionBy(id *ident, filter *valueFilter) []envPartition {
 //
 // partitionBy has to walk e for each value of id, which is quadratic when id
 // has many values. This instead visits each binding of id once.
-func (e envSet) partitionDisc(id *ident, filter *valueFilter) ([]envPartition, bool) {
+//
+// If keep is true, it leaves id bound in each partition (see [envSet.narrowBy]).
+func (e envSet) partitionDisc(id *ident, filter *valueFilter, keep bool) ([]envPartition, bool) {
 	if debugNoFastPaths {
 		return nil, false
 	}
@@ -521,7 +523,15 @@ func (e envSet) partitionDisc(id *ident, filter *valueFilter) ([]envPartition, b
 			}
 			vals = append(vals, b.val)
 		}
-		rests[b.val] = append(rests[b.val], t.without(b))
+		if !keep {
+			t = t.without(b)
+		}
+		rests[b.val] = append(rests[b.val], t)
+	}
+
+	if keep && len(vals) == 1 && len(rests[vals[0]]) == len(terms) {
+		// id has only one value in e, so there's nothing to narrow.
+		return []envPartition{{id: id, value: vals[0], env: e}}, true
 	}
 
 	// Construct each partition the same way substitute would.
@@ -536,6 +546,19 @@ func (e envSet) partitionDisc(id *ident, filter *valueFilter) ([]envPartition, b
 		parts[i] = envPartition{id: id, value: val, env: envSet{sub}}
 	}
 	return parts, true
+}
+
+// narrowBy is like [envSet.partitionBy], but leaves id bound to the value of
+// each partition in that partition.
+func (e envSet) narrowBy(id *ident) []envPartition {
+	if parts, ok := e.partitionDisc(id, nil, true); ok {
+		return parts
+	}
+	parts := e.partitionBy(id, nil)
+	for i := range parts {
+		parts[i].env = parts[i].env.bind(id, parts[i].value)
+	}
+	return parts
 }
 
 // terms returns the terms of e. If e is not a sum, this is just e.
