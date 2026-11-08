@@ -249,11 +249,8 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConvert:
 		v.Op = ssaop.OpWasmLoweredConvert
 		return true
-	case ssaop.OpConvertLo2ToFloat64Int32x4:
-		v.Op = ssaop.OpWasmF64x2ConvertLowI32x4S
-		return true
-	case ssaop.OpConvertLo2ToFloat64Uint32x4:
-		v.Op = ssaop.OpWasmF64x2ConvertLowI32x4U
+	case ssaop.OpConvertToFloat32Float64x2:
+		v.Op = ssaop.OpWasmF32x4DemoteF64x2Zero
 		return true
 	case ssaop.OpConvertToFloat32Int32x4:
 		v.Op = ssaop.OpWasmF32x4ConvertI32x4S
@@ -261,11 +258,26 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpConvertToFloat32Uint32x4:
 		v.Op = ssaop.OpWasmF32x4ConvertI32x4U
 		return true
+	case ssaop.OpConvertToFloat64Float32x4:
+		v.Op = ssaop.OpWasmF64x2PromoteLowF32x4
+		return true
+	case ssaop.OpConvertToFloat64Int32x4:
+		v.Op = ssaop.OpWasmF64x2ConvertLowI32x4S
+		return true
+	case ssaop.OpConvertToFloat64Uint32x4:
+		v.Op = ssaop.OpWasmF64x2ConvertLowI32x4U
+		return true
 	case ssaop.OpConvertToInt32Float32x4:
 		v.Op = ssaop.OpWasmI32x4TruncSatF32x4S
 		return true
+	case ssaop.OpConvertToInt32Float64x2:
+		v.Op = ssaop.OpWasmI32x4TruncSatF64x2SZero
+		return true
 	case ssaop.OpConvertToUint32Float32x4:
 		v.Op = ssaop.OpWasmI32x4TruncSatF32x4U
+		return true
+	case ssaop.OpConvertToUint32Float64x2:
+		v.Op = ssaop.OpWasmI32x4TruncSatF64x2UZero
 		return true
 	case ssaop.OpCopysign:
 		v.Op = ssaop.OpWasmF64Copysign
@@ -442,23 +454,23 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpExtendHi8ToUint16Uint8x16:
 		v.Op = ssaop.OpWasmI16x8ExtendHighI8x16U
 		return true
-	case ssaop.OpExtendLo2ToInt64Int32x4:
-		v.Op = ssaop.OpWasmI64x2ExtendLowI32x4S
-		return true
-	case ssaop.OpExtendLo2ToUint64Uint32x4:
-		v.Op = ssaop.OpWasmI64x2ExtendLowI32x4U
-		return true
-	case ssaop.OpExtendLo4ToInt32Int16x8:
-		v.Op = ssaop.OpWasmI32x4ExtendLowI16x8S
-		return true
-	case ssaop.OpExtendLo4ToUint32Uint16x8:
-		v.Op = ssaop.OpWasmI32x4ExtendLowI16x8U
-		return true
-	case ssaop.OpExtendLo8ToInt16Int8x16:
+	case ssaop.OpExtendToInt16Int8x16:
 		v.Op = ssaop.OpWasmI16x8ExtendLowI8x16S
 		return true
-	case ssaop.OpExtendLo8ToUint16Uint8x16:
+	case ssaop.OpExtendToInt32Int16x8:
+		v.Op = ssaop.OpWasmI32x4ExtendLowI16x8S
+		return true
+	case ssaop.OpExtendToInt64Int32x4:
+		v.Op = ssaop.OpWasmI64x2ExtendLowI32x4S
+		return true
+	case ssaop.OpExtendToUint16Uint8x16:
 		v.Op = ssaop.OpWasmI16x8ExtendLowI8x16U
+		return true
+	case ssaop.OpExtendToUint32Uint16x8:
+		v.Op = ssaop.OpWasmI32x4ExtendLowI16x8U
+		return true
+	case ssaop.OpExtendToUint64Uint32x4:
+		v.Op = ssaop.OpWasmI64x2ExtendLowI32x4U
 		return true
 	case ssaop.OpFloor:
 		v.Op = ssaop.OpWasmF64Floor

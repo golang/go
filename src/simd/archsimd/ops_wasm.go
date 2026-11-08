@@ -412,20 +412,6 @@ func (x Float32x4) Ceil() (z Float32x4)
 // Asm: F64x2Ceil
 func (x Float64x2) Ceil() (z Float64x2)
 
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: F64x2ConvertLowI32x4S
-func (x Int32x4) ConvertLo2ToFloat64() (z Float64x2)
-
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: F64x2ConvertLowI32x4U
-func (x Uint32x4) ConvertLo2ToFloat64() (z Float64x2)
-
 // ConvertToFloat32 converts each element of x to float32.
 //
 //	z[i] = float32(x[i])
@@ -440,6 +426,49 @@ func (x Int32x4) ConvertToFloat32() (z Float32x4)
 // Asm: F32x4ConvertI32x4U
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
+// ConvertToFloat32 converts each element of x to float32.
+//
+//	z[i] = float32(x[i])
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: F32x4DemoteF64x2Zero
+func (x Float64x2) ConvertToFloat32() (z Float32x4)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2ConvertLowI32x4S
+func (x Int32x4) ConvertToFloat64() (z Float64x2)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2ConvertLowI32x4U
+func (x Uint32x4) ConvertToFloat64() (z Float64x2)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2PromoteLowF32x4
+func (x Float32x4) ConvertToFloat64() (z Float64x2)
+
 // ConvertToInt32 converts each element of x to int32.
 //
 //	z[i] = int32(x[i])
@@ -451,6 +480,20 @@ func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 // Asm: I32x4TruncSatF32x4S
 func (x Float32x4) ConvertToInt32() (z Int32x4)
 
+// ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: I32x4TruncSatF64x2SZero
+func (x Float64x2) ConvertToInt32() (z Int32x4)
+
 // ConvertToUint32 converts each element of x to uint32.
 //
 //	z[i] = uint32(x[i])
@@ -461,6 +504,20 @@ func (x Float32x4) ConvertToInt32() (z Int32x4)
 //
 // Asm: I32x4TruncSatF32x4U
 func (x Float32x4) ConvertToUint32() (z Uint32x4)
+
+// ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: I32x4TruncSatF64x2UZero
+func (x Float64x2) ConvertToUint32() (z Uint32x4)
 
 // Div divides x by y elementwise.
 //
@@ -596,41 +653,65 @@ func (x Int8x16) ExtendHi8ToInt16() (z Int16x8)
 // Asm: I16x8ExtendHighI8x16U
 func (x Uint8x16) ExtendHi8ToUint16() (z Uint16x8)
 
-// ExtendLo2ToInt64 sign-extends
-// the lowest 2 vector elements to int64.
+// ExtendToInt16 sign-extends each element of x to int16.
 //
-// Asm: I64x2ExtendLowI32x4S
-func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
-
-// ExtendLo2ToUint64 zero-extends
-// the lowest 2 vector elements to uint64.
+//	z[i] = int16(x[i])
 //
-// Asm: I64x2ExtendLowI32x4U
-func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
-
-// ExtendLo4ToInt32 sign-extends
-// the lowest 4 vector elements to int32.
-//
-// Asm: I32x4ExtendLowI16x8S
-func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
-
-// ExtendLo4ToUint32 zero-extends
-// the lowest 4 vector elements to uint32.
-//
-// Asm: I32x4ExtendLowI16x8U
-func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
-
-// ExtendLo8ToInt16 sign-extends
-// the lowest 8 vector elements to int16.
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: I16x8ExtendLowI8x16S
-func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
+func (x Int8x16) ExtendToInt16() (z Int16x8)
 
-// ExtendLo8ToUint16 zero-extends
-// the lowest 8 vector elements to uint16.
+// ExtendToInt32 sign-extends each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I32x4ExtendLowI16x8S
+func (x Int16x8) ExtendToInt32() (z Int32x4)
+
+// ExtendToInt64 sign-extends each element of x to int64.
+//
+//	z[i] = int64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I64x2ExtendLowI32x4S
+func (x Int32x4) ExtendToInt64() (z Int64x2)
+
+// ExtendToUint16 zero-extends each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: I16x8ExtendLowI8x16U
-func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
+func (x Uint8x16) ExtendToUint16() (z Uint16x8)
+
+// ExtendToUint32 zero-extends each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I32x4ExtendLowI16x8U
+func (x Uint16x8) ExtendToUint32() (z Uint32x4)
+
+// ExtendToUint64 zero-extends each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I64x2ExtendLowI32x4U
+func (x Uint32x4) ExtendToUint64() (z Uint64x2)
 
 // Floor returns the greatest integer value less than or equal to each element
 // of x.

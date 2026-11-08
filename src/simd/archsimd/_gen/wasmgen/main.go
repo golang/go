@@ -374,7 +374,7 @@ func (o *wasmOp) T() *simdType {
 func (o *wasmOp) Method() string {
 	goname := gonames[o.op]
 	if o.Flag(NameHasFormat) {
-		// goname is a format string such as "ExtendLo%dTo%s". It accepts two
+		// goname is a format string such as "ExtendHi%dTo%s". It accepts two
 		// placeholders: the number of elements converted, and the result
 		// element type. Format it into a specific name.
 		count := o.T().Count / 2
@@ -489,7 +489,19 @@ func (o *wasmOp) SsaGenOp() string {
 // for example input "foo_s" -> returns "foo", "_s", "S"
 func (o *wasmOp) conversionCorrectedOp() (op, lowerSuffix, upperSuffix string) {
 	op = o.op
-	if strings.HasSuffix(op, "_s") {
+	if strings.HasSuffix(op, "_s_zero") {
+		op = op[:len(op)-len("_s_zero")]
+		upperSuffix = "SZero"
+		lowerSuffix = "_s_zero"
+	} else if strings.HasSuffix(op, "_u_zero") {
+		op = op[:len(op)-len("_u_zero")]
+		upperSuffix = "UZero"
+		lowerSuffix = "_u_zero"
+	} else if strings.HasSuffix(op, "_zero") {
+		op = op[:len(op)-len("_zero")]
+		upperSuffix = "Zero"
+		lowerSuffix = "_zero"
+	} else if strings.HasSuffix(op, "_s") {
 		op = op[:len(op)-2]
 		upperSuffix = "S"
 		lowerSuffix = "_s"
@@ -698,9 +710,10 @@ var (
 	convert_s = []string{"convert_s"}
 	convert_u = []string{"convert_u"}
 
-	f_c   = []string{"trunc_sat_s", "trunc_sat_u"} // f32 -> s/u 32 (2 choices)
-	f32_c = []string{"promote_low"}                // produces f64 vector
-	f64_c = []string{"demote_zero"}                // produces f32 vector
+	f_c     = []string{"trunc_sat_s", "trunc_sat_u"}           // f32 -> s/u 32 (2 choices)
+	f64_c   = []string{"trunc_sat_s_zero", "trunc_sat_u_zero"} // f64 -> s/u 32, upper half zero
+	f32_c   = []string{"promote_low"}                          // produces f64 vector
+	f64_c32 = []string{"demote_zero"}                          // produces f32 vector
 
 	// these have an immediate operand, and return an element_type operand
 	nge32_x = []string{"extract_lane"}
@@ -791,22 +804,28 @@ var (
 		"relaxed_dot_s":     "?",
 
 		// widen integer types
-		"extend_low_s":  "ExtendLo%dTo%s",
+		"extend_low_s":  "ExtendTo%[2]s",
 		"extend_high_s": "ExtendHi%dTo%s",
-		"extend_low_u":  "ExtendLo%dTo%s",
+		"extend_low_u":  "ExtendTo%[2]s",
 		"extend_high_u": "ExtendHi%dTo%s",
 
 		// [u]int32x4 to float32x4
 		"convert_s": "ConvertToFloat32",
 		"convert_u": "ConvertToFloat32",
 
-		// [u]int32x4 to float32x4
-		"trunc_sat_s": "ConvertToInt32",
-		"trunc_sat_u": "ConvertToUint32",
+		// float32x4 or float64x2 to [u]int32x4
+		"trunc_sat_s":      "ConvertToInt32",
+		"trunc_sat_u":      "ConvertToUint32",
+		"trunc_sat_s_zero": "ConvertToInt32",
+		"trunc_sat_u_zero": "ConvertToUint32",
 
-		// [u]int32x4 to float64x2
-		"convert_low_s": "ConvertLo2ToFloat64",
-		"convert_low_u": "ConvertLo2ToFloat64",
+		// [u]int32x4 or float32x4 to float64x2
+		"convert_low_s": "ConvertToFloat64",
+		"convert_low_u": "ConvertToFloat64",
+		"promote_low":   "ConvertToFloat64",
+
+		// float64x2 to float32x4
+		"demote_zero": "ConvertToFloat32",
 
 		// Internal saturating narrowing, used by SaturateTo* emulations.
 		"narrow_s": "concatSaturateTo%[2]s",
@@ -997,7 +1016,7 @@ func initWasmOps() {
 	}
 	truncSat := func(op *wasmOp) {
 		op.opFlags = IsConversion
-		if op.op == "trunc_sat_s" {
+		if strings.HasPrefix(op.op, "trunc_sat_s") {
 			op.resultType = "Int32x4"
 		} else {
 			op.resultType = "Uint32x4"
@@ -1028,6 +1047,9 @@ func initWasmOps() {
 	addWasmOpsDetail([]*simdType{vu32}, convert_u, 1, convert)
 
 	addWasmOpsDetail([]*simdType{vf32}, f_c, 1, truncSat)
+	addWasmOpsDetail([]*simdType{vf64}, f64_c, 1, truncSat)
+	addWasmOpsDetail([]*simdType{vf32}, f32_c, 1, convertHalf)
+	addWasmOpsDetail([]*simdType{vf64}, f64_c32, 1, convert)
 	addWasmOpsDetail([]*simdType{vi16, vi32}, narrows, 2, narrow)
 
 	addWasmOpsDetail(sle32, s_q2, 2, mulHalf)
@@ -1206,46 +1228,46 @@ func genTypes(f *bytes.Buffer) {
 }
 
 var docForOp map[string]string = map[string]string{
-	"Add":                 " returns the result of adding x and y, elementwise.",
-	"Sub":                 " returns the result of subtracting y from x, elementwise.",
-	"Mul":                 " returns the result of multiplying x and y, elementwise.",
-	"Div":                 " returns the result of dividing x by y, elementwise.",
-	"Neg":                 " returns the elementwise negation of x.",
-	"Abs":                 " returns the elementwise absolute value of x.",
-	"Sqrt":                " returns the elementwise square root of x.",
-	"Not":                 " returns the bitwise NOT of x.",
-	"And":                 " returns the bitwise AND of x and y.",
-	"Or":                  " returns the bitwise OR of x and y.",
-	"Xor":                 " returns the bitwise XOR of x and y.",
-	"AndNot":              " returns the bitwise AND NOT of x and y (x & ^y).",
-	"Min":                 " returns the elementwise minimum of x and y.",
-	"Max":                 " returns the elementwise maximum of x and y.",
-	"Round":               " returns the elementwise nearest integer, rounding ties to even.",
-	"OnesCount":           " returns the elementwise population count (number of bits set).",
-	"Average":             " returns the elementwise average of unsigned integers in x and y.",
-	"Equal":               " returns true if x equals y, elementwise.",
-	"NotEqual":            " returns true if x does not equal y, elementwise.",
-	"Less":                " returns true if x is less than y, elementwise.",
-	"Greater":             " returns true if x is greater than y, elementwise.",
-	"LessEqual":           " returns true if x is less than or equal to y, elementwise.",
-	"GreaterEqual":        " returns true if x is greater than or equal to y, elementwise.",
-	"MulAdd":              " returns the elementwise multiply-add of x, y, and z.",
-	"ShiftAllLeft":        " returns the elementwise left shift of x by shift bits.",
-	"ShiftAllRight":       " returns the elementwise right shift of x by shift bits.",
-	"Ceil":                " returns the elementwise ceiling of x.",
-	"Floor":               " returns the elementwise floor of x.",
-	"Trunc":               " returns the elementwise truncation of x.",
-	"BitSelect":           " returns the bitwise selection if mask[i] then x[i] else y[i]",
-	"GetElem":             " gets the lane value at the given index.",
-	"SetElem":             " sets the lane at the given index to y.",
-	"TruncSatS":           " returns the elementwise saturating signed conversion to integer.",
-	"TruncSatU":           " returns the elementwise saturating unsigned conversion to integer.",
-	"PromoteLow":          " promotes the lower half elements of x to double width values.",
-	"DemoteZero":          " demotes elements of x to half width values in lower elements of result, with zeroes in the upper elements",
-	"ConvertToFloat32":    " converts elements of x to Float32x4.",
-	"ConvertToInt32":      " converts elements of x to Int32x4.",
-	"ConvertToUint32":     " converts elements of x to Uint32x4.",
-	"ConvertLo2ToFloat64": " converts the first two elements of x to Float64x2.",
+	"Add":              " returns the result of adding x and y, elementwise.",
+	"Sub":              " returns the result of subtracting y from x, elementwise.",
+	"Mul":              " returns the result of multiplying x and y, elementwise.",
+	"Div":              " returns the result of dividing x by y, elementwise.",
+	"Neg":              " returns the elementwise negation of x.",
+	"Abs":              " returns the elementwise absolute value of x.",
+	"Sqrt":             " returns the elementwise square root of x.",
+	"Not":              " returns the bitwise NOT of x.",
+	"And":              " returns the bitwise AND of x and y.",
+	"Or":               " returns the bitwise OR of x and y.",
+	"Xor":              " returns the bitwise XOR of x and y.",
+	"AndNot":           " returns the bitwise AND NOT of x and y (x & ^y).",
+	"Min":              " returns the elementwise minimum of x and y.",
+	"Max":              " returns the elementwise maximum of x and y.",
+	"Round":            " returns the elementwise nearest integer, rounding ties to even.",
+	"OnesCount":        " returns the elementwise population count (number of bits set).",
+	"Average":          " returns the elementwise average of unsigned integers in x and y.",
+	"Equal":            " returns true if x equals y, elementwise.",
+	"NotEqual":         " returns true if x does not equal y, elementwise.",
+	"Less":             " returns true if x is less than y, elementwise.",
+	"Greater":          " returns true if x is greater than y, elementwise.",
+	"LessEqual":        " returns true if x is less than or equal to y, elementwise.",
+	"GreaterEqual":     " returns true if x is greater than or equal to y, elementwise.",
+	"MulAdd":           " returns the elementwise multiply-add of x, y, and z.",
+	"ShiftAllLeft":     " returns the elementwise left shift of x by shift bits.",
+	"ShiftAllRight":    " returns the elementwise right shift of x by shift bits.",
+	"Ceil":             " returns the elementwise ceiling of x.",
+	"Floor":            " returns the elementwise floor of x.",
+	"Trunc":            " returns the elementwise truncation of x.",
+	"BitSelect":        " returns the bitwise selection if mask[i] then x[i] else y[i]",
+	"GetElem":          " gets the lane value at the given index.",
+	"SetElem":          " sets the lane at the given index to y.",
+	"TruncSatS":        " returns the elementwise saturating signed conversion to integer.",
+	"TruncSatU":        " returns the elementwise saturating unsigned conversion to integer.",
+	"PromoteLow":       " promotes the lower half elements of x to double width values.",
+	"DemoteZero":       " demotes elements of x to half width values in lower elements of result, with zeroes in the upper elements",
+	"ConvertToFloat32": " converts elements of x to Float32x4.",
+	"ConvertToInt32":   " converts elements of x to Int32x4.",
+	"ConvertToUint32":  " converts elements of x to Uint32x4.",
+	"ConvertToFloat64": " converts elements of x to float64.",
 	"concatSaturateToInt8": ` converts the elements of x and y to int8 with signed
 // saturation and packs them into the low and high halves of the result.`,
 	"concatSaturateToUint8": ` converts the signed elements of x and y to uint8 with
@@ -1261,15 +1283,9 @@ var docForOp map[string]string = map[string]string{
 //
 //	Result[i] = x[i] * y[i], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,
 	// Size-specific extend operations
-	"ExtendLo8ToInt16":   " extends the lower 8 elements of x to 16-bit integers.",
-	"ExtendLo16ToInt32":  " extends the lower 4 elements of x to 32-bit integers.",
-	"ExtendLo32ToInt64":  " extends the lower 2 elements of x to 64-bit integers.",
 	"ExtendHi8ToInt16":   " extends the higher 8 elements of x to 16-bit integers.",
 	"ExtendHi16ToInt32":  " extends the higher 4 elements of x to 32-bit integers.",
 	"ExtendHi32ToInt64":  " extends the higher 2 elements of x to 64-bit integers.",
-	"ExtendLo8ToUint16":  " extends the lower 8 elements of x to 16-bit unsigned integers.",
-	"ExtendLo16ToUint32": " extends the lower 4 elements of x to 32-bit unsigned integers.",
-	"ExtendLo32ToUint64": " extends the lower 2 elements of x to 64-bit unsigned integers.",
 	"ExtendHi8ToUint16":  " extends the higher 8 elements of x to 16-bit unsigned integers.",
 	"ExtendHi16ToUint32": " extends the higher 4 elements of x to 32-bit unsigned integers.",
 	"ExtendHi32ToUint64": " extends the higher 2 elements of x to 64-bit unsigned integers.",

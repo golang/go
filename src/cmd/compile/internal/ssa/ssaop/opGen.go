@@ -6793,12 +6793,16 @@ const (
 	OpWasmF64x2Splat
 	OpWasmF32x4Ceil
 	OpWasmF64x2Ceil
-	OpWasmF64x2ConvertLowI32x4S
-	OpWasmF64x2ConvertLowI32x4U
 	OpWasmF32x4ConvertI32x4S
 	OpWasmF32x4ConvertI32x4U
+	OpWasmF32x4DemoteF64x2Zero
+	OpWasmF64x2ConvertLowI32x4S
+	OpWasmF64x2ConvertLowI32x4U
+	OpWasmF64x2PromoteLowF32x4
 	OpWasmI32x4TruncSatF32x4S
+	OpWasmI32x4TruncSatF64x2SZero
 	OpWasmI32x4TruncSatF32x4U
+	OpWasmI32x4TruncSatF64x2UZero
 	OpWasmF32x4Div
 	OpWasmF64x2Div
 	OpWasmI8x16Eq
@@ -6813,12 +6817,12 @@ const (
 	OpWasmI32x4ExtendHighI16x8U
 	OpWasmI16x8ExtendHighI8x16S
 	OpWasmI16x8ExtendHighI8x16U
-	OpWasmI64x2ExtendLowI32x4S
-	OpWasmI64x2ExtendLowI32x4U
-	OpWasmI32x4ExtendLowI16x8S
-	OpWasmI32x4ExtendLowI16x8U
 	OpWasmI16x8ExtendLowI8x16S
+	OpWasmI32x4ExtendLowI16x8S
+	OpWasmI64x2ExtendLowI32x4S
 	OpWasmI16x8ExtendLowI8x16U
+	OpWasmI32x4ExtendLowI16x8U
+	OpWasmI64x2ExtendLowI32x4U
 	OpWasmF32x4Floor
 	OpWasmF64x2Floor
 	OpWasmI8x16ExtractLaneS
@@ -7838,8 +7842,6 @@ const (
 	OpConcatSubPairsSaturatedInt16x8
 	OpConcatSubPairsUint16x8
 	OpConcatSubPairsUint32x4
-	OpConvertLo2ToFloat64Int32x4
-	OpConvertLo2ToFloat64Uint32x4
 	OpConvertToFloat32Float64x2
 	OpConvertToFloat32Float64x4
 	OpConvertToFloat32Float64x8
@@ -7989,18 +7991,12 @@ const (
 	OpExtendHi4ToUint32Uint16x8
 	OpExtendHi8ToInt16Int8x16
 	OpExtendHi8ToUint16Uint8x16
-	OpExtendLo2ToInt64Int32x4
-	OpExtendLo2ToUint64Uint32x4
-	OpExtendLo4ToInt32Int16x8
 	OpExtendLo4ToInt64Int16x8
 	OpExtendLo4ToInt64Int8x16
-	OpExtendLo4ToUint32Uint16x8
 	OpExtendLo4ToUint64Uint16x8
 	OpExtendLo4ToUint64Uint8x16
-	OpExtendLo8ToInt16Int8x16
 	OpExtendLo8ToInt32Int8x16
 	OpExtendLo8ToInt64Int8x16
-	OpExtendLo8ToUint16Uint8x16
 	OpExtendLo8ToUint32Uint8x16
 	OpExtendLo8ToUint64Uint8x16
 	OpExtendToInt16Int8x16
@@ -112071,32 +112067,6 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "F64x2ConvertLowI32x4S",
-		ArgLen: 1,
-		asm:    wasm.AF64x2ConvertLowI32x4S,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			Outputs: []OutputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		Name:   "F64x2ConvertLowI32x4U",
-		ArgLen: 1,
-		asm:    wasm.AF64x2ConvertLowI32x4U,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			Outputs: []OutputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
 		Name:   "F32x4ConvertI32x4S",
 		ArgLen: 1,
 		asm:    wasm.AF32x4ConvertI32x4S,
@@ -112123,6 +112093,58 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "F32x4DemoteF64x2Zero",
+		ArgLen: 1,
+		asm:    wasm.AF32x4DemoteF64x2Zero,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "F64x2ConvertLowI32x4S",
+		ArgLen: 1,
+		asm:    wasm.AF64x2ConvertLowI32x4S,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "F64x2ConvertLowI32x4U",
+		ArgLen: 1,
+		asm:    wasm.AF64x2ConvertLowI32x4U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "F64x2PromoteLowF32x4",
+		ArgLen: 1,
+		asm:    wasm.AF64x2PromoteLowF32x4,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
 		Name:   "I32x4TruncSatF32x4S",
 		ArgLen: 1,
 		asm:    wasm.AI32x4TruncSatF32x4S,
@@ -112136,9 +112158,35 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
+		Name:   "I32x4TruncSatF64x2SZero",
+		ArgLen: 1,
+		asm:    wasm.AI32x4TruncSatF64x2SZero,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
 		Name:   "I32x4TruncSatF32x4U",
 		ArgLen: 1,
 		asm:    wasm.AI32x4TruncSatF32x4U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I32x4TruncSatF64x2UZero",
+		ArgLen: 1,
+		asm:    wasm.AI32x4TruncSatF64x2UZero,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
@@ -112345,22 +112393,9 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "I64x2ExtendLowI32x4S",
+		Name:   "I16x8ExtendLowI8x16S",
 		ArgLen: 1,
-		asm:    wasm.AI64x2ExtendLowI32x4S,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			Outputs: []OutputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		Name:   "I64x2ExtendLowI32x4U",
-		ArgLen: 1,
-		asm:    wasm.AI64x2ExtendLowI32x4U,
+		asm:    wasm.AI16x8ExtendLowI8x16S,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
@@ -112384,22 +112419,9 @@ var OpcodeTable = [...]OpInfo{
 		},
 	},
 	{
-		Name:   "I32x4ExtendLowI16x8U",
+		Name:   "I64x2ExtendLowI32x4S",
 		ArgLen: 1,
-		asm:    wasm.AI32x4ExtendLowI16x8U,
-		Reg: RegInfo{
-			Inputs: []InputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-			Outputs: []OutputInfo{
-				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
-			},
-		},
-	},
-	{
-		Name:   "I16x8ExtendLowI8x16S",
-		ArgLen: 1,
-		asm:    wasm.AI16x8ExtendLowI8x16S,
+		asm:    wasm.AI64x2ExtendLowI32x4S,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
@@ -112413,6 +112435,32 @@ var OpcodeTable = [...]OpInfo{
 		Name:   "I16x8ExtendLowI8x16U",
 		ArgLen: 1,
 		asm:    wasm.AI16x8ExtendLowI8x16U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I32x4ExtendLowI16x8U",
+		ArgLen: 1,
+		asm:    wasm.AI32x4ExtendLowI16x8U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I64x2ExtendLowI32x4U",
+		ArgLen: 1,
+		asm:    wasm.AI64x2ExtendLowI32x4U,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
@@ -119315,16 +119363,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ConvertLo2ToFloat64Int32x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ConvertLo2ToFloat64Uint32x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "ConvertToFloat32Float64x2",
 		ArgLen:  1,
 		Generic: true,
@@ -120110,32 +120148,12 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ExtendLo2ToInt64Int32x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo2ToUint64Uint32x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToInt32Int16x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "ExtendLo4ToInt64Int16x8",
 		ArgLen:  1,
 		Generic: true,
 	},
 	{
 		Name:    "ExtendLo4ToInt64Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToUint32Uint16x8",
 		ArgLen:  1,
 		Generic: true,
 	},
@@ -120150,22 +120168,12 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ExtendLo8ToInt16Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "ExtendLo8ToInt32Int8x16",
 		ArgLen:  1,
 		Generic: true,
 	},
 	{
 		Name:    "ExtendLo8ToInt64Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo8ToUint16Uint8x16",
 		ArgLen:  1,
 		Generic: true,
 	},

@@ -140,7 +140,8 @@ func main() {
 		"deprecated_amd64.go", "converts_emulated_amd64.go",
 		"converts_gen_amd64.go"}
 	wasmFiles := []string{"ops_wasm.go", "types_wasm.go", "slicepart_wasm.go",
-		"slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go", "other_gen_wasm.go"}
+		"slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go", "other_gen_wasm.go",
+		"converts_emulated_wasm.go"}
 	neonFiles := []string{"clmul_arm64.go", "compare_gen_arm64.go",
 		"maskmerge_gen_arm64.go", "ops_arm64.go", "slicepart_128.go",
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
