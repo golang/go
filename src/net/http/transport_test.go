@@ -842,55 +842,6 @@ func testTransportMaxConnsPerHost(t *testing.T, mode testMode) {
 	}
 }
 
-func TestTransportMaxConnsPerHostDialCancellation(t *testing.T) {
-	runSynctest(t, testTransportMaxConnsPerHostDialCancellation,
-		testNotParallel, // because test uses SetPendingDialHooks
-		[]testMode{http1Mode, https1Mode, http2Mode},
-	)
-}
-
-func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
-	CondSkipHTTP2(t)
-
-	h := HandlerFunc(func(w ResponseWriter, r *Request) {
-		_, err := w.Write([]byte("foo"))
-		if err != nil {
-			t.Fatalf("Write: %v", err)
-		}
-	})
-
-	cst := newClientServerTest(t, mode, h)
-	defer cst.close()
-	ts := cst.ts
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
-	tr.MaxConnsPerHost = 1
-
-	// This request is canceled when dial is queued, which preempts dialing.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	SetPendingDialHooks(t, cancel, nil)
-
-	req, _ := NewRequestWithContext(ctx, "GET", ts.URL, nil)
-	_, err := c.Do(req)
-	if !errors.Is(err, context.Canceled) {
-		t.Errorf("expected error %v, got %v", context.Canceled, err)
-	}
-
-	// This request should succeed.
-	SetPendingDialHooks(t, nil, nil)
-	req, _ = NewRequest("GET", ts.URL, nil)
-	resp, err := c.Do(req)
-	if err != nil {
-		t.Fatalf("request failed: %v", err)
-	}
-	defer resp.Body.Close()
-	_, err = io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read body failed: %v", err)
-	}
-}
-
 func TestTransportRemovesDeadIdleConnections(t *testing.T) {
 	runSynctest(t, testTransportRemovesDeadIdleConnections, []testMode{http1Mode})
 }
@@ -2485,7 +2436,7 @@ func TestTransportConcurrency(t *testing.T) {
 	runSynctest(t, testTransportConcurrency, testNotParallel, []testMode{http1Mode})
 }
 func testTransportConcurrency(t *testing.T, mode testMode) {
-	// Not parallel: uses global test hooks.
+	// Not parallel: changes GOMAXPROCS.
 	maxProcs, numReqs := 16, 500
 	if testing.Short() {
 		maxProcs, numReqs = 4, 50
@@ -2497,14 +2448,6 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 
 	var wg sync.WaitGroup
 	wg.Add(numReqs)
-
-	// Due to the Transport's "socket late binding" (see
-	// idleConnCh in transport.go), the numReqs HTTP requests
-	// below can finish with a dial still outstanding. To keep
-	// the leak checker happy, keep track of pending dials and
-	// wait for them to finish (and be closed or returned to the
-	// idle pool) before we close idle connections.
-	SetPendingDialHooks(t, func() { wg.Add(1) }, wg.Done)
 
 	c := ts.Client()
 	reqs := make(chan string)
@@ -4809,37 +4752,26 @@ func testTransportReuseConnEmptyResponseBody(t *testing.T, mode testMode) {
 
 // Issue 13839
 func TestNoCrashReturningTransportAltConn(t *testing.T) {
+	synctest.Test(t, testNoCrashReturningTransportAltConn)
+}
+func testNoCrashReturningTransportAltConn(t *testing.T) {
 	cert, err := tls.X509KeyPair(testcert.LocalhostCert, testcert.LocalhostKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ln := newLocalListener(t)
-	defer ln.Close()
+	clientConn, serverConn := nettest.NewConnPair()
 
-	var wg sync.WaitGroup
-	SetPendingDialHooks(t, func() { wg.Add(1) }, wg.Done)
-
-	testDone := make(chan struct{})
-	defer close(testDone)
 	go func() {
-		tln := tls.NewListener(ln, &tls.Config{
+		sc := tls.Server(serverConn, &tls.Config{
 			NextProtos:   []string{"foo"},
 			Certificates: []tls.Certificate{cert},
 		})
-		sc, err := tln.Accept()
-		if err != nil {
+		defer sc.Close()
+		if err := sc.Handshake(); err != nil {
 			t.Error(err)
 			return
 		}
-		if err := sc.(*tls.Conn).Handshake(); err != nil {
-			t.Error(err)
-			return
-		}
-		<-testDone
-		sc.Close()
 	}()
-
-	addr := ln.Addr().String()
 
 	req, _ := NewRequest("GET", "https://fake.tld/", nil)
 	cancel := make(chan struct{})
@@ -4862,13 +4794,10 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 			panic("shouldn't be called")
 		},
 		DialTLS: func(_, _ string) (net.Conn, error) {
-			tc, err := tls.Dial("tcp", addr, &tls.Config{
+			tc := tls.Client(clientConn, &tls.Config{
 				InsecureSkipVerify: true,
 				NextProtos:         []string{"foo"},
 			})
-			if err != nil {
-				return nil, err
-			}
 			if err := tc.Handshake(); err != nil {
 				return nil, err
 			}
@@ -4886,7 +4815,6 @@ func TestNoCrashReturningTransportAltConn(t *testing.T) {
 
 	doReturned <- true
 	<-madeRoundTripper
-	wg.Wait()
 }
 
 func TestTransportReuseConnection_Gzip_Chunked(t *testing.T) {

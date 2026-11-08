@@ -76,15 +76,6 @@ func SetReadLoopBeforeNextReadHook(f func()) {
 	testHookReadLoopBeforeNextRead = f
 }
 
-// SetPendingDialHooks sets the hooks that run before and after handling
-// pending dials.
-func SetPendingDialHooks(t *testing.T, before, after func()) {
-	t.Cleanup(func() {
-		testHookPrePendingDial, testHookPostPendingDial = nil, nil
-	})
-	testHookPrePendingDial, testHookPostPendingDial = before, after
-}
-
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
 func SetTestHookProxyConnectTimeout(t *testing.T, f func(context.Context, time.Duration) (context.Context, context.CancelFunc)) {

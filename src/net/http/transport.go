@@ -2397,11 +2397,6 @@ var (
 	testHookReadLoopBeforeNextRead             = nop
 )
 
-var (
-	testHookPrePendingDial  func()
-	testHookPostPendingDial func()
-)
-
 func (pc *persistConn) waitForAvailability(ctx context.Context) error {
 	select {
 	case <-pc.availch:

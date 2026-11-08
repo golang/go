@@ -261,6 +261,44 @@ func TestTransportPoolCancelRequestWithDisableKeepAlives(t *testing.T) {
 	})
 }
 
+// Canceling requests does not leak MaxConnsPerHost capacity.
+func TestTransportPoolCancelRequestWithMaxConnsPerHost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.MaxConnsPerHost = 1
+		})
+
+		// First request is canceled while its dial is in progress.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		rt1.cancel()
+		rt1.wantError()
+
+		// Second request can't dial, because the first dial is still in progress.
+		rt2 := dt.roundTrip()
+		dt.wantIdle()
+
+		// The first dial fails, which frees up capacity for the second request to dial.
+		c1.finish(errors.New("dial failed"))
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/1.1")
+
+		// Third request can't dial, because the second request is using the only connection.
+		// It is canceled while waiting.
+		rt3 := dt.roundTrip()
+		dt.wantIdle()
+		rt3.cancel()
+		rt3.wantError()
+
+		// Fourth request uses the connection after the second request finishes.
+		rt2.finish()
+		rt4 := dt.roundTrip()
+		rt4.wantDone(c2, "HTTP/1.1")
+		rt4.finish()
+	})
+}
+
 // Connections are not reused after an error.
 func TestTransportPoolConnectionBroken(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
@@ -692,8 +730,10 @@ type transportDialTesterConn struct {
 	connID int        // distinguished Dials in logs
 	ready  chan error // sent on to complete the Dial
 	protos []string
-	closed chan struct{}
 	addr   string
+
+	closemu sync.Mutex
+	closed  bool
 
 	*nettest.Conn
 }
@@ -705,10 +745,9 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 	}
 	dialer := func(addr string) (*transportDialTesterConn, error) {
 		c := &transportDialTesterConn{
-			t:      t,
-			ready:  make(chan error),
-			closed: make(chan struct{}),
-			addr:   addr,
+			t:     t,
+			ready: make(chan error),
+			addr:  addr,
 		}
 		// Notify the test that a Dial has started,
 		// and wait for the test to notify us that it should complete.
@@ -883,6 +922,16 @@ func (dt *transportDialTester) wantDial() *transportDialTesterConn {
 	return c
 }
 
+func (dt *transportDialTester) wantIdle() {
+	dt.t.Helper()
+	synctest.Wait()
+	dt.dialsMu.Lock()
+	defer dt.dialsMu.Unlock()
+	if len(dt.dials) > 0 {
+		dt.t.Fatalf("%v dials started, want none", len(dt.dials))
+	}
+}
+
 // finish completes a Dial.
 func (c *transportDialTesterConn) finish(err error) {
 	c.t.Helper()
@@ -894,9 +943,9 @@ func (c *transportDialTesterConn) finish(err error) {
 func (c *transportDialTesterConn) wantClosed() {
 	c.t.Helper()
 	synctest.Wait()
-	select {
-	case <-c.closed:
-	default:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if !c.closed {
 		c.t.Fatalf("Conn %v: not closed (want it to be)", c.connID)
 	}
 }
@@ -904,20 +953,20 @@ func (c *transportDialTesterConn) wantClosed() {
 func (c *transportDialTesterConn) wantAlive() {
 	c.t.Helper()
 	synctest.Wait()
-	select {
-	case <-c.closed:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if c.closed {
 		c.t.Fatalf("Conn %v: closed (want it to be alive)", c.connID)
-	default:
 	}
 }
 
 func (c *transportDialTesterConn) Close() error {
-	select {
-	case <-c.closed:
-	default:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if !c.closed {
 		c.Conn.Close()
 		c.t.Logf("Conn %v: closed", c.connID)
-		close(c.closed)
+		c.closed = true
 	}
 	return nil
 }
