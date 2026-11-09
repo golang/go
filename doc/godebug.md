@@ -417,8 +417,7 @@ serial numbers that are negative. This change can be reverted with
 the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
 
 Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
-The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
-any effect.
+The `jstmpllitinterp` setting no longer has any effect.
 
 Go 1.23 changed the default TLS cipher suites used by clients and servers when
 not explicitly configured, removing 3DES cipher suites. The default can be reverted

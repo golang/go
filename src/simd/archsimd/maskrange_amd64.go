@@ -266,7 +266,8 @@ func (x Mask64x8) None() bool {
 	return x.ToBits() == 0
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask8x16) TrailingZeros() int {
@@ -278,7 +279,8 @@ func (x Mask8x16) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 32.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask8x32) TrailingZeros() int {
@@ -290,7 +292,8 @@ func (x Mask8x32) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask x.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 64.
 //
 // Emulated, CPU Feature: AVX512
 func (x Mask8x64) TrailingZeros() int {
@@ -302,7 +305,8 @@ func (x Mask8x64) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask16x8) TrailingZeros() int {
@@ -314,7 +318,8 @@ func (x Mask16x8) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask16x16) TrailingZeros() int {
@@ -326,7 +331,8 @@ func (x Mask16x16) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 32.
 //
 // Emulated, CPU Feature: AVX512
 func (x Mask16x32) TrailingZeros() int {
@@ -338,7 +344,8 @@ func (x Mask16x32) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 4.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask32x4) TrailingZeros() int {
@@ -350,7 +357,8 @@ func (x Mask32x4) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask32x8) TrailingZeros() int {
@@ -362,7 +370,8 @@ func (x Mask32x8) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 16.
 //
 // Emulated, CPU Feature: AVX512
 func (x Mask32x16) TrailingZeros() int {
@@ -374,7 +383,8 @@ func (x Mask32x16) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 2.
 //
 // Emulated, CPU Feature: AVX
 func (x Mask64x2) TrailingZeros() int {
@@ -386,7 +396,8 @@ func (x Mask64x2) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 4.
 //
 // Emulated, CPU Feature: AVX2
 func (x Mask64x4) TrailingZeros() int {
@@ -398,7 +409,8 @@ func (x Mask64x4) TrailingZeros() int {
 	return lane
 }
 
-// TrailingZeros returns the number of low-order false (zero) elements in mask m.
+// TrailingZeros returns the number of low-order false (zero) elements in mask
+// x. If the mask is entirely false, it returns 8.
 //
 // Emulated, CPU Feature: AVX512
 func (x Mask64x8) TrailingZeros() int {

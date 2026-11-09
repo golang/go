@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/format"
+	"hash/maphash"
 	"log"
 	"os"
 	"path/filepath"
@@ -697,15 +698,40 @@ func rewriteLastVregToMem(op Operation) Operation {
 
 // dedup is deduping operations in the full structure level.
 func dedup(ops []Operation) (deduped []Operation) {
+	// Comparing every pair of operations with reflect.DeepEqual would be
+	// quadratic, so we group operations by a hash of their Go name, assembly
+	// mnemonic, CPU feature, and operand Go types, and only compare operations
+	// with the same hash. Operations that are DeepEqual always have the same
+	// hash.
+	seed := maphash.MakeSeed()
+	seen := make(map[uint64][]int) // Indexes into deduped
 	for _, op := range ops {
-		seen := false
-		for _, dop := range deduped {
-			if reflect.DeepEqual(op, dop) {
-				seen = true
+		var h maphash.Hash
+		h.SetSeed(seed)
+		h.WriteString(op.Go)
+		h.WriteByte(0)
+		h.WriteString(op.Asm)
+		h.WriteByte(0)
+		h.WriteString(op.CPUFeature)
+		for _, operands := range [][]types.Operand{op.In, op.Out} {
+			h.WriteByte(0)
+			for _, o := range operands {
+				if o.Go != nil {
+					h.WriteString(*o.Go)
+				}
+				h.WriteByte(',')
+			}
+		}
+		k := h.Sum64()
+		dup := false
+		for _, i := range seen[k] {
+			if reflect.DeepEqual(op, deduped[i]) {
+				dup = true
 				break
 			}
 		}
-		if !seen {
+		if !dup {
+			seen[k] = append(seen[k], len(deduped))
 			deduped = append(deduped, op)
 		}
 	}
@@ -986,6 +1012,15 @@ func (o *Operation) hasMaskedMerging(maskType maskShape, outType outShape) bool 
 		// first source — so there is no separate operand to add, and the merging
 		// form is just the /M-predicated machine op.
 		return false
+	}
+	for i := range o.In {
+		if in := &o.In[i]; in.MaskRole != nil && *in.MaskRole == "opmask-partial" {
+			// The merging form would zero the upper elements of the result,
+			// rather than merging them. This means the unmasked op followed by
+			// a blend into dst is not generally equivalent to its mask-merging
+			// form, so keep the blend separate.
+			return false
+		}
 	}
 	// BLEND and VMOVDQU are not user-facing ops so we should filter them out.
 	return o.OperandOrder == nil && maskType == OneMask && outType == OneVregOut &&

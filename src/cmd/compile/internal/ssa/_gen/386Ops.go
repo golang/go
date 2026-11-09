@@ -314,7 +314,7 @@ func init() {
 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD", earlyOk: true}, // sqrt(arg0)
 		{name: "SQRTSS", argLength: 1, reg: fp11, asm: "SQRTSS", earlyOk: true}, // sqrt(arg0), float32
 
-		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL", earlyOk: true}, // (int32)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL", earlyOk: true, clobberFlags: true}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
 
 		{name: "SETEQ", argLength: 1, reg: readflags, asm: "SETEQ", earlyOk: true}, // extract == condition from arg0

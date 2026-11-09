@@ -4,54 +4,6 @@
 
 package archsimd
 
-/* blend */
-
-// blend blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// Asm: VPBLENDVB, CPU Feature: AVX
-func (x Int8x16) blend(y Int8x16, mask Int8x16) Int8x16
-
-// blend blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// Asm: VPBLENDVB, CPU Feature: AVX2
-func (x Int8x32) blend(y Int8x32, mask Int8x32) Int8x32
-
-/* blendMasked */
-
-// blendMasked blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPBLENDMB, CPU Feature: AVX512
-func (x Int8x64) blendMasked(y Int8x64, mask Mask8x64) Int8x64
-
-// blendMasked blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPBLENDMW, CPU Feature: AVX512
-func (x Int16x32) blendMasked(y Int16x32, mask Mask16x32) Int16x32
-
-// blendMasked blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPBLENDMD, CPU Feature: AVX512
-func (x Int32x16) blendMasked(y Int32x16, mask Mask32x16) Int32x16
-
-// blendMasked blends two vectors based on mask values, choosing either
-// the first or the second based on whether the third is false or true
-//
-// This operation is applied selectively under a write mask.
-//
-// Asm: VPBLENDMQ, CPU Feature: AVX512
-func (x Int64x8) blendMasked(y Int64x8, mask Mask64x8) Int64x8
-
 /* broadcast1To2 */
 
 // broadcast1To2 copies the lowest element of its input to all 2 elements of

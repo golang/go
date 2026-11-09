@@ -1466,7 +1466,7 @@ func TestInterruptWithPanic(t *testing.T) {
 				testInterruptWithPanic(t, mode, test.panicValue)
 			})
 		}
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 	const msg = "hello"
@@ -1475,14 +1475,14 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 	defer close(testDone)
 
 	var errorLog lockedBytesBuffer
-	gotHeaders := make(chan bool, 1)
+	gotMsg := make(chan bool, 1)
 	cst := newClientServerTest(t, mode, nil)
 	cst.ts.Config.Handler = HandlerFunc(func(w ResponseWriter, r *Request) {
 		io.WriteString(w, msg)
 		w.(Flusher).Flush()
 
 		select {
-		case <-gotHeaders:
+		case <-gotMsg:
 		case <-testDone:
 		}
 		panic(panicValue)
@@ -1492,13 +1492,13 @@ func testInterruptWithPanic(t *testing.T, mode testMode, panicValue any) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gotHeaders <- true
 	defer res.Body.Close()
-	slurp, err := io.ReadAll(res.Body)
-	if string(slurp) != msg {
-		t.Errorf("client read %q; want %q", slurp, msg)
+	slurp := make([]byte, len(msg))
+	if _, err := io.ReadFull(res.Body, slurp); err != nil || string(slurp) != msg {
+		t.Errorf("client read %q, %v; want %q", slurp, err, msg)
 	}
-	if err == nil {
+	gotMsg <- true
+	if _, err := io.ReadAll(res.Body); err == nil {
 		t.Errorf("client read all successfully; want some error")
 	}
 	logOutput := func() string {

@@ -218,6 +218,24 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 		q.Mark |= unsafeTLS
 	}
 
+	// A global symbol is addressed absolutely or relative to the PC,
+	// so it cannot also have a base register. sym(SB)(AX) parses as
+	// a base of AX. The address of a global symbol is a constant, so
+	// $sym(SB) cannot have an index register either. Reject these
+	// here, before the encoder or the -dynlink and -shared rewrites
+	// below silently discard the register.
+	// Skip progs with RegTo2 set: on x86 only rewriteToUseGot and
+	// rewriteToPcrel set it, on progs they insert. Their operands are
+	// copied from a prog already checked here, and rewriteToPcrel
+	// deliberately puts the PC thunk register in the base.
+	if p.RegTo2 == 0 {
+		checkSymOperand(ctxt, p, &p.From)
+		checkSymOperand(ctxt, p, &p.To)
+		for i := range p.RestArgs {
+			checkSymOperand(ctxt, p, &p.RestArgs[i].Addr)
+		}
+	}
+
 	// TODO: Remove.
 	if ctxt.Headtype == objabi.Hwindows && ctxt.Arch.Family == sys.AMD64 || ctxt.Headtype == objabi.Hplan9 {
 		if p.From.Scale == 1 && p.From.Index == REG_TLS {
@@ -340,6 +358,30 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 	if ctxt.Flag_shared && ctxt.Arch.Family == sys.I386 {
 		rewriteToPcrel(ctxt, p, newprog)
+	}
+}
+
+// checkSymOperand reports an error if a, an operand of p, refers to a
+// global symbol and also has a base register, or is the address of a
+// global symbol and has an index register.
+func checkSymOperand(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+	if a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR {
+		return
+	}
+	switch a.Name {
+	case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+	default:
+		return
+	}
+	if a.Reg != REG_NONE {
+		ctxt.Diag("base register not allowed with global symbol: %v", p)
+		// Avoid a second error for the same operand from the encoder.
+		a.Reg = REG_NONE
+	}
+	if a.Type == obj.TYPE_ADDR && a.Index != REG_NONE {
+		ctxt.Diag("index register not allowed with address of global symbol: %v", p)
+		a.Index = REG_NONE
+		a.Scale = 0
 	}
 }
 
@@ -635,8 +677,9 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
 
 // Prog.mark
 const (
-	markBit   = 1 << 0 // used in errorCheck to avoid duplicate work
-	unsafeTLS = 1 << 1 // unsafe part of a rewritten TLS access
+	markBit       = 1 << 0 // used in errorCheck to avoid duplicate work
+	unsafeTLS     = 1 << 1 // unsafe part of a rewritten TLS access
+	sehStackSplit = 1 << 2 // start of the out-of-line stack-split code
 )
 
 func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
@@ -1137,6 +1180,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
 	spfix := obj.Appendp(last, newprog)
 	spfix.As = obj.ANOP
 	spfix.Spadj = -framesize
+	spfix.Mark |= sehStackSplit
 
 	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
 	spill := ctxt.StartUnsafePoint(pcdata, newprog)

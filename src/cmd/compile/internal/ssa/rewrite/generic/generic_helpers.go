@@ -286,6 +286,10 @@ func isInlinableMemclr(c *ssa.Config, sz int64) bool {
 		return true
 	case "ppc64le", "ppc64", "loong64":
 		return sz < 512
+	case "riscv64":
+		// For small size, zeroing byte-by-byte is faster than a function call.
+		// Larger sizes still benefit from alignment and larger stores.
+		return sz <= 4
 	}
 	return false
 }

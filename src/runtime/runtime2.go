@@ -993,7 +993,9 @@ type schedt struct {
 	// m.exited is set. Linked through m.freelink.
 	freem *m
 
-	gcwaiting  atomic.Bool // gc is waiting to run
+	// gcwaiting indicates that the gc is waiting to run. When runqgrab delays
+	// before stealing runnext, platforms with futex sleep on this address.
+	gcwaiting  gcWaitingWord
 	stopwait   int32
 	stopnote   note
 	sysmonwait atomic.Bool
@@ -1056,6 +1058,31 @@ type schedt struct {
 	// goroutinesCreated (plus the value of goroutinesCreated on each P in allp)
 	// is the sum of all goroutines created by the program.
 	goroutinesCreated atomic.Uint64
+}
+
+// gcWaitingWord is an atomic boolean, whose address is also available as a
+// *uint32 for futexsleep.
+type gcWaitingWord struct {
+	val uint32
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Store(v bool) {
+	var val uint32
+	if v {
+		val = 1
+	}
+	atomic.Store(&p.val, val)
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Load() bool {
+	return atomic.Load(&p.val) != 0
+}
+
+//go:nosplit
+func (p *gcWaitingWord) Addr() *uint32 {
+	return &p.val
 }
 
 // Values for the flags field of a sigTabT.
@@ -1188,7 +1215,12 @@ type _panic struct {
 	// The current stack frame that we're running deferred calls for.
 	pc uintptr
 	sp unsafe.Pointer
-	fp unsafe.Pointer
+	// fp is a plain integer rather than an unsafe.Pointer so that it does not
+	// keep the stack object it points at alive. On amd64 it is the address of
+	// the frame's argument area, so a pointer there resurrects a dead argument
+	// during the scan that runs while deferred calls execute. copystack moves
+	// it explicitly in adjustpanics.
+	fp uintptr
 
 	// retpc stores the PC where the panic should jump back to, if the
 	// function last returned by _panic.nextDefer() recovers the panic.

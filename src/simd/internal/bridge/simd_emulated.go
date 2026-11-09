@@ -181,6 +181,14 @@ func (x Int8s) GreaterEqual(y Int8s) (z Mask8s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int8s) HiToLo() (z Int8s) {
+	return Int8s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -219,7 +227,7 @@ func (x Int8s) NotEqual(y Int8s) (z Mask8s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int8s) Len() int {
 	return 16
 }
@@ -337,7 +345,7 @@ func (x Int8s) StorePart(s []int8) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int8s) String() string {
 	var parts [16]int8
 	for i := 0; i < 16; i++ {
@@ -396,6 +404,8 @@ func (x Int8s) Xor(y Int8s) (z Int8s) {
 }
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+// This wraps unrepresentable values.
 func (x Int8s) ConvertToUint8() (z Uint8s) {
 	return Uint8s{a: x.a, b: x.b}
 }
@@ -552,6 +562,14 @@ func (x Int16s) GreaterEqual(y Int16s) (z Mask16s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int16s) HiToLo() (z Int16s) {
+	return Int16s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -590,7 +608,7 @@ func (x Int16s) NotEqual(y Int16s) (z Mask16s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int16s) Len() int {
 	return 8
 }
@@ -732,7 +750,7 @@ func (x Int16s) StorePart(s []int16) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int16s) String() string {
 	var parts [8]int16
 	for i := 0; i < 8; i++ {
@@ -791,6 +809,8 @@ func (x Int16s) Xor(y Int16s) (z Int16s) {
 }
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+// This wraps unrepresentable values.
 func (x Int16s) ConvertToUint16() (z Uint16s) {
 	return Uint16s{a: x.a, b: x.b}
 }
@@ -938,6 +958,14 @@ func (x Int32s) GreaterEqual(y Int32s) (z Mask32s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int32s) HiToLo() (z Int32s) {
+	return Int32s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -976,7 +1004,7 @@ func (x Int32s) NotEqual(y Int32s) (z Mask32s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int32s) Len() int {
 	return 4
 }
@@ -1118,7 +1146,7 @@ func (x Int32s) StorePart(s []int32) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int32s) String() string {
 	var parts [4]int32
 	for i := 0; i < 4; i++ {
@@ -1159,6 +1187,8 @@ func (x Int32s) Xor(y Int32s) (z Int32s) {
 }
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+// This wraps unrepresentable values.
 func (x Int32s) ConvertToUint32() (z Uint32s) {
 	return Uint32s{a: x.a, b: x.b}
 }
@@ -1268,6 +1298,14 @@ func (x Int64s) GreaterEqual(y Int64s) (z Mask64s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Int64s) HiToLo() (z Int64s) {
+	return Int64s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -1309,7 +1347,7 @@ func (x Int64s) NotEqual(y Int64s) (z Mask64s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Int64s) Len() int {
 	return 2
 }
@@ -1378,7 +1416,7 @@ func (x Int64s) StorePart(s []int64) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Int64s) String() string {
 	return simdfmt.SliceToString([]int64{int64(x.a), int64(x.b)})
 }
@@ -1412,6 +1450,8 @@ func (x Int64s) Xor(y Int64s) (z Int64s) {
 }
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+// This wraps unrepresentable values.
 func (x Int64s) ConvertToUint64() (z Uint64s) {
 	return Uint64s{a: x.a, b: x.b}
 }
@@ -1536,6 +1576,14 @@ func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint8s) HiToLo() (z Uint8s) {
+	return Uint8s{a: x.b}
+}
+
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 func (x Uint8s) NotEqual(y Uint8s) (z Mask8s) {
 	var res Mask8s
@@ -1547,7 +1595,7 @@ func (x Uint8s) NotEqual(y Uint8s) (z Mask8s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint8s) Len() int {
 	return 16
 }
@@ -1654,7 +1702,7 @@ func (x Uint8s) StorePart(s []uint8) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint8s) String() string {
 	var parts [16]uint8
 	for i := 0; i < 16; i++ {
@@ -1704,6 +1752,8 @@ func (x Uint8s) BitsToInt8() (z Int8s) {
 }
 
 // ConvertToInt8 converts each element of x to int8.
+//
+// This wraps unrepresentable values.
 func (x Uint8s) ConvertToInt8() (z Int8s) {
 	return Int8s{a: x.a, b: x.b}
 }
@@ -1889,6 +1939,14 @@ func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint16s) HiToLo() (z Uint16s) {
+	return Uint16s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -1927,7 +1985,7 @@ func (x Uint16s) NotEqual(y Uint16s) (z Mask16s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint16s) Len() int {
 	return 8
 }
@@ -2086,7 +2144,7 @@ func (x Uint16s) StorePart(s []uint16) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint16s) String() string {
 	var parts [8]uint16
 	for i := 0; i < 8; i++ {
@@ -2136,6 +2194,8 @@ func (x Uint16s) BitsToInt16() (z Int16s) {
 }
 
 // ConvertToInt16 converts each element of x to int16.
+//
+// This wraps unrepresentable values.
 func (x Uint16s) ConvertToInt16() (z Int16s) {
 	return Int16s{a: x.a, b: x.b}
 }
@@ -2294,6 +2354,14 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint32s) HiToLo() (z Uint32s) {
+	return Uint32s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -2332,7 +2400,7 @@ func (x Uint32s) NotEqual(y Uint32s) (z Mask32s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint32s) Len() int {
 	return 4
 }
@@ -2491,7 +2559,7 @@ func (x Uint32s) StorePart(s []uint32) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint32s) String() string {
 	var parts [4]uint32
 	for i := 0; i < 4; i++ {
@@ -2529,6 +2597,8 @@ func (x Uint32s) BitsToInt32() (z Int32s) {
 }
 
 // ConvertToInt32 converts each element of x to int32.
+//
+// This wraps unrepresentable values.
 func (x Uint32s) ConvertToInt32() (z Int32s) {
 	return Int32s{a: x.a, b: x.b}
 }
@@ -2670,6 +2740,14 @@ func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s) {
 	return res
 }
 
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Uint64s) HiToLo() (z Uint64s) {
+	return Uint64s{a: x.b}
+}
+
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
@@ -2709,7 +2787,7 @@ func (x Uint64s) NotEqual(y Uint64s) (z Mask64s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// Len returns the number of elements in x.
 func (x Uint64s) Len() int {
 	return 2
 }
@@ -2801,7 +2879,7 @@ func (x Uint64s) StorePart(s []uint64) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Uint64s) String() string {
 	return simdfmt.SliceToString([]uint64{x.a, x.b})
 }
@@ -2831,6 +2909,8 @@ func (x Uint64s) BitsToInt64() (z Int64s) {
 }
 
 // ConvertToInt64 converts each element of x to int64.
+//
+// This wraps unrepresentable values.
 func (x Uint64s) ConvertToInt64() (z Int64s) {
 	return Int64s{a: x.a, b: x.b}
 }
@@ -2949,6 +3029,22 @@ func (x Float32s) Add(y Float32s) (z Float32s) {
 	return res
 }
 
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float32s) Ceil() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Ceil(float64(x.get(i)))))
+	}
+	return res
+}
+
 // ConvertToInt32 converts each element of x to int32.
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
@@ -2988,6 +3084,21 @@ func (x Float32s) Equal(y Float32s) (z Mask32s) {
 	return res
 }
 
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float32s) Floor() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Floor(float64(x.get(i)))))
+	}
+	return res
+}
+
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
@@ -3015,7 +3126,15 @@ func (x Float32s) GreaterEqual(y Float32s) (z Mask32s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float32s) HiToLo() (z Float32s) {
+	return Float32s{a: x.b}
+}
+
+// Len returns the number of elements in x.
 func (x Float32s) Len() int {
 	return 4
 }
@@ -3058,6 +3177,22 @@ func (x Float32s) Masked(mask Mask32s) (z Float32s) {
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 func (x Float32s) Max(y Float32s) (z Float32s) {
 	var res Float32s
 	for i := 0; i < 4; i++ {
@@ -3082,6 +3217,22 @@ func (x Float32s) IfElse(mask Mask32s, y Float32s) (z Float32s) {
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 func (x Float32s) Min(y Float32s) (z Float32s) {
 	var res Float32s
 	for i := 0; i < 4; i++ {
@@ -3107,6 +3258,10 @@ func (x Float32s) Mul(y Float32s) (z Float32s) {
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float32s) MulAdd(y Float32s, z Float32s) (w Float32s) {
 	var res Float32s
 
@@ -3141,16 +3296,39 @@ func (x Float32s) NotEqual(y Float32s) (z Mask32s) {
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 func (x Float32s) ReduceSum() (z float32) {
 	// Evaluate with same associativity as the horizontal-add idiom.
 	// It's also perhaps faster, since a shorter expression tree.
 	return (x.get(0) + x.get(1)) + (x.get(2) + x.get(3))
 }
 
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float32s) Round() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.RoundToEven(float64(x.get(i)))))
+	}
+	return res
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 func (x Float32s) Sqrt() (z Float32s) {
 	var res Float32s
 	for i := 0; i < 4; i++ {
@@ -3172,7 +3350,7 @@ func (x Float32s) StorePart(s []float32) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float32s) String() string {
 	var parts [4]float32
 	for i := 0; i < 4; i++ {
@@ -3195,6 +3373,21 @@ func (x Float32s) Sub(y Float32s) (z Float32s) {
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float32s) ToBits() (z Uint32s) {
 	return Uint32s{a: x.a, b: x.b}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float32s) Trunc() (z Float32s) {
+	var res Float32s
+	for i := 0; i < 4; i++ {
+		res.set(i, float32(math.Trunc(float64(x.get(i)))))
+	}
+	return res
 }
 
 // LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
@@ -3256,6 +3449,21 @@ func (x Float64s) Add(y Float64s) (z Float64s) {
 	return res
 }
 
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func (x Float64s) Ceil() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Ceil(x.get(0)))
+	res.set(1, math.Ceil(x.get(1)))
+	return res
+}
+
 // Div divides x by y elementwise.
 //
 //	z[i] = x[i] / y[i]
@@ -3279,6 +3487,20 @@ func (x Float64s) Equal(y Float64s) (z Mask64s) {
 	if x.get(1) == y.get(1) {
 		res.b = ^uint64(0)
 	}
+	return res
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func (x Float64s) Floor() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Floor(x.get(0)))
+	res.set(1, math.Floor(x.get(1)))
 	return res
 }
 
@@ -3311,7 +3533,15 @@ func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
 	return res
 }
 
-// Len returns the number of elements in the vector.
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
+func (x Float64s) HiToLo() (z Float64s) {
+	return Float64s{a: x.b}
+}
+
+// Len returns the number of elements in x.
 func (x Float64s) Len() int {
 	return 2
 }
@@ -3356,6 +3586,22 @@ func (x Float64s) Masked(mask Mask64s) (z Float64s) {
 // Max returns the elementwise maximum of x and y.
 //
 //	z[i] = max(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 maximum algorithm, which also agrees with Go's
+// max built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     y     y
+//	x     -Inf  x     x
+//	+Inf  y     +Inf  +Inf
+//	x     +Inf  +Inf  +Inf
+//	+0    -0    +0    -0
+//	-0    +0    +0    +0
 func (x Float64s) Max(y Float64s) (z Float64s) {
 	var res Float64s
 	vx := x.get(0)
@@ -3381,6 +3627,22 @@ func (x Float64s) IfElse(mask Mask64s, y Float64s) (z Float64s) {
 // Min returns the elementwise minimum of x and y.
 //
 //	z[i] = min(x[i], y[i])
+//
+// The handling of NaN and signed zeroes is architecture-dependent. ARM64 and
+// WASM follow the IEEE 754-2019 minimum algorithm, which also agrees with Go's
+// min built-in. AMD64 handles these differently. Notably, AMD64 is
+// non-commutative.
+//
+//	x     y     IEEE  AMD64
+//	----- ----- ----- -----
+//	NaN   y     NaN   y
+//	x     NaN   NaN   NaN
+//	-Inf  y     -Inf  -Inf
+//	x     -Inf  -Inf  -Inf
+//	+Inf  y     y     y
+//	x     +Inf  x     x
+//	+0    -0    -0    -0
+//	-0    +0    -0    +0
 func (x Float64s) Min(y Float64s) (z Float64s) {
 	var res Float64s
 	vx := x.get(0)
@@ -3405,6 +3667,10 @@ func (x Float64s) Mul(y Float64s) (z Float64s) {
 // MulAdd returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
+//
+// This performs a fused multiply-add, computing x[i]*y[i] + z[i] with a single
+// rounding rather than two and no intermediate overflow, except on wasm, where
+// it rounds x[i]*y[i] before adding z[i].
 func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
 	var res Float64s
 	res.set(0, x.get(0)*y.get(0)+z.get(0))
@@ -3437,14 +3703,36 @@ func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
 
 // ReduceSum returns the scalar sum of the elements of x.
 //
-//	z = x[0] + x[1] + ...
+// This uses repeated pairwise summation, which may affect the final precision
+// of the result.
+//
+//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
 func (x Float64s) ReduceSum() (z float64) {
 	return x.get(0) + x.get(1)
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func (x Float64s) Round() (z Float64s) {
+	var res Float64s
+	res.set(0, math.RoundToEven(x.get(0)))
+	res.set(1, math.RoundToEven(x.get(1)))
+	return res
 }
 
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
+//
+// The result is correctly rounded. Sqrt(+Inf) = +Inf, Sqrt(±0) = ±0, and
+// Sqrt(x) is NaN if x < 0 or x is NaN. The sign and payload of a NaN result
+// are unspecified.
 func (x Float64s) Sqrt() (z Float64s) {
 	var res Float64s
 	res.set(0, math.Sqrt(x.get(0)))
@@ -3468,7 +3756,7 @@ func (x Float64s) StorePart(s []float64) (n int) {
 	return min(len(s), x.Len())
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}".
 func (x Float64s) String() string {
 	return simdfmt.SliceToString([]float64{x.get(0), x.get(1)})
 }
@@ -3486,6 +3774,20 @@ func (x Float64s) Sub(y Float64s) (z Float64s) {
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64s) ToBits() (z Uint64s) {
 	return Uint64s{a: x.a, b: x.b}
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func (x Float64s) Trunc() (z Float64s) {
+	var res Float64s
+	res.set(0, math.Trunc(x.get(0)))
+	res.set(1, math.Trunc(x.get(1)))
+	return res
 }
 
 func (x *Mask8s) set(i int, v bool) {
@@ -3540,7 +3842,8 @@ func (x Mask8s) Xor(y Mask8s) (z Mask8s) {
 	return Mask8s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask8s) String() string {
 	var s [16]int8
 	x.ToInt8s().Neg().Store(s[:])
@@ -3605,7 +3908,8 @@ func (x Mask16s) Xor(y Mask16s) (z Mask16s) {
 	return Mask16s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask16s) String() string {
 	var s [8]int16
 	x.ToInt16s().Neg().Store(s[:])
@@ -3670,7 +3974,8 @@ func (x Mask32s) Xor(y Mask32s) (z Mask32s) {
 	return Mask32s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask32s) String() string {
 	var s [4]int32
 	x.ToInt32s().Neg().Store(s[:])
@@ -3733,7 +4038,8 @@ func (x Mask64s) Xor(y Mask64s) (z Mask64s) {
 	return Mask64s{a: x.a ^ y.a, b: x.b ^ y.b}
 }
 
-// String returns a string representation of the vector.
+// String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
+// means true.
 func (x Mask64s) String() string {
 	var s [2]int64
 	x.ToInt64s().Neg().Store(s[:])

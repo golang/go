@@ -7,6 +7,7 @@
 package test_helpers
 
 import (
+	"math"
 	"math/bits"
 	"testing"
 	"unsafe"
@@ -19,6 +20,14 @@ func ReduceSum[S number](s []S) S {
 	}
 	return x
 }
+
+// The rounding references compute in float64, which is exact for float32
+// inputs too.
+
+func Round[S float](x S) S { return S(math.RoundToEven(float64(x))) }
+func Ceil[S float](x S) S  { return S(math.Ceil(float64(x))) }
+func Floor[S float](x S) S { return S(math.Floor(float64(x))) }
+func Trunc[S float](x S) S { return S(math.Trunc(float64(x))) }
 
 func Neg[S number](x S) S {
 	return -x

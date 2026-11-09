@@ -580,8 +580,11 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
 	return itabLsym(typ, iface, true)
 }
 
+// itabLsym returns the LSym of the itab for typ implementing iface. Itabs are
+// keyed by the underlying type of iface, so that interface types with the same
+// method set share them; see internal/abi.InterfaceType.Under.
 func itabLsym(typ, iface *types.Type, allowNonImplement bool) *obj.LSym {
-	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.LinkString())
+	s, existed := ir.Pkgs.Itab.LookupOK(typ.LinkString() + "," + iface.Underlying().LinkString())
 	lsym := s.Linksym()
 	signatmu.Lock()
 	if lsym.Extra == nil {
@@ -865,12 +868,23 @@ func writeType(t *types.Type) *obj.LSym {
 			writeType(a.type_)
 		}
 
+		// The runtime needs a way from a defined interface type to the type
+		// its itabs are keyed by. An empty interface type never has an itab,
+		// so it does not need the link. See internal/abi.InterfaceType.Under.
+		var under *obj.LSym
+		if u := t.Underlying(); u != t && n > 0 {
+			under = writeType(u)
+		}
+
 		var tpkg *types.Pkg
 		if t.Sym() != nil && t != types.Types[t.Kind()] && t != types.ErrorType {
 			tpkg = t.Sym().Pkg
 		}
 		dgopkgpath(c.Field("PkgPath"), tpkg)
 		c.Field("Methods").WriteSlice(lsym, C, int64(n), int64(n))
+		if under != nil {
+			c.Field("Under").WritePtr(under)
+		}
 
 		array := rttype.NewArrayCursor(lsym, C, rttype.IMethod, n)
 		for i, a := range m {
@@ -996,14 +1010,11 @@ func needTypelink(t *types.Type) bool {
 // type descriptor, ityp.
 func InterfaceMethodOffset(ityp *types.Type, i int64) int64 {
 	// interface type descriptor layout is struct {
-	//   _type        // commonSize
-	//   pkgpath      // 1 word
-	//   []imethod    // 3 words (pointing to [...]imethod below)
+	//   internal/abi.InterfaceType
 	//   uncommontype // uncommonSize
 	//   [...]imethod
 	// }
-	// The size of imethod is 8.
-	return int64(commonSize()+4*types.PtrSize+uncommonSize(ityp)) + i*8
+	return rttype.InterfaceType.Size() + int64(uncommonSize(ityp)) + i*rttype.IMethod.Size()
 }
 
 // NeedRuntimeType ensures that a runtime type descriptor is emitted for t.
@@ -1098,7 +1109,9 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
 	//   fun    [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
 	// }
 	c := rttype.NewCursor(lsym, 0, rttype.ITab)
-	c.Field("Inter").WritePtr(writeType(iface))
+	// Inter is the underlying type of iface, not iface itself, because that
+	// is what the itab is keyed by. See itabLsym.
+	c.Field("Inter").WritePtr(writeType(iface.Underlying()))
 	c.Field("Type").WritePtr(writeType(typ))
 	c.Field("Hash").WriteUint32(types.TypeHash(typ)) // copy of type hash
 

@@ -2370,3 +2370,117 @@ func TestReverseProxyCONNECT(t *testing.T) {
 		}
 	})
 }
+
+func TestReverseProxyURLSanitization(t *testing.T) {
+	backendHost := "backend.tld"
+	inboundHost := "example.tld"
+	backendURL := url.MustParse("http://" + backendHost + "/base")
+	for _, testproxy := range []struct {
+		name     string
+		proxy    *ReverseProxy
+		wantHost string
+	}{{
+		name: "SetURL",
+		proxy: {
+			Rewrite: func(r *ProxyRequest) {
+				r.SetURL(backendURL)
+			},
+		},
+		wantHost: backendHost,
+	}, {
+		name: "Rewrite",
+		proxy: {
+			Rewrite: func(r *ProxyRequest) {
+				r.Out.URL.Scheme = backendURL.Scheme
+				r.Out.URL.Host = backendURL.Host
+				r.Out.URL.Path = singleJoiningSlash("/base/", r.Out.URL.Path)
+			},
+		},
+		wantHost: inboundHost,
+	}, {
+		name:     "NewSingleHostReverseProxy",
+		proxy:    NewSingleHostReverseProxy(backendURL),
+		wantHost: inboundHost,
+	}} {
+		for _, testurl := range []struct {
+			name    string
+			url     *url.URL
+			wantURL string
+		}{{
+			name: "scheme-path",
+			url: &url.URL{
+				Opaque: "a:b:/path",
+			},
+			wantURL: "http://backend.tld/base/",
+		}, {
+			name: "nested-opaque",
+			url: &url.URL{
+				Opaque: "a:b:c:/path",
+			},
+			wantURL: "http://backend.tld/base/",
+		}, {
+			name: "host-path",
+			url: &url.URL{
+				Opaque: "a:http://other.tld/path",
+			},
+			wantURL: "http://backend.tld/base/",
+		}, {
+			name: "userinfo",
+			url: &url.URL{
+				User: url.UserPassword("user", "pass"),
+				Path: "/",
+			},
+			wantURL: "http://backend.tld/base/",
+		}, {
+			name: "no-host",
+			url: &url.URL{
+				Path:     "/path",
+				OmitHost: true,
+			},
+			wantURL: "http://backend.tld/base/path",
+		}} {
+			t.Run(testproxy.name+"/"+testurl.name, func(t *testing.T) {
+				proxy := new(*testproxy.proxy)
+				var gotReq *http.Request
+				proxy.Transport = RoundTripperFunc(func(req *http.Request) (*http.Response, error) {
+					gotReq = req
+					return &http.Response{
+						Status:     "200 OK",
+						StatusCode: 200,
+						Header:     http.Header{},
+						Body:       http.NoBody,
+					}, nil
+				})
+				proxy.ErrorHandler = func(w http.ResponseWriter, req *http.Request, err error) {
+					t.Log(err)
+				}
+				req := &http.Request{
+					Method:     "GET",
+					URL:        testurl.url,
+					Host:       inboundHost,
+					Proto:      "HTTP/1.1",
+					ProtoMajor: 1,
+					ProtoMinor: 1,
+				}
+				proxy.ServeHTTP(new(httptest.ResponseRecorder), req)
+				if gotReq == nil {
+					t.Fatalf("RoundTrip not called")
+				}
+				wantURL, err := url.Parse(testurl.wantURL)
+				if err != nil {
+					t.Fatalf("parse wantURL: %v", err)
+				}
+				if got, want := gotReq.URL, wantURL; *got != *want {
+					t.Errorf("proxy sent URL:\n%[1]q %#[1]v\nWant URL:\n%[2]q %#[2]v", got, want)
+				}
+				gotHost := gotReq.Host
+				if gotHost == "" {
+					gotHost = gotReq.URL.Host
+				}
+				if got, want := gotHost, testproxy.wantHost; got != want {
+					t.Errorf("proxy sent Host %q, want %q", got, want)
+				}
+			})
+		}
+	}
+}

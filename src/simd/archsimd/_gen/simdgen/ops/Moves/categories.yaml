@@ -79,6 +79,8 @@
     // zeroing any remaining elements.
 - go: blend
   commutative: false
+  noTypes: "true"
+  noGenericOps: "true"
   documentation: !string |-
     // NAME blends two vectors based on mask values, choosing either
     // the first or the second based on whether the third is false or true

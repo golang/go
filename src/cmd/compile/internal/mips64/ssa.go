@@ -769,6 +769,49 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 
 		s.Prog(mips.ASYNC)
 
+	case ssaop.OpMIPS64LoweredAtomicAnd32value, ssaop.OpMIPS64LoweredAtomicAnd64value,
+		ssaop.OpMIPS64LoweredAtomicOr32value, ssaop.OpMIPS64LoweredAtomicOr64value:
+		// SYNC
+		// LL[V]	(Rarg0), Rout
+		// AND/OR	Rarg1, Rout, Rtmp
+		// SC[V]	Rtmp, (Rarg0)
+		// BEQ	Rtmp, -3(PC)
+		// SYNC
+		ll := mips.ALLV
+		sc := mips.ASCV
+		if v.Op == ssaop.OpMIPS64LoweredAtomicAnd32value || v.Op == ssaop.OpMIPS64LoweredAtomicOr32value {
+			ll = mips.ALL
+			sc = mips.ASC
+		}
+		s.Prog(mips.ASYNC)
+
+		p := s.Prog(ll)
+		p.From.Type = obj.TYPE_MEM
+		p.From.Reg = v.Args[0].Reg()
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg0()
+
+		p1 := s.Prog(v.Op.Asm())
+		p1.From.Type = obj.TYPE_REG
+		p1.From.Reg = v.Args[1].Reg()
+		p1.Reg = v.Reg0()
+		p1.To.Type = obj.TYPE_REG
+		p1.To.Reg = mips.REGTMP
+
+		p2 := s.Prog(sc)
+		p2.From.Type = obj.TYPE_REG
+		p2.From.Reg = mips.REGTMP
+		p2.To.Type = obj.TYPE_MEM
+		p2.To.Reg = v.Args[0].Reg()
+
+		p3 := s.Prog(mips.ABEQ)
+		p3.From.Type = obj.TYPE_REG
+		p3.From.Reg = mips.REGTMP
+		p3.To.Type = obj.TYPE_BRANCH
+		p3.To.SetTarget(p)
+
+		s.Prog(mips.ASYNC)
+
 	case ssaop.OpMIPS64LoweredAtomicCas32, ssaop.OpMIPS64LoweredAtomicCas64:
 		// MOVV $0, Rout
 		// SYNC

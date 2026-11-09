@@ -213,6 +213,10 @@ func TestFloat32s(t *testing.T) {
 	load := simd.LoadFloat32s
 	test_helpers.TestV2Ve(t, values, load, simd.Float32s.Neg, test_helpers.Neg)
 	test_helpers.TestV2Ve(t, values, load, simd.Float32s.Abs, test_helpers.Abs)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat32s(), load, simd.Float32s.Round, test_helpers.Round)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat32s(), load, simd.Float32s.Ceil, test_helpers.Ceil)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat32s(), load, simd.Float32s.Floor, test_helpers.Floor)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat32s(), load, simd.Float32s.Trunc, test_helpers.Trunc)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Add, test_helpers.Add)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Sub, test_helpers.Sub)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float32s.Mul, test_helpers.Mul)
@@ -240,6 +244,10 @@ func TestFloat64s(t *testing.T) {
 	load := simd.LoadFloat64s
 	test_helpers.TestV2Ve(t, values, load, simd.Float64s.Neg, test_helpers.Neg)
 	test_helpers.TestV2Ve(t, values, load, simd.Float64s.Abs, test_helpers.Abs)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat64s(), load, simd.Float64s.Round, test_helpers.Round)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat64s(), load, simd.Float64s.Ceil, test_helpers.Ceil)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat64s(), load, simd.Float64s.Floor, test_helpers.Floor)
+	test_helpers.TestV2Ve(t, test_helpers.RoundingFloat64s(), load, simd.Float64s.Trunc, test_helpers.Trunc)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Add, test_helpers.Add)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Sub, test_helpers.Sub)
 	test_helpers.TestVV2Ve(t, values, load, simd.Float64s.Mul, test_helpers.Mul)
@@ -378,6 +386,39 @@ func TestBroadcast(t *testing.T) {
 
 	testBroadcast(t, float32(99991111), simd.BroadcastFloat32s)
 	testBroadcast(t, float64(112233445599887766), simd.BroadcastFloat64s)
+}
+
+func testHiToLo[E number, V interface {
+	HasStoreLen[E]
+	HiToLo() V
+}](t *testing.T, load func([]E) V) {
+	t.Helper()
+	var zero V
+	n := zero.Len()
+	x := make([]E, n)
+	for i := range x {
+		x[i] = E(i + 1)
+	}
+	got := make([]E, n)
+	load(x).HiToLo().Store(got)
+	want := make([]E, n)
+	copy(want, x[n/2:])
+	if !slices.Equal(want, got) {
+		t.Errorf("%T.HiToLo(%v): want %v, got %v", zero, x, want, got)
+	}
+}
+
+func TestHiToLo(t *testing.T) {
+	testHiToLo(t, simd.LoadInt8s)
+	testHiToLo(t, simd.LoadInt16s)
+	testHiToLo(t, simd.LoadInt32s)
+	testHiToLo(t, simd.LoadInt64s)
+	testHiToLo(t, simd.LoadUint8s)
+	testHiToLo(t, simd.LoadUint16s)
+	testHiToLo(t, simd.LoadUint32s)
+	testHiToLo(t, simd.LoadUint64s)
+	testHiToLo(t, simd.LoadFloat32s)
+	testHiToLo(t, simd.LoadFloat64s)
 }
 
 func TestMaskToInt(t *testing.T) {

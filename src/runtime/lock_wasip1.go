@@ -115,3 +115,6 @@ func checkTimeouts() {}
 
 //go:wasmimport wasi_snapshot_preview1 sched_yield
 func sched_yield() errno
+
+func stealRunnextSleep(ns int64) {}
+func stealRunnextWake()          {}

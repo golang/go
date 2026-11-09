@@ -330,7 +330,8 @@ var genericOps = []opData{
 	//
 	// When the multiply is an infinity times a zero, the result is NaN.
 	// See section 7.2 in ieee754.
-	{name: "FMA", argLength: 3}, // compute (a*b)+c without intermediate rounding
+	{name: "FMA", argLength: 3},   // compute (a*b)+c without intermediate rounding (double precision)
+	{name: "FMA32", argLength: 3}, // compute (a*b)+c without intermediate rounding (single precision)
 
 	// Data movement. Max argument length for Phi is indefinite.
 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
@@ -403,6 +404,20 @@ var genericOps = []opData{
 	{name: "StoreMasked16", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 16-bits, arg3 = memory
 	{name: "StoreMasked32", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 32-bits, arg3 = memory
 	{name: "StoreMasked64", argLength: 4, typ: "Mem", aux: "Typ"}, // Store arg2 to arg0, arg1=mask of 64-bits, arg3 = memory
+
+	// SIMD vector Masked (zero where mask is false) and IfElse (select arg0 where mask is true, arg2 where false).
+	{name: "Masked8", argLength: 2},
+	{name: "Masked16", argLength: 2},
+	{name: "Masked32", argLength: 2},
+	{name: "Masked64", argLength: 2},
+	{name: "MaskedFloat32", argLength: 2},
+	{name: "MaskedFloat64", argLength: 2},
+	{name: "IfElse8", argLength: 3},
+	{name: "IfElse16", argLength: 3},
+	{name: "IfElse32", argLength: 3},
+	{name: "IfElse64", argLength: 3},
+	{name: "IfElseFloat32", argLength: 3},
+	{name: "IfElseFloat64", argLength: 3},
 
 	// Normally we require that the source and destination of Move do not overlap.
 	// There is an exception when we know all the loads will happen before all

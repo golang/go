@@ -31,9 +31,9 @@ var vecMask32 = [32]int32{
 
 /* 256-bit int vector loads and stores made from 128-bit parts */
 
-// LoadInt8x32Part loads a Int8x32 from the slice s.
-// If s has fewer than 32 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 32 or more elements, the function is equivalent to LoadInt8x32Slice.
+// LoadInt8x32Part loads n=min(len(s), 32) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 32, the
+// remaining vector elements will be zero.
 func LoadInt8x32Part(s []int8) (z Int8x32, n int) {
 	l := len(s)
 	if l >= 32 {
@@ -52,9 +52,9 @@ func LoadInt8x32Part(s []int8) (z Int8x32, n int) {
 	}
 }
 
-// LoadInt16x16Part loads a Int16x16 from the slice s.
-// If s has fewer than 16 elements, the remaining elements of the vector are filled with zeroes.
-// If s has 16 or more elements, the function is equivalent to LoadInt16x16Slice.
+// LoadInt16x16Part loads n=min(len(s), 16) elements from slice s as a
+// vector and returns the vector and n. If len(s) < 16, the
+// remaining vector elements will be zero.
 func LoadInt16x16Part(s []int16) (z Int16x16, n int) {
 	l := len(s)
 	if l >= 16 {
@@ -73,9 +73,7 @@ func LoadInt16x16Part(s []int16) (z Int16x16, n int) {
 	}
 }
 
-// StorePart stores the elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 32 or more elements, the method is equivalent to x.StoreSlice.
+// StorePart stores n=min(len(s), 32) elements of x into s and returns n.
 func (x Int8x32) StorePart(s []int8) (n int) {
 	l := len(s)
 	if l >= 32 {
@@ -94,9 +92,7 @@ func (x Int8x32) StorePart(s []int8) (n int) {
 	return l
 }
 
-// StorePart stores the elements of x into the slice s.
-// It stores as many elements as will fit in s.
-// If s has 16 or more elements, the method is equivalent to x.StoreSlice.
+// StorePart stores n=min(len(s), 16) elements of x into s and returns n.
 func (x Int16x16) StorePart(s []int16) (n int) {
 	l := len(s)
 	if l >= 16 {

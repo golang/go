@@ -599,6 +599,14 @@ func transposeSlice[T number](laneBits int, odd bool) func(x, y []T) []T {
 	})
 }
 
+// hiToLoSlice moves the high half of x to the low half and zeroes the high
+// half.
+func hiToLoSlice[T number](x []T) []T {
+	out := make([]T, len(x))
+	copy(out, x[len(x)/2:])
+	return out
+}
+
 func sqrtSlice[T float](x []T) []T {
 	return map1[T](sqrt)(x)
 }

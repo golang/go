@@ -129,6 +129,68 @@ func ConcatSubPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return z
 }
 
+// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+// {{if eq .xL 2}}
+//
+//	z = {max(x[0], x[1]), max(y[0], y[1])}
+//
+// {{else if eq .xL 4}}
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), max(y[0], y[1]), max(y[2], y[3])}
+//
+// {{else}}
+//
+//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
+//
+// {{end}}
+//
+// For floats, max is Go's max built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
+func ConcatMaxPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	// Only ARM64 implements this (FMAXP, SMAXP, UMAXP), and its float form
+	// follows IEEE 754-2019 maximum like Go's max. If another platform
+	// implements it with its own Max, see MaxFloats about AMD64.
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = max(x[2*i], x[2*i+1])
+		z[half+i] = max(y[2*i], y[2*i+1])
+	}
+	return z
+}
+
+// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
+// in x and y and returns the concatenated result.
+//
+// {{if eq .xL 2}}
+//
+//	z = {min(x[0], x[1]), min(y[0], y[1])}
+//
+// {{else if eq .xL 4}}
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), min(y[0], y[1]), min(y[2], y[3])}
+//
+// {{else}}
+//
+//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
+//
+// {{end}}
+//
+// For floats, min is Go's min built-in: it returns NaN if either element is
+// NaN, and orders -0 before +0.
+func ConcatMinPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	// See ConcatMaxPairs about platforms.
+	z = makeVec[E, W]()
+	half := z.len() / 2
+	for i := 0; i < half; i++ {
+		z[i] = min(x[2*i], x[2*i+1])
+		z[half+i] = min(y[2*i], y[2*i+1])
+	}
+	return z
+}
+
 // ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
 // y with saturation and returns the concatenated result.
 //
@@ -452,7 +514,7 @@ func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[Variation[E], W])
 		var fused E
 		switch xi := any(x[i]).(type) {
 		case float32:
-			fused = E(fma32(xi, float32(y[i]), float32(z[i])))
+			fused = E(math.FMA32(xi, float32(y[i]), float32(z[i])))
 		case float64:
 			fused = E(math.FMA(xi, float64(y[i]), float64(z[i])))
 		}
@@ -547,6 +609,18 @@ func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
 	return z
 }
 
+// ReduceMin returns the smallest element of x.
+//
+//	z = min(x[0], x[1], ...)
+func ReduceMin[E Elt, W Width](x Vec[E, W]) (z E) {
+	// See ReduceMax about the handling of non-finite values.
+	z = x[0]
+	for _, xi := range x[1:] {
+		z = min(z, xi)
+	}
+	return z
+}
+
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
@@ -562,4 +636,98 @@ func Sqrt[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
 	return map1[E, W, E, W](x, func(x E) E {
 		return E(math.Sqrt(float64(x)))
 	})
+}
+
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
+func Ceil[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Ceil(float64(x)))
+	})
+}
+
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
+func Floor[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Floor(float64(x)))
+	})
+}
+
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
+func Round[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.RoundToEven(float64(x)))
+	})
+}
+
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
+func Trunc[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	return map1[E, W, E, W](x, func(x E) E {
+		return E(math.Trunc(float64(x)))
+	})
+}
+
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[i]) * {{.zE}}(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenLo[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	for i := range z {
+		z[i] = zE(x[i]) * zE(y[i])
+	}
+	return z
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[{{lanes .z "z"}}+i]) * {{.zE}}(y[{{lanes .z "z"}}+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:experiment
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	half := z.len()
+	for i := range z {
+		z[i] = zE(x[half+i]) * zE(y[half+i])
+	}
+	return z
 }

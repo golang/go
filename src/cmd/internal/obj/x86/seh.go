@@ -9,42 +9,65 @@ import (
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"math"
+	"strings"
 )
 
 type sehbuf struct {
-	ctxt *obj.Link
-	data []byte
-	off  int
-}
-
-func newsehbuf(ctxt *obj.Link, nodes uint8) sehbuf {
-	// - 8 bytes for the header
-	// - 2 bytes for each node
-	// - 2 bytes in case nodes is not even
-	size := 8 + nodes*2
-	if nodes%2 != 0 {
-		size += 2
-	}
-	return sehbuf{ctxt, make([]byte, size), 0}
+	ctxt   *obj.Link
+	data   []byte
+	relocs []obj.Reloc
 }
 
 func (b *sehbuf) write8(v uint8) {
-	b.data[b.off] = v
-	b.off++
+	b.data = append(b.data, v)
 }
 
 func (b *sehbuf) write32(v uint32) {
-	b.ctxt.Arch.ByteOrder.PutUint32(b.data[b.off:], v)
-	b.off += 4
+	b.data = binary.LittleEndian.AppendUint32(b.data, v)
 }
 
 func (b *sehbuf) writecode(op, value uint8) {
 	b.write8(value<<4 | op)
 }
 
-// populateSeh generates the SEH unwind information for s.
+func (b *sehbuf) writeaddr(s *obj.LSym) {
+	if s != nil {
+		b.relocs = append(b.relocs, obj.Reloc{
+			Type: objabi.R_PEIMAGEOFF,
+			Off:  int32(len(b.data)),
+			Siz:  4,
+			Sym:  s,
+		})
+	}
+	b.write32(0)
+}
+
+func (b *sehbuf) sym(prefix string) *obj.LSym {
+	// Include relocation targets so records with the same bytes but
+	// different unwind information or exception handlers remain distinct.
+	var name strings.Builder
+	fmt.Fprintf(&name, "%s%d.%s", prefix, len(b.data), base64.StdEncoding.EncodeToString(b.data))
+	for _, r := range b.relocs {
+		fmt.Fprintf(&name, ".%d.%d:%s", r.Off, len(r.Sym.Name), r.Sym.Name)
+	}
+	return b.ctxt.LookupInit(name.String(), func(s *obj.LSym) {
+		s.WriteBytes(b.ctxt, 0, b.data)
+		s.Align = 4
+		s.Type = objabi.SSEHUNWINDINFO
+		s.Set(obj.AttrDuplicateOK, true)
+		s.Set(obj.AttrLocal, true)
+		s.Set(obj.AttrContentAddressable, true)
+		for _, r := range b.relocs {
+			s.AddRel(b.ctxt, r)
+		}
+		b.ctxt.SEHSyms = append(b.ctxt.SEHSyms, s)
+	})
+}
+
+// populateSeh generates function-relative .pdata records and their unwind information for s.
 func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	if s.NoFrame() {
 		return
@@ -92,6 +115,23 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 		// Return without reporting an error.
 		return
 	}
+	if s.Size > math.MaxUint32 {
+		ctxt.Diag("function too large for SEH: %s", s.Name)
+		return
+	}
+
+	end := s.Size
+	if !s.NoSplit() {
+		split := movbp.Link
+		for split != nil && split.Mark&sehStackSplit == 0 {
+			split = split.Link
+		}
+		if split == nil {
+			ctxt.Diag("missing stack-split code: %s", s.Name)
+			return
+		}
+		end = split.Pc
+	}
 
 	// Reference:
 	// https://learn.microsoft.com/en-us/cpp/build/exception-handling-x64#struct-unwind_info
@@ -120,8 +160,8 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	// Fow now we only support operations which are encoded
 	// using a single 2-byte node, so the number of nodes
 	// is the number of operations.
-	nodes := uint8(2)
-	buf := newsehbuf(ctxt, nodes)
+	const nodes = 2
+	buf := sehbuf{ctxt: ctxt, data: make([]byte, 0, 8+2*nodes)}
 	buf.write8(flags | 1)            // Flags + version
 	buf.write8(uint8(movbp.Link.Pc)) // Size of prolog
 	buf.write8(nodes)                // Count of nodes
@@ -134,33 +174,25 @@ func populateSeh(ctxt *obj.Link, s *obj.LSym) (sehsym *obj.LSym) {
 	buf.write8(uint8(pushbp.Link.Pc))
 	buf.writecode(UWOP_PUSH_NONVOL, SEH_REG_BP)
 
-	// The following 4 bytes reference the RVA of the exception handler.
-	// The value is set to 0 for now, if an exception handler is needed,
-	// it will be updated later with a R_PEIMAGEOFF relocation to the
-	// exception handler.
-	buf.write32(0)
+	buf.writeaddr(exceptionHandler)
+	unwind := buf.sym("go:sehuw.")
 
-	// The list of unwind infos in a PE binary have very low cardinality
-	// as each info only contains frame pointer operations,
-	// which are very similar across functions.
-	// Dedup them when possible.
-	hash := base64.StdEncoding.EncodeToString(buf.data)
-	symname := fmt.Sprintf("%d.%s", len(buf.data), hash)
-	return ctxt.LookupInit("go:sehuw."+symname, func(s *obj.LSym) {
-		s.WriteBytes(ctxt, 0, buf.data)
-		s.Align = 4
-		s.Type = objabi.SSEHUNWINDINFO
-		s.Set(obj.AttrDuplicateOK, true)
-		s.Set(obj.AttrLocal, true)
-		s.Set(obj.AttrContentAddressable, true)
-		if exceptionHandler != nil {
-			s.AddRel(ctxt, obj.Reloc{
-				Type: objabi.R_PEIMAGEOFF,
-				Off:  int32(len(buf.data) - 4),
-				Siz:  4,
-				Sym:  exceptionHandler,
-			})
-		}
-		ctxt.SEHSyms = append(ctxt.SEHSyms, s)
-	})
+	size := 12
+	if end < s.Size {
+		size += 12
+	}
+	pdata := sehbuf{ctxt: ctxt, data: make([]byte, 0, size)}
+	pdata.write32(0)
+	pdata.write32(uint32(end))
+	pdata.writeaddr(unwind)
+	if end < s.Size {
+		// The stack-split code has no frame. Give it a separate .pdata
+		// record with empty unwind info, so Windows pops the return
+		// address from SP without changing BP.
+		leaf := sehbuf{ctxt: ctxt, data: []byte{1, 0, 0, 0}} // UNWIND_INFO version 1.
+		pdata.write32(uint32(end))
+		pdata.write32(uint32(s.Size))
+		pdata.writeaddr(leaf.sym("go:sehuw."))
+	}
+	return pdata.sym("go:sehpdata.")
 }

@@ -165,6 +165,33 @@ func fnma(x, y, z float64) float64 {
 	return math.FMA(x, -y, -z)
 }
 
+func fma32(x, y, z float32) float32 {
+	// amd64/v3:-".*x86HasFMA"
+	// amd64:"VFMADD231SS"
+	// arm/6:"FMULAF"
+	// arm64:"FMADDS"
+	// loong64:"FMADDF"
+	// s390x:"FMADDS"
+	// ppc64x:"FMADDS"
+	// riscv64:"FMADDS"
+	return math.FMA32(x, y, z)
+}
+
+func fms32(x, y, z float32) float32 {
+	// riscv64:"FMSUBS"
+	return math.FMA32(x, y, -z)
+}
+
+func fnms32(x, y, z float32) float32 {
+	// riscv64:"FNMSUBS" -"FNMADDS"
+	return math.FMA32(-x, y, z)
+}
+
+func fnma32(x, y, z float32) float32 {
+	// riscv64:"FNMADDS" -"FNMSUBS"
+	return math.FMA32(x, -y, -z)
+}
+
 func isPosInf(x float64) bool {
 	// riscv64:"FCLASSD"
 	return math.IsInf(x, 1)

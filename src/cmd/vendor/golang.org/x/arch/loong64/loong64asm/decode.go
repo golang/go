@@ -103,6 +103,30 @@ func decodeArg(aop instArg, x uint32, index int) Arg {
 	case arg_rk:
 		return R0 + Reg((x>>10)&((1<<5)-1))
 
+	case arg_vd:
+		return V0 + Reg(x&((1<<5)-1))
+
+	case arg_vj:
+		return V0 + Reg((x>>5)&((1<<5)-1))
+
+	case arg_vk:
+		return V0 + Reg((x>>10)&((1<<5)-1))
+
+	case arg_va:
+		return V0 + Reg((x>>15)&((1<<5)-1))
+
+	case arg_xd:
+		return X0 + Reg(x&((1<<5)-1))
+
+	case arg_xj:
+		return X0 + Reg((x>>5)&((1<<5)-1))
+
+	case arg_xk:
+		return X0 + Reg((x>>10)&((1<<5)-1))
+
+	case arg_xa:
+		return X0 + Reg((x>>15)&((1<<5)-1))
+
 	case arg_fcsr_4_0:
 		return FCSR0 + Fcsr(x&((1<<5)-1))
 
@@ -144,12 +168,36 @@ func decodeArg(aop instArg, x uint32, index int) Arg {
 	case arg_code_14_0:
 		return CodeSimm(x & ((1 << 15) - 1))
 
+	case arg_ui1_10_10:
+		tmp := (x >> 10) & ((1 << 1) - 1)
+		return Uimm{tmp, false}
+
+	case arg_ui2_11_10:
+		tmp := (x >> 10) & ((1 << 2) - 1)
+		return Uimm{tmp, false}
+
+	case arg_ui3_12_10:
+		tmp := (x >> 10) & ((1 << 3) - 1)
+		return Uimm{tmp, false}
+
+	case arg_ui4_13_10:
+		tmp := (x >> 10) & ((1 << 4) - 1)
+		return Uimm{tmp, false}
+
 	case arg_ui5_14_10:
 		tmp := (x >> 10) & ((1 << 5) - 1)
 		return Uimm{tmp, false}
 
 	case arg_ui6_15_10:
 		tmp := (x >> 10) & ((1 << 6) - 1)
+		return Uimm{tmp, false}
+
+	case arg_ui7_16_10:
+		tmp := (x >> 10) & ((1 << 7) - 1)
+		return Uimm{tmp, false}
+
+	case arg_ui8_17_10:
+		tmp := (x >> 10) & ((1 << 8) - 1)
 		return Uimm{tmp, false}
 
 	case arg_ui12_21_10:
@@ -191,6 +239,51 @@ func decodeArg(aop instArg, x uint32, index int) Arg {
 	case arg_seq_17_10:
 		tmp := (x >> 10) & ((1 << 8) - 1)
 		return Uimm{tmp, false}
+
+	case arg_si5_14_10:
+		var tmp int16
+		if (x & 0x4000) == 0x4000 {
+			tmp = int16(((x >> 10) & ((1 << 5) - 1)) | 0xffe0)
+		} else {
+			tmp = int16(((x >> 10) & ((1 << 5) - 1)) | 0x0000)
+		}
+		return Simm16{tmp, 5}
+
+	case arg_si8_17_10:
+		var tmp int16
+		if (x & 0x20000) == 0x20000 {
+			tmp = int16(((x >> 10) & ((1 << 8) - 1)) | 0xff80)
+		} else {
+			tmp = int16(((x >> 10) & ((1 << 8) - 1)) | 0x0000)
+		}
+		return Simm16{tmp, 8}
+
+	case arg_si9_18_10:
+		var tmp int16
+		if (x & 0x40000) == 0x40000 {
+			tmp = int16(((x >> 10) & ((1 << 9) - 1)) | 0xff00)
+		} else {
+			tmp = int16(((x >> 10) & ((1 << 9) - 1)) | 0x0000)
+		}
+		return Simm16{tmp, 9}
+
+	case arg_si10_19_10:
+		var tmp int16
+		if (x & 0x80000) == 0x80000 {
+			tmp = int16(((x >> 10) & ((1 << 10) - 1)) | 0xfe00)
+		} else {
+			tmp = int16(((x >> 10) & ((1 << 10) - 1)) | 0x0000)
+		}
+		return Simm16{tmp, 10}
+
+	case arg_si11_20_10:
+		var tmp int16
+		if (x & 0x100000) == 0x100000 {
+			tmp = int16(((x >> 10) & ((1 << 11) - 1)) | 0xfc00)
+		} else {
+			tmp = int16(((x >> 10) & ((1 << 11) - 1)) | 0x0000)
+		}
+		return Simm16{tmp, 11}
 
 	case arg_si12_21_10:
 		var tmp int16
@@ -263,6 +356,31 @@ func decodeArg(aop instArg, x uint32, index int) Arg {
 		}
 
 		return OffsetSimm{tmp, 26}
+
+	case arg_idx1_18_18:
+		tmp := (x >> 18) & ((1 << 1) - 1)
+		return IdxUimm(tmp)
+
+	case arg_idx2_19_18:
+		tmp := (x >> 18) & ((1 << 2) - 1)
+		return IdxUimm(tmp)
+
+	case arg_idx3_20_18:
+		tmp := (x >> 18) & ((1 << 3) - 1)
+		return IdxUimm(tmp)
+
+	case arg_idx4_21_18:
+		tmp := (x >> 18) & ((1 << 4) - 1)
+		return IdxUimm(tmp)
+
+	case arg_idx5_22_18:
+		tmp := (x >> 18) & ((1 << 5) - 1)
+		return IdxUimm(tmp)
+
+	case arg_i13_17_5:
+		tmp := (x >> 5) & ((1 << 13) - 1)
+		return Uimm{tmp, true}
+
 	default:
 		return nil
 	}

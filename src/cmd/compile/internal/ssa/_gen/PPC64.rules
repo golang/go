@@ -84,6 +84,7 @@
 (Copysign x y) => (FCPSGN y x)
 (Abs ...) => (FABS ...)
 (FMA ...) => (FMADD ...)
+(FMA32 ...) => (FMADDS ...)
 
 // Lowering extension
 // Note: we always extend to 64 bits even though some ops don't need that many result bits.

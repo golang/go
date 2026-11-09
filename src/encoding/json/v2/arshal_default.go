@@ -1228,6 +1228,11 @@ func mapKeyWithUniqueRepresentation(k reflect.Kind, allowInvalidUTF8 bool) bool 
 var errNilField = errors.New("cannot set embedded pointer to unexported struct type")
 var errInvalidStringTag = errors.New("invalid use of `string` tag option")
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStructMarshaler(t reflect.Type) *marshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// and does the tracking locally with an efficient bit-set based on which
@@ -1422,6 +1427,11 @@ func makeStructMarshaler(t reflect.Type) *marshaler {
 	return &fnc
 }
 
+// TODO(go.dev/issue/81380): Inlining this function prevents the closures
+// below from being analyzed for inlining.
+// This is purposefully and temporarily ugly while waiting for #81380.
+//
+//go:noinline
 func makeStructUnmarshaler(t reflect.Type) *unmarshaler {
 	// NOTE: The logic below disables namespaces for tracking duplicate names
 	// and does the tracking locally with an efficient bit-set based on which
@@ -1970,15 +1980,15 @@ func makePointerUnmarshaler(t reflect.Type) *unmarshaler {
 }
 
 func makeInterfaceMarshaler(t reflect.Type) *marshaler {
-	// NOTE: Values retrieved from an interface are not addressable,
-	// so we shallow copy the values to make them addressable and
-	// store them back into the interface afterwards.
+	// NOTE: Values retrieved from an interface are not addressable.
+	// Marshal passes them through as is, and the marshaler for the
+	// underlying type copies them only if it needs an address.
 
 	var fnc marshaler
 	var whichMarshaler reflect.Type
 	for _, iface := range allMarshalerTypes {
 		if t.Implements(iface) {
-			whichMarshaler = t
+			whichMarshaler = iface
 			break
 		}
 	}
@@ -2017,19 +2027,18 @@ func makeInterfaceMarshaler(t reflect.Type) *marshaler {
 				vm = maybeAddressableValue(va)
 			}
 		}
-		va := newAddressableValue(vm.Elem().Type())
-		va.Set(vm.Elem())
-		marshal := lookupMarshaler(va.Type()).fnc
-		if mo.Marshalers != nil {
-			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, va.Type())
-		}
 		// Optimize for the any type if there are no special options.
 		if optimizeCommon &&
 			t == anyType && !mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.TagFlags) &&
 			(mo.Marshalers == nil || !mo.Marshalers.(*Marshalers).fromAny) {
 			return marshalValueAny(enc, vm.Elem().Interface(), mo)
 		}
-		return marshal(enc, maybeAddressableValue(va), mo)
+		ve := maybeAddressableValue{vm.Elem(), true} // values retrieved from an interface are not addressable
+		marshal := lookupMarshaler(ve.Type()).fnc
+		if mo.Marshalers != nil {
+			marshal, _ = mo.Marshalers.(*Marshalers).lookup(marshal, ve.Type())
+		}
+		return marshal(enc, ve, mo)
 	}
 	return &fnc
 }

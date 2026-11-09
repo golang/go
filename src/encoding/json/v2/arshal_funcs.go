@@ -13,7 +13,6 @@ import (
 	"reflect"
 	"sync"
 
-	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/jsontext"
@@ -177,14 +176,14 @@ func MarshalFunc[T any](fn func(T) ([]byte, error)) *Marshalers {
 			if err != nil {
 				err = wrapErrUnsupported(err, "marshal function of type func(T) ([]byte, error)")
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, true, err, "MarshalFunc")
 				}
 				err = newMarshalErrorBefore(enc, t, err)
 				return collapseSemanticErrors(err)
 			}
 			if err := enc.WriteValue(val); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalFunc") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, true, err, "MarshalFunc")
 				}
 				if isSyntacticError(err) {
 					err = newMarshalErrorBefore(enc, t, err)
@@ -236,7 +235,7 @@ func MarshalToFunc[T any](fn func(*jsontext.Encoder, T) error) *Marshalers {
 					err = errUnsupportedMutation
 				}
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(va.Addr().Interface(), err, "MarshalToFunc") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, true, err, "MarshalToFunc")
 				}
 				if !export.IsIOError(err) {
 					err = newSemanticErrorWithPosition(enc, t, prevDepth, prevLength, err)

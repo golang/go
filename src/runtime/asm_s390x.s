@@ -688,18 +688,16 @@ havem:
 	// will seamlessly trace back into the earlier calls.
 	MOVD	m_curg(R8), g
 	BL	runtime·save_g(SB)
-	MOVD	(g_sched+gobuf_sp)(g), R4 // prepare stack as R4
+	XOR	R0, R0			// restore zero register, as required by ABIInternal
+	MOVD	(g_sched+gobuf_sp)(g), R6 // prepare stack as R6
 	MOVD	(g_sched+gobuf_pc)(g), R5
-	MOVD	R5, -(24+8)(R4)	// "saved LR"; must match frame size
+	MOVD	R5, -(24+8)(R6)	// "saved LR"; must match frame size
 	// Gather our arguments into registers.
-	MOVD	fn+0(FP), R1
-	MOVD	frame+8(FP), R2
-	MOVD	ctxt+16(FP), R3
-	MOVD	$-(24+8)(R4), R15	// switch stack; must match frame size
-	MOVD	R1, 8(R15)
-	MOVD	R2, 16(R15)
-	MOVD	R3, 24(R15)
-	BL	runtime·cgocallbackg(SB)
+	MOVD	fn+0(FP), R2
+	MOVD	frame+8(FP), R3
+	MOVD	ctxt+16(FP), R4
+	MOVD	$-(24+8)(R6), R15	// switch stack; must match frame size
+	BL	runtime·cgocallbackg<ABIInternal>(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOVD	0(R15), R5

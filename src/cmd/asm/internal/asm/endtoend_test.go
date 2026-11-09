@@ -311,6 +311,8 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
 		switch flag {
 		case "dynlink":
 			ctxt.Flag_dynlink = true
+		case "shared":
+			ctxt.Flag_shared = true
 		default:
 			t.Errorf("unknown flag %s", flag)
 		}
@@ -440,6 +442,12 @@ func TestAMD64EndToEnd(t *testing.T) {
 
 func Test386Encoder(t *testing.T) {
 	testEndToEnd(t, "386", "386enc")
+}
+
+func Test386Errors(t *testing.T) {
+	testErrors(t, "386", "386error")
+	testErrors(t, "386", "386error", "shared")
+	testErrors(t, "386", "386error", "dynlink")
 }
 
 func TestAMD64Encoder(t *testing.T) {

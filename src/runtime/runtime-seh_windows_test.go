@@ -5,11 +5,13 @@
 package runtime_test
 
 import (
+	"encoding/binary"
 	"internal/abi"
 	"internal/runtime/sys"
 	"internal/syscall/windows"
 	"runtime"
 	"slices"
+	"strings"
 	"testing"
 	"unsafe"
 )
@@ -143,6 +145,73 @@ func TestSehUnwind(t *testing.T) {
 	}
 	pcs := sehf3(false)
 	testSehCallersEqual(t, pcs, []string{"runtime_test.sehf4", "runtime_test.sehf3", "runtime_test.TestSehUnwind"})
+}
+
+//go:noinline
+func sehf5(x int) int {
+	var frame [1024]int
+	frame[x] = sehf5(x)
+	return frame[0]
+}
+
+func TestSehUnwindMorestack(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("skipping amd64-only test")
+	}
+	for _, tt := range []struct {
+		name string
+		pc   uintptr
+	}{
+		{"small frame", abi.FuncPCABIInternal(sehf1)},
+		{"large frame with register spills", abi.FuncPCABIInternal(sehf5)},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			// Find the morestack call independently of the SEH range boundaries.
+			pc := tt.pc
+			for ; ; pc++ {
+				f := runtime.FuncForPC(pc + 4)
+				if f == nil || f.Entry() != tt.pc {
+					t.Fatal("missing morestack call")
+				}
+				code := unsafe.Slice((*byte)(unsafe.Pointer(pc)), 5)
+				if code[0] != 0xe8 { // CALL rel32
+					continue
+				}
+				offset := int32(binary.LittleEndian.Uint32(code[1:]))
+				callee := runtime.FuncForPC(pc + 5 + uintptr(offset))
+				if callee != nil && strings.HasPrefix(callee.Name(), "runtime.morestack") {
+					break
+				}
+			}
+			var base, frame uintptr
+			fn := windows.RtlLookupFunctionEntry(pc, &base, nil)
+			if fn == nil {
+				t.Fatal("missing unwind info")
+			}
+
+			// Model a return address followed by the caller's saved BP and
+			// return address. The stack-split code has not yet allocated a frame.
+			stack := &[3]uintptr{tt.pc, 0, tt.pc + 1}
+			var pin runtime.Pinner
+			pin.Pin(stack)
+			defer pin.Unpin()
+			sp := uintptr(unsafe.Pointer(&stack[0]))
+			fp := uintptr(unsafe.Pointer(&stack[1]))
+			var ctx windows.Context
+			ctx.SetPC(pc)
+			ctx.SetSP(sp)
+			ctx.SetFP(fp)
+			windows.RtlVirtualUnwind(0, base, pc, fn, unsafe.Pointer(&ctx), nil, &frame, nil)
+			if ctx.PC() != stack[0] || ctx.SP() != sp+8 {
+				t.Errorf("unwind at %#x: PC=%#x SP=%#x, want PC=%#x SP=%#x", pc, ctx.PC(), ctx.SP(), stack[0], sp+8)
+			}
+			want := ctx
+			want.SetFP(fp)
+			if ctx != want {
+				t.Errorf("unwind at %#x changed the frame pointer", pc)
+			}
+		})
+	}
 }
 
 func TestSehUnwindPanic(t *testing.T) {

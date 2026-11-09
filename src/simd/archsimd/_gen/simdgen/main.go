@@ -142,6 +142,7 @@ var (
 
 	flagCPUProfile = flag.String("cpuprofile", "", "write CPU profile to `file`")
 	flagMemProfile = flag.String("memprofile", "", "write memory profile to `file`")
+	flagBench      = flag.Bool("bench", false, "print a Go benchmark result line with simdgen's time and allocation to stderr")
 )
 
 const simdPackage = "simd/archsimd"
@@ -167,6 +168,10 @@ func main() {
 			pprof.WriteHeapProfile(f)
 			f.Close()
 		}()
+	}
+	if *flagBench {
+		// Report before writing any profiles.
+		defer startBench()()
 	}
 
 	// Load instructions into the architecture-specific defs set.

@@ -83,6 +83,14 @@ func (i Inst) String() string {
 			op = "rdcntvl.w"
 			args = args[:1]
 		}
+
+	case VLDREPL_B, VLDREPL_H, VLDREPL_W, VLDREPL_D,
+		XVLDREPL_B, XVLDREPL_H, XVLDREPL_W, XVLDREPL_D:
+		suf := strings.Split(i.Op.String(), ".")[1]
+		immArg := int32(i.Args[2].(Simm16).Imm)
+		immArg *= SufWidth[suf]
+		args[2] = fmt.Sprintf("%d", immArg)
+
 	}
 
 	if len(args) == 0 {
@@ -90,6 +98,14 @@ func (i Inst) String() string {
 	} else {
 		return op + " " + strings.Join(args, ", ")
 	}
+}
+
+var SufWidth = map[string]int32{
+	"B": 1,
+	"H": 2,
+	"W": 4,
+	"V": 8,
+	"D": 8,
 }
 
 // An Op is an Loong64 opcode.
@@ -189,6 +205,72 @@ const (
 	F29
 	F30
 	F31
+
+	V0
+	V1
+	V2
+	V3
+	V4
+	V5
+	V6
+	V7
+	V8
+	V9
+	V10
+	V11
+	V12
+	V13
+	V14
+	V15
+	V16
+	V17
+	V18
+	V19
+	V20
+	V21
+	V22
+	V23
+	V24
+	V25
+	V26
+	V27
+	V28
+	V29
+	V30
+	V31
+
+	X0
+	X1
+	X2
+	X3
+	X4
+	X5
+	X6
+	X7
+	X8
+	X9
+	X10
+	X11
+	X12
+	X13
+	X14
+	X15
+	X16
+	X17
+	X18
+	X19
+	X20
+	X21
+	X22
+	X23
+	X24
+	X25
+	X26
+	X27
+	X28
+	X29
+	X30
+	X31
 )
 
 func (r Reg) String() string {
@@ -228,6 +310,12 @@ func (r Reg) String() string {
 
 	case (r >= F24) && (r <= F31):
 		return fmt.Sprintf("$fs%d", int(r-F24))
+
+	case (r >= V0) && (r <= V31):
+		return fmt.Sprintf("$vr%d", int(r-V0))
+
+	case (r >= X0) && (r <= X31):
+		return fmt.Sprintf("$xr%d", int(r-X0))
 
 	default:
 		return fmt.Sprintf("Unknown(%d)", int(r))
@@ -317,4 +405,10 @@ type CodeSimm int16
 
 func (c CodeSimm) String() string {
 	return fmt.Sprintf("%#x", int(c))
+}
+
+type IdxUimm uint8
+
+func (s IdxUimm) String() string {
+	return fmt.Sprintf("%#x", uint8(s))
 }

@@ -1690,6 +1690,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
 	// Wait for remaining Ps to stop voluntarily.
 	if wait {
 		preemptall()
+		stealRunnextWake() // preemptall skips Ms/Ps in the scheduler (without a G)
 		for {
 			// wait for 100us, then try to re-preempt in case of any races
 			if notetsleep(&sched.stopnote, 100*1000) {
@@ -7762,14 +7763,7 @@ func runqgrab(pp *p, batch *[256]guintptr, batchHead uint32, stealRunNextG bool)
 								// goroutine hanging off of a running P, suggesting it
 								// either recently transitioned out of running, or will
 								// transition to running shortly).
-								if !osHasLowResTimer {
-									usleep(3)
-								} else {
-									// On some platforms system timer granularity is
-									// 1-15ms, which is way too much for this
-									// optimization. So just yield.
-									osyield()
-								}
+								stealRunnextSleep(3000)
 								if sched.gcwaiting.Load() {
 									// The sleep above might have overlapped with a STW
 									// request. Check before committing to this new work.

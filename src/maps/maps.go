@@ -9,6 +9,7 @@
 package maps
 
 import (
+	"internal/abi"
 	_ "unsafe"
 )
 
@@ -55,14 +56,41 @@ func Clone[M ~map[K]V, K comparable, V any](m M) M {
 	return clone(m).(M)
 }
 
+// grow is implemented in the runtime package. It makes room for n
+// additional entries beyond len(m); n is not a target size.
+//
+//go:linkname grow maps.grow
+func grow(m any, n int)
+
 // Copy copies all key/value pairs in src adding them to dst.
 // When a key in src is already present in dst,
 // the value in dst will be overwritten by the value associated
 // with the key in src.
 func Copy[M1 ~map[K]V, M2 ~map[K]V, K comparable, V any](dst M1, src M2) {
+	// However the keys overlap, dst ends up with at least len(src)
+	// entries, so reserving that much up front never over-allocates.
+	// A src that fits in one group needs no presizing.
+	if n := len(src) - len(dst); n > 0 && len(src) > abi.MapGroupSlots {
+		grow(dst, n)
+	}
 	for k, v := range src {
 		dst[k] = v
 	}
+}
+
+// Grow increases m's capacity, if necessary, so that at least n more
+// entries can be added without further growth in the typical case, as if
+// m had been created with make(M, len(m)+n). Grow never shrinks m.
+// This is best effort: it cannot guarantee there will be no additional
+// growth.
+//
+// Grow panics if n is negative. It also panics if m is nil and n > 0,
+// as assigning to an element of a nil map would.
+func Grow[M ~map[K]V, K comparable, V any](m M, n int) {
+	if n < 0 {
+		panic("maps: cannot grow by a negative count")
+	}
+	grow(m, n)
 }
 
 // DeleteFunc deletes any key/value pairs from m for which del returns true.

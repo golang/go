@@ -2973,6 +2973,41 @@ func TestRemoveAllRace(t *testing.T) {
 	wg.Wait()
 }
 
+// Test that simultaneous Mkdir of one directory succeed once
+// and report that the directory exists otherwise.
+func TestMkdirRace(t *testing.T) {
+	n := runtime.GOMAXPROCS(16)
+	defer runtime.GOMAXPROCS(n)
+	root := t.TempDir()
+	for i := range 20 {
+		dir := filepath.Join(root, strconv.Itoa(i))
+		hold := make(chan struct{})
+		errs := make([]error, 4)
+		var wg sync.WaitGroup
+		for j := range errs {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				<-hold
+				errs[j] = Mkdir(dir, 0777)
+			}()
+		}
+		close(hold) // let workers race to create dir
+		wg.Wait()
+		created := 0
+		for _, err := range errs {
+			if err == nil {
+				created++
+			} else if !errors.Is(err, fs.ErrExist) {
+				t.Errorf("Mkdir(%q) = %v, want an error matching fs.ErrExist", dir, err)
+			}
+		}
+		if created != 1 {
+			t.Errorf("Mkdir(%q) succeeded %d times, want 1", dir, created)
+		}
+	}
+}
+
 // Test that reading from a pipe doesn't use up a thread.
 func TestPipeThreads(t *testing.T) {
 	switch runtime.GOOS {

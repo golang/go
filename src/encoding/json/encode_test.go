@@ -9,6 +9,7 @@ package json
 import (
 	"bytes"
 	"encoding"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -903,6 +904,10 @@ func TestNilMarshal(t *testing.T) {
 		{Name(""), struct{ M encoding.TextMarshaler }{}, `{"M":null}`},
 		{Name(""), struct{ M encoding.TextMarshaler }{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
 		{Name(""), struct{ M any }{(*nilTextMarshaler)(nil)}, `{"M":null}`},
+		{Name(""), struct{ M interface{ Marshaler } }{(*nilJSONMarshaler)(nil)}, `{"M":"0zenil0"}`},
+		{Name(""), struct {
+			M interface{ encoding.TextMarshaler }
+		}{(*nilTextMarshaler)(nil)}, `{"M":"0zenil0"}`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.Name, func(t *testing.T) {
@@ -1544,6 +1549,11 @@ func TestMarshalerError(t *testing.T) {
 	st := reflect.TypeOf(s)
 	const errText = "json: test error"
 
+	marshalError := func(v any) *MarshalerError {
+		_, err := Marshal(v)
+		return err.(*MarshalerError)
+	}
+
 	tests := []struct {
 		CaseName
 		err  *MarshalerError
@@ -1556,6 +1566,14 @@ func TestMarshalerError(t *testing.T) {
 		Name(""),
 		&MarshalerError{st, fmt.Errorf(errText), "TestMarshalerError"},
 		"json: error calling TestMarshalerError for type " + st.String() + ": " + errText,
+	}, {
+		Name(""),
+		marshalError(marshalJSONError("")), // non-addressable value
+		"json: error calling MarshalJSON for type " + reflect.TypeFor[marshalJSONError]().String() + ": MarshalJSON error",
+	}, {
+		Name(""),
+		marshalError(new(marshalJSONError(""))), // addressable value
+		"json: error calling MarshalJSON for type *" + reflect.TypeFor[marshalJSONError]().String() + ": MarshalJSON error",
 	}}
 
 	for _, tt := range tests {
@@ -1566,6 +1584,12 @@ func TestMarshalerError(t *testing.T) {
 			}
 		})
 	}
+}
+
+type marshalJSONError string
+
+func (marshalJSONError) MarshalJSON() ([]byte, error) {
+	return nil, errors.New("MarshalJSON error")
 }
 
 type marshaledValue string

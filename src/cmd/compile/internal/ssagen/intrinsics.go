@@ -665,7 +665,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = p1
 			return p0
 		},
-		sys.AMD64, sys.Loong64, sys.RISCV64)
+		sys.AMD64, sys.Loong64, sys.MIPS64, sys.RISCV64)
 	addF("internal/runtime/atomic", "And32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicAnd32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
@@ -673,7 +673,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = p1
 			return p0
 		},
-		sys.AMD64, sys.Loong64, sys.RISCV64)
+		sys.AMD64, sys.Loong64, sys.MIPS64, sys.RISCV64)
 	addF("internal/runtime/atomic", "Or64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicOr64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
@@ -681,7 +681,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = p1
 			return p0
 		},
-		sys.AMD64, sys.Loong64, sys.RISCV64)
+		sys.AMD64, sys.Loong64, sys.MIPS64, sys.RISCV64)
 	addF("internal/runtime/atomic", "Or32",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			v := s.newValue3(ssaop.OpAtomicOr32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
@@ -689,7 +689,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			s.vars[memVar] = p1
 			return p0
 		},
-		sys.AMD64, sys.Loong64, sys.RISCV64)
+		sys.AMD64, sys.Loong64, sys.MIPS64, sys.RISCV64)
 
 	// Aliases for atomic load operations
 	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
@@ -779,15 +779,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			return s.newValue2(ssaop.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
 		},
 		sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm)
+	makeFMA := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
+			return s.newValue3(op, typ, args[0], args[1], args[2])
+		}
+	}
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
-			return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
-		},
+		makeFMA(ssaop.OpFMA, types.TFLOAT64),
 		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
-	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+	addF("math", "FMA32",
+		makeFMA(ssaop.OpFMA32, types.TFLOAT32),
+		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
+
+	makeFMAAMD64 := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
 			if cfg.goamd64 >= 3 {
-				return s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+				return s.newValue3(op, typ, args[0], args[1], args[2])
 			}
 
 			v := s.entryNewValue0A(ssaop.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
@@ -803,21 +812,29 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(op, typ, args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
 			s.startBlock(bFalse)
-			s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+			s.vars[n] = s.callResult(n, callNormal) // typ
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Merge results.
 			s.startBlock(bEnd)
-			return s.variable(n, types.Types[types.TFLOAT64])
-		},
-		sys.AMD64)
+			return s.variable(n, typ)
+		}
+	}
 	addF("math", "FMA",
-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		makeFMAAMD64(ssaop.OpFMA, types.TFLOAT64),
+		sys.AMD64)
+	addF("math", "FMA32",
+		makeFMAAMD64(ssaop.OpFMA32, types.TFLOAT32),
+		sys.AMD64)
+
+	makeFMAARM := func(op ssaop.Op, kind types.Kind) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+			typ := types.Types[kind]
 			addr := s.entryNewValue1A(ssaop.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
 			v := s.load(types.Types[types.TBOOL], addr)
 			b := s.endBlock()
@@ -832,18 +849,24 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 
 			// We have the intrinsic - use it directly.
 			s.startBlock(bTrue)
-			s.vars[n] = s.newValue3(ssaop.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+			s.vars[n] = s.newValue3(op, typ, args[0], args[1], args[2])
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Call the pure Go version.
 			s.startBlock(bFalse)
-			s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+			s.vars[n] = s.callResult(n, callNormal) // typ
 			s.endBlock().AddEdgeTo(bEnd)
 
 			// Merge results.
 			s.startBlock(bEnd)
-			return s.variable(n, types.Types[types.TFLOAT64])
-		},
+			return s.variable(n, typ)
+		}
+	}
+	addF("math", "FMA",
+		makeFMAARM(ssaop.OpFMA, types.TFLOAT64),
+		sys.ARM)
+	addF("math", "FMA32",
+		makeFMAARM(ssaop.OpFMA32, types.TFLOAT32),
 		sys.ARM)
 
 	makeRoundAMD64 := func(op ssaop.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
@@ -1316,7 +1339,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 		},
 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
-	alias("internal/runtime/math", "Add64", "math/bits", "Add64", all...)
 	addF("math/bits", "Sub64",
 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
 			return s.newValue3(ssaop.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
@@ -1382,16 +1404,16 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
 
-	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
-	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64, sys.ArchRISCV64)
+	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", all...)
+	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", all...)
+	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", all...)
+	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", all...)
+	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", p8...)
+	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", all...)
+	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", all...)
+	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", all...)
+	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", all...)
+	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", p8...)
 
 	/******** math/big ********/
 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
@@ -1790,28 +1812,28 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
 			},
 			sys.AMD64)
 
-		addF(simdPackage, "Int8x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int16x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int32x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int64x2.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint8x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint16x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint32x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint64x2.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int8x32.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int16x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int32x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Int64x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint8x32.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint16x16.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint32x8.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Uint64x4.IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
-		addF(simdPackage, "Float32x4.IsNaN", opLen1(ssaop.OpIsNaNFloat32x4, types.TypeVec128), sys.AMD64)
-		addF(simdPackage, "Float32x8.IsNaN", opLen1(ssaop.OpIsNaNFloat32x8, types.TypeVec256), sys.AMD64)
-		addF(simdPackage, "Float32x16.IsNaN", opLen1(ssaop.OpIsNaNFloat32x16, types.TypeVec512), sys.AMD64)
-		addF(simdPackage, "Float64x2.IsNaN", opLen1(ssaop.OpIsNaNFloat64x2, types.TypeVec128), sys.AMD64)
-		addF(simdPackage, "Float64x4.IsNaN", opLen1(ssaop.OpIsNaNFloat64x4, types.TypeVec256), sys.AMD64)
-		addF(simdPackage, "Float64x8.IsNaN", opLen1(ssaop.OpIsNaNFloat64x8, types.TypeVec512), sys.AMD64)
+		for _, typ := range []string{
+			"Int8x16", "Int16x8", "Int32x4", "Int64x2",
+			"Uint8x16", "Uint16x8", "Uint32x4", "Uint64x2",
+			"Int8x32", "Int16x16", "Int32x8", "Int64x4",
+			"Uint8x32", "Uint16x16", "Uint32x8", "Uint64x4",
+		} {
+			addF(simdPackage, typ+".IsZero", opLen1(ssaop.OpIsZeroVec, types.Types[types.TBOOL]), sys.AMD64)
+		}
+		for _, t := range []struct {
+			name string
+			op   ssaop.Op
+			typ  *types.Type
+		}{
+			{"Float32x4", ssaop.OpIsNaNFloat32x4, types.TypeVec128},
+			{"Float32x8", ssaop.OpIsNaNFloat32x8, types.TypeVec256},
+			{"Float32x16", ssaop.OpIsNaNFloat32x16, types.TypeVec512},
+			{"Float64x2", ssaop.OpIsNaNFloat64x2, types.TypeVec128},
+			{"Float64x4", ssaop.OpIsNaNFloat64x4, types.TypeVec256},
+			{"Float64x8", ssaop.OpIsNaNFloat64x8, types.TypeVec512},
+		} {
+			addF(simdPackage, t.name+".IsNaN", opLen1(t.op, t.typ), sys.AMD64)
+		}
 
 		// sfp4 is intrinsic-if-constant, but otherwise it's complicated enough to just implement in Go.
 		sfp4 := func(method string, hwop ssaop.Op, vectype *types.Type) {

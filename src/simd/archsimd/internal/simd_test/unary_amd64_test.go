@@ -36,12 +36,39 @@ func TestNegAMD64(t *testing.T) {
 	}
 }
 
+func TestHiToLoAMD64(t *testing.T) {
+	if archsimd.X86.AVX2() {
+		testInt8x32Unary(t, archsimd.Int8x32.HiToLo, hiToLoSlice[int8])
+		testInt16x16Unary(t, archsimd.Int16x16.HiToLo, hiToLoSlice[int16])
+		testInt32x8Unary(t, archsimd.Int32x8.HiToLo, hiToLoSlice[int32])
+		testInt64x4Unary(t, archsimd.Int64x4.HiToLo, hiToLoSlice[int64])
+		testUint8x32Unary(t, archsimd.Uint8x32.HiToLo, hiToLoSlice[uint8])
+		testUint16x16Unary(t, archsimd.Uint16x16.HiToLo, hiToLoSlice[uint16])
+		testUint32x8Unary(t, archsimd.Uint32x8.HiToLo, hiToLoSlice[uint32])
+		testUint64x4Unary(t, archsimd.Uint64x4.HiToLo, hiToLoSlice[uint64])
+		testFloat32x8Unary(t, archsimd.Float32x8.HiToLo, hiToLoSlice[float32])
+		testFloat64x4Unary(t, archsimd.Float64x4.HiToLo, hiToLoSlice[float64])
+	}
+	if archsimd.X86.AVX512() {
+		testInt8x64Unary(t, archsimd.Int8x64.HiToLo, hiToLoSlice[int8])
+		testInt16x32Unary(t, archsimd.Int16x32.HiToLo, hiToLoSlice[int16])
+		testInt32x16Unary(t, archsimd.Int32x16.HiToLo, hiToLoSlice[int32])
+		testInt64x8Unary(t, archsimd.Int64x8.HiToLo, hiToLoSlice[int64])
+		testUint8x64Unary(t, archsimd.Uint8x64.HiToLo, hiToLoSlice[uint8])
+		testUint16x32Unary(t, archsimd.Uint16x32.HiToLo, hiToLoSlice[uint16])
+		testUint32x16Unary(t, archsimd.Uint32x16.HiToLo, hiToLoSlice[uint32])
+		testUint64x8Unary(t, archsimd.Uint64x8.HiToLo, hiToLoSlice[uint64])
+		testFloat32x16Unary(t, archsimd.Float32x16.HiToLo, hiToLoSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.HiToLo, hiToLoSlice[float64])
+	}
+}
+
 func TestCeilAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Ceil, ceilSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Ceil, ceilSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Ceil, ceilSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Ceil, ceilSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Ceil, ceilSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Ceil, ceilSlice[float64])
 	}
 }
 
@@ -49,8 +76,8 @@ func TestFloorAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Floor, floorSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Floor, floorSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Floor, floorSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Floor, floorSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Floor, floorSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Floor, floorSlice[float64])
 	}
 }
 
@@ -58,8 +85,8 @@ func TestTruncAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Trunc, truncSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Trunc, truncSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Trunc, truncSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Trunc, truncSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Trunc, truncSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Trunc, truncSlice[float64])
 	}
 }
 
@@ -67,8 +94,8 @@ func TestRoundAMD64(t *testing.T) {
 	testFloat32x8Unary(t, archsimd.Float32x8.Round, roundSlice[float32])
 	testFloat64x4Unary(t, archsimd.Float64x4.Round, roundSlice[float64])
 	if archsimd.X86.AVX512() {
-		// testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32]) // missing
-		// testFloat64x8Unary(t, archsimd.Float64x8.Round, roundSlice[float64])   // missing
+		testFloat32x16Unary(t, archsimd.Float32x16.Round, roundSlice[float32])
+		testFloat64x8Unary(t, archsimd.Float64x8.Round, roundSlice[float64])
 	}
 }
 

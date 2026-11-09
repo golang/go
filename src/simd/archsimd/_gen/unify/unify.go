@@ -213,7 +213,34 @@ func (d Def) unify(o Def, e envSet, swap bool, uf *unifier) (Domain, envSet, err
 			out.fields[key] = dv
 		}
 	}
+	// Usually one Def's keys are a subset of the other's.
+	switch len(out.fields) {
+	case len(d.fields):
+		out.keys = d.keys
+	case len(o.fields):
+		out.keys = o.keys
+	default:
+		out.keys = mergeSorted(d.keys, o.keys)
+	}
 	return out, e, nil
+}
+
+// mergeSorted returns the sorted union of sorted slices a and b, which must
+// each have no duplicates.
+func mergeSorted(a, b []string) []string {
+	out := make([]string, 0, len(a)+len(b))
+	for len(a) > 0 && len(b) > 0 {
+		switch {
+		case a[0] < b[0]:
+			out, a = append(out, a[0]), a[1:]
+		case a[0] > b[0]:
+			out, b = append(out, b[0]), b[1:]
+		default:
+			out, a, b = append(out, a[0]), a[1:], b[1:]
+		}
+	}
+	out = append(out, a...)
+	return append(out, b...)
 }
 
 func (v Tuple) unify(w Tuple, e envSet, swap bool, uf *unifier) (Domain, envSet, error) {

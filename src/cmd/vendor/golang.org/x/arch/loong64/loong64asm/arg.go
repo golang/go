@@ -5,7 +5,6 @@
 package loong64asm
 
 // Naming for Go decoder arguments:
-//
 // - arg_fd: a Floating Point operand register fd encoded in the fd[4:0] field
 //
 // - arg_fj: a Floating Point operand register fj encoded in the fj[9:5] field
@@ -22,7 +21,7 @@ package loong64asm
 //
 // - arg_fcsr_4_0: float control status register encoded in [4:0] field
 //
-// - arg_cd_2_0: condition flag register encoded in [2:0] field
+// - arg_cd: condition flag register encoded in [2:0] field
 //
 // - arg_sa2_16_15: shift bits constant encoded in [16:15] field
 //
@@ -40,54 +39,93 @@ package loong64asm
 //		other: no define
 //
 // - arg_si12_21_10: 12bits signed immediate
+//
+// - arg_idx1_18_18: 1bit index
+//
+// - arg_i13_17_5: 13bits immediate
 
 type instArg uint16
 
 const (
 	_ instArg = iota
-	// 1-5
+	arg_va
+	arg_vk
+	arg_vj
+	arg_vd
+
+	arg_xa
+	arg_xk
+	arg_xj
+	arg_xd
+
 	arg_fd
 	arg_fj
 	arg_fk
 	arg_fa
+
 	arg_rd
-	// 6-10
 	arg_rj
 	arg_rk
+
 	arg_op_4_0
+
 	arg_fcsr_4_0
 	arg_fcsr_9_5
-	// 11-15
+
 	arg_csr_23_10
+
 	arg_cd
 	arg_cj
 	arg_ca
+
 	arg_sa2_16_15
-	// 16-20
 	arg_sa3_17_15
+
 	arg_code_4_0
 	arg_code_14_0
+
+	arg_ui1_10_10
+	arg_ui2_11_10
+	arg_ui3_12_10
+	arg_ui4_13_10
 	arg_ui5_14_10
 	arg_ui6_15_10
-	// 21-25
+	arg_ui7_16_10
+	arg_ui8_17_10
 	arg_ui12_21_10
+
 	arg_lsbw
 	arg_msbw
 	arg_lsbd
 	arg_msbd
-	// 26-30
+
 	arg_hint_4_0
 	arg_hint_14_0
+
 	arg_level_14_0
 	arg_level_17_10
+
 	arg_seq_17_10
-	// 31-35
+
+	arg_si5_14_10
+	arg_si8_17_10
+	arg_si9_18_10
+	arg_si10_19_10
+	arg_si11_20_10
 	arg_si12_21_10
 	arg_si14_23_10
 	arg_si16_25_10
 	arg_si20_24_5
+
 	arg_offset_20_0
-	// 36~
 	arg_offset_25_0
 	arg_offset_15_0
+
+	arg_idx1_18_18
+	arg_idx2_19_18
+	arg_idx3_20_18
+	arg_idx4_21_18
+	arg_idx5_22_18
+
+	arg_i13_17_5
 )

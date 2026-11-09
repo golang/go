@@ -998,3 +998,407 @@ func TestTombstoneGrow(t *testing.T) {
 		}
 	}
 }
+
+// growTo must give every split table full headroom: dividing capacity
+// evenly across dirSize tables would leave no margin for hash
+// imbalance, and uncheckedPutSlot has no fallback if a table fills up.
+func TestMapGrowNearFullTable(t *testing.T) {
+
+	m, typ := maps.NewTestMap[uint32, uint64](0)
+
+	// Fill a single table right up to its load-factor threshold without
+	// triggering an organic grow/split.
+	const n = 896 // maxTableCapacity(1024) * maxAvgGroupLoad(7) / GroupSlots(8)
+	for i := uint32(0); i < n; i++ {
+		key, elem := i, uint64(i)
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+	}
+	if m.TableCount() > 1 {
+		t.Fatalf("test setup: map already split before Grow, TableCount() = %d", m.TableCount())
+	}
+
+	m.Grow(typ, 1)
+
+	if m.Used() != n {
+		t.Fatalf("Used() got %d want %d", m.Used(), n)
+	}
+	for i := uint32(0); i < n; i++ {
+		key := i
+		got, ok := m.Get(typ, unsafe.Pointer(&key))
+		if !ok {
+			t.Fatalf("Get(%d) got ok false want true", key)
+		}
+		if gotElem := *(*uint64)(got); gotElem != uint64(i) {
+			t.Fatalf("Get(%d) got elem %d want %d", key, gotElem, i)
+		}
+	}
+}
+
+// TestTableIterationGrowDelete's scenario, but growth is via Grow.
+// growTo must mark replaced tables stale so a live iterator notices the
+// swap instead of reading abandoned state.
+func TestMapGrowDuringIteration(t *testing.T) {
+
+	m, typ := maps.NewTestMap[uint32, uint64](8)
+
+	key := uint32(0)
+	elem := uint64(256 + 0)
+	for i := 0; i < 31; i++ {
+		key++
+		elem++
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+	}
+
+	got := make(map[uint32]uint64)
+	first := true
+	deletedKey := uint32(1)
+	it := new(maps.Iter)
+	it.Init(typ, m)
+	for {
+		it.Next()
+		keyPtr, elemPtr := it.Key(), it.Elem()
+		if keyPtr == nil {
+			break
+		}
+
+		key := *(*uint32)(keyPtr)
+		elem := *(*uint64)(elemPtr)
+		got[key] = elem
+
+		if first {
+			first = false
+
+			// If the key we intended to delete was the one we just
+			// saw, pick another to delete.
+			if key == deletedKey {
+				deletedKey++
+			}
+
+			m.Grow(typ, 1000)
+
+			// Then delete from the grown map.
+			m.Delete(typ, unsafe.Pointer(&deletedKey))
+		}
+	}
+
+	// Don't check length: the number of new elements we'll see is
+	// unspecified.
+
+	key = uint32(0)
+	elem = uint64(256 + 0)
+	for i := 0; i < 31; i++ {
+		key++
+		elem++
+
+		wantOK := key != deletedKey
+		gotElem, gotOK := got[key]
+		if gotOK != wantOK {
+			t.Errorf("Iteration key %d got ok %v want ok %v", key, gotOK, wantOK)
+			continue
+		}
+		if wantOK && gotElem != elem {
+			t.Errorf("Iteration key %d got elem %d want %d", key, gotElem, elem)
+		}
+	}
+}
+
+// Exercises growTo's IndirectKey/IndirectElem unwrapping.
+func TestMapGrowIndirect(t *testing.T) {
+	type big [abi.MapMaxKeyBytes + abi.MapMaxElemBytes]byte
+
+	m, typ := maps.NewTestMap[big, big](8)
+
+	key := big{}
+	elem := big{}
+	elem[0] = 128
+
+	const n = 31
+	for i := 0; i < n; i++ {
+		key[0]++
+		elem[0]++
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+	}
+
+	m.Grow(typ, 5000)
+
+	if m.Used() != n {
+		t.Fatalf("Used() got %d want %d", m.Used(), n)
+	}
+
+	key = big{}
+	elem = big{}
+	elem[0] = 128
+	for i := 0; i < n; i++ {
+		key[0]++
+		elem[0]++
+		got, ok := m.Get(typ, unsafe.Pointer(&key))
+		if !ok {
+			t.Fatalf("Get(%v) got ok false want true", key)
+		}
+		if gotElem := *(*big)(got); gotElem != elem {
+			t.Fatalf("Get(%v) got elem %v want %v", key, gotElem, elem)
+		}
+	}
+}
+
+// mapCapacityFor's failure path must leave m untouched, not half-applied.
+func TestMapGrowTooLarge(t *testing.T) {
+	m, typ := maps.NewTestMap[uint32, uint64](0)
+
+	const n = 10
+	for i := uint32(0); i < n; i++ {
+		key, elem := i, uint64(i)
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+	}
+
+	beforeUsed := m.Used()
+	beforeTables := m.TableCount()
+	beforeGroups := m.GroupCount()
+
+	// maxAlloc of 0 makes the memory check in mapCapacityFor fail for
+	// any hint that needs real storage.
+	m.GrowMaxAlloc(typ, 100000, 0)
+
+	if got := m.Used(); got != beforeUsed {
+		t.Fatalf("Used() changed: got %d want %d", got, beforeUsed)
+	}
+	if got := m.TableCount(); got != beforeTables {
+		t.Fatalf("TableCount() changed: got %d want %d", got, beforeTables)
+	}
+	if got := m.GroupCount(); got != beforeGroups {
+		t.Fatalf("GroupCount() changed: got %d want %d", got, beforeGroups)
+	}
+	for i := uint32(0); i < n; i++ {
+		key := i
+		got, ok := m.Get(typ, unsafe.Pointer(&key))
+		if !ok {
+			t.Fatalf("Get(%d) got ok false want true", key)
+		}
+		if gotElem := *(*uint64)(got); gotElem != uint64(i) {
+			t.Fatalf("Get(%d) got elem %d want %d", key, gotElem, i)
+		}
+	}
+}
+
+// Exercises growTo's skip of ctrlDeleted slots. Fills to load-factor
+// first (as in TestTombstoneGrow) so the deletes below leave real
+// tombstones rather than ctrlEmpty.
+func TestMapGrowWithTombstones(t *testing.T) {
+
+	m, typ := maps.NewTestMap[uint32, uint64](0)
+
+	const n = 896 // maxTableCapacity(1024) * maxAvgGroupLoad(7) / GroupSlots(8)
+	for i := uint32(0); i < n; i++ {
+		key, elem := i, uint64(i)
+		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+	}
+
+	deleted := make(map[uint32]bool)
+	for i := uint32(0); i < n; i += 25 {
+		key := i
+		m.Delete(typ, unsafe.Pointer(&key))
+		deleted[i] = true
+	}
+
+	wantUsed := uint64(n - len(deleted))
+	if m.Used() != wantUsed {
+		t.Fatalf("test setup: Used() got %d want %d", m.Used(), wantUsed)
+	}
+
+	m.Grow(typ, 5000)
+
+	if m.Used() != wantUsed {
+		t.Fatalf("Used() after Grow got %d want %d", m.Used(), wantUsed)
+	}
+	for i := uint32(0); i < n; i++ {
+		key := i
+		got, ok := m.Get(typ, unsafe.Pointer(&key))
+		wantOK := !deleted[i]
+		if ok != wantOK {
+			t.Fatalf("Get(%d) after Grow got ok %v want %v", key, ok, wantOK)
+		}
+		if wantOK {
+			if gotElem := *(*uint64)(got); gotElem != uint64(i) {
+				t.Fatalf("Get(%d) after Grow got elem %d want %d", key, gotElem, i)
+			}
+		}
+	}
+}
+
+func TestMapGrow(t *testing.T) {
+
+	t.Run("zero is a no-op", func(t *testing.T) {
+		m, typ := maps.NewTestMap[uint32, uint64](0)
+		m.Grow(typ, 0)
+		if m.Used() != 0 {
+			t.Fatalf("Used() got %d want 0", m.Used())
+		}
+		if m.TableCount() != 0 {
+			t.Fatalf("TableCount() got %d want 0", m.TableCount())
+		}
+	})
+
+	t.Run("small map stays small below GroupSlots", func(t *testing.T) {
+		m, typ := maps.NewTestMap[uint32, uint64](0)
+		m.Grow(typ, abi.MapGroupSlots)
+		if m.TableCount() != 0 {
+			t.Fatalf("expected map to remain small, got TableCount() = %d", m.TableCount())
+		}
+	})
+
+	t.Run("preserves entries in a small map", func(t *testing.T) {
+		m, typ := maps.NewTestMap[uint32, uint64](0)
+
+		const n = 5
+		for i := uint32(0); i < n; i++ {
+			key, elem := i, uint64(i)+1000
+			m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+		}
+
+		m.Grow(typ, 5000)
+
+		if m.Used() != n {
+			t.Fatalf("Used() got %d want %d", m.Used(), n)
+		}
+		for i := uint32(0); i < n; i++ {
+			key := i
+			got, ok := m.Get(typ, unsafe.Pointer(&key))
+			if !ok {
+				t.Fatalf("Get(%d) got ok false want true", key)
+			}
+			want := uint64(i) + 1000
+			if gotElem := *(*uint64)(got); gotElem != want {
+				t.Fatalf("Get(%d) got elem %d want %d", key, gotElem, want)
+			}
+		}
+	})
+
+	t.Run("preserves entries across a directory with splits", func(t *testing.T) {
+		m, typ := maps.NewTestMap[uint32, uint64](0)
+
+		const n = 3000
+		for i := uint32(0); i < n; i++ {
+			key, elem := i, uint64(i)
+			m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+		}
+		if m.TableCount() <= 1 {
+			t.Fatalf("expected map to have split into multiple tables before Grow, got TableCount() = %d", m.TableCount())
+		}
+
+		m.Grow(typ, 5000)
+
+		if m.Used() != n {
+			t.Fatalf("Used() got %d want %d", m.Used(), n)
+		}
+		for i := uint32(0); i < n; i++ {
+			key := i
+			got, ok := m.Get(typ, unsafe.Pointer(&key))
+			if !ok {
+				t.Fatalf("Get(%d) got ok false want true", key)
+			}
+			if gotElem := *(*uint64)(got); gotElem != uint64(i) {
+				t.Fatalf("Get(%d) got elem %d want %d", key, gotElem, i)
+			}
+		}
+	})
+
+	t.Run("never shrinks and is idempotent", func(t *testing.T) {
+		m, typ := maps.NewTestMap[uint32, uint64](0)
+
+		m.Grow(typ, 2000)
+		grown := m.GroupCount()
+		if grown == 0 {
+			t.Fatal("expected Grow to allocate storage")
+		}
+
+		m.Grow(typ, 0)
+		if got := m.GroupCount(); got != grown {
+			t.Fatalf("Grow(0) changed GroupCount(): got %d want %d", got, grown)
+		}
+
+		// The map is still empty, with room reserved for 2000 entries,
+		// so asking for 10 more must not shrink or reallocate.
+		m.Grow(typ, 10)
+		if got := m.GroupCount(); got != grown {
+			t.Fatalf("Grow(10) with capacity already available changed GroupCount(): got %d want %d", got, grown)
+		}
+	})
+}
+
+// A NaN key rehashes differently every time, so only its old table's
+// directory range keeps it on the correct side of a live iterator. An
+// iterator that crosses growTo must see each NaN exactly once.
+func TestMapGrowNaNDuringIteration(t *testing.T) {
+	const groupsPerTable = 1024 / abi.MapGroupSlots
+
+	tests := []struct {
+		name     string
+		nans     int
+		extra    int     // non-NaN keys to add
+		mixed    bool    // keep adding keys until tables have mixed depth
+		firstN   uintptr // Grow(firstN) before the first key is read
+		secondN  uintptr // if > 0, Grow(secondN) halfway through
+		wantDirs int     // if > 0, TableCount after firstN
+	}{
+		{name: "small map", nans: 8, firstN: 5000},
+		{name: "one table", nans: 64, extra: 100, firstN: 100000},
+		{name: "many tables", nans: 64, extra: 5000, firstN: 100000},
+		{name: "same directory size", nans: 64, mixed: true, firstN: 1000, wantDirs: 4},
+		{name: "grow twice", nans: 64, extra: 5000, firstN: 20000, secondN: 200000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m, typ := maps.NewTestMap[float64, int](0)
+			for i := range tt.nans {
+				key, elem := math.NaN(), i
+				m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+			}
+			key, elem := float64(0), -1
+			add := func() {
+				key--
+				m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+			}
+			for range tt.extra {
+				add()
+			}
+			if tt.mixed {
+				for m.TableCount() != 4 || m.GroupCount() != 3*groupsPerTable {
+					add()
+				}
+			}
+
+			seen := make([]int, tt.nans)
+			steps := 0
+			half := int(m.Used()) / 2
+			it := new(maps.Iter)
+			it.Init(typ, m)
+			for {
+				it.Next()
+				keyPtr := it.Key()
+				if keyPtr == nil {
+					break
+				}
+				if k := *(*float64)(keyPtr); k != k {
+					seen[*(*int)(it.Elem())]++
+				}
+
+				if steps == 0 {
+					m.Grow(typ, tt.firstN)
+					if tt.wantDirs > 0 && m.TableCount() != tt.wantDirs {
+						t.Fatalf("TableCount() got %d want %d", m.TableCount(), tt.wantDirs)
+					}
+				}
+				if steps == half && tt.secondN > 0 {
+					m.Grow(typ, tt.secondN)
+				}
+				steps++
+			}
+
+			for i, n := range seen {
+				if n != 1 {
+					t.Errorf("NaN %d seen %d times, want 1", i, n)
+				}
+			}
+		})
+	}
+}

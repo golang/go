@@ -3,9 +3,15 @@
 // license that can be found in the LICENSE file.
 
 // Specstats reports progress on the internal/spec transition described in
-// SPEC-TRANSITION.md. The checked-in output is archsimd/_gen/SPEC-STATS.txt:
+// SPEC-TRANSITION.md. It prints the report to standard output:
 //
-//	go run ./cmd/specstats -w
+//	go run ./cmd/specstats
+//
+// The report is not checked in. Nearly every figure in it is a total that
+// almost every spec or API change moves, so a checked-in copy made changes in
+// flight conflict with each other and went stale whenever someone forgot to
+// regenerate it. Run it at whatever commit you want numbers for. The figures
+// that must not regress are enforced by TestInvariants instead.
 //
 // Every figure it prints is a fraction heading for 100% or a defect count
 // heading for zero, tied to the tasks that move it. Anything that is merely
@@ -23,15 +29,19 @@
 // the grouping, so a new figure is a few lines rather than a new loop.
 //
 // Like Fill, this parses rather than type-checks, so it sees every target's
-// declarations regardless of build tags (SPEC-TRANSITION.md §2.4). It is a
-// measurement tool and not a checker: it reports divergence and does not judge
-// it. fill builds the checker, and should absorb the comparison half of this
-// program rather than leave two implementations to drift.
+// declarations regardless of build tags (SPEC-TRANSITION.md §2.4). It is
+// mostly a measurement tool: it reports divergence and does not judge it. The
+// exception is the counts that have reached zero (see [invariant]), which
+// TestInvariants enforces. fill builds the checker, and should absorb the
+// comparison half of this program rather than leave two implementations to
+// drift.
 package main
 
 import (
+	"bytes"
 	"flag"
 	"log"
+	"os"
 	"path/filepath"
 
 	"simd/archsimd/_gen/gentools"
@@ -43,7 +53,17 @@ func main() {
 	log.SetPrefix("specstats: ")
 	genOpts := gentools.RegisterFlags(nil)
 	flag.Parse()
+	if genOpts.Write || genOpts.Diff {
+		log.Fatal("the report is no longer checked in; run without -w or -diff to print it")
+	}
 
+	var buf bytes.Buffer
+	load(genOpts).report(&buf)
+	os.Stdout.Write(buf.Bytes())
+}
+
+// load reads spec and the simd and archsimd APIs and measures them.
+func load(genOpts *gentools.Options) *metrics {
 	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
 	simdDir := filepath.Clean(filepath.Join(specDir, "..", ".."))
 	genDir := filepath.Join(simdDir, "archsimd", "_gen")
@@ -52,10 +72,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("loading spec: %s", err)
 	}
-
-	var files gentools.Files
-	defer files.FlushOrExit()
-
-	buf := files.NewRawFile("simd/archsimd/_gen/SPEC-STATS.txt")
-	measure(loadAPI(genOpts, simdDir), spec, genDir).report(buf)
+	return measure(loadAPI(genOpts, simdDir), spec, genDir)
 }

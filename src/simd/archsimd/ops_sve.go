@@ -284,15 +284,145 @@ func (x Uint64s) AndNot(y Uint64s) (z Uint64s)
 
 /* Ceil */
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: ZFRINTP, CPU Feature: SVE
-func (x Float32s) Ceil() Float32s
+func (x Float32s) Ceil() (z Float32s)
 
-// Ceil rounds elements up to the nearest integer.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: ZFRINTP, CPU Feature: SVE
-func (x Float64s) Ceil() Float64s
+func (x Float64s) Ceil() (z Float64s)
+
+/* ConcatEven */
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int8s) ConcatEven(y Int8s) (z Int8s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int16s) ConcatEven(y Int16s) (z Int16s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int32s) ConcatEven(y Int32s) (z Int32s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Int64s) ConcatEven(y Int64s) (z Int64s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint8s) ConcatEven(y Uint8s) (z Uint8s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint16s) ConcatEven(y Uint16s) (z Uint16s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint32s) ConcatEven(y Uint32s) (z Uint32s)
+
+// ConcatEven concatenates the even-indexed elements of x and y.
+//
+//	z = {x[0], x[2], ..., x[n-2], y[0], y[2], ..., y[n-2]}, where n = x.Len()
+//
+// Asm: ZUZP1, CPU Feature: SVE
+func (x Uint64s) ConcatEven(y Uint64s) (z Uint64s)
+
+/* ConcatOdd */
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int8s) ConcatOdd(y Int8s) (z Int8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int16s) ConcatOdd(y Int16s) (z Int16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int32s) ConcatOdd(y Int32s) (z Int32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Int64s) ConcatOdd(y Int64s) (z Int64s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint8s) ConcatOdd(y Uint8s) (z Uint8s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint16s) ConcatOdd(y Uint16s) (z Uint16s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint32s) ConcatOdd(y Uint32s) (z Uint32s)
+
+// ConcatOdd concatenates the odd-indexed elements of x and y.
+//
+//	z = {x[1], x[3], ..., x[n-1], y[1], y[3], ..., y[n-1]}, where n = x.Len()
+//
+// Asm: ZUZP2, CPU Feature: SVE
+func (x Uint64s) ConcatOdd(y Uint64s) (z Uint64s)
 
 /* ConvertToInt32 */
 
@@ -433,15 +563,27 @@ func (x Uint64s) Equal(y Uint64s) (z Mask64s)
 
 /* Floor */
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: ZFRINTM, CPU Feature: SVE
-func (x Float32s) Floor() Float32s
+func (x Float32s) Floor() (z Float32s)
 
-// Floor rounds elements down to the nearest integer.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: ZFRINTM, CPU Feature: SVE
-func (x Float64s) Floor() Float64s
+func (x Float64s) Floor() (z Float64s)
 
 /* Greater */
 
@@ -596,6 +738,122 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s)
 //
 // Asm: ZCMPHS, CPU Feature: SVE
 func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s)
+
+/* InterleaveHi */
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int8s) InterleaveHi(y Int8s) (z Int8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int16s) InterleaveHi(y Int16s) (z Int16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int32s) InterleaveHi(y Int32s) (z Int32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Int64s) InterleaveHi(y Int64s) (z Int64s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint8s) InterleaveHi(y Uint8s) (z Uint8s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint16s) InterleaveHi(y Uint16s) (z Uint16s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint32s) InterleaveHi(y Uint32s) (z Uint32s)
+
+// InterleaveHi interleaves the elements of the high halves of x and y.
+//
+//	z = {x[n/2], y[n/2], x[n/2+1], y[n/2+1], ..., x[n-1], y[n-1]}, where n = x.Len()
+//
+// Asm: ZZIP2, CPU Feature: SVE
+func (x Uint64s) InterleaveHi(y Uint64s) (z Uint64s)
+
+/* InterleaveLo */
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int8s) InterleaveLo(y Int8s) (z Int8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int16s) InterleaveLo(y Int16s) (z Int16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int32s) InterleaveLo(y Int32s) (z Int32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Int64s) InterleaveLo(y Int64s) (z Int64s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint8s) InterleaveLo(y Uint8s) (z Uint8s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint16s) InterleaveLo(y Uint16s) (z Uint16s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint32s) InterleaveLo(y Uint32s) (z Uint32s)
+
+// InterleaveLo interleaves the elements of the low halves of x and y.
+//
+//	z = {x[0], y[0], x[1], y[1], ..., x[n/2-1], y[n/2-1]}, where n = x.Len()
+//
+// Asm: ZZIP1, CPU Feature: SVE
+func (x Uint64s) InterleaveLo(y Uint64s) (z Uint64s)
 
 /* Max */
 
@@ -1193,15 +1451,29 @@ func (x Float64s) ReduceSum() (z float64)
 
 /* Round */
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: ZFRINTN, CPU Feature: SVE
-func (x Float32s) Round() Float32s
+func (x Float32s) Round() (z Float32s)
 
-// Round rounds elements to the nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: ZFRINTN, CPU Feature: SVE
-func (x Float64s) Round() Float64s
+func (x Float64s) Round() (z Float64s)
 
 /* ShiftAllLeft */
 
@@ -1425,15 +1697,27 @@ func (x Uint64s) SubSaturated(y Uint64s) (z Uint64s)
 
 /* Trunc */
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: ZFRINTZ, CPU Feature: SVE
-func (x Float32s) Trunc() Float32s
+func (x Float32s) Trunc() (z Float32s)
 
-// Trunc truncates elements towards zero.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: ZFRINTZ, CPU Feature: SVE
-func (x Float64s) Trunc() Float64s
+func (x Float64s) Trunc() (z Float64s)
 
 /* Xor */
 

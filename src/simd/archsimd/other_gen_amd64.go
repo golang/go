@@ -1307,3 +1307,461 @@ func (x Uint64x8) RotateAllRight(shift uint64) (z Uint64x8) {
 	nshift := 64 - shift
 	return x.ShiftAllLeft(nshift).Or(x.ShiftAllRight(shift))
 }
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int8x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int16x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int32x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Int64x2) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint8x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint16x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint32x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX
+func (x Uint64x2) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Int8x32) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Int16x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Int32x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Int64x4) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Uint8x32) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Uint16x16) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Uint32x8) IsZero() bool
+
+// IsZero returns true if all elements of x are zeros.
+//
+// Performance: This method compiles to VPTEST x, x.
+// x.And(y).IsZero() and x.AndNot(y).IsZero() will be optimized to VPTEST x, y.
+//
+// Asm: VPTEST, CPU Feature: AVX2
+func (x Uint64x4) IsZero() bool
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) HiToLo() (z Int8x16) {
+	var zero Uint64x2
+	return x.ToBits().ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint8s().BitsToInt8()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX
+func (x Int16x8) HiToLo() (z Int16x8) {
+	var zero Uint64x2
+	return x.ToBits().ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint16s().BitsToInt16()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Int32x4) HiToLo() (z Int32x4) {
+	var zero Uint64x2
+	return x.ToBits().ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint32s().BitsToInt32()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Int64x2) HiToLo() (z Int64x2) {
+	var zero Uint64x2
+	return x.ToBits().InterleaveHi(zero).BitsToInt64()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX
+func (x Uint8x16) HiToLo() (z Uint8x16) {
+	var zero Uint64x2
+	return x.ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint8s()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX
+func (x Uint16x8) HiToLo() (z Uint16x8) {
+	var zero Uint64x2
+	return x.ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint16s()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Uint32x4) HiToLo() (z Uint32x4) {
+	var zero Uint64x2
+	return x.ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint32s()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Uint64x2) HiToLo() (z Uint64x2) {
+	var zero Uint64x2
+	return x.InterleaveHi(zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x4) HiToLo() (z Float32x4) {
+	var zero Uint64x2
+	return x.ToBits().ReshapeToUint64s().InterleaveHi(zero).ReshapeToUint32s().BitsToFloat32()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[1], 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x2) HiToLo() (z Float64x2) {
+	var zero Uint64x2
+	return x.ToBits().InterleaveHi(zero).BitsToFloat64()
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 32
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) HiToLo() (z Int8x32) {
+	var zero Int8x32
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX2
+func (x Int16x16) HiToLo() (z Int16x16) {
+	var zero Int16x16
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX2
+func (x Int32x8) HiToLo() (z Int32x8) {
+	var zero Int32x8
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX2
+func (x Int64x4) HiToLo() (z Int64x4) {
+	var zero Int64x4
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 32
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint8x32) HiToLo() (z Uint8x32) {
+	var zero Uint8x32
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint16x16) HiToLo() (z Uint16x16) {
+	var zero Uint16x16
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint32x8) HiToLo() (z Uint32x8) {
+	var zero Uint32x8
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX2
+func (x Uint64x4) HiToLo() (z Uint64x4) {
+	var zero Uint64x4
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX
+func (x Float32x8) HiToLo() (z Float32x8) {
+	var zero Float32x8
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[2], x[3], 0, 0}
+//
+// Emulated, CPU Feature: AVX
+func (x Float64x4) HiToLo() (z Float64x4) {
+	var zero Float64x4
+	return x.ConcatPermute128Scalars(1, 2, zero)
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 64
+//
+// Emulated, CPU Feature: AVX512
+func (x Int8x64) HiToLo() (z Int8x64) {
+	var zero Int8x64
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 32
+//
+// Emulated, CPU Feature: AVX512
+func (x Int16x32) HiToLo() (z Int16x32) {
+	var zero Int16x32
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX512
+func (x Int32x16) HiToLo() (z Int32x16) {
+	var zero Int32x16
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX512
+func (x Int64x8) HiToLo() (z Int64x8) {
+	var zero Int64x8
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 64
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint8x64) HiToLo() (z Uint8x64) {
+	var zero Uint8x64
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 32
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint16x32) HiToLo() (z Uint16x32) {
+	var zero Uint16x32
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint32x16) HiToLo() (z Uint32x16) {
+	var zero Uint32x16
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX512
+func (x Uint64x8) HiToLo() (z Uint64x8) {
+	var zero Uint64x8
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 16
+//
+// Emulated, CPU Feature: AVX512
+func (x Float32x16) HiToLo() (z Float32x16) {
+	var zero Float32x16
+	return zero.SetLo(x.GetHi())
+}
+
+// HiToLo returns a vector whose low half is the high half of x and whose high
+// half is zero.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = 8
+//
+// Emulated, CPU Feature: AVX512
+func (x Float64x8) HiToLo() (z Float64x8) {
+	var zero Float64x8
+	return zero.SetLo(x.GetHi())
+}

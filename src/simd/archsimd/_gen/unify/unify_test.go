@@ -152,3 +152,18 @@ func testUnify(t *testing.T, path string) {
 		})
 	}
 }
+
+func TestMergeSorted(t *testing.T) {
+	for _, test := range []struct{ a, b, want []string }{
+		{nil, nil, []string{}},
+		{[]string{"a"}, nil, []string{"a"}},
+		{nil, []string{"a"}, []string{"a"}},
+		{[]string{"a", "c"}, []string{"b", "d"}, []string{"a", "b", "c", "d"}},
+		{[]string{"a", "b"}, []string{"b", "c"}, []string{"a", "b", "c"}},
+		{[]string{"b"}, []string{"a", "b", "c"}, []string{"a", "b", "c"}},
+	} {
+		if got := mergeSorted(test.a, test.b); !slices.Equal(got, test.want) {
+			t.Errorf("mergeSorted(%q, %q) = %q, want %q", test.a, test.b, got, test.want)
+		}
+	}
+}

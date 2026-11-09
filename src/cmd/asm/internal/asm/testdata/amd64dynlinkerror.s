@@ -174,3 +174,11 @@ TEXT ·a34(SB), 0, $0-0
 TEXT ·a35(SB), 0, $0-0
 	VGF2P8AFFINEQB	$0, runtime·writeBarrier(SB), Z1, Z1
 	RET
+
+// A base register on a global symbol must not be dropped by the GOT
+// rewrite. See issue 41286.
+TEXT ·a36(SB), 0, $0-0
+	MOVL	runtime·writeBarrier(SB)(AX), AX	// ERROR "base register not allowed with global symbol"
+	MOVL	AX, runtime·writeBarrier+4(SB)(CX)	// ERROR "base register not allowed with global symbol"
+	MOVQ	$runtime·writeBarrier(SB)(AX), BX	// ERROR "base register not allowed with global symbol"
+	RET

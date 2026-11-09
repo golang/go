@@ -316,55 +316,101 @@ func (x Uint8x16) Average(y Uint8x16) (z Uint8x16)
 // Asm: I16x8AvgrU
 func (x Uint16x8) Average(y Uint16x8) (z Uint16x8)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Int8x16) BitSelect(y Int8x16, cond Int8x16) Int8x16
+func (x Int8x16) BitSelect(y Int8x16, cond Uint8x16) (z Int8x16)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Uint8x16) BitSelect(y Uint8x16, cond Uint8x16) Uint8x16
+func (x Uint8x16) BitSelect(y Uint8x16, cond Uint8x16) (z Uint8x16)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Int16x8) BitSelect(y Int16x8, cond Int16x8) Int16x8
+func (x Int16x8) BitSelect(y Int16x8, cond Uint16x8) (z Int16x8)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Uint16x8) BitSelect(y Uint16x8, cond Uint16x8) Uint16x8
+func (x Uint16x8) BitSelect(y Uint16x8, cond Uint16x8) (z Uint16x8)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Int32x4) BitSelect(y Int32x4, cond Int32x4) Int32x4
+func (x Int32x4) BitSelect(y Int32x4, cond Uint32x4) (z Int32x4)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Uint32x4) BitSelect(y Uint32x4, cond Uint32x4) Uint32x4
+func (x Uint32x4) BitSelect(y Uint32x4, cond Uint32x4) (z Uint32x4)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Int64x2) BitSelect(y Int64x2, cond Int64x2) Int64x2
+func (x Int64x2) BitSelect(y Int64x2, cond Uint64x2) (z Int64x2)
 
-// BitSelect returns the bitwise selection if mask[i] then x[i] else y[i]
+// BitSelect returns the bitwise selection of x and y controlled by cond,
+// choosing each bit from x where the corresponding bit of cond is 1 and from y
+// where it is 0.
+//
+//	z[i] = (x[i] & cond[i]) | (y[i] &^ cond[i])
 //
 // Asm: V128Bitselect
-func (x Uint64x2) BitSelect(y Uint64x2, cond Uint64x2) Uint64x2
+func (x Uint64x2) BitSelect(y Uint64x2, cond Uint64x2) (z Uint64x2)
 
-// Ceil returns the elementwise ceiling of x.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: F32x4Ceil
-func (x Float32x4) Ceil() Float32x4
+func (x Float32x4) Ceil() (z Float32x4)
 
-// Ceil returns the elementwise ceiling of x.
+// Ceil returns the least integer value greater than or equal to each element
+// of x.
+//
+//	z[i] = ceil(x[i])
+//
+// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
+// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
+// are unspecified.
 //
 // Asm: F64x2Ceil
-func (x Float64x2) Ceil() Float64x2
+func (x Float64x2) Ceil() (z Float64x2)
 
 // ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
 //
@@ -500,35 +546,47 @@ func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
 // Asm: I64x2Eq
 func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2)
 
-// ExtendHi2ToInt64
+// ExtendHi2ToInt64 sign-extends the high-indexed 2 elements of x to int64.
+//
+//	z[i] = int64(x[2+i])
 //
 // Asm: I64x2ExtendHighI32x4S
-func (x Int32x4) ExtendHi2ToInt64() Int64x2
+func (x Int32x4) ExtendHi2ToInt64() (z Int64x2)
 
-// ExtendHi2ToUint64
+// ExtendHi2ToUint64 zero-extends the high-indexed 2 elements of x to uint64.
+//
+//	z[i] = uint64(x[2+i])
 //
 // Asm: I64x2ExtendHighI32x4U
-func (x Uint32x4) ExtendHi2ToUint64() Uint64x2
+func (x Uint32x4) ExtendHi2ToUint64() (z Uint64x2)
 
-// ExtendHi4ToInt32
+// ExtendHi4ToInt32 sign-extends the high-indexed 4 elements of x to int32.
+//
+//	z[i] = int32(x[4+i])
 //
 // Asm: I32x4ExtendHighI16x8S
-func (x Int16x8) ExtendHi4ToInt32() Int32x4
+func (x Int16x8) ExtendHi4ToInt32() (z Int32x4)
 
-// ExtendHi4ToUint32
+// ExtendHi4ToUint32 zero-extends the high-indexed 4 elements of x to uint32.
+//
+//	z[i] = uint32(x[4+i])
 //
 // Asm: I32x4ExtendHighI16x8U
-func (x Uint16x8) ExtendHi4ToUint32() Uint32x4
+func (x Uint16x8) ExtendHi4ToUint32() (z Uint32x4)
 
-// ExtendHi8ToInt16 extends the higher 8 elements of x to 16-bit integers.
+// ExtendHi8ToInt16 sign-extends the high-indexed 8 elements of x to int16.
+//
+//	z[i] = int16(x[8+i])
 //
 // Asm: I16x8ExtendHighI8x16S
-func (x Int8x16) ExtendHi8ToInt16() Int16x8
+func (x Int8x16) ExtendHi8ToInt16() (z Int16x8)
 
-// ExtendHi8ToUint16 extends the higher 8 elements of x to 16-bit unsigned integers.
+// ExtendHi8ToUint16 zero-extends the high-indexed 8 elements of x to uint16.
+//
+//	z[i] = uint16(x[8+i])
 //
 // Asm: I16x8ExtendHighI8x16U
-func (x Uint8x16) ExtendHi8ToUint16() Uint16x8
+func (x Uint8x16) ExtendHi8ToUint16() (z Uint16x8)
 
 // ExtendLo2ToInt64 sign-extends
 // the lowest 2 vector elements to int64.
@@ -566,65 +624,97 @@ func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
 // Asm: I16x8ExtendLowI8x16U
 func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
 
-// Floor returns the elementwise floor of x.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: F32x4Floor
-func (x Float32x4) Floor() Float32x4
+func (x Float32x4) Floor() (z Float32x4)
 
-// Floor returns the elementwise floor of x.
+// Floor returns the greatest integer value less than or equal to each element
+// of x.
+//
+//	z[i] = floor(x[i])
+//
+// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
+// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
 //
 // Asm: F64x2Floor
-func (x Float64x2) Floor() Float64x2
+func (x Float64x2) Floor() (z Float64x2)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
 //
 // Asm: I8x16ExtractLaneS
-func (x Int8x16) GetElem(index uint8) int8
+func (x Int8x16) GetElem(i uint8) (z int8)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 16, it panics.
+//
+//	z = x[i]
 //
 // Asm: I8x16ExtractLaneU
-func (x Uint8x16) GetElem(index uint8) uint8
+func (x Uint8x16) GetElem(i uint8) (z uint8)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
 //
 // Asm: I16x8ExtractLaneS
-func (x Int16x8) GetElem(index uint8) int16
+func (x Int16x8) GetElem(i uint8) (z int16)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 8, it panics.
+//
+//	z = x[i]
 //
 // Asm: I16x8ExtractLaneU
-func (x Uint16x8) GetElem(index uint8) uint16
+func (x Uint16x8) GetElem(i uint8) (z uint16)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
 //
 // Asm: I32x4ExtractLane
-func (x Int32x4) GetElem(index uint8) int32
+func (x Int32x4) GetElem(i uint8) (z int32)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
 //
 // Asm: I32x4ExtractLane
-func (x Uint32x4) GetElem(index uint8) uint32
+func (x Uint32x4) GetElem(i uint8) (z uint32)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 4, it panics.
+//
+//	z = x[i]
 //
 // Asm: F32x4ExtractLane
-func (x Float32x4) GetElem(index uint8) float32
+func (x Float32x4) GetElem(i uint8) (z float32)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
 //
 // Asm: I64x2ExtractLane
-func (x Int64x2) GetElem(index uint8) int64
+func (x Int64x2) GetElem(i uint8) (z int64)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
 //
 // Asm: I64x2ExtractLane
-func (x Uint64x2) GetElem(index uint8) uint64
+func (x Uint64x2) GetElem(i uint8) (z uint64)
 
-// GetElem gets the lane value at the given index.
+// GetElem returns the i'th element x. If i >= 2, it panics.
+//
+//	z = x[i]
 //
 // Asm: F64x2ExtractLane
-func (x Float64x2) GetElem(index uint8) float64
+func (x Float64x2) GetElem(i uint8) (z float64)
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
@@ -896,16 +986,16 @@ func (x Int64x2) LessEqual(y Int64x2) (z Mask64x2)
 // Asm: F64x2Le
 func (x Float64x2) LessEqual(y Float64x2) (z Mask64x2)
 
-// LookupOrZero returns the elements of x as indexed by the elements of indices. If an index is out of range, its result is 0.
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
 //
-//	if 0 <= indices[i] && indices[i] < len(table) {
-//	    result[i] = table[indices[i]]
+//	if 0 <= indices[i] && indices[i] < 16 {
+//	    z[i] = x[indices[i]]
 //	} else {
-//	    result[i] = 0
+//	    z[i] = 0
 //	}
 //
 // Asm: I8x16Swizzle
-func (x Int8x16) LookupOrZero(indices Int8x16) Int8x16
+func (x Int8x16) LookupOrZero(indices Int8x16) (z Int8x16)
 
 // Max returns the elementwise maximum of x and y.
 //
@@ -1139,89 +1229,149 @@ func (x Uint64x2) Mul(y Uint64x2) (z Uint64x2)
 // Asm: F64x2Mul
 func (x Float64x2) Mul(y Float64x2) (z Float64x2)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//	z[i] = int16(x[8+i]) * int16(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I16x8ExtmulHighI8x16S
-func (x Int8x16) MulWidenHi(y Int8x16) Int16x8
+func (x Int8x16) MulWidenHi(y Int8x16) (z Int16x8)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+8] * y[i+8], for 0 <= i < 8 == |x|/2.
+//	z[i] = uint16(x[8+i]) * uint16(y[8+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I16x8ExtmulHighI8x16U
-func (x Uint8x16) MulWidenHi(y Uint8x16) Uint16x8
+func (x Uint8x16) MulWidenHi(y Uint8x16) (z Uint16x8)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//	z[i] = int32(x[4+i]) * int32(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I32x4ExtmulHighI16x8S
-func (x Int16x8) MulWidenHi(y Int16x8) Int32x4
+func (x Int16x8) MulWidenHi(y Int16x8) (z Int32x4)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+4] * y[i+4], for 0 <= i < 4 == |x|/2.
+//	z[i] = uint32(x[4+i]) * uint32(y[4+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I32x4ExtmulHighI16x8U
-func (x Uint16x8) MulWidenHi(y Uint16x8) Uint32x4
+func (x Uint16x8) MulWidenHi(y Uint16x8) (z Uint32x4)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//	z[i] = int64(x[2+i]) * int64(y[2+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I64x2ExtmulHighI32x4S
-func (x Int32x4) MulWidenHi(y Int32x4) Int64x2
+func (x Int32x4) MulWidenHi(y Int32x4) (z Int64x2)
 
-// MulWidenHi returns the doubled-width product of respective elements of the upper halves of x and y.
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i+2] * y[i+2], for 0 <= i < 2 == |x|/2.
+//	z[i] = uint64(x[2+i]) * uint64(y[2+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I64x2ExtmulHighI32x4U
-func (x Uint32x4) MulWidenHi(y Uint32x4) Uint64x2
+func (x Uint32x4) MulWidenHi(y Uint32x4) (z Uint64x2)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//	z[i] = int16(x[i]) * int16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I16x8ExtmulLowI8x16S
-func (x Int8x16) MulWidenLo(y Int8x16) Int16x8
+func (x Int8x16) MulWidenLo(y Int8x16) (z Int16x8)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 8 == |x|/2.
+//	z[i] = uint16(x[i]) * uint16(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I16x8ExtmulLowI8x16U
-func (x Uint8x16) MulWidenLo(y Uint8x16) Uint16x8
+func (x Uint8x16) MulWidenLo(y Uint8x16) (z Uint16x8)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//	z[i] = int32(x[i]) * int32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I32x4ExtmulLowI16x8S
-func (x Int16x8) MulWidenLo(y Int16x8) Int32x4
+func (x Int16x8) MulWidenLo(y Int16x8) (z Int32x4)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 4 == |x|/2.
+//	z[i] = uint32(x[i]) * uint32(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I32x4ExtmulLowI16x8U
-func (x Uint16x8) MulWidenLo(y Uint16x8) Uint32x4
+func (x Uint16x8) MulWidenLo(y Uint16x8) (z Uint32x4)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//	z[i] = int64(x[i]) * int64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I64x2ExtmulLowI32x4S
-func (x Int32x4) MulWidenLo(y Int32x4) Int64x2
+func (x Int32x4) MulWidenLo(y Int32x4) (z Int64x2)
 
-// MulWidenLo returns the doubled-width product of respective elements of the lower halves of x and y.
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
 //
-//	Result[i] = x[i] * y[i], for 0 <= i < 2 == |x|/2.
+//	z[i] = uint64(x[i]) * uint64(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: I64x2ExtmulLowI32x4U
-func (x Uint32x4) MulWidenLo(y Uint32x4) Uint64x2
+func (x Uint32x4) MulWidenLo(y Uint32x4) (z Uint64x2)
 
 // Neg returns the elementwise negation of x.
 //
@@ -1547,65 +1697,109 @@ func (x Uint32x4) RotateAllRight(shift uint64) (z Uint32x4)
 // Asm: I64x2RotateAllRight
 func (x Uint64x2) RotateAllRight(shift uint64) (z Uint64x2)
 
-// Round returns the elementwise nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: F32x4Nearest
-func (x Float32x4) Round() Float32x4
+func (x Float32x4) Round() (z Float32x4)
 
-// Round returns the elementwise nearest integer, rounding ties to even.
+// Round returns the nearest integer value to each element of x, rounding ties
+// to even.
+//
+//	z[i] = roundToEven(x[i])
+//
+// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
+// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
+// of a NaN result are unspecified.
 //
 // Asm: F64x2Nearest
-func (x Float64x2) Round() Float64x2
+func (x Float64x2) Round() (z Float64x2)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I8x16ReplaceLane
-func (x Int8x16) SetElem(index uint8, y int8) Int8x16
+func (x Int8x16) SetElem(i uint8, y int8) (z Int8x16)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 16, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I8x16ReplaceLane
-func (x Uint8x16) SetElem(index uint8, y uint8) Uint8x16
+func (x Uint8x16) SetElem(i uint8, y uint8) (z Uint8x16)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I16x8ReplaceLane
-func (x Int16x8) SetElem(index uint8, y int16) Int16x8
+func (x Int16x8) SetElem(i uint8, y int16) (z Int16x8)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 8, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I16x8ReplaceLane
-func (x Uint16x8) SetElem(index uint8, y uint16) Uint16x8
+func (x Uint16x8) SetElem(i uint8, y uint16) (z Uint16x8)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I32x4ReplaceLane
-func (x Int32x4) SetElem(index uint8, y int32) Int32x4
+func (x Int32x4) SetElem(i uint8, y int32) (z Int32x4)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I32x4ReplaceLane
-func (x Uint32x4) SetElem(index uint8, y uint32) Uint32x4
+func (x Uint32x4) SetElem(i uint8, y uint32) (z Uint32x4)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 4, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: F32x4ReplaceLane
-func (x Float32x4) SetElem(index uint8, y float32) Float32x4
+func (x Float32x4) SetElem(i uint8, y float32) (z Float32x4)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I64x2ReplaceLane
-func (x Int64x2) SetElem(index uint8, y int64) Int64x2
+func (x Int64x2) SetElem(i uint8, y int64) (z Int64x2)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: I64x2ReplaceLane
-func (x Uint64x2) SetElem(index uint8, y uint64) Uint64x2
+func (x Uint64x2) SetElem(i uint8, y uint64) (z Uint64x2)
 
-// SetElem sets the lane at the given index to y.
+// SetElem returns x with its i'th element set to y. If i >= 2, it panics.
+//
+//	z = x
+//	z[i] = y
 //
 // Asm: F64x2ReplaceLane
-func (x Float64x2) SetElem(index uint8, y float64) Float64x2
+func (x Float64x2) SetElem(i uint8, y float64) (z Float64x2)
 
 // ShiftAllLeft shifts each element of x left by shift bits.
 // If shift is greater than the element width, the result is 0.
@@ -1855,15 +2049,27 @@ func (x Int16x8) SubSaturated(y Int16x8) (z Int16x8)
 // Asm: I16x8SubSatU
 func (x Uint16x8) SubSaturated(y Uint16x8) (z Uint16x8)
 
-// Trunc returns the elementwise truncation of x.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: F32x4Trunc
-func (x Float32x4) Trunc() Float32x4
+func (x Float32x4) Trunc() (z Float32x4)
 
-// Trunc returns the elementwise truncation of x.
+// Trunc returns the integer value of each element of x, rounded toward zero.
+//
+//	z[i] = trunc(x[i])
+//
+// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
+// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
+// a NaN result are unspecified.
 //
 // Asm: F64x2Trunc
-func (x Float64x2) Trunc() Float64x2
+func (x Float64x2) Trunc() (z Float64x2)
 
 // Xor returns the bitwise XOR of x and y.
 //
@@ -1999,7 +2205,7 @@ func (x Int8x16) Masked(mask Mask8x16) (z Int8x16) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int8x16) IfElse(mask Mask8x16, y Int8x16) (z Int8x16) {
-	im := mask.ToInt8x16()
+	im := mask.ToInt8x16().ToBits()
 	return x.BitSelect(y, im)
 }
 
@@ -2017,7 +2223,7 @@ func (x Int16x8) Masked(mask Mask16x8) (z Int16x8) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int16x8) IfElse(mask Mask16x8, y Int16x8) (z Int16x8) {
-	im := mask.ToInt16x8()
+	im := mask.ToInt16x8().ToBits()
 	return x.BitSelect(y, im)
 }
 
@@ -2035,7 +2241,7 @@ func (x Int32x4) Masked(mask Mask32x4) (z Int32x4) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int32x4) IfElse(mask Mask32x4, y Int32x4) (z Int32x4) {
-	im := mask.ToInt32x4()
+	im := mask.ToInt32x4().ToBits()
 	return x.BitSelect(y, im)
 }
 
@@ -2053,7 +2259,7 @@ func (x Int64x2) Masked(mask Mask64x2) (z Int64x2) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int64x2) IfElse(mask Mask64x2, y Int64x2) (z Int64x2) {
-	im := mask.ToInt64x2()
+	im := mask.ToInt64x2().ToBits()
 	return x.BitSelect(y, im)
 }
 

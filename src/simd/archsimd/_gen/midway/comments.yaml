@@ -1,8 +1,3 @@
-# Common methods shared across various SIMD types
-.common_methods: &common_methods
-  Len: "Len returns the number of elements in the vector."
-  String: "String returns a string representation of the vector."
-
 types:
   _simd: "internal SIMD marker."
   Int8s: "Int8s represents a vector of 8-bit signed integers."
@@ -22,33 +17,3 @@ types:
 
 functions:
   VectorSize: "VectorSize returns the size of the largest SIMD vector supported by the current CPU."
-
-methods:
-  Int8s:
-    <<: *common_methods
-  Int16s:
-    <<: *common_methods
-  Int32s:
-    <<: *common_methods
-  Int64s:
-    <<: *common_methods
-  Uint8s:
-    <<: *common_methods
-  Uint16s:
-    <<: *common_methods
-  Uint32s:
-    <<: *common_methods
-  Uint64s:
-    <<: *common_methods
-  Float32s:
-    <<: *common_methods
-  Float64s:
-    <<: *common_methods
-  Mask8s:
-    <<: *common_methods
-  Mask16s:
-    <<: *common_methods
-  Mask32s:
-    <<: *common_methods
-  Mask64s:
-    <<: *common_methods

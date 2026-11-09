@@ -267,6 +267,14 @@ func init() {
 		{name: "MINU", argLength: 2, reg: gp21, asm: "MINU", commutative: true, earlyOk: true}, // min(arg0,arg1), unsigned
 		{name: "MAXU", argLength: 2, reg: gp21, asm: "MAXU", commutative: true, earlyOk: true}, // max(arg0,arg1), unsigned
 
+		// Single bit operations
+		{name: "BEXT", argLength: 2, reg: gp21, asm: "BEXT", earlyOk: true},                 // (arg0 >> (arg1 & 63)) & 1
+		{name: "BEXTI", argLength: 1, reg: gp11, asm: "BEXTI", aux: "Int64", earlyOk: true}, // (arg0 >> index) & 1
+		{name: "BINV", argLength: 2, reg: gp21, asm: "BINV", earlyOk: true},                 // arg0 ^ (1 << (arg1 & 63))
+		{name: "BINVI", argLength: 1, reg: gp11, asm: "BINVI", aux: "Int64", earlyOk: true}, // arg0 ^ (1 << index)
+		{name: "BSET", argLength: 2, reg: gp21, asm: "BSET", earlyOk: true},                 // arg0 | (1 << (arg1 & 63))
+		{name: "BSETI", argLength: 1, reg: gp11, asm: "BSETI", aux: "Int64", earlyOk: true}, // arg0 | (1 << index)
+
 		// Generate boolean values
 		{name: "SEQZ", argLength: 1, reg: gp11, asm: "SEQZ", earlyOk: true},                 // arg0 == 0, result is 0 or 1
 		{name: "SNEZ", argLength: 1, reg: gp11, asm: "SNEZ", earlyOk: true},                 // arg0 != 0, result is 0 or 1

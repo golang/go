@@ -759,3 +759,45 @@ func (x Uint64x4) NotEqual(y Uint64x4) (z Mask64x4) {
 	ones := x.Equal(x).ToInt64x4()
 	return a.Equal(b).ToInt64x4().Xor(ones).asMask()
 }
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPS, CPU Feature: AVX
+func (x Float32x4) IsNaN() (z Mask32x4)
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPD, CPU Feature: AVX
+func (x Float64x2) IsNaN() (z Mask64x2)
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPS, CPU Feature: AVX
+func (x Float32x8) IsNaN() (z Mask32x8)
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPD, CPU Feature: AVX
+func (x Float64x4) IsNaN() (z Mask64x4)
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPS, CPU Feature: AVX512
+func (x Float32x16) IsNaN() (z Mask32x16)
+
+// IsNaN returns a mask indicating which elements of x are NaN.
+//
+//	z[i] = math.IsNaN(x[i])
+//
+// Asm: VCMPPD, CPU Feature: AVX512
+func (x Float64x8) IsNaN() (z Mask64x8)

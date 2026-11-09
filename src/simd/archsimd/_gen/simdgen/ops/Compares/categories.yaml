@@ -43,3 +43,11 @@
   documentation: !string |-
     // NAME returns a mask whose elements indicate whether x & y != 0.
 
+- go: compareToMask
+  noTypes: "true"
+  noGenericOps: "true"
+  # Whether this is commutative depends on the predicate.
+  commutative: false
+  documentation: !string |-
+    // NAME compares x and y using the predicate in its immediate, and returns
+    // the result as an AVX-512 mask.

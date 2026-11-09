@@ -161,7 +161,6 @@ avx2:
 	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
 	JNE sse
 #endif
-	MOVD AX, X0
 	LEAQ -64(SI)(BX*1), R11
 	LEAQ (SI)(BX*1), R13
 	VPBROADCASTB  X0, Y1

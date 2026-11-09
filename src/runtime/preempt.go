@@ -115,6 +115,19 @@ func suspendG(gp *g) suspendGState {
 	const yieldDelay = 10 * 1000
 	var nextYield int64
 
+	// Sending signals in a loop risks live-lock. The target M acknowledges the
+	// signal from inside its signal handler, before returning to the OS and
+	// subsequently making progress on gp. A fast sender can notice the
+	// acknowledgement and queue up a new signal before the OS's
+	// end-of-signal-handler path finishes, causing the OS to immediately
+	// re-enter the signal handler. Measure the round-trip time so we can, on
+	// occasion, pause for several times that long so gp can make forward
+	// progress. See https://go.dev/issue/82146.
+	const groupAcks = 4 // acknowledgements per group
+	var acks int        // acknowledgements seen in this group
+	var lastAck int64   // when we saw the latest one
+	var minAckRTT int64 // shortest time between them
+
 	// Drive the goroutine to a preemption point.
 	stopped := false
 	var asyncM *m
@@ -217,17 +230,48 @@ func suspendG(gp *g) suspendGState {
 			asyncM2 := gp.m
 			asyncGen2 := asyncM2.preemptGen.Load()
 			needAsync := asyncM != asyncM2 || asyncGen != asyncGen2
+			acked := asyncM == asyncM2 && asyncGen != asyncGen2
 			asyncM = asyncM2
 			asyncGen = asyncGen2
 
 			// Send asynchronous preemption. preemptM releases the _Gscan bit.
 			if preemptMSupported && debug.asyncpreemptoff == 0 && needAsync {
+				now := nanotime()
+
+				// When we need to signal more than once, measure the interval
+				// between the acknowledgements from gp's M. If we've sent
+				// several in a row without gp reaching a safe point, use the
+				// intervals to estimate the full time cost for gp's M (on its
+				// current processor) to enter, run, and exit the signal
+				// handler. Then, delay the next signal by several times that so
+				// the thread can make real progress and avoid live-lock.
+				if !acked {
+					acks = 0
+				} else {
+					acks++
+					if d := now - lastAck; acks == 2 || (acks > 2 && d < minAckRTT) {
+						minAckRTT = d
+					}
+					lastAck = now
+					if acks == groupAcks {
+						// Aim to bound gp's signal-handling overhead at 50%.
+						// The cost for gp's M to handle a signal may exceed our
+						// estimate by one sampling interval; add that back in.
+						//
+						// We don't set a cap on minAckRTT, or the resulting
+						// total delay. If a the program is exhibiting very slow
+						// acks, we don't have evidence to defend sending more
+						// signals at a fast cadence.
+						nextPreemptM = now + groupAcks*(minAckRTT+yieldDelay/2)
+						acks = 0
+					}
+				}
+
 				// Rate limit preemptM calls. This is
 				// particularly important on Windows
 				// where preemptM is actually
 				// synchronous and the spin loop here
 				// can lead to live-lock.
-				now := nanotime()
 				if now >= nextPreemptM {
 					preemptM(gp)
 					// Start the delay after preemptM returns. On Windows,

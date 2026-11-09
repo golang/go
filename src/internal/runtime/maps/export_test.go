@@ -36,7 +36,12 @@ func newTestMapType[K comparable, V any]() *abi.MapType {
 
 func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.MapType) {
 	mt := newTestMapType[K, V]()
-	return NewMap(mt, hint, nil, maxAllocTest), mt
+	return newMap(mt, hint, nil, maxAllocTest), mt
+}
+
+// GrowMaxAlloc is Grow with an explicit allocation limit.
+func (m *Map) GrowMaxAlloc(typ *abi.MapType, n, maxAlloc uintptr) {
+	m.grow(typ, n, maxAlloc)
 }
 
 func (m *Map) TableCount() int {

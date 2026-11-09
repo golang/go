@@ -232,7 +232,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.To.Reg = r
 	case ssaop.OpARMSRR:
 		genregshift(s, arm.AMOVW, 0, v.Args[0].Reg(), v.Args[1].Reg(), v.Reg(), arm.SHIFT_RR)
-	case ssaop.OpARMMULAF, ssaop.OpARMMULAD, ssaop.OpARMMULSF, ssaop.OpARMMULSD, ssaop.OpARMFMULAD:
+	case ssaop.OpARMMULAF, ssaop.OpARMMULAD, ssaop.OpARMMULSF, ssaop.OpARMMULSD, ssaop.OpARMFMULAF, ssaop.OpARMFMULAD:
 		r := v.Reg()
 		r0 := v.Args[0].Reg()
 		r1 := v.Args[1].Reg()

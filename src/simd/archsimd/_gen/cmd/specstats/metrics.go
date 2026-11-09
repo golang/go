@@ -6,6 +6,7 @@ package main
 
 import (
 	"cmp"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"simd/archsimd/_gen/specgen"
@@ -91,7 +92,7 @@ type metrics struct {
 	covTarget *pivot[archMethodKey]
 	covGen    *pivot[methodKey]
 	covMulti  *tally[string] // names emitted by more than one tool
-	covCommon *tally[string] // comments.yaml's .common_methods, spec-common's scope
+	covCommon *tally[string] // simd_emulated.go's methods, spec-common's scope
 
 	specPairs, specNames int
 
@@ -116,6 +117,7 @@ type metrics struct {
 	fromSpec           *tally[declKey]
 	bounded            *tally[declKey]
 	handConflict       int
+	handConflictDecls  []string // the declarations behind handConflict, sorted
 	handConflictByFile []fileCount
 	crossPkg           *tally[methodKey]
 	mirror             *tally[methodKey]
@@ -127,6 +129,7 @@ type metrics struct {
 	catExportedFields                map[string]int
 	comments                         int
 	commentsSpecCovered              int
+	commentsSpecCoveredNames         []string // the entries behind commentsSpecCovered
 	commutDrift                      int
 }
 
@@ -142,7 +145,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 
 	// The fact table: one row per declaration per configuration it builds in.
 	for _, d := range api {
-		if nonSpecOp(d.name) {
+		if nonSpecDecl(d) {
 			continue
 		}
 		m.decls = append(m.decls, d)
@@ -334,8 +337,10 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 		if !seenByFile[dk] {
 			seenByFile[dk] = true
 			byFile[f.file]++
+			m.handConflictDecls = append(m.handConflictDecls, fmt.Sprint(dk))
 		}
 	}
+	slices.Sort(m.handConflictDecls)
 	for _, k := range sortedKeys(byFile) {
 		m.handConflictByFile = append(m.handConflictByFile, fileCount{k, byFile[k]})
 	}
@@ -393,6 +398,7 @@ func measure(api []*decl, specFuncs []*specgen.Func, genDir string) *metrics {
 	eachEntry(root, func(k, v *yaml.Node) {
 		if isString(v) && specNames[k.Value] {
 			m.commentsSpecCovered++
+			m.commentsSpecCoveredNames = append(m.commentsSpecCoveredNames, k.Value)
 		}
 	})
 

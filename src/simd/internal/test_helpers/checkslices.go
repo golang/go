@@ -8,6 +8,7 @@ package test_helpers
 
 import (
 	"math"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -252,6 +253,26 @@ func Int64s() []int64 {
 }
 func Uint64s() []uint64 {
 	return uint64s
+}
+
+// roundingFloats are inputs that tell the rounding modes apart: ties
+// (including ties to odd and even), negative fractions whose result is -0,
+// values just below a tie, and values near 2^23 and 2^52, where float32 and
+// float64 stop having fraction bits.
+var roundingFloats = []float64{0.5, 1.5, 2.5, 3.5, -0.5, -1.5, -2.5, -3.5, 0.25, 0.75, -0.25, -0.75,
+	0.49999997, -0.49999997, 1.25, -1.75, 2.75, -2.25, 100.5, -100.5, 1e6 + 0.5,
+	8388607.5, -8388607.5, 8388608, 8388609, 4503599627370495.5, 4503599627370496, 1e30, -1e30}
+
+func RoundingFloat32s() []float32 {
+	s := slices.Clone(float32s)
+	for _, x := range roundingFloats {
+		s = append(s, float32(x))
+	}
+	return s
+}
+
+func RoundingFloat64s() []float64 {
+	return append(slices.Clone(float64s), roundingFloats...)
 }
 
 func Float32s() []float32 {

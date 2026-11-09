@@ -2980,7 +2980,7 @@ func TestTimeoutHandlerPanicRecovery(t *testing.T) {
 	}
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, wrapper, ErrAbortHandler)
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestRedirectBadPath(t *testing.T) {
@@ -3153,13 +3153,13 @@ func testZeroLengthPostAndResponse(t *testing.T, mode testMode) {
 func TestHandlerPanicNil(t *testing.T) {
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, nil)
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestHandlerPanic(t *testing.T) {
 	runNoSynctest(t, func(t *testing.T, mode testMode) {
 		testHandlerPanic(t, false, mode, nil, "intentional death for testing")
-	}, testNotParallel, http3SkippedMode)
+	}, testNotParallel)
 }
 
 func TestHandlerPanicWithHijack(t *testing.T) {
@@ -8451,5 +8451,78 @@ func TestServerCONNECTFailure(t *testing.T) {
 		}
 		conn.wantBytes(body)
 		conn.wantClosed()
+	})
+}
+
+func TestHandleRequest(t *testing.T) {
+	setup := func(h HandlerFunc) (*Server, *httptest.ResponseRecorder, *bytes.Buffer) {
+		var logBuf bytes.Buffer
+		s := &Server{
+			ErrorLog: log.New(&logBuf, "", 0),
+		}
+		if h != nil {
+			s.Handler = h
+		}
+		return s, httptest.NewRecorder(), &logBuf
+	}
+
+	t.Run("regular handle", func(t *testing.T) {
+		s, w, _ := setup(func(w ResponseWriter, r *Request) {
+			w.WriteHeader(200)
+		})
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodGet, "/", nil)); err != nil {
+			t.Fatalf("HandleRequest = %v, want nil", err)
+		}
+		if w.Code != 200 {
+			t.Errorf("status = %d, want 200", w.Code)
+		}
+	})
+	t.Run("ErrAbortHandler panic", func(t *testing.T) {
+		s, w, logBuf := setup(func(w ResponseWriter, r *Request) {
+			panic(ErrAbortHandler)
+		})
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodGet, "/", nil)); err != ErrAbortHandler {
+			t.Fatalf("HandleRequest = %v, want ErrAbortHandler", err)
+		}
+		if logBuf.Len() != 0 {
+			t.Errorf("unexpected log output: %s", logBuf.String())
+		}
+	})
+	t.Run("other panic", func(t *testing.T) {
+		s, w, logBuf := setup(func(w ResponseWriter, r *Request) {
+			panic("boom")
+		})
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodGet, "/", nil)); err == nil {
+			t.Fatal("HandleRequest = nil, want error")
+		}
+		if !strings.Contains(logBuf.String(), "boom") {
+			t.Errorf("log output %q does not contain panic value", logBuf.String())
+		}
+	})
+	t.Run("OPTIONS *", func(t *testing.T) {
+		s, w, _ := setup(func(w ResponseWriter, r *Request) {
+			panic("boom")
+		})
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodOptions, "*", nil)); err != nil {
+			t.Fatalf("OPTIONS * HandleRequest = %v, want nil", err)
+		}
+		s.DisableGeneralOptionsHandler = true
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodOptions, "*", nil)); err == nil {
+			t.Fatal("OPTIONS * HandleRequest = nil, want error")
+		}
+	})
+	t.Run("DefaultServeMux", func(t *testing.T) {
+		defer func(orig *ServeMux) { DefaultServeMux = orig }(DefaultServeMux)
+		DefaultServeMux = NewServeMux()
+		DefaultServeMux.HandleFunc("/", func(w ResponseWriter, r *Request) {
+			w.WriteHeader(200)
+		})
+		s, w, _ := setup(nil)
+		if err := s.HandleRequest(w, httptest.NewRequest(MethodGet, "/", nil)); err != nil {
+			t.Fatalf("HandleRequest = %v, want nil", err)
+		}
+		if w.Code != 200 {
+			t.Errorf("status = %d, want 200", w.Code)
+		}
 	})
 }

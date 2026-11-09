@@ -852,8 +852,8 @@ func init() {
 		{name: "MAXSD", argLength: 2, reg: fp21, resultInArg0: true, asm: "MAXSD", earlyOk: true}, // max(arg0,arg1)
 		{name: "MAXSS", argLength: 2, reg: fp21, resultInArg0: true, asm: "MAXSS", earlyOk: true}, // max(arg0,arg1)
 
-		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ", earlyOk: true},                    // (int64)(-1) if carry is set, 0 if carry is clear.
-		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL", earlyOk: true, zeroUpperBits: 32}, // (int32)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ", earlyOk: true, clobberFlags: true},                    // (int64)(-1) if carry is set, 0 if carry is clear.
+		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL", earlyOk: true, zeroUpperBits: 32, clobberFlags: true}, // (int32)(-1) if carry is set, 0 if carry is clear.
 		// Note: SBBW and SBBB are subsumed by SBBL
 
 		{name: "SETEQ", argLength: 1, reg: readflags, asm: "SETEQ", earlyOk: true}, // extract == condition from arg0

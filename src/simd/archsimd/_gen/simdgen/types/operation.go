@@ -58,9 +58,21 @@ type RawOperation struct {
 	//	(VSSHR4S [a] x) && a==0 => x
 	//
 	// Since the left-hand side comes from the operation's shape, one asm rule
-	// covers every machine op the operation expands to, including masked
-	// variants, which add "mask" to the left-hand side. Format specifiers are
-	// not expanded in asm rules.
+	// covers every machine op the operation expands to. Write the rule for
+	// the unmasked machine op. On amd64, simdgen derives the rule for the
+	// AVX-512 masked form, which computes the unmasked op and then zeroes the
+	// inactive lanes, by adding mask to the left-hand side and applying a
+	// zeroing masked move to <result>. For example, "a==0 => x" on
+	// VPSLLW128const also produces
+	//
+	//	(VPSLLWMasked128const [a] x mask) && a==0 => (VMOVDQU16Masked128 x mask)
+	//
+	// Similarly, for 512-bit vectors, it derives the rule for the merging
+	// form, which blends the unmasked result into dst under the mask:
+	//
+	//	(VPSLLWMasked512constMerging dst [a] x mask) && a==0 => (VPBLENDMWMasked512 dst x mask)
+	//
+	// Format specifiers are not expanded in asm rules.
 	AsmRules *[]string
 	// LowerRules replace the default lowering rule of the generic op. They are
 	// complete rules, usually on %g, and are emitted in order, so a rule for a
@@ -182,6 +194,26 @@ type Operand struct {
 	// decides whether the generated machine op is the merging or the zeroing
 	// form (see sveMaskSuffix).
 	Predication *string
+	// MaskRole describes the role of a mask operand in an amd64 instruction. It
+	// is derived from XED, is set on every amd64 mask operand, and is one of:
+	//
+	//	"opmask"         - The operand is the AVX-512 opmask and masks the
+	//	                   entire result: each result element is computed
+	//	                   as if unmasked, and elements where the mask is
+	//	                   false are zeroed or merged.
+	//	"opmask-partial" - Like "opmask", except the instruction computes
+	//	                   only the low elements of its result and zeroes
+	//	                   the rest regardless of masking (so the upper
+	//	                   elements are zeroed even when merging).
+	//	"select"         - The operand is in the opmask position, but the
+	//	                   instruction uses it to select elements in some
+	//	                   other way, as in blend, compress, and expand.
+	//	"data"           - The operand isn't in the opmask position. For
+	//	                   example, the mask result of a comparison, or
+	//	                   the input of VPMOVM2D.
+	//
+	// It is nil on other architectures.
+	MaskRole *string
 	// Governing marks the SVE governing predicate among an instruction's
 	// operands — the one that selects which lanes the instruction acts on, as
 	// opposed to a predicate it merely reads as data (SEL's <Pv>, the <Pn>/<Pm>

@@ -59,6 +59,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpAtomicAnd32:
 		v.Op = ssaop.OpMIPS64LoweredAtomicAnd32
 		return true
+	case ssaop.OpAtomicAnd32value:
+		v.Op = ssaop.OpMIPS64LoweredAtomicAnd32value
+		return true
+	case ssaop.OpAtomicAnd64value:
+		v.Op = ssaop.OpMIPS64LoweredAtomicAnd64value
+		return true
 	case ssaop.OpAtomicAnd8:
 		return rewriteValue_OpAtomicAnd8(v)
 	case ssaop.OpAtomicCompareAndSwap32:
@@ -86,6 +92,12 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpAtomicOr32:
 		v.Op = ssaop.OpMIPS64LoweredAtomicOr32
+		return true
+	case ssaop.OpAtomicOr32value:
+		v.Op = ssaop.OpMIPS64LoweredAtomicOr32value
+		return true
+	case ssaop.OpAtomicOr64value:
+		v.Op = ssaop.OpMIPS64LoweredAtomicOr64value
 		return true
 	case ssaop.OpAtomicOr8:
 		return rewriteValue_OpAtomicOr8(v)

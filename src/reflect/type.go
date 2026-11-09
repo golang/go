@@ -1690,9 +1690,9 @@ func haveIdenticalUnderlyingType(T, V *abi.Type, cmpTags bool) bool {
 		if len(t.Methods) == 0 && len(v.Methods) == 0 {
 			return true
 		}
-		// Might have the same methods but still
-		// need a run time conversion.
-		return false
+		// Two interface types with the same method set are identical, and
+		// share the same descriptor. See internal/abi.InterfaceType.Under.
+		return t.Underlying() == v.Underlying()
 
 	case Map:
 		return haveIdenticalType(T.Key(), V.Key(), cmpTags) && haveIdenticalType(T.Elem(), V.Elem(), cmpTags)

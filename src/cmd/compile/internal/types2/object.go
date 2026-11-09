@@ -606,9 +606,10 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
 			}
 		} else if t, _ := typ.(*TypeParam); t != nil {
 			typ = t.bound
+		} else if t, ok := typ.(*Named); ok && !t.stateHas(hasUnder) {
+			// don't call Underlying if it's not available yet
+			typ = t.rhs()
 		} else {
-			// TODO(gri) should this be fromRHS for *Named?
-			// (See discussion in #66559.)
 			typ = typ.Underlying()
 		}
 	}

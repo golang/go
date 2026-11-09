@@ -2030,12 +2030,6 @@ func (c *conn) serve(ctx context.Context) {
 	ctx = context.WithValue(ctx, LocalAddrContextKey, c.rwc.LocalAddr())
 	var inFlightResponse *response
 	defer func() {
-		if err := recover(); err != nil && err != ErrAbortHandler {
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
-			c.server.logf("http: panic serving %v: %v\n%s", c.remoteAddr, err, buf)
-		}
 		if inFlightResponse != nil {
 			inFlightResponse.cancelCtx()
 			inFlightResponse.disableWriteContinue(true)
@@ -2105,7 +2099,7 @@ func (c *conn) serve(ctx context.Context) {
 		if validNextProto(proto) && tlsConnOK {
 			// Legacy TLSNextProto path.
 			if fn := c.server.TLSNextProto[proto]; fn != nil {
-				h := initALPNRequest{ctx, tlsConn, serverHandler{c.server}}
+				h := initALPNRequest{ctx, tlsConn, c.server}
 				// Mark freshly created HTTP/2 as active (see above).
 				c.setState(c.rwc, StateActive, skipHooks)
 				fn(c.server, tlsConn, h)
@@ -2235,7 +2229,9 @@ func (c *conn) serve(ctx context.Context) {
 		// But we're not going to implement HTTP pipelining because it
 		// was never deployed in the wild and the answer is HTTP/2.
 		inFlightResponse = w
-		serverHandler{c.server}.ServeHTTP(w, w.req)
+		if err := c.server.HandleRequest(w, w.req); err != nil {
+			return
+		}
 		inFlightResponse = nil
 		w.cancelCtx()
 		if c.hijacked() {
@@ -2329,7 +2325,7 @@ func (c *conn) serve(ctx context.Context) {
 type unencryptedHTTP2Request struct {
 	ctx context.Context
 	c   net.Conn
-	h   serverHandler
+	srv *Server
 }
 
 func (h unencryptedHTTP2Request) BaseContext() context.Context { return h.ctx }
@@ -2341,7 +2337,7 @@ func (h unencryptedHTTP2Request) ServeHTTP(rw ResponseWriter, req *Request) {
 	if req.RemoteAddr == "" {
 		req.RemoteAddr = h.c.RemoteAddr().String()
 	}
-	h.h.ServeHTTP(rw, req)
+	h.srv.serveHTTP(rw, req, h.srv.Handler)
 }
 
 // unencryptedNetConnInTLSConn is used to pass an unencrypted net.Conn to
@@ -2391,7 +2387,7 @@ func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
 	} else {
 		c.rwc.SetReadDeadline(time.Time{})
 		c.rwc.SetWriteDeadline(time.Time{})
-		h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
+		h := unencryptedHTTP2Request{ctx, c.rwc, c.server}
 		nextFunc(c.server, unencryptedTLSConn(c.rwc), h)
 	}
 	return true
@@ -2411,7 +2407,7 @@ func (c *conn) serveHTTP2(ctx context.Context, sawClientPreface bool) {
 		c.bufr = nil
 	}
 
-	c.server.serveHTTP2Conn(ctx, c.rwc, serverHandler{c.server}, sawClientPreface, nil, nil, func() {
+	c.server.serveHTTP2Conn(ctx, c.rwc, c.server.Handler, sawClientPreface, nil, nil, func() {
 		c.close()
 		c.setState(c.rwc, StateClosed, runHooks)
 	})
@@ -3554,13 +3550,7 @@ func (c ConnState) String() string {
 	return stateName[c]
 }
 
-// serverHandler delegates to either the server's Handler or
-// DefaultServeMux and also handles "OPTIONS *" requests.
-type serverHandler struct {
-	srv *Server
-}
-
-// ServeHTTP should be an internal detail,
+// badServeHTTP should be an internal detail,
 // but widely used packages access it using linkname.
 // Notable members of the hall of shame include:
 //   - github.com/erda-project/erda-infra
@@ -3569,24 +3559,9 @@ type serverHandler struct {
 // See go.dev/issue/67401.
 //
 //go:linkname badServeHTTP net/http.serverHandler.ServeHTTP
-func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
-	handler := sh.srv.Handler
-	if handler == nil {
-		handler = DefaultServeMux
-	}
-	if !sh.srv.DisableGeneralOptionsHandler && req.RequestURI == "*" && req.Method == "OPTIONS" {
-		handler = globalOptionsHandler{}
-	}
-
-	defer func() {
-		if req.MultipartForm != nil {
-			req.MultipartForm.RemoveAll()
-		}
-	}()
-	handler.ServeHTTP(rw, req)
+func badServeHTTP(srv *Server, rw ResponseWriter, req *Request) {
+	srv.serveHTTP(rw, req, srv.Handler)
 }
-
-func badServeHTTP(serverHandler, ResponseWriter, *Request)
 
 // AllowQuerySemicolons returns a handler that serves requests by converting any
 // unescaped semicolons in the URL query to ampersands, and invoking the handler h.
@@ -3822,6 +3797,60 @@ func (s *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
 	return s.Serve(tlsListener)
 }
 
+// HandleRequest handles a request as if it was received by the server.
+//
+//   - If Server.DisableGeneralOptionsHandler is not true,
+//     it responds to "OPTIONS *" requests with 200 OK and Content-Length: 0.
+//   - If Server.Handler is nil, it uses [DefaultServeMux].
+//   - Panics in the handler are recovered.
+//     If the panic is not [ErrAbortHandler], the panic is logged.
+//
+// HandleRequest returns a non-nil error if the handler panics.
+// It returns [ErrAbortHandler] if the handler panicked with that value.
+func (s *Server) HandleRequest(w ResponseWriter, req *Request) error {
+	return s.handleRequest(w, req, s.Handler)
+}
+
+func (s *Server) handleRequest(w ResponseWriter, req *Request, h Handler) (err error) {
+	didPanic := true
+	defer func() {
+		if !didPanic {
+			return
+		}
+		e := recover()
+		if e == ErrAbortHandler {
+			err = ErrAbortHandler
+			return
+		}
+		if e != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			s.logf("http: panic serving %v: %v\n%s", req.RemoteAddr, e, buf)
+		}
+		err = fmt.Errorf("http: panic serving %v: %v", req.RemoteAddr, e)
+	}()
+	s.serveHTTP(w, req, h)
+	didPanic = false
+	return nil
+}
+
+func (s *Server) serveHTTP(rw ResponseWriter, req *Request, handler Handler) {
+	if handler == nil {
+		handler = DefaultServeMux
+	}
+	if !s.DisableGeneralOptionsHandler && req.RequestURI == "*" && req.Method == "OPTIONS" {
+		handler = globalOptionsHandler{}
+	}
+
+	defer func() {
+		if req.MultipartForm != nil {
+			req.MultipartForm.RemoveAll()
+		}
+	}()
+	handler.ServeHTTP(rw, req)
+}
+
 func (s *Server) protocols() Protocols {
 	if s.Protocols != nil {
 		// Historically, even when Protocols for a Server was set to be empty,
@@ -4021,7 +4050,7 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
 // test our HTTP/3 implementation against tests in net/http. HTTP/3 is not yet
 // accessible to end-users.
 type http3ServerHandler struct {
-	handler     serverHandler
+	srv         *Server
 	tlsConfig   *tls.Config
 	baseCtx     context.Context
 	errc        chan error
@@ -4031,13 +4060,13 @@ type http3ServerHandler struct {
 // ServeHTTP ensures that http3ServerHandler implements the Handler interface,
 // and gives an HTTP/3 server implementation access to the net/http handler.
 func (h *http3ServerHandler) ServeHTTP(w ResponseWriter, r *Request) {
-	h.handler.ServeHTTP(w, r)
+	h.srv.serveHTTP(w, r, h.srv.Handler)
 }
 
 // Addr gives an HTTP/3 server implementation the address that it should listen
 // on.
 func (h *http3ServerHandler) Addr() string {
-	return h.handler.srv.Addr
+	return h.srv.Addr
 }
 
 // TLSConfig gives an HTTP/3 server implementation the *tls.Config that it
@@ -4352,7 +4381,7 @@ func (globalOptionsHandler) ServeHTTP(w ResponseWriter, r *Request) {
 type initALPNRequest struct {
 	ctx context.Context
 	c   *tls.Conn
-	h   serverHandler
+	srv *Server
 }
 
 // BaseContext is an exported but unadvertised [http.Handler] method
@@ -4372,7 +4401,7 @@ func (h initALPNRequest) ServeHTTP(rw ResponseWriter, req *Request) {
 	if req.RemoteAddr == "" {
 		req.RemoteAddr = h.c.RemoteAddr().String()
 	}
-	h.h.ServeHTTP(rw, req)
+	h.srv.serveHTTP(rw, req, h.srv.Handler)
 }
 
 // loggingConn is used for debugging.

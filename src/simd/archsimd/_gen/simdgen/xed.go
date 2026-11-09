@@ -51,9 +51,10 @@ var skipMemOpsInstrs = map[string]bool{
 	"SHA256MSG1":  true,
 	"SHA256MSG2":  true,
 	"SHA256RNDS2": true,
-	// We don't support 3 input instructions with a memory operand (this appears
-	// to be the only one).
+	// We don't support 3 input instructions with a memory operand.
 	"VPBLENDVB": true,
+	"VBLENDVPS": true,
+	"VBLENDVPD": true,
 }
 
 // TODO: Doc. Returns Values with Def domains.
@@ -76,6 +77,7 @@ func loadXED(xedPath string) []*unify.Value {
 	otherOps := make(map[string][]opData, 0)
 	appendDefs := func(inst *xeddata.Inst, ops []operand, addFields map[string]string) {
 		applyQuirks(inst, ops)
+		setMaskRoles(inst, ops)
 
 		defsPos := len(defs)
 		defs = append(defs, instToUVal(inst, ops, addFields)...)
@@ -238,14 +240,13 @@ func loadXED(xedPath string) []*unify.Value {
 }
 
 var (
-	maskRequiredRe = regexp.MustCompile(`VPCOMPRESS[BWDQ]|VCOMPRESSP[SD]|VPEXPAND[BWDQ]|VEXPANDP[SD]`)
 	maskOptionalRe = regexp.MustCompile(`VPCMP(EQ|GT|U)?[BWDQ]|VCMPP[SD]`)
 )
 
 func applyQuirks(inst *xeddata.Inst, ops []operand) {
 	opc := inst.Opcode()
 	switch {
-	case maskRequiredRe.MatchString(opc):
+	case inst.Category == "COMPRESS" || inst.Category == "EXPAND":
 		// The mask on these instructions is marked optional, but the
 		// instruction is pointless without the mask.
 		for i, op := range ops {
@@ -264,6 +265,80 @@ func applyQuirks(inst *xeddata.Inst, ops []operand) {
 			}
 		}
 	}
+}
+
+// setMaskRoles sets the role of each mask operand of inst. See
+// [types.Operand.MaskRole].
+func setMaskRoles(inst *xeddata.Inst, ops []operand) {
+	// XED marks blends with MASK_AS_CONTROL. Compress and expand don't have
+	// any distinguishing attribute in their register forms, but do have
+	// their own categories.
+	sel := slices.Contains(strings.Fields(inst.Attributes), "MASK_AS_CONTROL") ||
+		inst.Category == "COMPRESS" || inst.Category == "EXPAND"
+	partial := hasPartialResult(inst, ops)
+	for i, op := range ops {
+		mask, ok := op.(operandMask)
+		if !ok {
+			continue
+		}
+		switch {
+		case !mask.opmask:
+			mask.role = "data"
+		case sel:
+			mask.role = "select"
+		case partial:
+			mask.role = "opmask-partial"
+		default:
+			mask.role = "opmask"
+		}
+		ops[i] = mask
+	}
+}
+
+// hasPartialResult reports whether inst computes only the low elements of its
+// vector result and zeroes the rest, regardless of masking.
+//
+// XED doesn't record this directly, since it describes the result operand as
+// the whole register. Instead, we recognize conversions and data transfers
+// (such as the truncating VPMOV* instructions) that take a single vector
+// source with fewer elements than the result. For example, VCVTPD2PS with a
+// 128-bit source converts two float64s into the low two float32s of its
+// 128-bit result, and zeroes the upper two.
+func hasPartialResult(inst *xeddata.Inst, ops []operand) bool {
+	if inst.Category != "CONVERT" && inst.Category != "DATAXFER" {
+		return false
+	}
+	lanes := func(s vecShape) int {
+		if s.elemBits == 0 {
+			return 0
+		}
+		return s.bits / s.elemBits
+	}
+	var srcLanes, dstLanes, nSrc int
+	for _, op := range ops {
+		var shape vecShape
+		switch op := op.(type) {
+		case operandVReg:
+			shape = op.vecShape
+		case operandMem:
+			if op.vbcst || op.unknown {
+				// We don't know how many elements this has.
+				return false
+			}
+			shape = op.vecShape
+		default:
+			continue
+		}
+		action := op.common().action
+		switch {
+		case action.w:
+			dstLanes = lanes(shape)
+		case action.r:
+			srcLanes = lanes(shape)
+			nSrc++
+		}
+	}
+	return nSrc == 1 && srcLanes > 0 && srcLanes < dstLanes
 }
 
 type operandCommon struct {
@@ -325,6 +400,12 @@ type operandMask struct {
 
 	// Mask can be omitted, in which case it defaults to K0/"no mask"
 	optional bool
+
+	// opmask indicates this operand is in the EVEX opmask position (EVEX.aaa).
+	opmask bool
+
+	// role is the value of [types.Operand.MaskRole]. It is set by setMaskRoles.
+	role string
 }
 
 type operandImm struct {
@@ -389,8 +470,12 @@ func (o operandGReg) encode() types.Operand {
 }
 
 func (o operandMask) encode() types.Operand {
+	if o.role == "" {
+		panic("mask operand role not set")
+	}
 	op := types.Operand{
-		Class: "mask",
+		Class:    "mask",
+		MaskRole: &o.role,
 	}
 	if o.allMasks {
 		// If all operands are masks, omit sizes and let unification determine mask sizes.
@@ -504,6 +589,7 @@ func decodeOperand(db *xeddata.Database, operand string) (operand, error) {
 			return operandMask{
 				operandCommon: common,
 				optional:      op.Attributes["TXT=ZEROSTR"],
+				opmask:        op.NameRHS() == "MASK1()" || op.NameRHS() == "MASKNOT0()",
 			}, nil
 		} else {
 			class, regBits, fixedReg := decodeReg(op)

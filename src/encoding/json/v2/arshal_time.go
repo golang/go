@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/internal/jsonwire"
@@ -92,7 +91,7 @@ func makeTimeMarshaler(fncs *marshaler, t reflect.Type) *marshaler {
 			k := stringOrNumberKind(!m.isNumeric() || xe.Tokens.Last.NeedObjectName() || mo.Flags.Get(jsonflags.StringifyNumbers|jsonflags.StringTag))
 			if err := xe.AppendRaw(k, !m.hasCustomFormat(), m.appendMarshal); err != nil {
 				if mo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
-					return internal.NewMarshalerError(vm.ensureAddr().Addr().Interface(), err, "MarshalJSON") // unlike unmarshal, always wrapped
+					return newLegacyMarshalerError(vm, false, err, "MarshalJSON")
 				}
 				if !isSyntacticError(err) && !export.IsIOError(err) {
 					err = newMarshalErrorBefore(enc, t, err)

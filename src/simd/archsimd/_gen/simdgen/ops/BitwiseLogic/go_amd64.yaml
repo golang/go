@@ -42,6 +42,21 @@
   out:
   - *any
 
+# In XED, VANDP[SD] operands are marked as integer (u32/u64), so match base: int
+# and override to float.
+- go: andFloat
+  asm: "VANDP[SD]"
+  inVariant: []
+  in:
+  - &float128_256
+    go: $t
+    bits: (128|256)
+    base: int
+    overwriteBase: float
+  - *float128_256
+  out:
+  - *float128_256
+
 - go: And
   asm: "VPANDD" # Fill in the gap, And is missing for Uint8x64 and Int8x64
   inVariant: []

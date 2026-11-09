@@ -22,14 +22,12 @@ import (
 	"time"
 
 	jsonv1 "encoding/json"
-
-	jsonv1in2 "encoding/json"
 	"encoding/json/internal/jsontest"
 	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
 )
 
-// benchVersion is the version to benchmark (either "v1", "v1in2", or "v2").
+// benchVersion is the version to benchmark (either "v1" or "v2").
 var benchVersion = cmp.Or(os.Getenv("BENCHMARK_VERSION"), "v2")
 
 var jsonFuncs = func() (funcs struct {
@@ -60,24 +58,6 @@ var jsonFuncs = func() (funcs struct {
 		}
 		funcs.decodeTokens = func(r io.Reader) error {
 			d := jsonv1.NewDecoder(r)
-			for {
-				if _, err := d.Token(); err != nil {
-					return ignoreEOF(err)
-				}
-			}
-		}
-	case "v1in2":
-		funcs.marshal = jsonv1in2.Marshal
-		funcs.unmarshal = jsonv1in2.Unmarshal
-		funcs.encodeValue = func(w io.Writer, b []byte) error {
-			return jsonv1in2.NewEncoder(w).Encode(jsonv1in2.RawMessage(b))
-		}
-		funcs.decodeValue = func(r io.Reader) error {
-			var v jsonv1in2.RawMessage
-			return jsonv1in2.NewDecoder(r).Decode(&v)
-		}
-		funcs.decodeTokens = func(r io.Reader) error {
-			d := jsonv1in2.NewDecoder(r)
 			for {
 				if _, err := d.Token(); err != nil {
 					return ignoreEOF(err)
@@ -534,6 +514,26 @@ func runMarshal(tb testing.TB) {
 		}
 
 		runTestOrBench(tb, tt.name, len64(tt.raw), run)
+	}
+}
+
+// BenchmarkMarshalAny marshals values held in interfaces, including dynamic
+// types that marshalValueAny does not handle directly and so take the
+// general interface path.
+func BenchmarkMarshalAny(b *testing.B) {
+	for _, tt := range []struct {
+		name string
+		val  any
+	}{
+		{"Ints", []any{1, 2, 3, 4, 5, 6, 7, 8}},
+		{"Mixed", []any{1, "two", 3.0, true, nil, int64(6), uint(7), []int{8}}},
+		{"Map", map[string]any{"a": 1, "b": "two", "c": 3.0, "d": true, "e": nil, "f": int64(6), "g": uint(7), "h": []int{8}}},
+	} {
+		runTestOrBench(b, tt.name, 0, func(tb testing.TB) {
+			if _, err := jsonFuncs.marshal(tt.val); err != nil {
+				tb.Fatalf("Marshal error: %v", err)
+			}
+		})
 	}
 }
 

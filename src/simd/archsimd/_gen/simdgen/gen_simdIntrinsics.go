@@ -132,6 +132,9 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var maskedLoadStore = templateNamed("maskedLoadStore", `	addF(simdPackage, "load{{.Name}}ArrayMasked", simdMaskedLoad(ssaop.OpLoadMasked{{.ElemBits}}), sys.AMD64)
 	addF(simdPackage, "{{.Name}}.StoreArrayMasked", simdMaskedStore(ssaop.OpStoreMasked{{.ElemBits}}), sys.AMD64)`)
 
+	var maskedIfElse = templateNamed("maskedIfElse", `	addF(simdPackage, "{{.Name}}.Masked", opLen2(ssaop.OpMasked{{.MaskedOpSuffix}}, types.TypeVec{{.Size}}), sys.AMD64)
+	addF(simdPackage, "{{.Name}}.IfElse", opLen3(ssaop.OpIfElse{{.MaskedOpSuffix}}, types.TypeVec{{.Size}}), sys.AMD64)`)
+
 	var vectorConversion = templateNamed("vectorConversion", `	addF(simdPackage, "{{.Tsrc.Name}}.As{{.Tdst.Name}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})`)
 
 	var footer = `}`
@@ -227,6 +230,9 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	// TODO: Reconsider for ARM64 SVE which supports predicated loads/stores.
 	if CurrentArch().Arch == "amd64" {
 		for _, typ := range typesFromTypeMap(typeMap) {
+			if !typ.IsMask() && !typ.IsScalable() {
+				doTemplate(maskedIfElse, typ)
+			}
 			if typ.MaskedLoadStoreFilter() {
 				doTemplate(maskedLoadStore, typ)
 			}

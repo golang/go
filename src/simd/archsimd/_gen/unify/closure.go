@@ -34,7 +34,7 @@ func (c Closure) Summands() iter.Seq[*Value] {
 		rec = func(v *Value, env envSet) bool {
 			switch d := v.Domain.(type) {
 			case Var:
-				parts := env.partitionBy(d.id)
+				parts := env.partitionBy(d.id, nil)
 				for _, part := range parts {
 					// It may be a sum of sums. Walk into this value.
 					if !rec(part.value, part.env) {
@@ -91,7 +91,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 		return cont(v, e)
 
 	case Def:
-		fields := d.keys()
+		fields := d.keys
 		// We can reuse this parts slice because we're doing a DFS through the
 		// state space. (Otherwise, we'd have to do some messy threading of an
 		// immutable slice-like value through allElt.)
@@ -104,7 +104,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 			if elt == len(fields) {
 				// Build a new Def from the concrete parts. Clone parts because
 				// we may reuse it on other non-deterministic branches.
-				nVal := newValueFrom(Def{maps.Clone(parts)}, v)
+				nVal := newValueFrom(Def{maps.Clone(parts), d.keys}, v)
 				return cont(nVal, e)
 			}
 
@@ -140,7 +140,7 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 
 	case Var:
 		// Go each way this variable can be bound.
-		for _, ePart := range e.partitionBy(d.id) {
+		for _, ePart := range e.partitionBy(d.id, nil) {
 			// d.id is no longer bound in this environment partition. We'll may
 			// need it later in the Euler tour, so bind it back to this single
 			// value.

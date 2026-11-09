@@ -173,6 +173,15 @@ func (x simdType) MaskedLoadStoreFilter() bool {
 	return x.Size() == 512 || (x.ElemBits() >= 32 && !x.IsMask())
 }
 
+// MaskedOpSuffix returns the generic SSA op suffix for Masked and IfElse on x.
+func (x simdType) MaskedOpSuffix() string {
+	// AVX1/2 need different operations for masking integer and floating-point vectors.
+	if x.Shape.Elem.Base == "float" {
+		return fmt.Sprintf("Float%d", x.ElemBits())
+	}
+	return fmt.Sprintf("%d", x.ElemBits())
+}
+
 func (x simdType) IntelSizeSuffix() string {
 	switch x.ElemBits() {
 	case 8:

@@ -176,6 +176,7 @@ func groupOf(ktyp, etyp Type) Type {
 var stringType = rtypeOf("")
 
 // MapIndex returns the value associated with key in the map v.
+// The returned value is not addressable.
 // It panics if v's Kind is not [Map].
 // It returns the zero Value if key is not found in the map or if v represents a nil map.
 // As in Go, the key's value must be assignable to the map's key type.

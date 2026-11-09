@@ -14,6 +14,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/race"
+	"internal/testenv"
 	"io"
 	"math"
 	"net"
@@ -147,6 +149,14 @@ type (
 		*structOmitZeroAll
 		FizzBuzz int
 		*structNestedAddr
+	}
+	structUnexportedEmbeddedPointerMapStringInt struct {
+		A int `json:",omitzero"`
+		*structEmbedMapStringInt
+	}
+	structUnexportedEmbeddedPointerTextValue struct {
+		A int `json:",omitzero"`
+		*structEmbedEmbedPointerTextValue
 	}
 	structNestedAddr struct {
 		Addr netip.Addr
@@ -763,6 +773,27 @@ func TestMarshalAppendTextNewSameCapacity(t *testing.T) {
 	}
 	if want := "\"hello\"\n"; dst.String() != want {
 		t.Fatalf("MarshalEncode = %q, want %q", dst.String(), want)
+	}
+}
+
+// TestMarshalInterfaceNoCopy checks that values held in interfaces are
+// marshaled without a per-element copy to addressable storage.
+func TestMarshalInterfaceNoCopy(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+	if race.Enabled {
+		t.Skip("skipping malloc count under race detector")
+	}
+	type namedAny any
+	for _, in := range [][2]any{
+		{[]any{"a"}, []any{"a", "b", "c", "d", "e", "f", "g", "h"}},
+		{[]any{1}, []any{1, 2, 3, 4, 5, 6, 7, 8}},
+		{[]namedAny{1}, []namedAny{1, 2, 3, 4, 5, 6, 7, 8}},
+	} {
+		n1 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[0]) })
+		n8 := testing.AllocsPerRun(100, func() { MarshalWrite(io.Discard, in[1]) })
+		if n8 > n1 {
+			t.Errorf("MarshalWrite(%T): %v allocs for 8 elements, want at most %v (1 element)", in[0], n8, n1)
+		}
 	}
 }
 
@@ -7416,6 +7447,32 @@ func TestUnmarshal(t *testing.T) {
 		inBuf:   `{"FizzBuzz":5,"Addr":"192.168.0.1"}`,
 		inVal:   new(structUnexportedEmbeddedStructPointer{}),
 		wantErr: EU(errNilField).withPos(`{"FizzBuzz":5,"Addr":`, "/Addr").withType(0, T[structUnexportedEmbeddedStructPointer]()),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerMapStringInt),
+		want:    new(structUnexportedEmbeddedPointerMapStringInt{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerMapStringInt]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/MapStringInt/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: new(structUnexportedEmbeddedPointerMapStringInt{structEmbedMapStringInt: new(structEmbedMapStringInt)}),
+		want:  new(structUnexportedEmbeddedPointerMapStringInt{1, &structEmbedMapStringInt{map[string]int{"fizz": 2, "buzz": 3}}}),
+	}, {
+		name:    jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/Nil"),
+		inBuf:   `{"A":1,"fizz":2,"buzz":3}`,
+		inVal:   new(structUnexportedEmbeddedPointerTextValue),
+		want:    new(structUnexportedEmbeddedPointerTextValue{A: 1}),
+		wantErr: EU(errNilField).withPos(`{"A":1,"fizz":`, "/fizz").withType(0, T[structUnexportedEmbeddedPointerTextValue]()),
+	}, {
+		name:  jsontest.Name("Structs/UnexportedEmbeddedPointer/TextValue/NonNil"),
+		inBuf: `{"A":1,"fizz":2,"buzz":3}`,
+		inVal: new(structUnexportedEmbeddedPointerTextValue{structEmbedEmbedPointerTextValue: new(structEmbedEmbedPointerTextValue)}),
+		want: new(structUnexportedEmbeddedPointerTextValue{A: 1, structEmbedEmbedPointerTextValue: &structEmbedEmbedPointerTextValue{
+			X: struct {
+				X *jsontext.Value `json:",embed"`
+			}{new(jsontext.Value(`{"fizz":2,"buzz":3}`))},
+		}}),
 	}, {
 		name:  jsontest.Name("Structs/UnexportedEmbeddedStructPointer/Nil"),
 		inBuf: `{"Bool":true,"FizzBuzz":10,"Addr":"192.168.0.1"}`,

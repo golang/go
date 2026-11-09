@@ -23,3 +23,38 @@
 (SRAI [0] x) => x
 (SRLI [0] x) => x
 (SLLI [0] x) => x
+
+//
+// Optimisations for rva23u64 and above.
+//
+
+// Note: while Zbs is mandated as part of the rva22u64 profile, some hardware
+// that we can currently run on with rva22u64 lacks Zbs support. Restrict Zbs
+// usage to rva23u64, at least for now.
+
+// Single bit extract.
+(ANDI [1] (SRLI [c] x)) && buildcfg.GORISCV64 >= 23 => (BEXTI [c] x)
+(ANDI [1] (SRLIW [c] x)) && buildcfg.GORISCV64 >= 23 => (BEXTI [c] x)
+
+// Single bit test.
+(B(EQ|NE)Z (ANDI [1] (SRL x y)) yes no) && buildcfg.GORISCV64 >= 23 => (B(EQ|NE)Z (BEXT <typ.UInt64> x y) yes no)
+(SNEZ (ANDI [c] y)) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BEXTI [ssa.Log64u(uint64(c))] y)
+
+// Remove redundant SNEZ from bit test.
+(SNEZ x:(BEXTI [_] _)) => x
+
+// Single bit flip.
+(XOR (SLL (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BINV y x)
+(XOR (SLLW <t> (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BINV y (ANDI <t> [31] x))
+(XOR (MOVDconst [c]) x) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log64u(uint64(c))] x)
+(XORI <t> [c] x) && t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log16u(uint16(c))] x)
+(XORI <t> [c] x) && t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log32u(uint32(c))] x)
+(XORI <t> [c] x) && t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BINVI [ssa.Log64u(uint64(c))] x)
+
+// Single bit set.
+(OR (SLL (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BSET y x)
+(OR (SLLW <t> (MOVDconst [1]) x) y) && buildcfg.GORISCV64 >= 23 => (BSET y (ANDI <t> [31] x))
+(OR (MOVDconst [c]) x) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log64u(uint64(c))] x)
+(ORI <t> [c] x) && t.Size() == 2 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint16(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log16u(uint16(c))] x)
+(ORI <t> [c] x) && t.Size() == 4 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint32(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log32u(uint32(c))] x)
+(ORI <t> [c] x) && t.Size() == 8 && !ssa.Is12Bit(c) && ssa.IsPowerOfTwo(uint64(c)) && buildcfg.GORISCV64 >= 23 => (BSETI [ssa.Log64u(uint64(c))] x)

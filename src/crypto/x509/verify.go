@@ -468,13 +468,13 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
 		return CertificateInvalidError{
 			Cert:   c,
 			Reason: Expired,
-			Detail: fmt.Sprintf("current time %s is before %s", now.Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
+			Detail: fmt.Sprintf("current time %s is before %s", now.UTC().Format(time.RFC3339), c.NotBefore.Format(time.RFC3339)),
 		}
 	} else if now.After(c.NotAfter) {
 		return CertificateInvalidError{
 			Cert:   c,
 			Reason: Expired,
-			Detail: fmt.Sprintf("current time %s is after %s", now.Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
+			Detail: fmt.Sprintf("current time %s is after %s", now.UTC().Format(time.RFC3339), c.NotAfter.Format(time.RFC3339)),
 		}
 	}
 

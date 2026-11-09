@@ -5,6 +5,7 @@
 package main
 
 import (
+	"fmt"
 	"simd/archsimd/_gen/specgen"
 	"slices"
 )
@@ -37,6 +38,19 @@ func (t *tally[K]) result() result { return result{len(t.hit), len(t.all)} }
 // has reports whether the key was counted at all; done, whether it is done.
 func (t *tally[K]) has(k K) bool  { return t.all[k] }
 func (t *tally[K]) done(k K) bool { return t.hit[k] }
+
+// missed returns the keys that were counted but are not done, formatted and
+// sorted, for reporting what keeps a count above zero.
+func (t *tally[K]) missed() []string {
+	var out []string
+	for k := range t.all {
+		if !t.hit[k] {
+			out = append(out, fmt.Sprint(k))
+		}
+	}
+	slices.Sort(out)
+	return out
+}
 
 // A pivot is a tally split by the value of some dimension: the report's
 // recurring shape is "for each X, what fraction of Y is done".

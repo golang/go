@@ -485,6 +485,11 @@
 (AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
 (AtomicOr32  ...) => (LoweredAtomicOr32  ...)
 
+(AtomicAnd32value ...) => (LoweredAtomicAnd32value ...)
+(AtomicAnd64value ...) => (LoweredAtomicAnd64value ...)
+(AtomicOr32value ...) => (LoweredAtomicOr32value ...)
+(AtomicOr64value ...) => (LoweredAtomicOr64value ...)
+
 // checks
 (NilCheck ...) => (LoweredNilCheck ...)
 (IsNonNil ptr) => (SGTU ptr (MOVVconst [0]))

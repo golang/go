@@ -191,8 +191,6 @@ var fracMovOps = []obj.As{riscv.AMOVB, riscv.AMOVH, riscv.AMOVW, riscv.AMOV}
 func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
 
 func ssaGenValue(s *ssagen.State, v *ssa.Value) {
-	s.SetPos(v.Pos)
-
 	switch v.Op {
 	case ssaop.OpInitMem:
 		// memory arg needs no code
@@ -289,6 +287,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		ssaop.OpRISCV64MULHU, ssaop.OpRISCV64DIV, ssaop.OpRISCV64DIVU, ssaop.OpRISCV64DIVW,
 		ssaop.OpRISCV64DIVUW, ssaop.OpRISCV64REM, ssaop.OpRISCV64REMU, ssaop.OpRISCV64REMW,
 		ssaop.OpRISCV64REMUW,
+		ssaop.OpRISCV64BEXT, ssaop.OpRISCV64BINV, ssaop.OpRISCV64BSET,
 		ssaop.OpRISCV64ROL, ssaop.OpRISCV64ROLW, ssaop.OpRISCV64ROR, ssaop.OpRISCV64RORW,
 		ssaop.OpRISCV64FADDS, ssaop.OpRISCV64FSUBS, ssaop.OpRISCV64FMULS, ssaop.OpRISCV64FDIVS,
 		ssaop.OpRISCV64FEQS, ssaop.OpRISCV64FNES, ssaop.OpRISCV64FLTS, ssaop.OpRISCV64FLES,
@@ -472,6 +471,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpRISCV64ADDI, ssaop.OpRISCV64ADDIW, ssaop.OpRISCV64XORI, ssaop.OpRISCV64ORI, ssaop.OpRISCV64ANDI,
 		ssaop.OpRISCV64SLLI, ssaop.OpRISCV64SLLIW, ssaop.OpRISCV64SRAI, ssaop.OpRISCV64SRAIW,
 		ssaop.OpRISCV64SRLI, ssaop.OpRISCV64SRLIW, ssaop.OpRISCV64SLTI, ssaop.OpRISCV64SLTIU,
+		ssaop.OpRISCV64BEXTI, ssaop.OpRISCV64BINVI, ssaop.OpRISCV64BSETI,
 		ssaop.OpRISCV64RORI, ssaop.OpRISCV64RORIW:
 		p := s.Prog(v.Op.Asm())
 		p.From.Type = obj.TYPE_CONST
@@ -1055,8 +1055,34 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 	case ssaop.OpRISCV64LoweredRound32F, ssaop.OpRISCV64LoweredRound64F:
 		// input is already rounded
 
-	case ssaop.OpClobber, ssaop.OpClobberReg:
-		// TODO: implement for clobberdead experiment. Nop is ok for now.
+	case ssaop.OpClobber:
+		// MOV $0xdeaddead, REGTMP
+		// MOVW REGTMP, (slot)
+		// MOVW REGTMP, 4(slot)
+		p := s.Prog(riscv.AMOV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = 0xdeaddead
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = riscv.REG_TMP
+		p = s.Prog(riscv.AMOVW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = riscv.REG_TMP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = riscv.REG_SP
+		ssagen.AddAux(&p.To, v)
+		p = s.Prog(riscv.AMOVW)
+		p.From.Type = obj.TYPE_REG
+		p.From.Reg = riscv.REG_TMP
+		p.To.Type = obj.TYPE_MEM
+		p.To.Reg = riscv.REG_SP
+		ssagen.AddAux2(&p.To, v, v.AuxInt+4)
+	case ssaop.OpClobberReg:
+		x := uint64(0xdeaddeaddeaddead)
+		p := s.Prog(riscv.AMOV)
+		p.From.Type = obj.TYPE_CONST
+		p.From.Offset = int64(x)
+		p.To.Type = obj.TYPE_REG
+		p.To.Reg = v.Reg()
 
 	default:
 		v.Fatalf("Unhandled op %v", v.Op)
@@ -1079,7 +1105,6 @@ var blockBranch = [...]obj.As{
 }
 
 func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
-	s.SetPos(b.Pos)
 
 	switch b.Kind {
 	case block.BlockPlain, block.BlockDefer:

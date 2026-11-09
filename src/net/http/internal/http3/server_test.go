@@ -1597,6 +1597,7 @@ func TestServerOptionsMethod(t *testing.T) {
 			":method": []string{"OPTIONS"},
 			":path":   []string{"*"},
 		}))
+		reqStream.CloseWrite()
 		reqStream.wantSomeHeaders(http.Header{
 			":status": {"200"},
 		})
@@ -2024,13 +2025,15 @@ func newTestServer(t testing.TB, handler http.Handler) *testServer {
 		handler = ts.testHandler
 	}
 	ts.s = &server{
-		srv1: &http.Server{},
+		srv1: &http.Server{
+			Handler: handler,
+		},
 	}
 	e := ts.tn.newQUICEndpoint(t, &quic.Config{
 		TLSConfig: testTLSConfig,
 	})
 	ts.addr = e.LocalAddr()
-	go ts.s.serve(t.Context(), e, handler)
+	go ts.s.serve(t.Context(), e)
 	return ts
 }
 

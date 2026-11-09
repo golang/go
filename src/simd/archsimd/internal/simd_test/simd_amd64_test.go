@@ -309,43 +309,61 @@ func TestBitMaskToBitsStore(t *testing.T) {
 }
 
 func TestMergeFloat(t *testing.T) {
-	if !archsimd.X86.AVX2() {
-		t.Skip("Test requires X86.AVX2, not available on this hardware")
-		return
-	}
-	k := make([]int64, 4, 4)
 	s := make([]float64, 4, 4)
 
 	a := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
 	b := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
 	g := a.Greater(b)
-	g.ToInt64x4().Store(k)
 	c := a.Merge(b, g)
+	d := a.Masked(g)
 
 	c.Store(s)
-
-	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
+
+	d.Store(s)
+	checkSlices[float64](t, s, []float64{0, 0, 0, 4})
+
+	if archsimd.X86.AVX2() {
+		k := make([]int64, 4, 4)
+		g.ToInt64x4().Store(k)
+		checkSlices[int64](t, k, []int64{0, 0, 0, -1})
+	}
 }
 
 func TestIfElseFloat(t *testing.T) {
-	if !archsimd.X86.AVX2() {
-		t.Skip("Test requires X86.AVX2, not available on this hardware")
-		return
+	s64 := make([]float64, 4, 4)
+
+	a64 := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
+	b64 := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
+	g64 := a64.Greater(b64)
+	c64 := a64.IfElse(g64, b64)
+	d64 := a64.Masked(g64)
+
+	c64.Store(s64)
+	checkSlices[float64](t, s64, []float64{4, 2, 3, 4})
+
+	d64.Store(s64)
+	checkSlices[float64](t, s64, []float64{0, 0, 0, 4})
+
+	s32 := make([]float32, 8, 8)
+
+	a32 := archsimd.LoadFloat32x8([]float32{1, 2, 3, 4, 5, 6, 7, 8})
+	b32 := archsimd.LoadFloat32x8([]float32{8, 7, 6, 5, 4, 2, 3, 1})
+	g32 := a32.Greater(b32)
+	c32 := a32.IfElse(g32, b32)
+	d32 := a32.Masked(g32)
+
+	c32.Store(s32)
+	checkSlices[float32](t, s32, []float32{8, 7, 6, 5, 5, 6, 7, 8})
+
+	d32.Store(s32)
+	checkSlices[float32](t, s32, []float32{0, 0, 0, 0, 5, 6, 7, 8})
+
+	if archsimd.X86.AVX2() {
+		k := make([]int64, 4, 4)
+		g64.ToInt64x4().Store(k)
+		checkSlices[int64](t, k, []int64{0, 0, 0, -1})
 	}
-	k := make([]int64, 4, 4)
-	s := make([]float64, 4, 4)
-
-	a := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
-	b := archsimd.LoadFloat64x4([]float64{4, 2, 3, 1})
-	g := a.Greater(b)
-	g.ToInt64x4().Store(k)
-	c := a.IfElse(g, b)
-
-	c.Store(s)
-
-	checkSlices[int64](t, k, []int64{0, 0, 0, -1})
-	checkSlices[float64](t, s, []float64{4, 2, 3, 4})
 }
 
 func TestMergeFloat512(t *testing.T) {
@@ -1619,4 +1637,64 @@ func TestReduceSumAmd64AVX512(t *testing.T) {
 
 	testV2S(t, int32s, archsimd.LoadInt32x16, archsimd.Int32x16.ReduceSum, reduceSum)
 	testV2S(t, uint32s, archsimd.LoadUint32x16, archsimd.Uint32x16.ReduceSum, reduceSum)
+}
+
+func TestMaskedZeroingResultSize(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VCVTPS2PD produces 64-bit elements from 32-bit
+	// inputs. A 32-bit mask applied after reinterpreting the result as
+	// Int32x8 must not be folded into VCVTPS2PDMasked256, because that
+	// would cause it to be treated as a 64-bit mask (using only bits 0-3
+	// and zeroing the whole result for 0xf0).
+	x := archsimd.LoadFloat32x4([]float32{1, 2, 3, 4})
+	got64 := make([]float64, 4)
+	x.ConvertToFloat64().AsInt32x8().Masked(archsimd.Mask32x8FromBits(0xf0)).AsFloat64x4().Store(got64)
+	checkSlices(t, got64, []float64{0, 0, 3, 4})
+
+	// Conversely, VCVTPD2PSY produces four 32-bit elements from four
+	// 64-bit inputs. A 64-bit mask applied after reinterpreting the
+	// result as Int64x2 must not be folded into VCVTPD2PSYMasked256,
+	// because that would treat the 2-bit 64-bit mask 0b10 as the 4-bit
+	// 32-bit mask 0b0010 (producing {0, 2, 0, 0} instead of {0, 0, 3, 4}).
+	y := archsimd.LoadFloat64x4([]float64{1, 2, 3, 4})
+	got32 := make([]float32, 4)
+	y.ConvertToFloat32().AsInt64x2().Masked(archsimd.Mask64x2FromBits(0b10)).AsFloat32x4().Store(got32)
+	checkSlices(t, got32, []float32{0, 0, 3, 4})
+
+	// And when a 32-bit mask is applied directly to the Float32x4 result,
+	// folding it into VCVTPD2PSYMasked256 must mask all 4 float32 outputs.
+	y.ConvertToFloat32().Masked(archsimd.Mask32x4FromBits(0b1010)).Store(got32)
+	checkSlices(t, got32, []float32{0, 2, 0, 4})
+}
+
+func TestMaskedMergingResultSize(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VPMADDWD produces 32-bit elements from 16-bit
+	// inputs. Merging the result must convert the mask using the 32-bit
+	// result element size, not the 16-bit input element size.
+	x := archsimd.LoadInt16x8([]int16{1, 2, 3, 4, 5, 6, 7, 8})
+	y := archsimd.LoadInt16x8([]int16{1, 1, 1, 1, 1, 1, 1, 1})
+	dst := archsimd.LoadInt32x4([]int32{10, 20, 30, 40})
+	got := make([]int32, 4)
+	x.DotProductPairs(y).Merge(dst, archsimd.Mask32x4FromBits(0b0010)).Store(got)
+	checkSlices(t, got, []int32{10, 7, 30, 40})
+}
+
+func TestMaskedMergePartialResult(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+	}
+	// Regression test: VCVTPD2PSX converts two float64s into the low two
+	// float32s of its 128-bit result and zeroes the upper two, even with
+	// merging masking. Merging its result into dst must preserve the upper
+	// two elements of dst where the mask is false.
+	x := archsimd.LoadFloat64x2([]float64{1, 2})
+	dst := archsimd.LoadFloat32x4([]float32{10, 20, 30, 40})
+	got := make([]float32, 4)
+	x.ConvertToFloat32().Merge(dst, archsimd.Mask32x4FromBits(0b0001)).Store(got)
+	checkSlices(t, got, []float32{1, 20, 30, 40})
 }

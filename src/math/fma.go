@@ -180,3 +180,59 @@ func FMA(x, y, z float64) float64 {
 	pe &= -int32(nonzero(m))
 	return Float64frombits(uint64(ps)<<63 + uint64(pe)<<52 + m)
 }
+
+// FMA32 returns x*y + z, computed with only one rounding.
+// (That is, FMA32 returns the fused multiply-add of x, y, and z.)
+func FMA32(x, y, z float32) float32 {
+	// Because float32 has a 24-bit significand and exponent in [-149, 127], the
+	// product of two finite float32s has at most a 48-bit significand and
+	// exponent in [-298, 255], which is always exact in float64.
+	p := float64(x) * float64(y)
+	zf := float64(z)
+	s := p + zf
+	// p+zf performs one 53-bit rounding, and a naive conversion to float32
+	// performs a second. Specifically, if the true value of p + zf is slightly
+	// off the midpoint between two float32s, p + zf in float64 can round onto
+	// that exact float32 midpoint, and the subsequent float32 round-to-even
+	// conversion may round in the wrong direction. We implement round-to-odd
+	// per Boldo & Melquiond to counteract this.
+	const (
+		float32MantissaBits = 23
+		float64MantissaBits = 52
+	)
+	// The only values of s for which the float64->float32 rounding can go
+	// wrong are the exact midpoints between two float32s. (Float64 rounding
+	// can land on such a midpoint, but can never cross one.) A float64 can
+	// represent such a midpoint by keeping the most significant
+	// (float32MantissaBits + 1) bits of the float64 mantissa and zeroing the
+	// rest.
+	//
+	// The converse isn't true: every float32 value also has these low bits
+	// zeroed, as do some values outside the float32 range. Hence, s is only
+	// maybe a midpoint. Applying the round-to-odd fixup to these other values
+	// is unnecessary but harmless.
+	const midpointZeroBits = float64MantissaBits - (float32MantissaBits + 1)
+	// This computation may be wrong for inf and NaN, but we speculate that s is
+	// not inf or NaN and check for those only in the unlikely case
+	// maybeMidpoint is true.
+	maybeMidpoint := Float64bits(s)&((uint64(1)<<midpointZeroBits)-1) == 0
+	if maybeMidpoint && !IsInf(s, 0) && !IsNaN(s) {
+		// s is even, so we need to nudge s to perform round-to-odd. Compute
+		// the exact round-off error for the p+zf addition using Fast2Sum.
+		hi, lo := p, zf
+		if Abs(hi) < Abs(lo) {
+			hi, lo = lo, hi
+		}
+		if err := (hi - s) + lo; err != 0 {
+			// Nudge s by one float64 ULP toward odd. Choose the odd
+			// neighbor in the direction of err to keep s on the same side
+			// of the midpoint as the true value of p + zf.
+			if (err > 0) == (s > 0) {
+				s = Float64frombits(Float64bits(s) | 1)
+			} else {
+				s = Float64frombits(Float64bits(s) - 1)
+			}
+		}
+	}
+	return float32(s)
+}

@@ -36,6 +36,7 @@ func escapeTemplate(tmpl *Template, node parse.Node, name string) error {
 			t.text.Tree = nil
 			t.Tree = nil
 		}
+		delete(tmpl.esc.output, name)
 		return err
 	}
 	tmpl.esc.commit()
@@ -645,7 +646,7 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 		return out, dname
 	}
 	t := e.template(name)
-	if t == nil {
+	if t == nil || t.Tree == nil {
 		// Two cases: The template exists but is empty, or has never been mentioned at
 		// all. Distinguish the cases in the error messages.
 		if e.ns.set[name] != nil {
@@ -678,7 +679,7 @@ func (e *escaper) escapeTree(c context, node parse.Node, name string, line int) 
 func (e *escaper) computeOutCtx(c context, t *template.Template) context {
 	// Propagate context over the body.
 	c1, ok := e.escapeTemplateBody(c, t)
-	if !ok {
+	if !ok && c1.state != stateError {
 		// Look for a fixed point by assuming c1 as the output context.
 		if c2, ok2 := e.escapeTemplateBody(c1, t); ok2 {
 			c1, ok = c2, true
@@ -686,11 +687,12 @@ func (e *escaper) computeOutCtx(c context, t *template.Template) context {
 		// Use c1 as the error context if neither assumption worked.
 	}
 	if !ok && c1.state != stateError {
-		return context{
+		c1 = context{
 			state: stateError,
 			err:   errorf(ErrOutputContext, t.Tree.Root, 0, "cannot compute output context for template %s", t.Name()),
 		}
 	}
+	e.output[t.Name()] = c1
 	return c1
 }
 

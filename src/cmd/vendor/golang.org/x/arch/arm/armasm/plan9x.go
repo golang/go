@@ -239,7 +239,7 @@ func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg 
 		return buf.String()
 
 	case RegShift:
-		return fmt.Sprintf("R%d%s$%d", int(a.Reg), plan9Shift[a.Shift], int(a.Count))
+		return fmt.Sprintf("R%d%s%d", int(a.Reg), plan9Shift[a.Shift], int(a.Count))
 
 	case RegShiftReg:
 		return fmt.Sprintf("R%d%sR%d", int(a.Reg), plan9Shift[a.Shift], int(a.RegCount))

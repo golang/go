@@ -473,6 +473,25 @@ type InterfaceType struct {
 	Type
 	PkgPath Name      // import path
 	Methods []Imethod // sorted by hash
+
+	// Under is the descriptor of this type's underlying type: the interface
+	// type with the same method set but no name. It is nil for an unnamed
+	// interface type, which is its own underlying type, and for an empty
+	// one, which never has an itab.
+	//
+	// Two interface types with the same method set are identical, so one
+	// itab has to serve both; itabs are keyed by the underlying type, of
+	// which a program holds exactly one descriptor. See issue #82470.
+	Under *Type
+}
+
+// Underlying returns t's underlying interface type: Under, or t itself when
+// Under is nil.
+func (t *InterfaceType) Underlying() *InterfaceType {
+	if t.Under == nil {
+		return t
+	}
+	return (*InterfaceType)(unsafe.Pointer(t.Under))
 }
 
 func (t *Type) ExportedMethods() []Method {
