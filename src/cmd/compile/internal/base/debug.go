@@ -55,7 +55,7 @@ type DebugFlags struct {
 	LoopVar               int    `help:"shared (0), 1 (private loop variables, default), 2, private + log" concurrent:"ok"`
 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag." concurrent:"ok"`
 	LocationLists         int    `help:"print information about DWARF location list creation"`
-	MaxShapeLen           int    `help:"shorten shape names longer than this threshold (default 100)" concurrent:"ok"`
+	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
 	MergeLocals           int    `help:"merge together non-interfering local stack slots" concurrent:"ok"`
 	MergeLocalsDumpFunc   string `help:"dump specified func in merge locals"`
 	MergeLocalsHash       string `help:"hash value for debugging stack slot merging of local variables" concurrent:"ok"`
