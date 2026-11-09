@@ -6930,35 +6930,71 @@ func (x Uint16x32) MulHigh(y Uint16x32) (z Uint16x32)
 
 /* MulSign */
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGNB, CPU Feature: AVX
-func (x Int8x16) MulSign(y Int8x16) Int8x16
+func (x Int8x16) MulSign(y Int8x16) (z Int8x16)
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGNB, CPU Feature: AVX2
-func (x Int8x32) MulSign(y Int8x32) Int8x32
+func (x Int8x32) MulSign(y Int8x32) (z Int8x32)
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGNW, CPU Feature: AVX
-func (x Int16x8) MulSign(y Int16x8) Int16x8
+func (x Int16x8) MulSign(y Int16x8) (z Int16x8)
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGNW, CPU Feature: AVX2
-func (x Int16x16) MulSign(y Int16x16) Int16x16
+func (x Int16x16) MulSign(y Int16x16) (z Int16x16)
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGND, CPU Feature: AVX
-func (x Int32x4) MulSign(y Int32x4) Int32x4
+func (x Int32x4) MulSign(y Int32x4) (z Int32x4)
 
-// MulSign returns the product of x with the sign of y (-1, 0, or 1).
+// MulSign returns x multiplied by the sign of y (-1, 0 or 1), elementwise.
+//
+//	z[i] = x[i] * sign(y[i])
+//
+// That is, z[i] is -x[i] where y[i] is negative, 0 where y[i] is 0, and x[i]
+// where y[i] is positive. The negation wraps, so the most negative value stays
+// as it is.
 //
 // Asm: VPSIGND, CPU Feature: AVX2
-func (x Int32x8) MulSign(y Int32x8) Int32x8
+func (x Int32x8) MulSign(y Int32x8) (z Int32x8)
 
 /* MulWidenEven */
 
