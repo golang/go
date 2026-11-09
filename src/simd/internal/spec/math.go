@@ -397,13 +397,7 @@ func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[Variation[E], W])
 	// guarantee the right result, we have to do it ourself.
 	w = makeVec[Variation[E], W]()
 	for i := range x {
-		var fused E
-		switch xi := any(x[i]).(type) {
-		case float32:
-			fused = E(math.FMA32(xi, float32(y[i]), float32(z[i])))
-		case float64:
-			fused = E(math.FMA(xi, float64(y[i]), float64(z[i])))
-		}
+		fused := fma(x[i], y[i], z[i])
 		// The explicit conversion prevents the Go compiler from fusing the
 		// multiply and add.
 		unfused := E(x[i]*y[i]) + z[i]
@@ -414,6 +408,28 @@ func MulAddFloats[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[Variation[E], W])
 		w[i] = perPlatformDefault(fused, map[Platform]E{
 			PlatformWASM: unfused,
 		})
+	}
+	return w
+}
+
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
+//
+//specgen:experiment
+func MulAddEvenSubOdd[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+	w = makeVec[E, W]()
+	for i := range w {
+		if i%2 == 0 {
+			w[i] = fma(x[i], y[i], z[i])
+		} else {
+			w[i] = fma(x[i], y[i], -z[i])
+		}
 	}
 	return w
 }

@@ -6698,35 +6698,77 @@ func (x Float64x8) MulAdd(y Float64x8, z Float64x8) (w Float64x8)
 
 /* MulAddEvenSubOdd */
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: FMA
-func (x Float32x4) MulAddEvenSubOdd(y Float32x4, z Float32x4) Float32x4
+func (x Float32x4) MulAddEvenSubOdd(y Float32x4, z Float32x4) (w Float32x4)
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: FMA
-func (x Float32x8) MulAddEvenSubOdd(y Float32x8, z Float32x8) Float32x8
+func (x Float32x8) MulAddEvenSubOdd(y Float32x8, z Float32x8) (w Float32x8)
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PS, CPU Feature: AVX512
-func (x Float32x16) MulAddEvenSubOdd(y Float32x16, z Float32x16) Float32x16
+func (x Float32x16) MulAddEvenSubOdd(y Float32x16, z Float32x16) (w Float32x16)
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: FMA
-func (x Float64x2) MulAddEvenSubOdd(y Float64x2, z Float64x2) Float64x2
+func (x Float64x2) MulAddEvenSubOdd(y Float64x2, z Float64x2) (w Float64x2)
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: FMA
-func (x Float64x4) MulAddEvenSubOdd(y Float64x4, z Float64x4) Float64x4
+func (x Float64x4) MulAddEvenSubOdd(y Float64x4, z Float64x4) (w Float64x4)
 
-// MulAddEvenSubOdd performs a fused (x * y) - z for odd-indexed elements, and (x * y) + z for even-indexed elements.
+// MulAddEvenSubOdd returns x * y + z for the even-indexed elements and
+// x * y - z for the odd-indexed elements.
+//
+//	w[2*i] = x[2*i] * y[2*i] + z[2*i]         // Add even
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] - z[2*i+1] // Subtract odd
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
 //
 // Asm: VFMSUBADD213PD, CPU Feature: AVX512
-func (x Float64x8) MulAddEvenSubOdd(y Float64x8, z Float64x8) Float64x8
+func (x Float64x8) MulAddEvenSubOdd(y Float64x8, z Float64x8) (w Float64x8)
 
 /* MulAddOddSubEven */
 

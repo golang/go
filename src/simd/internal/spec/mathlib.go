@@ -234,3 +234,14 @@ func clmul[E Uints](a, b E) (hi, lo E) {
 	}
 	return
 }
+
+// fma returns x*y + z computed with a single rounding.
+func fma[E Floats](x, y, z E) E {
+	switch xx := any(x).(type) {
+	case float32:
+		return E(math.FMA32(xx, float32(y), float32(z)))
+	case float64:
+		return E(math.FMA(xx, float64(y), float64(z)))
+	}
+	panic("unreachable")
+}
