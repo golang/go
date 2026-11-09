@@ -99,8 +99,8 @@ func None[E MaskElt, W Width](x Vec[E, W]) bool {
 }
 
 // MaskFromCount returns a mask whose first count elements are true and the rest
-// false. A count of 0 or less gives no true elements, and a count of at least
-// the number of elements gives all true elements.
+// false. A count <= 0 gives no true elements, and a count >= {{lanes .z "z"}}
+// gives all true elements.
 //
 //	z[i] = i < count
 //
@@ -111,6 +111,28 @@ func MaskFromCount[E MaskElt, W Width](count int) (z Vec[E, W]) {
 	for i := range z {
 		if i < count {
 			z[i] = ^E(0)
+		}
+	}
+	return z
+}
+
+// First returns a one-hot mask with only the lowest true element of x, or an
+// all-false mask if x is all false.
+//
+//	for i, elt := range x {
+//		if elt {
+//			z[i] = true
+//			break
+//		}
+//	}
+//
+//specgen:experiment
+func First[E MaskElt, W Width](x Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i, elt := range x {
+		if elt != 0 {
+			z[i] = ^E(0)
+			break
 		}
 	}
 	return z
