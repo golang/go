@@ -434,6 +434,28 @@ func MulAddEvenSubOdd[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
 	return w
 }
 
+// MulAddOddSubEven returns x * y + z for the odd-indexed elements and
+// x * y - z for the even-indexed elements.
+//
+//	w[2*i+1] = x[2*i+1] * y[2*i+1] + z[2*i+1] // Add odd
+//	w[2*i] = x[2*i] * y[2*i] - z[2*i]         // Subtract even
+//
+// This performs a fused multiply-add, computing each result with a single
+// rounding rather than two and no intermediate overflow.
+//
+//specgen:experiment
+func MulAddOddSubEven[E Floats, W Width](x, y, z Vec[E, W]) (w Vec[E, W]) {
+	w = makeVec[E, W]()
+	for i := range w {
+		if i%2 == 0 {
+			w[i] = fma(x[i], y[i], -z[i])
+		} else {
+			w[i] = fma(x[i], y[i], z[i])
+		}
+	}
+	return w
+}
+
 // Neg returns the elementwise negation of x.
 //
 //	z[i] = -x[i]
