@@ -428,15 +428,21 @@ func (x Uint32x4) ConvertLo2ToFloat64() (z Float64x2)
 
 // ConvertToFloat32 converts each element of x to float32.
 //
+//	z[i] = float32(x[i])
+//
 // Asm: F32x4ConvertI32x4S
 func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts each element of x to float32.
 //
+//	z[i] = float32(x[i])
+//
 // Asm: F32x4ConvertI32x4U
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -446,6 +452,8 @@ func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 func (x Float32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -2494,10 +2502,14 @@ func (x Uint8x16) BitsToInt8() (z Int8x16)
 
 // ConvertToInt8 converts each element of x to int8.
 //
+//	z[i] = int8(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+//	z[i] = uint8(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int8x16) ConvertToUint8() (z Uint8x16)
@@ -2510,10 +2522,14 @@ func (x Uint16x8) BitsToInt16() (z Int16x8)
 
 // ConvertToInt16 converts each element of x to int16.
 //
+//	z[i] = int16(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int16x8) ConvertToUint16() (z Uint16x8)
@@ -2526,10 +2542,14 @@ func (x Uint32x4) BitsToInt32() (z Int32x4)
 
 // ConvertToInt32 converts each element of x to int32.
 //
+//	z[i] = int32(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int32x4) ConvertToUint32() (z Uint32x4)
@@ -2542,10 +2562,14 @@ func (x Uint64x2) BitsToInt64() (z Int64x2)
 
 // ConvertToInt64 converts each element of x to int64.
 //
+//	z[i] = int64(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int64x2) ConvertToUint64() (z Uint64x2)

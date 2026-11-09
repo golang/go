@@ -13,6 +13,8 @@ import "math"
 
 // ConvertFloatToFloat converts each element of x to {{.zE}}.
 //
+//	z[i] = {{.zE}}(x[i])
+//
 // {{ if lt .zN .xN }}
 // The results are rounded to the nearest representable value, or ±inf if they
 // cannot be represented.
@@ -30,6 +32,8 @@ func ConvertFloatToFloat[xE Floats, xW Width, zE Floats, zW Width](x Vec[xE, xW]
 
 // ConvertFloatToInt converts each element of x to {{.zE}}.
 //
+//	z[i] = {{.zE}}(x[i])
+//
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
 // is architecture-dependent.
@@ -41,6 +45,12 @@ func ConvertFloatToFloat[xE Floats, xW Width, zE Floats, zW Width](x Vec[xE, xW]
 //specgen:name ConvertTo{{.zE | title}}
 //specgen:require z={zB}{zN}x{xL}
 func ConvertFloatToInt[xE Floats, xW Width, zE Ints | Uints, zW Width](x Vec[xE, xW]) (z Vec[Variation[zE], zW]) {
+	return map1[xE, xW, Variation[zE], zW](x, convertFloatToInt[xE, zE])
+}
+
+// convertFloatToInt converts x to zE, truncating toward zero. The result
+// varies by platform if x is NaN or outside the range of zE.
+func convertFloatToInt[xE Floats, zE Ints | Uints](x xE) Variation[zE] {
 	// Compute representable range as [minLimit, maxLimit).
 	minLimit := float64(minVal[zE]()) // 0 or -2^(N-1), always exact in float
 	// The max value is a little trickier. Converting maxVal[zE]() directly to
@@ -63,39 +73,39 @@ func ConvertFloatToInt[xE Floats, xW Width, zE Ints | Uints, zW Width](x Vec[xE,
 		amd64Indef = minVal[zE]()
 	}
 
-	return map1[xE, xW, Variation[zE], zW](x, func(x xE) Variation[zE] {
-		if math.IsNaN(float64(x)) {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef,
-				PlatformARM64: 0,
-				PlatformWASM:  0,
-			})
-		}
-		// Truncate toward zero before checking bounds, since fractional values
-		// like 127.9 (for int8) or -0.5 (for uint8) truncate into range.
-		// math.Trunc also preserves ±Inf.
-		tx := math.Trunc(float64(x))
-		// Check that x is in the representable range. Since tx is an integer
-		// (or ±Inf), tx <= maxVal[zE]() is equivalent to tx < maxVal[zE]() + 1.
-		if tx < minLimit {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef, // Matches minVal if zE is signed.
-				PlatformARM64: minVal[zE](),
-				PlatformWASM:  minVal[zE](),
-			})
-		}
-		if tx >= maxLimit {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef, // Matches maxVal is zE is unsigned.
-				PlatformARM64: maxVal[zE](),
-				PlatformWASM:  maxVal[zE](),
-			})
-		}
-		return exact(zE(tx))
-	})
+	if math.IsNaN(float64(x)) {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef,
+			PlatformARM64: 0,
+			PlatformWASM:  0,
+		})
+	}
+	// Truncate toward zero before checking bounds, since fractional values
+	// like 127.9 (for int8) or -0.5 (for uint8) truncate into range.
+	// math.Trunc also preserves ±Inf.
+	tx := math.Trunc(float64(x))
+	// Check that x is in the representable range. Since tx is an integer
+	// (or ±Inf), tx <= maxVal[zE]() is equivalent to tx < maxVal[zE]() + 1.
+	if tx < minLimit {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef, // Matches minVal if zE is signed.
+			PlatformARM64: minVal[zE](),
+			PlatformWASM:  minVal[zE](),
+		})
+	}
+	if tx >= maxLimit {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef, // Matches maxVal if zE is unsigned.
+			PlatformARM64: maxVal[zE](),
+			PlatformWASM:  maxVal[zE](),
+		})
+	}
+	return exact(zE(tx))
 }
 
 // ConvertIntToFloat converts each element of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
 //
 // {{if lt .xL .zL}}
 // The low {{.xL}} elements of the result are set. The rest are zero.
@@ -108,6 +118,8 @@ func ConvertIntToFloat[xE Ints | Uints, xW Width, zE Floats, zW Width](x Vec[xE,
 }
 
 // ConvertIntToUint converts each element of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
 //
 // This wraps unrepresentable values.
 //
