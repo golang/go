@@ -1439,6 +1439,10 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			// Hard coded tag index: We only need one tag, call it "yield" for
 			// the WasmFX implementation of the goroutine scheduler.
 			w.WriteByte(0x00)
+			if hasLocalSP {
+				// The stack may have moved while suspended.
+				updateLocalSP(w)
+			}
 
 		case ASwitch:
 			panic("Unimplemented: Wasm Switch instruction.")
