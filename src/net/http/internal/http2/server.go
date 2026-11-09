@@ -2830,9 +2830,7 @@ func (rws *responseWriterState) declareTrailer(k string) {
 		rws.conn.logf("ignoring invalid trailer %q", k)
 		return
 	}
-	if !slices.Contains(rws.trailers, k) {
-		rws.trailers = append(rws.trailers, k)
-	}
+	rws.trailers = append(rws.trailers, k)
 }
 
 const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT" // keep in sync with net/http
@@ -2924,7 +2922,7 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 
 	// only send trailers if they have actually been defined by the
 	// server handler.
-	hasNonemptyTrailers := rws.hasNonemptyTrailers()
+	hasNonemptyTrailers := rws.handlerDone && rws.hasNonemptyTrailers()
 	endStream := rws.handlerDone && !hasNonemptyTrailers
 	if len(p) > 0 || endStream {
 		// only send a 0 byte DATA frame if we're ending the stream.
@@ -2933,7 +2931,11 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		}
 	}
 
-	if rws.handlerDone && hasNonemptyTrailers {
+	if hasNonemptyTrailers {
+		if len(rws.trailers) > 1 {
+			slices.Sort(rws.trailers)
+			rws.trailers = slices.Compact(rws.trailers)
+		}
 		err = rws.conn.writeHeaders(rws.stream, &writeResHeaders{
 			streamID:  rws.stream.id,
 			h:         rws.handlerHeader,
@@ -2989,10 +2991,6 @@ func (rws *responseWriterState) promoteUndeclaredTrailers() {
 		trailerKey := strings.TrimPrefix(k, TrailerPrefix)
 		rws.declareTrailer(trailerKey)
 		rws.handlerHeader[textproto.CanonicalMIMEHeaderKey(trailerKey)] = vv
-	}
-
-	if len(rws.trailers) > 1 {
-		slices.Sort(rws.trailers)
 	}
 }
 

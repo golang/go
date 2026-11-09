@@ -8546,3 +8546,35 @@ func TestHandleRequest(t *testing.T) {
 		}
 	})
 }
+
+func TestServerHandlerManyTrailers(t *testing.T) { runSynctest(t, testServerHandlerManyTrailers) }
+func testServerHandlerManyTrailers(t *testing.T, mode testMode) {
+	const numTrailers = 100000
+	trailerKey := func(i int) string {
+		return fmt.Sprintf("A-%d", i)
+	}
+
+	cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
+		var trailers strings.Builder
+		for i := range numTrailers {
+			if i > 0 {
+				trailers.WriteString(", ")
+			}
+			trailers.WriteString(trailerKey(i))
+		}
+		w.Header().Set("Trailer", trailers.String())
+		w.WriteHeader(StatusOK)
+		w.Write([]byte("body"))
+		for i := range numTrailers {
+			w.Header().Set(trailerKey(i), strconv.Itoa(i))
+		}
+	}))
+
+	res, err := cst.c.Get(cst.ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	// It's okay if this fails because the server refuses to deal with this nonsense.
+	io.ReadAll(res.Body)
+}
