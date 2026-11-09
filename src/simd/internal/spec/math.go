@@ -77,6 +77,25 @@ func SubSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E { return subSaturated(x, y) })
 }
 
+// AddOddSubEven adds the odd-indexed elements of x and y and subtracts the
+// even-indexed elements of y from those of x.
+//
+//	z[2*i+1] = x[2*i+1] + y[2*i+1] // Add odd
+//	z[2*i] = x[2*i] - y[2*i]       // Subtract even
+//
+//specgen:experiment
+func AddOddSubEven[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := range z {
+		if i%2 == 0 {
+			z[i] = x[i] - y[i]
+		} else {
+			z[i] = x[i] + y[i]
+		}
+	}
+	return z
+}
+
 // Average returns the elementwise average of x and y, rounded toward +∞.
 //
 //	z[i] = (x[i] + y[i] + 1) / 2

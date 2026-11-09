@@ -398,25 +398,41 @@ func (x Uint64x8) Add(y Uint64x8) (z Uint64x8)
 
 /* AddOddSubEven */
 
-// AddOddSubEven subtracts even elements and adds odd elements of two vectors.
+// AddOddSubEven adds the odd-indexed elements of x and y and subtracts the
+// even-indexed elements of y from those of x.
+//
+//	z[2*i+1] = x[2*i+1] + y[2*i+1] // Add odd
+//	z[2*i] = x[2*i] - y[2*i]       // Subtract even
 //
 // Asm: VADDSUBPS, CPU Feature: AVX
-func (x Float32x4) AddOddSubEven(y Float32x4) Float32x4
+func (x Float32x4) AddOddSubEven(y Float32x4) (z Float32x4)
 
-// AddOddSubEven subtracts even elements and adds odd elements of two vectors.
+// AddOddSubEven adds the odd-indexed elements of x and y and subtracts the
+// even-indexed elements of y from those of x.
+//
+//	z[2*i+1] = x[2*i+1] + y[2*i+1] // Add odd
+//	z[2*i] = x[2*i] - y[2*i]       // Subtract even
 //
 // Asm: VADDSUBPS, CPU Feature: AVX
-func (x Float32x8) AddOddSubEven(y Float32x8) Float32x8
+func (x Float32x8) AddOddSubEven(y Float32x8) (z Float32x8)
 
-// AddOddSubEven subtracts even elements and adds odd elements of two vectors.
+// AddOddSubEven adds the odd-indexed elements of x and y and subtracts the
+// even-indexed elements of y from those of x.
+//
+//	z[2*i+1] = x[2*i+1] + y[2*i+1] // Add odd
+//	z[2*i] = x[2*i] - y[2*i]       // Subtract even
 //
 // Asm: VADDSUBPD, CPU Feature: AVX
-func (x Float64x2) AddOddSubEven(y Float64x2) Float64x2
+func (x Float64x2) AddOddSubEven(y Float64x2) (z Float64x2)
 
-// AddOddSubEven subtracts even elements and adds odd elements of two vectors.
+// AddOddSubEven adds the odd-indexed elements of x and y and subtracts the
+// even-indexed elements of y from those of x.
+//
+//	z[2*i+1] = x[2*i+1] + y[2*i+1] // Add odd
+//	z[2*i] = x[2*i] - y[2*i]       // Subtract even
 //
 // Asm: VADDSUBPD, CPU Feature: AVX
-func (x Float64x4) AddOddSubEven(y Float64x4) Float64x4
+func (x Float64x4) AddOddSubEven(y Float64x4) (z Float64x4)
 
 /* AddSaturated */
 
