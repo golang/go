@@ -124,7 +124,7 @@ type taggedEncoder struct {
 	// scratch contains temporary space for encoding the tag and length of
 	// an element in order to avoid extra allocations.
 	scratch [8]byte
-	tag     encoder
+	tag     bytesEncoder
 	body    encoder
 }
 
@@ -615,7 +615,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 
 		t := new(taggedEncoder)
 
-		t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound}))
+		t.tag = appendTagAndLength(t.scratch[:0], tagAndLength{rv.Class, rv.Tag, len(rv.Bytes), rv.IsCompound})
 		t.body = bytesEncoder(rv.Bytes)
 
 		return t, nil
@@ -695,18 +695,18 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		}
 
 		if params.explicit {
-			t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{ClassUniversal, tag, bodyLen, isCompound}))
+			t.tag = appendTagAndLength(t.scratch[:0], tagAndLength{ClassUniversal, tag, bodyLen, isCompound})
 
 			tt := new(taggedEncoder)
 
 			tt.body = t
 
-			tt.tag = bytesEncoder(appendTagAndLength(tt.scratch[:0], tagAndLength{
+			tt.tag = appendTagAndLength(tt.scratch[:0], tagAndLength{
 				class:      class,
 				tag:        *params.tag,
 				length:     bodyLen + t.tag.Len(),
 				isCompound: true,
-			}))
+			})
 
 			return tt, nil
 		}
@@ -715,7 +715,7 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
 		tag = *params.tag
 	}
 
-	t.tag = bytesEncoder(appendTagAndLength(t.scratch[:0], tagAndLength{class, tag, bodyLen, isCompound}))
+	t.tag = appendTagAndLength(t.scratch[:0], tagAndLength{class, tag, bodyLen, isCompound})
 
 	return t, nil
 }
