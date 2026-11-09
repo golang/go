@@ -97,3 +97,21 @@ func Any[E MaskElt, W Width](x Vec[E, W]) bool {
 func None[E MaskElt, W Width](x Vec[E, W]) bool {
 	return !Any(x)
 }
+
+// MaskFromCount returns a mask whose first count elements are true and the rest
+// false. A count of 0 or less gives no true elements, and a count of at least
+// the number of elements gives all true elements.
+//
+//	z[i] = i < count
+//
+//specgen:name {{.z}}FromCount
+//specgen:experiment
+func MaskFromCount[E MaskElt, W Width](count int) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := range z {
+		if i < count {
+			z[i] = ^E(0)
+		}
+	}
+	return z
+}
