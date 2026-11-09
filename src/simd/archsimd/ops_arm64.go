@@ -1267,53 +1267,61 @@ func (x Uint64x2) GreaterEqual(y Uint64x2) (z Mask64x2)
 
 /* InterleaveEven */
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2], ..., x[n-2], y[n-2]}, where n = 16
 //
 // Asm: VTRN1
-func (x Int8x16) InterleaveEven(y Int8x16) Int8x16
+func (x Int8x16) InterleaveEven(y Int8x16) (z Int8x16)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2], ..., x[n-2], y[n-2]}, where n = 8
 //
 // Asm: VTRN1
-func (x Int16x8) InterleaveEven(y Int16x8) Int16x8
+func (x Int16x8) InterleaveEven(y Int16x8) (z Int16x8)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2]}
 //
 // Asm: VTRN1
-func (x Int32x4) InterleaveEven(y Int32x4) Int32x4
+func (x Int32x4) InterleaveEven(y Int32x4) (z Int32x4)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0]}
 //
 // Asm: VTRN1
-func (x Int64x2) InterleaveEven(y Int64x2) Int64x2
+func (x Int64x2) InterleaveEven(y Int64x2) (z Int64x2)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2], ..., x[n-2], y[n-2]}, where n = 16
 //
 // Asm: VTRN1
-func (x Uint8x16) InterleaveEven(y Uint8x16) Uint8x16
+func (x Uint8x16) InterleaveEven(y Uint8x16) (z Uint8x16)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2], ..., x[n-2], y[n-2]}, where n = 8
 //
 // Asm: VTRN1
-func (x Uint16x8) InterleaveEven(y Uint16x8) Uint16x8
+func (x Uint16x8) InterleaveEven(y Uint16x8) (z Uint16x8)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0], x[2], y[2]}
 //
 // Asm: VTRN1
-func (x Uint32x4) InterleaveEven(y Uint32x4) Uint32x4
+func (x Uint32x4) InterleaveEven(y Uint32x4) (z Uint32x4)
 
-// InterleaveEven interleaves even elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a0,b0,a2,b2].
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+//	z = {x[0], y[0]}
 //
 // Asm: VTRN1
-func (x Uint64x2) InterleaveEven(y Uint64x2) Uint64x2
+func (x Uint64x2) InterleaveEven(y Uint64x2) (z Uint64x2)
 
 /* InterleaveHi */
 

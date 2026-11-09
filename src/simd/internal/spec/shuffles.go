@@ -168,6 +168,32 @@ func InterleaveHi[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return z
 }
 
+// InterleaveEven interleaves the even-indexed elements of x and y.
+//
+// {{if eq .xL 2}}
+//
+//	z = {x[0], y[0]}
+//
+// {{else if eq .xL 4}}
+//
+//	z = {x[0], y[0], x[2], y[2]}
+//
+// {{else}}
+//
+//	z = {x[0], y[0], x[2], y[2], ..., x[n-2], y[n-2]}, where n = {{lanes .x "x"}}
+//
+// {{end}}
+//
+//specgen:experiment
+func InterleaveEven[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := 0; i < z.len(); i += 2 {
+		z[i] = x[i]
+		z[i+1] = y[i]
+	}
+	return z
+}
+
 // ConcatEven concatenates the even-indexed elements of x and y.
 //
 // {{if eq .xL 2}}
