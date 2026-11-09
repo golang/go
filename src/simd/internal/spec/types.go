@@ -79,6 +79,13 @@ type FixedWidth interface {
 	bits() int
 }
 
+// SplittableWidth is a constraint for the fixed vector widths whose halves are
+// also vector widths.
+type SplittableWidth interface {
+	Width256 | Width512
+	bits() int
+}
+
 type Width128 struct{}
 
 func (Width128) bits() int { return 128 }

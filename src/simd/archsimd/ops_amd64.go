@@ -3802,205 +3802,285 @@ func (x Uint64x2) GetElem(i uint8) (z uint64)
 
 // GetHi returns the upper half of x.
 //
-// Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float32x8) GetHi() Float32x4
-
-// GetHi returns the upper half of x.
-//
-// Asm: VEXTRACTF64X4, CPU Feature: AVX512
-func (x Float32x16) GetHi() Float32x8
-
-// GetHi returns the upper half of x.
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
 //
 // Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float64x4) GetHi() Float64x2
+func (x Float32x8) GetHi() (z Float32x4)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 16
 //
 // Asm: VEXTRACTF64X4, CPU Feature: AVX512
-func (x Float64x8) GetHi() Float64x4
+func (x Float32x16) GetHi() (z Float32x8)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[2], x[3]}
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) GetHi() (z Float64x2)
+
+// GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512
+func (x Float64x8) GetHi() (z Float64x4)
+
+// GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 32
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int8x32) GetHi() Int8x16
+func (x Int8x32) GetHi() (z Int8x16)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 64
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int8x64) GetHi() Int8x32
+func (x Int8x64) GetHi() (z Int8x32)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 16
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int16x16) GetHi() Int16x8
+func (x Int16x16) GetHi() (z Int16x8)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 32
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int16x32) GetHi() Int16x16
+func (x Int16x32) GetHi() (z Int16x16)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int32x8) GetHi() Int32x4
+func (x Int32x8) GetHi() (z Int32x4)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 16
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int32x16) GetHi() Int32x8
+func (x Int32x16) GetHi() (z Int32x8)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[2], x[3]}
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int64x4) GetHi() Int64x2
+func (x Int64x4) GetHi() (z Int64x2)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int64x8) GetHi() Int64x4
+func (x Int64x8) GetHi() (z Int64x4)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 32
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint8x32) GetHi() Uint8x16
+func (x Uint8x32) GetHi() (z Uint8x16)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 64
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint8x64) GetHi() Uint8x32
+func (x Uint8x64) GetHi() (z Uint8x32)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 16
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint16x16) GetHi() Uint16x8
+func (x Uint16x16) GetHi() (z Uint16x8)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 32
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint16x32) GetHi() Uint16x16
+func (x Uint16x32) GetHi() (z Uint16x16)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint32x8) GetHi() Uint32x4
+func (x Uint32x8) GetHi() (z Uint32x4)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 16
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint32x16) GetHi() Uint32x8
+func (x Uint32x16) GetHi() (z Uint32x8)
 
 // GetHi returns the upper half of x.
+//
+//	z = {x[2], x[3]}
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint64x4) GetHi() Uint64x2
+func (x Uint64x4) GetHi() (z Uint64x2)
 
 // GetHi returns the upper half of x.
 //
+//	z = {x[n/2], x[n/2+1], ..., x[n-1]}, where n = 8
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint64x8) GetHi() Uint64x4
+func (x Uint64x8) GetHi() (z Uint64x4)
 
 /* GetLo */
 
 // GetLo returns the lower half of x.
 //
-// Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float32x8) GetLo() Float32x4
-
-// GetLo returns the lower half of x.
-//
-// Asm: VEXTRACTF64X4, CPU Feature: AVX512
-func (x Float32x16) GetLo() Float32x8
-
-// GetLo returns the lower half of x.
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
 // Asm: VEXTRACTF128, CPU Feature: AVX
-func (x Float64x4) GetLo() Float64x2
+func (x Float32x8) GetLo() (z Float32x4)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
 //
 // Asm: VEXTRACTF64X4, CPU Feature: AVX512
-func (x Float64x8) GetLo() Float64x4
+func (x Float32x16) GetLo() (z Float32x8)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1]}
+//
+// Asm: VEXTRACTF128, CPU Feature: AVX
+func (x Float64x4) GetLo() (z Float64x2)
+
+// GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
+// Asm: VEXTRACTF64X4, CPU Feature: AVX512
+func (x Float64x8) GetLo() (z Float64x4)
+
+// GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int8x32) GetLo() Int8x16
+func (x Int8x32) GetLo() (z Int8x16)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 64
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int8x64) GetLo() Int8x32
+func (x Int8x64) GetLo() (z Int8x32)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int16x16) GetLo() Int16x8
+func (x Int16x16) GetLo() (z Int16x8)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int16x32) GetLo() Int16x16
+func (x Int16x32) GetLo() (z Int16x16)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int32x8) GetLo() Int32x4
+func (x Int32x8) GetLo() (z Int32x4)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int32x16) GetLo() Int32x8
+func (x Int32x16) GetLo() (z Int32x8)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1]}
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Int64x4) GetLo() Int64x2
+func (x Int64x4) GetLo() (z Int64x2)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Int64x8) GetLo() Int64x4
+func (x Int64x8) GetLo() (z Int64x4)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint8x32) GetLo() Uint8x16
+func (x Uint8x32) GetLo() (z Uint8x16)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 64
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint8x64) GetLo() Uint8x32
+func (x Uint8x64) GetLo() (z Uint8x32)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint16x16) GetLo() Uint16x8
+func (x Uint16x16) GetLo() (z Uint16x8)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint16x32) GetLo() Uint16x16
+func (x Uint16x32) GetLo() (z Uint16x16)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint32x8) GetLo() Uint32x4
+func (x Uint32x8) GetLo() (z Uint32x4)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint32x16) GetLo() Uint32x8
+func (x Uint32x16) GetLo() (z Uint32x8)
 
 // GetLo returns the lower half of x.
+//
+//	z = {x[0], x[1]}
 //
 // Asm: VEXTRACTI128, CPU Feature: AVX2
-func (x Uint64x4) GetLo() Uint64x2
+func (x Uint64x4) GetLo() (z Uint64x2)
 
 // GetLo returns the lower half of x.
 //
+//	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
-func (x Uint64x8) GetLo() Uint64x4
+func (x Uint64x8) GetLo() (z Uint64x4)
 
 /* Greater */
 
@@ -7362,205 +7442,285 @@ func (x Uint64x2) SetElem(i uint8, y uint64) (z Uint64x2)
 
 // SetHi returns x with its upper half set to y.
 //
-// Asm: VINSERTF128, CPU Feature: AVX
-func (x Float32x8) SetHi(y Float32x4) Float32x8
-
-// SetHi returns x with its upper half set to y.
-//
-// Asm: VINSERTF64X4, CPU Feature: AVX512
-func (x Float32x16) SetHi(y Float32x8) Float32x16
-
-// SetHi returns x with its upper half set to y.
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
 //
 // Asm: VINSERTF128, CPU Feature: AVX
-func (x Float64x4) SetHi(y Float64x2) Float64x4
+func (x Float32x8) SetHi(y Float32x4) (z Float32x8)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 16
 //
 // Asm: VINSERTF64X4, CPU Feature: AVX512
-func (x Float64x8) SetHi(y Float64x4) Float64x8
+func (x Float32x16) SetHi(y Float32x8) (z Float32x16)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], x[1], y[0], y[1]}
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) SetHi(y Float64x2) (z Float64x4)
+
+// SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512
+func (x Float64x8) SetHi(y Float64x4) (z Float64x8)
+
+// SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 32
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int8x32) SetHi(y Int8x16) Int8x32
+func (x Int8x32) SetHi(y Int8x16) (z Int8x32)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 64
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int8x64) SetHi(y Int8x32) Int8x64
+func (x Int8x64) SetHi(y Int8x32) (z Int8x64)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 16
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int16x16) SetHi(y Int16x8) Int16x16
+func (x Int16x16) SetHi(y Int16x8) (z Int16x16)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 32
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int16x32) SetHi(y Int16x16) Int16x32
+func (x Int16x32) SetHi(y Int16x16) (z Int16x32)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int32x8) SetHi(y Int32x4) Int32x8
+func (x Int32x8) SetHi(y Int32x4) (z Int32x8)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 16
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int32x16) SetHi(y Int32x8) Int32x16
+func (x Int32x16) SetHi(y Int32x8) (z Int32x16)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], x[1], y[0], y[1]}
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int64x4) SetHi(y Int64x2) Int64x4
+func (x Int64x4) SetHi(y Int64x2) (z Int64x4)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int64x8) SetHi(y Int64x4) Int64x8
+func (x Int64x8) SetHi(y Int64x4) (z Int64x8)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 32
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint8x32) SetHi(y Uint8x16) Uint8x32
+func (x Uint8x32) SetHi(y Uint8x16) (z Uint8x32)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 64
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint8x64) SetHi(y Uint8x32) Uint8x64
+func (x Uint8x64) SetHi(y Uint8x32) (z Uint8x64)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 16
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint16x16) SetHi(y Uint16x8) Uint16x16
+func (x Uint16x16) SetHi(y Uint16x8) (z Uint16x16)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 32
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint16x32) SetHi(y Uint16x16) Uint16x32
+func (x Uint16x32) SetHi(y Uint16x16) (z Uint16x32)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint32x8) SetHi(y Uint32x4) Uint32x8
+func (x Uint32x8) SetHi(y Uint32x4) (z Uint32x8)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 16
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint32x16) SetHi(y Uint32x8) Uint32x16
+func (x Uint32x16) SetHi(y Uint32x8) (z Uint32x16)
 
 // SetHi returns x with its upper half set to y.
+//
+//	z = {x[0], x[1], y[0], y[1]}
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint64x4) SetHi(y Uint64x2) Uint64x4
+func (x Uint64x4) SetHi(y Uint64x2) (z Uint64x4)
 
 // SetHi returns x with its upper half set to y.
 //
+//	z = {x[0], ..., x[n/2-1], y[0], y[1], ..., y[n/2-1]}, where n = 8
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint64x8) SetHi(y Uint64x4) Uint64x8
+func (x Uint64x8) SetHi(y Uint64x4) (z Uint64x8)
 
 /* SetLo */
 
 // SetLo returns x with its lower half set to y.
 //
-// Asm: VINSERTF128, CPU Feature: AVX
-func (x Float32x8) SetLo(y Float32x4) Float32x8
-
-// SetLo returns x with its lower half set to y.
-//
-// Asm: VINSERTF64X4, CPU Feature: AVX512
-func (x Float32x16) SetLo(y Float32x8) Float32x16
-
-// SetLo returns x with its lower half set to y.
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
 // Asm: VINSERTF128, CPU Feature: AVX
-func (x Float64x4) SetLo(y Float64x2) Float64x4
+func (x Float32x8) SetLo(y Float32x4) (z Float32x8)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
 //
 // Asm: VINSERTF64X4, CPU Feature: AVX512
-func (x Float64x8) SetLo(y Float64x4) Float64x8
+func (x Float32x16) SetLo(y Float32x8) (z Float32x16)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], x[2], x[3]}
+//
+// Asm: VINSERTF128, CPU Feature: AVX
+func (x Float64x4) SetLo(y Float64x2) (z Float64x4)
+
+// SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
+// Asm: VINSERTF64X4, CPU Feature: AVX512
+func (x Float64x8) SetLo(y Float64x4) (z Float64x8)
+
+// SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int8x32) SetLo(y Int8x16) Int8x32
+func (x Int8x32) SetLo(y Int8x16) (z Int8x32)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 64
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int8x64) SetLo(y Int8x32) Int8x64
+func (x Int8x64) SetLo(y Int8x32) (z Int8x64)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int16x16) SetLo(y Int16x8) Int16x16
+func (x Int16x16) SetLo(y Int16x8) (z Int16x16)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int16x32) SetLo(y Int16x16) Int16x32
+func (x Int16x32) SetLo(y Int16x16) (z Int16x32)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int32x8) SetLo(y Int32x4) Int32x8
+func (x Int32x8) SetLo(y Int32x4) (z Int32x8)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int32x16) SetLo(y Int32x8) Int32x16
+func (x Int32x16) SetLo(y Int32x8) (z Int32x16)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], x[2], x[3]}
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Int64x4) SetLo(y Int64x2) Int64x4
+func (x Int64x4) SetLo(y Int64x2) (z Int64x4)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Int64x8) SetLo(y Int64x4) Int64x8
+func (x Int64x8) SetLo(y Int64x4) (z Int64x8)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint8x32) SetLo(y Uint8x16) Uint8x32
+func (x Uint8x32) SetLo(y Uint8x16) (z Uint8x32)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 64
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint8x64) SetLo(y Uint8x32) Uint8x64
+func (x Uint8x64) SetLo(y Uint8x32) (z Uint8x64)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint16x16) SetLo(y Uint16x8) Uint16x16
+func (x Uint16x16) SetLo(y Uint16x8) (z Uint16x16)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint16x32) SetLo(y Uint16x16) Uint16x32
+func (x Uint16x32) SetLo(y Uint16x16) (z Uint16x32)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint32x8) SetLo(y Uint32x4) Uint32x8
+func (x Uint32x8) SetLo(y Uint32x4) (z Uint32x8)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint32x16) SetLo(y Uint32x8) Uint32x16
+func (x Uint32x16) SetLo(y Uint32x8) (z Uint32x16)
 
 // SetLo returns x with its lower half set to y.
+//
+//	z = {y[0], y[1], x[2], x[3]}
 //
 // Asm: VINSERTI128, CPU Feature: AVX2
-func (x Uint64x4) SetLo(y Uint64x2) Uint64x4
+func (x Uint64x4) SetLo(y Uint64x2) (z Uint64x4)
 
 // SetLo returns x with its lower half set to y.
 //
+//	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
 // Asm: VINSERTI64X4, CPU Feature: AVX512
-func (x Uint64x8) SetLo(y Uint64x4) Uint64x8
+func (x Uint64x8) SetLo(y Uint64x4) (z Uint64x8)
 
 /* ShiftAllLeft */
 
