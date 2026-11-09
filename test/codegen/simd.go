@@ -68,7 +68,7 @@ func simdFeatureGuardedMaskOpt() archsimd.Int16x16 {
 		return x.Add(y).Masked(mask) // amd64:`VPADDW.Z .*$`
 	}
 	mask := archsimd.Mask16x16FromBits(5)
-	return x.Add(y).Masked(mask) // amd64:`VPAND .*$`
+	return x.Add(y).Masked(mask) // amd64/v1:`VPAND .*$` amd64/v3:`VPAND .*$`
 }
 
 func simdMaskedMerge() archsimd.Int16x16 {
@@ -78,7 +78,7 @@ func simdMaskedMerge() archsimd.Int16x16 {
 		return x.Add(y).IfElse(mask, x) // amd64:-`VPBLENDVB .*$`
 	}
 	mask := archsimd.Mask16x16FromBits(5)
-	return x.Add(y).IfElse(mask, x) // amd64:`VPBLENDVB .*$`
+	return x.Add(y).IfElse(mask, x) // amd64/v1:`VPBLENDVB .*$` amd64/v3:`VPBLENDVB .*$`
 }
 
 func simdIfElseVPBLENDM(x, y archsimd.Int32x4, bits uint8) archsimd.Int32x4 {
@@ -87,7 +87,7 @@ func simdIfElseVPBLENDM(x, y archsimd.Int32x4, bits uint8) archsimd.Int32x4 {
 		// amd64:`KMOVB` `VPBLENDMD X[0-9]+, X[0-9]+, K[1-7], X[0-9]+` -`VPMOVM2D` -`VPBLENDVB`
 		return x.IfElse(archsimd.Mask32x4FromBits(bits), y)
 	}
-	// amd64:`VPBLENDVB`
+	// amd64/v1:`VPBLENDVB` amd64/v3:`VPBLENDVB`
 	return x.IfElse(archsimd.Mask32x4FromBits(bits), y)
 }
 
@@ -100,7 +100,7 @@ func simdFloat32x8Masked(x, y archsimd.Float32x8) archsimd.Float32x8 {
 	}
 	// Check that we produce the AVX1 floating-point AND, not the AVX2 integer AND.
 	mask := x.Less(y)
-	// amd64:`VANDPS .*$` -`VPAND`
+	// amd64/v1:`VANDPS .*$` -`VPAND` amd64/v3:`VANDPS .*$` -`VPAND`
 	return x.Add(y).Masked(mask)
 }
 
@@ -113,7 +113,7 @@ func simdFloat64x4Masked(x, y archsimd.Float64x4) archsimd.Float64x4 {
 	}
 	// Check that we produce the AVX1 floating-point AND, not the AVX2 integer AND.
 	mask := x.Less(y)
-	// amd64:`VANDPD .*$` -`VPAND`
+	// amd64/v1:`VANDPD .*$` -`VPAND` amd64/v3:`VANDPD .*$` -`VPAND`
 	return x.Add(y).Masked(mask)
 }
 
@@ -126,7 +126,7 @@ func simdFloat32x8IfElse(x, y archsimd.Float32x8) archsimd.Float32x8 {
 	}
 	// Check that we produce the AVX1 floating-point blend, not the AVX2 integer blend.
 	mask := x.Less(y)
-	// amd64:`VBLENDVPS .*$` -`VPBLENDVB`
+	// amd64/v1:`VBLENDVPS .*$` -`VPBLENDVB` amd64/v3:`VBLENDVPS .*$` -`VPBLENDVB`
 	return x.Add(y).IfElse(mask, x)
 }
 
@@ -139,7 +139,7 @@ func simdFloat64x4IfElse(x, y archsimd.Float64x4) archsimd.Float64x4 {
 	}
 	// Check that we produce the AVX1 floating-point blend, not the AVX2 integer blend.
 	mask := x.Less(y)
-	// amd64:`VBLENDVPD .*$` -`VPBLENDVB`
+	// amd64/v1:`VBLENDVPD .*$` -`VPBLENDVB` amd64/v3:`VBLENDVPD .*$` -`VPBLENDVB`
 	return x.Add(y).IfElse(mask, x)
 }
 
@@ -169,7 +169,7 @@ func simdAbsInt64x2(x archsimd.Int64x2) archsimd.Uint64x2 {
 		// amd64:`VPABSQ X[0-9]+, X[0-9]+` -`VPCMPGTQ`
 		return x.Abs()
 	}
-	// amd64:`VPCMPGTQ` -`VPABSQ`
+	// amd64/v1:`VPCMPGTQ` -`VPABSQ` amd64/v3:`VPCMPGTQ` -`VPABSQ`
 	return x.Abs()
 }
 
@@ -179,7 +179,7 @@ func simdAbsInt64x4(x archsimd.Int64x4) archsimd.Uint64x4 {
 		// amd64:`VPABSQ Y[0-9]+, Y[0-9]+` -`VPCMPGTQ`
 		return x.Abs()
 	}
-	// amd64:`VPCMPGTQ` -`VPABSQ`
+	// amd64/v1:`VPCMPGTQ` -`VPABSQ` amd64/v3:`VPCMPGTQ` -`VPABSQ`
 	return x.Abs()
 }
 
@@ -189,7 +189,7 @@ func simdShiftAllRightInt64x2(x archsimd.Int64x2, s uint64) archsimd.Int64x2 {
 		// amd64:`VPSRAQ X[0-9]+, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
 		return x.ShiftAllRight(s)
 	}
-	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	// amd64/v1:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ` amd64/v3:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
 	return x.ShiftAllRight(s)
 }
 
@@ -199,7 +199,7 @@ func simdShiftAllRightInt64x4(x archsimd.Int64x4, s uint64) archsimd.Int64x4 {
 		// amd64:`VPSRAQ X[0-9]+, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
 		return x.ShiftAllRight(s)
 	}
-	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	// amd64/v1:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ` amd64/v3:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
 	return x.ShiftAllRight(s)
 }
 
@@ -208,7 +208,7 @@ func simdShiftAllRightConstInt64x2(x archsimd.Int64x2) archsimd.Int64x2 {
 		// amd64:`VPSRAQ \$5, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
 		return x.ShiftAllRight(5)
 	}
-	// amd64:`VPCMPGTQ` `VPSRLQ \$5` -`VPSRAQ`
+	// amd64/v1:`VPCMPGTQ` `VPSRLQ \$5` -`VPSRAQ` amd64/v3:`VPCMPGTQ` `VPSRLQ \$5` -`VPSRAQ`
 	return x.ShiftAllRight(5)
 }
 
@@ -217,7 +217,7 @@ func simdShiftAllRightConstInt64x4(x archsimd.Int64x4) archsimd.Int64x4 {
 		// amd64:`VPSRAQ \$63, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
 		return x.ShiftAllRight(63)
 	}
-	// amd64:`VPCMPGTQ` `VPSRLQ \$63` -`VPSRAQ`
+	// amd64/v1:`VPCMPGTQ` `VPSRLQ \$63` -`VPSRAQ` amd64/v3:`VPCMPGTQ` `VPSRLQ \$63` -`VPSRAQ`
 	return x.ShiftAllRight(63)
 }
 
@@ -553,4 +553,46 @@ func simdBreakFalseDep(a archsimd.Int8x64, m archsimd.Mask8x64) archsimd.Int8x64
 	// amd64:`VPXORD X\d, X\d`
 	// amd64:`VPEXPANDB\.Z Z\d, K\d, Z\d`
 	return a.Expand(m).Add(a)
+}
+
+// GOAMD64=v4 guarantees AVX-512 and GOAMD64=v3 guarantees AVX2, so checks for
+// them fold away, whether or not the code branches on them.
+
+func simdHasAVX512() bool {
+	// amd64/v4:`MOVL \$1, AX` -`.*internal/cpu.X86`
+	// amd64/v3:`MOVBLZX internal/cpu.X86`
+	return archsimd.X86.AVX512()
+}
+
+func simdHasAVX2() bool {
+	// amd64/v3:`MOVL \$1, AX` -`.*internal/cpu.X86`
+	// amd64/v2:`MOVBLZX internal/cpu.X86`
+	return archsimd.X86.AVX2()
+}
+
+func simdIfAVX2() int {
+	// amd64/v3:-`.*internal/cpu.X86` amd64/v2:`CMPB internal/cpu.X86`
+	if archsimd.X86.AVX2() {
+		return 1
+	}
+	return 2
+}
+
+func simdIfNotAVX2() int {
+	// amd64/v3:-`.*internal/cpu.X86` amd64/v2:`CMPB internal/cpu.X86`
+	if !archsimd.X86.AVX2() {
+		return 1
+	}
+	return 2
+}
+
+//go:noinline
+func simdSlow() int { return 4 }
+
+func simdIfAVX512() int {
+	// amd64/v4:-`.*internal/cpu.X86` -`CALL` amd64/v3:`CMPB internal/cpu.X86`
+	if archsimd.X86.AVX512() {
+		return 3
+	}
+	return simdSlow()
 }

@@ -6,6 +6,7 @@ package ssacompile
 
 import (
 	"fmt"
+	"internal/buildcfg"
 	"internal/goarch"
 	"strings"
 
@@ -27,10 +28,11 @@ func (e localEffect) String() string {
 	return fmt.Sprintf("visited=%v, start=%v, internal=%v, end[0]=%v, end[1]=%v", e.visited, e.start, e.internal, e.end[0], e.end[1])
 }
 
-// ifEffect pattern matches for a BlockIf conditional on a load
-// of a field from internal/cpu.X86 or internal/cpu.ARM64 and returns the
-// corresponding effect.
-func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
+// featureCheck pattern matches for a BlockIf conditional on a load of a field
+// from internal/cpu.X86 or internal/cpu.ARM64, and returns the load, the
+// field's name qualified by its struct (for example, "X86.HasAVX2"), and which
+// successor runs when the feature is present.
+func featureCheck(b *ssa.Block) (load *ssa.Value, match string, taken int) {
 	if b.Kind != block.BlockIf {
 		return
 	}
@@ -40,39 +42,56 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 		taken = 1
 		c = c.Args[0]
 	}
+	if match = featureLoad(c); match == "" {
+		return nil, "", 0
+	}
+	return c, match, taken
+}
+
+// featureLoad returns the name of the field of internal/cpu.X86 or
+// internal/cpu.ARM64 that v loads, qualified by its struct (for example,
+// "X86.HasAVX2"), or "" if v isn't such a load.
+func featureLoad(c *ssa.Value) string {
 	if c.Op != ssaop.OpLoad {
-		return
+		return ""
 	}
 	offPtr := c.Args[0]
 	if offPtr.Op != ssaop.OpOffPtr {
-		return
+		return ""
 	}
 	addr := offPtr.Args[0]
 	if addr.Op != ssaop.OpAddr || addr.Args[0].Op != ssaop.OpSB {
-		return
+		return ""
 	}
 	sym := addr.Aux.(*obj.LSym)
 	cpu, ok := strings.CutPrefix(sym.Name, "internal/cpu.")
 	if !ok || cpu != "X86" && cpu != "ARM64" {
-		return
+		return ""
 	}
 	o := offPtr.AuxInt
 	t := addr.Type
 	if !t.IsPtr() {
-		b.Func.Fatalf("The symbol %s is not a pointer, found %v instead", sym.Name, t)
+		c.Fatalf("The symbol %s is not a pointer, found %v instead", sym.Name, t)
 	}
 	t = t.Elem()
 	if !t.IsStruct() {
-		b.Func.Fatalf("The referent of symbol %s is not a struct, found %v instead", sym.Name, t)
+		c.Fatalf("The referent of symbol %s is not a struct, found %v instead", sym.Name, t)
 	}
-	// match is the field's name, qualified by its struct (for example,
-	// "X86.HasAVX2").
-	match := ""
 	for _, f := range t.Fields() {
 		if o == f.Offset && f.Sym != nil {
-			match = cpu + "." + f.Sym.Name
-			break
+			return cpu + "." + f.Sym.Name
 		}
+	}
+	return ""
+}
+
+// ifEffect pattern matches for a BlockIf conditional on a load
+// of a field from internal/cpu.X86 or internal/cpu.ARM64 and returns the
+// corresponding effect.
+func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
+	load, match, taken := featureCheck(b)
+	if load == nil {
+		return
 	}
 
 	switch match {
@@ -115,7 +134,7 @@ func ifEffect(b *ssa.Block) (features ssa.CPUfeatures, taken int) {
 
 	}
 	if b.Func.Pass.Debug > 2 {
-		b.Func.Warnl(b.Pos, "%s, block b%v has features offset %d, match is %s, features is %v", b.Func.Name, b.ID, o, match, features)
+		b.Func.Warnl(b.Pos, "%s, block b%v has features %s, features is %v", b.Func.Name, b.ID, match, features)
 	}
 	return
 }
@@ -288,6 +307,49 @@ func cpufeatures(f *ssa.Func) {
 				f.Warnl(b.Pos, "%s, block b%v has features %v", b.Func.Name, b.ID, b.CPUfeatures)
 			}
 
+		}
+	}
+}
+
+// foldCPUFeatures replaces checks of the internal/cpu.X86 feature flags that
+// the GOAMD64 level guarantees with true, in any code: a branch on one of
+// them becomes unconditional, and any other load of one becomes a constant.
+//
+// It runs after the CPU feature analysis (see cpufeatures), so that the code
+// a check guards is still credited with the feature, which enables rules
+// that use it.
+func foldCPUFeatures(f *ssa.Func) {
+	if f.Config.Ctxt.Arch.Family != goarch.AMD64 || buildcfg.GOAMD64 < 2 {
+		return
+	}
+	ensured := func(match string) bool {
+		level, ok := x86FeatureLevels[match]
+		return ok && buildcfg.GOAMD64 >= level
+	}
+	folded := false
+	for _, b := range f.Blocks {
+		// The generic rules that would fold a constant branch have already
+		// run, so do it here.
+		if load, match, taken := featureCheck(b); load != nil && ensured(match) {
+			if taken != 0 {
+				b.SwapSuccessors()
+			}
+			b.Reset(block.BlockFirst)
+			folded = true
+		}
+	}
+	if folded {
+		// Remove the code that doesn't use the feature now, so the lowering
+		// rules see the values that the guarded code computes, rather than
+		// phis that merge them with that code's.
+		deadcode(f)
+	}
+	for _, b := range f.Blocks {
+		for _, v := range b.Values {
+			if v.Op == ssaop.OpLoad && v.Type.IsBoolean() && ensured(featureLoad(v)) {
+				v.Reset(ssaop.OpConstBool)
+				v.AuxInt = ssa.BoolToAuxInt(true)
+			}
 		}
 	}
 }

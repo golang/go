@@ -20,6 +20,13 @@ var CacheLineSize uintptr = CacheLinePadSize
 // HasAVX and HasAVX2 are only set if the OS does support XMM and YMM registers
 // in addition to the cpuid feature bit being set.
 // The struct is padded to avoid false sharing.
+//
+// The compiler replaces loads of the fields that the GOAMD64 level guarantees
+// (for example, HasAVX2 with GOAMD64=v3) with the constant true. So those
+// fields must never be set to false when the level guarantees them. mkoptions.go
+// generates both the compiler's list of these fields and the GODEBUG options,
+// which refuse to turn them off, and the runtime refuses to start on a CPU
+// without them.
 var X86 struct {
 	_                   CacheLinePad
 	HasAES              bool

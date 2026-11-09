@@ -89,7 +89,9 @@ func doinit() {
 		{Name: "xgetbv1", Feature: &X86.HasXGETBV1},
 		{Name: "xsavec", Feature: &X86.HasXSAVEC},
 	}
-	// The features that the GOAMD64 level requires can't be turned off.
+	// The features that the GOAMD64 level requires can't be turned off. The
+	// compiler relies on this: it replaces loads of their fields in X86 with
+	// true (see the X86 doc comment).
 	options = appendLevelOptions(options, getGOAMD64level())
 
 	doDerived = func() {

@@ -34,17 +34,33 @@ func simdTruncToUint8x16(x archsimd.Uint16x8) archsimd.Uint8x16 {
 }
 
 func simdSaturateToInt8x32(x archsimd.Int16x16) archsimd.Int8x32 {
-	// amd64:`VPACKSSWB` `VPERMD` -`CALL`
+	// amd64/v3:`VPACKSSWB` `VPERMD` -`CALL`
+	// amd64/v4:`VPMOVSWB` -`VPACKSSWB` -`CALL`
 	return x.SaturateToInt8()
 }
 
 func simdSaturateToUint16x8(x archsimd.Uint32x4) archsimd.Uint16x8 {
-	// amd64:`VPMINUD` `VPACKUSDW` -`CALL`
+	// amd64/v3:`VPMINUD` `VPACKUSDW` -`CALL`
+	// amd64/v4:`VPMOVUSDW` -`VPACKUSDW` -`CALL`
 	return x.SaturateToUint16()
 }
 
 func simdSaturateToInt32x4(x archsimd.Int64x2) archsimd.Int32x4 {
-	// amd64:`VPCMPGTQ` `VPBLENDVB` `VSHUFPS` -`CALL`
+	// amd64/v3:`VPCMPGTQ` `VPBLENDVB` `VSHUFPS` -`CALL`
+	return x.SaturateToInt32()
+}
+
+// GOAMD64=v4 guarantees AVX-512, so feature checks fold away and the
+// conversions statically select their AVX-512 instruction.
+
+func simdTruncToInt8x32Static(x archsimd.Int16x16) archsimd.Int8x32 {
+	// amd64/v4:`VPMOVWB` -`VPSHUFB` -`VPERMD` -`.*internal/cpu.X86`
+	// amd64/v3:`VPMOVWB` `VPSHUFB` `VPERMD` `CMPB internal/cpu.X86`
+	return x.TruncToInt8()
+}
+
+func simdSaturateToInt32x4Static(x archsimd.Int64x2) archsimd.Int32x4 {
+	// amd64/v4:`VPMOVSQD` -`VPBLENDVB` -`.*internal/cpu.X86`
 	return x.SaturateToInt32()
 }
 

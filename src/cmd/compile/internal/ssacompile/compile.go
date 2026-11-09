@@ -451,6 +451,7 @@ var passes = [...]ssa.Pass{
 	{Name: "insert resched checks", Fn: insertLoopReschedChecks,
 		Disabled: !buildcfg.Experiment.PreemptibleLoops}, // insert resched checks in loops.
 	{Name: "cpufeatures", Fn: cpufeatures, Required: buildcfg.Experiment.SIMDStable, Disabled: !buildcfg.Experiment.SIMDStable},
+	{Name: "fold cpu features", Fn: foldCPUFeatures},
 	{Name: "rewrite tern", Fn: rewriteTern, Required: false, Disabled: !buildcfg.Experiment.SIMDStable},
 	{Name: "simd enlarge", Fn: simdEnlarge, Required: false, Disabled: !buildcfg.Experiment.SIMDStable},
 	{Name: "lower", Fn: lower, Required: true},
@@ -568,6 +569,10 @@ var passOrder = [...]constraint{
 	{"cpufeatures", "lower"},
 	// simd enlarge rewrites generic ops, which lower consumes.
 	{"simd enlarge", "lower"},
+	// folding the CPU feature checks must not hide them from the analysis.
+	{"cpufeatures", "fold cpu features"},
+	// lowering would hide the checks.
+	{"fold cpu features", "lower"},
 	// known bits is an arch-independent pass.
 	{"known bits", "lower"},
 	// known bits does very little except some fancy constant folding and we need opt to clean it up.

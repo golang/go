@@ -17,9 +17,8 @@ package archsimd
 //
 // On AVX-512 hardware, a single VPMOV instruction does each 2:1 conversion, so
 // the emulations use that instead where it saves instructions. (It doesn't for
-// the 128-bit truncations, or for saturation that's a single pack.)
-//
-// TODO: With GOAMD64=v4, the feature checks could be resolved statically.
+// the 128-bit truncations, or for saturation that's a single pack.) With
+// GOAMD64=v4, the compiler resolves the feature checks statically.
 
 // The 256-bit emulations first narrow within each 128-bit group, which leaves
 // the results in the low 64 bits of each group and zeros in the high 64 bits,
