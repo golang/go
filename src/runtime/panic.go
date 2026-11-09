@@ -1106,22 +1106,32 @@ func recoverrangefunc() any {
 		// panic deferred, so nothing in it can recover.
 		return nil
 	}
-	return p
+	if p.recoverAtToken == nil {
+		p.recoverAtToken = abi.Escape(new(recoverAtToken))
+	}
+	return p.recoverAtToken
+}
+
+// A recoverAtToken identifies a panic to gorecoverat. It is on the heap so
+// that it stays valid when the stack is copied.
+type recoverAtToken struct {
+	_ byte // not zero-sized, so that each token has its own address
 }
 
 // gorecoverat is the implementation of the predeclared function recover
 // when it is called in the body of a range-over-func loop. frame is the
 // token recoverrangefunc returned for the function the loop is written in.
 func gorecoverat(frame any) any {
-	p, _ := frame.(*_panic)
-	if p == nil {
+	tok, _ := frame.(*recoverAtToken)
+	if tok == nil {
 		return nil
 	}
 	// The frame was the right one to recover in when the loop started. It
 	// still is, as it is still running the loop, but the panic it was going
 	// to recover must still be the one being processed: the body may have
 	// panicked and recovered in the meantime.
-	if gp := getg(); gp._panic != p || p.goexit || p.recovered {
+	p := getg()._panic
+	if p == nil || p.recoverAtToken != tok || p.goexit || p.recovered {
 		return nil
 	}
 	p.recovered = true
