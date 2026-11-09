@@ -350,6 +350,19 @@ func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec
 	return z
 }
 
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> {{.xN}}
+//
+// The product is computed exactly, so no bits are lost before the shift.
+//
+//specgen:commutative
+//specgen:experiment
+func MulHigh[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	return map2[E, W, E, W](x, y, mulHigh[E])
+}
+
 // MulAddInts returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]

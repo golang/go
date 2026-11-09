@@ -147,6 +147,28 @@ func TestMulSaturatedUSS(t *testing.T) {
 		{math.MaxUint64, -1, math.MinInt64})
 }
 
+func TestMulHigh(t *testing.T) {
+	// mulHigh[E Ints | Uints](x, y E) E
+
+	assertFn2[int8, int8, int8](t, mulHigh, "mulHigh[int8]",
+		{100, 3, 1}, {-100, 3, -2}, {-1, 1, -1}, {127, 127, 63},
+		{math.MinInt8, math.MinInt8, 64})
+	assertFn2[uint8, uint8, uint8](t, mulHigh, "mulHigh[uint8]",
+		{16, 16, 1}, {math.MaxUint8, math.MaxUint8, math.MaxUint8 - 1})
+	assertFn2[int16, int16, int16](t, mulHigh, "mulHigh[int16]",
+		{-1, -1, 0}, {-1, 1, -1}, {math.MinInt16, math.MinInt16, 1 << 14})
+
+	// 64-bit elements go through bits.Mul64.
+	assertFn2[uint64, uint64, uint64](t, mulHigh, "mulHigh[uint64]",
+		{1 << 32, 1 << 32, 1}, {2, 1 << 63, 1},
+		{math.MaxUint64, math.MaxUint64, math.MaxUint64 - 1})
+	assertFn2[int64, int64, int64](t, mulHigh, "mulHigh[int64]",
+		{-1, 1, -1}, {math.MinInt64, 1, -1}, {math.MinInt64, -1, 0},
+		{math.MinInt64, math.MinInt64, 1 << 62},
+		{math.MaxInt64, math.MaxInt64, 1<<62 - 1},
+		{math.MinInt64, math.MaxInt64, -1 << 62})
+}
+
 func TestSubSaturated(t *testing.T) {
 	// Signed int8
 	assertFn2[int8, int8, int8](t, subSaturated, "subSaturated[int8]",

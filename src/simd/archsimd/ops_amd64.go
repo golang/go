@@ -6846,35 +6846,65 @@ func (x Float64x8) MulAddOddSubEven(y Float64x8, z Float64x8) Float64x8
 
 /* MulHigh */
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHW, CPU Feature: AVX
-func (x Int16x8) MulHigh(y Int16x8) Int16x8
+func (x Int16x8) MulHigh(y Int16x8) (z Int16x8)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHW, CPU Feature: AVX2
-func (x Int16x16) MulHigh(y Int16x16) Int16x16
+func (x Int16x16) MulHigh(y Int16x16) (z Int16x16)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHW, CPU Feature: AVX512
-func (x Int16x32) MulHigh(y Int16x32) Int16x32
+func (x Int16x32) MulHigh(y Int16x32) (z Int16x32)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHUW, CPU Feature: AVX
-func (x Uint16x8) MulHigh(y Uint16x8) Uint16x8
+func (x Uint16x8) MulHigh(y Uint16x8) (z Uint16x8)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHUW, CPU Feature: AVX2
-func (x Uint16x16) MulHigh(y Uint16x16) Uint16x16
+func (x Uint16x16) MulHigh(y Uint16x16) (z Uint16x16)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: VPMULHUW, CPU Feature: AVX512
-func (x Uint16x32) MulHigh(y Uint16x32) Uint16x32
+func (x Uint16x32) MulHigh(y Uint16x32) (z Uint16x32)
 
 /* MulSign */
 

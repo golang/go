@@ -1219,45 +1219,85 @@ func (x Uint64s) MulAdd(y Uint64s, z Uint64s) (w Uint64s)
 
 /* MulHigh */
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 8
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZSMULH, CPU Feature: SVE
-func (x Int8s) MulHigh(y Int8s) Int8s
+func (x Int8s) MulHigh(y Int8s) (z Int8s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZSMULH, CPU Feature: SVE
-func (x Int16s) MulHigh(y Int16s) Int16s
+func (x Int16s) MulHigh(y Int16s) (z Int16s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 32
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZSMULH, CPU Feature: SVE
-func (x Int32s) MulHigh(y Int32s) Int32s
+func (x Int32s) MulHigh(y Int32s) (z Int32s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 64
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZSMULH, CPU Feature: SVE
-func (x Int64s) MulHigh(y Int64s) Int64s
+func (x Int64s) MulHigh(y Int64s) (z Int64s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 8
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZUMULH, CPU Feature: SVE
-func (x Uint8s) MulHigh(y Uint8s) Uint8s
+func (x Uint8s) MulHigh(y Uint8s) (z Uint8s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 16
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZUMULH, CPU Feature: SVE
-func (x Uint16s) MulHigh(y Uint16s) Uint16s
+func (x Uint16s) MulHigh(y Uint16s) (z Uint16s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 32
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZUMULH, CPU Feature: SVE
-func (x Uint32s) MulHigh(y Uint32s) Uint32s
+func (x Uint32s) MulHigh(y Uint32s) (z Uint32s)
 
-// MulHigh multiplies elements and stores the high part of the result.
+// MulHigh multiplies corresponding elements of x and y and returns the high
+// half of each double-width product.
+//
+//	z[i] = (x[i] * y[i]) >> 64
+//
+// The product is computed exactly, so no bits are lost before the shift.
 //
 // Asm: ZUMULH, CPU Feature: SVE
-func (x Uint64s) MulHigh(y Uint64s) Uint64s
+func (x Uint64s) MulHigh(y Uint64s) (z Uint64s)
 
 /* Neg */
 
