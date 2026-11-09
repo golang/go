@@ -200,6 +200,10 @@ func (x Int8x16) LessEqual(y Int8x16) Mask8x16 {
 	return Mask8x16((archsimd.Int8x16(x)).LessEqual(archsimd.Int8x16(y)))
 }
 
+func (x Int8x16) LookupOrZero(indices Uint8x16) Int8x16 {
+	return Int8x16((archsimd.Int8x16(x)).LookupOrZero(archsimd.Uint8x16(indices)))
+}
+
 func (x Int8x16) Masked(mask Mask8x16) Int8x16 {
 	return Int8x16((archsimd.Int8x16(x)).Masked(archsimd.Mask8x16(mask)))
 }

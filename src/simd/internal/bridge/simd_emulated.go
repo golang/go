@@ -232,6 +232,24 @@ func (x Int8s) Len() int {
 	return 16
 }
 
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8s) LookupOrZero(indices Uint8s) (z Int8s) {
+	var res Int8s
+	for i := 0; i < 16; i++ {
+		idx := indices.get(i)
+		if idx < 16 {
+			res.set(i, x.get(int(idx)))
+		}
+	}
+	return res
+}
+
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.
 //

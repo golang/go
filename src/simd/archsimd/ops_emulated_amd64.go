@@ -634,3 +634,87 @@ func (x Int8x64) ReduceSum() (z int8) {
 func (x Uint8x64) ReduceSum() (z uint8) {
 	return x.GetLo().Add(x.GetHi()).ReduceSum()
 }
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated, CPU Feature: AVX
+func (x Int8x16) LookupOrZero(indices Uint8x16) (z Int8x16) {
+	c70 := BroadcastUint8x16(0x70)
+	// Adding 0x70 with unsigned saturation maps 0..15 to 0x70..0x7f
+	// (non-negative, preserving the low 4 bits) and >= 16 to >= 0x80
+	// (negative, which LookupModOrZero zeroes).
+	return x.LookupModOrZero(indices.AddSaturated(c70).BitsToInt8())
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated, CPU Feature: AVX2
+func (x Int8x32) LookupOrZero(indices Uint8x32) (z Int8x32) {
+	if X86.AVX512VBMI() {
+		return x.LookupMod(indices).Masked(indices.Less(BroadcastUint8x32(32)))
+	}
+	ll := x.ConcatPermute128Scalars(0, 0, x) // Double the low 128 bits of x. (The x argument is unused.)
+	hh := x.ConcatPermute128Scalars(1, 1, x) // Double the high 128 bits of x.
+	c70 := BroadcastUint8x32(0x70)
+	c16 := BroadcastUint8x32(16)
+	// Adding 0x70 with unsigned saturation maps 0..15 to 0x70..0x7f
+	// (non-negative, preserving the low 4 bits) and >= 16 to >= 0x80
+	// (negative, which LookupModOrZeroGrouped zeroes).
+	yl := indices.AddSaturated(c70)
+	yh := indices.Sub(c16).AddSaturated(c70)        // Map 16..31 to 0x70..0x7f, anything else to < 0.
+	ll = ll.LookupModOrZeroGrouped(yl.BitsToInt8()) // Elements with 0 <= indexes < 16, zero elsewhere.
+	hh = hh.LookupModOrZeroGrouped(yh.BitsToInt8()) // Elements with 16 <= indexes < 32, zero elsewhere.
+	return ll.Or(hh)
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 64 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated, CPU Feature: AVX512
+func (x Int8x64) LookupOrZero(indices Uint8x64) (z Int8x64) {
+	if X86.AVX512VBMI() {
+		return x.LookupMod(indices).Masked(indices.Less(BroadcastUint8x64(64)))
+	}
+	xl, xh := x.GetLo(), x.GetHi()
+	ll := xl.ConcatPermute128Scalars(0, 0, xl) // 2 copies of elements 0-15
+	lh := xl.ConcatPermute128Scalars(1, 1, xl) // 2 copies of elements 16-31
+	hl := xh.ConcatPermute128Scalars(0, 0, xh) // 2 copies of elements 32-47
+	hh := xh.ConcatPermute128Scalars(1, 1, xh) // 2 copies of elements 48-63
+	ll4 := z.SetLo(ll).SetHi(ll)               // 4 copies of elements 0-15 etc
+	lh4 := z.SetLo(lh).SetHi(lh)
+	hl4 := z.SetLo(hl).SetHi(hl)
+	hh4 := z.SetLo(hh).SetHi(hh)
+
+	c70 := BroadcastUint8x64(0x70)
+	c16 := BroadcastUint8x64(16)
+	y0 := indices.AddSaturated(c70)
+	y := indices.Sub(c16)
+	y1 := y.AddSaturated(c70)
+	y = y.Sub(c16)
+	y2 := y.AddSaturated(c70)
+	y = y.Sub(c16)
+	y3 := y.AddSaturated(c70)
+	// y0..y3 have bit 7 == 0 (with low 4 bits == indices-16*k) iff indices is in 16*k..16*k+15.
+	ll4 = ll4.LookupModOrZeroGrouped(y0.BitsToInt8()) // Elements with 0 <= indexes < 16, zero elsewhere.
+	lh4 = lh4.LookupModOrZeroGrouped(y1.BitsToInt8()) // Elements with 16 <= indexes < 32, zero elsewhere.
+	hl4 = hl4.LookupModOrZeroGrouped(y2.BitsToInt8()) // Elements with 32 <= indexes < 48, zero elsewhere.
+	hh4 = hh4.LookupModOrZeroGrouped(y3.BitsToInt8()) // Elements with 48 <= indexes < 64, zero elsewhere.
+	return ll4.Or(lh4).Or(hl4.Or(hh4))
+}

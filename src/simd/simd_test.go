@@ -7,6 +7,7 @@
 package simd_test
 
 import (
+	"math/rand"
 	"runtime"
 	"simd"
 	"simd/internal/test_helpers"
@@ -551,4 +552,32 @@ func TestMaskTrailingZeros(t *testing.T) {
 	testMaskTrailingZeros(t, simd.LoadUint16s)
 	testMaskTrailingZeros(t, simd.LoadUint32s)
 	testMaskTrailingZeros(t, simd.LoadUint64s)
+}
+
+func TestLookupOrZero(t *testing.T) {
+	var z simd.Int8s
+	x := make([]int8, z.Len())
+	indices := make([]uint8, z.Len())
+
+	for i := range z.Len() {
+		a, b := rand.Int31n(256), rand.Int31n(256)
+		x[i] = int8(a - 128)
+		indices[i] = uint8(b)
+	}
+
+	v := simd.LoadInt8s(x)
+	u := simd.LoadUint8s(indices)
+
+	got := make([]int8, v.Len())
+	want := make([]int8, v.Len())
+	for i := range want {
+		j := indices[i]
+		if int(j) < len(want) {
+			want[i] = x[j]
+		}
+	}
+	v.LookupOrZero(u).StorePart(got)
+	if !slices.Equal(want, got) {
+		t.Errorf("Wanted %v, got %v", want, got)
+	}
 }
