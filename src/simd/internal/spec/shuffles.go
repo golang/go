@@ -194,6 +194,32 @@ func InterleaveEven[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return z
 }
 
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+// {{if eq .xL 2}}
+//
+//	z = {x[1], y[1]}
+//
+// {{else if eq .xL 4}}
+//
+//	z = {x[1], y[1], x[3], y[3]}
+//
+// {{else}}
+//
+//	z = {x[1], y[1], x[3], y[3], ..., x[n-1], y[n-1]}, where n = {{lanes .x "x"}}
+//
+// {{end}}
+//
+//specgen:experiment
+func InterleaveOdd[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := 0; i < z.len(); i += 2 {
+		z[i] = x[i+1]
+		z[i+1] = y[i+1]
+	}
+	return z
+}
+
 // ConcatEven concatenates the even-indexed elements of x and y.
 //
 // {{if eq .xL 2}}

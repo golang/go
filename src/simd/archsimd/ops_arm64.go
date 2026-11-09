@@ -1441,53 +1441,61 @@ func (x Uint64x2) InterleaveLo(y Uint64x2) (z Uint64x2)
 
 /* InterleaveOdd */
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3], ..., x[n-1], y[n-1]}, where n = 16
 //
 // Asm: VTRN2
-func (x Int8x16) InterleaveOdd(y Int8x16) Int8x16
+func (x Int8x16) InterleaveOdd(y Int8x16) (z Int8x16)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3], ..., x[n-1], y[n-1]}, where n = 8
 //
 // Asm: VTRN2
-func (x Int16x8) InterleaveOdd(y Int16x8) Int16x8
+func (x Int16x8) InterleaveOdd(y Int16x8) (z Int16x8)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3]}
 //
 // Asm: VTRN2
-func (x Int32x4) InterleaveOdd(y Int32x4) Int32x4
+func (x Int32x4) InterleaveOdd(y Int32x4) (z Int32x4)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1]}
 //
 // Asm: VTRN2
-func (x Int64x2) InterleaveOdd(y Int64x2) Int64x2
+func (x Int64x2) InterleaveOdd(y Int64x2) (z Int64x2)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3], ..., x[n-1], y[n-1]}, where n = 16
 //
 // Asm: VTRN2
-func (x Uint8x16) InterleaveOdd(y Uint8x16) Uint8x16
+func (x Uint8x16) InterleaveOdd(y Uint8x16) (z Uint8x16)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3], ..., x[n-1], y[n-1]}, where n = 8
 //
 // Asm: VTRN2
-func (x Uint16x8) InterleaveOdd(y Uint16x8) Uint16x8
+func (x Uint16x8) InterleaveOdd(y Uint16x8) (z Uint16x8)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1], x[3], y[3]}
 //
 // Asm: VTRN2
-func (x Uint32x4) InterleaveOdd(y Uint32x4) Uint32x4
+func (x Uint32x4) InterleaveOdd(y Uint32x4) (z Uint32x4)
 
-// InterleaveOdd interleaves odd elements from x and y.
-// For x = [a0,a1,a2,a3] and y = [b0,b1,b2,b3], result = [a1,b1,a3,b3].
+// InterleaveOdd interleaves the odd-indexed elements of x and y.
+//
+//	z = {x[1], y[1]}
 //
 // Asm: VTRN2
-func (x Uint64x2) InterleaveOdd(y Uint64x2) Uint64x2
+func (x Uint64x2) InterleaveOdd(y Uint64x2) (z Uint64x2)
 
 /* LeadingSignBits */
 
