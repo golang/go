@@ -1,8 +1,17 @@
 // compile -t 30
 
+//go:build !loong64
+
 // Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
+
+// Currently, this test causes a timeout when running as
+// part of cmd/internal/testdir on loong64, even though
+// the program itself is not slow when executed in isolation.
+
+// TODO: after the root cause of the timeout is determined, the
+// test should be re-enabled for loong64.
 
 package p
 
