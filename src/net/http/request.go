@@ -666,6 +666,14 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
 	if stringContainsCTLByte(ruri) {
 		return errors.New("net/http: can't write control character in Request.URL")
 	}
+
+	// :protocol is only valid in HTTP/2 and HTTP/3. Transport allows it through
+	// header validation because it has not selected a connection yet. If the
+	// request reaches this HTTP/1 writer, reject it since it's not allowed.
+	if r.Header.has(":protocol") {
+		return errors.New("net/http: :protocol pseudo-header is not allowed in HTTP/1.x")
+	}
+
 	// TODO: validate r.Method too? At least it's less likely to
 	// come from an attacker (more likely to be a constant in
 	// code).

@@ -5818,7 +5818,6 @@ func testTransportDoNotHangOnZeroMaxFrameSize(t *testing.T) {
 }
 
 func TestExtendedConnectClientWithServerSupport(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, false)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(":protocol") != "extended-connect" {
@@ -5854,7 +5853,6 @@ func TestExtendedConnectClientWithServerSupport(t *testing.T) {
 }
 
 func TestExtendedConnectClientWithoutServerSupport(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, true)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, r.Body)
@@ -5885,7 +5883,6 @@ func TestExtendedConnectReadFrameError(t *testing.T) {
 	synctest.Test(t, testExtendedConnectReadFrameError)
 }
 func testExtendedConnectReadFrameError(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	tc := newTestClientConn(t)
 	tc.wantFrameType(FrameSettings)
 	tc.wantFrameType(FrameWindowUpdate)
