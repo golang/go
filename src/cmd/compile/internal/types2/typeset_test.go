@@ -5,6 +5,7 @@
 package types2_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "cmd/compile/internal/types2"
@@ -62,6 +63,97 @@ func TestTypeSetString(t *testing.T) {
 		got := TypeSetString(T)
 		if got != want {
 			t.Errorf("%s: got %s; want %s", body, got, want)
+		}
+	}
+}
+
+func TestCommonUnderlying(t *testing.T) {
+	const src = `
+package p
+
+type Named int
+
+type A any
+type B interface{~int}
+type C interface{int}
+type D interface{Named}
+type E interface{~int | interface{Named}}
+type F interface{~int | ~float32}
+type G interface{chan int | interface{chan int}}
+type H interface{chan int | chan float32}
+type I interface{chan<- int | chan int}
+type J interface{chan int | chan<- int}
+type K interface{<-chan int | chan int}
+type L interface{chan int | <-chan int}
+type M interface{chan int | chan Named}
+type N interface{<-chan int | chan<- int}
+type O interface{chan int | bool}
+type P struct{ Named }
+type Q interface{ Foo() }
+type R interface{ Foo() ; Named }
+type S interface{ Foo() ; ~int }
+
+type T interface{chan int | interface{chan int} | <-chan int}
+
+type Chan1 chan int
+type Chan2 chan int
+type U interface{Chan1 | Chan2 | <-chan int}
+type V interface{Chan1 | <-chan int | Chan2}
+type W interface{Chan1 | Chan2 | chan float32}
+
+type X interface{comparable}
+type Y interface{int; string} // empty type set
+`
+	pkg := mustTypecheck(src, nil, nil)
+
+	for _, test := range []struct {
+		name string // name of a package-level type
+		want string // CommonUnderlying of a type parameter constrained by the type (or "<nil>"); "" => not an interface
+	}{
+		{"Named", ""},
+		{"P", ""},
+		{"Chan1", ""},
+		{"A", "<nil>"},      // no specific types
+		{"B", "int"},        // tilde term
+		{"C", "int"},        // non-tilde term
+		{"D", "int"},        // named term
+		{"E", "int"},        // identical underlying types
+		{"F", "<nil>"},      // differing underlying types
+		{"G", "chan int"},   // identical element types
+		{"H", "<nil>"},      // differing element types
+		{"I", "chan<- int"}, // SendRecv followed by SendOnly
+		{"J", "chan<- int"}, // SendOnly followed by SendRecv
+		{"K", "<-chan int"}, // RecvOnly followed by SendRecv
+		{"L", "<-chan int"}, // SendRecv followed by RecvOnly
+		{"M", "<nil>"},      // element type int is not identical to Named
+		{"N", "<nil>"},      // conflicting channel directions
+		{"O", "<nil>"},      // channel and non-channel
+		{"Q", "<nil>"},      // methods but no specific types
+		{"R", "int"},        // methods and a term
+		{"S", "int"},        // methods and a tilde term
+		{"T", "<-chan int"}, // identical prefix, then a directional channel
+		{"U", "<-chan int"}, // distinct named terms with identical underlying types, then a directional channel
+		{"V", "<-chan int"}, // same, but with a term identical to the first after the mismatch
+		{"W", "<nil>"},      // distinct named terms with identical underlying types, then a differing element type
+		{"X", "<nil>"},      // comparable has no specific types
+		{"Y", "<nil>"},      // empty type set
+	} {
+		typ := pkg.Scope().Lookup(test.name).Type()
+
+		// If t is not a type parameter, the result is t.Underlying(),
+		// even if t is an interface.
+		if got, want := CommonUnderlying(typ), typ.Underlying(); got != want {
+			t.Errorf("CommonUnderlying(%s) = %v, want %v", test.name, got, want)
+		}
+
+		if test.want == "" {
+			continue // not a valid constraint
+		}
+
+		// Test a type parameter constrained by typ.
+		tparam := NewTypeParam(NewTypeName(nopos, pkg, "TP", nil), typ)
+		if got := fmt.Sprint(CommonUnderlying(tparam)); got != test.want {
+			t.Errorf("CommonUnderlying(TP %s) = %s, want %s", test.name, got, test.want)
 		}
 	}
 }

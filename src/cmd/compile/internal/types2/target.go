@@ -37,7 +37,7 @@ func newHint(typ Type, desc string) *target {
 // The result is nil if T is nil or T's type set has no common signature type.
 func (T *target) sig() Type {
 	if T != nil {
-		if u, _ := commonUnder(T.typ, nil); u != nil {
+		if u := CommonUnderlying(T.typ); u != nil {
 			if _, ok := u.(*Signature); ok {
 				return T.typ
 			}

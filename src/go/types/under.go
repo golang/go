@@ -59,6 +59,24 @@ func (err *typeError) format(check *Checker) string {
 	return check.sprintf(err.format_, err.args...)
 }
 
+// CommonUnderlying returns the common underlying type of the types in
+// the type set implied by t, or nil if there is none.
+//
+// If t is not a type parameter, the result is t.Underlying().
+// (An operand of interface type has the single type t, not the type
+// set of the interface.)
+//
+// If t is a type parameter, the result is the single underlying type U
+// shared by every specific type in its constraint's type set. It is nil
+// if there are no specific types (e.g. any, comparable) or they do not
+// share an underlying type. As a special case, if all are channel types
+// with identical element types and directions that do not conflict, the
+// result is the most restrictive channel type.
+func CommonUnderlying(t Type) Type {
+	u, _ := commonUnder(t, nil)
+	return u
+}
+
 // If t is a type parameter, cond is nil, and t's type set contains no channel types,
 // commonUnder returns the common underlying type of all types in t's type set if
 // it exists, or nil and a type error otherwise.

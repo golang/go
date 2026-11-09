@@ -998,7 +998,7 @@ func (check *Checker) _Slice(z *operand, call *ast.CallExpr) {
 		return
 	}
 
-	u, _ := commonUnder(x.typ(), nil)
+	u := CommonUnderlying(x.typ())
 	ptr, _ := u.(*Pointer)
 	if ptr == nil {
 		check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
@@ -1025,7 +1025,7 @@ func (check *Checker) _SliceData(z *operand, call *ast.CallExpr) {
 		return
 	}
 
-	u, _ := commonUnder(x.typ(), nil)
+	u := CommonUnderlying(x.typ())
 	slice, _ := u.(*Slice)
 	if slice == nil {
 		check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)

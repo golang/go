@@ -667,12 +667,12 @@ func coreTerm(tpar *TypeParam) (*term, bool) {
 	})
 	if n == 1 {
 		if debug {
-			u, _ := commonUnder(tpar, nil)
+			u := CommonUnderlying(tpar)
 			assert(single.typ.Underlying() == u)
 		}
 		return single, true
 	}
-	if typ, _ := commonUnder(tpar, nil); typ != nil {
+	if typ := CommonUnderlying(tpar); typ != nil {
 		// A core type is always an underlying type.
 		// If any term of tpar has a tilde, we don't
 		// have a precise core type and we must return

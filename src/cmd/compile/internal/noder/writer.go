@@ -1489,7 +1489,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
 		w.selectStmt(stmt)
 
 	case *syntax.SendStmt:
-		chanType := types2.CoreType(w.p.typeOf(stmt.Chan)).(*types2.Chan)
+		chanType := types2.CommonUnderlying(w.p.typeOf(stmt.Chan)).(*types2.Chan)
 
 		w.Code(stmtSend)
 		w.pos(stmt)
@@ -1610,7 +1610,7 @@ func (w *writer) forStmt(stmt *syntax.ForStmt) {
 		w.expr(rang.X)
 
 		xtyp := w.p.typeOf(rang.X)
-		if _, isMap := types2.CoreType(xtyp).(*types2.Map); isMap {
+		if _, isMap := types2.CommonUnderlying(xtyp).(*types2.Map); isMap {
 			w.rtype(xtyp)
 		}
 		{
@@ -2028,7 +2028,7 @@ func (w *writer) expr(expr syntax.Expr) {
 		xtyp := w.p.typeOf(expr.X)
 
 		var keyType types2.Type
-		if mapType, ok := types2.CoreType(xtyp).(*types2.Map); ok {
+		if mapType, ok := types2.CommonUnderlying(xtyp).(*types2.Map); ok {
 			keyType = mapType.Key()
 		}
 
@@ -2111,7 +2111,7 @@ func (w *writer) expr(expr syntax.Expr) {
 				w.exprs(expr.ArgList[1:])
 
 				typ := w.p.typeOf(expr)
-				switch coreType := types2.CoreType(typ).(type) {
+				switch coreType := types2.CommonUnderlying(typ).(type) {
 				default:
 					w.p.fatalf(expr, "unexpected core type: %v", coreType)
 				case *types2.Chan:
@@ -2220,7 +2220,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			w.expr(fun)
 		}
 
-		sigType := types2.CoreType(tv.Type).(*types2.Signature)
+		sigType := types2.CommonUnderlying(tv.Type).(*types2.Signature)
 		paramTypes := sigType.Params()
 
 		w.Code(exprCall)
@@ -2243,7 +2243,7 @@ func (w *writer) expr(expr syntax.Expr) {
 }
 
 func sliceElem(typ types2.Type) types2.Type {
-	return types2.CoreType(typ).(*types2.Slice).Elem()
+	return types2.CommonUnderlying(typ).(*types2.Slice).Elem()
 }
 
 func (w *writer) optExpr(expr syntax.Expr) {
@@ -2492,12 +2492,12 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	w.pos(lit)
 	w.typ(typ)
 
-	if ptr, ok := types2.CoreType(typ).(*types2.Pointer); ok {
+	if ptr, ok := types2.CommonUnderlying(typ).(*types2.Pointer); ok {
 		typ = ptr.Elem()
 	}
 
 	if w.Version().Has(pkgbits.CompactCompLiterals) {
-		switch typ0 := typ; typ := types2.CoreType(typ).(type) {
+		switch typ0 := typ; typ := types2.CommonUnderlying(typ).(type) {
 		default:
 			w.p.fatalf(lit, "unexpected composite literal type: %v", typ)
 		case *types2.Array:
@@ -2516,7 +2516,7 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
 	// old format
 	var keyType, elemType types2.Type
 	var structType *types2.Struct
-	switch typ0 := typ; typ := types2.CoreType(typ).(type) {
+	switch typ0 := typ; typ := types2.CommonUnderlying(typ).(type) {
 	default:
 		w.p.fatalf(lit, "unexpected composite literal type: %v", typ)
 	case *types2.Array:

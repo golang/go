@@ -1116,11 +1116,11 @@ func (r *rewriter) endLoop(loop *forLoop) {
 	nfor := loop.nfor
 	start, end := nfor.Pos(), nfor.Body.Rbrace // start, end position of for loop
 	rclause := nfor.Init.(*syntax.RangeClause)
-	rfunc := types2.CoreType(rclause.X.GetTypeInfo().Type).(*types2.Signature) // type of X - func(func(...)bool)
+	rfunc := types2.CommonUnderlying(rclause.X.GetTypeInfo().Type).(*types2.Signature) // type of X - func(func(...)bool)
 	if rfunc.Params().Len() != 1 {
 		base.Fatalf("invalid typecheck of range func")
 	}
-	ftyp := types2.CoreType(rfunc.Params().At(0).Type()).(*types2.Signature) // func(...) bool
+	ftyp := types2.CommonUnderlying(rfunc.Params().At(0).Type()).(*types2.Signature) // func(...) bool
 	if ftyp.Results().Len() != 1 {
 		base.Fatalf("invalid typecheck of range func")
 	}
@@ -1480,7 +1480,7 @@ func forRangeFunc(n syntax.Node) (*syntax.ForStmt, bool) {
 	if !ok {
 		return nil, false
 	}
-	_, ok = types2.CoreType(nrange.X.GetTypeInfo().Type).(*types2.Signature)
+	_, ok = types2.CommonUnderlying(nrange.X.GetTypeInfo().Type).(*types2.Signature)
 	if !ok {
 		return nil, false
 	}

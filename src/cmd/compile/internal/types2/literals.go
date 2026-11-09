@@ -132,7 +132,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 		typ = T.typ
 		base = typ
 		// *T implies &T{}
-		u, _ := commonUnder(base, nil)
+		u := CommonUnderlying(base)
 		if b, ok := deref(u); ok {
 			base = b
 		}
@@ -153,7 +153,7 @@ func (check *Checker) compositeLit(T *target, x *operand, e *syntax.CompositeLit
 		return
 	}
 
-	switch u, _ := commonUnder(base, nil); utyp := u.(type) {
+	switch utyp := CommonUnderlying(base).(type) {
 	case *Struct:
 		if len(e.ElemList) == 0 {
 			break
