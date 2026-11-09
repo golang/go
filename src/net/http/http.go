@@ -298,6 +298,8 @@ type HTTP2Config struct {
 	// When enabled, HTTP/2 servers will advertise support for Extended CONNECT.
 	// Extended CONNECT requests will include a ":protocol" pseudo header
 	// in the request headers.
+	//
+	// This parameter only applies to Servers.
 	EnableConnectProtocol bool
 
 	// CountError, if non-nil, is called on HTTP/2 errors.
