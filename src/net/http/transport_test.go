@@ -6701,7 +6701,7 @@ func testCancelRequestWhenSharingConnection(t *testing.T, mode testMode) {
 }
 
 func TestHandlerAbortRacesBodyRead(t *testing.T) {
-	runSynctest(t, testHandlerAbortRacesBodyRead, http3SkippedMode)
+	runSynctest(t, testHandlerAbortRacesBodyRead)
 }
 func testHandlerAbortRacesBodyRead(t *testing.T, mode testMode) {
 	ts := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
