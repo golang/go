@@ -6910,29 +6910,53 @@ func (x Int32x8) MulSign(y Int32x8) Int32x8
 
 /* MulWidenEven */
 
-// MulWidenEven multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
+// MulWidenEven multiplies corresponding even-indexed elements of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[2*i]) * int64(y[2*i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VPMULDQ, CPU Feature: AVX
-func (x Int32x4) MulWidenEven(y Int32x4) Int64x2
+func (x Int32x4) MulWidenEven(y Int32x4) (z Int64x2)
 
-// MulWidenEven multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
+// MulWidenEven multiplies corresponding even-indexed elements of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = int64(x[2*i]) * int64(y[2*i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VPMULDQ, CPU Feature: AVX2
-func (x Int32x8) MulWidenEven(y Int32x8) Int64x4
+func (x Int32x8) MulWidenEven(y Int32x8) (z Int64x4)
 
-// MulWidenEven multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
+// MulWidenEven multiplies corresponding even-indexed elements of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[2*i]) * uint64(y[2*i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VPMULUDQ, CPU Feature: AVX
-func (x Uint32x4) MulWidenEven(y Uint32x4) Uint64x2
+func (x Uint32x4) MulWidenEven(y Uint32x4) (z Uint64x2)
 
-// MulWidenEven multiplies even-indexed elements, widening the result.
-// Result[i] = v1[2*i] * v2[2*i].
+// MulWidenEven multiplies corresponding even-indexed elements of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = uint64(x[2*i]) * uint64(y[2*i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
 //
 // Asm: VPMULUDQ, CPU Feature: AVX2
-func (x Uint32x8) MulWidenEven(y Uint32x8) Uint64x4
+func (x Uint32x8) MulWidenEven(y Uint32x8) (z Uint64x4)
 
 /* NotEqual */
 

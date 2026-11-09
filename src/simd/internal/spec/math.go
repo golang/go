@@ -306,6 +306,29 @@ func MulWidenLo[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec
 	return z
 }
 
+// TODO: Should this just be a peephole with some fixed permute? E.g.,
+// x.EvenToLo().MulWidenLo(y.EvenToLo())?
+
+// MulWidenEven multiplies corresponding even-indexed elements of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[2*i]) * {{.zE}}(y[2*i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+//specgen:experiment
+func MulWidenEven[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	for i := range z {
+		z[i] = zE(x[2*i]) * zE(y[2*i])
+	}
+	return z
+}
+
 // MulWidenHi multiplies corresponding elements in the upper half of x and y,
 // returning a vector of half as many elements, each with twice the input
 // element size.
