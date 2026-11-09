@@ -697,6 +697,14 @@ var oprr = map[obj.As]uint32{
 	AXVSETALLNEH: 0x1da72d<<10 | 0x0<<3, // xvsetallnez.h
 	AXVSETALLNEW: 0x1da72e<<10 | 0x0<<3, // xvsetallnez.w
 	AXVSETALLNEV: 0x1da72f<<10 | 0x0<<3, // xvsetallnez.d
+	AVMSKLTZB:    0x1ca710 << 10,        // vmskltz.b
+	AVMSKLTZH:    0x1ca711 << 10,        // vmskltz.h
+	AVMSKLTZW:    0x1ca712 << 10,        // vmskltz.w
+	AVMSKLTZV:    0x1ca713 << 10,        // vmskltz.d
+	AXVMSKLTZB:   0x1da710 << 10,        // xvmskltz.b
+	AXVMSKLTZH:   0x1da711 << 10,        // xvmskltz.h
+	AXVMSKLTZW:   0x1da712 << 10,        // xvmskltz.w
+	AXVMSKLTZV:   0x1da713 << 10,        // xvmskltz.d
 }
 
 var opi = map[obj.As]uint32{

@@ -2046,6 +2046,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AVFRINTD, r0)
 			opset(AVFCLASSF, r0)
 			opset(AVFCLASSD, r0)
+			opset(AVMSKLTZB, r0)
+			opset(AVMSKLTZH, r0)
+			opset(AVMSKLTZW, r0)
+			opset(AVMSKLTZV, r0)
 
 		// xvpcnt.b xd, xj
 		case AXVPCNTB:
@@ -2074,6 +2078,10 @@ func buildop(ctxt *obj.Link) {
 			opset(AXVFRINTD, r0)
 			opset(AXVFCLASSF, r0)
 			opset(AXVFCLASSD, r0)
+			opset(AXVMSKLTZB, r0)
+			opset(AXVMSKLTZH, r0)
+			opset(AXVMSKLTZW, r0)
+			opset(AXVMSKLTZV, r0)
 
 		// vsll.b vd, vj, vk
 		// vslli.b vd, vj, ui3
