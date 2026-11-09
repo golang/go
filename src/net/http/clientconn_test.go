@@ -118,7 +118,9 @@ func newClientConnTest(t testing.TB, mode testMode, h http.HandlerFunc, opts ...
 
 // TestClientConnReserveAll reserves every concurrency slot on a connection.
 func TestClientConnReserveAll(t *testing.T) {
-	runSynctest(t, testClientConnReserveAll, http3SkippedMode)
+	// HTTP/3 ClientConn.Available is intentionally unbounded, unlike HTTP/1
+	// and HTTP/2.
+	runSynctest(t, testClientConnReserveAll, testSkipMode{http3Mode})
 }
 func testClientConnReserveAll(t *testing.T, mode testMode) {
 	cst, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
@@ -159,7 +161,7 @@ func testClientConnReserveAll(t *testing.T, mode testMode) {
 // TestClientConnReserveParallel starts concurrent goroutines which reserve every
 // concurrency slot on a connection.
 func TestClientConnReserveParallel(t *testing.T) {
-	runSynctest(t, testClientConnReserveParallel, http3SkippedMode)
+	runSynctest(t, testClientConnReserveParallel, testSkipMode{http3Mode})
 }
 func testClientConnReserveParallel(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
@@ -199,7 +201,7 @@ func testClientConnReserveParallel(t *testing.T, mode testMode) {
 
 // TestClientConnReserveRelease repeatedly reserves and releases concurrency slots.
 func TestClientConnReserveRelease(t *testing.T) {
-	runSynctest(t, testClientConnReserveRelease, http3SkippedMode)
+	runSynctest(t, testClientConnReserveRelease, testSkipMode{http3Mode})
 }
 func testClientConnReserveRelease(t *testing.T, mode testMode) {
 	_, cc := newClientConnTest(t, mode, nil, func(s *http.Server) {
@@ -373,7 +375,7 @@ func TestClientConnReserveAndConsume(t *testing.T) {
 // TestClientConnRoundTripBlocks verifies that RoundTrip blocks until a concurrency
 // slot is available on a connection.
 func TestClientConnRoundTripBlocks(t *testing.T) {
-	runSynctest(t, testClientConnRoundTripBlocks, http3SkippedMode)
+	runSynctest(t, testClientConnRoundTripBlocks, testSkipMode{http3Mode})
 }
 func testClientConnRoundTripBlocks(t *testing.T, mode testMode) {
 	var handlerCalls atomic.Int64
