@@ -6535,15 +6535,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpSetLoUint8x32(v)
 	case ssaop.OpSetLoUint8x64:
 		return rewriteValue_OpSetLoUint8x64(v)
-	case ssaop.OpShiftAllLeftConcatMod16Int16x16:
-		v.Op = ssaop.OpAMD64VPSHLDW256
-		return true
-	case ssaop.OpShiftAllLeftConcatMod16Int16x32:
-		v.Op = ssaop.OpAMD64VPSHLDW512
-		return true
-	case ssaop.OpShiftAllLeftConcatMod16Int16x8:
-		v.Op = ssaop.OpAMD64VPSHLDW128
-		return true
 	case ssaop.OpShiftAllLeftConcatMod16Uint16x16:
 		v.Op = ssaop.OpAMD64VPSHLDW256
 		return true
@@ -6553,15 +6544,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftAllLeftConcatMod16Uint16x8:
 		v.Op = ssaop.OpAMD64VPSHLDW128
 		return true
-	case ssaop.OpShiftAllLeftConcatMod32Int32x16:
-		v.Op = ssaop.OpAMD64VPSHLDD512
-		return true
-	case ssaop.OpShiftAllLeftConcatMod32Int32x4:
-		v.Op = ssaop.OpAMD64VPSHLDD128
-		return true
-	case ssaop.OpShiftAllLeftConcatMod32Int32x8:
-		v.Op = ssaop.OpAMD64VPSHLDD256
-		return true
 	case ssaop.OpShiftAllLeftConcatMod32Uint32x16:
 		v.Op = ssaop.OpAMD64VPSHLDD512
 		return true
@@ -6570,15 +6552,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpShiftAllLeftConcatMod32Uint32x8:
 		v.Op = ssaop.OpAMD64VPSHLDD256
-		return true
-	case ssaop.OpShiftAllLeftConcatMod64Int64x2:
-		v.Op = ssaop.OpAMD64VPSHLDQ128
-		return true
-	case ssaop.OpShiftAllLeftConcatMod64Int64x4:
-		v.Op = ssaop.OpAMD64VPSHLDQ256
-		return true
-	case ssaop.OpShiftAllLeftConcatMod64Int64x8:
-		v.Op = ssaop.OpAMD64VPSHLDQ512
 		return true
 	case ssaop.OpShiftAllLeftConcatMod64Uint64x2:
 		v.Op = ssaop.OpAMD64VPSHLDQ128
@@ -6643,15 +6616,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftAllLeftUint64x8:
 		v.Op = ssaop.OpAMD64VPSLLQ512
 		return true
-	case ssaop.OpShiftAllRightConcatMod16Int16x16:
-		v.Op = ssaop.OpAMD64VPSHRDW256
-		return true
-	case ssaop.OpShiftAllRightConcatMod16Int16x32:
-		v.Op = ssaop.OpAMD64VPSHRDW512
-		return true
-	case ssaop.OpShiftAllRightConcatMod16Int16x8:
-		v.Op = ssaop.OpAMD64VPSHRDW128
-		return true
 	case ssaop.OpShiftAllRightConcatMod16Uint16x16:
 		v.Op = ssaop.OpAMD64VPSHRDW256
 		return true
@@ -6661,15 +6625,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftAllRightConcatMod16Uint16x8:
 		v.Op = ssaop.OpAMD64VPSHRDW128
 		return true
-	case ssaop.OpShiftAllRightConcatMod32Int32x16:
-		v.Op = ssaop.OpAMD64VPSHRDD512
-		return true
-	case ssaop.OpShiftAllRightConcatMod32Int32x4:
-		v.Op = ssaop.OpAMD64VPSHRDD128
-		return true
-	case ssaop.OpShiftAllRightConcatMod32Int32x8:
-		v.Op = ssaop.OpAMD64VPSHRDD256
-		return true
 	case ssaop.OpShiftAllRightConcatMod32Uint32x16:
 		v.Op = ssaop.OpAMD64VPSHRDD512
 		return true
@@ -6678,15 +6633,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpShiftAllRightConcatMod32Uint32x8:
 		v.Op = ssaop.OpAMD64VPSHRDD256
-		return true
-	case ssaop.OpShiftAllRightConcatMod64Int64x2:
-		v.Op = ssaop.OpAMD64VPSHRDQ128
-		return true
-	case ssaop.OpShiftAllRightConcatMod64Int64x4:
-		v.Op = ssaop.OpAMD64VPSHRDQ256
-		return true
-	case ssaop.OpShiftAllRightConcatMod64Int64x8:
-		v.Op = ssaop.OpAMD64VPSHRDQ512
 		return true
 	case ssaop.OpShiftAllRightConcatMod64Uint64x2:
 		v.Op = ssaop.OpAMD64VPSHRDQ128
@@ -6745,15 +6691,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftAllRightUint64x8:
 		v.Op = ssaop.OpAMD64VPSRLQ512
 		return true
-	case ssaop.OpShiftLeftConcatMod16Int16x16:
-		v.Op = ssaop.OpAMD64VPSHLDVW256
-		return true
-	case ssaop.OpShiftLeftConcatMod16Int16x32:
-		v.Op = ssaop.OpAMD64VPSHLDVW512
-		return true
-	case ssaop.OpShiftLeftConcatMod16Int16x8:
-		v.Op = ssaop.OpAMD64VPSHLDVW128
-		return true
 	case ssaop.OpShiftLeftConcatMod16Uint16x16:
 		v.Op = ssaop.OpAMD64VPSHLDVW256
 		return true
@@ -6763,15 +6700,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftLeftConcatMod16Uint16x8:
 		v.Op = ssaop.OpAMD64VPSHLDVW128
 		return true
-	case ssaop.OpShiftLeftConcatMod32Int32x16:
-		v.Op = ssaop.OpAMD64VPSHLDVD512
-		return true
-	case ssaop.OpShiftLeftConcatMod32Int32x4:
-		v.Op = ssaop.OpAMD64VPSHLDVD128
-		return true
-	case ssaop.OpShiftLeftConcatMod32Int32x8:
-		v.Op = ssaop.OpAMD64VPSHLDVD256
-		return true
 	case ssaop.OpShiftLeftConcatMod32Uint32x16:
 		v.Op = ssaop.OpAMD64VPSHLDVD512
 		return true
@@ -6780,15 +6708,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpShiftLeftConcatMod32Uint32x8:
 		v.Op = ssaop.OpAMD64VPSHLDVD256
-		return true
-	case ssaop.OpShiftLeftConcatMod64Int64x2:
-		v.Op = ssaop.OpAMD64VPSHLDVQ128
-		return true
-	case ssaop.OpShiftLeftConcatMod64Int64x4:
-		v.Op = ssaop.OpAMD64VPSHLDVQ256
-		return true
-	case ssaop.OpShiftLeftConcatMod64Int64x8:
-		v.Op = ssaop.OpAMD64VPSHLDVQ512
 		return true
 	case ssaop.OpShiftLeftConcatMod64Uint64x2:
 		v.Op = ssaop.OpAMD64VPSHLDVQ128
@@ -6853,15 +6772,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftLeftUint64x8:
 		v.Op = ssaop.OpAMD64VPSLLVQ512
 		return true
-	case ssaop.OpShiftRightConcatMod16Int16x16:
-		v.Op = ssaop.OpAMD64VPSHRDVW256
-		return true
-	case ssaop.OpShiftRightConcatMod16Int16x32:
-		v.Op = ssaop.OpAMD64VPSHRDVW512
-		return true
-	case ssaop.OpShiftRightConcatMod16Int16x8:
-		v.Op = ssaop.OpAMD64VPSHRDVW128
-		return true
 	case ssaop.OpShiftRightConcatMod16Uint16x16:
 		v.Op = ssaop.OpAMD64VPSHRDVW256
 		return true
@@ -6871,15 +6781,6 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpShiftRightConcatMod16Uint16x8:
 		v.Op = ssaop.OpAMD64VPSHRDVW128
 		return true
-	case ssaop.OpShiftRightConcatMod32Int32x16:
-		v.Op = ssaop.OpAMD64VPSHRDVD512
-		return true
-	case ssaop.OpShiftRightConcatMod32Int32x4:
-		v.Op = ssaop.OpAMD64VPSHRDVD128
-		return true
-	case ssaop.OpShiftRightConcatMod32Int32x8:
-		v.Op = ssaop.OpAMD64VPSHRDVD256
-		return true
 	case ssaop.OpShiftRightConcatMod32Uint32x16:
 		v.Op = ssaop.OpAMD64VPSHRDVD512
 		return true
@@ -6888,15 +6789,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpShiftRightConcatMod32Uint32x8:
 		v.Op = ssaop.OpAMD64VPSHRDVD256
-		return true
-	case ssaop.OpShiftRightConcatMod64Int64x2:
-		v.Op = ssaop.OpAMD64VPSHRDVQ128
-		return true
-	case ssaop.OpShiftRightConcatMod64Int64x4:
-		v.Op = ssaop.OpAMD64VPSHRDVQ256
-		return true
-	case ssaop.OpShiftRightConcatMod64Int64x8:
-		v.Op = ssaop.OpAMD64VPSHRDVQ512
 		return true
 	case ssaop.OpShiftRightConcatMod64Uint64x2:
 		v.Op = ssaop.OpAMD64VPSHRDVQ128

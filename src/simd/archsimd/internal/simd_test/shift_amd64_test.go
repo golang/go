@@ -136,55 +136,27 @@ func TestShiftAllConcat(t *testing.T) {
 	hide := hideConst[uint64]
 
 	// ShiftAllLeftConcat
-	salc := func(shift uint64) func(x, y int32) int32 {
-		return func(x, y int32) int32 {
-			return int32(concatInt32s(x, y) >> (32 - shift%32))
+	salc := func(shift uint64) func(x, y uint32) uint32 {
+		return func(x, y uint32) uint32 {
+			return uint32(concatUint32s(x, y) >> (32 - shift%32))
 		}
 	}
 
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, 2) },
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllLeftConcatMod32(y, 2) },
 		map2(salc(2)))
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(2)) },
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllLeftConcatMod32(y, hide(2)) },
 		map2(salc(hide(2))))
 
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, 128) },
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllLeftConcatMod32(y, 128) },
 		map2(salc(128)))
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllLeftConcatMod32(y, hide(128)) },
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllLeftConcatMod32(y, hide(128)) },
 		map2(salc(hide(128))))
 
-	// Signed ShiftAllRightConcat
-	sarc := func(shift uint64) func(x, y int32) int32 {
-		return func(x, y int32) int32 {
-			return int32(concatInt32s(y, x) >> (shift % 32))
-		}
-	}
-
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 2) },
-		map2(sarc(2)))
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(2)) },
-		map2(sarc(hide(2))))
-
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 128) },
-		map2(sarc(128)))
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
-		map2(sarc(hide(128))))
-
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, 256) },
-		map2(sarc(256)))
-	testInt32x4Binary(t,
-		func(x, y archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftAllRightConcatMod32(y, hide(256)) },
-		map2(sarc(hide(256))))
-
-	// Unsigned ShiftAllRightConcat
+	// ShiftAllRightConcat
 	usarc := func(shift uint64) func(x, y uint32) uint32 {
 		return func(x, y uint32) uint32 {
 			return uint32(concatUint32s(y, x) >> (shift % 32))
@@ -204,6 +176,13 @@ func TestShiftAllConcat(t *testing.T) {
 	testUint32x4Binary(t,
 		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, hide(128)) },
 		map2(usarc(hide(128))))
+
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, 256) },
+		map2(usarc(256)))
+	testUint32x4Binary(t,
+		func(x, y archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftAllRightConcatMod32(y, hide(256)) },
+		map2(usarc(hide(256))))
 }
 
 func TestShiftConcat(t *testing.T) {
@@ -213,16 +192,10 @@ func TestShiftConcat(t *testing.T) {
 
 	// Note that unlike their non-Concat counterparts, these wrap the shift count.
 
-	testInt32x4Ternary(t,
-		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftLeftConcatMod32(y, z.AsUint32x4()) },
-		map3(func(x, y, z int32) int32 {
-			return int32(concatInt32s(x, y) >> (32 - uint32(z)%32))
-		}))
-
-	testInt32x4Ternary(t,
-		func(x, y, z archsimd.Int32x4) archsimd.Int32x4 { return x.ShiftRightConcatMod32(y, z.AsUint32x4()) },
-		map3(func(x, y, z int32) int32 {
-			return int32(concatInt32s(y, x) >> (uint32(z) % 32))
+	testUint32x4Ternary(t,
+		func(x, y, z archsimd.Uint32x4) archsimd.Uint32x4 { return x.ShiftLeftConcatMod32(y, z) },
+		map3(func(x, y, z uint32) uint32 {
+			return uint32(concatUint32s(x, y) >> (32 - z%32))
 		}))
 
 	testUint32x4Ternary(t,

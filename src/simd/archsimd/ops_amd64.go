@@ -8935,189 +8935,126 @@ func (x Uint64x8) ShiftAllLeft(shift uint64) (z Uint64x8)
 
 /* ShiftAllLeftConcatMod16 */
 
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 16
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]<<s | y[i]>>(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllLeftConcatMod16(y Int16x8, shift uint64) Int16x8
+func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint64) (z Uint16x8)
 
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 16
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]<<s | y[i]>>(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllLeftConcatMod16(y Int16x16, shift uint64) Int16x16
+func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint64) (z Uint16x16)
 
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 16
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllLeftConcatMod16(y Int16x32, shift uint64) Int16x32
-
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]<<s | y[i]>>(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllLeftConcatMod16(y Uint16x8, shift uint64) Uint16x8
-
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllLeftConcatMod16(y Uint16x16, shift uint64) Uint16x16
-
-// ShiftAllLeftConcatMod16 shifts x[i] left by shift%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint64) Uint16x32
+func (x Uint16x32) ShiftAllLeftConcatMod16(y Uint16x32, shift uint64) (z Uint16x32)
 
 /* ShiftAllLeftConcatMod32 */
 
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 32
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]<<s | y[i]>>(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllLeftConcatMod32(y Int32x4, shift uint64) Int32x4
+func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint64) (z Uint32x4)
 
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 32
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]<<s | y[i]>>(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllLeftConcatMod32(y Int32x8, shift uint64) Int32x8
+func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint64) (z Uint32x8)
 
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 32
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllLeftConcatMod32(y Int32x16, shift uint64) Int32x16
-
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]<<s | y[i]>>(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllLeftConcatMod32(y Uint32x4, shift uint64) Uint32x4
-
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllLeftConcatMod32(y Uint32x8, shift uint64) Uint32x8
-
-// ShiftAllLeftConcatMod32 shifts x[i] left by shift%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint64) Uint32x16
+func (x Uint32x16) ShiftAllLeftConcatMod32(y Uint32x16, shift uint64) (z Uint32x16)
 
 /* ShiftAllLeftConcatMod64 */
 
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 64
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]<<s | y[i]>>(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllLeftConcatMod64(y Int64x2, shift uint64) Int64x2
+func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint64) (z Uint64x2)
 
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 64
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]<<s | y[i]>>(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllLeftConcatMod64(y Int64x4, shift uint64) Int64x4
+func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint64) (z Uint64x4)
 
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filling the emptied
+// low bits with the high bits of y[i]. That is, it shifts the double-width
+// concatenation of x[i] (high) and y[i] (low) left and keeps the high 64
+// bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllLeftConcatMod64(y Int64x8, shift uint64) Int64x8
-
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]<<s | y[i]>>(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllLeftConcatMod64(y Uint64x2, shift uint64) Uint64x2
-
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllLeftConcatMod64(y Uint64x4, shift uint64) Uint64x4
-
-// ShiftAllLeftConcatMod64 shifts x[i] left by shift%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHLDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) Uint64x8
+func (x Uint64x8) ShiftAllLeftConcatMod64(y Uint64x8, shift uint64) (z Uint64x8)
 
 /* ShiftAllRight */
 
@@ -9267,189 +9204,126 @@ func (x Uint64x8) ShiftAllRight(shift uint64) (z Uint64x8)
 
 /* ShiftAllRightConcatMod16 */
 
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]>>s | y[i]<<(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftAllRightConcatMod16(y Int16x8, shift uint64) Int16x8
+func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint64) (z Uint16x8)
 
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]>>s | y[i]<<(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftAllRightConcatMod16(y Int16x16, shift uint64) Int16x16
+func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint64) (z Uint16x16)
 
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftAllRightConcatMod16(y Int16x32, shift uint64) Int16x32
-
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
+//	s = shift % 16
+//	z[i] = x[i]>>s | y[i]<<(16-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftAllRightConcatMod16(y Uint16x8, shift uint64) Uint16x8
-
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftAllRightConcatMod16(y Uint16x16, shift uint64) Uint16x16
-
-// ShiftAllRightConcatMod16 shifts x[i] right by shift%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%16)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint64) Uint16x32
+func (x Uint16x32) ShiftAllRightConcatMod16(y Uint16x32, shift uint64) (z Uint16x32)
 
 /* ShiftAllRightConcatMod32 */
 
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]>>s | y[i]<<(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftAllRightConcatMod32(y Int32x4, shift uint64) Int32x4
+func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint64) (z Uint32x4)
 
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]>>s | y[i]<<(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftAllRightConcatMod32(y Int32x8, shift uint64) Int32x8
+func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint64) (z Uint32x8)
 
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftAllRightConcatMod32(y Int32x16, shift uint64) Int32x16
-
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
+//	s = shift % 32
+//	z[i] = x[i]>>s | y[i]<<(32-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftAllRightConcatMod32(y Uint32x4, shift uint64) Uint32x4
-
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftAllRightConcatMod32(y Uint32x8, shift uint64) Uint32x8
-
-// ShiftAllRightConcatMod32 shifts x[i] right by shift%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%32)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint64) Uint32x16
+func (x Uint32x16) ShiftAllRightConcatMod32(y Uint32x16, shift uint64) (z Uint32x16)
 
 /* ShiftAllRightConcatMod64 */
 
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]>>s | y[i]<<(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftAllRightConcatMod64(y Int64x2, shift uint64) Int64x2
+func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint64) (z Uint64x2)
 
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]>>s | y[i]<<(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftAllRightConcatMod64(y Int64x4, shift uint64) Int64x4
+func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint64) (z Uint64x4)
 
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftAllRightConcatMod64(y Int64x8, shift uint64) Int64x8
-
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
+//	s = shift % 64
+//	z[i] = x[i]>>s | y[i]<<(64-s)
 //
 // Performance: A non-constant value of shift may result in significantly worse performance for this operation.
 //
 // Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftAllRightConcatMod64(y Uint64x2, shift uint64) Uint64x2
-
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftAllRightConcatMod64(y Uint64x4, shift uint64) Uint64x4
-
-// ShiftAllRightConcatMod64 shifts x[i] right by shift%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift%64)
-//
-// Performance: A non-constant value of shift may result in significantly worse performance for this operation.
-//
-// Asm: VPSHRDQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) Uint64x8
+func (x Uint64x8) ShiftAllRightConcatMod64(y Uint64x8, shift uint64) (z Uint64x8)
 
 /* ShiftLeft */
 
@@ -9617,153 +9491,108 @@ func (x Uint64x8) ShiftLeft(shift Uint64x8) (z Uint64x8)
 
 /* ShiftLeftConcatMod16 */
 
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 16 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]<<s[i] | y[i]>>(16-s[i])
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftLeftConcatMod16(y Int16x8, shift Uint16x8) Int16x8
+func (x Uint16x8) ShiftLeftConcatMod16(y Uint16x8, shift Uint16x8) (z Uint16x8)
 
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 16 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]<<s[i] | y[i]>>(16-s[i])
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftLeftConcatMod16(y Int16x16, shift Uint16x16) Int16x16
+func (x Uint16x16) ShiftLeftConcatMod16(y Uint16x16, shift Uint16x16) (z Uint16x16)
 
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 16 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
-//
-// Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftLeftConcatMod16(y Int16x32, shift Uint16x32) Int16x32
-
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]<<s[i] | y[i]>>(16-s[i])
 //
 // Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftLeftConcatMod16(y Uint16x8, shift Uint16x8) Uint16x8
-
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
-//
-// Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftLeftConcatMod16(y Uint16x16, shift Uint16x16) Uint16x16
-
-// ShiftLeftConcatMod16 shifts x[i] left by shift[i]%16, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%16)
-//
-// Asm: VPSHLDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftLeftConcatMod16(y Uint16x32, shift Uint16x32) Uint16x32
+func (x Uint16x32) ShiftLeftConcatMod16(y Uint16x32, shift Uint16x32) (z Uint16x32)
 
 /* ShiftLeftConcatMod32 */
 
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 32 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]<<s[i] | y[i]>>(32-s[i])
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftLeftConcatMod32(y Int32x4, shift Uint32x4) Int32x4
+func (x Uint32x4) ShiftLeftConcatMod32(y Uint32x4, shift Uint32x4) (z Uint32x4)
 
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 32 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]<<s[i] | y[i]>>(32-s[i])
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftLeftConcatMod32(y Int32x8, shift Uint32x8) Int32x8
+func (x Uint32x8) ShiftLeftConcatMod32(y Uint32x8, shift Uint32x8) (z Uint32x8)
 
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 32 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftLeftConcatMod32(y Int32x16, shift Uint32x16) Int32x16
-
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]<<s[i] | y[i]>>(32-s[i])
 //
 // Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftLeftConcatMod32(y Uint32x4, shift Uint32x4) Uint32x4
-
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftLeftConcatMod32(y Uint32x8, shift Uint32x8) Uint32x8
-
-// ShiftLeftConcatMod32 shifts x[i] left by shift[i]%32, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%32)
-//
-// Asm: VPSHLDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftLeftConcatMod32(y Uint32x16, shift Uint32x16) Uint32x16
+func (x Uint32x16) ShiftLeftConcatMod32(y Uint32x16, shift Uint32x16) (z Uint32x16)
 
 /* ShiftLeftConcatMod64 */
 
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 64 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]<<s[i] | y[i]>>(64-s[i])
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftLeftConcatMod64(y Int64x2, shift Uint64x2) Int64x2
+func (x Uint64x2) ShiftLeftConcatMod64(y Uint64x2, shift Uint64x2) (z Uint64x2)
 
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 64 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]<<s[i] | y[i]>>(64-s[i])
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftLeftConcatMod64(y Int64x4, shift Uint64x4) Int64x4
+func (x Uint64x4) ShiftLeftConcatMod64(y Uint64x4, shift Uint64x4) (z Uint64x4)
 
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
+// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filling the
+// emptied low bits with the high bits of y[i]. That is, it shifts the
+// double-width concatenation of x[i] (high) and y[i] (low) left and keeps the
+// high 64 bits.
 //
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftLeftConcatMod64(y Int64x8, shift Uint64x8) Int64x8
-
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]<<s[i] | y[i]>>(64-s[i])
 //
 // Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftLeftConcatMod64(y Uint64x2, shift Uint64x2) Uint64x2
-
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftLeftConcatMod64(y Uint64x4, shift Uint64x4) Uint64x4
-
-// ShiftLeftConcatMod64 shifts x[i] left by shift[i]%64, filing any empted lower bits
-// with the high bits of y[i].
-//
-//	z[i] = concat(x[i], y[i]) << (shift[i]%64)
-//
-// Asm: VPSHLDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftLeftConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
+func (x Uint64x8) ShiftLeftConcatMod64(y Uint64x8, shift Uint64x8) (z Uint64x8)
 
 /* ShiftRight */
 
@@ -9931,153 +9760,108 @@ func (x Uint64x8) ShiftRight(shift Uint64x8) (z Uint64x8)
 
 /* ShiftRightConcatMod16 */
 
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]>>s[i] | y[i]<<(16-s[i])
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x8) ShiftRightConcatMod16(y Int16x8, shift Uint16x8) Int16x8
+func (x Uint16x8) ShiftRightConcatMod16(y Uint16x8, shift Uint16x8) (z Uint16x8)
 
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]>>s[i] | y[i]<<(16-s[i])
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x16) ShiftRightConcatMod16(y Int16x16, shift Uint16x16) Int16x16
+func (x Uint16x16) ShiftRightConcatMod16(y Uint16x16, shift Uint16x16) (z Uint16x16)
 
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 16 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
-//
-// Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Int16x32) ShiftRightConcatMod16(y Int16x32, shift Uint16x32) Int16x32
-
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
+//	s[i] = shift[i] % 16
+//	z[i] = x[i]>>s[i] | y[i]<<(16-s[i])
 //
 // Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x8) ShiftRightConcatMod16(y Uint16x8, shift Uint16x8) Uint16x8
-
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
-//
-// Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x16) ShiftRightConcatMod16(y Uint16x16, shift Uint16x16) Uint16x16
-
-// ShiftRightConcatMod16 shifts x[i] right by shift[i]%16, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%16)
-//
-// Asm: VPSHRDVW, CPU Feature: AVX512VBMI2
-func (x Uint16x32) ShiftRightConcatMod16(y Uint16x32, shift Uint16x32) Uint16x32
+func (x Uint16x32) ShiftRightConcatMod16(y Uint16x32, shift Uint16x32) (z Uint16x32)
 
 /* ShiftRightConcatMod32 */
 
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]>>s[i] | y[i]<<(32-s[i])
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x4) ShiftRightConcatMod32(y Int32x4, shift Uint32x4) Int32x4
+func (x Uint32x4) ShiftRightConcatMod32(y Uint32x4, shift Uint32x4) (z Uint32x4)
 
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]>>s[i] | y[i]<<(32-s[i])
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x8) ShiftRightConcatMod32(y Int32x8, shift Uint32x8) Int32x8
+func (x Uint32x8) ShiftRightConcatMod32(y Uint32x8, shift Uint32x8) (z Uint32x8)
 
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 32 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Int32x16) ShiftRightConcatMod32(y Int32x16, shift Uint32x16) Int32x16
-
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
+//	s[i] = shift[i] % 32
+//	z[i] = x[i]>>s[i] | y[i]<<(32-s[i])
 //
 // Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x4) ShiftRightConcatMod32(y Uint32x4, shift Uint32x4) Uint32x4
-
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x8) ShiftRightConcatMod32(y Uint32x8, shift Uint32x8) Uint32x8
-
-// ShiftRightConcatMod32 shifts x[i] right by shift[i]%32, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%32)
-//
-// Asm: VPSHRDVD, CPU Feature: AVX512VBMI2
-func (x Uint32x16) ShiftRightConcatMod32(y Uint32x16, shift Uint32x16) Uint32x16
+func (x Uint32x16) ShiftRightConcatMod32(y Uint32x16, shift Uint32x16) (z Uint32x16)
 
 /* ShiftRightConcatMod64 */
 
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]>>s[i] | y[i]<<(64-s[i])
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x2) ShiftRightConcatMod64(y Int64x2, shift Uint64x2) Int64x2
+func (x Uint64x2) ShiftRightConcatMod64(y Uint64x2, shift Uint64x2) (z Uint64x2)
 
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]>>s[i] | y[i]<<(64-s[i])
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x4) ShiftRightConcatMod64(y Int64x4, shift Uint64x4) Int64x4
+func (x Uint64x4) ShiftRightConcatMod64(y Uint64x4, shift Uint64x4) (z Uint64x4)
 
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
+// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling the
+// emptied high bits with the low bits of y[i]. That is, it shifts the
+// double-width concatenation of y[i] (high) and x[i] (low) right and keeps the
+// low 64 bits.
 //
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Int64x8) ShiftRightConcatMod64(y Int64x8, shift Uint64x8) Int64x8
-
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
+//	s[i] = shift[i] % 64
+//	z[i] = x[i]>>s[i] | y[i]<<(64-s[i])
 //
 // Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x2) ShiftRightConcatMod64(y Uint64x2, shift Uint64x2) Uint64x2
-
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x4) ShiftRightConcatMod64(y Uint64x4, shift Uint64x4) Uint64x4
-
-// ShiftRightConcatMod64 shifts x[i] right by shift[i]%64, filling any emptied upper bits
-// with the low bits of y[i].
-//
-//	z[i] = concat(y[i], x[i]) >> (shift[i]%64)
-//
-// Asm: VPSHRDVQ, CPU Feature: AVX512VBMI2
-func (x Uint64x8) ShiftRightConcatMod64(y Uint64x8, shift Uint64x8) Uint64x8
+func (x Uint64x8) ShiftRightConcatMod64(y Uint64x8, shift Uint64x8) (z Uint64x8)
 
 /* Sqrt */
 

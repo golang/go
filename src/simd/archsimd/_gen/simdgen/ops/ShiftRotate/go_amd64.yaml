@@ -221,117 +221,117 @@
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftAllRightConcatMod16
   nameAndSizeCheck: true
   asm: "VPSHRDW"
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftLeftConcatMod16
   nameAndSizeCheck: true
   asm: "VPSHLDVW"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint
 - go: ShiftRightConcatMod16
   nameAndSizeCheck: true
   asm: "VPSHRDVW"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint
 - go: ShiftAllLeftConcatMod32
   nameAndSizeCheck: true
   asm: "VPSHLDD"
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftAllRightConcatMod32
   nameAndSizeCheck: true
   asm: "VPSHRDD"
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftLeftConcatMod32
   nameAndSizeCheck: true
   asm: "VPSHLDVD"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint
 - go: ShiftRightConcatMod32
   nameAndSizeCheck: true
   asm: "VPSHRDVD"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint
 - go: ShiftAllLeftConcatMod64
   nameAndSizeCheck: true
   asm: "VPSHLDQ"
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftAllRightConcatMod64
   nameAndSizeCheck: true
   asm: "VPSHRDQ"
   operandOrder: 2I
   in:
   - *pureImm
-  - *any
-  - *any
+  - *uint
+  - *uint
   out:
-  - *any
+  - *uint
 - go: ShiftLeftConcatMod64
   nameAndSizeCheck: true
   asm: "VPSHLDVQ"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint
 - go: ShiftRightConcatMod64
   nameAndSizeCheck: true
   asm: "VPSHRDVQ"
   in:
-  - go: $t
-  - go: $t
+  - *uint
+  - *uint
   - base: uint
     name: shift
   out:
-  - go: $t
+  - *uint

@@ -8881,21 +8881,12 @@ const (
 	OpSetLoUint64x8
 	OpSetLoUint8x32
 	OpSetLoUint8x64
-	OpShiftAllLeftConcatMod16Int16x16
-	OpShiftAllLeftConcatMod16Int16x32
-	OpShiftAllLeftConcatMod16Int16x8
 	OpShiftAllLeftConcatMod16Uint16x16
 	OpShiftAllLeftConcatMod16Uint16x32
 	OpShiftAllLeftConcatMod16Uint16x8
-	OpShiftAllLeftConcatMod32Int32x16
-	OpShiftAllLeftConcatMod32Int32x4
-	OpShiftAllLeftConcatMod32Int32x8
 	OpShiftAllLeftConcatMod32Uint32x16
 	OpShiftAllLeftConcatMod32Uint32x4
 	OpShiftAllLeftConcatMod32Uint32x8
-	OpShiftAllLeftConcatMod64Int64x2
-	OpShiftAllLeftConcatMod64Int64x4
-	OpShiftAllLeftConcatMod64Int64x8
 	OpShiftAllLeftConcatMod64Uint64x2
 	OpShiftAllLeftConcatMod64Uint64x4
 	OpShiftAllLeftConcatMod64Uint64x8
@@ -8927,21 +8918,12 @@ const (
 	OpShiftAllLeftUint64x8
 	OpShiftAllLeftUint8s
 	OpShiftAllLeftUint8x16
-	OpShiftAllRightConcatMod16Int16x16
-	OpShiftAllRightConcatMod16Int16x32
-	OpShiftAllRightConcatMod16Int16x8
 	OpShiftAllRightConcatMod16Uint16x16
 	OpShiftAllRightConcatMod16Uint16x32
 	OpShiftAllRightConcatMod16Uint16x8
-	OpShiftAllRightConcatMod32Int32x16
-	OpShiftAllRightConcatMod32Int32x4
-	OpShiftAllRightConcatMod32Int32x8
 	OpShiftAllRightConcatMod32Uint32x16
 	OpShiftAllRightConcatMod32Uint32x4
 	OpShiftAllRightConcatMod32Uint32x8
-	OpShiftAllRightConcatMod64Int64x2
-	OpShiftAllRightConcatMod64Int64x4
-	OpShiftAllRightConcatMod64Int64x8
 	OpShiftAllRightConcatMod64Uint64x2
 	OpShiftAllRightConcatMod64Uint64x4
 	OpShiftAllRightConcatMod64Uint64x8
@@ -8964,21 +8946,12 @@ const (
 	OpShiftAllRightUint64x4
 	OpShiftAllRightUint64x8
 	OpShiftAllRightUint8x16
-	OpShiftLeftConcatMod16Int16x16
-	OpShiftLeftConcatMod16Int16x32
-	OpShiftLeftConcatMod16Int16x8
 	OpShiftLeftConcatMod16Uint16x16
 	OpShiftLeftConcatMod16Uint16x32
 	OpShiftLeftConcatMod16Uint16x8
-	OpShiftLeftConcatMod32Int32x16
-	OpShiftLeftConcatMod32Int32x4
-	OpShiftLeftConcatMod32Int32x8
 	OpShiftLeftConcatMod32Uint32x16
 	OpShiftLeftConcatMod32Uint32x4
 	OpShiftLeftConcatMod32Uint32x8
-	OpShiftLeftConcatMod64Int64x2
-	OpShiftLeftConcatMod64Int64x4
-	OpShiftLeftConcatMod64Int64x8
 	OpShiftLeftConcatMod64Uint64x2
 	OpShiftLeftConcatMod64Uint64x4
 	OpShiftLeftConcatMod64Uint64x8
@@ -9000,21 +8973,12 @@ const (
 	OpShiftLeftUint64x2
 	OpShiftLeftUint64x4
 	OpShiftLeftUint64x8
-	OpShiftRightConcatMod16Int16x16
-	OpShiftRightConcatMod16Int16x32
-	OpShiftRightConcatMod16Int16x8
 	OpShiftRightConcatMod16Uint16x16
 	OpShiftRightConcatMod16Uint16x32
 	OpShiftRightConcatMod16Uint16x8
-	OpShiftRightConcatMod32Int32x16
-	OpShiftRightConcatMod32Int32x4
-	OpShiftRightConcatMod32Int32x8
 	OpShiftRightConcatMod32Uint32x16
 	OpShiftRightConcatMod32Uint32x4
 	OpShiftRightConcatMod32Uint32x8
-	OpShiftRightConcatMod64Int64x2
-	OpShiftRightConcatMod64Int64x4
-	OpShiftRightConcatMod64Int64x8
 	OpShiftRightConcatMod64Uint64x2
 	OpShiftRightConcatMod64Uint64x4
 	OpShiftRightConcatMod64Uint64x8
@@ -128309,24 +128273,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftAllLeftConcatMod16Int16x16",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod16Int16x32",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod16Int16x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftAllLeftConcatMod16Uint16x16",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -128345,24 +128291,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftAllLeftConcatMod32Int32x16",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod32Int32x4",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod32Int32x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftAllLeftConcatMod32Uint32x16",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -128376,24 +128304,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftAllLeftConcatMod32Uint32x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod64Int64x2",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod64Int64x4",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllLeftConcatMod64Int64x8",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
 		Generic: true,
@@ -128557,24 +128467,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftAllRightConcatMod16Int16x16",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod16Int16x32",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod16Int16x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftAllRightConcatMod16Uint16x16",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -128593,24 +128485,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftAllRightConcatMod32Int32x16",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod32Int32x4",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod32Int32x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftAllRightConcatMod32Uint32x16",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
@@ -128624,24 +128498,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftAllRightConcatMod32Uint32x8",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod64Int64x2",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod64Int64x4",
-		AuxType: AuxTypeUInt8,
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightConcatMod64Int64x8",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
 		Generic: true,
@@ -128760,21 +128616,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftLeftConcatMod16Int16x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod16Int16x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod16Int16x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftLeftConcatMod16Uint16x16",
 		ArgLen:  3,
 		Generic: true,
@@ -128790,21 +128631,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftLeftConcatMod32Int32x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod32Int32x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod32Int32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftLeftConcatMod32Uint32x16",
 		ArgLen:  3,
 		Generic: true,
@@ -128816,21 +128642,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftLeftConcatMod32Uint32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod64Int64x2",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod64Int64x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftLeftConcatMod64Int64x8",
 		ArgLen:  3,
 		Generic: true,
 	},
@@ -128940,21 +128751,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftRightConcatMod16Int16x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod16Int16x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod16Int16x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftRightConcatMod16Uint16x16",
 		ArgLen:  3,
 		Generic: true,
@@ -128970,21 +128766,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "ShiftRightConcatMod32Int32x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod32Int32x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod32Int32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
 		Name:    "ShiftRightConcatMod32Uint32x16",
 		ArgLen:  3,
 		Generic: true,
@@ -128996,21 +128777,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftRightConcatMod32Uint32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod64Int64x2",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod64Int64x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftRightConcatMod64Int64x8",
 		ArgLen:  3,
 		Generic: true,
 	},
