@@ -137,3 +137,46 @@ func First[E MaskElt, W Width](x Vec[E, W]) (z Vec[E, W]) {
 	}
 	return z
 }
+// Next returns a one-hot mask with the lowest true element of x that is above
+// the highest true element of cursor, or an all-false mask if there is no such
+// element. If cursor has no true elements, it returns a one-hot mask with the
+// first true element of x.
+//
+//	start := 0
+//	for i, c := range cursor {
+//		if c {
+//			start = i + 1
+//		}
+//	}
+//	for i := start; i < x.Len(); i++ {
+//		if x[i] {
+//			z[i] = true
+//			break
+//		}
+//	}
+//
+// Together with [First], this steps through the true elements of a mask one at
+// a time:
+//
+//	for cursor := x.First(); cursor.Any(); cursor = x.Next(cursor) {
+//		...
+//	}
+//
+//specgen:experiment
+func Next[E MaskElt, W Width](x, cursor Vec[E, W]) (z Vec[E, W]) {
+	// TODO: This is pretty SVE-specific. How does this compare with RVV?
+	start := 0
+	for i, c := range cursor {
+		if c != 0 {
+			start = i + 1
+		}
+	}
+	z = makeVec[E, W]()
+	for i := start; i < x.len(); i++ {
+		if x[i] != 0 {
+			z[i] = ^E(0)
+			break
+		}
+	}
+	return z
+}
