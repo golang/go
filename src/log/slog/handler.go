@@ -99,7 +99,7 @@ type defaultHandler struct {
 
 func newDefaultHandler(output func(uintptr, []byte) error) *defaultHandler {
 	return &defaultHandler{
-		ch:     &commonHandler{json: false},
+		ch:     &commonHandler{},
 		output: output,
 	}
 }
@@ -189,7 +189,10 @@ const (
 )
 
 type commonHandler struct {
-	json              bool // true => output JSON; false => output text
+	// appendJSONMarshal is non-nil if and only if this is a JSONHandler.
+	// Using a function pointer set only in NewJSONHandler (rather than a bool)
+	// lets the linker dead-code eliminate encoding/json when JSONHandler is unused.
+	appendJSONMarshal func(*buffer.Buffer, any) error
 	opts              HandlerOptions
 	preformattedAttrs []byte
 	// groupPrefix is for the text handler only.
@@ -203,9 +206,13 @@ type commonHandler struct {
 	w           io.Writer
 }
 
+func (h *commonHandler) json() bool {
+	return h.appendJSONMarshal != nil
+}
+
 func (h *commonHandler) clone() *commonHandler {
 	return &commonHandler{
-		json:              h.json,
+		appendJSONMarshal: h.appendJSONMarshal,
 		opts:              h.opts,
 		preformattedAttrs: slices.Clip(h.preformattedAttrs),
 		groupPrefix:       h.groupPrefix,
@@ -239,7 +246,7 @@ func (h *commonHandler) withAttrs(as []Attr) *commonHandler {
 	state.prefix.WriteString(h.groupPrefix)
 	if pfa := h2.preformattedAttrs; len(pfa) > 0 {
 		state.sep = h.attrSep()
-		if h2.json && pfa[len(pfa)-1] == '{' {
+		if h2.json() && pfa[len(pfa)-1] == '{' {
 			state.sep = ""
 		}
 	}
@@ -272,7 +279,7 @@ func (h *commonHandler) withGroup(name string) *commonHandler {
 func (h *commonHandler) handle(r Record) error {
 	state := h.newHandleState(buffer.New(), true, "")
 	defer state.free()
-	if h.json {
+	if h.json() {
 		state.buf.WriteByte('{')
 	}
 	// Built-in attributes. They are not in a group.
@@ -331,7 +338,7 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 		s.buf.WriteString(s.sep)
 		s.buf.Write(pfa)
 		s.sep = s.h.attrSep()
-		if s.h.json && pfa[len(pfa)-1] == '{' {
+		if s.h.json() && pfa[len(pfa)-1] == '{' {
 			s.sep = ""
 		}
 	}
@@ -360,7 +367,7 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 			nOpenGroups = s.h.nOpenGroups
 		}
 	}
-	if s.h.json {
+	if s.h.json() {
 		// Close all open groups.
 		for range s.h.groups[:nOpenGroups] {
 			s.buf.WriteByte('}')
@@ -372,7 +379,7 @@ func (s *handleState) appendNonBuiltIns(r Record) {
 
 // attrSep returns the separator between attributes.
 func (h *commonHandler) attrSep() string {
-	if h.json {
+	if h.json() {
 		return ","
 	}
 	return " "
@@ -433,7 +440,7 @@ const keyComponentSep = '.'
 // openGroup starts a new group of attributes
 // with the given name.
 func (s *handleState) openGroup(name string) {
-	if s.h.json {
+	if s.h.json() {
 		s.appendKey(name)
 		s.buf.WriteByte('{')
 		s.sep = ""
@@ -449,7 +456,7 @@ func (s *handleState) openGroup(name string) {
 
 // closeGroup ends the group with the given name.
 func (s *handleState) closeGroup(name string) {
-	if s.h.json {
+	if s.h.json() {
 		s.buf.WriteByte('}')
 	} else {
 		(*s.prefix) = (*s.prefix)[:len(*s.prefix)-len(name)-1 /* for keyComponentSep */]
@@ -497,7 +504,7 @@ func (s *handleState) appendAttr(a Attr) bool {
 			if src.isEmpty() {
 				return false
 			}
-			if s.h.json {
+			if s.h.json() {
 				a.Value = src.group()
 			} else {
 				a.Value = StringValue(fmt.Sprintf("%s:%d", src.File, src.Line))
@@ -549,7 +556,7 @@ func (s *handleState) appendKey(key string) {
 	} else {
 		s.appendString(key)
 	}
-	if s.h.json {
+	if s.h.json() {
 		s.buf.WriteByte(':')
 	} else {
 		s.buf.WriteByte('=')
@@ -561,7 +568,7 @@ func (s *handleState) appendKey(key string) {
 func (s *handleState) appendTwoStrings(x, y string) {
 	buf := *s.buf
 	switch {
-	case s.h.json:
+	case s.h.json():
 		buf.WriteByte('"')
 		buf = appendEscapedJSONString(buf, x)
 		buf = appendEscapedJSONString(buf, y)
@@ -576,7 +583,7 @@ func (s *handleState) appendTwoStrings(x, y string) {
 }
 
 func (s *handleState) appendString(str string) {
-	if s.h.json {
+	if s.h.json() {
 		s.buf.WriteByte('"')
 		*s.buf = appendEscapedJSONString(*s.buf, str)
 		s.buf.WriteByte('"')
@@ -609,7 +616,7 @@ func (s *handleState) appendValue(v Value) {
 	}()
 
 	var err error
-	if s.h.json {
+	if s.h.json() {
 		err = appendJSONValue(s, v)
 	} else {
 		err = appendTextValue(s, v)
@@ -620,7 +627,7 @@ func (s *handleState) appendValue(v Value) {
 }
 
 func (s *handleState) appendTime(t time.Time) {
-	if s.h.json {
+	if s.h.json() {
 		appendJSONTime(s, t)
 	} else {
 		*s.buf = appendRFC3339Millis(*s.buf, t)

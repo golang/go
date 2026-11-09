@@ -170,7 +170,7 @@ func TestJSONAppendAttrValueSpecial(t *testing.T) {
 
 func jsonValueString(v Value) string {
 	var buf []byte
-	s := &handleState{h: &commonHandler{json: true}, buf: (*buffer.Buffer)(&buf)}
+	s := &handleState{h: &commonHandler{appendJSONMarshal: appendJSONMarshal}, buf: (*buffer.Buffer)(&buf)}
 	if err := appendJSONValue(s, v); err != nil {
 		s.appendError(err)
 	}
