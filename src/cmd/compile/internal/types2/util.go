@@ -88,15 +88,14 @@ func newIdent(pos syntax.Pos, name string) *syntax.Name {
 	return syntax.NewName(pos, name)
 }
 
-// If x represents an index expression, unpackIndexExpr returns the indexed expression and its indices.
-// Otherwise it returns (nil, nil).
-func unpackIndexExpr(x syntax.Expr) (indexed syntax.Expr, indices []syntax.Expr) {
+// If x represents an index expression, unpackIndexExpr returns the indexed expression
+// and, if unpackParams is set, its indices. If unpackParams is not set, indices is nil.
+// If x is not an index expression, unpackIndexExpr returns (nil, nil).
+func unpackIndexExpr(x syntax.Expr, unpackParams bool) (indexed syntax.Expr, indices []syntax.Expr) {
 	if ix, _ := x.(*syntax.IndexExpr); ix != nil {
 		indexed = ix.X
-		if l, _ := ix.Index.(*syntax.ListExpr); l != nil {
-			indices = l.ElemList
-		} else {
-			indices = []syntax.Expr{ix.Index}
+		if unpackParams {
+			indices = syntax.UnpackListExpr(ix.Index)
 		}
 	}
 	return

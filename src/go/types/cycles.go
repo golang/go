@@ -77,7 +77,7 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 		// end of the path and we're done.
 		rhs := check.objMap[tname].tdecl.Type
 		// Unpack instantiated type.
-		if x, _ := unpackIndexExpr(rhs); x != nil {
+		if x, _ := unpackIndexExpr(rhs, false); x != nil {
 			rhs = x
 		}
 		rhsName, ok := rhs.(*ast.Ident)

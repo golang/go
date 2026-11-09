@@ -78,16 +78,21 @@ func newIdent(pos token.Pos, name string) *ast.Ident {
 	return &ast.Ident{NamePos: pos, Name: name}
 }
 
-// If x represents an index expression, unpackIndexExpr returns the indexed expression and its indices.
-// Otherwise it returns (nil, nil).
-func unpackIndexExpr(x ast.Expr) (indexed ast.Expr, indices []ast.Expr) {
+// If x represents an index expression, unpackIndexExpr returns the indexed expression
+// and, if unpackParams is set, its indices. If unpackParams is not set, indices is nil.
+// If x is not an index expression, unpackIndexExpr returns (nil, nil).
+func unpackIndexExpr(x ast.Expr, unpackParams bool) (indexed ast.Expr, indices []ast.Expr) {
 	switch ix := x.(type) {
 	case *ast.IndexExpr:
 		indexed = ix.X
-		indices = []ast.Expr{ix.Index}
+		if unpackParams {
+			indices = []ast.Expr{ix.Index}
+		}
 	case *ast.IndexListExpr:
 		indexed = ix.X
-		indices = ix.Indices
+		if unpackParams {
+			indices = ix.Indices
+		}
 	}
 	return
 }
