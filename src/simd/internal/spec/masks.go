@@ -46,6 +46,18 @@ func MaskToBits[E MaskElt, W FixedWidth](x Vec[E, W]) (z UintN) {
 	return z
 }
 
+// MaskAllTrue returns a mask where every element is true.
+//
+//specgen:name {{.z}}AllTrue
+//specgen:experiment
+func MaskAllTrue[E MaskElt, W Width]() (z Vec[E, W]) {
+	z = makeVec[E, W]()
+	for i := range z {
+		z[i] = ^E(0)
+	}
+	return z
+}
+
 // MaskToZ converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 //
