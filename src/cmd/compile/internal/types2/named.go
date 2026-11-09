@@ -402,7 +402,7 @@ func (t *Named) Origin() *Named {
 
 // TypeParams returns the type parameters of the named type t, or nil.
 // The result is non-nil for an (originally) generic type even if it is instantiated.
-func (t *Named) TypeParams() *TypeParamList { return t.unpack().tparams }
+func (t *Named) TypeParams() *TypeParamList { return t.Origin().unpack().tparams }
 
 // SetTypeParams sets the type parameters of the named type t.
 // t must not have type arguments.
