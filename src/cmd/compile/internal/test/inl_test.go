@@ -9,6 +9,8 @@ import (
 	"internal/testenv"
 	"io"
 	"math/bits"
+	"os"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -433,6 +435,82 @@ func TestIssue56044(t *testing.T) {
 			if _, ok := mcov[k]; !ok {
 				t.Errorf("error: did not find %s in coverage -m output", k)
 			}
+		}
+	}
+}
+
+func TestInlineTypeAliasMethods(t *testing.T) {
+	testenv.MustHaveGoBuild(t)
+	t.Parallel()
+
+	dir := t.TempDir()
+	files := map[string]string{
+		"go.mod": "module m\ngo 1.24\n",
+		"a/a.go": `package a
+
+type Helper struct{ v int }
+
+func (h Helper) Get() int { return h.v + 1 }
+
+func helperFunc(x int) int { return x + 2 }
+
+type T struct{ x int }
+
+func (t T) Val() int        { return helperFunc(t.x) }
+func (t *T) Ptr() int       { return t.x + 3 }
+func (t *T) Helper() Helper { return Helper{v: t.x} }
+`,
+		"b/b.go": `package b
+
+import "m/a"
+
+// ZEnsureHelperRelocatedFirst ensures a.Helper and *a.Helper are relocated
+// before T's inline bodies are relocated.
+func ZEnsureHelperRelocatedFirst(*a.Helper) {}
+
+type T = a.T
+`,
+		"c/c.go": `package c
+
+import "m/b"
+
+type T = b.T
+`,
+		"d/d.go": `package d
+
+import "m/c"
+
+func Use(t *c.T) int {
+	return t.Val() + t.Ptr() + t.Helper().Get()
+}
+`,
+	}
+	for name, content := range files {
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-gcflags=m/d=-m", "m/d")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go build failed: %v\n%s", err, out)
+	}
+	got := string(out)
+	for _, want := range []string{
+		"inlining call to a.T.Val",
+		"inlining call to a.helperFunc",
+		"inlining call to a.(*T).Ptr",
+		"inlining call to a.(*T).Helper",
+		"inlining call to a.Helper.Get",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in compiler output:\n%s", want, got)
 		}
 	}
 }

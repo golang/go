@@ -38,9 +38,11 @@ import (
 type linker struct {
 	pw pkgbits.PkgEncoder
 
-	pkgs   map[string]index
-	decls  map[*types.Sym]index
-	bodies map[*types.Sym]index
+	pkgs      map[string]index
+	decls     map[*types.Sym]index
+	bodies    map[*types.Sym]index
+	forwarded map[*types.Sym]bool
+	inBody    int
 }
 
 // relocAll ensures that all elements specified by pr and relocs are
@@ -63,6 +65,18 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index
 	absIdx := pr.AbsIdx(k, idx)
 
 	if newidx := pr.newindex[absIdx]; newidx != 0 {
+		if l.inBody > 0 {
+			switch k {
+			case pkgbits.SectionObj:
+				path, name, _ := pr.PeekObj(idx)
+				if sym := types.NewPkg(path, "").Lookup(name); sym.Pkg != types.LocalPkg {
+					l.exportSymBodies(sym)
+				}
+			case pkgbits.SectionType:
+				r := pr.NewDecoderRaw(k, idx)
+				l.relocAll(pr, r.Relocs)
+			}
+		}
 		return ^newidx
 	}
 
@@ -138,6 +152,9 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 	sym := types.NewPkg(path, "").Lookup(name)
 
 	if newidx, ok := l.decls[sym]; ok {
+		if l.inBody > 0 && sym.Pkg != types.LocalPkg {
+			l.exportSymBodies(sym)
+		}
 		return newidx
 	}
 
@@ -155,6 +172,7 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		sym2 := types.NewPkg(path2, "").Lookup(name2)
 		assert(sym == sym2)
 		assert(tag2 != pkgbits.ObjStub)
+		tag = tag2
 	}
 
 	w := l.pw.NewEncoderRaw(pkgbits.SectionObj)
@@ -166,6 +184,11 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 	assert(wext.Idx == w.Idx)
 	assert(wname.Idx == w.Idx)
 	assert(wdict.Idx == w.Idx)
+
+	// Do not treat declarations referenced by this object's signature or
+	// fields as being referenced inside an inline body.
+	inBody := l.inBody
+	l.inBody = 0
 
 	l.relocCommon(pr, w, pkgbits.SectionObj, idx)
 	l.relocCommon(pr, wname, pkgbits.SectionName, idx)
@@ -191,6 +214,8 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 		l.relocCommon(pr, wext, pkgbits.SectionObjExt, idx)
 	}
 
+	l.inBody = inBody
+
 	// Check if we need to export the inline bodies for functions and
 	// methods.
 	if obj != nil {
@@ -198,16 +223,54 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
 			l.exportBody(obj, local)
 		}
 
-		if obj.Op() == ir.OTYPE && !obj.Alias() {
+		if obj.Op() == ir.OTYPE {
 			if typ := obj.Type(); !typ.IsInterface() {
-				for _, method := range typ.Methods() {
-					l.exportBody(method.Nname.(*ir.Name), local)
+				if !obj.Alias() {
+					for _, method := range typ.Methods() {
+						l.exportBody(method.Nname.(*ir.Name), local)
+					}
+				} else if local && inBody == 0 && types.IsExported(obj.Sym().Name) {
+					if tsym := typ.Sym(); tsym != nil && tsym.Pkg != types.LocalPkg {
+						l.exportSymBodies(tsym)
+					}
 				}
 			}
 		}
 	}
+	if !local && l.inBody > 0 {
+		l.exportSymBodies(sym)
+	}
 
 	return w.Idx
+}
+
+// exportSymBodies exports inline bodies associated with an imported
+// function symbol or non-interface receiver type symbol.
+func (l *linker) exportSymBodies(sym *types.Sym) {
+	if l.forwarded[sym] {
+		return
+	}
+	l.forwarded[sym] = true
+	l.exportImportBody(sym)
+	for _, msym := range importTypeBodies[sym] {
+		l.exportImportBody(msym)
+	}
+}
+
+// exportImportBody exports the inline body for an imported function or
+// method symbol if one is available in importBodyReader.
+func (l *linker) exportImportBody(sym *types.Sym) {
+	if _, ok := l.bodies[sym]; ok {
+		return
+	}
+	if pri, ok := importBodyReader[sym]; ok {
+		// Insert a placeholder before relocating the body to guard
+		// against recursive or mutually-recursive inline bodies.
+		l.bodies[sym] = 0
+		l.inBody++
+		l.bodies[sym] = l.relocIdx(pri.pr, pkgbits.SectionBody, pri.idx)
+		l.inBody--
+	}
 }
 
 // exportBody exports the given function or method's body, if

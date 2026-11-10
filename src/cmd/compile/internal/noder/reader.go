@@ -1342,6 +1342,10 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
 // static (i.e., non-generic) function body can be read.
 var importBodyReader = map[*types.Sym]pkgReaderIndex{}
 
+// importTypeBodies tracks the method symbols in importBodyReader for
+// each imported receiver type symbol.
+var importTypeBodies = map[*types.Sym][]*types.Sym{}
+
 // bodyReaderFor returns the pkgReaderIndex for reading fn's
 // serialized IR, and whether one was found.
 func bodyReaderFor(fn *ir.Func) (pri pkgReaderIndex, ok bool) {
