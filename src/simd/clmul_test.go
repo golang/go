@@ -207,9 +207,9 @@ func BenchmarkVpsumdSIMD(b *testing.B) {
 }
 
 func TestClMul(t *testing.T) {
-	fmt.Println("Vector length:", simd.VectorBitSize())
-	fmt.Println("Emulated:", simd.Emulated())
-	fmt.Println("HasHWCLMUL:", simd.HasHardwareCarrylessMultiply())
+	t.Log("Vector length:", simd.VectorBitSize())
+	t.Log("Emulated:", simd.Emulated())
+	t.Log("HasHWCLMUL:", simd.HasHardwareCarrylessMultiply())
 
 	x := uint64(0x0807060504030201)
 	y := uint64(0x0101010101010101)
@@ -218,12 +218,12 @@ func TestClMul(t *testing.T) {
 	a, b, c, d = 0x66b32838754f59a3, 0xaeba319ab2418c50, 0x45678b3c7f11fc73, 0xd62ef8ae5f7b693
 
 	f := func(what string, f func(a, b, c, d uint64) string) {
-		fmt.Println(what)
-		fmt.Printf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s\n", x, x, 1, 16, f(x, x, 1, 16))
-		fmt.Printf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s\n", x, y, 1, 16, f(x, y, 1, 16))
-		fmt.Printf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s\n", x, y, x, y, f(x, y, x, y))
-		fmt.Printf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s\n", 1, 2, y*4, y, f(1, 2, y*4, y))
-		fmt.Printf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s\n", a, b, c, d, f(a, b, c, d))
+		t.Log(what)
+		t.Logf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s", x, x, 1, 16, f(x, x, 1, 16))
+		t.Logf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s", x, y, 1, 16, f(x, y, 1, 16))
+		t.Logf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s", x, y, x, y, f(x, y, x, y))
+		t.Logf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s", 1, 2, y*4, y, f(1, 2, y*4, y))
+		t.Logf("vpsumd(0x%08x, 0x%08x, 0x%08x, 0x%08x) = %s", a, b, c, d, f(a, b, c, d))
 	}
 
 	f("Simple scalar clmul emulation", em1)
