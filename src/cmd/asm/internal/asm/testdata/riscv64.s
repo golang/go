@@ -266,6 +266,14 @@ start:
 	AMOMINUW	X5, (X6), X7			// af2353c6
 	AMOMINUD	X5, (X6), X7			// af3353c6
 
+	// 19.6.3: Cache-Block Prefetch Instructions
+	PREFETCHI	448(X5)					// 13e0021c
+	PREFETCHI	-64(X5)					// 13e002fc
+	PREFETCHI	-2048(X5)				// 13e00280
+	PREFETCHR	448(X5)					// 13e0121c
+	PREFETCHW	448(X5)					// 13e0321c
+	PREFETCHW	2016(X5)				// 13e0327e
+
 	// 21.5: Single-Precision Load and Store Instructions
 	FLW	(X5), F0				// 07a00200
 	FLW	4(X5), F0				// 07a04200
