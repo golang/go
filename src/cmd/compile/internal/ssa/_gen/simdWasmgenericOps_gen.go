@@ -260,5 +260,9 @@ func init() {
 		{name: "XorUint16x8", argLength: 2, commutative: true},
 		{name: "XorUint32x4", argLength: 2, commutative: true},
 		{name: "XorUint64x2", argLength: 2, commutative: true},
+		{name: "concatSaturateToInt8Int16x8", argLength: 2},
+		{name: "concatSaturateToInt16Int32x4", argLength: 2},
+		{name: "concatSaturateToUint8Int16x8", argLength: 2},
+		{name: "concatSaturateToUint16Int32x4", argLength: 2},
 	}
 }

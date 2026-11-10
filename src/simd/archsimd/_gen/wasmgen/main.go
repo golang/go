@@ -374,11 +374,12 @@ func (o *wasmOp) T() *simdType {
 func (o *wasmOp) Method() string {
 	goname := gonames[o.op]
 	if o.Flag(NameHasFormat) {
-		// This is an extend method of the form Extend{Lo,Hi}%dTo%s
+		// goname is a format string such as "ExtendLo%dTo%s". It accepts two
+		// placeholders: the number of elements converted, and the result
+		// element type. Format it into a specific name.
 		count := o.T().Count / 2
-		x := strings.Index(o.ResultType(), "x")
-		typ := o.ResultType()[:x]
-		return fmt.Sprintf(goname, count, typ)
+		resElemType, _, _ := strings.Cut(o.ResultType(), "x")
+		return fmt.Sprintf(goname, count, resElemType)
 	}
 	if len(goname) >= 1 {
 		if len(goname) == 1 {
@@ -711,10 +712,12 @@ var (
 
 	rotates = []string{"RotateAllLeft", "RotateAllRight"}
 
-	// TODO, once the semantics are understood.
-	// N1xM1.narrow_N2xM2_{S,U}
+	// N1xM1.narrow_N2xM2_{s,u}
 	// N1xM1 is the result type.  There are two N2xM2 inputs, where N1 = N2/2 and M1 = M2*2
-	// Each N2-sized input element is narrow, saturating signed or unsigned in the process.
+	// Each N2-sized signed input element is narrowed, saturating to the signed or
+	// unsigned range of N1. The narrowed elements of x go in the low half of the
+	// result and those of y in the high half.
+	narrows = []string{"narrow_s", "narrow_u"}
 
 	// Some operations are renamed, and some are not directly present as an intrinsic
 	// or generic SIMD operation.  A name beginning "_" means the intrinsic begins with
@@ -804,6 +807,10 @@ var (
 		// [u]int32x4 to float64x2
 		"convert_low_s": "ConvertLo2ToFloat64",
 		"convert_low_u": "ConvertLo2ToFloat64",
+
+		// Internal saturating narrowing, used by SaturateTo* emulations.
+		"narrow_s": "concatSaturateTo%[2]s",
+		"narrow_u": "concatSaturateTo%[2]s",
 
 		"swizzle": "LookupOrZero",
 		"splat":   "Broadcast",
@@ -997,6 +1004,16 @@ func initWasmOps() {
 		}
 	}
 
+	narrow := func(op *wasmOp) {
+		op.opFlags = IsConversion | NameHasFormat
+		// result type is half the width, signedness from the op, twice the count
+		stem := "Int"
+		if op.op[len(op.op)-1] == 'u' {
+			stem = "Uint"
+		}
+		op.resultType = op.t.ShrinkElements(stem)
+	}
+
 	rotate := func(op *wasmOp) {
 		op.opFlags = EmulatedRule | IsShift
 		op.argType = "uint64"
@@ -1011,6 +1028,7 @@ func initWasmOps() {
 	addWasmOpsDetail([]*simdType{vu32}, convert_u, 1, convert)
 
 	addWasmOpsDetail([]*simdType{vf32}, f_c, 1, truncSat)
+	addWasmOpsDetail([]*simdType{vi16, vi32}, narrows, 2, narrow)
 
 	addWasmOpsDetail(sle32, s_q2, 2, mulHalf)
 	addWasmOpsDetail(ule32, u_q2, 2, mulHalf)
@@ -1228,6 +1246,14 @@ var docForOp map[string]string = map[string]string{
 	"ConvertToInt32":      " converts elements of x to Int32x4.",
 	"ConvertToUint32":     " converts elements of x to Uint32x4.",
 	"ConvertLo2ToFloat64": " converts the first two elements of x to Float64x2.",
+	"concatSaturateToInt8": ` converts the elements of x and y to int8 with signed
+// saturation and packs them into the low and high halves of the result.`,
+	"concatSaturateToUint8": ` converts the signed elements of x and y to uint8 with
+// saturation and packs them into the low and high halves of the result.`,
+	"concatSaturateToInt16": ` converts the elements of x and y to int16 with signed
+// saturation and packs them into the low and high halves of the result.`,
+	"concatSaturateToUint16": ` converts the signed elements of x and y to uint16 with
+// saturation and packs them into the low and high halves of the result.`,
 	"MulWidenHi": ` returns the doubled-width product of respective elements of the upper halves of x and y.
 //
 //	Result[i] = x[i+{{.Type.HalfCount}}] * y[i+{{.Type.HalfCount}}], for 0 <= i < {{.Type.HalfCount}} == |x|/2.`,

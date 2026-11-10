@@ -1453,6 +1453,18 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpZeroSIMD:
 		v.Op = ssaop.OpWasmV128Zero
 		return true
+	case ssaop.OpconcatSaturateToInt16Int32x4:
+		v.Op = ssaop.OpWasmI16x8NarrowI32x4S
+		return true
+	case ssaop.OpconcatSaturateToInt8Int16x8:
+		v.Op = ssaop.OpWasmI8x16NarrowI16x8S
+		return true
+	case ssaop.OpconcatSaturateToUint16Int32x4:
+		v.Op = ssaop.OpWasmI16x8NarrowI32x4U
+		return true
+	case ssaop.OpconcatSaturateToUint8Int16x8:
+		v.Op = ssaop.OpWasmI8x16NarrowI16x8U
+		return true
 	}
 	return false
 }

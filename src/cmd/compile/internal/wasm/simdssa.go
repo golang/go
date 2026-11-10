@@ -109,7 +109,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssaop.OpWasmV128Or, ssaop.OpWasmI8x16Sub, ssaop.OpWasmI16x8Sub,
 		ssaop.OpWasmI32x4Sub, ssaop.OpWasmF32x4Sub, ssaop.OpWasmI64x2Sub,
 		ssaop.OpWasmF64x2Sub, ssaop.OpWasmI8x16SubSatS, ssaop.OpWasmI8x16SubSatU,
-		ssaop.OpWasmI16x8SubSatS, ssaop.OpWasmI16x8SubSatU, ssaop.OpWasmV128Xor:
+		ssaop.OpWasmI16x8SubSatS, ssaop.OpWasmI16x8SubSatU, ssaop.OpWasmV128Xor,
+		ssaop.OpWasmI16x8NarrowI32x4S, ssaop.OpWasmI8x16NarrowI16x8S, ssaop.OpWasmI16x8NarrowI32x4U,
+		ssaop.OpWasmI8x16NarrowI16x8U:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		s.Prog(v.Op.Asm())

@@ -2163,6 +2163,30 @@ func (x Uint64x2) Xor(y Uint64x2) (z Uint64x2)
 // Asm: V128Xor
 func (x Mask64x2) Xor(y Mask64x2) (z Mask64x2)
 
+// concatSaturateToInt16 converts the elements of x and y to int16 with signed
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I16x8NarrowI32x4S
+func (x Int32x4) concatSaturateToInt16(y Int32x4) Int16x8
+
+// concatSaturateToInt8 converts the elements of x and y to int8 with signed
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I8x16NarrowI16x8S
+func (x Int16x8) concatSaturateToInt8(y Int16x8) Int8x16
+
+// concatSaturateToUint16 converts the signed elements of x and y to uint16 with
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I16x8NarrowI32x4U
+func (x Int32x4) concatSaturateToUint16(y Int32x4) Uint16x8
+
+// concatSaturateToUint8 converts the signed elements of x and y to uint8 with
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I8x16NarrowI16x8U
+func (x Int16x8) concatSaturateToUint8(y Int16x8) Uint8x16
+
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0

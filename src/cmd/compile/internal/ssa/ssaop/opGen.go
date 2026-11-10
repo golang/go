@@ -6949,6 +6949,10 @@ const (
 	OpWasmF32x4Trunc
 	OpWasmF64x2Trunc
 	OpWasmV128Xor
+	OpWasmI16x8NarrowI32x4S
+	OpWasmI8x16NarrowI16x8S
+	OpWasmI16x8NarrowI32x4U
+	OpWasmI8x16NarrowI16x8U
 
 	OpLast
 	OpAdd8
@@ -9210,8 +9214,10 @@ const (
 	OpcarrylessMultiplyUint64x4
 	OpcarrylessMultiplyUint64x8
 	OpcarrylessMultiplyWidenLoUint64x2
+	OpconcatSaturateToInt16Int32x4
 	OpconcatSaturateToInt8GroupedInt16x16
 	OpconcatSaturateToInt8Int16x8
+	OpconcatSaturateToUint16Int32x4
 	OpconcatSaturateToUint8GroupedInt16x16
 	OpconcatSaturateToUint8Int16x8
 	OpconcatSelectedConstantFloat32x4
@@ -114263,6 +114269,62 @@ var OpcodeTable = [...]OpInfo{
 			},
 		},
 	},
+	{
+		Name:   "I16x8NarrowI32x4S",
+		ArgLen: 2,
+		asm:    wasm.AI16x8NarrowI32x4S,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I8x16NarrowI16x8S",
+		ArgLen: 2,
+		asm:    wasm.AI8x16NarrowI16x8S,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I16x8NarrowI32x4U",
+		ArgLen: 2,
+		asm:    wasm.AI16x8NarrowI32x4U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
+	{
+		Name:   "I8x16NarrowI16x8U",
+		ArgLen: 2,
+		asm:    wasm.AI8x16NarrowI16x8U,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+				{1, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 18446462598732840960, V2: 0}}, // V0 V1 V2 V3 V4 V5 V6 V7 V8 V9 V10 V11 V12 V13 V14 V15
+			},
+		},
+	},
 
 	{
 		Name:    "Last",
@@ -126502,12 +126564,22 @@ var OpcodeTable = [...]OpInfo{
 		Generic:     true,
 	},
 	{
+		Name:    "concatSaturateToInt16Int32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "concatSaturateToInt8GroupedInt16x16",
 		ArgLen:  2,
 		Generic: true,
 	},
 	{
 		Name:    "concatSaturateToInt8Int16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "concatSaturateToUint16Int32x4",
 		ArgLen:  2,
 		Generic: true,
 	},

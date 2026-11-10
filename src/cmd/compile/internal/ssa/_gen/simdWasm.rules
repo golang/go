@@ -304,3 +304,7 @@
 (XorUint32x4 ...) => (V128Xor ...)
 (XorInt64x2 ...) => (V128Xor ...)
 (XorUint64x2 ...) => (V128Xor ...)
+(concatSaturateToInt16Int32x4 ...) => (I16x8NarrowI32x4S ...)
+(concatSaturateToInt8Int16x8 ...) => (I8x16NarrowI16x8S ...)
+(concatSaturateToUint16Int32x4 ...) => (I16x8NarrowI32x4U ...)
+(concatSaturateToUint8Int16x8 ...) => (I8x16NarrowI16x8U ...)
