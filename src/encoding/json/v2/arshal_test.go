@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"internal/asan"
 	"internal/race"
 	"internal/testenv"
 	"io"
@@ -782,6 +783,9 @@ func TestMarshalInterfaceNoCopy(t *testing.T) {
 	testenv.SkipIfOptimizationOff(t)
 	if race.Enabled {
 		t.Skip("skipping malloc count under race detector")
+	}
+	if asan.Enabled {
+		t.Skip("skipping malloc count under address sanitizer")
 	}
 	type namedAny any
 	for _, in := range [][2]any{
