@@ -40,8 +40,9 @@ var replacements = map[string]string{
 	"newKeyFromSeed":                    "newKeyFromSeed1024",
 	"TestingOnlyExpandedBytes768":       "TestingOnlyExpandedBytes1024",
 
-	"kemDecaps":  "kemDecaps1024",
-	"pkeDecrypt": "pkeDecrypt1024",
+	"kemDecaps":                   "kemDecaps1024",
+	"pkeDecrypt":                  "pkeDecrypt1024",
+	"testingOnlyRejectionOutcome": "testingOnlyRejectionOutcome1024",
 
 	"GenerateKey768":         "GenerateKey1024",
 	"GenerateKeyInternal768": "GenerateKeyInternal1024",
