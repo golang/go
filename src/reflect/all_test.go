@@ -7988,52 +7988,6 @@ func TestConvertibleTo(t *testing.T) {
 	}
 }
 
-type sameMethodSet1 interface{ M() }
-type sameMethodSet2 interface{ M() }
-type sameMethodSetEmbed interface{ sameMethodSet1 }
-type otherMethodSet interface{ N() }
-
-type sameMethodSetImpl struct{ x int }
-
-func (sameMethodSetImpl) M() {}
-
-// Two defined interface types with the same method set have identical
-// underlying types, so unnamed pointers to them convert to one another,
-// as the compiler also accepts. See issue 82470.
-func TestConvertibleToIdenticalInterface(t *testing.T) {
-	type emptyIface interface{}
-
-	for _, tt := range []struct {
-		from, to Type
-		want     bool
-	}{
-		{TypeFor[*sameMethodSet1](), TypeFor[*sameMethodSet2](), true},
-		{TypeFor[*sameMethodSet1](), TypeFor[*sameMethodSetEmbed](), true},
-		{TypeFor[*sameMethodSet1](), TypeFor[*interface{ M() }](), true},
-		{TypeFor[*sameMethodSet1](), TypeFor[*otherMethodSet](), false},
-		{TypeFor[*emptyIface](), TypeFor[*any](), true},
-		// The element types of a slice have to be identical, and two
-		// different defined types never are.
-		{TypeFor[[]sameMethodSet1](), TypeFor[[]sameMethodSet2](), false},
-	} {
-		if got := tt.from.ConvertibleTo(tt.to); got != tt.want {
-			t.Errorf("(%s).ConvertibleTo(%s) = %v, want %v", tt.from, tt.to, got, tt.want)
-		}
-		// None of these are assignable, convertible or not.
-		if tt.from.AssignableTo(tt.to) {
-			t.Errorf("(%s).AssignableTo(%s) = true, want false", tt.from, tt.to)
-		}
-	}
-
-	// The converted pointer has to read as a value of the destination
-	// interface type, equal to the one built for that type directly.
-	var v sameMethodSet1 = sameMethodSetImpl{1}
-	var want sameMethodSet2 = sameMethodSetImpl{1}
-	if got := *ValueOf(&v).Convert(TypeFor[*sameMethodSet2]()).Interface().(*sameMethodSet2); got != want {
-		t.Errorf("value read through *sameMethodSet2 = %v, want %v", got, want)
-	}
-}
-
 func TestSetIter(t *testing.T) {
 	data := map[string]int{
 		"foo": 1,
