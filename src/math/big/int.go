@@ -659,6 +659,7 @@ func (z *Int) expSlow(x, y, m *Int) *Int {
 func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 	// See Knuth, volume 2, section 4.6.3.
 	xWords := x.abs
+	xNeg := x.neg
 	if y.neg {
 		if m == nil || len(m.abs) == 0 {
 			return z.SetInt64(1)
@@ -669,6 +670,7 @@ func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 			return nil
 		}
 		xWords = inverse.abs
+		xNeg = false // 0 <= inverse < |m|
 	}
 	yWords := y.abs
 
@@ -681,7 +683,7 @@ func (z *Int) exp(x, y, m *Int, slow bool) *Int {
 	}
 
 	z.abs = z.abs.expNN(nil, xWords, yWords, mWords, slow)
-	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
+	z.neg = len(z.abs) > 0 && xNeg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
 	if z.neg && len(mWords) > 0 {
 		// make modulus result positive
 		z.abs = z.abs.sub(mWords, z.abs) // z == x**y mod |m| && 0 <= z < |m|
