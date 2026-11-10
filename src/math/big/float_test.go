@@ -1166,6 +1166,35 @@ func TestFloatAbs(t *testing.T) {
 	}
 }
 
+func TestFloatNegAbsRounding(t *testing.T) {
+	// 1 + 2**-10 rounds to 1 or 1.125 with 4 bits of precision.
+	x := new(Float).SetPrec(64).SetFloat64(1 + 1.0/1024)
+	for _, test := range []struct {
+		mode   RoundingMode
+		neg    float64 // Neg(x) and Sub(0, x)
+		negAcc Accuracy
+		abs    float64 // Abs(-x)
+		absAcc Accuracy
+	}{
+		{ToNearestEven, -1, Above, 1, Below},
+		{ToNearestAway, -1, Above, 1, Below},
+		{ToZero, -1, Above, 1, Below},
+		{AwayFromZero, -1.125, Below, 1.125, Above},
+		{ToNegativeInf, -1.125, Below, 1, Below},
+		{ToPositiveInf, -1, Above, 1.125, Above},
+	} {
+		check := func(op string, z *Float, want float64, wantAcc Accuracy) {
+			if got, _ := z.Float64(); got != want || z.Acc() != wantAcc {
+				t.Errorf("%s: %s = %g (%s); want %g (%s)", test.mode, op, got, z.Acc(), want, wantAcc)
+			}
+		}
+		z := new(Float).SetPrec(4).SetMode(test.mode)
+		check("Neg(x)", z.Neg(x), test.neg, test.negAcc)
+		check("Sub(0, x)", z.Sub(new(Float), x), test.neg, test.negAcc)
+		check("Abs(-x)", z.Abs(new(Float).Neg(x)), test.abs, test.absAcc)
+	}
+}
+
 func TestFloatNeg(t *testing.T) {
 	for _, test := range []string{
 		"0",
