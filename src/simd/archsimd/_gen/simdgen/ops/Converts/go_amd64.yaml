@@ -406,6 +406,101 @@
   - base: uint
     goBits: $b
 
+# 2:1 narrowing conversions on 128- and 256-bit vectors, which
+# converts_emulated_amd64.go uses in place of its emulations when AVX-512 is
+# available. Constraining the result register to 64 or 128 bits excludes the
+# 512-bit forms, which are exported above.
+- go: truncToUint8
+  regexpTag: "convert"
+  asm: "VPMOVWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint16
+  regexpTag: "convert"
+  asm: "VPMOVDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint32
+  regexpTag: "convert"
+  asm: "VPMOVQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt8
+  regexpTag: "convert"
+  asm: "VPMOVSWB"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt16
+  regexpTag: "convert"
+  asm: "VPMOVSDW"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt32
+  regexpTag: "convert"
+  asm: "VPMOVSQD"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint8
+  regexpTag: "convert"
+  asm: "VPMOVUSWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint16
+  regexpTag: "convert"
+  asm: "VPMOVUSDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint32
+  regexpTag: "convert"
+  asm: "VPMOVUSQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+
 # Truncating saturated packed
 - go: ConcatSaturateToInt16
   regexpTag: "convert"
@@ -454,6 +549,48 @@
   out:
     - base: uint
       bits: 256|512
+
+# For emulating 2:1 saturating conversions with AVX and AVX2.
+- go: concatSaturateToInt8
+  regexpTag: "convert"
+  asm: "VPACKSSWB"
+  in:
+    - base: int
+    - base: int
+  inVariant: []
+  out:
+    - base: int
+      bits: 128
+- go: concatSaturateToInt8Grouped
+  regexpTag: "convert"
+  asm: "VPACKSSWB"
+  in:
+    - base: int
+    - base: int
+  inVariant: []
+  out:
+    - base: int
+      bits: 256
+- go: concatSaturateToUint8
+  regexpTag: "convert"
+  asm: "VPACKUSWB"
+  in:
+    - base: int
+    - base: int
+  inVariant: []
+  out:
+    - base: uint
+      bits: 128
+- go: concatSaturateToUint8Grouped
+  regexpTag: "convert"
+  asm: "VPACKUSWB"
+  in:
+    - base: int
+    - base: int
+  inVariant: []
+  out:
+    - base: uint
+      bits: 256
 
 # Low-part conversions from a 128-bit vector to a wider vector. These have no
 # same-width ExtendTo equivalent. The 128-bit to 128-bit ExtendLo forms are

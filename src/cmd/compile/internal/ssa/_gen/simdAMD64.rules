@@ -1349,6 +1349,10 @@
 (carrylessMultiplyUint64x2 ...) => (VPCLMULQDQ128 ...) // pureVreg
 (carrylessMultiplyUint64x4 ...) => (VPCLMULQDQ256 ...) // pureVreg
 (carrylessMultiplyUint64x8 ...) => (VPCLMULQDQ512 ...) // pureVreg
+(concatSaturateToInt8Int16x8 ...) => (VPACKSSWB128 ...) // pureVreg
+(concatSaturateToInt8GroupedInt16x16 ...) => (VPACKSSWB256 ...) // pureVreg
+(concatSaturateToUint8Int16x8 ...) => (VPACKUSWB128 ...) // pureVreg
+(concatSaturateToUint8GroupedInt16x16 ...) => (VPACKUSWB256 ...) // pureVreg
 (concatSelectedConstantFloat32x4 ...) => (VSHUFPS128 ...) // pureVreg
 (concatSelectedConstantFloat64x2 ...) => (VSHUFPD128 ...) // pureVreg
 (concatSelectedConstantInt32x4 ...) => (VSHUFPS128 ...) // pureVreg
@@ -1391,6 +1395,30 @@
 (permuteScalarsLoGroupedInt16x32 ...) => (VPSHUFLW512 ...) // pureVreg
 (permuteScalarsLoGroupedUint16x16 ...) => (VPSHUFLW256 ...) // pureVreg
 (permuteScalarsLoGroupedUint16x32 ...) => (VPSHUFLW512 ...) // pureVreg
+(saturateToInt8Int16x8 ...) => (VPMOVSWB128 ...) // pureVreg
+(saturateToInt8Int16x16 ...) => (VPMOVSWB256 ...) // pureVreg
+(saturateToInt8MaskedInt16x8 x mask) => (VPMOVSWBMasked128 x (VPMOVVec16x8ToM <types.TypeMask> mask)) // maskIn
+(saturateToInt8MaskedInt16x16 x mask) => (VPMOVSWBMasked256 x (VPMOVVec16x16ToM <types.TypeMask> mask)) // maskIn
+(saturateToInt16Int32x4 ...) => (VPMOVSDW128 ...) // pureVreg
+(saturateToInt16Int32x8 ...) => (VPMOVSDW256 ...) // pureVreg
+(saturateToInt16MaskedInt32x4 x mask) => (VPMOVSDWMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask)) // maskIn
+(saturateToInt16MaskedInt32x8 x mask) => (VPMOVSDWMasked256 x (VPMOVVec32x8ToM <types.TypeMask> mask)) // maskIn
+(saturateToInt32Int64x2 ...) => (VPMOVSQD128 ...) // pureVreg
+(saturateToInt32Int64x4 ...) => (VPMOVSQD256 ...) // pureVreg
+(saturateToInt32MaskedInt64x2 x mask) => (VPMOVSQDMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask)) // maskIn
+(saturateToInt32MaskedInt64x4 x mask) => (VPMOVSQDMasked256 x (VPMOVVec64x4ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint8Uint16x8 ...) => (VPMOVUSWB128 ...) // pureVreg
+(saturateToUint8Uint16x16 ...) => (VPMOVUSWB256 ...) // pureVreg
+(saturateToUint8MaskedUint16x8 x mask) => (VPMOVUSWBMasked128 x (VPMOVVec16x8ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint8MaskedUint16x16 x mask) => (VPMOVUSWBMasked256 x (VPMOVVec16x16ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint16Uint32x4 ...) => (VPMOVUSDW128 ...) // pureVreg
+(saturateToUint16Uint32x8 ...) => (VPMOVUSDW256 ...) // pureVreg
+(saturateToUint16MaskedUint32x4 x mask) => (VPMOVUSDWMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint16MaskedUint32x8 x mask) => (VPMOVUSDWMasked256 x (VPMOVVec32x8ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint32Uint64x2 ...) => (VPMOVUSQD128 ...) // pureVreg
+(saturateToUint32Uint64x4 ...) => (VPMOVUSQD256 ...) // pureVreg
+(saturateToUint32MaskedUint64x2 x mask) => (VPMOVUSQDMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask)) // maskIn
+(saturateToUint32MaskedUint64x4 x mask) => (VPMOVUSQDMasked256 x (VPMOVVec64x4ToM <types.TypeMask> mask)) // maskIn
 (VPSLLW128const [a] x) && a==0 => x // asmRule
 (VPSLLW256const [a] x) && a==0 => x // asmRule
 (VPSLLW512const [a] x) && a==0 => x // asmRule
@@ -1488,6 +1516,18 @@
 (ternUint64x2 ...) => (VPTERNLOGQ128 ...) // pureVreg
 (ternUint64x4 ...) => (VPTERNLOGQ256 ...) // pureVreg
 (ternUint64x8 ...) => (VPTERNLOGQ512 ...) // pureVreg
+(truncToUint8Uint16x8 ...) => (VPMOVWB128 ...) // pureVreg
+(truncToUint8Uint16x16 ...) => (VPMOVWB256 ...) // pureVreg
+(truncToUint8MaskedUint16x8 x mask) => (VPMOVWBMasked128 x (VPMOVVec16x8ToM <types.TypeMask> mask)) // maskIn
+(truncToUint8MaskedUint16x16 x mask) => (VPMOVWBMasked256 x (VPMOVVec16x16ToM <types.TypeMask> mask)) // maskIn
+(truncToUint16Uint32x4 ...) => (VPMOVDW128 ...) // pureVreg
+(truncToUint16Uint32x8 ...) => (VPMOVDW256 ...) // pureVreg
+(truncToUint16MaskedUint32x4 x mask) => (VPMOVDWMasked128 x (VPMOVVec32x4ToM <types.TypeMask> mask)) // maskIn
+(truncToUint16MaskedUint32x8 x mask) => (VPMOVDWMasked256 x (VPMOVVec32x8ToM <types.TypeMask> mask)) // maskIn
+(truncToUint32Uint64x2 ...) => (VPMOVQD128 ...) // pureVreg
+(truncToUint32Uint64x4 ...) => (VPMOVQD256 ...) // pureVreg
+(truncToUint32MaskedUint64x2 x mask) => (VPMOVQDMasked128 x (VPMOVVec64x2ToM <types.TypeMask> mask)) // maskIn
+(truncToUint32MaskedUint64x4 x mask) => (VPMOVQDMasked256 x (VPMOVVec64x4ToM <types.TypeMask> mask)) // maskIn
 (VMOVDQU8Masked128 (VPABSB128 x) mask) => (VPABSBMasked128 x mask)
 (VMOVDQU8Masked256 (VPABSB256 x) mask) => (VPABSBMasked256 x mask)
 (VMOVDQU8Masked512 (VPABSB512 x) mask) => (VPABSBMasked512 x mask)
@@ -3564,6 +3604,10 @@
 (VCMPPSMasked256k [c]  x l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VCMPPSMasked256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mask mem) // vregMem
 (VCMPPDMasked128k [c]  x l:(VMOVDQUload128 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VCMPPDMasked128kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mask mem) // vregMem
 (VCMPPDMasked256k [c]  x l:(VMOVDQUload256 {sym} [off] ptr mem) mask) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VCMPPDMasked256kload {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mask mem) // vregMem
+(VPACKSSWB128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPACKSSWB128load {sym} [off] x ptr mem) // vregMem
+(VPACKSSWB256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPACKSSWB256load {sym} [off] x ptr mem) // vregMem
+(VPACKUSWB128 x l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPACKUSWB128load {sym} [off] x ptr mem) // vregMem
+(VPACKUSWB256 x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VPACKUSWB256load {sym} [off] x ptr mem) // vregMem
 (VSHUFPS128 [c]  x l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPS128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem
 (VSHUFPD128 [c]  x l:(VMOVDQUload128 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPD128load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem
 (VSHUFPS256 [c]  x l:(VMOVDQUload256 {sym} [off] ptr mem)) && ssa.CanMergeLoad(v, l) && ssa.Clobber(l) => (VSHUFPS256load {sym} [ssa.MakeValAndOff(int32(uint8(c)),off)]  x ptr mem) // vregMem

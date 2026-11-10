@@ -59,6 +59,13 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to int8 with signed saturation.
+- go: "concatSaturateToInt8(Grouped)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts the element values of x and y to int8 with signed
+    // saturation and packs them into the low and high halves of the result
+    // (of each 128-bit group, for Grouped).
 - go: "ExtendToInt16(Concat)?"
   commutative: false
   regexpTag: "convert"
@@ -104,6 +111,13 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to uint8 with unsigned saturation.
+- go: "concatSaturateToUint8(Grouped)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts the signed element values of x and y to uint8 with
+    // saturation and packs them into the low and high halves of the result
+    // (of each 128-bit group, for Grouped).
 - go: "ExtendToUint16(Concat)?"
   commutative: false
   regexpTag: "convert"
@@ -220,3 +234,16 @@
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int64.
+# Internal 2:1 narrowing conversions, used under a feature check.
+- go: "truncToUint(8|16|32)"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values, storing the results in the low half of
+    // the result and zeroing the rest.
+- go: "saturateTo(Int|Uint)(8|16|32)"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values with saturation, storing the results in
+    // the low half of the result and zeroing the rest.

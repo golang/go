@@ -563,7 +563,11 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VANDPS128,
 		ssaop.OpAMD64VANDPS256,
 		ssaop.OpAMD64VANDPD128,
-		ssaop.OpAMD64VANDPD256:
+		ssaop.OpAMD64VANDPD256,
+		ssaop.OpAMD64VPACKSSWB128,
+		ssaop.OpAMD64VPACKSSWB256,
+		ssaop.OpAMD64VPACKUSWB128,
+		ssaop.OpAMD64VPACKUSWB256:
 		p = simdV21(s, v)
 
 	case ssaop.OpAMD64VPCMPEQB512,
@@ -2258,7 +2262,11 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VANDPS128load,
 		ssaop.OpAMD64VANDPS256load,
 		ssaop.OpAMD64VANDPD128load,
-		ssaop.OpAMD64VANDPD256load:
+		ssaop.OpAMD64VANDPD256load,
+		ssaop.OpAMD64VPACKSSWB128load,
+		ssaop.OpAMD64VPACKSSWB256load,
+		ssaop.OpAMD64VPACKUSWB128load,
+		ssaop.OpAMD64VPACKUSWB256load:
 		p = simdV21load(s, v)
 
 	case ssaop.OpAMD64VPDPWSSD128load,
