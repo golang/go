@@ -720,3 +720,42 @@ func (x Int8x64) LookupOrZero(indices Uint8x64) (z Int8x64) {
 	hh4 = hh4.LookupModOrZeroGrouped(y3.BitsToInt8()) // Elements with 48 <= indexes < 64, zero elsewhere.
 	return ll4.Or(lh4).Or(hl4.Or(hh4))
 }
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 16 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated
+func (x Uint8x16) LookupOrZero(indices Uint8x16) (z Uint8x16) {
+	return x.BitsToInt8().LookupOrZero(indices).ToBits()
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 32 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated
+func (x Uint8x32) LookupOrZero(indices Uint8x32) (z Uint8x32) {
+	return x.BitsToInt8().LookupOrZero(indices).ToBits()
+}
+
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < 64 {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Emulated
+func (x Uint8x64) LookupOrZero(indices Uint8x64) (z Uint8x64) {
+	return x.BitsToInt8().LookupOrZero(indices).ToBits()
+}

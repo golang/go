@@ -986,7 +986,7 @@ func initWasmOps() {
 
 	// Shuffle is a mess, it takes a 8x16 vector in and SIXTEEN immediates specifying the indices.
 	// addWasmOps([]*simdType{vi8}, i8_shuf, 1, nil)
-	addWasmOpsDetail([]*simdType{vi8}, i8_swiz, 2, func(op *wasmOp) {
+	addWasmOpsDetail([]*simdType{vi8, vu8}, i8_swiz, 2, func(op *wasmOp) {
 		op.arg1Name = "indices"
 		op.argType = op.t.UintFor().Name
 	})

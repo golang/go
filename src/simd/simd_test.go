@@ -550,7 +550,7 @@ func TestMaskTrailingZeros(t *testing.T) {
 	testMaskTrailingZeros(t, simd.LoadUint64s)
 }
 
-func TestLookupOrZero(t *testing.T) {
+func TestLookupOrZeroInt8s(t *testing.T) {
 	var z simd.Int8s
 	x := make([]int8, z.Len())
 	indices := make([]uint8, z.Len())
@@ -606,4 +606,32 @@ func TestStoreShortFloat64s(t *testing.T) {
 		}
 	}()
 	x.Store(s)
+}
+
+func TestLookupOrZeroUint8s(t *testing.T) {
+	var z simd.Uint8s
+	x := make([]uint8, z.Len())
+	indices := make([]uint8, z.Len())
+
+	for i := range z.Len() {
+		a, b := rand.Int31n(256), rand.Int31n(256)
+		x[i] = uint8(a)
+		indices[i] = uint8(b)
+	}
+
+	v := simd.LoadUint8s(x)
+	u := simd.LoadUint8s(indices)
+
+	got := make([]uint8, v.Len())
+	want := make([]uint8, v.Len())
+	for i := range want {
+		j := indices[i]
+		if int(j) < len(want) {
+			want[i] = x[j]
+		}
+	}
+	v.LookupOrZero(u).StorePart(got)
+	if !slices.Equal(want, got) {
+		t.Errorf("Wanted %v, got %v", want, got)
+	}
 }

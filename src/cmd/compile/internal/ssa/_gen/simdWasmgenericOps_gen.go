@@ -148,6 +148,7 @@ func init() {
 		{name: "LessUint16x8", argLength: 2},
 		{name: "LessUint32x4", argLength: 2},
 		{name: "LookupOrZeroInt8x16", argLength: 2},
+		{name: "LookupOrZeroUint8x16", argLength: 2},
 		{name: "MaxFloat32x4", argLength: 2},
 		{name: "MaxFloat64x2", argLength: 2},
 		{name: "MaxInt8x16", argLength: 2, commutative: true},

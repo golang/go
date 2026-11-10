@@ -26,7 +26,7 @@ var (
 
 // truncBytes returns the bytes of x selected by idx.
 func truncBytes(x Uint8x16, idx *[16]uint8) Uint8x16 {
-	return x.BitsToInt8().LookupOrZero(LoadUint8x16Array(idx)).ToBits()
+	return x.LookupOrZero(LoadUint8x16Array(idx))
 }
 
 // TruncToInt8 converts each element of x to int8 by discarding its high

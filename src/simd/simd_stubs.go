@@ -882,6 +882,15 @@ func (x Uint8s) Less(y Uint8s) (z Mask8s)
 //	z[i] = x[i] <= y[i]
 func (x Uint8s) LessEqual(y Uint8s) (z Mask8s)
 
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Uint8s) LookupOrZero(indices Uint8s) (z Uint8s)
+
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.
 //

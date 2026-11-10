@@ -741,6 +741,9 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpLookupOrZeroInt8x16:
 		v.Op = ssaop.OpWasmI8x16Swizzle
 		return true
+	case ssaop.OpLookupOrZeroUint8x16:
+		v.Op = ssaop.OpWasmI8x16Swizzle
+		return true
 	case ssaop.OpLsh16x16:
 		return rewriteValue_OpLsh16x16(v)
 	case ssaop.OpLsh16x32:
