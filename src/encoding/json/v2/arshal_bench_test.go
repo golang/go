@@ -38,3 +38,30 @@ func BenchmarkMakeMethodUnmarshaler(b *testing.B) {
 		_ = makeMethodUnmarshaler(base, t)
 	}
 }
+
+type benchmarkMarshalTo int
+
+func BenchmarkMarshalToFunc(b *testing.B) {
+	fn := func(enc *jsontext.Encoder, _ benchmarkMarshalTo) error {
+		return enc.WriteValue(jsontext.Value("null"))
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = MarshalToFunc(fn)
+	}
+}
+
+type benchmarkUnmarshalFrom int
+
+func BenchmarkUnmarshalFromFunc(b *testing.B) {
+	fn := func(dec *jsontext.Decoder, _ *benchmarkUnmarshalFrom) error {
+		_, err := dec.ReadValue()
+		return err
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_ = UnmarshalFromFunc(fn)
+	}
+}
