@@ -879,7 +879,10 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
 func (s *mspan) reportZombies() {
 	printlock()
 	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer or having race conditions? try -d=checkptr or -race)\n")
-	mbits := s.markBitsForBase()
+	// Inline mark bits have already been moved to gcmarkBits by sweep, so
+	// read gcmarkBits directly rather than through markBitsForBase, which
+	// would read the now-cleared inline mark bits.
+	mbits := markBits{&s.gcmarkBits.x, uint8(1), 0}
 	abits := s.allocBitsForIndex(0)
 	for i := uintptr(0); i < uintptr(s.nelems); i++ {
 		addr := s.base() + i*s.elemsize

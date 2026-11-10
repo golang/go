@@ -209,8 +209,10 @@ func TestGcZombieReporting(t *testing.T) {
 	// add invalidptr=0 for avoiding the badPointer check.
 	// See issue https://golang.org/issues/49613/
 	got := runTestProg(t, "testprog", "GCZombie", "GODEBUG=invalidptr=0")
-	want := "found pointer to free object"
-	if !strings.Contains(got, want) {
+	if want := "found pointer to free object"; !strings.Contains(got, want) {
+		t.Fatalf("expected %q in output, but got %q", want, got)
+	}
+	if want := " zombie"; !strings.Contains(got, want) {
 		t.Fatalf("expected %q in output, but got %q", want, got)
 	}
 }
