@@ -199,15 +199,31 @@ func (d *digest) Clone() (hash.Cloner, error) {
 	return &r, nil
 }
 
+// The maximum number of bytes passed to an update function in one call. The
+// limit exists because implementations that rely on assembly routines are not
+// preemptible.
+const maxAsmSize = 64 << 10 // 64KiB
+
+// updateChunked returns the result of adding the bytes in p to the crc using
+// f, at most maxAsmSize bytes at a time. f must be a Go function that is not
+// inlined here, so that each call is a preemption point.
+func updateChunked(f func(crc uint32, p []byte) uint32, crc uint32, p []byte) uint32 {
+	for len(p) > maxAsmSize {
+		crc = f(crc, p[:maxAsmSize])
+		p = p[maxAsmSize:]
+	}
+	return f(crc, p)
+}
+
 func update(crc uint32, tab *Table, p []byte, checkInitIEEE bool) uint32 {
 	switch {
 	case haveCastagnoli.Load() && tab == castagnoliTable:
-		return updateCastagnoli(crc, p)
+		return updateChunked(updateCastagnoli, crc, p)
 	case tab == IEEETable:
 		if checkInitIEEE {
 			ieeeInitOnce()
 		}
-		return updateIEEE(crc, p)
+		return updateChunked(updateIEEE, crc, p)
 	default:
 		return simpleUpdate(crc, tab, p)
 	}
@@ -242,7 +258,7 @@ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
 // using the [IEEE] polynomial.
 func ChecksumIEEE(data []byte) uint32 {
 	ieeeInitOnce()
-	return updateIEEE(0, data)
+	return updateChunked(updateIEEE, 0, data)
 }
 
 // tableSum returns the IEEE checksum of table t.

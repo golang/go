@@ -324,6 +324,30 @@ func TestGolden(t *testing.T) {
 	}
 }
 
+// TestChunked checks inputs longer than maxAsmSize, which are passed to the
+// underlying implementation in more than one call.
+func TestChunked(t *testing.T) {
+	for _, length := range []int{maxAsmSize - 1, maxAsmSize, maxAsmSize + 1, 3*maxAsmSize + 17} {
+		p := make([]byte, length)
+		_, _ = rand.Read(p)
+		crcInit := uint32(rand.Int63())
+		for _, poly := range []uint32{IEEE, Castagnoli} {
+			want := simpleUpdate(crcInit, simpleMakeTable(poly), p)
+			if got := Update(crcInit, MakeTable(poly), p); got != want {
+				t.Errorf("Update(poly %#x, length %d) = %#x, want %#x", poly, length, got, want)
+			}
+			h := New(MakeTable(poly))
+			h.Write(p)
+			if got, want := h.Sum32(), simpleUpdate(0, simpleMakeTable(poly), p); got != want {
+				t.Errorf("Write(poly %#x, length %d) = %#x, want %#x", poly, length, got, want)
+			}
+		}
+		if got, want := ChecksumIEEE(p), simpleUpdate(0, IEEETable, p); got != want {
+			t.Errorf("ChecksumIEEE(length %d) = %#x, want %#x", length, got, want)
+		}
+	}
+}
+
 func BenchmarkCRC32(b *testing.B) {
 	b.Run("poly=IEEE", benchmarkAll(NewIEEE()))
 	b.Run("poly=Castagnoli", benchmarkAll(New(MakeTable(Castagnoli))))
@@ -332,7 +356,7 @@ func BenchmarkCRC32(b *testing.B) {
 
 func benchmarkAll(h hash.Hash32) func(b *testing.B) {
 	return func(b *testing.B) {
-		for _, size := range []int{15, 40, 512, 1 << 10, 4 << 10, 32 << 10} {
+		for _, size := range []int{15, 40, 512, 1 << 10, 4 << 10, 32 << 10, 1 << 20} {
 			name := fmt.Sprint(size)
 			if size >= 1024 {
 				name = fmt.Sprintf("%dkB", size/1024)
