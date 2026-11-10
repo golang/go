@@ -1,0 +1,3 @@
+pkg sync, method (*Counter[$0]) Add($0) #80645
+pkg sync, method (*Counter[$0]) Value() $0 #80645
+pkg sync, type Counter[$0 interface{ ~float64 | ~int64 | ~uint64 }] struct #80645

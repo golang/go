@@ -4,6 +4,8 @@
 
 package sync
 
+import "unsafe"
+
 // Export for testing.
 var Runtime_Semacquire = runtime_Semacquire
 var Runtime_Semrelease = runtime_Semrelease
@@ -55,3 +57,19 @@ func (c *poolChain) PopHead() (any, bool) {
 func (c *poolChain) PopTail() (any, bool) {
 	return c.popTail()
 }
+
+// Counter internals exported for testing.
+var AllocCounters = allocCounters
+
+type Stripe = stripe
+
+var NewStripe = newStripe
+
+func (s *stripe) Get(pID int) *uint64 { return s.get(pID) }
+func (s *stripe) Cap() int            { return s.cap() }
+func (s *stripe) Grow()               { s.grow() }
+
+// Block returns the stripe's current shard pointers.
+func (s *stripe) Block() []*uint64 { return unsafe.Slice(s.block.Load(), s.cap()) }
+
+const CacheLineSize = cacheLineSize
