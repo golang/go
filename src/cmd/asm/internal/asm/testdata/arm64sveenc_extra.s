@@ -19,4 +19,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
 	PSTR P1, (VL*0)(R27)               // 610380e5
 	PLDR -8(RSP), P0                   // fb2300d1
 	PLDR (VL*0)(R27), P0               // 60038085
+	// 8-bit narrowing shifts of two .H registers: imm3 holds 8 - shift. The
+	// generated suite skips these because binutils 2.45 does not know them.
+	ZSQRSHRN $6, [Z2.H-Z3.H], Z10.B    // 4a28aa45
+	ZSQRSHRUN $6, [Z2.H-Z3.H], Z10.B   // 4a08aa45
+	ZUQRSHRN $6, [Z2.H-Z3.H], Z10.B    // 4a38aa45
+	ZSQRSHRN $1, [Z2.H-Z3.H], Z10.B    // 4a28af45
+	ZSQRSHRN $8, [Z2.H-Z3.H], Z10.B    // 4a28a845
 	RET

@@ -91,7 +91,7 @@ type addConnCall struct {
 }
 
 func (c *addConnCall) run(t *Transport, key string, nc net.Conn) {
-	cc, err := t.newClientConn(nc, t.disableKeepAlives(), nil)
+	cc, err := t.newClientConn(nc, nil)
 
 	p := c.p
 	p.mu.Lock()

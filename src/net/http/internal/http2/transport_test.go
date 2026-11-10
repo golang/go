@@ -18,6 +18,7 @@ import (
 	"io"
 	"log"
 	"maps"
+	"math"
 	"math/rand"
 	"net"
 	"net/http"
@@ -5817,7 +5818,6 @@ func testTransportDoNotHangOnZeroMaxFrameSize(t *testing.T) {
 }
 
 func TestExtendedConnectClientWithServerSupport(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, false)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get(":protocol") != "extended-connect" {
@@ -5853,7 +5853,6 @@ func TestExtendedConnectClientWithServerSupport(t *testing.T) {
 }
 
 func TestExtendedConnectClientWithoutServerSupport(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	SetDisableExtendedConnectProtocol(t, true)
 	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, r.Body)
@@ -5884,7 +5883,6 @@ func TestExtendedConnectReadFrameError(t *testing.T) {
 	synctest.Test(t, testExtendedConnectReadFrameError)
 }
 func testExtendedConnectReadFrameError(t *testing.T) {
-	t.Skip("https://go.dev/issue/53208 -- net/http needs to support the :protocol header")
 	tc := newTestClientConn(t)
 	tc.wantFrameType(FrameSettings)
 	tc.wantFrameType(FrameWindowUpdate)
@@ -6026,4 +6024,265 @@ func testTransportRequestGoroutineExitsRespHeaderTimeout(t *testing.T) {
 	synctest.Wait()
 	tc.writeData(rt.streamID(), true, []byte("hello"))
 	rt.wantBody([]byte("hello"))
+}
+
+// TestTransportInitialRequestsExceedConcurrencyLimit exercises the case when
+// the server's initial SETTINGS frame gives a MAX_CONCURRENT_STREAMS lower
+// than the number of streams we have already reserved.
+func TestTransportInitialRequestsExceedConcurrencyLimit(t *testing.T) {
+	synctestSubtest(t, "strict", func(t *testing.T) {
+		// When StrictMaxConcurrentRequests is set,
+		// all requests will use a single connection.
+		tt := newTestTransport(t, func(h2 *http.HTTP2Config) {
+			h2.StrictMaxConcurrentRequests = true
+		})
+
+		const numReqs = 3
+		gate := make(chan struct{})
+		trace := &httptrace.ClientTrace{
+			GotConn: func(httptrace.GotConnInfo) {
+				<-gate
+			},
+		}
+		rts := make([]*testRoundTrip, numReqs)
+		for i := range numReqs {
+			req, _ := http.NewRequestWithContext(
+				httptrace.WithClientTrace(t.Context(), trace),
+				"GET", fmt.Sprintf("https://dummy.tld/%d", i), nil,
+			)
+			rts[i] = tt.roundTrip(req)
+		}
+
+		// All requests have reserved slots while
+		// maxConcurrentStreams is still InitialMaxConcurrentStreams.
+		tc := tt.getConn()
+		tc.greet(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+		close(gate)
+		synctest.Wait()
+
+		// Requests are sent sequentially on the same connection,
+		// possibly out of order depending on scheduling.
+		for i := range numReqs {
+			hf := readFrame[*HeadersFrame](t, tc)
+			if tt.hasConn() {
+				t.Fatalf("request %d: unexpected second connection dialed", i)
+			}
+			tc.wantIdle()
+			tc.writeHeaders(HeadersFrameParam{
+				StreamID:      hf.StreamID,
+				EndHeaders:    true,
+				EndStream:     true,
+				BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+			})
+		}
+
+		for i, rt := range rts {
+			if err := rt.err(); err != nil {
+				t.Errorf("request %d failed: %v", i, err)
+			}
+		}
+	})
+
+	synctestSubtest(t, "non-strict", func(t *testing.T) {
+		// When StrictMaxConcurrentRequests is not set,
+		// each request will use a new connection.
+		tt := newTestTransport(t)
+
+		const numReqs = 2
+		gate := make(chan struct{})
+		trace := &httptrace.ClientTrace{
+			GotConn: func(httptrace.GotConnInfo) {
+				<-gate
+			},
+		}
+		rts := make([]*testRoundTrip, numReqs)
+		for i := range numReqs {
+			req, _ := http.NewRequestWithContext(
+				httptrace.WithClientTrace(t.Context(), trace),
+				"GET", fmt.Sprintf("https://dummy.tld/%d", i), nil,
+			)
+			rts[i] = tt.roundTrip(req)
+		}
+
+		tc1 := tt.getConn()
+		tc1.greet(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+		close(gate)
+		synctest.Wait()
+
+		// The first connection must serve one of the coalesced requests
+		// immediately while the second request dials a new connection.
+		hf1 := readFrame[*HeadersFrame](t, tc1)
+		tc2 := tt.getConn()
+		tc2.wantFrameType(FrameSettings)
+		tc2.wantFrameType(FrameWindowUpdate)
+		tc2.writeSettings(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+		hf2 := readFrame[*HeadersFrame](t, tc2)
+		tc2.wantFrameType(FrameSettings) // ACK to our settings
+
+		tc1.writeHeaders(HeadersFrameParam{
+			StreamID:      hf1.StreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc1.makeHeaderBlockFragment(":status", "200"),
+		})
+		tc2.writeHeaders(HeadersFrameParam{
+			StreamID:      hf2.StreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc2.makeHeaderBlockFragment(":status", "200"),
+		})
+
+		for i, rt := range rts {
+			if err := rt.err(); err != nil {
+				t.Errorf("request %d failed: %v", i, err)
+			}
+		}
+	})
+}
+
+func TestTransportStreamIDExhaustion(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		tt := newTestTransportWithUnusedConn(t, func(h2 *http.HTTP2Config) {
+			h2.StrictMaxConcurrentRequests = true
+		})
+
+		tc1 := tt.getConn()
+		tc1.greet()
+
+		const lastStreamID = math.MaxInt32 - 2
+		tc1.cc.TestSetNextStreamID(lastStreamID)
+
+		// First request uses the last valid stream ID on tc1.
+		req1, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/1", nil)
+		rt1 := tt.roundTrip(req1)
+		tc1.wantHeaders(wantHeader{
+			streamID:  lastStreamID,
+			endStream: true,
+		})
+
+		// Second request sees tc1 has exhausted stream IDs and dials a new connection.
+		req2, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/2", nil)
+		rt2 := tt.roundTrip(req2)
+
+		tc2 := tt.getConn()
+		tc2.wantFrameType(FrameSettings)
+		tc2.wantFrameType(FrameWindowUpdate)
+		tc2.wantHeaders(wantHeader{
+			streamID:  1, // stream 1 on a new connection
+			endStream: true,
+		})
+
+		tc2.writeSettings()
+		tc2.wantFrameType(FrameSettings) // ACK
+
+		// Responses to both requests are accepted and handled.
+		tc1.writeHeaders(HeadersFrameParam{
+			StreamID:      lastStreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc1.makeHeaderBlockFragment(":status", "200"),
+		})
+		tc2.writeHeaders(HeadersFrameParam{
+			StreamID:      1,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc2.makeHeaderBlockFragment(":status", "200"),
+		})
+		rt1.wantStatus(200)
+		rt2.wantStatus(200)
+	})
+}
+
+func TestTransportUnblockPendingRequestOnUnusableConn(t *testing.T) {
+	synctestSubtest(t, "goaway", func(t *testing.T) {
+		tt := newTestTransportWithUnusedConn(t, func(h2 *http.HTTP2Config) {
+			h2.StrictMaxConcurrentRequests = true
+		})
+
+		tc1 := tt.getConn()
+		tc1.greet(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+
+		req1, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/1", nil)
+		rt1 := tt.roundTrip(req1)
+		defer rt1.cancel()
+		hf1 := readFrame[*HeadersFrame](t, tc1)
+
+		// Second request blocks waiting for a concurrency slot on tc1.
+		req2, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/2", nil)
+		rt2 := tt.roundTrip(req2)
+		defer rt2.cancel()
+		tc1.wantIdle()
+
+		// Server sends a graceful GOAWAY acknowledging stream 1 while stream 1 stays open.
+		// Request 2 should immediately wake up and retry on a new connection.
+		tc1.writeGoAway(hf1.StreamID, ErrCodeNo, nil)
+		synctest.Wait()
+
+		if !tt.hasConn() {
+			t.Fatalf("pending request remained blocked on tc1 after GOAWAY; want retry on a new connection")
+		}
+		tc2 := tt.getConn()
+		tc2.wantFrameType(FrameSettings)
+		tc2.wantFrameType(FrameWindowUpdate)
+		tc2.writeSettings(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+		hf2 := readFrame[*HeadersFrame](t, tc2)
+		tc2.wantFrameType(FrameSettings)
+		tc2.writeHeaders(HeadersFrameParam{
+			StreamID:      hf2.StreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc2.makeHeaderBlockFragment(":status", "200"),
+		})
+		rt2.wantStatus(200)
+
+		tc1.writeHeaders(HeadersFrameParam{
+			StreamID:      hf1.StreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc1.makeHeaderBlockFragment(":status", "200"),
+		})
+		rt1.wantStatus(200)
+	})
+
+	synctestSubtest(t, "shutdown", func(t *testing.T) {
+		tc := newTestClientConn(t, func(h2 *http.HTTP2Config) {
+			h2.StrictMaxConcurrentRequests = true
+		})
+		tc.greet(Setting{ID: SettingMaxConcurrentStreams, Val: 1})
+
+		req1, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/1", nil)
+		rt1 := tc.roundTrip(req1)
+		defer rt1.cancel()
+		hf1 := readFrame[*HeadersFrame](t, tc)
+
+		req2, _ := http.NewRequestWithContext(t.Context(), "GET", "https://dummy.tld/2", nil)
+		rt2 := tc.roundTrip(req2)
+		defer rt2.cancel()
+		tc.wantIdle()
+
+		shutdownDone := make(chan error, 1)
+		go func() {
+			shutdownDone <- tc.cc.Shutdown(t.Context())
+		}()
+		tc.wantFrameType(FrameGoAway)
+		synctest.Wait()
+
+		if !rt2.done() {
+			t.Fatalf("pending request remained blocked during Shutdown; want immediate error")
+		}
+		if err := rt2.err(); err == nil {
+			t.Fatalf("pending request succeeded during Shutdown; want error")
+		}
+
+		tc.writeHeaders(HeadersFrameParam{
+			StreamID:      hf1.StreamID,
+			EndHeaders:    true,
+			EndStream:     true,
+			BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
+		})
+		rt1.wantStatus(200)
+		if err := <-shutdownDone; err != nil {
+			t.Errorf("Shutdown: %v", err)
+		}
+	})
 }

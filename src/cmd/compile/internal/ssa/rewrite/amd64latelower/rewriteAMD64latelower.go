@@ -3,6 +3,7 @@
 package amd64latelower
 
 import "internal/buildcfg"
+import "cmd/compile/internal/types"
 import "cmd/compile/internal/ssa/ssaop"
 import "cmd/compile/internal/ssa"
 
@@ -26,6 +27,24 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpAMD64SHRL(v)
 	case ssaop.OpAMD64SHRQ:
 		return rewriteValue_OpAMD64SHRQ(v)
+	case ssaop.OpAMD64VBROADCASTSS128:
+		return rewriteValue_OpAMD64VBROADCASTSS128(v)
+	case ssaop.OpAMD64VPBROADCASTB128:
+		return rewriteValue_OpAMD64VPBROADCASTB128(v)
+	case ssaop.OpAMD64VPBROADCASTB128load:
+		return rewriteValue_OpAMD64VPBROADCASTB128load(v)
+	case ssaop.OpAMD64VPBROADCASTD128:
+		return rewriteValue_OpAMD64VPBROADCASTD128(v)
+	case ssaop.OpAMD64VPBROADCASTD128load:
+		return rewriteValue_OpAMD64VPBROADCASTD128load(v)
+	case ssaop.OpAMD64VPBROADCASTQ128:
+		return rewriteValue_OpAMD64VPBROADCASTQ128(v)
+	case ssaop.OpAMD64VPBROADCASTQ128load:
+		return rewriteValue_OpAMD64VPBROADCASTQ128load(v)
+	case ssaop.OpAMD64VPBROADCASTW128:
+		return rewriteValue_OpAMD64VPBROADCASTW128(v)
+	case ssaop.OpAMD64VPBROADCASTW128load:
+		return rewriteValue_OpAMD64VPBROADCASTW128load(v)
 	}
 	return false
 }
@@ -178,6 +197,192 @@ func rewriteValue_OpAMD64SHRQ(v *ssa.Value) bool {
 		}
 		v.Reset(ssaop.OpAMD64SHRXQ)
 		v.AddArg2(x, y)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VBROADCASTSS128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (VBROADCASTSS128 x)
+	// cond: !hasAVX2(v)
+	// result: (VPSHUFD128 [0] x)
+	for {
+		x := v_0
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPSHUFD128)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTB128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTB128 x)
+	// cond: !hasAVX2(v)
+	// result: (VPSHUFB128 x (Zero128 <x.Type>))
+	for {
+		x := v_0
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPSHUFB128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64Zero128, x.Type)
+		v.AddArg2(x, v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTB128load(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTB128load [off] {sym} ptr mem)
+	// cond: !hasAVX2(v)
+	// result: (VPBROADCASTB128 (VMOVDload <types.TypeVec128> [off] {sym} ptr mem))
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		ptr := v_0
+		mem := v_1
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBROADCASTB128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VMOVDload, types.TypeVec128)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTD128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (VPBROADCASTD128 x)
+	// cond: !hasAVX2(v)
+	// result: (VPSHUFD128 [0] x)
+	for {
+		x := v_0
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPSHUFD128)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTD128load(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	// match: (VPBROADCASTD128load [off] {sym} ptr mem)
+	// cond: !hasAVX2(v)
+	// result: (VBROADCASTSS128load [off] {sym} ptr mem)
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		ptr := v_0
+		mem := v_1
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VBROADCASTSS128load)
+		v.AuxInt = ssa.Int32ToAuxInt(off)
+		v.Aux = ssa.SymToAux(sym)
+		v.AddArg2(ptr, mem)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTQ128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	// match: (VPBROADCASTQ128 x)
+	// cond: !hasAVX2(v)
+	// result: (VPSHUFD128 [0x44] x)
+	for {
+		x := v_0
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPSHUFD128)
+		v.AuxInt = ssa.Uint8ToAuxInt(0x44)
+		v.AddArg(x)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTQ128load(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTQ128load [off] {sym} ptr mem)
+	// cond: !hasAVX2(v)
+	// result: (VPBROADCASTQ128 (VMOVQload <types.TypeVec128> [off] {sym} ptr mem))
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		ptr := v_0
+		mem := v_1
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBROADCASTQ128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VMOVQload, types.TypeVec128)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTW128(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTW128 x)
+	// cond: !hasAVX2(v)
+	// result: (VPSHUFD128 [0] (VPUNPCKLWD128 <x.Type> x x))
+	for {
+		x := v_0
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPSHUFD128)
+		v.AuxInt = ssa.Uint8ToAuxInt(0)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPUNPCKLWD128, x.Type)
+		v0.AddArg2(x, x)
+		v.AddArg(v0)
+		return true
+	}
+	return false
+}
+func rewriteValue_OpAMD64VPBROADCASTW128load(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	// match: (VPBROADCASTW128load [off] {sym} ptr mem)
+	// cond: !hasAVX2(v)
+	// result: (VPBROADCASTW128 (VMOVDload <types.TypeVec128> [off] {sym} ptr mem))
+	for {
+		off := ssa.AuxIntToInt32(v.AuxInt)
+		sym := ssa.AuxToSym(v.Aux)
+		ptr := v_0
+		mem := v_1
+		if !(!hasAVX2(v)) {
+			break
+		}
+		v.Reset(ssaop.OpAMD64VPBROADCASTW128)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VMOVDload, types.TypeVec128)
+		v0.AuxInt = ssa.Int32ToAuxInt(off)
+		v0.Aux = ssa.SymToAux(sym)
+		v0.AddArg2(ptr, mem)
+		v.AddArg(v0)
 		return true
 	}
 	return false

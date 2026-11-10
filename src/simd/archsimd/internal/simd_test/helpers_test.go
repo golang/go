@@ -9,11 +9,21 @@ package simd_test
 import (
 	"fmt"
 	"math"
+	"os"
 	"reflect"
 	"simd/internal/test_helpers"
 	"testing"
 	"unsafe"
 )
+
+// inQEMU reports whether the tests are running under QEMU user-mode
+// emulation, which has bugs in a few SIMD instructions that would otherwise
+// cause test failures. The IN_QEMU environment variable is set by some of the
+// Go builders (see runtime/pprof's use of it), and can be set manually when
+// running tests with "go test -exec qemu-...".
+func inQEMU() bool {
+	return os.Getenv("IN_QEMU") == "1"
+}
 
 type signed interface {
 	~int | ~int8 | ~int16 | ~int32 | ~int64

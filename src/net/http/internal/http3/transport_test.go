@@ -55,14 +55,18 @@ func TestTransportInitEndpointError(t *testing.T) {
 		activeConns: make(map[*clientConn]struct{}),
 	}
 
-	if err := tr.initEndpoint(); err == nil {
-		t.Fatal("initEndpoint() = nil, want error")
+	endpoint, err := tr.endpoint()
+	if err == nil {
+		t.Fatal("tr.endpoint() = nil, want error")
 	}
-	if tr.endpoint != nil {
-		t.Errorf("after failed initEndpoint, transport.endpoint = %v, want nil", tr.endpoint)
+	if endpoint != nil {
+		t.Errorf("after failed tr.endpoint(), returned endpoint = %v, want nil", endpoint)
+	}
+	if tr.lazyEndpoint != nil {
+		t.Errorf("after failed tr.endpoint(), transport.lazyEndpoint = %v, want nil", tr.lazyEndpoint)
 	}
 	if !conn.closed {
-		t.Errorf("after failed initEndpoint, the net.PacketConn was not closed")
+		t.Errorf("after failed tr.endpoint(), the net.PacketConn was not closed")
 	}
 
 	// dial must report the error rather than panicking on the nil endpoint.
@@ -619,9 +623,9 @@ type testClientConn struct {
 func newTestClientConnWithHook(t testing.TB, stateHook func()) *testClientConn {
 	e1, e2 := newQUICEndpointPair(t)
 	tr := &transport{
-		endpoint:    e1,
-		tr1:         new(http.Transport),
-		activeConns: make(map[*clientConn]struct{}),
+		lazyEndpoint: e1,
+		tr1:          new(http.Transport),
+		activeConns:  make(map[*clientConn]struct{}),
 	}
 
 	cc, err := tr.dial(t.Context(), e2.LocalAddr().String(), testTLSConfig, stateHook)

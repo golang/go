@@ -1427,16 +1427,20 @@ func init() {
 		{name: "VMOVDQUload512", argLength: 2, reg: wload, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1 = mem
 		{name: "VMOVDQUstore512", argLength: 3, reg: wstore, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg1, arg2 = mem
 
-		// AVX2 32 and 64-bit element int-vector masked moves.
-		{name: "VPMASK32load128", argLength: 3, reg: vloadv, asm: "VPMASKMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
-		{name: "VPMASK32store128", argLength: 4, reg: vstorev, asm: "VPMASKMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
-		{name: "VPMASK64load128", argLength: 3, reg: vloadv, asm: "VPMASKMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
-		{name: "VPMASK64store128", argLength: 4, reg: vstorev, asm: "VPMASKMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
+		// AVX 32 and 64-bit element vector-masked moves. These use VMASKMOVPS/PD
+		// rather than AVX2's VPMASKMOVD/Q. They have the same semantics (including
+		// fault suppression for masked-off elements) and move bits without
+		// interpreting them, so they work for integer vectors, too, but they only
+		// require AVX.
+		{name: "VPMASK32load128", argLength: 3, reg: vloadv, asm: "VMASKMOVPS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
+		{name: "VPMASK32store128", argLength: 4, reg: vstorev, asm: "VMASKMOVPS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
+		{name: "VPMASK64load128", argLength: 3, reg: vloadv, asm: "VMASKMOVPD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
+		{name: "VPMASK64store128", argLength: 4, reg: vstorev, asm: "VMASKMOVPD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
 
-		{name: "VPMASK32load256", argLength: 3, reg: vloadv, asm: "VPMASKMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
-		{name: "VPMASK32store256", argLength: 4, reg: vstorev, asm: "VPMASKMOVD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
-		{name: "VPMASK64load256", argLength: 3, reg: vloadv, asm: "VPMASKMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
-		{name: "VPMASK64store256", argLength: 4, reg: vstorev, asm: "VPMASKMOVQ", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
+		{name: "VPMASK32load256", argLength: 3, reg: vloadv, asm: "VMASKMOVPS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
+		{name: "VPMASK32store256", argLength: 4, reg: vstorev, asm: "VMASKMOVPS", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
+		{name: "VPMASK64load256", argLength: 3, reg: vloadv, asm: "VMASKMOVPD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1=integer mask, arg2 = mem
+		{name: "VPMASK64store256", argLength: 4, reg: vstorev, asm: "VMASKMOVPD", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg2, arg1=integer mask, arg3 = mem
 
 		// AVX512 8-64-bit element mask-register masked moves
 		{name: "VPMASK8load512", argLength: 3, reg: wloadk, asm: "VMOVDQU8", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},      // load from arg0+auxint+aux, arg1=k mask, arg2 = mem

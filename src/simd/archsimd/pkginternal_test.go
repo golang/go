@@ -266,3 +266,50 @@ func select2x8x32Grouped(x archsimd.Int32x8, a, b, c, d uint8, y archsimd.Int32x
 	}
 	panic("missing case, switch should be exhaustive")
 }
+
+// TestBroadcastLoad128 checks 128-bit broadcasts from memory, which the
+// compiler implements differently with and without AVX2.
+func TestBroadcastLoad128(t *testing.T) {
+	check := func(name string, got, want any) {
+		t.Helper()
+		if fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("%s: got %v, want %v", name, got, want)
+		}
+	}
+	{
+		in := [16]int8{-7, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}
+		var out [16]int8
+		archsimd.ExportTestBroadcastLoadInt8x16(&in).StoreArray(&out)
+		check("Int8x16", out, [16]int8{-7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7, -7})
+	}
+	{
+		in := [8]int16{-1234, 1, 2, 3, 4, 5, 6, 7}
+		var out [8]int16
+		archsimd.ExportTestBroadcastLoadInt16x8(&in).StoreArray(&out)
+		check("Int16x8", out, [8]int16{-1234, -1234, -1234, -1234, -1234, -1234, -1234, -1234})
+	}
+	{
+		in := [4]int32{-123456, 1, 2, 3}
+		var out [4]int32
+		archsimd.ExportTestBroadcastLoadInt32x4(&in).StoreArray(&out)
+		check("Int32x4", out, [4]int32{-123456, -123456, -123456, -123456})
+	}
+	{
+		in := [4]float32{-1.5, 1, 2, 3}
+		var out [4]float32
+		archsimd.ExportTestBroadcastLoadFloat32x4(&in).StoreArray(&out)
+		check("Float32x4", out, [4]float32{-1.5, -1.5, -1.5, -1.5})
+	}
+	{
+		in := [2]int64{-1234567890123, 1}
+		var out [2]int64
+		archsimd.ExportTestBroadcastLoadInt64x2(&in).StoreArray(&out)
+		check("Int64x2", out, [2]int64{-1234567890123, -1234567890123})
+	}
+	{
+		in := [2]float64{-2.25, 1}
+		var out [2]float64
+		archsimd.ExportTestBroadcastLoadFloat64x2(&in).StoreArray(&out)
+		check("Float64x2", out, [2]float64{-2.25, -2.25})
+	}
+}

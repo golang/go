@@ -13,14 +13,38 @@
 
 # Absolute Value (signed byte, word, dword, qword)
 # Instructions: VPABSB, VPABSW, VPABSD, VPABSQ
+#
+# VPABSB, VPABSW and VPABSD are AVX at 128 bits and AVX2 at 256 bits, the
+# feature levels midway requires of those widths, so Abs on 8-, 16- and 32-bit
+# elements uses them at every width. VPABSQ, for 64-bit elements, needs AVX-512
+# at every width, so Abs uses it only at 512 bits; at 128 and 256 bits it is
+# emulated with AVX and AVX2 in ops_emulated_amd64.go, and AMD64.rules turns
+# that emulation back into VPABSQ (absInt64AVX512 below) where AVX-512 is
+# known to be available.
 - go: Abs
-  asm: "VPABS[BWDQ]" # Matches VPABSB, VPABSW, VPABSD, VPABSQ
+  asm: "VPABS[BWD]" # Matches VPABSB, VPABSW, VPABSD
   in:
-  - &int_t # $t will be Int8xN, Int16xN, Int32xN, Int64xN
+  - &int_t # $t will be Int8xN, Int16xN, Int32xN
     go: $t
     base: int
   out:
   - base: uint # Output is magnitude, requires uint for full range
+- go: Abs
+  asm: "VPABSQ"
+  in:
+  - go: $t
+    base: int
+    bits: 512
+  out:
+  - base: uint
+- go: absInt64AVX512
+  asm: "VPABSQ"
+  in:
+  - go: $t
+    base: int
+    bits: (128|256)
+  out:
+  - base: uint
 
 # Sign Operation (signed byte, word, dword)
 # Instructions: VPSIGNB, VPSIGNW, VPSIGND

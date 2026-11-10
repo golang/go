@@ -182,16 +182,6 @@ func (x Int32x16) Abs() (z Uint32x16)
 // Abs returns the elementwise absolute value of x.
 //
 // Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x2) Abs() (z Uint64x2)
-
-// Abs returns the elementwise absolute value of x.
-//
-// Asm: VPABSQ, CPU Feature: AVX512
-func (x Int64x4) Abs() (z Uint64x4)
-
-// Abs returns the elementwise absolute value of x.
-//
-// Asm: VPABSQ, CPU Feature: AVX512
 func (x Int64x8) Abs() (z Uint64x8)
 
 /* Add */
@@ -1348,307 +1338,277 @@ func (x Int16x8) ConcatAddPairsSaturated(y Int16x8) (z Int16x8)
 // Asm: VPHADDSW, CPU Feature: AVX2
 func (x Int16x16) ConcatAddPairsSaturatedGrouped(y Int16x16) (z Int16x16)
 
-/* ConcatPermute */
+/* ConcatLookupMod */
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x16) ConcatPermute(y Int8x16, indices Uint8x16) Int8x16
+func (x Int8x16) ConcatLookupMod(y Int8x16, indices Uint8x16) (z Int8x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x16) ConcatPermute(y Uint8x16, indices Uint8x16) Uint8x16
+func (x Uint8x16) ConcatLookupMod(y Uint8x16, indices Uint8x16) (z Uint8x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x32) ConcatPermute(y Int8x32, indices Uint8x32) Int8x32
+func (x Int8x32) ConcatLookupMod(y Int8x32, indices Uint8x32) (z Int8x32)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x32) ConcatPermute(y Uint8x32, indices Uint8x32) Uint8x32
+func (x Uint8x32) ConcatLookupMod(y Uint8x32, indices Uint8x32) (z Uint8x32)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Int8x64) ConcatPermute(y Int8x64, indices Uint8x64) Int8x64
+func (x Int8x64) ConcatLookupMod(y Int8x64, indices Uint8x64) (z Int8x64)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2B, CPU Feature: AVX512VBMI
-func (x Uint8x64) ConcatPermute(y Uint8x64, indices Uint8x64) Uint8x64
+func (x Uint8x64) ConcatLookupMod(y Uint8x64, indices Uint8x64) (z Uint8x64)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x8) ConcatPermute(y Int16x8, indices Uint16x8) Int16x8
+func (x Int16x8) ConcatLookupMod(y Int16x8, indices Uint16x8) (z Int16x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x8) ConcatPermute(y Uint16x8, indices Uint16x8) Uint16x8
+func (x Uint16x8) ConcatLookupMod(y Uint16x8, indices Uint16x8) (z Uint16x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x16) ConcatPermute(y Int16x16, indices Uint16x16) Int16x16
+func (x Int16x16) ConcatLookupMod(y Int16x16, indices Uint16x16) (z Int16x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x16) ConcatPermute(y Uint16x16, indices Uint16x16) Uint16x16
+func (x Uint16x16) ConcatLookupMod(y Uint16x16, indices Uint16x16) (z Uint16x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Int16x32) ConcatPermute(y Int16x32, indices Uint16x32) Int16x32
+func (x Int16x32) ConcatLookupMod(y Int16x32, indices Uint16x32) (z Int16x32)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2W, CPU Feature: AVX512
-func (x Uint16x32) ConcatPermute(y Uint16x32, indices Uint16x32) Uint16x32
+func (x Uint16x32) ConcatLookupMod(y Uint16x32, indices Uint16x32) (z Uint16x32)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x4) ConcatPermute(y Float32x4, indices Uint32x4) Float32x4
+func (x Float32x4) ConcatLookupMod(y Float32x4, indices Uint32x4) (z Float32x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x4) ConcatPermute(y Int32x4, indices Uint32x4) Int32x4
+func (x Int32x4) ConcatLookupMod(y Int32x4, indices Uint32x4) (z Int32x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x4) ConcatPermute(y Uint32x4, indices Uint32x4) Uint32x4
+func (x Uint32x4) ConcatLookupMod(y Uint32x4, indices Uint32x4) (z Uint32x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x8) ConcatPermute(y Float32x8, indices Uint32x8) Float32x8
+func (x Float32x8) ConcatLookupMod(y Float32x8, indices Uint32x8) (z Float32x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x8) ConcatPermute(y Int32x8, indices Uint32x8) Int32x8
+func (x Int32x8) ConcatLookupMod(y Int32x8, indices Uint32x8) (z Int32x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x8) ConcatPermute(y Uint32x8, indices Uint32x8) Uint32x8
+func (x Uint32x8) ConcatLookupMod(y Uint32x8, indices Uint32x8) (z Uint32x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PS, CPU Feature: AVX512
-func (x Float32x16) ConcatPermute(y Float32x16, indices Uint32x16) Float32x16
+func (x Float32x16) ConcatLookupMod(y Float32x16, indices Uint32x16) (z Float32x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Int32x16) ConcatPermute(y Int32x16, indices Uint32x16) Int32x16
+func (x Int32x16) ConcatLookupMod(y Int32x16, indices Uint32x16) (z Int32x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2D, CPU Feature: AVX512
-func (x Uint32x16) ConcatPermute(y Uint32x16, indices Uint32x16) Uint32x16
+func (x Uint32x16) ConcatLookupMod(y Uint32x16, indices Uint32x16) (z Uint32x16)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x2) ConcatPermute(y Float64x2, indices Uint64x2) Float64x2
+func (x Float64x2) ConcatLookupMod(y Float64x2, indices Uint64x2) (z Float64x2)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x2) ConcatPermute(y Int64x2, indices Uint64x2) Int64x2
+func (x Int64x2) ConcatLookupMod(y Int64x2, indices Uint64x2) (z Int64x2)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x2) ConcatPermute(y Uint64x2, indices Uint64x2) Uint64x2
+func (x Uint64x2) ConcatLookupMod(y Uint64x2, indices Uint64x2) (z Uint64x2)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x4) ConcatPermute(y Float64x4, indices Uint64x4) Float64x4
+func (x Float64x4) ConcatLookupMod(y Float64x4, indices Uint64x4) (z Float64x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x4) ConcatPermute(y Int64x4, indices Uint64x4) Int64x4
+func (x Int64x4) ConcatLookupMod(y Int64x4, indices Uint64x4) (z Int64x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x4) ConcatPermute(y Uint64x4, indices Uint64x4) Uint64x4
+func (x Uint64x4) ConcatLookupMod(y Uint64x4, indices Uint64x4) (z Uint64x4)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2PD, CPU Feature: AVX512
-func (x Float64x8) ConcatPermute(y Float64x8, indices Uint64x8) Float64x8
+func (x Float64x8) ConcatLookupMod(y Float64x8, indices Uint64x8) (z Float64x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Int64x8) ConcatPermute(y Int64x8, indices Uint64x8) Int64x8
+func (x Int64x8) ConcatLookupMod(y Int64x8, indices Uint64x8) (z Int64x8)
 
-// ConcatPermute performs a full permutation of vector x, y using indices:
+// ConcatLookupMod selects elements from the concatenation of x (low indices)
+// and y (high indices), indexed by indices modulo the combined length.
 //
-//	result = {xy[indices[0]], xy[indices[1]], ..., xy[indices[n]]}
-//
-// where xy is the concatenation of x (lower half) and y (upper half).
-// Only the needed bits to represent xy's index are used in indices' elements.
+//	xy = concat(x, y)
+//	z[i] = xy[indices[i] % len(xy)]
 //
 // Asm: VPERMI2Q, CPU Feature: AVX512
-func (x Uint64x8) ConcatPermute(y Uint64x8, indices Uint64x8) Uint64x8
+func (x Uint64x8) ConcatLookupMod(y Uint64x8, indices Uint64x8) (z Uint64x8)
 
 /* ConcatPermute128Scalars */
 
@@ -4483,6 +4443,280 @@ func (x Uint32x16) LessEqual(y Uint32x16) (z Mask32x16)
 // Asm: VPCMPUQ, CPU Feature: AVX512
 func (x Uint64x8) LessEqual(y Uint64x8) (z Mask64x8)
 
+/* LookupMod */
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x16) LookupMod(indices Uint8x16) (z Int8x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x16) LookupMod(indices Uint8x16) (z Uint8x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x32) LookupMod(indices Uint8x32) (z Int8x32)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x32) LookupMod(indices Uint8x32) (z Uint8x32)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Int8x64) LookupMod(indices Uint8x64) (z Int8x64)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMB, CPU Feature: AVX512VBMI
+func (x Uint8x64) LookupMod(indices Uint8x64) (z Uint8x64)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Int16x8) LookupMod(indices Uint16x8) (z Int16x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Uint16x8) LookupMod(indices Uint16x8) (z Uint16x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Int16x16) LookupMod(indices Uint16x16) (z Int16x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Uint16x16) LookupMod(indices Uint16x16) (z Uint16x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Int16x32) LookupMod(indices Uint16x32) (z Int16x32)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMW, CPU Feature: AVX512
+func (x Uint16x32) LookupMod(indices Uint16x32) (z Uint16x32)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMPS, CPU Feature: AVX2
+func (x Float32x8) LookupMod(indices Uint32x8) (z Float32x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMD, CPU Feature: AVX2
+func (x Int32x8) LookupMod(indices Uint32x8) (z Int32x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMD, CPU Feature: AVX2
+func (x Uint32x8) LookupMod(indices Uint32x8) (z Uint32x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMPS, CPU Feature: AVX512
+func (x Float32x16) LookupMod(indices Uint32x16) (z Float32x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMD, CPU Feature: AVX512
+func (x Int32x16) LookupMod(indices Uint32x16) (z Int32x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMD, CPU Feature: AVX512
+func (x Uint32x16) LookupMod(indices Uint32x16) (z Uint32x16)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMPD, CPU Feature: AVX512
+func (x Float64x4) LookupMod(indices Uint64x4) (z Float64x4)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMQ, CPU Feature: AVX512
+func (x Int64x4) LookupMod(indices Uint64x4) (z Int64x4)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMQ, CPU Feature: AVX512
+func (x Uint64x4) LookupMod(indices Uint64x4) (z Uint64x4)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMPD, CPU Feature: AVX512
+func (x Float64x8) LookupMod(indices Uint64x8) (z Float64x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMQ, CPU Feature: AVX512
+func (x Int64x8) LookupMod(indices Uint64x8) (z Int64x8)
+
+// LookupMod selects elements of x indexed by indices modulo the vector length.
+// This operation is also commonly called permute, shuffle, or swizzle.
+//
+//	z[i] = x[indices[i] % len(x)]
+//
+// Asm: VPERMQ, CPU Feature: AVX512
+func (x Uint64x8) LookupMod(indices Uint64x8) (z Uint64x8)
+
+/* LookupModOrZero */
+
+// LookupModOrZero selects elements of x indexed by indices modulo the vector
+// length, or 0 for negative indices.
+//
+//	if indices[i] >= 0 {
+//	    z[i] = x[indices[i] % len(x)]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX
+func (x Int8x16) LookupModOrZero(indices Int8x16) (z Int8x16)
+
+// LookupModOrZero selects elements of x indexed by indices modulo the vector
+// length, or 0 for negative indices.
+//
+//	if indices[i] >= 0 {
+//	    z[i] = x[indices[i] % len(x)]
+//	} else {
+//	    z[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX
+func (x Uint8x16) LookupModOrZero(indices Int8x16) (z Uint8x16)
+
+/* LookupModOrZeroGrouped */
+
+// LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
+// performs [LookupModOrZero] on each group.
+//
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX2
+func (x Int8x32) LookupModOrZeroGrouped(indices Int8x32) (z Int8x32)
+
+// LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
+// performs [LookupModOrZero] on each group.
+//
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX512
+func (x Int8x64) LookupModOrZeroGrouped(indices Int8x64) (z Int8x64)
+
+// LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
+// performs [LookupModOrZero] on each group.
+//
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX2
+func (x Uint8x32) LookupModOrZeroGrouped(indices Int8x32) (z Uint8x32)
+
+// LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
+// performs [LookupModOrZero] on each group.
+//
+//	let vₙ be the n'th 128-bit group of vector v
+//	if indicesₙ[i] >= 0 {
+//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
+//	} else {
+//	    zₙ[i] = 0
+//	}
+//
+// Asm: VPSHUFB, CPU Feature: AVX512
+func (x Uint8x64) LookupModOrZeroGrouped(indices Int8x64) (z Uint8x64)
+
 /* Max */
 
 // Max returns the elementwise maximum of x and y.
@@ -5879,250 +6113,6 @@ func (x Uint64x8) Or(y Uint64x8) (z Uint64x8)
 // Asm: VPOR, CPU Feature: AVX
 func (x Uint64x2) Or(y Uint64x2) (z Uint64x2)
 
-/* Permute */
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x16) Permute(indices Uint8x16) (z Int8x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x16) Permute(indices Uint8x16) (z Uint8x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x32) Permute(indices Uint8x32) (z Int8x32)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x32) Permute(indices Uint8x32) (z Uint8x32)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Int8x64) Permute(indices Uint8x64) (z Int8x64)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMB, CPU Feature: AVX512VBMI
-func (x Uint8x64) Permute(indices Uint8x64) (z Uint8x64)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x8) Permute(indices Uint16x8) (z Int16x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x8) Permute(indices Uint16x8) (z Uint16x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x16) Permute(indices Uint16x16) (z Int16x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x16) Permute(indices Uint16x16) (z Uint16x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Int16x32) Permute(indices Uint16x32) (z Int16x32)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMW, CPU Feature: AVX512
-func (x Uint16x32) Permute(indices Uint16x32) (z Uint16x32)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMPS, CPU Feature: AVX2
-func (x Float32x8) Permute(indices Uint32x8) (z Float32x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMD, CPU Feature: AVX2
-func (x Int32x8) Permute(indices Uint32x8) (z Int32x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMD, CPU Feature: AVX2
-func (x Uint32x8) Permute(indices Uint32x8) (z Uint32x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMPS, CPU Feature: AVX512
-func (x Float32x16) Permute(indices Uint32x16) (z Float32x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMD, CPU Feature: AVX512
-func (x Int32x16) Permute(indices Uint32x16) (z Int32x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMD, CPU Feature: AVX512
-func (x Uint32x16) Permute(indices Uint32x16) (z Uint32x16)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMPD, CPU Feature: AVX512
-func (x Float64x4) Permute(indices Uint64x4) (z Float64x4)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMQ, CPU Feature: AVX512
-func (x Int64x4) Permute(indices Uint64x4) (z Int64x4)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMQ, CPU Feature: AVX512
-func (x Uint64x4) Permute(indices Uint64x4) (z Uint64x4)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMPD, CPU Feature: AVX512
-func (x Float64x8) Permute(indices Uint64x8) (z Float64x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMQ, CPU Feature: AVX512
-func (x Int64x8) Permute(indices Uint64x8) (z Int64x8)
-
-// Permute permutes x.
-//
-//	z[i] = x[indices[i] % len(x)]
-//
-// Asm: VPERMQ, CPU Feature: AVX512
-func (x Uint64x8) Permute(indices Uint64x8) (z Uint64x8)
-
-/* PermuteOrZero */
-
-// PermuteOrZero permutes x. If an index is negative, the result is 0.
-//
-//	if indices[i] >= 0 {
-//	    z[i] = x[indices[i] % len(x)]
-//	} else {
-//	    z[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX
-func (x Int8x16) PermuteOrZero(indices Int8x16) Int8x16
-
-// PermuteOrZero permutes x. If an index is negative, the result is 0.
-//
-//	if indices[i] >= 0 {
-//	    z[i] = x[indices[i] % len(x)]
-//	} else {
-//	    z[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX
-func (x Uint8x16) PermuteOrZero(indices Int8x16) Uint8x16
-
-/* PermuteOrZeroGrouped */
-
-// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX2
-func (x Int8x32) PermuteOrZeroGrouped(indices Int8x32) Int8x32
-
-// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX512
-func (x Int8x64) PermuteOrZeroGrouped(indices Int8x64) Int8x64
-
-// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX2
-func (x Uint8x32) PermuteOrZeroGrouped(indices Int8x32) Uint8x32
-
-// PermuteOrZeroGrouped permutes x within each 128-bit group. If an index is negative, the result is 0.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
-// Asm: VPSHUFB, CPU Feature: AVX512
-func (x Uint8x64) PermuteOrZeroGrouped(indices Int8x64) Uint8x64
-
 /* Reciprocal */
 
 // Reciprocal computes an approximate reciprocal of each element.
@@ -7456,22 +7446,6 @@ func (x Int32x8) ShiftAllRight(shift uint64) (z Int32x8)
 //
 // Asm: VPSRAD, CPU Feature: AVX512
 func (x Int32x16) ShiftAllRight(shift uint64) (z Int32x16)
-
-// ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
-//
-//	z[i] = x[i] >> shift
-//
-// Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x2) ShiftAllRight(shift uint64) (z Int64x2)
-
-// ShiftAllRight arithmetically shifts each element of x right by shift bits.
-// If shift is greater than the element width, the result is 0 or -1.
-//
-//	z[i] = x[i] >> shift
-//
-// Asm: VPSRAQ, CPU Feature: AVX512
-func (x Int64x4) ShiftAllRight(shift uint64) (z Int64x4)
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
 // If shift is greater than the element width, the result is 0 or -1.

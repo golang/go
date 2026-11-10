@@ -152,6 +152,30 @@ func em4(xlo, xhi, ylo, yhi uint64) string {
 	return fmt.Sprintf("0x%08x%08x", hi, lo)
 }
 
+// em5 returns the string representation of
+//
+//	clmul(xlo,ylo)^clmul(xhi,yhi)
+//
+// using the supplied simd operation
+// CarrylessMultiplyEvenOdd
+func em5(xlo, xhi, ylo, yhi uint64) string {
+	z := set0(xlo).CarrylessMultiplyEvenOdd(set1(ylo)).Xor(set0(xhi).CarrylessMultiplyEvenOdd(set1(yhi)))
+	lo, hi := get(z)
+	return fmt.Sprintf("0x%08x%08x", hi, lo)
+}
+
+// em6 returns the string representation of
+//
+//	clmul(xlo,ylo)^clmul(xhi,yhi)
+//
+// using the supplied simd operation
+// CarrylessMultiplyOddEven
+func em6(xlo, xhi, ylo, yhi uint64) string {
+	z := set1(xlo).CarrylessMultiplyOddEven(set0(ylo)).Xor(set1(xhi).CarrylessMultiplyOddEven(set0(yhi)))
+	lo, hi := get(z)
+	return fmt.Sprintf("0x%08x%08x", hi, lo)
+}
+
 var sinkLo, sinkHi uint64
 
 func BenchmarkVpsumdIteration(b *testing.B) {
@@ -206,6 +230,8 @@ func TestClMul(t *testing.T) {
 	f("Clever emulated vector clmul emulation", em2)
 	f("CarrylessMultiplyEven", em3)
 	f("CarrylessMultiplyOdd", em4)
+	f("CarrylessMultiplyEvenOdd", em5)
+	f("CarrylessMultiplyOddEven", em6)
 
 	for i := range 10000 {
 		a, b, c, d := rand.Uint64(), rand.Uint64(), rand.Uint64(), rand.Uint64()
@@ -214,9 +240,11 @@ func TestClMul(t *testing.T) {
 		e2 := em2(a, b, c, d)
 		e3 := em3(a, b, c, d)
 		e4 := em4(a, b, c, d)
+		e5 := em5(a, b, c, d)
+		e6 := em6(a, b, c, d)
 
-		if e1 != e2 || e1 != e3 || e1 != e4 {
-			t.Errorf("Mismatch at %d, a,b,c,d = 0x%08x, 0x%08x, 0x%08x, 0x%08x; e1=%s, e2=%s, e3=%s, e4=%s", i, a, b, c, d, e1, e2, e3, e4)
+		if e1 != e2 || e1 != e3 || e1 != e4 || e1 != e5 || e1 != e6 {
+			t.Errorf("Mismatch at %d, a,b,c,d = 0x%08x, 0x%08x, 0x%08x, 0x%08x; e1=%s, e2=%s, e3=%s, e4=%s, e5=%s, e6=%s", i, a, b, c, d, e1, e2, e3, e4, e5, e6)
 			if i > 5 {
 				return
 			}

@@ -237,6 +237,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		}
 		if fakeNet {
 			pnet := nettest.NewPacketNet()
+			t.Cleanup(func() {
+				pnet.Close()
+			})
 			srvAddr := net.UDPAddrFromAddrPort(netip.MustParseAddrPort("192.0.2.1:1000"))
 			var cliPort atomic.Uint32
 			cliPort.Store(10000)
@@ -321,6 +324,9 @@ func newClientServerTest(t testing.TB, mode testMode, h Handler, opts ...any) *c
 		if err := http3.RegisterTransport(tr, http3TransportOpts); err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			tr.HTTP3Transport().Close()
+		})
 		tr.SetHTTP3DialAddrForTesting(func(addr string) string {
 			if fakeNet || addr == "example.com:443" || strings.HasSuffix(addr, ".example.com:443") {
 				return cst.ts.Listener.Addr().String()
@@ -1713,6 +1719,7 @@ func testWriteHeader0(t *testing.T, mode testMode) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer res.Body.Close()
 	if res.StatusCode != 503 {
 		t.Errorf("Response: %v %q; want 503", res.StatusCode, res.Status)
 	}

@@ -765,6 +765,7 @@ func writeGoDefs(cl unify.Closure) error {
 		log.Printf("dedup len: %d\n", len(deduped))
 	}
 	reportXEDInconsistency(deduped)
+	relabelAVXBroadcasts(deduped)
 
 	// Sorting again, just in case.
 	slices.SortFunc(deduped, compareOperations)
@@ -814,4 +815,24 @@ func writeGoDefs(cl unify.Closure) error {
 	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+".rules"), deduped)
 
 	return nil
+}
+
+// relabelAVXBroadcasts lowers the CPU feature of the amd64 128-bit to 128-bit
+// broadcast1ToN methods from AVX2 to AVX. Their instructions (VPBROADCAST and
+// the register form of VBROADCASTSS) require AVX2 even at 128 bits, but unless
+// AVX2 is known to be available, the compiler implements them with AVX
+// shuffles instead (see AMD64latelower.rules). This lets 128-bit Broadcast
+// functions, and emulations built on them, require only AVX.
+func relabelAVXBroadcasts(ops []Operation) {
+	for i := range ops {
+		op := &ops[i]
+		if op.GOARCH != "amd64" || !strings.HasPrefix(op.Go, "broadcast1To") || op.CPUFeature != "AVX2" {
+			continue
+		}
+		if len(op.Out) != 1 || op.Out[0].Bits.Scalable || op.Out[0].Bits.N() != 128 {
+			continue
+		}
+		op.CPUFeature = "AVX"
+		op.Documentation += "\n//\n// Without AVX2, the compiler implements this with an AVX shuffle."
+	}
 }

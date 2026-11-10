@@ -5968,49 +5968,42 @@ func get(t *testing.T, c *Client, url string) string {
 // Tests that calls to Server.SetKeepAlivesEnabled(false) closes any
 // currently-open connections.
 func TestServerSetKeepAlivesEnabledClosesConns(t *testing.T) {
-	runSynctest(t, testServerSetKeepAlivesEnabledClosesConns, []testMode{http1Mode})
-}
-func testServerSetKeepAlivesEnabledClosesConns(t *testing.T, mode testMode) {
-	ts := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
-		io.WriteString(w, r.RemoteAddr)
-	})).ts
+	synctest.Test(t, func(t *testing.T) {
+		st := newHTTP1ServerTest(t, nil)
 
-	c := ts.Client()
-	tr := c.Transport.(*Transport)
+		// conn1 never sends a request.
+		conn1 := st.dial()
 
-	get := func() string { return get(t, c, ts.URL) }
+		// conn2 sends a request and waits.
+		conn2 := st.dial()
+		conn2.writeMessage(joinCRLF(
+			"GET / HTTP/1.1",
+			"Host: example.tld",
+			"",
+		))
+		conn2.wantResponse("HTTP/1.1 200 OK", nil)
 
-	a1, a2 := get(), get()
-	if a1 == a2 {
-		t.Logf("made two requests from a single conn %q (as expected)", a1)
-	} else {
-		t.Errorf("server reported requests from %q and %q; expected same connection", a1, a2)
-	}
+		// conn3 is HTTP/1.0 with keepalive.
+		conn3 := st.dial()
+		conn3.writeMessage(joinCRLF(
+			"GET / HTTP/1.0",
+			"Connection: keep-alive",
+			"",
+		))
+		conn3.wantResponse("HTTP/1.0 200 OK", nil)
 
-	// The two requests should have used the same connection,
-	// and there should not have been a second connection that
-	// was created by racing dial against reuse.
-	// (The first get was completed when the second get started.)
-	if conns := tr.IdleConnStrsForTesting(); len(conns) != 1 {
-		t.Errorf("found %d idle conns (%q); want 1", len(conns), conns)
-	}
+		conn1.wantIdle()
+		conn2.wantIdle()
+		conn3.wantIdle()
+		st.ts.Config.SetKeepAlivesEnabled(false)
+		conn1.wantIdle() // new, unused conn; not closed
+		conn2.wantClosed()
+		conn3.wantClosed()
 
-	// SetKeepAlivesEnabled should discard idle conns.
-	ts.Config.SetKeepAlivesEnabled(false)
-
-	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
-		if conns := tr.IdleConnStrsForTesting(); len(conns) > 0 {
-			if d > 0 {
-				t.Logf("idle conns %v after SetKeepAlivesEnabled called = %q; waiting for empty", d, conns)
-			}
-			return false
-		}
-		return true
+		time.Sleep(6 * time.Second)
+		st.ts.Config.SetKeepAlivesEnabled(false)
+		conn1.wantClosed() // conn created >5s ago; closed
 	})
-
-	// If we make a third request it should use a new connection, but in general
-	// we have no way to verify that: the new connection could happen to reuse the
-	// exact same ports from the previous connection.
 }
 
 func TestServerShutdown(t *testing.T) { runNoSynctest(t, testServerShutdown, http3SkippedMode) }

@@ -163,6 +163,87 @@ func TestTransportPoolConnHTTP2Startup(t *testing.T) {
 	})
 }
 
+func TestTransportPoolHTTP1IdleConnTimeout(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const timeout = 1 * time.Minute
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.IdleConnTimeout = timeout
+		})
+
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/1.1")
+		rt1.finish()
+
+		// Second request should reuse c1.
+		rt2 := dt.roundTrip()
+		rt2.wantDone(c1, "HTTP/1.1")
+		rt2.finish()
+
+		synctest.Sleep(timeout - time.Nanosecond)
+		c1.wantAlive()
+		synctest.Sleep(time.Nanosecond)
+		c1.wantClosed()
+	})
+}
+
+// A new request on an HTTP/2 connection with available streams must not be closed
+// by IdleConnTimeout due to an uninitialized idleAt timestamp.
+func TestTransportPoolHTTP2IdleConnTimeout(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		const timeout = 1 * time.Minute
+		dt := newTransportDialTester(t, http2UnencryptedMode, func(tr *http.Transport) {
+			tr.IdleConnTimeout = timeout
+		})
+
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		c1.finish(nil)
+		rt1.wantDone(c1, "HTTP/2.0")
+
+		// Second request should reuse c1 since it has available concurrent streams.
+		rt2 := dt.roundTrip()
+		rt2.wantDone(c1, "HTTP/2.0")
+
+		rt1.finish()
+		rt2.finish()
+
+		synctest.Sleep(timeout - time.Nanosecond)
+		c1.wantAlive()
+		synctest.Sleep(time.Nanosecond)
+		c1.wantClosed()
+	})
+}
+
+// Issue 16208: Go 1.7 crashed after Transport.IdleConnTimeout if an
+// HTTP/2 connection was established but its caller no longer
+// wanted it. (Assuming the connection cache was enabled, which it is
+// by default)
+//
+// This test replicates these circumstances.
+func TestTransportPoolUnwantedIdleConn(t *testing.T) {
+	runSynctest(t, func(t *testing.T, mode testMode) {
+		const timeout = 1 * time.Minute
+		dt := newTransportDialTester(t, mode, func(tr *http.Transport) {
+			tr.IdleConnTimeout = timeout
+		})
+
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		rt1.cancel()
+		synctest.Wait()
+		rt1.wantError()
+		c1.finish(nil)
+		c1.wantAlive()
+
+		synctest.Sleep(timeout - time.Nanosecond)
+		c1.wantAlive()
+		synctest.Sleep(time.Nanosecond)
+		c1.wantClosed()
+	}, []testMode{http1Mode, http2UnencryptedMode})
+}
+
 // When a request finishes using an HTTP/1 connection,
 // a pending request attempting to dial a new connection will use the newly-available one.
 func TestTransportPoolConnConnectionBecomesAvailableDuringDial(t *testing.T) {
@@ -258,6 +339,44 @@ func TestTransportPoolCancelRequestWithDisableKeepAlives(t *testing.T) {
 		c2.finish(nil)
 		rt2.wantDone(c2, "HTTP/1.1")
 		rt2.finish()
+	})
+}
+
+// Canceling requests does not leak MaxConnsPerHost capacity.
+func TestTransportPoolCancelRequestWithMaxConnsPerHost(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		dt := newTransportDialTester(t, http1Mode, func(tr *http.Transport) {
+			tr.MaxConnsPerHost = 1
+		})
+
+		// First request is canceled while its dial is in progress.
+		rt1 := dt.roundTrip()
+		c1 := dt.wantDial()
+		rt1.cancel()
+		rt1.wantError()
+
+		// Second request can't dial, because the first dial is still in progress.
+		rt2 := dt.roundTrip()
+		dt.wantIdle()
+
+		// The first dial fails, which frees up capacity for the second request to dial.
+		c1.finish(errors.New("dial failed"))
+		c2 := dt.wantDial()
+		c2.finish(nil)
+		rt2.wantDone(c2, "HTTP/1.1")
+
+		// Third request can't dial, because the second request is using the only connection.
+		// It is canceled while waiting.
+		rt3 := dt.roundTrip()
+		dt.wantIdle()
+		rt3.cancel()
+		rt3.wantError()
+
+		// Fourth request uses the connection after the second request finishes.
+		rt2.finish()
+		rt4 := dt.roundTrip()
+		rt4.wantDone(c2, "HTTP/1.1")
+		rt4.finish()
 	})
 }
 
@@ -692,8 +811,10 @@ type transportDialTesterConn struct {
 	connID int        // distinguished Dials in logs
 	ready  chan error // sent on to complete the Dial
 	protos []string
-	closed chan struct{}
 	addr   string
+
+	closemu sync.Mutex
+	closed  bool
 
 	*nettest.Conn
 }
@@ -705,10 +826,9 @@ func newTransportDialTester(t *testing.T, mode testMode, opts ...any) *transport
 	}
 	dialer := func(addr string) (*transportDialTesterConn, error) {
 		c := &transportDialTesterConn{
-			t:      t,
-			ready:  make(chan error),
-			closed: make(chan struct{}),
-			addr:   addr,
+			t:     t,
+			ready: make(chan error),
+			addr:  addr,
 		}
 		// Notify the test that a Dial has started,
 		// and wait for the test to notify us that it should complete.
@@ -826,7 +946,7 @@ func (rt *transportDialTesterRoundTrip) wantDone(c *transportDialTesterConn, wan
 	if rt.conn != c {
 		rt.t.Fatalf("RoundTrip %v: want on conn %v, got conn %v", rt.roundTripID, c.connID, rt.conn.connID)
 	}
-	if got, want := rt.res.Proto, wantProto; got != want {
+	if got, want := rt.res.Proto, wantProto; got != want && wantProto != "" {
 		rt.t.Fatalf("RoundTrip %v: got protocol %q, want %q", rt.roundTripID, got, want)
 	}
 }
@@ -883,6 +1003,16 @@ func (dt *transportDialTester) wantDial() *transportDialTesterConn {
 	return c
 }
 
+func (dt *transportDialTester) wantIdle() {
+	dt.t.Helper()
+	synctest.Wait()
+	dt.dialsMu.Lock()
+	defer dt.dialsMu.Unlock()
+	if len(dt.dials) > 0 {
+		dt.t.Fatalf("%v dials started, want none", len(dt.dials))
+	}
+}
+
 // finish completes a Dial.
 func (c *transportDialTesterConn) finish(err error) {
 	c.t.Helper()
@@ -894,9 +1024,9 @@ func (c *transportDialTesterConn) finish(err error) {
 func (c *transportDialTesterConn) wantClosed() {
 	c.t.Helper()
 	synctest.Wait()
-	select {
-	case <-c.closed:
-	default:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if !c.closed {
 		c.t.Fatalf("Conn %v: not closed (want it to be)", c.connID)
 	}
 }
@@ -904,20 +1034,20 @@ func (c *transportDialTesterConn) wantClosed() {
 func (c *transportDialTesterConn) wantAlive() {
 	c.t.Helper()
 	synctest.Wait()
-	select {
-	case <-c.closed:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if c.closed {
 		c.t.Fatalf("Conn %v: closed (want it to be alive)", c.connID)
-	default:
 	}
 }
 
 func (c *transportDialTesterConn) Close() error {
-	select {
-	case <-c.closed:
-	default:
+	c.closemu.Lock()
+	defer c.closemu.Unlock()
+	if !c.closed {
 		c.Conn.Close()
 		c.t.Logf("Conn %v: closed", c.connID)
-		close(c.closed)
+		c.closed = true
 	}
 	return nil
 }

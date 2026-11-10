@@ -390,6 +390,14 @@ func (x Int8x16nclm) LessEqual(y Int8x16nclm) Mask8x16nclm {
 	return Mask8x16nclm((archsimd.Int8x16(x)).LessEqual(archsimd.Int8x16(y)))
 }
 
+func (x Int8x16) LookupOrZero(indices Uint8x16) Int8x16 {
+	return Int8x16((archsimd.Int8x16(x)).LookupOrZero(archsimd.Uint8x16(indices)))
+}
+
+func (x Int8x16nclm) LookupOrZero(indices Uint8x16nclm) Int8x16nclm {
+	return Int8x16nclm((archsimd.Int8x16(x)).LookupOrZero(archsimd.Uint8x16(indices)))
+}
+
 func (x Int8x16) Masked(mask Mask8x16) Int8x16 {
 	return Int8x16((archsimd.Int8x16(x)).Masked(archsimd.Mask8x16(mask)))
 }
@@ -1054,6 +1062,14 @@ func (x Int32x4nclm) Xor(y Int32x4nclm) Int32x4nclm {
 	return Int32x4nclm((archsimd.Int32x4(x)).Xor(archsimd.Int32x4(y)))
 }
 
+func (x Int64x2) Abs() Uint64x2 {
+	return Uint64x2((archsimd.Int64x2(x)).Abs())
+}
+
+func (x Int64x2nclm) Abs() Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Int64x2(x)).Abs())
+}
+
 func (x Int64x2) Add(y Int64x2) Int64x2 {
 	return Int64x2((archsimd.Int64x2(x)).Add(archsimd.Int64x2(y)))
 }
@@ -1198,6 +1214,14 @@ func (x Int64x2nclm) ShiftAllLeft(shift uint64) Int64x2nclm {
 	return Int64x2nclm((archsimd.Int64x2(x)).ShiftAllLeft(shift))
 }
 
+func (x Int64x2) ShiftAllRight(shift uint64) Int64x2 {
+	return Int64x2((archsimd.Int64x2(x)).ShiftAllRight(shift))
+}
+
+func (x Int64x2nclm) ShiftAllRight(shift uint64) Int64x2nclm {
+	return Int64x2nclm((archsimd.Int64x2(x)).ShiftAllRight(shift))
+}
+
 func (x Int64x2) Store(s []int64) {
 	(archsimd.Int64x2(x)).Store(s)
 }
@@ -1318,6 +1342,22 @@ func (x Uint8x16nclm) Equal(y Uint8x16nclm) Mask8x16nclm {
 	return Mask8x16nclm((archsimd.Uint8x16(x)).Equal(archsimd.Uint8x16(y)))
 }
 
+func (x Uint8x16) Greater(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Greater(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16nclm) Greater(y Uint8x16nclm) Mask8x16nclm {
+	return Mask8x16nclm((archsimd.Uint8x16(x)).Greater(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16) GreaterEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).GreaterEqual(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16nclm) GreaterEqual(y Uint8x16nclm) Mask8x16nclm {
+	return Mask8x16nclm((archsimd.Uint8x16(x)).GreaterEqual(archsimd.Uint8x16(y)))
+}
+
 func (x Uint8x16) HiToLo() Uint8x16 {
 	return Uint8x16((archsimd.Uint8x16(x)).HiToLo())
 }
@@ -1340,6 +1380,22 @@ func (x Uint8x16) Len() int {
 
 func (x Uint8x16nclm) Len() int {
 	return (archsimd.Uint8x16(x)).Len()
+}
+
+func (x Uint8x16) Less(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).Less(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16nclm) Less(y Uint8x16nclm) Mask8x16nclm {
+	return Mask8x16nclm((archsimd.Uint8x16(x)).Less(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16) LessEqual(y Uint8x16) Mask8x16 {
+	return Mask8x16((archsimd.Uint8x16(x)).LessEqual(archsimd.Uint8x16(y)))
+}
+
+func (x Uint8x16nclm) LessEqual(y Uint8x16nclm) Mask8x16nclm {
+	return Mask8x16nclm((archsimd.Uint8x16(x)).LessEqual(archsimd.Uint8x16(y)))
 }
 
 func (x Uint8x16) Masked(mask Mask8x16) Uint8x16 {
@@ -2090,8 +2146,24 @@ func (x Uint64x2) CarrylessMultiplyEven(y Uint64x2) Uint64x2 {
 	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyEven(archsimd.Uint64x2(y)))
 }
 
+func (x Uint64x2) CarrylessMultiplyEvenOdd(y Uint64x2) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyEvenOdd(archsimd.Uint64x2(y)))
+}
+
+func (x Uint64x2nclm) CarrylessMultiplyEvenOdd(y Uint64x2nclm) Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Uint64x2(x)).CarrylessMultiplyEvenOdd(archsimd.Uint64x2(y)))
+}
+
 func (x Uint64x2) CarrylessMultiplyOdd(y Uint64x2) Uint64x2 {
 	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyOdd(archsimd.Uint64x2(y)))
+}
+
+func (x Uint64x2) CarrylessMultiplyOddEven(y Uint64x2) Uint64x2 {
+	return Uint64x2((archsimd.Uint64x2(x)).CarrylessMultiplyOddEven(archsimd.Uint64x2(y)))
+}
+
+func (x Uint64x2nclm) CarrylessMultiplyOddEven(y Uint64x2nclm) Uint64x2nclm {
+	return Uint64x2nclm((archsimd.Uint64x2(x)).CarrylessMultiplyOddEven(archsimd.Uint64x2(y)))
 }
 
 func (x Uint64x2) ConvertToInt64() Int64x2 {

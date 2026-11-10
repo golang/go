@@ -108,13 +108,12 @@ type clientConnPoolEntry struct {
 }
 
 type poolDial struct {
-	ent      *clientConnPoolEntry
-	cm       connectMethod
-	cancel   context.CancelFunc // call to cancel the dial
-	resultc  chan pconnOrError  // sends the dial result to the requester
-	donec    <-chan struct{}    // closed when the requester no longer needs the dial result
-	link     intrusiveLink[poolDial]
-	postDial func()
+	ent     *clientConnPoolEntry
+	cm      connectMethod
+	cancel  context.CancelFunc // call to cancel the dial
+	resultc chan pconnOrError  // sends the dial result to the requester
+	donec   <-chan struct{}    // closed when the requester no longer needs the dial result
+	link    intrusiveLink[poolDial]
 }
 
 // lock unconditionally locks the entry.
@@ -437,16 +436,6 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*poolCon
 		return err
 	}
 
-	if testHookPrePendingDial != nil {
-		testHookPrePendingDial()
-	}
-	postDialHook := testHookPostPendingDial
-	defer func() {
-		if postDialHook != nil {
-			postDialHook()
-		}
-	}()
-
 	// If the request context is already canceled, don't go looking for a conn.
 	if err := ctx.Err(); err != nil {
 		return nil, getConnCancelCause(ctx)
@@ -527,15 +516,13 @@ func (t *Transport) poolGetConn(ctx context.Context, cm connectMethod) (*poolCon
 				dialresultc = make(chan pconnOrError)
 				getdonec = make(chan struct{})
 				dial := &poolDial{
-					ent:      ent,
-					cm:       cm,
-					cancel:   cancel,
-					resultc:  dialresultc,
-					donec:    getdonec,
-					postDial: postDialHook,
+					ent:     ent,
+					cm:      cm,
+					cancel:  cancel,
+					resultc: dialresultc,
+					donec:   getdonec,
 				}
 				ent.dials.pushBack(dial)
-				postDialHook = nil // will be called by poolDialForEntry
 				go t.poolDialForEntry(dialCtx, dial)
 				candialc = nil // don't dial again
 			}()
@@ -612,10 +599,6 @@ func (t *Transport) poolTryGetForEntryLocked(ent *clientConnPoolEntry) *poolConn
 // although a request may use a connection that was dialed with a different request's context.
 func (t *Transport) poolDialForEntry(ctx context.Context, dial *poolDial) {
 	ent := dial.ent
-	if dial.postDial != nil {
-		defer dial.postDial()
-	}
-
 	pconn := &poolConn{
 		poolEnt: ent,
 	}

@@ -29,6 +29,8 @@ var Anames = []string{
 	"LocalTee",
 	"GlobalGet",
 	"GlobalSet",
+	"TableGet",
+	"TableSet",
 	"I32Load",
 	"I64Load",
 	"F32Load",

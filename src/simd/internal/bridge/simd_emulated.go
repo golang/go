@@ -232,6 +232,24 @@ func (x Int8s) Len() int {
 	return 16
 }
 
+// LookupOrZero permutes x, returning 0 for out-of-range indices.
+//
+//	if indices[i] < x.Len() {
+//	    z[i] = x[indices[i]]
+//	} else {
+//	    z[i] = 0
+//	}
+func (x Int8s) LookupOrZero(indices Uint8s) (z Int8s) {
+	var res Int8s
+	for i := 0; i < 16; i++ {
+		idx := indices.get(i)
+		if idx < 16 {
+			res.set(i, x.get(int(idx)))
+		}
+	}
+	return res
+}
+
 // Masked returns a vector with elements from x where mask is true, and zero
 // elsewhere.
 //
@@ -1236,6 +1254,20 @@ func (x *Int64s) set(i int, v int64) {
 	}
 }
 
+// Abs returns the elementwise absolute value of x.
+func (x Int64s) Abs() (z Uint64s) {
+	var res Uint64s
+	for i := 0; i < 2; i++ {
+		v := x.get(i)
+		if v < 0 {
+			res.set(i, uint64(-v))
+		} else {
+			res.set(i, uint64(v))
+		}
+	}
+	return res
+}
+
 // Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
@@ -1398,6 +1430,18 @@ func (x Int64s) Or(y Int64s) (z Int64s) {
 //	z[i] = x[i] << shift
 func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s) {
 	return Int64s{a: x.a << shift, b: x.b << shift}
+}
+
+// ShiftAllRight arithmetically shifts each element of x right by shift bits.
+// If shift is greater than the element width, the result is 0 or -1.
+//
+//	z[i] = x[i] >> shift
+func (x Int64s) ShiftAllRight(shift uint64) (z Int64s) {
+	var res Int64s
+	for i := 0; i < 2; i++ {
+		res.set(i, x.get(i)>>shift)
+	}
+	return res
 }
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
@@ -1576,12 +1620,66 @@ func (x Uint8s) Equal(y Uint8s) (z Mask8s) {
 	return res
 }
 
+// Greater returns a mask indicating which elements of x are greater than y.
+//
+//	z[i] = x[i] > y[i]
+func (x Uint8s) Greater(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) > y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
+// GreaterEqual returns a mask indicating which elements of x are greater than
+// or equal to y.
+//
+//	z[i] = x[i] >= y[i]
+func (x Uint8s) GreaterEqual(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) >= y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
 // HiToLo returns a vector whose low half is the high half of x and whose high
 // half is zero.
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint8s) HiToLo() (z Uint8s) {
 	return Uint8s{a: x.b}
+}
+
+// Less returns a mask indicating which elements of x are less than y.
+//
+//	z[i] = x[i] < y[i]
+func (x Uint8s) Less(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) < y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
+}
+
+// LessEqual returns a mask indicating which elements of x are less than or
+// equal to y.
+//
+//	z[i] = x[i] <= y[i]
+func (x Uint8s) LessEqual(y Uint8s) (z Mask8s) {
+	var res Mask8s
+	for i := 0; i < 16; i++ {
+		if x.get(i) <= y.get(i) {
+			res.set(i, true)
+		}
+	}
+	return res
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
@@ -4124,6 +4222,20 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
 	return x.clmul(y)
 }
 
+// CarrylessMultiplyEvenOdd computes the elementwise carryless multiplication of
+// even-indexed elements of x and odd-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i], y[2*i+1])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
+	y.a = y.b
+	return x.clmul(y)
+}
+
 // CarrylessMultiplyOdd computes the elementwise carryless multiplication of
 // odd-indexed elements of x and y. The result of each carryless multiply is
 // twice the width of the input elements. The high bits are stored in elements
@@ -4135,6 +4247,20 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
 	x.a = x.b
 	y.a = y.b
+	return x.clmul(y)
+}
+
+// CarrylessMultiplyOddEven computes the elementwise carryless multiplication of
+// odd-indexed elements of x and even-indexed elements of y. The result of each
+// carryless multiply is twice the width of the input elements. The high bits
+// are stored in elements z[2*i+1] and the low bits are stored in elements
+// z[2*i].
+//
+//	concat(z[2*i+1], z[2*i]) = clmul(x[2*i+1], y[2*i])
+//
+// See [CarrylessMultiplyEven] for details about carryless multiply.
+func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s) {
+	x.a = x.b
 	return x.clmul(y)
 }
 

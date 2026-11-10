@@ -12,6 +12,16 @@ import (
 	"testing"
 )
 
+func TestLookupOrZeroAll(t *testing.T) {
+	// Out-of-range indices produce zero lane value.
+	x := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	indices := []uint8{7, 6, 5, 4, 3, 2, 1, 0, 255, 8, 16, 9, 128, 10, 20, 11}
+	want := []int8{8, 7, 6, 5, 4, 3, 2, 1, 0, 9, 0, 10, 0, 11, 0, 12}
+	got := make([]int8, len(x))
+	archsimd.LoadInt8x16(x).LookupOrZero(archsimd.LoadUint8x16(indices)).StorePart(got)
+	checkSlices(t, got, want)
+}
+
 func TestRotateAllLeft(t *testing.T) {
 	x := uint8(0x81)
 	if y := rotl(x, 1); y != 3 {

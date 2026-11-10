@@ -168,8 +168,14 @@ func TestSubSaturatedSVE(t *testing.T) {
 	}
 	testInt8sBinary(t, archsimd.Int8s.SubSaturated, subSaturatedSlice[int8])
 	testInt16sBinary(t, archsimd.Int16s.SubSaturated, subSaturatedSlice[int16])
-	testInt32sBinary(t, archsimd.Int32s.SubSaturated, subSaturatedSlice[int32])
-	testInt64sBinary(t, archsimd.Int64s.SubSaturated, subSaturatedSlice[int64])
+	if inQEMU() {
+		// qemu-aarch64 (as of 11.1) miscomputes SVE SQSUB on 32- and
+		// 64-bit elements.
+		t.Log("skipping Int32s and Int64s: qemu-aarch64 miscomputes SVE SQSUB on 32- and 64-bit elements")
+	} else {
+		testInt32sBinary(t, archsimd.Int32s.SubSaturated, subSaturatedSlice[int32])
+		testInt64sBinary(t, archsimd.Int64s.SubSaturated, subSaturatedSlice[int64])
+	}
 	testUint8sBinary(t, archsimd.Uint8s.SubSaturated, subSaturatedSlice[uint8])
 	testUint16sBinary(t, archsimd.Uint16s.SubSaturated, subSaturatedSlice[uint16])
 	testUint32sBinary(t, archsimd.Uint32s.SubSaturated, subSaturatedSlice[uint32])

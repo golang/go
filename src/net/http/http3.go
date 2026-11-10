@@ -13,6 +13,7 @@ import (
 
 type http3Transport interface {
 	DialClientConn(ctx context.Context, address string, proxy *url.URL, tlsConfig *tls.Config, internalStateHook func()) (RoundTripper, error)
+	Close() error
 }
 
 // http3Server is an HTTP/3 server implementation. net/http/internal/http3

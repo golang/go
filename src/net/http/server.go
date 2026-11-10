@@ -1488,7 +1488,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 		w.closeAfterReply = true
 	}
 
-	if hasToken(header.get("Connection"), "close") || !keepAlivesEnabled {
+	if httpguts.HeaderValuesContainsToken(header["Connection"], "close") || !keepAlivesEnabled {
 		w.closeAfterReply = true
 	}
 
@@ -1649,7 +1649,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
 	// protocol switch response and if KeepAlives are not enabled.
 	// See https://golang.org/issue/36381.
 	delConnectionHeader := w.closeAfterReply &&
-		(!keepAlivesEnabled || !hasToken(cw.header.get("Connection"), "close")) &&
+		(!keepAlivesEnabled || !httpguts.HeaderValuesContainsToken(cw.header["Connection"], "close")) &&
 		!isProtocolSwitchResponse(w.status, header)
 	if delConnectionHeader {
 		delHeader("Connection")

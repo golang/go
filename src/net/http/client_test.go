@@ -482,6 +482,7 @@ func testRedirectsByMethod(t *testing.T, mode testMode, method string, table []r
 		if err != nil {
 			t.Fatal(err)
 		}
+		res.Body.Close()
 		if res.StatusCode != tt.want {
 			t.Errorf("POST %s: status code = %d; want %d", tt.suffix, res.StatusCode, tt.want)
 		}
@@ -950,9 +951,11 @@ func testClientWithCorrectTLSServerName(t *testing.T, mode testMode) {
 
 	c := ts.Client()
 	c.Transport.(*Transport).TLSClientConfig.ServerName = serverName
-	if _, err := c.Get("https://" + serverName); err != nil {
+	resp, err := c.Get("https://" + serverName)
+	if err != nil {
 		t.Fatalf("expected successful TLS connection, got error: %v", err)
 	}
+	resp.Body.Close()
 }
 
 func TestClientWithIncorrectTLSServerName(t *testing.T) {

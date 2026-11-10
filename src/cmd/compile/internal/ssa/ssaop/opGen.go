@@ -7487,7 +7487,6 @@ const (
 	OpAbsInt32x8
 	OpAbsInt64s
 	OpAbsInt64x2
-	OpAbsInt64x4
 	OpAbsInt64x8
 	OpAbsInt8s
 	OpAbsInt8x16
@@ -7733,6 +7732,36 @@ const (
 	OpConcatEvenUint64x2
 	OpConcatEvenUint8s
 	OpConcatEvenUint8x16
+	OpConcatLookupModFloat32x16
+	OpConcatLookupModFloat32x4
+	OpConcatLookupModFloat32x8
+	OpConcatLookupModFloat64x2
+	OpConcatLookupModFloat64x4
+	OpConcatLookupModFloat64x8
+	OpConcatLookupModInt16x16
+	OpConcatLookupModInt16x32
+	OpConcatLookupModInt16x8
+	OpConcatLookupModInt32x16
+	OpConcatLookupModInt32x4
+	OpConcatLookupModInt32x8
+	OpConcatLookupModInt64x2
+	OpConcatLookupModInt64x4
+	OpConcatLookupModInt64x8
+	OpConcatLookupModInt8x16
+	OpConcatLookupModInt8x32
+	OpConcatLookupModInt8x64
+	OpConcatLookupModUint16x16
+	OpConcatLookupModUint16x32
+	OpConcatLookupModUint16x8
+	OpConcatLookupModUint32x16
+	OpConcatLookupModUint32x4
+	OpConcatLookupModUint32x8
+	OpConcatLookupModUint64x2
+	OpConcatLookupModUint64x4
+	OpConcatLookupModUint64x8
+	OpConcatLookupModUint8x16
+	OpConcatLookupModUint8x32
+	OpConcatLookupModUint8x64
 	OpConcatMaxPairsFloat32x4
 	OpConcatMaxPairsFloat64x2
 	OpConcatMaxPairsInt16x8
@@ -7775,36 +7804,6 @@ const (
 	OpConcatPermute128ScalarsUint32x8
 	OpConcatPermute128ScalarsUint64x4
 	OpConcatPermute128ScalarsUint8x32
-	OpConcatPermuteFloat32x16
-	OpConcatPermuteFloat32x4
-	OpConcatPermuteFloat32x8
-	OpConcatPermuteFloat64x2
-	OpConcatPermuteFloat64x4
-	OpConcatPermuteFloat64x8
-	OpConcatPermuteInt16x16
-	OpConcatPermuteInt16x32
-	OpConcatPermuteInt16x8
-	OpConcatPermuteInt32x16
-	OpConcatPermuteInt32x4
-	OpConcatPermuteInt32x8
-	OpConcatPermuteInt64x2
-	OpConcatPermuteInt64x4
-	OpConcatPermuteInt64x8
-	OpConcatPermuteInt8x16
-	OpConcatPermuteInt8x32
-	OpConcatPermuteInt8x64
-	OpConcatPermuteUint16x16
-	OpConcatPermuteUint16x32
-	OpConcatPermuteUint16x8
-	OpConcatPermuteUint32x16
-	OpConcatPermuteUint32x4
-	OpConcatPermuteUint32x8
-	OpConcatPermuteUint64x2
-	OpConcatPermuteUint64x4
-	OpConcatPermuteUint64x8
-	OpConcatPermuteUint8x16
-	OpConcatPermuteUint8x32
-	OpConcatPermuteUint8x64
 	OpConcatSaturateToInt16GroupedInt32x16
 	OpConcatSaturateToInt16GroupedInt32x8
 	OpConcatSaturateToInt16Int32x4
@@ -8302,6 +8301,36 @@ const (
 	OpLessUint64x8
 	OpLessUint8x16
 	OpLessUint8x64
+	OpLookupModFloat32x16
+	OpLookupModFloat32x8
+	OpLookupModFloat64x4
+	OpLookupModFloat64x8
+	OpLookupModInt16x16
+	OpLookupModInt16x32
+	OpLookupModInt16x8
+	OpLookupModInt32x16
+	OpLookupModInt32x8
+	OpLookupModInt64x4
+	OpLookupModInt64x8
+	OpLookupModInt8x16
+	OpLookupModInt8x32
+	OpLookupModInt8x64
+	OpLookupModOrZeroGroupedInt8x32
+	OpLookupModOrZeroGroupedInt8x64
+	OpLookupModOrZeroGroupedUint8x32
+	OpLookupModOrZeroGroupedUint8x64
+	OpLookupModOrZeroInt8x16
+	OpLookupModOrZeroUint8x16
+	OpLookupModUint16x16
+	OpLookupModUint16x32
+	OpLookupModUint16x8
+	OpLookupModUint32x16
+	OpLookupModUint32x8
+	OpLookupModUint64x4
+	OpLookupModUint64x8
+	OpLookupModUint8x16
+	OpLookupModUint8x32
+	OpLookupModUint8x64
 	OpLookupOrZeroInt8x16
 	OpLookupOrZeroUint8x16
 	OpMaxFloat32s
@@ -8602,36 +8631,6 @@ const (
 	OpOrUint8x16
 	OpOrUint8x32
 	OpOrUint8x64
-	OpPermuteFloat32x16
-	OpPermuteFloat32x8
-	OpPermuteFloat64x4
-	OpPermuteFloat64x8
-	OpPermuteInt16x16
-	OpPermuteInt16x32
-	OpPermuteInt16x8
-	OpPermuteInt32x16
-	OpPermuteInt32x8
-	OpPermuteInt64x4
-	OpPermuteInt64x8
-	OpPermuteInt8x16
-	OpPermuteInt8x32
-	OpPermuteInt8x64
-	OpPermuteOrZeroGroupedInt8x32
-	OpPermuteOrZeroGroupedInt8x64
-	OpPermuteOrZeroGroupedUint8x32
-	OpPermuteOrZeroGroupedUint8x64
-	OpPermuteOrZeroInt8x16
-	OpPermuteOrZeroUint8x16
-	OpPermuteUint16x16
-	OpPermuteUint16x32
-	OpPermuteUint16x8
-	OpPermuteUint32x16
-	OpPermuteUint32x8
-	OpPermuteUint64x4
-	OpPermuteUint64x8
-	OpPermuteUint8x16
-	OpPermuteUint8x32
-	OpPermuteUint8x64
 	OpReciprocalFloat32x16
 	OpReciprocalFloat32x4
 	OpReciprocalFloat32x8
@@ -8869,7 +8868,6 @@ const (
 	OpShiftAllRightInt32x4
 	OpShiftAllRightInt32x8
 	OpShiftAllRightInt64x2
-	OpShiftAllRightInt64x4
 	OpShiftAllRightInt64x8
 	OpShiftAllRightInt8x16
 	OpShiftAllRightUint16x16
@@ -22968,7 +22966,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -22985,7 +22983,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23000,7 +22998,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23017,7 +23015,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23032,7 +23030,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23049,7 +23047,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVD,
+		asm:            x86.AVMASKMOVPS,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23064,7 +23062,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         3,
 		FaultOnNilArg0: true,
 		symEffect:      SymRead,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -23081,7 +23079,7 @@ var OpcodeTable = [...]OpInfo{
 		ArgLen:         4,
 		FaultOnNilArg0: true,
 		symEffect:      SymWrite,
-		asm:            x86.AVPMASKMOVQ,
+		asm:            x86.AVMASKMOVPD,
 		Reg: RegInfo{
 			Inputs: []InputInfo{
 				{1, RegMask{V1: 2147418112, V2: 0}},        // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
@@ -117297,11 +117295,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
-		Name:    "AbsInt64x4",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
 		Name:    "AbsInt64x8",
 		ArgLen:  1,
 		Generic: true,
@@ -118645,6 +118638,156 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "ConcatLookupModFloat32x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModFloat32x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModFloat32x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModFloat64x2",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModFloat64x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModFloat64x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt16x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt16x32",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt16x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt32x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt32x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt32x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt64x2",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt64x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt64x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt8x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt8x32",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModInt8x64",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint16x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint16x32",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint16x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint32x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint32x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint32x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint64x2",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint64x4",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint64x8",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint8x16",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint8x32",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
+		Name:    "ConcatLookupModUint8x64",
+		ArgLen:  3,
+		Generic: true,
+	},
+	{
 		Name:    "ConcatMaxPairsFloat32x4",
 		ArgLen:  2,
 		Generic: true,
@@ -118862,156 +119005,6 @@ var OpcodeTable = [...]OpInfo{
 		Name:    "ConcatPermute128ScalarsUint8x32",
 		AuxType: AuxTypeUInt8,
 		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat32x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat32x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat64x2",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat64x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteFloat64x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt16x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt16x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt16x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt32x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt32x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt64x2",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt64x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt64x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt8x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt8x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteInt8x64",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint16x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint16x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint16x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint32x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint32x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint32x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint64x2",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint64x4",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint64x8",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint8x16",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint8x32",
-		ArgLen:  3,
-		Generic: true,
-	},
-	{
-		Name:    "ConcatPermuteUint8x64",
-		ArgLen:  3,
 		Generic: true,
 	},
 	{
@@ -121571,6 +121564,156 @@ var OpcodeTable = [...]OpInfo{
 		Generic: true,
 	},
 	{
+		Name:    "LookupModFloat32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModFloat32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModFloat64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModFloat64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroGroupedInt8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroGroupedInt8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroGroupedUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroGroupedUint8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroInt8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModOrZeroUint8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint16x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint16x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint16x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint64x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint8x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint8x32",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "LookupModUint8x64",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
 		Name:    "LookupOrZeroInt8x16",
 		ArgLen:  2,
 		Generic: true,
@@ -123265,156 +123408,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic:     true,
 	},
 	{
-		Name:    "PermuteFloat32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteFloat32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteFloat64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteFloat64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteInt8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroGroupedInt8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroGroupedInt8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroGroupedUint8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroGroupedUint8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteOrZeroUint8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint16x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint16x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint32x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint32x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint64x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint64x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint8x32",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "PermuteUint8x64",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:    "ReciprocalFloat32x16",
 		ArgLen:  1,
 		Generic: true,
@@ -124655,11 +124648,6 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "ShiftAllRightInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ShiftAllRightInt64x4",
 		ArgLen:  2,
 		Generic: true,
 	},

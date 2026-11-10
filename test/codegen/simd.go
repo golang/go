@@ -163,6 +163,64 @@ func simdCompareToKMaskAndIfElse(x, y, a, b, c, d archsimd.Float64x4) archsimd.F
 	return x.IfElse(a.Less(b).And(c.Equal(d)), y)
 }
 
+func simdAbsInt64x2(x archsimd.Int64x2) archsimd.Uint64x2 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX emulation is turned back into VPABSQ when AVX-512 is known.
+		// amd64:`VPABSQ X[0-9]+, X[0-9]+` -`VPCMPGTQ`
+		return x.Abs()
+	}
+	// amd64:`VPCMPGTQ` -`VPABSQ`
+	return x.Abs()
+}
+
+func simdAbsInt64x4(x archsimd.Int64x4) archsimd.Uint64x4 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX2 emulation is turned back into VPABSQ when AVX-512 is known.
+		// amd64:`VPABSQ Y[0-9]+, Y[0-9]+` -`VPCMPGTQ`
+		return x.Abs()
+	}
+	// amd64:`VPCMPGTQ` -`VPABSQ`
+	return x.Abs()
+}
+
+func simdShiftAllRightInt64x2(x archsimd.Int64x2, s uint64) archsimd.Int64x2 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX emulation is turned back into VPSRAQ when AVX-512 is known.
+		// amd64:`VPSRAQ X[0-9]+, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
+		return x.ShiftAllRight(s)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	return x.ShiftAllRight(s)
+}
+
+func simdShiftAllRightInt64x4(x archsimd.Int64x4, s uint64) archsimd.Int64x4 {
+	if archsimd.X86.AVX512() {
+		// Check that the AVX2 emulation is turned back into VPSRAQ when AVX-512 is known.
+		// amd64:`VPSRAQ X[0-9]+, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ` -`CMOVQHI`
+		return x.ShiftAllRight(s)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ` -`VPSRAQ`
+	return x.ShiftAllRight(s)
+}
+
+func simdShiftAllRightConstInt64x2(x archsimd.Int64x2) archsimd.Int64x2 {
+	if archsimd.X86.AVX512() {
+		// amd64:`VPSRAQ \$5, X[0-9]+, X[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
+		return x.ShiftAllRight(5)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ \$5` -`VPSRAQ`
+	return x.ShiftAllRight(5)
+}
+
+func simdShiftAllRightConstInt64x4(x archsimd.Int64x4) archsimd.Int64x4 {
+	if archsimd.X86.AVX512() {
+		// amd64:`VPSRAQ \$63, Y[0-9]+, Y[0-9]+` -`VPCMPGTQ` -`VPSRLQ`
+		return x.ShiftAllRight(63)
+	}
+	// amd64:`VPCMPGTQ` `VPSRLQ \$63` -`VPSRAQ`
+	return x.ShiftAllRight(63)
+}
+
 var nan = math.NaN()
 var floats64s = []float64{0, 1, 2, nan, 4, nan, 6, 7, 8, 9, 10, 11, nan, 13, 14, 15}
 var sinkInt64s = make([]int64, 100)
@@ -327,4 +385,50 @@ func simdMaskSpillUsesK(z archsimd.Float32x8, m archsimd.Mask32x8, n int) archsi
 		}
 	}
 	return z
+}
+
+// 128-bit broadcasts need only AVX: without AVX2 they use AVX shuffles, and
+// with AVX2 (known from GOAMD64 or a feature check) they use VPBROADCAST.
+
+func broadcast128Int8(x int8) archsimd.Int8x16 {
+	// amd64/v1:`VPSHUFB` -`VPBROADCASTB`
+	// amd64/v3:`VPBROADCASTB` -`VPSHUFB`
+	return archsimd.BroadcastInt8x16(x)
+}
+
+func broadcast128Int16(x int16) archsimd.Int16x8 {
+	// amd64/v1:`VPUNPCKLWD` `VPSHUFD \$0,` -`VPBROADCASTW`
+	// amd64/v3:`VPBROADCASTW` -`VPSHUFD`
+	return archsimd.BroadcastInt16x8(x)
+}
+
+func broadcast128Int32(x int32) archsimd.Int32x4 {
+	// amd64/v1:`VPSHUFD \$0,` -`VPBROADCASTD`
+	// amd64/v3:`VPBROADCASTD` -`VPSHUFD`
+	return archsimd.BroadcastInt32x4(x)
+}
+
+func broadcast128Float32(x float32) archsimd.Float32x4 {
+	// amd64/v1:`VPSHUFD \$0,` -`VBROADCASTSS`
+	// amd64/v3:`VBROADCASTSS` -`VPSHUFD`
+	return archsimd.BroadcastFloat32x4(x)
+}
+
+func broadcast128Int64(x int64) archsimd.Int64x2 {
+	// amd64/v1:`VPSHUFD \$68,` -`VPBROADCASTQ`
+	// amd64/v3:`VPBROADCASTQ` -`VPSHUFD`
+	return archsimd.BroadcastInt64x2(x)
+}
+
+func broadcast128AVX2Checked(x int32) archsimd.Int32x4 {
+	if archsimd.X86.AVX2() {
+		// amd64:`VPBROADCASTD` -`VPSHUFD`
+		return archsimd.BroadcastInt32x4(x)
+	}
+	return archsimd.Int32x4{}
+}
+
+func broadcast128MulToShift(x archsimd.Int32x4) archsimd.Int32x4 {
+	// amd64:`VPSLLD \$3,` -`VPMULLD`
+	return x.Mul(archsimd.BroadcastInt32x4(8))
 }

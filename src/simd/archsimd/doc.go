@@ -32,7 +32,7 @@
 //   - Bitwise: And, Or, Xor, etc.
 //   - Comparison: Equal, Greater, etc., which produce a mask.
 //   - Conversion: Convert between different vector types.
-//   - Field selection and rearrangement: GetElem, Permute, etc.
+//   - Field selection and rearrangement: GetElem, LookupMod, etc.
 //   - Masking: Masked, Merge.
 //
 // The compiler recognizes certain patterns of operations and may optimize

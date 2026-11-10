@@ -17,7 +17,7 @@ func newQUICConfig(config *quic.Config, tlsConfig *tls.Config) *quic.Config {
 		config = &quic.Config{}
 	}
 	// tlsConfig may be nil: net/http.Transport.TLSClientConfig is nil
-	// by default, and initEndpoint passes it to us unchanged.
+	// by default, and Transport.endpoint passes it to us unchanged.
 	if tlsConfig == nil {
 		tlsConfig = &tls.Config{NextProtos: []string{"h3"}}
 	} else if !slices.Equal(tlsConfig.NextProtos, []string{"h3"}) {

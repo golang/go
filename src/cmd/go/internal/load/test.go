@@ -135,19 +135,6 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 		imports = append(imports, p1)
 	}
 
-	var ptestCompiledImports []string
-	if hasSimd := hasSimd(p.TestImports); hasSimd {
-		p1, err := loadImport(ld, ctx, opts, pre, SimdBridgePkg, p.Dir, p, &stk, nil, ResolveImport|allowSimdInternalBridge)
-		if err != nil && ptestErr == nil {
-			ptestErr = err
-			incomplete = true
-		}
-		if p1.Incomplete {
-			incomplete = true
-		}
-		imports = append(imports, p1)
-		ptestCompiledImports = append(ptestCompiledImports, p1.ImportPath)
-	}
 	var err error
 	p.TestEmbedFiles, testEmbed, err = resolveEmbed(p.Dir, p.TestEmbedPatterns)
 	if err != nil {
@@ -182,18 +169,6 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 		p.XTestImports[i] = p1.ImportPath
 	}
 
-	var pxtestCompiledImports []string
-	if hasSimd := hasSimd(p.XTestImports); hasSimd {
-		p1, err := loadImport(ld, ctx, opts, pre, SimdBridgePkg, p.Dir, p, &stk, nil, ResolveImport|allowSimdInternalBridge)
-		if err != nil && pxtestErr == nil {
-			pxtestErr = err
-		}
-		if p1.Incomplete {
-			pxtestIncomplete = true
-		}
-		ximports = append(ximports, p1)
-		pxtestCompiledImports = append(pxtestCompiledImports, p1.ImportPath)
-	}
 	p.XTestEmbedFiles, xtestEmbed, err = resolveEmbed(p.Dir, p.XTestEmbedPatterns)
 	if err != nil && pxtestErr == nil {
 		pxtestErr = &PackageError{
@@ -234,12 +209,6 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 		ptest.Imports = str.StringList(p.TestImports, p.Imports)
 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
-		ptest.Internal.CompiledImports = slices.Clone(p.Internal.CompiledImports)
-		for _, path := range ptestCompiledImports {
-			if !slices.Contains(ptest.Internal.CompiledImports, path) {
-				ptest.Internal.CompiledImports = append(ptest.Internal.CompiledImports, path)
-			}
-		}
 		ptest.Internal.ForceLibrary = true
 		ptest.Internal.BuildInfo = nil
 		ptest.Internal.Build = new(build.Package)
@@ -288,9 +257,8 @@ func TestPackagesAndErrors(ld *modload.Loader, ctx context.Context, done func(),
 					ImportPos:  p.Internal.Build.XTestImportPos,
 					Directives: p.Internal.Build.XTestDirectives,
 				},
-				Imports:         ximports,
-				RawImports:      rawXTestImports,
-				CompiledImports: pxtestCompiledImports,
+				Imports:    ximports,
+				RawImports: rawXTestImports,
 
 				Asmflags:       p.Internal.Asmflags,
 				Gcflags:        p.Internal.Gcflags,

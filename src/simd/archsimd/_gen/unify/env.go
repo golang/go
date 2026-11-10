@@ -293,10 +293,6 @@ func newEnvExprSum(exprs ...*envExpr) *envExpr {
 // the discriminator of the resulting sum. If disc is nil or isn't a
 // discriminator of the sum, it infers one, like newEnvExprSum.
 func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
-	// TODO: If all of envs are products (or bindings), factor any common terms.
-	// E.g., x * y + x * z ==> x * (y + z). This is easy to do for binding
-	// terms, but harder to do for more general terms.
-
 	var have smallSet[*envExpr]
 	terms := make([]*envExpr, 0, 2)
 	for _, expr := range exprs {
@@ -321,6 +317,20 @@ func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
 	} else if len(terms) == 1 {
 		return terms[0]
 	}
+
+	// Factor out factors common to every term: x ⨯ y + x ⨯ z = x ⨯ (y + z).
+	// We only look for factors that are the same *envExpr. This is enough to
+	// find independent parts of an environment set, since partitioning and
+	// substitution leave the parts they don't affect alone. Keeping these as
+	// root factors of the environment set means we don't have to keep
+	// walking a copy of them in every term.
+	if common := commonFactors(terms); common != nil && !debugNoFastPaths {
+		for i, t := range terms {
+			terms[i] = t.withoutFactors(common)
+		}
+		return newEnvExprProduct(append(common, newEnvExprDiscSum(disc, terms...))...)
+	}
+
 	var mask [2]uint64
 	for _, t := range terms {
 		mask[0] |= t.mask[0]
@@ -348,6 +358,60 @@ func newEnvExprDiscSum(disc *ident, exprs ...*envExpr) *envExpr {
 	}
 
 	return &envExpr{kind: envSum, mask: mask, operands: terms, discriminator: disc}
+}
+
+// commonFactors returns the factors that appear in every one of terms, in the
+// order they appear in terms[0], or nil if there are none. A term that is not a
+// product is its own only factor.
+func commonFactors(terms []*envExpr) []*envExpr {
+	first := terms[0].factors()
+	counts := make(map[*envExpr]int, len(first))
+	for _, f := range first {
+		counts[f] = 1
+	}
+	for i, t := range terms[1:] {
+		// Count factors that have appeared in every term so far.
+		found := false
+		for _, f := range t.factors() {
+			if counts[f] == i+1 {
+				counts[f] = i + 2
+				found = true
+			}
+		}
+		if !found {
+			return nil
+		}
+	}
+	var common []*envExpr
+	for _, f := range first {
+		if counts[f] == len(terms) {
+			common = append(common, f)
+		}
+	}
+	return common
+}
+
+// factors returns the factors of e. If e is not a product, this is just e.
+func (e *envExpr) factors() []*envExpr {
+	if e.kind == envProduct {
+		return e.operands
+	}
+	return []*envExpr{e}
+}
+
+// withoutFactors returns e with factors fs removed. Each of fs must be a
+// factor of e.
+func (e *envExpr) withoutFactors(fs []*envExpr) *envExpr {
+	if e.kind != envProduct {
+		return envExprUnit
+	}
+	rest := make([]*envExpr, 0, len(e.operands)-len(fs))
+	for _, f := range e.operands {
+		if !slices.Contains(fs, f) {
+			rest = append(rest, f)
+		}
+	}
+	return newEnvExprProduct(rest...)
 }
 
 // isDiscriminator returns whether disc is a discriminator of a sum of terms. If
@@ -381,6 +445,28 @@ func (e *envExpr) rootBinding(id *ident) *envExpr {
 		}
 	}
 	return nil
+}
+
+// rootFactorFor finds the root factor of e that binds id: either a binding of
+// id or a sum with discriminator id. It returns all of the root factors of e
+// and the index in that slice of the factor that binds id, or -1 if there isn't
+// one. Because the factors of a product bind disjoint idents, if it finds one,
+// that factor binds every instance of id in e.
+//
+// For example, if e is
+//
+//	{x: 1} ⨯ ({y: 1} + {y: 2}) ⨯ (({z: 1} ⨯ {w: 1}) + {z: 2})
+//
+// then its root factors are {x: 1}, {y: 1} + {y: 2}, and the sum
+// ({z: 1} ⨯ {w: 1}) + {z: 2}, whose discriminator is z. For x, rootFactorFor
+// returns index 0, for y, index 1, and for z, index 2. For w, it returns -1,
+// since w is bound only inside one term of the third factor.
+func (e envSet) rootFactorFor(id *ident) (factors []*envExpr, k int) {
+	factors = e.root.factors()
+	k = slices.IndexFunc(factors, func(f *envExpr) bool {
+		return f.kind == envBinding && f.id == id || f.kind == envSum && f.discriminator == id
+	})
+	return factors, k
 }
 
 func crossEnvs(env1, env2 envSet) envSet {
@@ -434,6 +520,12 @@ func (e envSet) partitionBy(id *ident, filter *valueFilter) []envPartition {
 		panic("cannot partition empty environment set")
 	}
 
+	// If all bindings of id are in one root factor of e, we can partition e
+	// much more cheaply.
+	if parts, ok := e.partitionDisc(id, filter, false); ok {
+		return parts
+	}
+
 	// Emit a partition for each value of id.
 	var seen smallSet[*Value]
 	var parts []envPartition
@@ -456,6 +548,112 @@ func (e envSet) partitionBy(id *ident, filter *valueFilter) []envPartition {
 	return parts
 }
 
+// partitionDisc is a fast path for [envSet.partitionBy]. If all bindings of id
+// in e are in a root factor of e that is a binding of id or a sum with
+// discriminator id (see [envExpr.discriminator]), it returns the same
+// partitions as partitionBy and true. Otherwise, it returns nil, false.
+//
+// partitionBy has to walk e for each value of id, which is quadratic when id
+// has many values. This instead visits each binding of id once.
+//
+// If keep is true, it leaves id bound in each partition (see [envSet.narrowBy]).
+func (e envSet) partitionDisc(id *ident, filter *valueFilter, keep bool) ([]envPartition, bool) {
+	if debugNoFastPaths {
+		return nil, false
+	}
+
+	factors, k := e.rootFactorFor(id)
+	if k < 0 {
+		return nil, false
+	}
+	terms := factors[k].terms()
+
+	// Group the terms by the value of id, keeping the remainder of each term.
+	var vals []*Value
+	rests := make(map[*Value][]*envExpr)
+	for _, t := range terms {
+		b := t.rootBinding(id)
+		if _, ok := rests[b.val]; !ok {
+			if !filter.mayUnify(b.val) {
+				continue
+			}
+			vals = append(vals, b.val)
+		}
+		if !keep {
+			t = t.without(b)
+		}
+		rests[b.val] = append(rests[b.val], t)
+	}
+
+	if keep && len(vals) == 1 && len(rests[vals[0]]) == len(terms) {
+		// id has only one value in e, so there's nothing to narrow.
+		return []envPartition{{id: id, value: vals[0], env: e}}, true
+	}
+
+	// Construct each partition the same way substitute would.
+	parts := make([]envPartition, len(vals))
+	for i, val := range vals {
+		sub := newEnvExprDiscSum(id, rests[val]...)
+		if len(factors) > 1 {
+			nFactors := slices.Clone(factors)
+			nFactors[k] = sub
+			sub = newEnvExprProductOwned(nFactors)
+		}
+		parts[i] = envPartition{id: id, value: val, env: envSet{sub}}
+	}
+	return parts, true
+}
+
+// narrowBy is like [envSet.partitionBy], but leaves id bound to the value of
+// each partition in that partition.
+func (e envSet) narrowBy(id *ident) []envPartition {
+	if parts, ok := e.partitionDisc(id, nil, true); ok {
+		return parts
+	}
+	parts := e.partitionBy(id, nil)
+	for i := range parts {
+		parts[i].env = parts[i].env.bind(id, parts[i].value)
+	}
+	return parts
+}
+
+// terms returns the terms of e. If e is not a sum, this is just e.
+func (e *envExpr) terms() []*envExpr {
+	if e.kind == envSum {
+		return e.operands
+	}
+	return []*envExpr{e}
+}
+
+// fewerValues returns whether id1 is known to have fewer values than id2 in e.
+// It only knows how many values an ident has if a root factor of e binds it
+// (see [envSet.rootFactorFor]).
+func (e envSet) fewerValues(id1, id2 *ident) bool {
+	factors1, k1 := e.rootFactorFor(id1)
+	factors2, k2 := e.rootFactorFor(id2)
+	if k1 < 0 || k2 < 0 {
+		return false
+	}
+	// Each term of a sum with a discriminator binds it to one value, so the
+	// number of terms is an upper bound on the number of values.
+	return len(factors1[k1].terms()) < len(factors2[k2].terms())
+}
+
+// without returns e with factor f removed. e must be either f or a product with
+// factor f.
+func (e *envExpr) without(f *envExpr) *envExpr {
+	if e == f {
+		return envExprUnit
+	}
+	factors := make([]*envExpr, 0, len(e.operands)-1)
+	for _, o := range e.operands {
+		if o != f {
+			factors = append(factors, o)
+		}
+	}
+	return newEnvExprProduct(factors...)
+}
+
 // substitute replaces bindings of id to val with 1 and bindings of id to any
 // other value with 0 and simplifies the result.
 func (e *envExpr) substitute(id *ident, val *Value) *envExpr {
@@ -465,6 +663,23 @@ func (e *envExpr) substitute(id *ident, val *Value) *envExpr {
 	switch e.kind {
 	default:
 		panic("bad kind")
+
+	case envSum:
+		if e.discriminator != id || debugNoFastPaths {
+			return e.substituteOperands(id, val)
+		}
+		// id is bound only in a root factor of each term, so we can skip
+		// walking the rest of each term.
+		var terms []*envExpr
+		for _, t := range e.operands {
+			if b := t.rootBinding(id); b.val == val {
+				terms = append(terms, t.without(b))
+			}
+		}
+		return newEnvExprDiscSum(id, terms...)
+
+	case envProduct:
+		return e.substituteOperands(id, val)
 
 	case envZero, envUnit:
 		return e
@@ -478,30 +693,34 @@ func (e *envExpr) substitute(id *ident, val *Value) *envExpr {
 			return envExprUnit
 		}
 
-	case envProduct, envSum:
-		// Substitute each operand. Sometimes, this won't change anything, so we
-		// build the new operands list lazily.
-		var nOperands []*envExpr
-		for i, op := range e.operands {
-			nOp := op.substitute(id, val)
-			if nOperands == nil && op != nOp {
-				// Operand diverged; initialize nOperands.
-				nOperands = make([]*envExpr, 0, len(e.operands))
-				nOperands = append(nOperands, e.operands[:i]...)
-			}
-			if nOperands != nil {
-				nOperands = append(nOperands, nOp)
-			}
+	}
+}
+
+// substituteOperands implements substitute for a product or sum by substituting
+// each operand.
+func (e *envExpr) substituteOperands(id *ident, val *Value) *envExpr {
+	// Sometimes, this won't change anything, so we build the new operands list
+	// lazily.
+	var nOperands []*envExpr
+	for i, op := range e.operands {
+		nOp := op.substitute(id, val)
+		if nOperands == nil && op != nOp {
+			// Operand diverged; initialize nOperands.
+			nOperands = make([]*envExpr, 0, len(e.operands))
+			nOperands = append(nOperands, e.operands[:i]...)
 		}
-		if nOperands == nil {
-			// Nothing changed.
-			return e
+		if nOperands != nil {
+			nOperands = append(nOperands, nOp)
 		}
-		if e.kind == envProduct {
-			return newEnvExprProductOwned(nOperands)
-		} else {
-			return newEnvExprDiscSum(e.discriminator, nOperands...)
-		}
+	}
+	if nOperands == nil {
+		// Nothing changed.
+		return e
+	}
+	if e.kind == envProduct {
+		return newEnvExprProductOwned(nOperands)
+	} else {
+		return newEnvExprDiscSum(e.discriminator, nOperands...)
 	}
 }
 
@@ -578,9 +797,6 @@ func (d Var) WhyNotExact() string {
 }
 
 func (d Var) unify(w *Value, e envSet, swap bool, uf *unifier) (Domain, envSet, error) {
-	// TODO: It may help to special-case Var/Var unification to pick which one
-	// to filter versus enumerate.
-
 	if vd, ok := w.Domain.(Var); ok && d.id == vd.id {
 		// Unifying $x with $x results in $x. If we descend into this we'll have
 		// problems because we strip $x out of the environment to keep ourselves

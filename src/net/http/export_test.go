@@ -76,15 +76,6 @@ func SetReadLoopBeforeNextReadHook(f func()) {
 	testHookReadLoopBeforeNextRead = f
 }
 
-// SetPendingDialHooks sets the hooks that run before and after handling
-// pending dials.
-func SetPendingDialHooks(t *testing.T, before, after func()) {
-	t.Cleanup(func() {
-		testHookPrePendingDial, testHookPostPendingDial = nil, nil
-	})
-	testHookPrePendingDial, testHookPostPendingDial = before, after
-}
-
 func SetTestHookServerServe(fn func(*Server, net.Listener)) { testHookServerServe = fn }
 
 func SetTestHookProxyConnectTimeout(t *testing.T, f func(context.Context, time.Duration) (context.Context, context.CancelFunc)) {
@@ -105,49 +96,6 @@ func NewTestTimeoutHandler(handler Handler, ctx context.Context) Handler {
 
 func ResetCachedEnvironment() {
 	resetProxyConfig()
-}
-
-func (t *Transport) IdleConnKeysForTesting() (keys []string) {
-	for _, ent := range t.poolCopyEntries() {
-		ent.lock()
-		if len(ent.idleConns) > 0 {
-			keys = append(keys, ent.key.String())
-		}
-		ent.unlock(t)
-	}
-	slices.Sort(keys)
-	return
-}
-
-func (t *Transport) IdleConnKeyCountForTesting() int {
-	return len(t.IdleConnKeysForTesting())
-}
-
-func (t *Transport) IdleConnStrsForTesting() []string {
-	var ret []string
-	for _, ent := range t.poolCopyEntries() {
-		ent.lock()
-		for _, pconn := range ent.idleConns {
-			c := pconn.cc.NetConn()
-			if c == nil {
-				continue
-			}
-			ret = append(ret, c.LocalAddr().String()+"/"+c.RemoteAddr().String())
-		}
-		ent.unlock(t)
-	}
-	if t.h2Transport != nil {
-		ret = append(ret, t.h2Transport.IdleConnStrsForTesting()...)
-	}
-	slices.Sort(ret)
-	return ret
-}
-
-func (t *Transport) IdleConnCountForTesting(scheme, addr string) int {
-	key := connectMethodKey{"", scheme, addr, false}
-	ent := t.getLockedPoolEntry(key, false)
-	defer ent.unlock(t)
-	return len(ent.idleConns)
 }
 
 func (t *Transport) PoolEntryCountForTesting() int {
@@ -254,6 +202,10 @@ type remapHTTP3Dialer struct {
 
 func (d remapHTTP3Dialer) DialClientConn(ctx context.Context, addr string, proxy *url.URL, tlsConfig *tls.Config, hook func()) (RoundTripper, error) {
 	return d.http3Transport.DialClientConn(ctx, d.remap(addr), proxy, tlsConfig, hook)
+}
+
+func (t *Transport) HTTP3Transport() http3Transport {
+	return t.h3Transport
 }
 
 func (t *Transport) SetHTTP3DialAddrForTesting(remap func(string) string) {

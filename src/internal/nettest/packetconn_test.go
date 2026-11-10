@@ -251,6 +251,34 @@ func TestPacketConnIsClosed(t *testing.T) {
 	})
 }
 
+func TestPacketNetClose(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		pnet := nettest.NewPacketNet()
+		conn := mustNewPacketConn(t, pnet, "10.0.0.1:1000")
+		done := false
+		go func() {
+			_, _, err := conn.ReadFrom(make([]byte, 10))
+			if !errors.Is(err, net.ErrClosed) {
+				t.Errorf("conn.ReadFrom() = %v, want ErrClosed", err)
+			}
+			done = true
+		}()
+		synctest.Wait()
+		if done {
+			t.Fatalf("before close: ReadFrom is done")
+		}
+		pnet.Close()
+		synctest.Wait()
+		if !done {
+			t.Fatalf("after close: ReadFrom is not done")
+		}
+		_, err := pnet.NewConn(net.UDPAddrFromAddrPort(netip.MustParseAddrPort("10.0.0.2:1000")))
+		if !errors.Is(err, net.ErrClosed) {
+			t.Errorf("pnet.NewConn() = %v, want ErrClosed", err)
+		}
+	})
+}
+
 func mustNewPacketConn(t *testing.T, pnet *nettest.PacketNet, addr string) *nettest.PacketConn {
 	t.Helper()
 	c, err := pnet.NewConn(net.UDPAddrFromAddrPort(netip.MustParseAddrPort(addr)))

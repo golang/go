@@ -149,7 +149,7 @@ func (c *DeepCopier) OnNameExpr(id *syntax.Name) syntax.Expr {
 func (c *DeepCopier) OnSelector(se *syntax.SelectorExpr) syntax.Expr {
 	if x, ok := se.X.(*syntax.Name); ok {
 		obj := c.info.Uses[x]
-		if pkgName, isPkg := obj.(*types2.PkgName); isPkg && pkgName.Imported().Path() == simdPkg {
+		if pkgName, isPkg := obj.(*types2.PkgName); isPkg && pkgName.Imported().Path() == SimdPkg {
 			// This first little bit detects name = Load-Type-Width-s-{,Part}
 			// and converts the name to Type-Width-s (for nameToWidth), sets isLoad,
 			// and initializes the suffix appropriately.

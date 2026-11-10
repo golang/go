@@ -539,6 +539,8 @@ type serverConn struct {
 	// Used for RFC 9218 prioritization.
 	hasIntermediary bool // connection is done via an intermediary / proxy
 	priorityAware   bool // the client has sent priority signal, meaning that it is aware of it.
+
+	extendedConnectAllowed bool // server advertised ENABLE_CONNECT_PROTOCOL to this client
 }
 
 func (sc *serverConn) writeSchedIgnoresRFC7540() bool {
@@ -843,7 +845,8 @@ func (sc *serverConn) serve(conf Config) {
 		{SettingHeaderTableSize, uint32(conf.MaxDecoderHeaderTableSize)},
 		{SettingInitialWindowSize, uint32(sc.initialStreamRecvWindowSize)},
 	}
-	if !disableExtendedConnectProtocol {
+	if conf.EnableConnectProtocol || !disableExtendedConnectProtocol {
+		sc.extendedConnectAllowed = true
 		settings = append(settings, Setting{SettingEnableConnectProtocol, 1})
 	}
 	if sc.writeSchedIgnoresRFC7540() {
@@ -2415,7 +2418,7 @@ func (sc *serverConn) newWriterAndRequest(st *stream, f *MetaHeadersFrame) (*res
 	}
 
 	// extended connect is disabled, so we should not see :protocol
-	if disableExtendedConnectProtocol && rp.Protocol != "" {
+	if !sc.extendedConnectAllowed && rp.Protocol != "" {
 		return nil, nil, sc.countError("bad_connect", streamError(f.StreamID, ErrCodeProtocol))
 	}
 
@@ -2888,10 +2891,9 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		// down the TCP connection when idle, like we do for HTTP/1.
 		// TODO: remove more Connection-specific header fields here, in addition
 		// to "Connection".
-		if _, ok := rws.snapHeader["Connection"]; ok {
-			v := rws.snapHeader.Get("Connection")
+		if vv, ok := rws.snapHeader["Connection"]; ok {
 			delete(rws.snapHeader, "Connection")
-			if v == "close" {
+			if httpguts.HeaderValuesContainsToken(vv, "close") {
 				rws.conn.startGracefulShutdown()
 			}
 		}

@@ -200,7 +200,7 @@ func (x simdType) MaskedLoadDoc() string {
 	if x.Size() == 512 || x.ElemBits() < 32 {
 		return fmt.Sprintf("// Asm: VMOVDQU%d.Z, CPU Feature: AVX512", x.ElemBits())
 	} else {
-		return fmt.Sprintf("// Asm: VMASKMOV%s, CPU Feature: AVX2", x.IntelSizeSuffix())
+		return fmt.Sprintf("// Asm: %s, CPU Feature: AVX", x.avxMaskMov())
 	}
 }
 
@@ -208,8 +208,22 @@ func (x simdType) MaskedStoreDoc() string {
 	if x.Size() == 512 || x.ElemBits() < 32 {
 		return fmt.Sprintf("// Asm: VMOVDQU%d, CPU Feature: AVX512", x.ElemBits())
 	} else {
-		return fmt.Sprintf("// Asm: VMASKMOV%s, CPU Feature: AVX2", x.IntelSizeSuffix())
+		return fmt.Sprintf("// Asm: %s, CPU Feature: AVX", x.avxMaskMov())
 	}
+}
+
+// avxMaskMov returns the AVX vector-masked move instruction for 32- and
+// 64-bit elements. The compiler uses the floating-point forms for all element
+// types because they move bits without interpreting them and, unlike
+// VPMASKMOVD/Q, require only AVX.
+func (x simdType) avxMaskMov() string {
+	switch x.ElemBits() {
+	case 32:
+		return "VMASKMOVPS"
+	case 64:
+		return "VMASKMOVPD"
+	}
+	panic("no AVX masked move for element size")
 }
 
 func (x simdType) ToBitsDoc() string {

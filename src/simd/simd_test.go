@@ -7,6 +7,7 @@
 package simd_test
 
 import (
+	"math/rand"
 	"runtime"
 	"simd"
 	"simd/internal/test_helpers"
@@ -126,6 +127,8 @@ func TestInt64s(t *testing.T) {
 	load := simd.LoadInt64s
 	shifts := test_helpers.Shift64s()
 	test_helpers.TestV2Ve(t, values, load, simd.Int64s.Neg, test_helpers.Neg)
+	// Include the extremes: Abs(MinInt64) is 1<<63.
+	test_helpers.TestV2Ve(t, append(slices.Clone(values), -1<<63, 1<<63-1), load, simd.Int64s.Abs, test_helpers.Abs)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Add, test_helpers.Add)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Sub, test_helpers.Sub)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.And, test_helpers.And)
@@ -133,6 +136,7 @@ func TestInt64s(t *testing.T) {
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.Xor, test_helpers.Xor)
 	test_helpers.TestVV2Ve(t, values, load, simd.Int64s.AndNot, test_helpers.AndNot)
 	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.ShiftAllLeft, test_helpers.ShiftLeft)
+	test_helpers.TestVR2Ve(t, values, shifts, load, simd.Int64s.ShiftAllRight, test_helpers.ShiftRight)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Equal, test_helpers.Equal)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.NotEqual, test_helpers.NotEqual)
 	test_helpers.TestVV2Me(t, values, load, simd.Int64s.Less, test_helpers.Less)
@@ -201,6 +205,10 @@ func TestUint8s(t *testing.T) {
 	test_helpers.TestVV2Ve(t, values, load, simd.Uint8s.Min, test_helpers.Min)
 	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Equal, test_helpers.Equal)
 	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.NotEqual, test_helpers.NotEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Less, test_helpers.Less)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.LessEqual, test_helpers.LessEqual)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.Greater, test_helpers.Greater)
+	test_helpers.TestVV2Me(t, values, load, simd.Uint8s.GreaterEqual, test_helpers.GreaterEqual)
 
 	// TODO: untested methods: AddSaturated, Average, BitsToInt8, ConvertToInt8,
 	// IfElse, Len, Masked, Not, ReduceSum (tested in TestReduceSum),
@@ -544,4 +552,32 @@ func TestMaskTrailingZeros(t *testing.T) {
 	testMaskTrailingZeros(t, simd.LoadUint16s)
 	testMaskTrailingZeros(t, simd.LoadUint32s)
 	testMaskTrailingZeros(t, simd.LoadUint64s)
+}
+
+func TestLookupOrZero(t *testing.T) {
+	var z simd.Int8s
+	x := make([]int8, z.Len())
+	indices := make([]uint8, z.Len())
+
+	for i := range z.Len() {
+		a, b := rand.Int31n(256), rand.Int31n(256)
+		x[i] = int8(a - 128)
+		indices[i] = uint8(b)
+	}
+
+	v := simd.LoadInt8s(x)
+	u := simd.LoadUint8s(indices)
+
+	got := make([]int8, v.Len())
+	want := make([]int8, v.Len())
+	for i := range want {
+		j := indices[i]
+		if int(j) < len(want) {
+			want[i] = x[j]
+		}
+	}
+	v.LookupOrZero(u).StorePart(got)
+	if !slices.Equal(want, got) {
+		t.Errorf("Wanted %v, got %v", want, got)
+	}
 }

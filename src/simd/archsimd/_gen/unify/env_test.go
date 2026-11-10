@@ -5,6 +5,7 @@
 package unify
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -81,6 +82,17 @@ func TestDiscriminator(t *testing.T) {
 		checkDisc(t, envSet{u.root.substitute(x, a)}, y)
 	})
 
+	t.Run("common factors", func(t *testing.T) {
+		// z is bound the same way in every environment, so it should be
+		// factored out of the sum, leaving a sum with discriminator x.
+		zc := topEnv.bind(z, c)
+		u := unionEnvs(x, crossEnvs(zc, xa), crossEnvs(zc, xb))
+		if u.root.kind != envProduct || len(u.root.operands) != 2 || u.root.operands[0] != zc.root {
+			t.Fatalf("want product of z binding and sum, got %v", u)
+		}
+		checkDisc(t, envSet{u.root.operands[1]}, x)
+	})
+
 	t.Run("unify", func(t *testing.T) {
 		read := func(s string) Closure {
 			c, err := Read(strings.NewReader(s), "<test>", ReadOpts{})
@@ -95,4 +107,34 @@ func TestDiscriminator(t *testing.T) {
 		}
 		checkDisc(t, u.env, u.val.Domain.(Var).id)
 	})
+}
+
+// BenchmarkIndependentSums unifies a def with two independent fields that
+// each have n alternatives, all of which survive unification. Without
+// factoring the binding of one field out of the sum created for the other,
+// the environment grows quadratically in n.
+func BenchmarkIndependentSums(b *testing.B) {
+	for _, n := range []int{100, 400} {
+		b.Run(fmt.Sprint("n=", n), func(b *testing.B) {
+			var xs, ys []string
+			for i := range n {
+				xs = append(xs, fmt.Sprint("a", i))
+				ys = append(ys, fmt.Sprint("b", i))
+			}
+			sums := fmt.Sprintf("{x: !sum [%s], y: !sum [%s]}", strings.Join(xs, ", "), strings.Join(ys, ", "))
+			c1, err := Read(strings.NewReader(`{x: "a.*", y: "b.*"}`), "<pattern>", ReadOpts{})
+			if err != nil {
+				b.Fatal(err)
+			}
+			c2, err := Read(strings.NewReader(sums), "<sums>", ReadOpts{})
+			if err != nil {
+				b.Fatal(err)
+			}
+			for b.Loop() {
+				if _, err := Unify(c1, c2); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
 }

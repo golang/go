@@ -47,7 +47,7 @@
     //   } else {
     //       result[i] = 0
     //   }
-- go: PermuteOrZero
+- go: LookupModOrZero
   commutative: false
   documentation: !string |-
     // NAME permutes x. If an index is negative, the result is 0.
@@ -57,13 +57,13 @@
     //   } else {
     //       z[i] = 0
     //   }
-- go: Permute
+- go: LookupMod
   commutative: false
   documentation: !string |-
     // NAME permutes x.
     //
     //   z[i] = x[indices[i] % len(x)]
-- go: ConcatPermute # ConcatPermute is only available on or after AVX512
+- go: ConcatLookupMod # ConcatLookupMod is only available on or after AVX512
   commutative: false
   documentation: !string |-
     // NAME performs a full permutation of vector x, y using indices:
@@ -130,7 +130,7 @@
   documentation: !string |-
     // NAME copies the lowest element of its input to all 64 elements of
     // the output vector.
-- go: PermuteOrZeroGrouped
+- go: LookupModOrZeroGrouped
   commutative: false
   documentation: !string |-
     // NAME permutes x within each 128-bit group. If an index is negative, the result is 0.

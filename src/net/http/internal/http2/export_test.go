@@ -114,8 +114,8 @@ func (sc *serverConn) TestFramerMaxHeaderStringLen() int {
 	return sc.framer.maxHeaderStringLen()
 }
 
-func (t *Transport) TestNewClientConn(c net.Conn, singleUse bool, internalStateHook func()) (*ClientConn, error) {
-	return t.newClientConn(c, singleUse, internalStateHook)
+func (t *Transport) TestNewClientConn(c net.Conn, internalStateHook func()) (*ClientConn, error) {
+	return t.newClientConn(c, internalStateHook)
 }
 
 func (t *Transport) TestSetNewClientConnHook(f func(*ClientConn)) {
@@ -126,6 +126,11 @@ func (t *Transport) TestSetNewClientConnHook(f func(*ClientConn)) {
 
 func (cc *ClientConn) TestNetConn() net.Conn     { return cc.tconn }
 func (cc *ClientConn) TestSetNetConn(c net.Conn) { cc.tconn = c }
+func (cc *ClientConn) TestSetNextStreamID(id uint32) {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	cc.nextStreamID = id
+}
 
 func (cc *ClientConn) TestRoundTrip(req *ClientRequest, f func(stremaID uint32)) (*ClientResponse, error) {
 	return cc.roundTrip(req, func(cs *clientStream) {

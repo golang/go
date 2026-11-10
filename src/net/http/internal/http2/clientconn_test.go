@@ -160,9 +160,8 @@ func newTestClientConn(t *testing.T, opts ...any) *testClientConn {
 	t.Helper()
 
 	tt := newTestTransport(t, opts...)
-	const singleUse = false
 	tr := transportFromH1Transport(tt.tr1).(*Transport)
-	_, err := tr.TestNewClientConn(nil, singleUse, nil)
+	_, err := tr.TestNewClientConn(nil, nil)
 	if err != nil {
 		t.Fatalf("newClientConn: %v", err)
 	}

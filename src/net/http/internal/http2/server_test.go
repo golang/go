@@ -5944,6 +5944,92 @@ func init() {
 	}
 }
 
+func TestServerEnableConnectProtocolSettings(t *testing.T) {
+	SetDisableExtendedConnectProtocol(t, true)
+	for _, tt := range []struct {
+		name   string
+		enable bool
+		want   bool
+	}{
+		{name: "enabled", enable: true, want: true},
+		{name: "disabled", enable: false, want: false},
+	} {
+		synctestSubtest(t, tt.name, func(t *testing.T) {
+			var opts []any
+			if tt.enable {
+				opts = append(opts, func(h2 *http.HTTP2Config) {
+					h2.EnableConnectProtocol = true
+				})
+			}
+			st := newServerTester(t, nil, opts...)
+			defer st.Close()
+
+			var saw bool
+			st.greetAndCheckSettings(nil, func(s Setting) error {
+				if s.ID == SettingEnableConnectProtocol {
+					saw = true
+				}
+				return nil
+			})
+			if saw != tt.want {
+				t.Errorf("ENABLE_CONNECT_PROTOCOL advertised=%v; want %v", saw, tt.want)
+			}
+		})
+	}
+}
+
+func TestEnableConnectProtocol(t *testing.T) {
+	SetDisableExtendedConnectProtocol(t, true)
+	for _, tt := range []struct {
+		name    string
+		enable  bool
+		wantErr error
+	}{
+		{name: "enabled", enable: true},
+		{name: "disabled", wantErr: ErrExtendedConnectNotSupported},
+	} {
+		synctest.Subtest(t, tt.name, func(t *testing.T) {
+			var opts []any
+			if tt.enable {
+				opts = append(opts, func(h2 *http.HTTP2Config) {
+					h2.EnableConnectProtocol = true
+				})
+			}
+			ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Header.Get(":protocol") != "extended-connect" {
+					t.Fatalf("unexpected :protocol header: %q", r.Header.Get(":protocol"))
+				}
+				t.Log(io.Copy(w, r.Body))
+			}, opts...)
+			tr := newTransport(t)
+			pr, pw := io.Pipe()
+			pwDone := make(chan struct{})
+			req, _ := http.NewRequest("CONNECT", ts.URL, pr)
+			req.Header.Set(":protocol", "extended-connect")
+			go func() {
+				pw.Write([]byte("hello, extended connect"))
+				pw.Close()
+				close(pwDone)
+			}()
+
+			res, err := tr.RoundTrip(req)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RoundTrip() error = %v; want %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(body, []byte("hello, extended connect")) {
+				t.Fatal("unexpected body received")
+			}
+		})
+	}
+}
+
 func protocols(protos ...string) *http.Protocols {
 	p := new(http.Protocols)
 	for _, s := range protos {

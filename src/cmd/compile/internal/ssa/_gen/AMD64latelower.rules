@@ -11,3 +11,22 @@
 (MOVLQZX x) && ssa.ZeroUpper32Bits(x) => x
 (MOVWQZX x) && ssa.ZeroUpper48Bits(x) => x
 (MOVBQZX x) && ssa.ZeroUpper56Bits(x) => x
+
+// VPBROADCAST and the register form of VBROADCASTSS require AVX2, even at 128
+// bits, but archsimd uses 128-bit broadcasts (for example, in the 128-bit
+// Broadcast functions) in operations that require only AVX. Unless AVX2 is
+// known to be available, implement 128-bit broadcasts with AVX shuffles
+// instead. This is done here, rather than in lower, so that all earlier rules
+// see a single canonical form of broadcast.
+(VPBROADCASTB128 x) && !hasAVX2(v) => (VPSHUFB128 x (Zero128 <x.Type>))
+(VPBROADCASTW128 x) && !hasAVX2(v) => (VPSHUFD128 [0] (VPUNPCKLWD128 <x.Type> x x))
+(VPBROADCASTD128 x) && !hasAVX2(v) => (VPSHUFD128 [0] x)
+(VBROADCASTSS128 x) && !hasAVX2(v) => (VPSHUFD128 [0] x)
+(VPBROADCASTQ128 x) && !hasAVX2(v) => (VPSHUFD128 [0x44] x)
+
+// The memory forms of these broadcasts are only formed by folding a 16-byte
+// vector load, so loading fewer bytes from the same address is safe.
+// VBROADCASTSS from memory is AVX.
+(VPBROADCASTD128load [off] {sym} ptr mem) && !hasAVX2(v) => (VBROADCASTSS128load [off] {sym} ptr mem)
+(VPBROADCAST(B|W)128load [off] {sym} ptr mem) && !hasAVX2(v) => (VPBROADCAST(B|W)128 (VMOVDload <types.TypeVec128> [off] {sym} ptr mem))
+(VPBROADCASTQ128load [off] {sym} ptr mem) && !hasAVX2(v) => (VPBROADCASTQ128 (VMOVQload <types.TypeVec128> [off] {sym} ptr mem))

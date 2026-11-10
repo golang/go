@@ -11,6 +11,56 @@ import (
 	"testing"
 )
 
+func TestLookupOrZeroInt8x32(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("requires AVX2")
+	}
+	// Out-of-range indices produce zero lane value.
+	x := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116}
+
+	indices := []uint8{0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 255, 128, 12, 13, 14, 15,
+		12, 13, 14, 15, 0, 1, 2, 3, 16, 17, 18, 19, 32, 33, 255, 128}
+
+	want := []int8{1, 2, 3, 4, 101, 102, 103, 104, 0, 0, 0, 0, 13, 14, 15, 16,
+		13, 14, 15, 16, 1, 2, 3, 4, 101, 102, 103, 104, 0, 0, 0, 0}
+
+	got := make([]int8, len(x))
+	archsimd.LoadInt8x32(x).LookupOrZero(archsimd.LoadUint8x32(indices)).StorePart(got)
+	checkSlices(t, got, want)
+}
+
+func TestLookupOrZeroInt8x64(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("requires AVX512")
+	}
+	// Out-of-range indices produce zero lane value.
+	x := []int8{
+		1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+		41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
+		61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76,
+	}
+
+	indices := []uint8{
+		0, 1, 16, 17, 32, 33, 48, 49, 64, 65, 127, 128, 255, 13, 14, 15,
+		48, 49, 0, 1, 16, 17, 32, 33, 64, 65, 127, 128, 255, 29, 30, 31,
+		32, 33, 48, 49, 0, 1, 16, 17, 64, 65, 127, 128, 255, 45, 46, 47,
+		16, 17, 32, 33, 48, 49, 0, 1, 64, 65, 127, 128, 255, 61, 62, 63,
+	}
+
+	want := []int8{
+		1, 2, 21, 22, 41, 42, 61, 62, 0, 0, 0, 0, 0, 14, 15, 16,
+		61, 62, 1, 2, 21, 22, 41, 42, 0, 0, 0, 0, 0, 34, 35, 36,
+		41, 42, 61, 62, 1, 2, 21, 22, 0, 0, 0, 0, 0, 54, 55, 56,
+		21, 22, 41, 42, 61, 62, 1, 2, 0, 0, 0, 0, 0, 74, 75, 76,
+	}
+
+	got := make([]int8, len(x))
+	archsimd.LoadInt8x64(x).LookupOrZero(archsimd.LoadUint8x64(indices)).StorePart(got)
+	checkSlices(t, got, want)
+}
+
 func TestRotateAllLeftAMD64(t *testing.T) {
 	x := uint8(0x81)
 	if y := rotl(x, 1); y != 3 {

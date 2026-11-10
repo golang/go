@@ -47,6 +47,8 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 		r.Bool()
 	}
 
+	sawSimd := pkg.Path() == "simd"
+	sawBridge := pkg.Path() == "simd/internal/bridge"
 	for i, n := 0, r.Len(); i < n; i++ {
 		// As if r.obj(), but avoiding the Scope.Lookup call,
 		// to avoid eager loading of imports.
@@ -54,13 +56,31 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
 		if r.Version().Has(pkgbits.DerivedFuncInstance) {
 			assert(!r.Bool())
 		}
-		r.p.objIdx(r.Reloc(pkgbits.SectionObj))
+		objPkg, _ := r.p.objIdx(r.Reloc(pkgbits.SectionObj))
 		assert(r.Len() == 0)
+		if objPkg != nil {
+			switch objPkg.Path() {
+			case "simd":
+				sawSimd = true
+			case "simd/internal/bridge":
+				sawBridge = true
+			}
+		}
 	}
 
 	r.Sync(pkgbits.SyncEOF)
 
 	pkg.MarkComplete()
+	if sawSimd {
+		if simdPkg := pr.imports["simd"]; simdPkg != nil {
+			simdPkg.MarkComplete()
+		}
+	}
+	if sawBridge {
+		if bridgePkg := pr.imports["simd/internal/bridge"]; bridgePkg != nil {
+			bridgePkg.MarkComplete()
+		}
+	}
 	return pkg
 }
 

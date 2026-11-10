@@ -140,12 +140,11 @@ func (v *Value) all1(e envSet, cont func(*Value, envSet) bool) bool {
 
 	case Var:
 		// Go each way this variable can be bound.
-		for _, ePart := range e.partitionBy(d.id, nil) {
-			// d.id is no longer bound in this environment partition. We'll may
-			// need it later in the Euler tour, so bind it back to this single
-			// value.
-			env := ePart.env.bind(d.id, ePart.value)
-			if !ePart.value.all1(env, cont) {
+		//
+		// We may need d.id later in the Euler tour, so leave it bound in
+		// each partition.
+		for _, ePart := range e.narrowBy(d.id) {
+			if !ePart.value.all1(ePart.env, cont) {
 				return false
 			}
 		}
