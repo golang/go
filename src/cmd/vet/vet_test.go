@@ -53,6 +53,21 @@ func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
 // TestVet ensures that each analyzer is at least minimally working.
 // It fails if we add a new analyzer to vet.Suite without a test.
 func TestVet(t *testing.T) {
+	const printfuncs = "-printfuncs=Warn,Warnf"
+
+	// Each subtest runs "go vet" on one package in testdata, and each
+	// of those commands needs the vet facts of every package that its
+	// package depends on. The subtests run in parallel, so with a cold
+	// build cache they would all compute the same facts at the same
+	// time, running hundreds of vet processes at once. Vet all of
+	// testdata with a single command first, so that the facts are
+	// computed once and the subtests find them in the build cache.
+	// The subtests check the diagnostics, so ignore the result here.
+	warm := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), printfuncs, "./...")
+	warm.Dir = "testdata"
+	warm.Env = os.Environ()
+	warm.Run() // ignore error
+
 	for _, a := range vet.Suite {
 		name := a.Name
 		t.Run(name, func(t *testing.T) {
@@ -71,7 +86,7 @@ func TestVet(t *testing.T) {
 				}
 			}
 
-			cmd := vetCmd(t, "-printfuncs=Warn,Warnf", name)
+			cmd := vetCmd(t, printfuncs, name)
 
 			// The asmdecl and framepointer tests assume amd64.
 			if name == "asmdecl" || name == "framepointer" {
