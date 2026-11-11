@@ -117,6 +117,7 @@ type leafField struct {
 	size    int64
 	align   int64
 	isFloat bool
+	signed  bool
 	direct  bool // Scalar member of the enclosing struct itself, not flattened from an array, nested struct, or complex type
 }
 
@@ -498,7 +499,7 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 		}
 		d := typeInfo{size: sz, align: align, signed: signed, isFloat: s.isFloat}
 		if sz > 0 {
-			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat, direct: true}}
+			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat, signed: d.signed, direct: true}}
 			d.fieldsOK = true
 		}
 		return d
@@ -1033,6 +1034,8 @@ func (cfg *ABIConfig) emitLoadStackArg(w io.Writer, stackOff, callerSPOff, size 
 func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
 	if cfg.asm.lea != "" {
 		fmt.Fprintf(w, "\tCALL\t%s\n", reg)
+	} else if cfg.Arch == "riscv64" {
+		fmt.Fprintf(w, "\tJALR\tX1, (%s)\n", reg)
 	} else {
 		fmt.Fprintf(w, "\tCALL\t(%s)\n", reg)
 	}
@@ -2775,6 +2778,200 @@ var s390xABI = &ABIConfig{
 	},
 }
 
+// RISC-V RV64GC and LoongArch64 LP64D C calling conventions:
+//   - RISC-V: https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-cc.adoc
+//   - LoongArch64: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+
+// classifyLP64DStruct classifies a <=16-byte composite per the LP64D hardware
+// floating-point calling convention (1-2 FP fields, or 1 FP + 1 integer field).
+//
+// Only structs (including structs with array members) and complex numbers
+// are eligible; unions, represented as arrays, are not.
+func classifyLP64DStruct(info typeInfo) (fields []leafField, nFP, nInt int, ok bool) {
+	if (!info.isStruct && !info.isComplex) || !info.fieldsOK || info.size <= 0 || info.size > 16 {
+		return nil, 0, 0, false
+	}
+	if len(info.fields) < 1 || len(info.fields) > 2 {
+		return nil, 0, 0, false
+	}
+	for _, f := range info.fields {
+		if f.isFloat {
+			nFP++
+		} else {
+			nInt++
+		}
+	}
+	if nFP == 0 {
+		return nil, 0, 0, false
+	}
+	return info.fields, nFP, nInt, true
+}
+
+func lp64dAssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if fields, _, _, ok := classifyLP64DStruct(info); ok {
+		regs := make([]string, len(fields))
+		fpIdx, intIdx := 0, 0
+		for k, f := range fields {
+			if f.isFloat {
+				regs[k] = cfg.FloatRetRegs[fpIdx]
+				fpIdx++
+			} else {
+				regs[k] = cfg.IntRetRegs[intIdx]
+				intIdx++
+			}
+		}
+		return RetLoc{Size: info.size, IsFloat: true, Regs: regs}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+func lp64dCompositeRegSlots(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool) {
+	if !isFloat || !info.fieldsOK || len(info.fields) != len(regs) {
+		return nil, false
+	}
+	slots := make([]regSlot, len(regs))
+	for k, f := range info.fields {
+		slots[k] = regSlot{
+			reg:     regs[k],
+			offset:  f.offset,
+			size:    f.size,
+			align:   f.align,
+			isFloat: f.isFloat,
+			signed:  !f.isFloat && (f.signed || (cfg.SignExtUint32 && f.size == 4)),
+		}
+	}
+	return slots, true
+}
+
+func lp64dAssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	if info.isFloat {
+		if st.floatIdx < len(cfg.FloatRegs) {
+			return cfg.assignFloatParam(info, st)
+		}
+		if st.intIdx < len(cfg.IntRegs) {
+			reg := cfg.IntRegs[st.intIdx]
+			st.intIdx++
+			return ParamLoc{Size: info.size, Regs: []string{reg}}
+		}
+		return cfg.assignStackParam(info.size, true, st)
+	}
+	if info.composite {
+		if fields, nFP, nInt, ok := classifyLP64DStruct(info); ok &&
+			st.floatIdx+nFP <= len(cfg.FloatRegs) && st.intIdx+nInt <= len(cfg.IntRegs) {
+			regs := make([]string, len(fields))
+			for k, f := range fields {
+				if f.isFloat {
+					regs[k] = cfg.FloatRegs[st.floatIdx]
+					st.floatIdx++
+				} else {
+					regs[k] = cfg.IntRegs[st.intIdx]
+					st.intIdx++
+				}
+			}
+			return ParamLoc{Size: info.size, IsFloat: true, Regs: regs}
+		}
+		if info.size > cfg.MaxRegStructSize {
+			return cfg.assignPtrParam(info.size, st)
+		}
+	}
+	// Unlike variadic arguments, named arguments with 2*XLEN alignment do
+	// not skip to an even register.
+	numRegs := int((info.size + cfg.PtrSize - 1) / cfg.PtrSize)
+	if st.intIdx+numRegs <= len(cfg.IntRegs) {
+		regs := slices.Clone(cfg.IntRegs[st.intIdx : st.intIdx+numRegs])
+		st.intIdx += numRegs
+		return ParamLoc{Size: info.size, Regs: regs}
+	}
+	if st.intIdx < len(cfg.IntRegs) && info.composite {
+		// Split 8B-aligned 9..16B aggregate straddling the last GPR (a7) and stack.
+		regs := slices.Clone(cfg.IntRegs[st.intIdx:])
+		regBytes := int64(len(regs)) * cfg.PtrSize
+		stackBytes := info.size - regBytes
+		st.intIdx = len(cfg.IntRegs)
+		off := st.stackOff
+		st.stackOff += alignUp(stackBytes, cfg.PtrSize)
+		return ParamLoc{Size: info.size, Regs: regs, StackOff: off, StackBytes: stackBytes}
+	}
+	st.intIdx = len(cfg.IntRegs)
+	if info.align >= 16 {
+		st.stackOff = alignUp(st.stackOff, 16)
+	}
+	return cfg.assignStackParam(info.size, false, st)
+}
+
+var riscv64ABI = &ABIConfig{
+	Arch:              "riscv64",
+	PtrSize:           8,
+	CLongSize:         8,
+	StackAlign:        16,
+	IntRegs:           []string{"X10", "X11", "X12", "X13", "X14", "X15", "X16", "X17"},
+	FloatRegs:         []string{"F10", "F11", "F12", "F13", "F14", "F15", "F16", "F17"},
+	IntRetRegs:        []string{"X10", "X11"},
+	FloatRetRegs:      []string{"F10", "F11"},
+	MaxRegStructSize:  16,
+	IndirectRetReg:    "X10",
+	IndirectRetInArg:  true,
+	AssignParam:       lp64dAssignParam,
+	AssignRet:         lp64dAssignRet,
+	CompositeRegSlots: lp64dCompositeRegSlots,
+	SPReg:             "X2",
+	CalleeSavedReg:    "X9",
+	TmpReg:            "X5",
+	TmpReg2:           "X6",
+	IndCallReg:        "X6", // Use T1 (X6) instead of T0 (X5) so JALR X1, (reg) does not trigger a RAS pop+push.
+	LinkReg:           "X1",
+	LRReserve:         16,
+	ZeroVal:           "X0",
+	LocalFrameOff:     16,
+	SignExtUint32:     true,
+	asm: asmOps{
+		mov:   "MOV",
+		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
+		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+		fmovS: "MOVF", fmovD: "MOVD",
+		shl: "SLL", shr: "SRL", or: "OR", add: "ADD", sub: "SUB",
+		negSubSP: true,
+	},
+}
+
+var loong64ABI = &ABIConfig{
+	Arch:              "loong64",
+	PtrSize:           8,
+	CLongSize:         8,
+	StackAlign:        16,
+	IntRegs:           []string{"R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11"},
+	FloatRegs:         []string{"F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"},
+	IntRetRegs:        []string{"R4", "R5"},
+	FloatRetRegs:      []string{"F0", "F1"},
+	MaxRegStructSize:  16,
+	IndirectRetReg:    "R4",
+	IndirectRetInArg:  true,
+	AssignParam:       lp64dAssignParam,
+	AssignRet:         lp64dAssignRet,
+	CompositeRegSlots: lp64dCompositeRegSlots,
+	SPReg:             "R3",
+	CalleeSavedReg:    "R23",
+	TmpReg:            "R12",
+	TmpReg2:           "R13",
+	LinkReg:           "R1",
+	AsmTmpReg:         "R30",
+	LRReserve:         16,
+	ZeroVal:           "R0",
+	LocalFrameOff:     16,
+	SignExtUint32:     true,
+	asm: asmOps{
+		mov:   "MOVV",
+		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
+		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+		fmovS: "MOVF", fmovD: "MOVD",
+		shl: "SLLV", shr: "SRLV", or: "OR", add: "ADDV", sub: "SUBV",
+		negSubSP: true,
+	},
+}
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -2815,6 +3012,10 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 			cfg.AssignRet = defaultAssignRet
 			cfg.CompositeRegSlots = nil
 		}
+	case "riscv64":
+		cfg = *riscv64ABI
+	case "loong64":
+		cfg = *loong64ABI
 	case "s390x":
 		cfg = *s390xABI
 	case "mips", "mipsle":

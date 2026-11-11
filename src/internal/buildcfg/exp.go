@@ -101,7 +101,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// of goarch.
 	var cgoBindingsABISupported bool
 	switch goarch {
-	case "386", "amd64", "arm", "arm64", "mips", "mipsle", "s390x":
+	case "386", "amd64", "arm", "arm64", "loong64", "mips", "mipsle", "riscv64", "s390x":
 		cgoBindingsABISupported = true
 	}
 	cgoBindingsSupported := runtimeCgoPuregoSupported && cgoBindingsABISupported

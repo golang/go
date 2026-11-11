@@ -1615,6 +1615,136 @@ func TestLayoutAndTrampolineS390X(t *testing.T) {
 	}
 }
 
+func TestLayoutAndTrampolineRISCV64Loong64(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"SingleF":     {Name: "SingleF", Def: "struct {\n\tf float32\n}", Size: 4, Align: 4},
+		"FloatDouble": {Name: "FloatDouble", Def: "struct {\n\ta float32\n\tb float64\n}", Size: 16, Align: 8},
+		"IntFloat":    {Name: "IntFloat", Def: "struct {\n\ta int32\n\tb float32\n}", Size: 8, Align: 4},
+		"Pair16":      {Name: "Pair16", Def: "struct {\n\ta, b int64\n}", Size: 16, Align: 8},
+		"Align16":     {Name: "Align16", Def: "struct {\n\ta, b int64\n}", Size: 16, Align: 16},
+		"Odd5":        {Name: "Odd5", Def: "struct {\n\tb [5]uint8\n}", Size: 5, Align: 1},
+		"FloatU32":    {Name: "FloatU32", Def: "struct {\n\tf float32\n\tu uint32\n}", Size: 8, Align: 4},
+		"ArrF1":       {Name: "ArrF1", Def: "struct {\n\ta [1]float32\n}", Size: 4, Align: 4},
+		"UnionF":      {Name: "UnionF", Def: "[1]float32", Size: 4, Align: 4},
+	}
+
+	// LP64D (riscv64 and loong64): float overflow to GPR, FP-struct rules, straddling 16B split, and 16B alignment.
+	for _, tc := range []struct {
+		arch               string
+		i0, i1, i2, i3, i7 string
+		f0, f1, f2, f3, f7 string
+		csr, sp, tmp, mov  string // callee-saved arg pointer, stack pointer, scratch register, and 8-byte move
+	}{
+		{"riscv64", "X10", "X11", "X12", "X13", "X17", "F10", "F11", "F12", "F13", "F17", "X9", "X2", "X5", "MOV"},
+		{"loong64", "R4", "R5", "R6", "R7", "R11", "F0", "F1", "F2", "F3", "F7", "R23", "R3", "R12", "MOVV"},
+	} {
+		cfg := getABI("linux", tc.arch)
+		ovLay := cfg.layout(BindingFunc{
+			Name: "FloatOverflow",
+			Params: []string{
+				"float64", "float64", "float64", "float64",
+				"float64", "float64", "float64", "float64", "float64",
+			},
+		}, nil)
+		if len(ovLay.Params[8].Regs) != 1 || ovLay.Params[8].Regs[0] != tc.i0 || ovLay.Params[8].IsFloat {
+			t.Errorf("%s 9th float param = %+v, want GPR %s", tc.arch, ovLay.Params[8], tc.i0)
+		}
+		fpLay := cfg.layout(BindingFunc{
+			Name:   "FP",
+			Params: []string{"SingleF", "FloatDouble", "IntFloat"},
+			Ret:    "IntFloat",
+		}, typeMap)
+		if !slices.Equal(fpLay.Params[0].Regs, []string{tc.f0}) ||
+			!slices.Equal(fpLay.Params[1].Regs, []string{tc.f1, tc.f2}) ||
+			!slices.Equal(fpLay.Params[2].Regs, []string{tc.i0, tc.f3}) ||
+			!slices.Equal(fpLay.Ret.Regs, []string{tc.i0, tc.f0}) {
+			t.Errorf("%s LP64D FP-struct layout = %+v", tc.arch, fpLay)
+		}
+		// Straddling 16B struct at a7 splits across a7 + stack and prevents GPR backfilling.
+		splitLay := cfg.layout(BindingFunc{
+			Name:   "Split",
+			Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "Pair16", "int64"},
+		}, typeMap)
+		if !slices.Equal(splitLay.Params[7].Regs, []string{tc.i7}) ||
+			splitLay.Params[7].StackBytes != 8 || splitLay.Params[7].StackOff != 0 ||
+			len(splitLay.Params[8].Regs) != 0 || splitLay.Params[8].StackOff != 8 {
+			t.Errorf("%s straddling Pair16 + no-backfill layout = %+v", tc.arch, splitLay)
+		}
+		// A named 16B-aligned struct does not skip to an even GPR (a1:a2
+		// after a0); only variadic arguments do. On the stack it is
+		// 16-byte aligned.
+		a16Lay := cfg.layout(BindingFunc{Name: "A16", Params: []string{"int64", "Align16"}}, typeMap)
+		if !slices.Equal(a16Lay.Params[1].Regs, []string{tc.i1, tc.i2}) {
+			t.Errorf("%s 16B-aligned struct layout = %+v", tc.arch, a16Lay)
+		}
+		a16Stack := cfg.layout(BindingFunc{Name: "A16", Params: append(slices.Repeat([]string{"int64"}, 9), "Align16")}, typeMap)
+		if p := a16Stack.Params[9]; len(p.Regs) != 0 || p.StackOff != 16 {
+			t.Errorf("%s spilled 16B-aligned struct after 9 int64s = %+v, want on the stack at 16", tc.arch, p)
+		}
+
+		// uint32 values are sign-extended to 64 bits in registers and stack
+		// slots (MOVW), including the integer member of a floating-point
+		// struct; uint8 and uint16 are zero-extended, and the first 4 bytes
+		// of a 5-byte struct are loaded without sign extension.
+		load := func(op, off, reg string) string {
+			return op + "\t" + off + "(" + tc.csr + "), " + reg + "\n"
+		}
+		for _, c := range []struct {
+			params []string
+			want   string
+		}{
+			{[]string{"uint32"}, load("MOVW", "0", tc.i0)},
+			{[]string{"uint8"}, load("MOVBU", "0", tc.i0)},
+			{[]string{"uint16"}, load("MOVHU", "0", tc.i0)},
+			{[]string{"Odd5"}, load("MOVWU", "0", tc.i0)},
+			{[]string{"FloatU32"}, load("MOVW", "4", tc.i0)},
+			{append(slices.Repeat([]string{"int64"}, 8), "uint32"), load("MOVW", "64", tc.tmp) + "\t" + tc.mov + "\t" + tc.tmp + ", 0(" + tc.sp + ")\n"},
+		} {
+			var tramp bytes.Buffer
+			cfg.writeTrampoline(&tramp, BindingFunc{Name: "Ext", CName: "ext", Params: c.params}, typeMap)
+			if !strings.Contains(tramp.String(), c.want) {
+				t.Errorf("%s trampoline passing %v missing %q:\n%s", tc.arch, c.params, c.want, tramp.String())
+			}
+		}
+		var u32Cb bytes.Buffer
+		cfg.writeCallbackTrampoline(&u32Cb, BindingFunc{Name: "CbU32", Params: []string{"uint32"}, Ret: "uint32"}, nil)
+		if want := "MOVW\t20(" + tc.sp + "), " + tc.i0 + "\n"; !strings.Contains(u32Cb.String(), want) {
+			t.Errorf("%s callback returning uint32 missing %q:\n%s", tc.arch, want, u32Cb.String())
+		}
+
+		// Complex numbers use two FPRs like a struct of two floats, falling
+		// back to the integer convention when fewer than two FPRs are left.
+		// A struct with a one-member float array is eligible for FPRs, but a
+		// union (represented as an array) is not.
+		cLay := cfg.layout(BindingFunc{Name: "C", Params: []string{"complex64", "complex128"}, Ret: "complex64"}, nil)
+		if !slices.Equal(cLay.Params[0].Regs, []string{tc.f0, tc.f1}) || !slices.Equal(cLay.Params[1].Regs, []string{tc.f2, tc.f3}) ||
+			!cLay.Ret.IsFloat || !slices.Equal(cLay.Ret.Regs, []string{tc.f0, tc.f1}) {
+			t.Errorf("%s complex layout = %+v", tc.arch, cLay)
+		}
+		arrLay := cfg.layout(BindingFunc{Name: "A", Params: []string{"ArrF1", "UnionF"}}, typeMap)
+		if !arrLay.Params[0].IsFloat || !slices.Equal(arrLay.Params[0].Regs, []string{tc.f0}) ||
+			arrLay.Params[1].IsFloat || !slices.Equal(arrLay.Params[1].Regs, []string{tc.i0}) {
+			t.Errorf("%s one-float array struct and union layout = %+v", tc.arch, arrLay)
+		}
+		for ret, want := range map[string][]string{"complex128": {tc.f0, tc.f1}, "ArrF1": {tc.f0}, "UnionF": {tc.i0}} {
+			if lay := cfg.layout(BindingFunc{Name: "R", Ret: ret}, typeMap); !slices.Equal(lay.Ret.Regs, want) {
+				t.Errorf("%s returning %s = %+v, want %v", tc.arch, ret, lay.Ret, want)
+			}
+		}
+		fallback := cfg.layout(BindingFunc{Name: "C", Params: append(slices.Repeat([]string{"float64"}, 7), "complex64", "float64")}, nil)
+		if p := fallback.Params[7]; p.IsFloat || !slices.Equal(p.Regs, []string{tc.i0}) || !slices.Equal(fallback.Params[8].Regs, []string{tc.f7}) {
+			t.Errorf("%s complex64 with one FPR left = %+v, then float64 %+v; want %s, then %s", tc.arch, p, fallback.Params[8], tc.i0, tc.f7)
+		}
+		var cTramp bytes.Buffer
+		cfg.writeTrampoline(&cTramp, BindingFunc{Name: "C", CName: "c", Params: []string{"complex64"}, Ret: "complex64"}, nil)
+		for _, want := range []string{"MOVF\t0(" + tc.csr + "), " + tc.f0 + "\n", "MOVF\t4(" + tc.csr + "), " + tc.f1 + "\n"} {
+			if !strings.Contains(cTramp.String(), want) {
+				t.Errorf("%s trampoline passing complex64 missing %q:\n%s", tc.arch, want, cTramp.String())
+			}
+		}
+	}
+}
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
@@ -1622,6 +1752,7 @@ var allABITargets = [][2]string{
 	{"linux", "386"}, {"windows", "386"},
 	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"}, {"linux", "mips"}, {"linux", "mipsle"},
 	{"linux", "s390x"},
+	{"linux", "riscv64"}, {"linux", "loong64"},
 }
 
 // TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call
