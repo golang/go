@@ -190,6 +190,8 @@ func defaultContext() build.Context {
 		ctxt.CgoEnabled = build.CgoDisabled
 	case "1":
 		ctxt.CgoEnabled = build.CgoEnabled
+	case "bindings":
+		ctxt.CgoEnabled = build.CgoBindings
 	}
 	CGOChanged = ctxt.CgoEnabled != defaultCgoEnabled
 

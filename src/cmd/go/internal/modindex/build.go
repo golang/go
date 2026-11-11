@@ -43,8 +43,8 @@ type Context struct {
 	Dir string
 
 	CgoEnabled  build.CgoMode // whether and how cgo files are included
-	UseAllFiles bool   // use files regardless of //go:build lines, file names
-	Compiler    string // compiler to assume when computing target paths
+	UseAllFiles bool          // use files regardless of //go:build lines, file names
+	Compiler    string        // compiler to assume when computing target paths
 
 	// The build, tool, and release tags specify build constraints
 	// that should be considered satisfied when processing +build lines.
@@ -203,6 +203,7 @@ type fileInfo struct {
 
 	// Additional fields added to go/build's fileinfo for the purposes of the modindex package.
 	binaryOnly           bool
+	cgoBindings          bool
 	goBuildConstraint    string
 	plusBuildConstraints []string
 }
@@ -659,6 +660,7 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 // matchTag reports whether the name is one of:
 //
 //	cgo (if cgo is enabled)
+//	cgobindings (if cgo bindings are enabled)
 //	$GOOS
 //	$GOARCH
 //	boringcrypto
@@ -675,6 +677,10 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 
 	// special tags
 	if ctxt.CgoEnabled == build.CgoEnabled && name == "cgo" {
+		return true
+	}
+	if name == "cgobindings" && (ctxt.CgoEnabled == build.CgoBindings ||
+		(ctxt.CgoEnabled == build.CgoEnabled && slices.Contains(ctxt.ToolTags, "goexperiment.cgobindings"))) {
 		return true
 	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {

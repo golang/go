@@ -38,7 +38,8 @@ type CgoMode uint8
 
 const (
 	CgoDisabled CgoMode = iota // cgo files are ignored
-	CgoEnabled                 // cgo files are included
+	CgoBindings                // only cgo binding packages are included
+	CgoEnabled                 // cgo files are included (using bindings when present)
 )
 
 // A Context specifies the supporting context for a build.
@@ -57,8 +58,8 @@ type Context struct {
 	Dir string
 
 	CgoEnabled  CgoMode // whether and how cgo files are included
-	UseAllFiles bool   // use files regardless of go:build lines, file names
-	Compiler    string // compiler to assume when computing target paths
+	UseAllFiles bool    // use files regardless of go:build lines, file names
+	Compiler    string  // compiler to assume when computing target paths
 
 	// The build, tool, and release tags specify build constraints
 	// that should be considered satisfied when processing go:build lines.
@@ -374,6 +375,8 @@ func defaultContext() Context {
 		c.CgoEnabled = CgoEnabled
 	case "0":
 		c.CgoEnabled = CgoDisabled
+	case "bindings":
+		c.CgoEnabled = CgoBindings
 	default:
 		// cgo must be explicitly enabled for cross compilation builds
 		if runtime.GOARCH == c.GOARCH && runtime.GOOS == c.GOOS {
@@ -484,6 +487,7 @@ type Package struct {
 	CgoFFLAGS    []string // Cgo FFLAGS directives
 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
 	CgoPkgConfig []string // Cgo pkg-config directives
+	CgoBindings  bool     // package declares cgo binding pragmas
 
 	// Test information
 	TestGoFiles  []string // _test.go files in package
@@ -893,6 +897,15 @@ Found:
 	xTestImportPos := make(map[string][]token.Position)
 	allTags := make(map[string]bool)
 	fset := token.NewFileSet()
+
+	// In CgoBindings mode, collect matching import "C" files until all files
+	// are scanned: a //cgo: binding pragma in any file enables all of them.
+	type importCFile struct {
+		name string
+		info *fileInfo
+	}
+	var hasImportC []importCFile
+
 	for _, d := range dirs {
 		if d.IsDir() {
 			continue
@@ -1018,12 +1031,25 @@ Found:
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
-			if ctxt.CgoEnabled == CgoEnabled {
+			if info.cgoBindings {
+				allTags["cgobindings"] = true
+			}
+			switch ctxt.CgoEnabled {
+			case CgoEnabled:
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
 				directives = &p.Directives
-			} else {
+				if info.cgoBindings {
+					p.CgoBindings = true
+				}
+			case CgoBindings:
+				if info.cgoBindings {
+					p.CgoBindings = true
+				}
+				hasImportC = append(hasImportC, importCFile{name: name, info: info})
+				continue
+			default:
 				// Ignore imports and embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
 			}
@@ -1056,6 +1082,26 @@ Found:
 		}
 		if directives != nil {
 			*directives = append(*directives, info.directives...)
+		}
+	}
+
+	if len(hasImportC) > 0 {
+		for _, cf := range hasImportC {
+			if p.CgoBindings {
+				p.CgoFiles = append(p.CgoFiles, cf.name)
+				for _, imp := range cf.info.imports {
+					importPos[imp.path] = append(importPos[imp.path], fset.Position(imp.pos))
+				}
+				for _, emb := range cf.info.embeds {
+					embedPos[emb.pattern] = append(embedPos[emb.pattern], emb.pos)
+				}
+				p.Directives = append(p.Directives, cf.info.directives...)
+			} else {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, cf.name)
+			}
+		}
+		if !p.CgoBindings {
+			slices.Sort(p.IgnoredGoFiles)
 		}
 	}
 
@@ -1252,8 +1298,11 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode) 
 	cmd.Stderr = &stderr
 
 	cgo := "0"
-	if ctxt.CgoEnabled == CgoEnabled {
+	switch ctxt.CgoEnabled {
+	case CgoEnabled:
 		cgo = "1"
+	case CgoBindings:
+		cgo = "bindings"
 	}
 	cmd.Env = append(cmd.Environ(),
 		"GOOS="+ctxt.GOOS,
@@ -1424,14 +1473,15 @@ var dummyPkg Package
 
 // fileInfo records information learned about a file included in a build.
 type fileInfo struct {
-	name       string // full name including dir
-	header     []byte
-	fset       *token.FileSet
-	parsed     *ast.File
-	parseErr   error
-	imports    []fileImport
-	embeds     []fileEmbed
-	directives []Directive
+	name        string // full name including dir
+	header      []byte
+	fset        *token.FileSet
+	parsed      *ast.File
+	parseErr    error
+	imports     []fileImport
+	embeds      []fileEmbed
+	directives  []Directive
+	cgoBindings bool
 }
 
 type fileImport struct {
@@ -1943,6 +1993,7 @@ func (ctxt *Context) eval(x constraint.Expr, allTags map[string]bool) bool {
 // matchTag reports whether the name is one of:
 //
 //	cgo (if cgo is enabled)
+//	cgobindings (if cgo bindings are enabled)
 //	$GOOS
 //	$GOARCH
 //	ctxt.Compiler
@@ -1961,6 +2012,10 @@ func (ctxt *Context) matchTag(name string, allTags map[string]bool) bool {
 
 	// special tags
 	if ctxt.CgoEnabled == CgoEnabled && name == "cgo" {
+		return true
+	}
+	if name == "cgobindings" && (ctxt.CgoEnabled == CgoBindings ||
+		(ctxt.CgoEnabled == CgoEnabled && slices.Contains(ctxt.ToolTags, "goexperiment.cgobindings"))) {
 		return true
 	}
 	if name == ctxt.GOOS || name == ctxt.GOARCH || name == ctxt.Compiler {

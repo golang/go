@@ -350,3 +350,31 @@ func TestReadEmbed(t *testing.T) {
 		}
 	}
 }
+
+func TestReadCgoBindings(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"no cgo", "package p\n", false},
+		{"bare cgo", "package p\nimport \"C\"\n", false},
+		{"pragma", "package p\nimport \"C\"\n\n//cgo:func puts puts libc\nfunc puts(*byte) int32\n", true},
+		{"pragma with preamble", "package p\n// #include <stdio.h>\nimport \"C\"\n\n//cgo:type T C.t\ntype T int32\n", true},
+		{"not a pragma", "package p\nimport \"C\"\n\n//cgo:other x\n", false},
+		{"pragma without cgo", "package p\n\n//cgo:func puts puts libc\nfunc puts(*byte) int32\n", false},
+		{"pragma in string", "package p\nimport \"C\"\nvar s = \"//cgo:func puts puts libc\"\n", false},
+		{"pragma in block comment", "package p\nimport \"C\"\n/* //cgo:func puts puts libc */\n", false},
+	}
+	fset := token.NewFileSet()
+	for _, tt := range tests {
+		info := fileInfo{name: "test.go", fset: fset}
+		if err := readGoInfo(strings.NewReader(tt.src), &info); err != nil {
+			t.Errorf("%s: readGoInfo: %v", tt.name, err)
+			continue
+		}
+		if info.cgoBindings != tt.want {
+			t.Errorf("%s: info.cgoBindings = %v, want %v", tt.name, info.cgoBindings, tt.want)
+		}
+	}
+}

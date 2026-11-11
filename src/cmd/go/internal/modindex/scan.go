@@ -168,6 +168,7 @@ type rawFile struct {
 	ignoreFile           bool   // starts with _ or . or should otherwise always be ignored
 	binaryOnly           bool   // cannot be rebuilt from source (has //go:binary-only-package comment)
 	cgoDirectives        string // the #cgo directive lines in the comment on import "C"
+	cgoBindings          bool   // imports "C" and declares cgo binding pragmas
 	goBuildConstraint    string
 	plusBuildConstraints []string
 	imports              []rawImport
@@ -245,6 +246,7 @@ func importRaw(modroot, reldir string) *rawPackage {
 			goBuildConstraint:    info.goBuildConstraint,
 			plusBuildConstraints: info.plusBuildConstraints,
 			binaryOnly:           info.binaryOnly,
+			cgoBindings:          info.cgoBindings,
 			directives:           info.directives,
 		}
 		if info.parsed != nil {

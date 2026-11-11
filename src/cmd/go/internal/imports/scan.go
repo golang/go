@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cmd/go/internal/build"
 	"cmd/go/internal/fsys"
 )
 
@@ -48,8 +49,10 @@ func ScanFiles(files []string, tags map[string]bool) ([]string, []string, error)
 func scanFiles(files []string, tags map[string]bool, explicitFiles bool) ([]string, []string, error) {
 	imports := make(map[string]bool)
 	testImports := make(map[string]bool)
+	var cgoImports map[string]bool
+	hasCgoBindings := false
+	numCgoFiles := 0
 	numFiles := 0
-Files:
 	for _, name := range files {
 		r, err := fsys.Open(name)
 		if err != nil {
@@ -62,21 +65,45 @@ Files:
 			return nil, nil, fmt.Errorf("reading %s: %v", name, err)
 		}
 
-		// import "C" is implicit requirement of cgo tag.
+		if !explicitFiles && !ShouldBuild(data, tags) {
+			continue
+		}
+
+		// import "C" is implicit requirement of cgo tag (or of cgobindings
+		// when a matching file in the package declares cgo binding pragmas).
 		// When listing files on the command line (explicitFiles=true)
 		// we do not apply build tag filtering but we still do apply
 		// cgo filtering, so no explicitFiles check here.
 		// Why? Because we always have, and it's not worth breaking
 		// that behavior now.
+		hasC := false
 		for _, path := range list {
-			if path == `"C"` && !tags["cgo"] && !tags["*"] {
-				continue Files
+			if path == `"C"` {
+				hasC = true
+				break
 			}
 		}
-
-		if !explicitFiles && !ShouldBuild(data, tags) {
+		if hasC && !tags["cgo"] && !tags["*"] {
+			if !tags["cgobindings"] || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			if full, err := fsys.ReadFile(name); err == nil && build.HasCgoBindingPragma(full) {
+				hasCgoBindings = true
+			}
+			numCgoFiles++
+			if cgoImports == nil {
+				cgoImports = make(map[string]bool)
+			}
+			for _, p := range list {
+				q, err := strconv.Unquote(p)
+				if err != nil {
+					continue
+				}
+				cgoImports[q] = true
+			}
 			continue
 		}
+
 		numFiles++
 		m := imports
 		if strings.HasSuffix(name, "_test.go") {
@@ -88,6 +115,12 @@ Files:
 				continue
 			}
 			m[q] = true
+		}
+	}
+	if hasCgoBindings {
+		numFiles += numCgoFiles
+		for q := range cgoImports {
+			imports[q] = true
 		}
 	}
 	if numFiles == 0 {

@@ -335,11 +335,7 @@ var hasCgo = sync.OnceValue(func() bool {
 	if err != nil {
 		panic(fmt.Sprintf("%v: %v", cmd, out))
 	}
-	ok, err := strconv.ParseBool(string(bytes.TrimSpace(out)))
-	if err != nil {
-		panic(fmt.Sprintf("%v: non-boolean output %q", cmd, out))
-	}
-	return ok
+	return string(bytes.TrimSpace(out)) == "1"
 })
 
 // MustHaveCGO calls t.Skip if cgo is not available.

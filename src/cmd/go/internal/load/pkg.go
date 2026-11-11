@@ -1917,7 +1917,7 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 		}
 
 		// SWIG adds imports of some standard packages.
-		if p.UsesSwig() {
+		if p.UsesSwig() && cfg.BuildContext.CgoEnabled == build.CgoEnabled && !p.UsesCgoBinding() {
 			addImport("unsafe", true)
 			if cfg.BuildContext.Compiler != "gccgo" {
 				addImport("runtime/cgo", true)
@@ -2054,7 +2054,9 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 
 	// If cgo is not enabled, ignore cgo supporting sources
 	// just as we ignore go files containing import "C".
-	if cfg.BuildContext.CgoEnabled != build.CgoEnabled {
+	// Keep them for packages using cgo bindings, which may not
+	// contain them; see below.
+	if cfg.BuildContext.CgoEnabled != build.CgoEnabled && !p.UsesCgoBinding() {
 		p.CFiles = nil
 		p.CXXFiles = nil
 		p.MFiles = nil
@@ -2085,6 +2087,25 @@ func (p *Package) load(ld *modload.Loader, ctx context.Context, opts PackageOpts
 	if len(p.FFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
 		setError(fmt.Errorf("Fortran source files not allowed when not using cgo or SWIG: %s", strings.Join(p.FFiles, " ")))
 		return
+	}
+
+	// A package using cgo binding pragmas is built without a C compiler,
+	// so it may not also contain sources that need one: C, C++,
+	// Objective-C, Fortran, C-preprocessed assembly, or SWIG files.
+	if p.UsesCgoBinding() {
+		var files []string
+		for _, list := range [][]string{p.CFiles, p.CXXFiles, p.MFiles, p.FFiles, p.SwigFiles, p.SwigCXXFiles} {
+			files = append(files, list...)
+		}
+		for _, f := range p.SFiles {
+			if strings.HasSuffix(f, ".S") || strings.HasSuffix(f, ".sx") {
+				files = append(files, f)
+			}
+		}
+		if len(files) > 0 {
+			setError(fmt.Errorf("source files requiring a C compiler not allowed in a package using cgo binding pragmas: %s", strings.Join(files, " ")))
+			return
+		}
 	}
 }
 
@@ -2465,8 +2486,11 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 		appendSetting("DefaultGODEBUG", p.DefaultGODEBUG)
 	}
 	cgo := "0"
-	if cfg.BuildContext.CgoEnabled == build.CgoEnabled {
+	switch cfg.BuildContext.CgoEnabled {
+	case build.CgoEnabled:
 		cgo = "1"
+	case build.CgoBindings:
+		cgo = "bindings"
 	}
 	appendSetting("CGO_ENABLED", cgo)
 	// https://go.dev/issue/52372: only include CGO flags if -trimpath is not set.
@@ -2476,9 +2500,14 @@ func (p *Package) setBuildInfo(ctx context.Context, f *modfetch.Fetcher, autoVCS
 	//
 	// TODO(bcmills): perhaps we could at least parse the flags and stamp the
 	// subset of flags that are known not to be paths?
-	if cfg.BuildContext.CgoEnabled == build.CgoEnabled && !cfg.BuildTrimpath {
-		for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
-			appendSetting(name, cfg.Getenv(name))
+	if !cfg.BuildTrimpath {
+		switch cfg.BuildContext.CgoEnabled {
+		case build.CgoEnabled:
+			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+				appendSetting(name, cfg.Getenv(name))
+			}
+		case build.CgoBindings:
+			appendSetting("CGO_LDFLAGS", cfg.Getenv("CGO_LDFLAGS"))
 		}
 	}
 	appendSetting("GOARCH", cfg.BuildContext.GOARCH)
@@ -2782,6 +2811,12 @@ func (p *Package) UsesSwig() bool {
 // UsesCgo reports whether the package needs to run cgo
 func (p *Package) UsesCgo() bool {
 	return len(p.CgoFiles) > 0
+}
+
+// UsesCgoBinding reports whether the package's cgo files are processed
+// with cmd/cgo -binding, without a C compiler.
+func (p *Package) UsesCgoBinding() bool {
+	return p.UsesCgo() && cfg.BuildContext.Compiler == "gc" && cfg.Experiment != nil && cfg.Experiment.CgoBindings && p.Internal.Build != nil && p.Internal.Build.CgoBindings
 }
 
 // PackageList returns the list of packages in the dag rooted at roots

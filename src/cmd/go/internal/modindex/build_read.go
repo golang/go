@@ -312,6 +312,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 	}
 
 	hasEmbed := false
+	hasCgo := false
 	for _, decl := range info.parsed.Decls {
 		d, ok := decl.(*ast.GenDecl)
 		if !ok {
@@ -337,6 +338,9 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 			if path == "embed" {
 				hasEmbed = true
 			}
+			if path == "C" {
+				hasCgo = true
+			}
 
 			doc := spec.Doc
 			if doc == nil && len(d.Specs) == 1 {
@@ -358,6 +362,10 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 		}
 	}
 
+	if hasEmbed || hasCgo {
+		r.readRest()
+	}
+
 	// If the file imports "embed",
 	// we have to look for //go:embed comments
 	// in the remainder of the file.
@@ -367,7 +375,6 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 	// (near the package statement or imports), the compiler
 	// will reject them. They can be (and have already been) ignored.
 	if hasEmbed {
-		r.readRest()
 		fset := token.NewFileSet()
 		file := fset.AddFile(r.pos.Filename, -1, len(r.buf))
 		var sc scanner.Scanner
@@ -386,6 +393,10 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
 				}
 			}
 		}
+	}
+
+	if hasCgo {
+		info.cgoBindings = build.HasCgoBindingPragma(r.buf)
 	}
 
 	return nil

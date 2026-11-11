@@ -11,7 +11,7 @@ import (
 )
 
 // Tags returns a set of build tags that are true for the target platform.
-// It includes GOOS, GOARCH, the compiler, possibly "cgo",
+// It includes GOOS, GOARCH, the compiler, possibly "cgo" or "cgobindings",
 // release tags like "go1.13", and user-specified build tags.
 func Tags() map[string]bool {
 	return loadTagsOnce()
@@ -36,6 +36,10 @@ func loadTags() map[string]bool {
 	}
 	for _, tag := range cfg.BuildContext.ReleaseTags {
 		tags[tag] = true
+	}
+	if cfg.BuildContext.CgoEnabled == build.CgoBindings ||
+		(cfg.BuildContext.CgoEnabled == build.CgoEnabled && tags["goexperiment.cgobindings"]) {
+		tags["cgobindings"] = true
 	}
 	return tags
 }

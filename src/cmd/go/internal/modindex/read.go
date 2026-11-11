@@ -480,6 +480,14 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 
 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
 	var firstFile string
+	// In CgoBindings mode, collect matching import "C" files until all files
+	// are scanned: a //cgo: binding pragma in any file enables all of them.
+	type importCFile struct {
+		name    string
+		tf      *sourceFile
+		imports []rawImport
+	}
+	var hasImportC []importCFile
 	embedPos := make(map[string][]token.Position)
 	testEmbedPos := make(map[string][]token.Position)
 	xTestEmbedPos := make(map[string][]token.Position)
@@ -605,12 +613,25 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		switch {
 		case isCgo:
 			allTags["cgo"] = true
-			if ctxt.CgoEnabled == build.CgoEnabled {
+			if tf.cgoBindings() {
+				allTags["cgobindings"] = true
+			}
+			switch ctxt.CgoEnabled {
+			case build.CgoEnabled:
 				fileList = &p.CgoFiles
 				importMap = importPos
 				embedMap = embedPos
 				directives = &p.Directives
-			} else {
+				if tf.cgoBindings() {
+					p.CgoBindings = true
+				}
+			case build.CgoBindings:
+				if tf.cgoBindings() {
+					p.CgoBindings = true
+				}
+				hasImportC = append(hasImportC, importCFile{name: name, tf: tf, imports: imports})
+				continue
+			default:
 				// Ignore Imports and Embeds from cgo files if cgo is disabled.
 				fileList = &p.IgnoredGoFiles
 			}
@@ -643,6 +664,26 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
 		}
 		if directives != nil {
 			*directives = append(*directives, tf.directives()...)
+		}
+	}
+
+	if len(hasImportC) > 0 {
+		for _, cf := range hasImportC {
+			if p.CgoBindings {
+				p.CgoFiles = append(p.CgoFiles, cf.name)
+				for _, imp := range cf.imports {
+					importPos[imp.path] = append(importPos[imp.path], imp.position)
+				}
+				for _, e := range cf.tf.embeds() {
+					embedPos[e.pattern] = append(embedPos[e.pattern], e.position)
+				}
+				p.Directives = append(p.Directives, cf.tf.directives()...)
+			} else {
+				p.IgnoredGoFiles = append(p.IgnoredGoFiles, cf.name)
+			}
+		}
+		if !p.CgoBindings {
+			sort.Strings(p.IgnoredGoFiles)
 		}
 	}
 
@@ -729,19 +770,26 @@ func (rp *IndexPackage) ScanDir(tags map[string]bool) (sortedImports []string, s
 
 	imports_ := make(map[string]bool)
 	testImports := make(map[string]bool)
+	var cgoImports map[string]bool
+	hasCgoBindings := false
+	numCgoFiles := 0
 	numFiles := 0
 
-Files:
 	for _, sf := range rp.sourceFiles {
 		name := sf.name()
 		if strings.HasPrefix(name, "_") || strings.HasPrefix(name, ".") || !strings.HasSuffix(name, ".go") || !imports.MatchFile(name, tags) {
 			continue
 		}
 
+		if !shouldBuild(sf, tags) {
+			continue
+		}
+
 		// The following section exists for backwards compatibility reasons:
 		// scanDir ignores files with import "C" when collecting the list
-		// of imports unless the "cgo" tag is provided. The following comment
-		// is copied from the original.
+		// of imports unless the "cgo" tag is provided (or "cgobindings" is
+		// provided and a matching file in the package declares cgo binding
+		// pragmas). The following comment is copied from the original.
 		//
 		// import "C" is implicit requirement of cgo tag.
 		// When listing files on the command line (explicitFiles=true)
@@ -750,15 +798,30 @@ Files:
 		// Why? Because we always have, and it's not worth breaking
 		// that behavior now.
 		imps := sf.imports() // TODO(matloob): directly read import paths to avoid the extra strings?
+		hasC := false
 		for _, imp := range imps {
-			if imp.path == "C" && !tags["cgo"] && !tags["*"] {
-				continue Files
+			if imp.path == "C" {
+				hasC = true
+				break
 			}
 		}
-
-		if !shouldBuild(sf, tags) {
+		if hasC && !tags["cgo"] && !tags["*"] {
+			if !tags["cgobindings"] || strings.HasSuffix(name, "_test.go") {
+				continue
+			}
+			if sf.cgoBindings() {
+				hasCgoBindings = true
+			}
+			numCgoFiles++
+			if cgoImports == nil {
+				cgoImports = make(map[string]bool)
+			}
+			for _, p := range imps {
+				cgoImports[p.path] = true
+			}
 			continue
 		}
+
 		numFiles++
 		m := imports_
 		if strings.HasSuffix(name, "_test.go") {
@@ -766,6 +829,12 @@ Files:
 		}
 		for _, p := range imps {
 			m[p.path] = true
+		}
+	}
+	if hasCgoBindings {
+		numFiles += numCgoFiles
+		for p := range cgoImports {
+			imports_[p] = true
 		}
 	}
 	if numFiles == 0 {
@@ -870,6 +939,7 @@ const (
 	sourceFilePkgName
 	sourceFileIgnoreFile
 	sourceFileBinaryOnly
+	sourceFileCgoBindings
 	sourceFileCgoDirectives
 	sourceFileGoBuildConstraint
 	sourceFileNumPlusBuildConstraints
@@ -895,6 +965,9 @@ func (sf *sourceFile) ignoreFile() bool {
 }
 func (sf *sourceFile) binaryOnly() bool {
 	return sf.d.boolAt(sf.pos + sourceFileBinaryOnly)
+}
+func (sf *sourceFile) cgoBindings() bool {
+	return sf.d.boolAt(sf.pos + sourceFileCgoBindings)
 }
 func (sf *sourceFile) cgoDirectives() string {
 	return sf.d.stringAt(sf.pos + sourceFileCgoDirectives)
