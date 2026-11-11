@@ -2002,5 +2002,12 @@
 (Mask32sAny m) => (NotEqual (PPTEST (Mask32sAllTrue <types.TypeMask>) m))
 (Mask64sAny m) => (NotEqual (PPTEST (Mask64sAllTrue <types.TypeMask>) m))
 
+// == on SIMD vectors and masks. Integer vectors and masks are equal if their
+// XOR is zero. Float vectors are equal if every element compares equal, so NaN
+// elements are unequal and +0 equals -0.
+(EqualVec128 x y) => (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VEOR16B x y)))))
+(EqualVecFloat32x4 x y) => (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VNOT16B (VFCMEQ4S x y))))))
+(EqualVecFloat64x2 x y) => (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VNOT16B (VFCMEQ2D x y))))))
+
 (LoadMasked8 <t> ptr mask mem) && t.Size() == 32 => (ZLD1BPredload ptr mask mem)
 (StoreMasked8 {t} ptr mask val mem) && t.Size() == 32 => (ZST1BPredstore ptr val mask mem)

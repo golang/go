@@ -3276,6 +3276,17 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 		n := n.(*ir.BinaryExpr)
 		a := s.expr(n.X)
 		b := s.expr(n.Y)
+		if t := n.X.Type(); t.IsSIMD() {
+			c := s.newValue2(simdEqualOp(t), types.Types[types.TBOOL], a, b)
+			switch n.Op() {
+			case ir.OEQ:
+				return c
+			case ir.ONE:
+				return s.newValue1(ssaop.OpNot, types.Types[types.TBOOL], c)
+			default:
+				s.Fatalf("ordered SIMD compare %v", n.Op())
+			}
+		}
 		if n.X.Type().IsComplex() {
 			pt := types.FloatForComplex(n.X.Type())
 			op := s.ssaOp(ir.OEQ, pt)

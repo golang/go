@@ -488,3 +488,10 @@
 (I64Load32S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int32(ssa.Read32(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
 (I64Load16S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int16(ssa.Read16(sym, off+int64(off2), config.Ctxt.Arch.ByteOrder)))])
 (I64Load8S [off] (LoweredAddr {sym} [off2] (SB)) _) && ssa.SymIsRO(sym) && ssa.IsU32Bit(off+int64(off2)) => (I64Const [int64(int8(ssa.Read8(sym, off+int64(off2))))])
+
+// == on SIMD vectors and masks. Integer vectors and masks are equal if their
+// XOR is zero. Float vectors are equal if no element compares not-equal (ne is
+// true for NaN), so NaN elements are unequal and +0 equals -0.
+(EqualVec128 x y) => (I64Eqz (V128AnyTrue (V128Xor x y)))
+(EqualVecFloat32x4 x y) => (I64Eqz (V128AnyTrue (F32x4Ne x y)))
+(EqualVecFloat64x2 x y) => (I64Eqz (V128AnyTrue (F64x2Ne x y)))

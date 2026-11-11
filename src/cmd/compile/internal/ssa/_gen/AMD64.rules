@@ -1765,6 +1765,20 @@
 // Misc
 (IsZeroVec x) => (SETEQ (VPTEST x x))
 
+// == on SIMD vectors and masks. Integer vectors and masks are equal if they
+// are bitwise equal. Float vectors are equal if no element compares
+// not-equal-or-unordered (predicate 4, NEQ_UQ), so NaN elements are unequal
+// and +0 equals -0. The 512-bit forms compare into a K mask.
+(EqualVec128 x y) => (SETEQ (VPTEST t:(VPXOR128 x y) t))
+(EqualVec256 x y) => (SETEQ (VPTEST t:(VPXOR256 x y) t))
+(EqualVec512 x y) => (SETEQ (TESTB t:(KMOVBi <typ.UInt8> (VPCMPQ512 [4] x y)) t))
+(EqualVecFloat32x4 x y) => (SETEQ (VPTEST t:(VCMPPS128 [4] x y) t))
+(EqualVecFloat32x8 x y) => (SETEQ (VPTEST t:(VCMPPS256 [4] x y) t))
+(EqualVecFloat32x16 x y) => (SETEQ (TESTW t:(KMOVWi <typ.UInt16> (VCMPPS512 [4] x y)) t))
+(EqualVecFloat64x2 x y) => (SETEQ (VPTEST t:(VCMPPD128 [4] x y) t))
+(EqualVecFloat64x4 x y) => (SETEQ (VPTEST t:(VCMPPD256 [4] x y) t))
+(EqualVecFloat64x8 x y) => (SETEQ (TESTB t:(KMOVBi <typ.UInt8> (VCMPPD512 [4] x y)) t))
+
 (IsNaNFloat32x4  x) => (VCMPPS128 [3] x x)
 (IsNaNFloat32x8  x) => (VCMPPS256 [3] x x)
 (IsNaNFloat32x16 x) => (VPMOVMToVec32x16 (VCMPPS512 [3] x x))

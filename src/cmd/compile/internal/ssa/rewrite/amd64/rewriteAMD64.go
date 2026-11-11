@@ -4550,6 +4550,24 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpEqualUint8x64:
 		return rewriteValue_OpEqualUint8x64(v)
+	case ssaop.OpEqualVec128:
+		return rewriteValue_OpEqualVec128(v)
+	case ssaop.OpEqualVec256:
+		return rewriteValue_OpEqualVec256(v)
+	case ssaop.OpEqualVec512:
+		return rewriteValue_OpEqualVec512(v)
+	case ssaop.OpEqualVecFloat32x16:
+		return rewriteValue_OpEqualVecFloat32x16(v)
+	case ssaop.OpEqualVecFloat32x4:
+		return rewriteValue_OpEqualVecFloat32x4(v)
+	case ssaop.OpEqualVecFloat32x8:
+		return rewriteValue_OpEqualVecFloat32x8(v)
+	case ssaop.OpEqualVecFloat64x2:
+		return rewriteValue_OpEqualVecFloat64x2(v)
+	case ssaop.OpEqualVecFloat64x4:
+		return rewriteValue_OpEqualVecFloat64x4(v)
+	case ssaop.OpEqualVecFloat64x8:
+		return rewriteValue_OpEqualVecFloat64x8(v)
 	case ssaop.OpExpandFloat32x16:
 		return rewriteValue_OpExpandFloat32x16(v)
 	case ssaop.OpExpandFloat32x4:
@@ -102026,6 +102044,190 @@ func rewriteValue_OpEqualUint8x64(v *ssa.Value) bool {
 		v.Reset(ssaop.OpAMD64VPMOVMToVec8x64)
 		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPEQB512, typ.Mask)
 		v0.AddArg2(x, y)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVec128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVec128 x y)
+	// result: (SETEQ (VPTEST t:(VPXOR128 x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VPXOR128, typ.Vec128)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVec256(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVec256 x y)
+	// result: (SETEQ (VPTEST t:(VPXOR256 x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VPXOR256, typ.Vec256)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVec512(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVec512 x y)
+	// result: (SETEQ (TESTB t:(KMOVBi <typ.UInt8> (VPCMPQ512 [4] x y)) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64TESTB, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64KMOVBi, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, ssaop.OpAMD64VPCMPQ512, typ.Mask)
+		v2.AuxInt = ssa.Uint8ToAuxInt(4)
+		v2.AddArg2(x, y)
+		t.AddArg(v2)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat32x16(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat32x16 x y)
+	// result: (SETEQ (TESTW t:(KMOVWi <typ.UInt16> (VCMPPS512 [4] x y)) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64TESTW, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64KMOVWi, typ.UInt16)
+		v2 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS512, typ.Mask)
+		v2.AuxInt = ssa.Uint8ToAuxInt(4)
+		v2.AddArg2(x, y)
+		t.AddArg(v2)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat32x4(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat32x4 x y)
+	// result: (SETEQ (VPTEST t:(VCMPPS128 [4] x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS128, typ.Vec128)
+		t.AuxInt = ssa.Uint8ToAuxInt(4)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat32x8(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat32x8 x y)
+	// result: (SETEQ (VPTEST t:(VCMPPS256 [4] x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPS256, typ.Vec256)
+		t.AuxInt = ssa.Uint8ToAuxInt(4)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat64x2(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat64x2 x y)
+	// result: (SETEQ (VPTEST t:(VCMPPD128 [4] x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD128, typ.Vec128)
+		t.AuxInt = ssa.Uint8ToAuxInt(4)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat64x4(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat64x4 x y)
+	// result: (SETEQ (VPTEST t:(VCMPPD256 [4] x y) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64VPTEST, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD256, typ.Vec256)
+		t.AuxInt = ssa.Uint8ToAuxInt(4)
+		t.AddArg2(x, y)
+		v0.AddArg2(t, t)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat64x8(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat64x8 x y)
+	// result: (SETEQ (TESTB t:(KMOVBi <typ.UInt8> (VCMPPD512 [4] x y)) t))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpAMD64SETEQ)
+		v0 := b.NewValue0(v.Pos, ssaop.OpAMD64TESTB, types.TypeFlags)
+		t := b.NewValue0(v.Pos, ssaop.OpAMD64KMOVBi, typ.UInt8)
+		v2 := b.NewValue0(v.Pos, ssaop.OpAMD64VCMPPD512, typ.Mask)
+		v2.AuxInt = ssa.Uint8ToAuxInt(4)
+		v2.AddArg2(x, y)
+		t.AddArg(v2)
+		v0.AddArg2(t, t)
 		v.AddArg(v0)
 		return true
 	}

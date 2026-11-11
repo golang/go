@@ -752,6 +752,22 @@ var genericOps = []opData{
 	// Returns true if arg0 is all zero.
 	{name: "IsZeroVec", argLength: 1},
 
+	// EqualVec* implement == on SIMD vectors and masks. They report whether
+	// every element of arg0 equals the corresponding element of arg1, as if
+	// the values were structs with one field per element (or one bool per
+	// element, for masks). Integer vectors and the fixed-width masks, which
+	// are vectors whose elements are 0 or -1, compare bitwise. Float vectors
+	// compare their elements as floats.
+	{name: "EqualVec128", argLength: 2, typ: "Bool"},
+	{name: "EqualVec256", argLength: 2, typ: "Bool"},
+	{name: "EqualVec512", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat32x4", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat32x8", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat32x16", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat64x2", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat64x4", argLength: 2, typ: "Bool"},
+	{name: "EqualVecFloat64x8", argLength: 2, typ: "Bool"},
+
 	// Returns a mask indicating whether arg0's elements are NaN.
 	{name: "IsNaNFloat32x4", argLength: 1},
 	{name: "IsNaNFloat32x8", argLength: 1},

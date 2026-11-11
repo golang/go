@@ -105,6 +105,11 @@ func (w *walkState) walkCompare(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
 	// While we're here, decide whether to
 	// inline or call an eq alg.
 	t := n.X.Type()
+
+	// The back end compares SIMD vectors and masks directly.
+	if t.IsSIMD() {
+		return n
+	}
 	var inline bool
 
 	maxcmpsize := int64(4)

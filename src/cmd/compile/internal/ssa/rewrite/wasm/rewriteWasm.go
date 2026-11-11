@@ -436,6 +436,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpEqualUint8x16:
 		v.Op = ssaop.OpWasmI8x16Eq
 		return true
+	case ssaop.OpEqualVec128:
+		return rewriteValue_OpEqualVec128(v)
+	case ssaop.OpEqualVecFloat32x4:
+		return rewriteValue_OpEqualVecFloat32x4(v)
+	case ssaop.OpEqualVecFloat64x2:
+		return rewriteValue_OpEqualVecFloat64x2(v)
 	case ssaop.OpExtendToInt16Int8x16:
 		v.Op = ssaop.OpWasmI16x8ExtendLowI8x16S
 		return true
@@ -1984,6 +1990,63 @@ func rewriteValue_OpEq8(v *ssa.Value) bool {
 		v1 := b.NewValue0(v.Pos, ssaop.OpZeroExt8to64, typ.UInt64)
 		v1.AddArg(y)
 		v.AddArg2(v0, v1)
+		return true
+	}
+}
+func rewriteValue_OpEqualVec128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVec128 x y)
+	// result: (I64Eqz (V128AnyTrue (V128Xor x y)))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpWasmI64Eqz)
+		v0 := b.NewValue0(v.Pos, ssaop.OpWasmV128AnyTrue, typ.Bool)
+		v1 := b.NewValue0(v.Pos, ssaop.OpWasmV128Xor, typ.Vec128)
+		v1.AddArg2(x, y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat32x4(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat32x4 x y)
+	// result: (I64Eqz (V128AnyTrue (F32x4Ne x y)))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpWasmI64Eqz)
+		v0 := b.NewValue0(v.Pos, ssaop.OpWasmV128AnyTrue, typ.Bool)
+		v1 := b.NewValue0(v.Pos, ssaop.OpWasmF32x4Ne, typ.Vec128)
+		v1.AddArg2(x, y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat64x2(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat64x2 x y)
+	// result: (I64Eqz (V128AnyTrue (F64x2Ne x y)))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpWasmI64Eqz)
+		v0 := b.NewValue0(v.Pos, ssaop.OpWasmV128AnyTrue, typ.Bool)
+		v1 := b.NewValue0(v.Pos, ssaop.OpWasmF64x2Ne, typ.Vec128)
+		v1.AddArg2(x, y)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }

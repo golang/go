@@ -119,6 +119,11 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 		next int
 	)
 
+	if ft := t.Field(i).Type; ft.IsSIMD() {
+		// The back end compares SIMD values directly.
+		return 1, ft.Size(), i + 1
+	}
+
 	if base.Ctxt.Arch.CanMergeLoads {
 		// If we can merge adjacent loads then we can calculate the cost of the
 		// comparison using the size of the memory run and the size of the registers.
@@ -141,6 +146,10 @@ func eqStructFieldCost(t *types.Type, i int) (int64, int64, int) {
 }
 
 func calculateCostForType(t *types.Type) int64 {
+	if t.IsSIMD() {
+		// The back end compares SIMD values directly.
+		return 1
+	}
 	var cost int64
 	switch t.Kind() {
 	case types.TSTRUCT:

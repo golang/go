@@ -1463,6 +1463,12 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpEqualUint8x16:
 		v.Op = ssaop.OpARM64VCMEQ16B
 		return true
+	case ssaop.OpEqualVec128:
+		return rewriteValue_OpEqualVec128(v)
+	case ssaop.OpEqualVecFloat32x4:
+		return rewriteValue_OpEqualVecFloat32x4(v)
+	case ssaop.OpEqualVecFloat64x2:
+		return rewriteValue_OpEqualVecFloat64x2(v)
 	case ssaop.OpExtendToInt16Int8x16:
 		v.Op = ssaop.OpARM64VSXTL16B
 		return true
@@ -28996,6 +29002,85 @@ func rewriteValue_OpEqualUint8s(v *ssa.Value) bool {
 		v1.AddArg2(v2, v3)
 		v0.AddArg(v1)
 		v.AddArg3(x, y, v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVec128(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVec128 x y)
+	// result: (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VEOR16B x y)))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64CMPWconst, types.TypeFlags)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64VMOVSextr, typ.UInt32)
+		v1.AuxInt = ssa.Uint8ToAuxInt(0)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64VUMAXV4S, typ.Vec128)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64VEOR16B, typ.Vec128)
+		v3.AddArg2(x, y)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat32x4(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat32x4 x y)
+	// result: (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VNOT16B (VFCMEQ4S x y))))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64CMPWconst, types.TypeFlags)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64VMOVSextr, typ.UInt32)
+		v1.AuxInt = ssa.Uint8ToAuxInt(0)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64VUMAXV4S, typ.Vec128)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64VNOT16B, typ.Vec128)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64VFCMEQ4S, typ.Vec128)
+		v4.AddArg2(x, y)
+		v3.AddArg(v4)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
+		return true
+	}
+}
+func rewriteValue_OpEqualVecFloat64x2(v *ssa.Value) bool {
+	v_1 := v.Args[1]
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (EqualVecFloat64x2 x y)
+	// result: (Equal (CMPWconst [0] (VMOVSextr <typ.UInt32> [0] (VUMAXV4S (VNOT16B (VFCMEQ2D x y))))))
+	for {
+		x := v_0
+		y := v_1
+		v.Reset(ssaop.OpARM64Equal)
+		v0 := b.NewValue0(v.Pos, ssaop.OpARM64CMPWconst, types.TypeFlags)
+		v0.AuxInt = ssa.Int32ToAuxInt(0)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64VMOVSextr, typ.UInt32)
+		v1.AuxInt = ssa.Uint8ToAuxInt(0)
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64VUMAXV4S, typ.Vec128)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64VNOT16B, typ.Vec128)
+		v4 := b.NewValue0(v.Pos, ssaop.OpARM64VFCMEQ2D, typ.Vec128)
+		v4.AddArg2(x, y)
+		v3.AddArg(v4)
+		v2.AddArg(v3)
+		v1.AddArg(v2)
+		v0.AddArg(v1)
+		v.AddArg(v0)
 		return true
 	}
 }

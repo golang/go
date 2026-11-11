@@ -7420,6 +7420,15 @@ const (
 	OpCvtMask64x4to8
 	OpCvtMask64x8to8
 	OpIsZeroVec
+	OpEqualVec128
+	OpEqualVec256
+	OpEqualVec512
+	OpEqualVecFloat32x4
+	OpEqualVecFloat32x8
+	OpEqualVecFloat32x16
+	OpEqualVecFloat64x2
+	OpEqualVecFloat64x4
+	OpEqualVecFloat64x8
 	OpIsNaNFloat32x4
 	OpIsNaNFloat32x8
 	OpIsNaNFloat32x16
@@ -117173,6 +117182,51 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "IsZeroVec",
 		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVec128",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVec256",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVec512",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat32x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat32x8",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat32x16",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat64x2",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat64x4",
+		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EqualVecFloat64x8",
+		ArgLen:  2,
 		Generic: true,
 	},
 	{
