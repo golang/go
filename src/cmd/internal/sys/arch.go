@@ -269,7 +269,7 @@ var ArchWasm = &Arch{
 	RegSize:        8,
 	MinLC:          1,
 	Alignment:      1,
-	CanMergeLoads:  false,
+	CanMergeLoads:  true,
 	HasLR:          false,
 	FixedFrameSize: 0,
 }
