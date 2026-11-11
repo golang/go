@@ -33,11 +33,12 @@ type BindingFunc struct {
 
 // ParamLoc describes where a function parameter is passed in the C ABI.
 type ParamLoc struct {
-	GoOffset int64    // Byte offset in Go _cgo_arg_<Name> struct
-	Size     int64    // Parameter size in bytes
-	IsFloat  bool     // Floating-point parameter
-	Regs     []string // Register(s) if passed in register(s)
-	StackOff int64    // Byte offset in C stack frame when passed on the stack (len(Regs) == 0)
+	GoOffset  int64    // Byte offset in Go _cgo_arg_<Name> struct
+	Size      int64    // Parameter size in bytes
+	IsFloat   bool     // Floating-point parameter
+	Regs      []string // Register(s) if passed in register(s)
+	StackOff  int64    // Byte offset in C stack frame when passed on the stack (len(Regs) == 0)
+	PassByPtr bool     // True if passed by hidden reference (pointer in Regs[0] or on stack)
 }
 
 // RetLoc describes how a function return value is returned in the C ABI.
@@ -55,6 +56,16 @@ type FuncLayout struct {
 	Ret           RetLoc
 	StackSize     int64 // C stack frame size in bytes (aligned to ABIConfig.StackAlign)
 	FloatRegCount int   // Number of floating-point argument registers allocated (for SysV AMD64 AX)
+}
+
+// hasStackArgs reports whether any argument is passed on the C stack.
+func (lay FuncLayout) hasStackArgs() bool {
+	for _, p := range lay.Params {
+		if p.Size > 0 && len(p.Regs) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // abiState tracks register and stack allocation cursors while computing a FuncLayout.
@@ -113,8 +124,9 @@ type asmOps struct {
 	shr    string // Format for in-place logical right shift; args: (bits, reg)
 	or     string // Format for bitwise OR dst |= src; args: (src, dst)
 	addr   string // Format for effective address reg = base+off; args: (base, off, reg)
-	subSP  string // Format for decrementing SP; args: (size, spReg)
-	addSP  string // Format for incrementing SP; args: (size, spReg)
+	subSP    string // Format for decrementing SP; args: (size, spReg)
+	addSP    string // Format for incrementing SP; args: (size, spReg)
+	useAdjSP bool   // True if SP adjustments must use ADJSP so obj tracks pcsp without FuncFlagSPWrite
 }
 
 // ABIConfig defines the C calling convention rules and assembly primitives
@@ -134,6 +146,7 @@ type ABIConfig struct {
 	MaxRegStructSize int64
 	IndirectRetReg   string // Register holding hidden sret buffer pointer
 	IndirectRetInArg bool   // Hidden sret pointer consumes IntRegs[0]
+	PackStackArgs    bool   // Pack narrow scalar and HFA stack args at natural alignment (Apple ARM64)
 
 	// AssignParam allocates a single parameter in registers or on the C stack.
 	AssignParam func(cfg *ABIConfig, fn BindingFunc, idx int, info typeInfo, st *abiState) ParamLoc
@@ -148,9 +161,11 @@ type ABIConfig struct {
 	CalleeSavedReg string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
 	TmpReg         string // Primary caller-saved scratch register for stack/memory copies and address math
 	TmpReg2        string // Secondary caller-saved scratch register for multi-chunk loads and copies
+	LRReserve      int64  // Bytes reserved at 0(SP) for saved LR when !hasStackArgs and ShadowSpace == 0
 
-	asm     asmOps
-	PreCall func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
+	asm                asmOps
+	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
+	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
 }
 
 // isFloatReg reports whether reg is an architecture floating-point register.
@@ -483,6 +498,9 @@ func (cfg *ABIConfig) assignFloatParam(info typeInfo, st *abiState) ParamLoc {
 		st.floatIdx++
 		return ParamLoc{Size: info.size, IsFloat: true, Regs: []string{reg}}
 	}
+	if cfg.PackStackArgs {
+		return cfg.assignPackedStackParam(info.size, info.align, true, st)
+	}
 	return cfg.assignStackParam(info.size, true, st)
 }
 
@@ -498,13 +516,39 @@ func (cfg *ABIConfig) assignIntParam(info typeInfo, st *abiState) ParamLoc {
 		st.intIdx += numRegs
 		return ParamLoc{Size: info.size, Regs: regs}
 	}
+	// Apple ARM64 packs narrow scalar stack arguments at natural alignment,
+	// while non-HFA composites <= 16 bytes still occupy PtrSize-aligned slots.
+	if cfg.PackStackArgs && !info.composite {
+		return cfg.assignPackedStackParam(info.size, info.align, false, st)
+	}
 	return cfg.assignStackParam(info.size, false, st)
+}
+
+// assignPtrParam passes a composite of size bytes by hidden pointer in the next
+// available register in cfg.IntRegs, or in a pointer-sized C stack slot.
+func (cfg *ABIConfig) assignPtrParam(size int64, st *abiState) ParamLoc {
+	if st.intIdx < len(cfg.IntRegs) {
+		reg := cfg.IntRegs[st.intIdx]
+		st.intIdx++
+		return ParamLoc{Size: size, PassByPtr: true, Regs: []string{reg}}
+	}
+	off := alignUp(st.stackOff, cfg.PtrSize)
+	st.stackOff = off + cfg.PtrSize
+	return ParamLoc{Size: size, PassByPtr: true, StackOff: off}
+}
+
+// assignPackedStackParam allocates size bytes on the C argument stack at
+// natural alignment without rounding the slot up to PtrSize (Apple ARM64).
+func (cfg *ABIConfig) assignPackedStackParam(size, align int64, isFloat bool, st *abiState) ParamLoc {
+	off := alignUp(st.stackOff, max(align, 1))
+	st.stackOff = off + size
+	return ParamLoc{Size: size, IsFloat: isFloat, StackOff: off}
 }
 
 // assignStackParam allocates size bytes on the C argument stack aligned to PtrSize.
 func (cfg *ABIConfig) assignStackParam(size int64, isFloat bool, st *abiState) ParamLoc {
-	off := st.stackOff
-	st.stackOff += alignUp(size, cfg.PtrSize)
+	off := alignUp(st.stackOff, cfg.PtrSize)
+	st.stackOff = off + alignUp(size, cfg.PtrSize)
 	return ParamLoc{Size: size, IsFloat: isFloat, StackOff: off}
 }
 
@@ -679,11 +723,19 @@ func (cfg *ABIConfig) emitMovReg(w io.Writer, src, dst string) {
 
 // emitSubSP decrements the architecture stack pointer by size bytes.
 func (cfg *ABIConfig) emitSubSP(w io.Writer, size int64) {
+	if cfg.asm.useAdjSP {
+		fmt.Fprintf(w, "\tADJSP\t$%d\n", size)
+		return
+	}
 	fmt.Fprintf(w, "\t"+cfg.asm.subSP+"\n", size, cfg.SPReg)
 }
 
 // emitAddSP increments the architecture stack pointer by size bytes.
 func (cfg *ABIConfig) emitAddSP(w io.Writer, size int64) {
+	if cfg.asm.useAdjSP {
+		fmt.Fprintf(w, "\tADJSP\t$-%d\n", size)
+		return
+	}
 	fmt.Fprintf(w, "\t"+cfg.asm.addSP+"\n", size, cfg.SPReg)
 }
 
@@ -709,6 +761,9 @@ func (cfg *ABIConfig) emitCopyMem(w io.Writer, srcBase string, srcOff int64, dst
 func (cfg *ABIConfig) paramRegSlots(fn BindingFunc, idx int, p ParamLoc, types map[string]BindingType) []regSlot {
 	if len(p.Regs) == 0 {
 		return nil
+	}
+	if p.PassByPtr {
+		return []regSlot{{reg: p.Regs[0], offset: 0, size: cfg.PtrSize, isFloat: false}}
 	}
 	var pt string
 	if paramTypes := fn.Params; idx < len(paramTypes) {
@@ -768,6 +823,12 @@ type paramTransfer struct {
 // paramTransfers decomposes parameter p into register or C-stack transfers.
 func (cfg *ABIConfig) paramTransfers(fn BindingFunc, idx int, p ParamLoc, types map[string]BindingType) []paramTransfer {
 	ptrSize := cfg.PtrSize
+	if p.PassByPtr {
+		if len(p.Regs) > 0 {
+			return []paramTransfer{{reg: p.Regs[0], load: cfg.emitAddr}}
+		}
+		return []paramTransfer{{stackOff: p.StackOff, storeSize: ptrSize, load: cfg.emitAddr}}
+	}
 	loadInt := func(size int64, signed bool) func(io.Writer, string, int64, string) {
 		return func(w io.Writer, base string, off int64, dstReg string) {
 			cfg.emitLoadInt(w, base, off, size, signed, dstReg)
@@ -797,9 +858,13 @@ func (cfg *ABIConfig) paramTransfers(fn BindingFunc, idx int, p ParamLoc, types 
 	}
 	info := cfg.inspectType(pt, types)
 	if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
+		storeSize := max(ptrSize, p.Size)
+		if cfg.PackStackArgs {
+			storeSize = p.Size
+		}
 		return []paramTransfer{{
 			stackOff:  p.StackOff,
-			storeSize: max(ptrSize, p.Size),
+			storeSize: storeSize,
 			load:      loadInt(p.Size, info.signed),
 		}}
 	}
@@ -838,14 +903,20 @@ func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off 
 func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[string]BindingType) {
 	lay := cfg.layout(fn, types)
 
-	fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT, $0-0\n", cPrefix, fn.Name)
-	// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
-	// the C callee preserves it per the C ABI, and our caller (runtime.asmcgocall)
-	// does not keep a live value in CalleeSavedReg, so we need not save/restore it.
-	cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+	var epilogue func(io.Writer)
+	if cfg.TrampolinePrologue != nil {
+		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT|NOFRAME, $0-0\n", cPrefix, fn.Name)
+		epilogue = cfg.TrampolinePrologue(w, lay)
+	} else {
+		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT, $0-0\n", cPrefix, fn.Name)
+		// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
+		// the C callee preserves it per the C ABI, and our caller (runtime.asmcgocall)
+		// does not keep a live value in CalleeSavedReg, so we need not save/restore it.
+		cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
 
-	if lay.StackSize > 0 {
-		cfg.emitSubSP(w, lay.StackSize)
+		if lay.StackSize > 0 {
+			cfg.emitSubSP(w, lay.StackSize)
+		}
 	}
 
 	base := cfg.CalleeSavedReg
@@ -880,8 +951,11 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 		}
 	}
 
-	if lay.StackSize > 0 {
+	if cfg.TrampolinePrologue == nil && lay.StackSize > 0 {
 		cfg.emitAddSP(w, lay.StackSize)
+	}
+	if epilogue != nil {
+		epilogue(w)
 	}
 
 	fmt.Fprintf(w, "\tRET\n\n")
@@ -1071,9 +1145,10 @@ var amd64ABI = &ABIConfig{
 		shl:   "SHLQ\t$%[1]d, %[2]s",
 		shr:   "SHRQ\t$%[1]d, %[2]s",
 		or:    "ORQ\t%[1]s, %[2]s",
-		addr:  "LEAQ\t%[2]d(%[1]s), %[3]s",
-		subSP: "SUBQ\t$%[1]d, %[2]s",
-		addSP: "ADDQ\t$%[1]d, %[2]s",
+		addr:     "LEAQ\t%[2]d(%[1]s), %[3]s",
+		subSP:    "SUBQ\t$%[1]d, %[2]s",
+		addSP:    "ADDQ\t$%[1]d, %[2]s",
+		useAdjSP: true,
 	},
 	// System V AMD64 psABI Section 3.5.7 requires AL to hold an upper bound
 	// (0..8) on the number of vector registers used to pass arguments to a
@@ -1089,12 +1164,213 @@ var amd64ABI = &ABIConfig{
 	},
 }
 
+// ARM64 (AArch64) C calling convention (AAPCS64 and Darwin/Apple ARM64).
+//
+// Specifications:
+//   - "Procedure Call Standard for the Arm 64-bit Architecture (AAPCS64)",
+//     Section 6 ("The Base Procedure Call Standard"),
+//     https://github.com/ARM-software/abi-aa/blob/main/aapcs64/aapcs64.rst
+//   - Apple ARM64 ABI differences: "Writing ARM64 code for Apple platforms",
+//     https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms
+//
+// Summary:
+//   - Integer and pointer arguments use R0..R7; floating-point scalar arguments
+//     use F0..F7 (AAPCS64 Section 6.8.2).
+//   - Homogeneous Floating-Point Aggregates (HFAs) of 1 to 4 float32 or float64
+//     elements with no padding pass in consecutive FP registers F0..F7 (or
+//     spill to the stack while exhausting remaining FP registers) and return in
+//     F0..F3 (Sections 5.9.5.1 and 6.8.2 Stage C.1–C.5).
+//   - Non-HFA composites up to 16 bytes pass in consecutive GPRs R0..R7 (without
+//     backfilling GPRs once a multi-register argument spills, Stage C.14) and
+//     return in R0..R1.
+//   - Non-HFA composites larger than 16 bytes pass by caller-allocated copy via
+//     a pointer in a GPR or stack slot (Stage B.4), and return via a dedicated
+//     indirect result address in R8 (XR) without consuming R0 (Section 6.9).
+//   - The stack pointer (RSP) is 16-byte aligned at call boundaries.
+//   - On Apple platforms (darwin/arm64, ios/arm64), non-variadic narrow scalar
+//     and float32 HFA stack arguments pack at their natural alignment with
+//     exact-width stores, whereas non-HFA composites <= 16 bytes and hidden
+//     PassByPtr pointers remain 8-byte aligned.
+
+// classifyARM64HFA reports whether composite type info is a Homogeneous
+// Floating-Point Aggregate (1 to 4 identically sized float32 or float64
+// members with no padding) per AAPCS64 Section 5.9.5.1, returning its element
+// size and member count.
+func classifyARM64HFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
+	if info.size <= 0 || info.size > 32 || !info.fieldsOK || len(info.fields) < 1 || len(info.fields) > 4 {
+		return 0, 0, false
+	}
+	elemSize = info.fields[0].size
+	if !info.fields[0].isFloat || (elemSize != 4 && elemSize != 8) || info.size != int64(len(info.fields))*elemSize {
+		return 0, 0, false
+	}
+	for i, f := range info.fields {
+		if !f.isFloat || f.size != elemSize || f.offset != int64(i)*elemSize {
+			return 0, 0, false
+		}
+	}
+	return elemSize, len(info.fields), true
+}
+
+// arm64AssignRet returns Homogeneous Floating-Point Aggregates in F0..F3 and
+// falls back to defaultAssignRet (R0..R1 or indirect sret in R8) otherwise
+// (AAPCS64 Section 6.9).
+func arm64AssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, _ *abiState) (RetLoc, bool) {
+	if info.composite {
+		if _, count, ok := classifyARM64HFA(info); ok {
+			return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}, true
+		}
+	}
+	return RetLoc{}, false
+}
+
+// arm64AssignParam allocates AAPCS64 parameters per Section 6.8.2: HFAs in
+// F0..F7, floats in F0..F7, >16-byte composites by pointer, and integers or
+// <=16-byte non-HFA composites in R0..R7 without GPR backfilling.
+func arm64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.composite {
+		if _, count, ok := classifyARM64HFA(info); ok {
+			if st.floatIdx+count <= len(cfg.FloatRegs) {
+				regs := slices.Clone(cfg.FloatRegs[st.floatIdx : st.floatIdx+count])
+				st.floatIdx += count
+				return ParamLoc{Size: info.size, IsFloat: true, Regs: regs}
+			}
+			st.floatIdx = len(cfg.FloatRegs)
+			if cfg.PackStackArgs {
+				return cfg.assignPackedStackParam(info.size, info.align, true, st)
+			}
+			return cfg.assignStackParam(info.size, true, st)
+		}
+		if info.size > cfg.MaxRegStructSize {
+			return cfg.assignPtrParam(info.size, st)
+		}
+	}
+	if info.isFloat {
+		return cfg.assignFloatParam(info, st)
+	}
+	loc := cfg.assignIntParam(info, st)
+	if info.size > 0 && len(loc.Regs) == 0 {
+		st.intIdx = len(cfg.IntRegs)
+	}
+	return loc
+}
+
+// arm64CompositeRegSlots maps each member of a register-passed or
+// register-returned ARM64 HFA to its consecutive floating-point register.
+func arm64CompositeRegSlots(_ *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool) {
+	if !isFloat {
+		return nil, false
+	}
+	elemSz := info.size / int64(len(regs))
+	slots := make([]regSlot, len(regs))
+	for k, r := range regs {
+		slots[k] = regSlot{reg: r, offset: int64(k) * elemSz, size: elemSz, isFloat: true}
+	}
+	return slots, true
+}
+
+// emitARM64TrampolinePrologue emits a NOFRAME arm64 Go-to-C trampoline prologue
+// and returns its matching epilogue. Maintaining a single frame with an AAPCS64
+// (R29, R30) frame record at the top (so CFA = R29+16 = caller SP) avoids
+// placing R29 below RSP where C callees clobber it, and keeps 0(RSP) = saved R30
+// via atomic STP.W/LDP.P whenever no C stack arguments occupy 0(RSP).
+func emitARM64TrampolinePrologue(w io.Writer, lay FuncLayout) func(io.Writer) {
+	if !lay.hasStackArgs() {
+		total := max(int64(16), lay.StackSize) + 16
+		fpOff := total - 16
+		if total <= 504 {
+			fmt.Fprintf(w, "\tSTP.W\t(R30, R19), -%d(RSP)\n", total)
+			fmt.Fprintf(w, "\tSTP\t(R29, R30), %d(RSP)\n", fpOff)
+		} else {
+			fmt.Fprintf(w, "\tSUB\t$%d, RSP\n", total)
+			fmt.Fprintf(w, "\tMOVD\tR30, 0(RSP)\n")
+			fmt.Fprintf(w, "\tMOVD\tR19, 8(RSP)\n")
+			fmt.Fprintf(w, "\tMOVD\tR29, %d(RSP)\n", fpOff)
+			fmt.Fprintf(w, "\tMOVD\tR30, %d(RSP)\n", fpOff+8)
+		}
+		fmt.Fprintf(w, "\tADD\t$%d, RSP, R29\n", fpOff)
+		fmt.Fprintf(w, "\tMOVD\tR0, R19\n")
+		return func(w io.Writer) {
+			fmt.Fprintf(w, "\tMOVD\t%d(RSP), R29\n", fpOff)
+			if total <= 504 {
+				fmt.Fprintf(w, "\tLDP.P\t%d(RSP), (R30, R19)\n", total)
+			} else {
+				fmt.Fprintf(w, "\tMOVD\t8(RSP), R19\n")
+				fmt.Fprintf(w, "\tMOVD\t0(RSP), R30\n")
+				fmt.Fprintf(w, "\tADD\t$%d, RSP\n", total)
+			}
+		}
+	}
+	total := lay.StackSize + 32
+	fpOff := total - 16
+	r19Off := total - 32
+	fmt.Fprintf(w, "\tSUB\t$%d, RSP\n", total)
+	if fpOff <= 504 {
+		fmt.Fprintf(w, "\tSTP\t(R29, R30), %d(RSP)\n", fpOff)
+	} else {
+		fmt.Fprintf(w, "\tMOVD\tR29, %d(RSP)\n", fpOff)
+		fmt.Fprintf(w, "\tMOVD\tR30, %d(RSP)\n", fpOff+8)
+	}
+	fmt.Fprintf(w, "\tADD\t$%d, RSP, R29\n", fpOff)
+	fmt.Fprintf(w, "\tMOVD\tR19, %d(RSP)\n", r19Off)
+	fmt.Fprintf(w, "\tMOVD\tR0, R19\n")
+	return func(w io.Writer) {
+		fmt.Fprintf(w, "\tMOVD\t%d(RSP), R19\n", r19Off)
+		if fpOff <= 504 {
+			fmt.Fprintf(w, "\tLDP\t%d(RSP), (R29, R30)\n", fpOff)
+		} else {
+			fmt.Fprintf(w, "\tMOVD\t%d(RSP), R29\n", fpOff)
+			fmt.Fprintf(w, "\tMOVD\t%d(RSP), R30\n", fpOff+8)
+		}
+		fmt.Fprintf(w, "\tADD\t$%d, RSP\n", total)
+	}
+}
+
+var arm64ABI = &ABIConfig{
+	Arch:              "arm64",
+	PtrSize:           8,
+	CLongSize:         8,
+	StackAlign:        16,
+	IntRegs:           []string{"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7"},
+	FloatRegs:         []string{"F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"},
+	IntRetRegs:        []string{"R0", "R1"},
+	FloatRetRegs:      []string{"F0", "F1", "F2", "F3"},
+	MaxRegStructSize:  16,
+	IndirectRetReg:    "R8",
+	AssignParam:       arm64AssignParam,
+	AssignRet:         arm64AssignRet,
+	CompositeRegSlots: arm64CompositeRegSlots,
+	SPReg:             "RSP",
+	CalleeSavedReg:    "R19",
+	TmpReg:            "R12",
+	TmpReg2:           "R13",
+	LRReserve:         16,
+	asm: asmOps{
+		mov:   "MOVD",
+		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
+		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+		fmovS: "FMOVS", fmovD: "FMOVD",
+		shl:   "LSL\t$%[1]d, %[2]s, %[2]s",
+		shr:   "LSR\t$%[1]d, %[2]s, %[2]s",
+		or:    "ORR\t%[1]s, %[2]s, %[2]s",
+		addr:  "ADD\t$%[2]d, %[1]s, %[3]s",
+		subSP: "SUB\t$%[1]d, %[2]s",
+		addSP: "ADD\t$%[1]d, %[2]s",
+	},
+	TrampolinePrologue: emitARM64TrampolinePrologue,
+}
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
 	switch targetArch {
 	case "amd64":
 		cfg = *amd64ABI
+	case "arm64":
+		cfg = *arm64ABI
+		if targetOS == "darwin" || targetOS == "ios" {
+			cfg.PackStackArgs = true
+		}
 	default:
 		panic("unsupported arch: " + targetArch)
 	}
