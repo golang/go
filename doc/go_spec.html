@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.28 (October 9, 2026)",
+	"Subtitle": "Language version go1.28 (November 11, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -4901,29 +4901,41 @@ var a [1024]byte
 var s uint = 33
 
 // The results of the following examples are given for 64-bit ints.
-var i = 1&lt;&lt;s                   // 1 has type int
-var j int32 = 1&lt;&lt;s             // 1 has type int32; j == 0
-var k = uint64(1&lt;&lt;s)           // 1 has type uint64; k == 1&lt;&lt;33
-var m int = 1.0&lt;&lt;s             // 1.0 has type int; m == 1&lt;&lt;33
-var n = 1.0&lt;&lt;s == j            // 1.0 has type int32; n == true
-var o = 1&lt;&lt;s == 2&lt;&lt;s           // 1 and 2 have type int; o == false
-var p = 1&lt;&lt;s == 1&lt;&lt;33          // 1 has type int; p == true
-var u = 1.0&lt;&lt;s                 // illegal: 1.0 has type float64, cannot shift
-var u1 = 1.0&lt;&lt;s != 0           // illegal: 1.0 has type float64, cannot shift
-var u2 = 1&lt;&lt;s != 1.0           // illegal: 1 has type float64, cannot shift
-var v1 float32 = 1&lt;&lt;s          // illegal: 1 has type float32, cannot shift
-var v2 = string(1&lt;&lt;s)          // illegal: 1 is converted to a string, cannot shift
-var w int64 = 1.0&lt;&lt;33          // 1.0&lt;&lt;33 is a constant shift expression; w == 1&lt;&lt;33
-var x = a[1.0&lt;&lt;s]              // panics: 1.0 has type int, but 1&lt;&lt;33 overflows array bounds
-var b = make([]byte, 1.0&lt;&lt;s)   // 1.0 has type int; len(b) == 1&lt;&lt;33
+var i = 1 &lt;&lt; s                   // 1 has type int
+var j int32 = 1 &lt;&lt; s             // 1 has type int32; j == 0
+var k = uint64(1 &lt;&lt; s)           // 1 has type uint64; k == 1 &lt;&lt; 33
+var m int = 1.0 &lt;&lt; s             // 1.0 has type int; m == 1 &lt;&lt; 33
+var n = 1.0 &lt;&lt; s == j            // 1.0 has type int32; n == true
+var o = 1 &lt;&lt; s == 2 &lt;&lt; s         // 1 and 2 have type int; o == false
+var p = 1 &lt;&lt; s == 1 &lt;&lt; 33        // 1 has type int; p == true
+var u = 1.0 &lt;&lt; s                 // illegal: 1.0 has type float64, cannot shift
+var u1 = 1.0 &lt;&lt; s != 0           // illegal: 1.0 has type float64, cannot shift
+var u2 = 1 &lt;&lt; s != 1.0           // illegal: 1 has type float64, cannot shift
+var v1 float32 = 1 &lt;&lt; s          // illegal: 1 has type float32, cannot shift
+var v2 = string(1 &lt;&lt; s)          // illegal: 1 is converted to a string, cannot shift
+var w int64 = 1.0 &lt;&lt; 33          // 1.0 &lt;&lt; 33 is a constant shift expression; w == 1 &lt;&lt; 33
+var x = a[1.0 &lt;&lt; s]              // panics: 1.0 has type int, but 1 &lt;&lt; 33 overflows array bounds
+var b = make([]byte, 1.0 &lt;&lt; s)   // 1.0 has type int; len(b) == 1 &lt;&lt; 33
 
 // The results of the following examples are given for 32-bit ints,
 // which means the shifts will overflow.
-var mm int = 1.0&lt;&lt;s            // 1.0 has type int; mm == 0
-var oo = 1&lt;&lt;s == 2&lt;&lt;s          // 1 and 2 have type int; oo == true
-var pp = 1&lt;&lt;s == 1&lt;&lt;33         // illegal: 1 has type int, but 1&lt;&lt;33 overflows int
-var xx = a[1.0&lt;&lt;s]             // 1.0 has type int; xx == a[0]
-var bb = make([]byte, 1.0&lt;&lt;s)  // 1.0 has type int; len(bb) == 0
+var mm int = 1.0 &lt;&lt; s            // 1.0 has type int; mm == 0
+var oo = 1 &lt;&lt; s == 2 &lt;&lt; s        // 1 and 2 have type int; oo == true
+var pp = 1 &lt;&lt; s == 1 &lt;&lt; 33       // illegal: 1 has type int, but 1 &lt;&lt; 33 overflows int
+var xx = a[1.0 &lt;&lt; s]             // 1.0 has type int; xx == a[0]
+var bb = make([]byte, 1.0 &lt;&lt; s)  // 1.0 has type int; len(bb) == 0
+</pre>
+
+<p>
+Note that if the right operand in a shift expression is itself a non-constant shift expression
+with an untyped constant left operand, because that operand is first implicitly converted to the
+type it would assume if the (right operand) shift expression were replaced by its left operand
+alone, that operand must be representable by a value of type <code>uint</code>.
+</p>
+
+<pre>
+var cc = 1 &lt;&lt; (1.0 &lt;&lt; s)         // 1 has type int, 1.0 has type uint; cc == 0 (shift overflows with s == 33)
+var dd = 1 &lt;&lt; (-1 &lt;&lt; s)          // illegal: -1 is not representable as a uint
 </pre>
 
 <h4 id="Operator_precedence">Operator precedence</h4>
