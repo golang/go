@@ -116,6 +116,14 @@ func TestAppendJSONValue(t *testing.T) {
 		// \u2028\u2029 is an edge case in JavaScript vs JSON.
 		// \xF6 is an incomplete encoding.
 		"\u03B8\u2028\u2029\uFFFF\xF6",
+		// Bytes that need escaping around the eight-byte boundaries
+		// of the ASCII fast path.
+		"an ASCII string longer than sixteen bytes",
+		"01234567\"89",
+		"0123456789abcde\\",
+		"01234567\x00",
+		"0123456\u2028abcdefgh",
+		"01234567\u03B8",
 		`-123`,
 		int64(-9_200_123_456_789_123_456),
 		uint64(9_200_123_456_789_123_456),
@@ -137,6 +145,37 @@ func TestAppendJSONValue(t *testing.T) {
 			t.Errorf("%v: got %s, want %s", value, got, want)
 			t.Errorf("%v: got %x, want %x", value, got, want)
 		}
+	}
+}
+
+func TestSafeASCII8(t *testing.T) {
+	for pos := range 8 {
+		for c := range 256 {
+			b := []byte("aaaaaaaa")
+			b[pos] = byte(c)
+			want := c < len(safeSet) && safeSet[c]
+			if got := safeASCII8(load64(string(b))); got != want {
+				t.Errorf("safeASCII8(%q) = %t, want %t", b, got, want)
+			}
+		}
+	}
+}
+
+func BenchmarkAppendEscapedJSONString(b *testing.B) {
+	for _, bench := range []struct {
+		name, s string
+	}{
+		{"short", "GET"},
+		{"message", "Test logging, but use a somewhat realistic message length."},
+		{"non-ASCII", "日志消息，包含一些非 ASCII 字符"},
+		{"escapes", `{"a":"b\c","d":"e\nf"}`},
+	} {
+		b.Run(bench.name, func(b *testing.B) {
+			buf := make([]byte, 0, 256)
+			for b.Loop() {
+				buf = appendEscapedJSONString(buf[:0], bench.s)
+			}
+		})
 	}
 }
 
