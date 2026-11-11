@@ -285,7 +285,11 @@ func Main(arch *sys.Arch, theArch Arch) {
 
 	startProfile()
 	if ctxt.BuildMode == BuildModeUnset {
-		ctxt.BuildMode.Set("exe")
+		if buildcfg.GOOS == "darwin" {
+			ctxt.BuildMode.Set("pie")
+		} else {
+			ctxt.BuildMode.Set("exe")
+		}
 	}
 
 	if ctxt.BuildMode != BuildModeShared && flag.NArg() != 1 {
