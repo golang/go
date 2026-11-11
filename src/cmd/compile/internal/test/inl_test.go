@@ -246,6 +246,9 @@ func TestIntendedInlining(t *testing.T) {
 		"time": {
 			"Duration.String",
 		},
+		"uuid": {
+			"UUID.String",
+		},
 		"path": {
 			"Base",
 			"scanChunk",
