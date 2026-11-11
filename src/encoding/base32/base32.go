@@ -6,6 +6,7 @@
 package base32
 
 import (
+	"internal/byteorder"
 	"io"
 	"math"
 	"slices"
@@ -316,6 +317,41 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
 	dsti := 0
 	olen := len(src)
 
+	// Fast path: decode whole quanta, 8 bytes in and 5 out.
+	// A quantum holding padding or a bad byte ends the fast path;
+	// the loop below takes it from there and reports any error.
+	// If the padding character is itself in the alphabet, a table
+	// lookup cannot tell padding from data, so skip the fast path.
+	if enc.decodeMap[byte(enc.padChar)] == invalidIndex {
+		for len(src) >= 8 {
+			d0 := enc.decodeMap[src[0]]
+			d1 := enc.decodeMap[src[1]]
+			d2 := enc.decodeMap[src[2]]
+			d3 := enc.decodeMap[src[3]]
+			d4 := enc.decodeMap[src[4]]
+			d5 := enc.decodeMap[src[5]]
+			d6 := enc.decodeMap[src[6]]
+			d7 := enc.decodeMap[src[7]]
+			// A valid index fits in 5 bits and invalidIndex is all
+			// ones, so the OR is invalidIndex if any byte is bad.
+			if d0|d1|d2|d3|d4|d5|d6|d7 == invalidIndex {
+				break
+			}
+
+			// Pack eight 5-bit values into 5 bytes. The first 4 bytes
+			// fit in a uint32, which is cheap on 32-bit machines too.
+			hi := uint32(d0)<<27 | uint32(d1)<<22 | uint32(d2)<<17 | uint32(d3)<<12 |
+				uint32(d4)<<7 | uint32(d5)<<2 | uint32(d6)>>3
+			_ = dst[4] // Eliminate bounds checks below.
+			byteorder.BEPutUint32(dst, hi)
+			dst[4] = d6<<5 | d7
+
+			src = src[8:]
+			dst = dst[5:]
+			n += 5
+		}
+	}
+
 	for len(src) > 0 && !end {
 		// Decode quantum using the base32 alphabet
 		var dbuf [8]byte
@@ -550,13 +586,34 @@ type newlineFilteringReader struct {
 // stripNewlines removes newline characters and returns the number
 // of non-newline characters copied to dst.
 func stripNewlines(dst, src []byte) int {
+	const (
+		lo = 0x0101010101010101 // low bit of each byte
+		hi = 0x8080808080808080 // high bit of each byte
+	)
 	offset := 0
-	for _, b := range src {
-		if b == '\r' || b == '\n' {
-			continue
+	for len(src) > 0 {
+		if len(src) >= 8 {
+			// Look at 8 bytes at once. The expression below is
+			// nonzero exactly when some byte of x is <= '\r', which
+			// covers both newlines: subtracting '\r'+1 from every
+			// byte wraps a byte that small and sets its high bit,
+			// and &^x drops bytes whose high bit was already set.
+			// This is the classic zero-byte test (see Hacker's
+			// Delight, section 6-1) with '\r'+1 in place of 1.
+			x := byteorder.LEUint64(src)
+			if (x-lo*('\r'+1))&^x&hi == 0 {
+				// No newline in sight; copy all 8 bytes.
+				byteorder.LEPutUint64(dst[offset:], x)
+				offset += 8
+				src = src[8:]
+				continue
+			}
 		}
-		dst[offset] = b
-		offset++
+		if b := src[0]; b != '\r' && b != '\n' {
+			dst[offset] = b
+			offset++
+		}
+		src = src[1:]
 	}
 	return offset
 }

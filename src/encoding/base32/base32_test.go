@@ -393,6 +393,20 @@ func TestDecodeCorrupt(t *testing.T) {
 	}
 }
 
+// TestDecodeCorruptOffset puts a bad byte at each position of a long input.
+func TestDecodeCorruptOffset(t *testing.T) {
+	valid := strings.Repeat("MZXW6YTB", 5)
+	for i := range len(valid) {
+		input := []byte(valid)
+		input[i] = '!'
+		dbuf := make([]byte, StdEncoding.DecodedLen(len(input)))
+		n, err := StdEncoding.Decode(dbuf, input)
+		if n != i/8*5 || err != CorruptInputError(i) {
+			t.Errorf("Decode(%q) = %d, %v; want %d, %v", input, n, err, i/8*5, CorruptInputError(i))
+		}
+	}
+}
+
 func TestBig(t *testing.T) {
 	n := 3*1000 + 1
 	raw := make([]byte, n)
@@ -460,6 +474,15 @@ func TestNewLineCharacters(t *testing.T) {
 		"MZXW6YTBOI=\r\n=====",
 	}
 	testStringEncoding(t, "foobar", examples)
+
+	// A newline at any position of a longer input should be ignored.
+	examples = nil
+	for i := range len(bigtest.encoded) + 1 {
+		for _, nl := range []string{"\r", "\n", "\r\n"} {
+			examples = append(examples, bigtest.encoded[:i]+nl+bigtest.encoded[i:])
+		}
+	}
+	testStringEncoding(t, bigtest.decoded, examples)
 }
 
 func TestDecoderIssue4779(t *testing.T) {
@@ -512,19 +535,27 @@ func BenchmarkEncodeToString(b *testing.B) {
 }
 
 func BenchmarkDecode(b *testing.B) {
-	data := make([]byte, StdEncoding.EncodedLen(8192))
-	StdEncoding.Encode(data, make([]byte, 8192))
-	buf := make([]byte, 8192)
-	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
-		StdEncoding.Decode(buf, data)
+	for _, size := range []int{8, 16, 64, 256, 1024, 4096, 16384} {
+		data := StdEncoding.AppendEncode(nil, bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8))
+		buf := make([]byte, size)
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.SetBytes(int64(len(data)))
+			for b.Loop() {
+				StdEncoding.Decode(buf, data)
+			}
+		})
 	}
 }
+
 func BenchmarkDecodeString(b *testing.B) {
-	data := StdEncoding.EncodeToString(make([]byte, 8192))
-	b.SetBytes(int64(len(data)))
-	for i := 0; i < b.N; i++ {
-		StdEncoding.DecodeString(data)
+	for _, size := range []int{8, 16, 64, 256, 1024, 4096, 16384} {
+		data := StdEncoding.EncodeToString(bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8))
+		b.Run(strconv.Itoa(size), func(b *testing.B) {
+			b.SetBytes(int64(len(data)))
+			for b.Loop() {
+				StdEncoding.DecodeString(data)
+			}
+		})
 	}
 }
 
