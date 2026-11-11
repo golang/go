@@ -37,15 +37,6 @@ func Or[E Ints | Uints | MaskElt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// OrNot returns the bitwise OR NOT of x and y.
-//
-//	z[i] = x[i] | ^y[i]
-func OrNot[E Ints | Uints | MaskElt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	return map2[E, W, E, W](x, y, func(x, y E) E {
-		return x | ^y
-	})
-}
-
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]

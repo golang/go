@@ -8634,14 +8634,6 @@ const (
 	OpOrInt8x16
 	OpOrInt8x32
 	OpOrInt8x64
-	OpOrNotInt16x8
-	OpOrNotInt32x4
-	OpOrNotInt64x2
-	OpOrNotInt8x16
-	OpOrNotUint16x8
-	OpOrNotUint32x4
-	OpOrNotUint64x2
-	OpOrNotUint8x16
 	OpOrUint16s
 	OpOrUint16x16
 	OpOrUint16x32
@@ -9234,6 +9226,7 @@ const (
 	OponesCountUint8x16
 	OponesCountUint8x32
 	OponesCountUint8x64
+	OporNotUint8x16
 	OppermuteScalarsGroupedInt32x16
 	OppermuteScalarsGroupedInt32x8
 	OppermuteScalarsGroupedUint32x16
@@ -123565,46 +123558,6 @@ var OpcodeTable = [...]OpInfo{
 		Generic:     true,
 	},
 	{
-		Name:    "OrNotInt16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotInt32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotInt64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotInt8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotUint16x8",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotUint32x4",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotUint64x2",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "OrNotUint8x16",
-		ArgLen:  2,
-		Generic: true,
-	},
-	{
 		Name:        "OrUint16s",
 		ArgLen:      2,
 		Commutative: true,
@@ -126703,6 +126656,11 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "onesCountUint8x64",
 		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "orNotUint8x16",
+		ArgLen:  2,
 		Generic: true,
 	},
 	{

@@ -28,13 +28,22 @@
   - *any
   out:
   - *any
-- go: OrNot
+# orNot is internal. It defines the VORN machine op, which the peephole rule
+# folds x.Or(y.Not()) into. VORN treats the register as a bag of bits, so
+# Uint8x16 is enough.
+- go: orNot
   asm: "VORN"
+  peepholeRules:
+  - !string "(VORR16B x (VNOT16B y)) => (%h x y)"
   in:
-  - *any
-  - *any
+  - &v8
+    go: $t
+    class: vreg
+    base: uint
+    elemBits: 8
+  - *v8
   out:
-  - *any
+  - *v8
 - go: Not
   asm: "VNOT"
   in:

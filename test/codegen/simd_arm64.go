@@ -181,6 +181,13 @@ func cmtst(x8, y8 archsimd.Uint8x16, x16, y16 archsimd.Uint16x8,
 	sinkM64 = x64.And(y64).Equal(z64).Not() // arm64: `VCMTST V[0-9]+.D2, V[0-9]+.D2, V[0-9]+.D2`
 }
 
+// does x.Or(y.Not()) peephole to the expected orn?
+func orNot(x8, y8 archsimd.Uint8x16, x32, y32 archsimd.Uint32x4, m, n archsimd.Mask64x2) {
+	sinkU8 = x8.Or(y8.Not())    // arm64: `VORN V[0-9]+.B16, V[0-9]+.B16, V[0-9]+.B16` -`VNOT` -`VORR`
+	sinkU32 = y32.Not().Or(x32) // arm64: `VORN V[0-9]+.B16, V[0-9]+.B16, V[0-9]+.B16` -`VNOT` -`VORR`
+	sinkM64 = m.Or(n.Not())     // arm64: `VORN V[0-9]+.B16, V[0-9]+.B16, V[0-9]+.B16` -`VNOT` -`VORR`
+}
+
 func foldGetHiSetHiMuls(a, b archsimd.Uint16x8) archsimd.Uint16x8 {
 	wLo := a.MulWidenLo(b)                     // arm64: `VUMULL V0.H4, V1.H4, V[0-9].S4`
 	wHi := a.HiToLo().MulWidenLo(b.HiToLo())   // arm64: `VUMULL2 V1.H8, V0.H8, V[0-9].S4` -`VDUP`

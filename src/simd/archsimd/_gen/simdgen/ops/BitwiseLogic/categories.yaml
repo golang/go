@@ -24,7 +24,7 @@
   commutative: true
   documentation: !string |-
     // NAME performs a bitwise x ^ y.
-- go: OrNot
+- go: orNot
   commutative: false
   documentation: !string |-
     // NAME performs a bitwise x | ^y.

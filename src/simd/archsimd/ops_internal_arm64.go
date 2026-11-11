@@ -107,6 +107,13 @@ func (x Uint8x16) broadcast1To16() Uint8x16
 // Asm: VPMULL
 func (x Uint64x2) carrylessMultiplyWidenLo(y Uint64x2) Uint64x2
 
+/* orNot */
+
+// orNot performs a bitwise x | ^y.
+//
+// Asm: VORN
+func (x Uint8x16) orNot(y Uint8x16) Uint8x16
+
 /* reduceMax */
 
 // reduceMax reduces x by taking the maximum of all elements. The maximum is placed
