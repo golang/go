@@ -2931,6 +2931,168 @@ func (x Uint8x32) DotProductPairsSaturated(y Int8x32) (z Int16x16)
 // Asm: VPMADDUBSW, CPU Feature: AVX512
 func (x Uint8x64) DotProductPairsSaturated(y Int8x64) (z Int16x32)
 
+/* Enlarge */
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVAPS, CPU Feature: AVX
+func (x Float32x4) Enlarge() (z Float32x8)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVAPS, CPU Feature: AVX
+func (x Float32x8) Enlarge() (z Float32x16)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, 0})
+//
+// Asm: VMOVAPD, CPU Feature: AVX
+func (x Float64x2) Enlarge() (z Float64x4)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVAPD, CPU Feature: AVX
+func (x Float64x4) Enlarge() (z Float64x8)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int8x16) Enlarge() (z Int8x32)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int8x32) Enlarge() (z Int8x64)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int16x8) Enlarge() (z Int16x16)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int16x16) Enlarge() (z Int16x32)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int32x4) Enlarge() (z Int32x8)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int32x8) Enlarge() (z Int32x16)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int64x2) Enlarge() (z Int64x4)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Int64x4) Enlarge() (z Int64x8)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint8x16) Enlarge() (z Uint8x32)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint8x32) Enlarge() (z Uint8x64)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint16x8) Enlarge() (z Uint16x16)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint16x16) Enlarge() (z Uint16x32)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint32x4) Enlarge() (z Uint32x8)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint32x8) Enlarge() (z Uint32x16)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint64x2) Enlarge() (z Uint64x4)
+
+// Enlarge returns x with twice as many elements, with the upper half zeroed.
+// [GetLo] reverses this: x.Enlarge().GetLo() returns x.
+//
+//	z = concat(x, {0, ..., 0})
+//
+// Asm: VMOVDQA, CPU Feature: AVX
+func (x Uint64x4) Enlarge() (z Uint64x8)
+
 /* Equal */
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -4468,12 +4630,16 @@ func (x Uint64x8) GetHi() (z Uint64x4)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTF128, CPU Feature: AVX
 func (x Float32x8) GetLo() (z Float32x4)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTF64X4, CPU Feature: AVX512
 func (x Float32x16) GetLo() (z Float32x8)
@@ -4482,12 +4648,16 @@ func (x Float32x16) GetLo() (z Float32x8)
 //
 //	z = {x[0], x[1]}
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTF128, CPU Feature: AVX
 func (x Float64x4) GetLo() (z Float64x2)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTF64X4, CPU Feature: AVX512
 func (x Float64x8) GetLo() (z Float64x4)
@@ -4496,12 +4666,16 @@ func (x Float64x8) GetLo() (z Float64x4)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Int8x32) GetLo() (z Int8x16)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 64
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Int8x64) GetLo() (z Int8x32)
@@ -4510,12 +4684,16 @@ func (x Int8x64) GetLo() (z Int8x32)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Int16x16) GetLo() (z Int16x8)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Int16x32) GetLo() (z Int16x16)
@@ -4524,12 +4702,16 @@ func (x Int16x32) GetLo() (z Int16x16)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Int32x8) GetLo() (z Int32x4)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Int32x16) GetLo() (z Int32x8)
@@ -4538,12 +4720,16 @@ func (x Int32x16) GetLo() (z Int32x8)
 //
 //	z = {x[0], x[1]}
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Int64x4) GetLo() (z Int64x2)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Int64x8) GetLo() (z Int64x4)
@@ -4552,12 +4738,16 @@ func (x Int64x8) GetLo() (z Int64x4)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Uint8x32) GetLo() (z Uint8x16)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 64
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Uint8x64) GetLo() (z Uint8x32)
@@ -4566,12 +4756,16 @@ func (x Uint8x64) GetLo() (z Uint8x32)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Uint16x16) GetLo() (z Uint16x8)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 32
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Uint16x32) GetLo() (z Uint16x16)
@@ -4580,12 +4774,16 @@ func (x Uint16x32) GetLo() (z Uint16x16)
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Uint32x8) GetLo() (z Uint32x4)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Uint32x16) GetLo() (z Uint32x8)
@@ -4594,12 +4792,16 @@ func (x Uint32x16) GetLo() (z Uint32x8)
 //
 //	z = {x[0], x[1]}
 //
+// See also [Enlarge].
+//
 // Asm: VEXTRACTI128, CPU Feature: AVX2
 func (x Uint64x4) GetLo() (z Uint64x2)
 
 // GetLo returns the lower half of x.
 //
 //	z = {x[0], x[1], ..., x[n/2-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VEXTRACTI64X4, CPU Feature: AVX512
 func (x Uint64x8) GetLo() (z Uint64x4)
@@ -8080,12 +8282,16 @@ func (x Uint64x8) SetHi(y Uint64x4) (z Uint64x8)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTF128, CPU Feature: AVX
 func (x Float32x8) SetLo(y Float32x4) (z Float32x8)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTF64X4, CPU Feature: AVX512
 func (x Float32x16) SetLo(y Float32x8) (z Float32x16)
@@ -8094,12 +8300,16 @@ func (x Float32x16) SetLo(y Float32x8) (z Float32x16)
 //
 //	z = {y[0], y[1], x[2], x[3]}
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTF128, CPU Feature: AVX
 func (x Float64x4) SetLo(y Float64x2) (z Float64x4)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTF64X4, CPU Feature: AVX512
 func (x Float64x8) SetLo(y Float64x4) (z Float64x8)
@@ -8108,12 +8318,16 @@ func (x Float64x8) SetLo(y Float64x4) (z Float64x8)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Int8x32) SetLo(y Int8x16) (z Int8x32)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 64
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Int8x64) SetLo(y Int8x32) (z Int8x64)
@@ -8122,12 +8336,16 @@ func (x Int8x64) SetLo(y Int8x32) (z Int8x64)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Int16x16) SetLo(y Int16x8) (z Int16x16)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Int16x32) SetLo(y Int16x16) (z Int16x32)
@@ -8136,12 +8354,16 @@ func (x Int16x32) SetLo(y Int16x16) (z Int16x32)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Int32x8) SetLo(y Int32x4) (z Int32x8)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Int32x16) SetLo(y Int32x8) (z Int32x16)
@@ -8150,12 +8372,16 @@ func (x Int32x16) SetLo(y Int32x8) (z Int32x16)
 //
 //	z = {y[0], y[1], x[2], x[3]}
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Int64x4) SetLo(y Int64x2) (z Int64x4)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Int64x8) SetLo(y Int64x4) (z Int64x8)
@@ -8164,12 +8390,16 @@ func (x Int64x8) SetLo(y Int64x4) (z Int64x8)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Uint8x32) SetLo(y Uint8x16) (z Uint8x32)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 64
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Uint8x64) SetLo(y Uint8x32) (z Uint8x64)
@@ -8178,12 +8408,16 @@ func (x Uint8x64) SetLo(y Uint8x32) (z Uint8x64)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Uint16x16) SetLo(y Uint16x8) (z Uint16x16)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 32
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Uint16x32) SetLo(y Uint16x16) (z Uint16x32)
@@ -8192,12 +8426,16 @@ func (x Uint16x32) SetLo(y Uint16x16) (z Uint16x32)
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Uint32x8) SetLo(y Uint32x4) (z Uint32x8)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 16
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Uint32x16) SetLo(y Uint32x8) (z Uint32x16)
@@ -8206,12 +8444,16 @@ func (x Uint32x16) SetLo(y Uint32x8) (z Uint32x16)
 //
 //	z = {y[0], y[1], x[2], x[3]}
 //
+// See also [Enlarge].
+//
 // Asm: VINSERTI128, CPU Feature: AVX2
 func (x Uint64x4) SetLo(y Uint64x2) (z Uint64x4)
 
 // SetLo returns x with its lower half set to y.
 //
 //	z = {y[0], y[1], ..., y[n/2-1], x[n/2], ..., x[n-1]}, where n = 8
+//
+// See also [Enlarge].
 //
 // Asm: VINSERTI64X4, CPU Feature: AVX512
 func (x Uint64x8) SetLo(y Uint64x4) (z Uint64x8)

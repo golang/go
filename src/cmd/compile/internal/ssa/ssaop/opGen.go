@@ -1240,6 +1240,12 @@ const (
 	OpAMD64VMINPSMasked128
 	OpAMD64VMINPSMasked256
 	OpAMD64VMINPSMasked512
+	OpAMD64VMOVAPD256
+	OpAMD64VMOVAPD512
+	OpAMD64VMOVAPS256
+	OpAMD64VMOVAPS512
+	OpAMD64VMOVDQA256
+	OpAMD64VMOVDQA512
 	OpAMD64VMOVDQU8Masked128
 	OpAMD64VMOVDQU8Masked256
 	OpAMD64VMOVDQU8Masked512
@@ -7915,6 +7921,26 @@ const (
 	OpDotProductPairsSaturatedUint8x16
 	OpDotProductPairsSaturatedUint8x32
 	OpDotProductPairsSaturatedUint8x64
+	OpEnlargeFloat32x4
+	OpEnlargeFloat32x8
+	OpEnlargeFloat64x2
+	OpEnlargeFloat64x4
+	OpEnlargeInt16x16
+	OpEnlargeInt16x8
+	OpEnlargeInt32x4
+	OpEnlargeInt32x8
+	OpEnlargeInt64x2
+	OpEnlargeInt64x4
+	OpEnlargeInt8x16
+	OpEnlargeInt8x32
+	OpEnlargeUint16x16
+	OpEnlargeUint16x8
+	OpEnlargeUint32x4
+	OpEnlargeUint32x8
+	OpEnlargeUint64x2
+	OpEnlargeUint64x4
+	OpEnlargeUint8x16
+	OpEnlargeUint8x32
 	OpEqualFloat32s
 	OpEqualFloat32x16
 	OpEqualFloat32x4
@@ -28129,6 +28155,84 @@ var OpcodeTable = [...]OpInfo{
 			},
 			Outputs: []OutputInfo{
 				{0, RegMask{V1: 281472829161472, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X27 X28 X29 X30 X31
+			},
+		},
+	},
+	{
+		Name:   "VMOVAPD256",
+		ArgLen: 1,
+		asm:    x86.AVMOVAPD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VMOVAPD512",
+		ArgLen: 1,
+		asm:    x86.AVMOVAPD,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VMOVAPS256",
+		ArgLen: 1,
+		asm:    x86.AVMOVAPS,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VMOVAPS512",
+		ArgLen: 1,
+		asm:    x86.AVMOVAPS,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VMOVDQA256",
+		ArgLen: 1,
+		asm:    x86.AVMOVDQA,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+		},
+	},
+	{
+		Name:   "VMOVDQA512",
+		ArgLen: 1,
+		asm:    x86.AVMOVDQA,
+		Reg: RegInfo{
+			Inputs: []InputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+			},
+			Outputs: []OutputInfo{
+				{0, RegMask{V1: 2147418112, V2: 0}}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
 			},
 		},
 	},
@@ -119714,6 +119818,106 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "DotProductPairsSaturatedUint8x64",
 		ArgLen:  2,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeFloat32x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeFloat32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeFloat64x2",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeFloat64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt16x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt16x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt32x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt64x2",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt8x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeInt8x32",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint16x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint16x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint32x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint32x8",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint64x2",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint64x4",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint8x16",
+		ArgLen:  1,
+		Generic: true,
+	},
+	{
+		Name:    "EnlargeUint8x32",
+		ArgLen:  1,
 		Generic: true,
 	},
 	{

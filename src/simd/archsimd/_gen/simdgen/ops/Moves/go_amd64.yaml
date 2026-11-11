@@ -358,6 +358,66 @@
   out:
   - *f64xN
 
+# Enlarge is a register-to-register move of x to a register the width of x. A
+# VEX-encoded instruction zeroes the bits of the destination above the register
+# it writes, which is exactly the upper half of the result, so the result takes
+# its Go width from goBits. This relies on the VEX encoding: a legacy SSE move
+# preserves the upper bits, and an EVEX move would let the register allocator
+# pick a register VEX can't encode. VMOVDQA matches only the VEX instruction (the
+# EVEX ones are VMOVDQA32/64), and inVariant: [] excludes the masked (EVEX) forms
+# of VMOVAPS/VMOVAPD.
+#
+# XED gives VMOVDQA's operands no element type, which simdgen reads as 32 bits,
+# so the int entries set each element width with overwriteElementBits.
+#
+# The int entries can't be compacted: in and out must agree on
+# overwriteElementBits (and goBits must be twice bits), which takes a shared
+# variable, but nothing here can restrict a variable to a set of values like
+# 8|16|32|64. A !sum in each field would make independent choices, as would
+# YAML aliases of one !sum.
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 128, overwriteElementBits: 8}]
+  out: [{go: $t, bits: 128, overwriteElementBits: 8, goBits: 256}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 128, overwriteElementBits: 16}]
+  out: [{go: $t, bits: 128, overwriteElementBits: 16, goBits: 256}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 128, overwriteElementBits: 32}]
+  out: [{go: $t, bits: 128, overwriteElementBits: 32, goBits: 256}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 128, overwriteElementBits: 64}]
+  out: [{go: $t, bits: 128, overwriteElementBits: 64, goBits: 256}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 256, overwriteElementBits: 8}]
+  out: [{go: $t, bits: 256, overwriteElementBits: 8, goBits: 512}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 256, overwriteElementBits: 16}]
+  out: [{go: $t, bits: 256, overwriteElementBits: 16, goBits: 512}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 256, overwriteElementBits: 32}]
+  out: [{go: $t, bits: 256, overwriteElementBits: 32, goBits: 512}]
+- go: Enlarge
+  asm: VMOVDQA
+  in:  [{go: $t, bits: 256, overwriteElementBits: 64}]
+  out: [{go: $t, bits: 256, overwriteElementBits: 64, goBits: 512}]
+- go: Enlarge
+  asm: VMOVAP[SD]
+  inVariant: []
+  in:  [{go: $t, bits: 128}]
+  out: [{go: $t, bits: 128, goBits: 256}]
+- go: Enlarge
+  asm: VMOVAP[SD]
+  inVariant: []
+  in:  [{go: $t, bits: 256}]
+  out: [{go: $t, bits: 256, goBits: 512}]
+
 - go: LookupMod
   asm: "VPERM[BWDQ]|VPERMP[SD]"
   operandOrder: "21Type1"

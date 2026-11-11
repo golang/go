@@ -1831,3 +1831,86 @@ func TestMaskedWideningConversion(t *testing.T) {
 	}
 	checkSlices(t, got, want)
 }
+
+func TestEnlarge(t *testing.T) {
+	// The upper half of each result must be zero.
+	{
+		var got [32]int8
+		archsimd.LoadInt8x16([]int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	}
+	{
+		var got [16]uint16
+		archsimd.LoadUint16x8([]uint16{1, 2, 3, 4, 5, 6, 7, 0xffff}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []uint16{1, 2, 3, 4, 5, 6, 7, 0xffff, 0, 0, 0, 0, 0, 0, 0, 0})
+	}
+	{
+		var got [8]int32
+		archsimd.LoadInt32x4([]int32{-1, -2, -3, -4}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []int32{-1, -2, -3, -4, 0, 0, 0, 0})
+	}
+	{
+		var got [4]uint64
+		archsimd.LoadUint64x2([]uint64{1, 1 << 63}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []uint64{1, 1 << 63, 0, 0})
+	}
+	{
+		var got [8]float32
+		archsimd.LoadFloat32x4([]float32{1.5, -2.5, 3.5, -4.5}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []float32{1.5, -2.5, 3.5, -4.5, 0, 0, 0, 0})
+	}
+	{
+		var got [4]float64
+		archsimd.LoadFloat64x2([]float64{1.5, -2.5}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []float64{1.5, -2.5, 0, 0})
+	}
+
+	// Taking the low half of a wider vector may leave the upper bits of
+	// the source register set. Enlarge must clear them.
+	{
+		var got [8]float32
+		y := archsimd.LoadFloat32x8([]float32{1, 2, 3, 4, 5, 6, 7, 8})
+		y.GetLo().Enlarge().Store(got[:])
+		checkSlices(t, got[:], []float32{1, 2, 3, 4, 0, 0, 0, 0})
+		y.GetHi().Enlarge().Store(got[:])
+		checkSlices(t, got[:], []float32{5, 6, 7, 8, 0, 0, 0, 0})
+	}
+	if archsimd.X86.AVX2() {
+		var got [8]int32
+		y := archsimd.LoadInt32x8([]int32{1, 2, 3, 4, 5, 6, 7, 8})
+		y.GetLo().Enlarge().Store(got[:])
+		checkSlices(t, got[:], []int32{1, 2, 3, 4, 0, 0, 0, 0})
+	}
+
+	t.Run("512", testEnlarge512)
+}
+
+func testEnlarge512(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+	{
+		var got [16]int32
+		archsimd.LoadInt32x8([]int32{1, 2, 3, 4, 5, 6, 7, 8}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []int32{1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 0, 0, 0, 0})
+	}
+	{
+		var got [8]float64
+		archsimd.LoadFloat64x4([]float64{1, 2, 3, 4}).Enlarge().Store(got[:])
+		checkSlices(t, got[:], []float64{1, 2, 3, 4, 0, 0, 0, 0})
+	}
+	{
+		// The low half of a 512-bit vector, extended back to 512 bits.
+		var got [64]uint8
+		var src [64]uint8
+		for i := range src {
+			src[i] = uint8(i + 1)
+		}
+		archsimd.LoadUint8x64(src[:]).GetLo().Enlarge().Store(got[:])
+		want := make([]uint8, 64)
+		copy(want, src[:32])
+		checkSlices(t, got[:], want)
+	}
+}

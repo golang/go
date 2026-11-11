@@ -4398,6 +4398,66 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpDotProductPairsSaturatedUint8x64:
 		v.Op = ssaop.OpAMD64VPMADDUBSW512
 		return true
+	case ssaop.OpEnlargeFloat32x4:
+		v.Op = ssaop.OpAMD64VMOVAPS256
+		return true
+	case ssaop.OpEnlargeFloat32x8:
+		v.Op = ssaop.OpAMD64VMOVAPS512
+		return true
+	case ssaop.OpEnlargeFloat64x2:
+		v.Op = ssaop.OpAMD64VMOVAPD256
+		return true
+	case ssaop.OpEnlargeFloat64x4:
+		v.Op = ssaop.OpAMD64VMOVAPD512
+		return true
+	case ssaop.OpEnlargeInt16x16:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeInt16x8:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeInt32x4:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeInt32x8:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeInt64x2:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeInt64x4:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeInt8x16:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeInt8x32:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeUint16x16:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeUint16x8:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeUint32x4:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeUint32x8:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeUint64x2:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeUint64x4:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
+	case ssaop.OpEnlargeUint8x16:
+		v.Op = ssaop.OpAMD64VMOVDQA256
+		return true
+	case ssaop.OpEnlargeUint8x32:
+		v.Op = ssaop.OpAMD64VMOVDQA512
+		return true
 	case ssaop.OpEq16:
 		return rewriteValue_OpEq16(v)
 	case ssaop.OpEq32:

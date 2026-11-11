@@ -47,3 +47,16 @@ func simdSaturateToInt32x4(x archsimd.Int64x2) archsimd.Int32x4 {
 	// amd64:`VPCMPGTQ` `VPBLENDVB` `VSHUFPS` -`CALL`
 	return x.SaturateToInt32()
 }
+
+// Enlarge is a single VEX-encoded move, which zeroes the upper half of the
+// result. It must write a register of the source's width, not of the result's.
+
+func simdEnlargeInt32x4(x archsimd.Int32x4) archsimd.Int32x8 {
+	// amd64:`VMOVDQA X[0-9]+, X[0-9]+` -`CALL`
+	return x.Enlarge()
+}
+
+func simdEnlargeFloat64x4(x archsimd.Float64x4) archsimd.Float64x8 {
+	// amd64:`VMOVAPD Y[0-9]+, Y[0-9]+` -`CALL`
+	return x.Enlarge()
+}

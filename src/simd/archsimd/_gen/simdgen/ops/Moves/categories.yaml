@@ -27,6 +27,10 @@
   constImm: 1
   documentation: !string |-
     // NAME returns the upper half of x.
+- go: Enlarge
+  commutative: false
+  documentation: !string |-
+    // NAME returns x with twice as many elements, with the upper half zeroed.
 - go: lookupOrKeep
   commutative: false
   documentation: !string |-
