@@ -10,9 +10,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"internal/buildcfg"
 	"io"
+	"os"
 	"slices"
 	"strconv"
+	"strings"
 )
 
 // BindingType describes a C or Go type used by cgo binding declarations
@@ -103,6 +106,7 @@ func (lay FuncLayout) hasStackArgs() bool {
 type abiState struct {
 	intIdx   int
 	floatIdx int
+	vfpMask  uint16 // bitmask of allocated S0..S15 VFP lanes (32-bit ARM only)
 	stackOff int64
 }
 
@@ -226,6 +230,7 @@ type ABIConfig struct {
 	StrictAlign                  bool // Architecture traps on unaligned multi-byte loads/stores (MIPS, ARM)
 
 	asm                asmOps
+	IsFloatReg         func(reg string) bool
 	LoadFloat          func(w io.Writer, base string, off, size int64, reg string) bool
 	StoreFloat         func(w io.Writer, reg, base string, off, size int64) bool
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
@@ -240,6 +245,9 @@ type ABIConfig struct {
 
 // isFloatReg reports whether reg is an architecture floating-point register.
 func (cfg *ABIConfig) isFloatReg(reg string) bool {
+	if cfg.IsFloatReg != nil && cfg.IsFloatReg(reg) {
+		return true
+	}
 	return slices.Contains(cfg.FloatRegs, reg) || slices.Contains(cfg.FloatRetRegs, reg)
 }
 
@@ -1283,7 +1291,13 @@ func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, 
 	cfg.emitCallRuntime(w, "_cgo_wait_runtime_init_done")
 	cfg.emitStoreInt(w, ret0, cfg.SPReg, ctxtOff, ptrSize)
 	cfg.emitMovReg(w, ret0, arg3)
-	if cfg.Arch == "amd64" {
+	if cfg.Arch == "arm" {
+		// Use MOVW $sym + double load so -dynlink GOT rewrites load directly into
+		// arg0 without clobbering C callee-saved R9.
+		fmt.Fprintf(w, "\tMOVW\t$·_cgo_fn_%s(SB), %s\n", fnName, arg0)
+		fmt.Fprintf(w, "\tMOVW\t0(%s), %s\n", arg0, arg0)
+		fmt.Fprintf(w, "\tMOVW\t0(%s), %s\n", arg0, arg0)
+	} else if cfg.Arch == "amd64" {
 		// Use LEAQ + double load so -dynlink GOT rewrites do not clobber C callee-saved R15.
 		fmt.Fprintf(w, "\tLEAQ\t·_cgo_fn_%s(SB), %s\n", fnName, arg0)
 		fmt.Fprintf(w, "\tMOVQ\t0(%s), %s\n", arg0, arg0)
@@ -1929,11 +1943,11 @@ var win64ABI = newWin64ABI()
 //     exact-width stores, whereas non-HFA composites <= 16 bytes and hidden
 //     PassByPtr pointers remain 8-byte aligned.
 
-// classifyARM64HFA reports whether composite type info is a Homogeneous
+// classifyHFA reports whether composite type info is a Homogeneous
 // Floating-Point Aggregate (1 to 4 identically sized float32 or float64
-// members with no padding) per AAPCS64 Section 5.9.5.1, returning its element
+// members with no padding) per AAPCS32/AAPCS64, returning its element
 // size and member count.
-func classifyARM64HFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
+func classifyHFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
 	if info.size <= 0 || info.size > 32 || !info.fieldsOK || len(info.fields) < 1 || len(info.fields) > 4 {
 		return 0, 0, false
 	}
@@ -1954,7 +1968,7 @@ func classifyARM64HFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
 // (AAPCS64 Section 6.9).
 func arm64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
 	if info.composite {
-		if _, count, ok := classifyARM64HFA(info); ok {
+		if _, count, ok := classifyHFA(info); ok {
 			return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}
 		}
 	}
@@ -1966,7 +1980,7 @@ func arm64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState)
 // <=16-byte non-HFA composites in R0..R7 without GPR backfilling.
 func arm64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
 	if info.composite {
-		if _, count, ok := classifyARM64HFA(info); ok {
+		if _, count, ok := classifyHFA(info); ok {
 			if st.floatIdx+count <= len(cfg.FloatRegs) {
 				regs := slices.Clone(cfg.FloatRegs[st.floatIdx : st.floatIdx+count])
 				st.floatIdx += count
@@ -1992,9 +2006,9 @@ func arm64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *a
 	return loc
 }
 
-// arm64CompositeRegSlots maps each member of a register-passed or
-// register-returned ARM64 HFA to its consecutive floating-point register.
-func arm64CompositeRegSlots(_ *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool) {
+// hfaCompositeRegSlots maps each member of a register-passed or
+// register-returned HFA to its consecutive floating-point register.
+func hfaCompositeRegSlots(_ *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool) {
 	if !isFloat {
 		return nil, false
 	}
@@ -2076,7 +2090,7 @@ var arm64ABI = &ABIConfig{
 	IndirectRetReg:    "R8",
 	AssignParam:       arm64AssignParam,
 	AssignRet:         arm64AssignRet,
-	CompositeRegSlots: arm64CompositeRegSlots,
+	CompositeRegSlots: hfaCompositeRegSlots,
 	SPReg:             "RSP",
 	CalleeSavedReg:    "R19",
 	TmpReg:            "R12",
@@ -2291,6 +2305,246 @@ var i386ABI = &ABIConfig{
 	},
 }
 
+// 32-bit ARM C calling convention:
+//   - AAPCS32 Sections 6 & 7.1 (VFP): https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst
+//   - Android armeabi-v7a (soft-float): https://developer.android.com/ndk/guides/abis
+//
+// android/arm and openbsd/arm always use the base (soft-float) procedure
+// call standard, which passes floating-point values in core registers.
+// Other targets use the VFP variant unless GOARM selects soft float, since
+// code built for a CPU without VFP cannot use VFP registers.
+
+// goarmSoftFloat reports whether GOARM selects soft float (GOARM=5, or a
+// ",softfloat" suffix). It reads the environment at each call, rather than
+// using buildcfg.GOARM computed at startup, so tests can change GOARM.
+func goarmSoftFloat() bool {
+	v := os.Getenv("GOARM")
+	if v == "" {
+		return buildcfg.GOARM.SoftFloat
+	}
+	if strings.HasSuffix(v, ",softfloat") {
+		return true
+	}
+	if strings.HasSuffix(v, ",hardfloat") {
+		return false
+	}
+	return v == "5"
+}
+
+func arm32AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.composite {
+		if elemSz, count, ok := classifyHFA(info); ok {
+			if elemSz == 8 {
+				return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}
+			}
+			regs := make([]string, count)
+			for k := range count {
+				regs[k] = fmt.Sprintf("S%d", k)
+			}
+			return RetLoc{Size: info.size, Regs: regs, IsFloat: true}
+		}
+	}
+	if info.isFloat && info.size == 4 {
+		return RetLoc{Size: 4, Regs: []string{"S0"}, IsFloat: true}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+func arm32AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	if len(cfg.FloatRegs) > 0 {
+		elemSz, count, isVFP := info.size, 1, info.isFloat && (info.size == 4 || info.size == 8)
+		if !isVFP && info.composite {
+			elemSz, count, isVFP = classifyHFA(info)
+		}
+		if isVFP {
+			step := int(elemSz / 4)
+			lanes := count * step
+			mask := (uint16(1) << lanes) - 1
+			for s := 0; s <= 16-lanes; s += step {
+				if st.vfpMask&(mask<<s) == 0 {
+					st.vfpMask |= mask << s
+					st.floatIdx += count
+					regs := make([]string, count)
+					for k := range count {
+						if elemSz == 4 {
+							regs[k] = fmt.Sprintf("S%d", s+k)
+						} else {
+							regs[k] = fmt.Sprintf("F%d", s/2+k)
+						}
+					}
+					return ParamLoc{Size: info.size, IsFloat: true, Regs: regs}
+				}
+			}
+			st.vfpMask = 0xffff
+			if elemSz == 8 {
+				st.stackOff = alignUp(st.stackOff, 8)
+			}
+			return cfg.assignStackParam(info.size, true, st)
+		}
+	}
+
+	need8 := (!info.composite && info.size == 8) || info.align == 8
+	if need8 && st.intIdx < len(cfg.IntRegs) && st.intIdx%2 != 0 {
+		st.intIdx++
+	}
+	numRegs := int((info.size + cfg.PtrSize - 1) / cfg.PtrSize)
+	if st.intIdx < len(cfg.IntRegs) && st.intIdx+numRegs > len(cfg.IntRegs) && info.composite && st.stackOff == 0 {
+		// AAPCS32 Section 6.1.1 Rule C.5: split a composite across the remaining
+		// core registers R[intIdx]..R3 and the stack starting at 0(SP), but only
+		// if no argument has been placed on the stack yet (NSAA == SP). Otherwise
+		// Rules C.6-C.8 below place the composite wholly on the stack.
+		regs := slices.Clone(cfg.IntRegs[st.intIdx:])
+		regBytes := int64(len(regs)) * cfg.PtrSize
+		stackBytes := info.size - regBytes
+		st.intIdx = len(cfg.IntRegs)
+		off := st.stackOff
+		st.stackOff += alignUp(stackBytes, cfg.PtrSize)
+		return ParamLoc{Size: info.size, Regs: regs, StackOff: off, StackBytes: stackBytes}
+	}
+	if st.intIdx+numRegs > len(cfg.IntRegs) {
+		st.intIdx = len(cfg.IntRegs)
+		if need8 {
+			st.stackOff = alignUp(st.stackOff, 8)
+		}
+		return cfg.assignStackParam(info.size, false, st)
+	}
+	return cfg.assignIntParam(info, st)
+}
+
+// emitARM32TrampolinePrologue emits a NOFRAME 32-bit arm Go-to-C trampoline
+// prologue and returns its matching epilogue, keeping R13 8-byte aligned and
+// atomically storing R14 at 0(R13) via MOVW.W/MOVW.P whenever no C stack
+// arguments occupy 0(R13).
+func emitARM32TrampolinePrologue(w io.Writer, lay FuncLayout) func(io.Writer) {
+	if !lay.hasStackArgs() {
+		total := max(int64(8), lay.StackSize)
+		if total <= 4095 {
+			fmt.Fprintf(w, "\tMOVW.W\tR14, -%d(R13)\n", total)
+		} else {
+			fmt.Fprintf(w, "\tSUB\t$%d, R13\n", total)
+			fmt.Fprintf(w, "\tMOVW\tR14, 0(R13)\n")
+		}
+		fmt.Fprintf(w, "\tMOVW\tR0, R4\n")
+		return func(w io.Writer) {
+			if total <= 4095 {
+				fmt.Fprintf(w, "\tMOVW.P\t%d(R13), R14\n", total)
+			} else {
+				fmt.Fprintf(w, "\tMOVW\t0(R13), R14\n")
+				fmt.Fprintf(w, "\tADD\t$%d, R13\n", total)
+			}
+		}
+	}
+	// AAPCS32 places 5th+ arguments at 0(R13), so save R14 above them.
+	total := lay.StackSize + 8
+	lrOff := total - 4
+	fmt.Fprintf(w, "\tSUB\t$%d, R13\n", total)
+	fmt.Fprintf(w, "\tMOVW\tR14, %d(R13)\n", lrOff)
+	fmt.Fprintf(w, "\tMOVW\tR0, R4\n")
+	return func(w io.Writer) {
+		fmt.Fprintf(w, "\tMOVW\t%d(R13), R14\n", lrOff)
+		fmt.Fprintf(w, "\tADD\t$%d, R13\n", total)
+	}
+}
+
+var armABI = &ABIConfig{
+	Arch:              "arm",
+	PtrSize:           4,
+	CLongSize:         4,
+	StackAlign:        8,
+	IntRegs:           []string{"R0", "R1", "R2", "R3"},
+	FloatRegs:         []string{"F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"},
+	IntRetRegs:        []string{"R0", "R1"},
+	FloatRetRegs:      []string{"F0", "F1", "F2", "F3"},
+	MaxRegStructSize:  4,
+	IndirectRetReg:    "R0",
+	IndirectRetInArg:  true,
+	AssignParam:       arm32AssignParam,
+	AssignRet:         arm32AssignRet,
+	CompositeRegSlots: hfaCompositeRegSlots,
+	SPReg:             "R13",
+	CalleeSavedReg:    "R4",
+	TmpReg:            "R12",
+	TmpReg2:           "R8",
+	LRReserve:         8,
+	LocalFrameOff:     8,
+	StrictAlign:       true,
+	asm: asmOps{
+		mov:   "MOVW",
+		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVW",
+		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+		fmovS: "MOVF", fmovD: "MOVD",
+		shl: "SLL", shr: "SRL", or: "ORR", add: "ADD", sub: "SUB",
+		twoOpShift: true,
+	},
+	TrampolinePrologue: emitARM32TrampolinePrologue,
+	CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+		// Save callee-saved R8 (used as TmpReg2) alongside R11 (REGTMP) and R14 (LR).
+		total := 16 + frameSize
+		if total <= 4095 {
+			fmt.Fprintf(w, "\tMOVW.W\tR14, -%d(R13)\n", total)
+			fmt.Fprintf(w, "\tMOVW\tR8, 4(R13)\n")
+			fmt.Fprintf(w, "\tMOVW\tR11, %d(R13)\n", 8+frameSize)
+			return total
+		}
+		fmt.Fprintf(w, "\tSUB\t$8, R13\n")
+		fmt.Fprintf(w, "\tMOVW\tR11, 0(R13)\n")
+		fmt.Fprintf(w, "\tMOVW\tR8, 4(R13)\n")
+		fmt.Fprintf(w, "\tSUB\t$%d, R13\n", 8+frameSize)
+		fmt.Fprintf(w, "\tMOVW\tR14, 0(R13)\n")
+		return total
+	},
+	CallbackEpilogue: func(w io.Writer, frameSize int64, _ bool) {
+		total := 16 + frameSize
+		if total <= 4095 {
+			fmt.Fprintf(w, "\tMOVW\t%d(R13), R11\n", 8+frameSize)
+			fmt.Fprintf(w, "\tMOVW\t4(R13), R8\n")
+			fmt.Fprintf(w, "\tMOVW.P\t%d(R13), R14\n", total)
+			fmt.Fprintf(w, "\tRET\n")
+			return
+		}
+		fmt.Fprintf(w, "\tMOVW\t0(R13), R14\n")
+		fmt.Fprintf(w, "\tADD\t$%d, R13\n", 8+frameSize)
+		fmt.Fprintf(w, "\tMOVW\t4(R13), R8\n")
+		fmt.Fprintf(w, "\tMOVW\t0(R13), R11\n")
+		fmt.Fprintf(w, "\tADD\t$8, R13\n")
+		fmt.Fprintf(w, "\tRET\n")
+	},
+	IsFloatReg: func(reg string) bool {
+		return len(reg) >= 2 && reg[0] == 'S'
+	},
+	LoadFloat: func(w io.Writer, base string, off, _ int64, reg string) bool {
+		if len(reg) < 2 || reg[0] != 'S' {
+			return false
+		}
+		sIdx, _ := strconv.Atoi(reg[1:])
+		if sIdx%2 == 0 {
+			fmt.Fprintf(w, "\tMOVF\t%d(%s), F%d\n", off, base, sIdx/2)
+		} else {
+			// VMOV s(2n+1), R12 (transfer R12 to odd VFP single register).
+			fmt.Fprintf(w, "\tMOVW\t%d(%s), R12\n", off, base)
+			fmt.Fprintf(w, "\tWORD\t$0x%08x\n", 0xee00ca90|(uint32(sIdx/2)<<16))
+		}
+		return true
+	},
+	StoreFloat: func(w io.Writer, reg, base string, off, _ int64) bool {
+		if len(reg) < 2 || reg[0] != 'S' {
+			return false
+		}
+		sIdx, _ := strconv.Atoi(reg[1:])
+		if sIdx%2 == 0 {
+			fmt.Fprintf(w, "\tMOVF\tF%d, %d(%s)\n", sIdx/2, off, base)
+		} else {
+			// VMOV R12, s(2n+1) (transfer odd VFP single register to R12).
+			fmt.Fprintf(w, "\tWORD\t$0x%08x\n", 0xee10ca90|(uint32(sIdx/2)<<16))
+			fmt.Fprintf(w, "\tMOVW\tR12, %d(%s)\n", off, base)
+		}
+		return true
+	},
+}
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -2319,6 +2573,17 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 			cfg.IndirectSymCall = true
 		case "freebsd", "openbsd":
 			cfg.AssignRet = bsd386AssignRet
+		}
+	case "arm":
+		cfg = *armABI
+		if targetOS == "android" || targetOS == "openbsd" || goarmSoftFloat() {
+			cfg.IsFloatReg = nil
+			cfg.LoadFloat = nil
+			cfg.StoreFloat = nil
+			cfg.FloatRegs = nil
+			cfg.FloatRetRegs = nil
+			cfg.AssignRet = defaultAssignRet
+			cfg.CompositeRegSlots = nil
 		}
 	default:
 		panic("unsupported arch: " + targetArch)

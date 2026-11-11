@@ -1145,11 +1145,218 @@ func TestLayout386AndWindowsARM64(t *testing.T) {
 	}
 }
 
+func TestLayoutARM32(t *testing.T) {
+	// The hard-float ABI is used only when GOARM does not select soft float.
+	t.Setenv("GOARM", "7")
+	typeMap := map[string]BindingType{
+		"Double2": {Name: "Double2", Def: "struct {\n\ta float64\n\tb float64\n}", Size: 16, Align: 8},
+		"Pair8":   {Name: "Pair8", Def: "struct {\n\ta int32\n\tb int32\n}", Size: 8, Align: 4},
+		"Big32":   {Name: "Big32", Def: "struct {\n\ta [8]int32\n}", Size: 32, Align: 4},
+	}
+
+	// ARM32 VFP backfill: float32 -> S0, float64 -> F1 (S2..S3), float32 -> S1.
+	armCfg := getABI("linux", "arm")
+	vfpLay := armCfg.layout(BindingFunc{
+		Name:   "VFPBackfill",
+		Params: []string{"float32", "float64", "float32", "int32", "int64"},
+		Ret:    "float32",
+	}, nil)
+	if !slices.Equal(vfpLay.Params[0].Regs, []string{"S0"}) ||
+		!slices.Equal(vfpLay.Params[1].Regs, []string{"F1"}) ||
+		!slices.Equal(vfpLay.Params[2].Regs, []string{"S1"}) ||
+		!slices.Equal(vfpLay.Params[3].Regs, []string{"R0"}) ||
+		!slices.Equal(vfpLay.Params[4].Regs, []string{"R2", "R3"}) ||
+		!slices.Equal(vfpLay.Ret.Regs, []string{"S0"}) {
+		t.Errorf("ARM32 VFP backfill + even-pair layout = %+v", vfpLay)
+	}
+
+	// ARM32 HFA Double2 param/return in F0..F1 and 8B int struct param in R0..R1 (sret return).
+	hfaLay := armCfg.layout(BindingFunc{Name: "HFA", Params: []string{"Double2", "Pair8"}, Ret: "Double2"}, typeMap)
+	if !slices.Equal(hfaLay.Params[0].Regs, []string{"F0", "F1"}) ||
+		!slices.Equal(hfaLay.Params[1].Regs, []string{"R0", "R1"}) ||
+		!slices.Equal(hfaLay.Ret.Regs, []string{"F0", "F1"}) {
+		t.Errorf("ARM32 HFA + Pair8 layout = %+v", hfaLay)
+	}
+	var hfaAsm bytes.Buffer
+	armCfg.writeTrampoline(&hfaAsm, BindingFunc{Name: "HFA", CName: "hfa", Params: []string{"Double2"}, Ret: "Double2"}, typeMap)
+	if !strings.Contains(hfaAsm.String(), "MOVD\t0(R4), F0\n\tMOVD\t8(R4), F1") ||
+		!strings.Contains(hfaAsm.String(), "MOVD\tF0, 16(R4)\n\tMOVD\tF1, 24(R4)") {
+		t.Errorf("ARM32 Double2 HFA trampoline = \n%s", hfaAsm.String())
+	}
+
+	// ARM32 odd-S register WORD VMOV emission (S1 -> 0xee00ca90 load, 0xee10ca90 store).
+	var armOddS bytes.Buffer
+	armCfg.writeTrampoline(&armOddS, BindingFunc{Name: "F2", CName: "f2", Params: []string{"float32", "float32"}, Ret: "float32"}, nil)
+	if !strings.Contains(armOddS.String(), "WORD\t$0xee00ca90") {
+		t.Errorf("ARM32 S1 load missing VMOV WORD:\n%s", armOddS.String())
+	}
+	var armOddSCb bytes.Buffer
+	armCfg.writeCallbackTrampoline(&armOddSCb, BindingFunc{Name: "CbF2", Params: []string{"float32", "float32"}, Ret: "float32"}, nil)
+	if !strings.Contains(armOddSCb.String(), "WORD\t$0xee10ca90") {
+		t.Errorf("ARM32 callback S1 store missing VMOV WORD:\n%s", armOddSCb.String())
+	}
+	if !strings.Contains(armOddSCb.String(), "MOVW\tR8, 4(R13)") || !strings.Contains(armOddSCb.String(), "MOVW\t4(R13), R8") {
+		t.Errorf("ARM32 callback must save/restore callee-saved R8:\n%s", armOddSCb.String())
+	}
+	if !strings.Contains(armOddSCb.String(), "MOVW\t$·_cgo_fn_CbF2(SB), R0\n\tMOVW\t0(R0), R0\n\tMOVW\t0(R0), R0") {
+		t.Errorf("ARM32 callback must load _cgo_fn via $sym + double deref to avoid -dynlink R9 clobber:\n%s", armOddSCb.String())
+	}
+	if testenv.HasGoBuild() {
+		dir := t.TempDir()
+		sfile := filepath.Join(dir, "cbarm.s")
+		ofile := filepath.Join(dir, "cbarm.o")
+		if err := os.WriteFile(sfile, []byte("#include \"textflag.h\"\n\n"+armOddSCb.String()), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-dynlink", "-p", "main",
+			"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=arm")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("go tool asm -dynlink (linux/arm): %v\n%s", err, out)
+		}
+		out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
+		if err != nil {
+			t.Fatalf("go tool objdump (linux/arm): %v\n%s", err, out)
+		}
+		for _, line := range strings.Split(string(out), "\n") {
+			if f := strings.Fields(line); len(f) >= 4 && strings.Contains(strings.Join(f[3:], " "), "R9") {
+				t.Errorf("ARM32 -dynlink callback clobbers C callee-saved R9: %s\n%s", line, out)
+			}
+		}
+	}
+
+	// ARM32 split reg+stack composites (AAPCS32 Rule C.5) and GoOffset alignment for Double2.
+	splitLay := armCfg.layout(BindingFunc{Name: "Split", Params: []string{"int32", "int32", "int32", "Pair8"}}, typeMap)
+	if !slices.Equal(splitLay.Params[3].Regs, []string{"R3"}) || splitLay.Params[3].StackBytes != 4 || splitLay.Params[3].StackOff != 0 {
+		t.Errorf("ARM32 straddling Pair8 = %+v, want Regs=[R3] StackBytes=4 StackOff=0", splitLay.Params[3])
+	}
+	bigLay := armCfg.layout(BindingFunc{Name: "Big", Params: []string{"Big32"}}, typeMap)
+	if !slices.Equal(bigLay.Params[0].Regs, []string{"R0", "R1", "R2", "R3"}) || bigLay.Params[0].StackBytes != 16 || bigLay.Params[0].StackOff != 0 {
+		t.Errorf("ARM32 Big32 = %+v, want Regs=[R0..R3] StackBytes=16 StackOff=0", bigLay.Params[0])
+	}
+	goOffLay := armCfg.layout(BindingFunc{Name: "GoOff", Params: []string{"int32", "Double2"}}, typeMap)
+	if goOffLay.Params[1].GoOffset != 4 {
+		t.Errorf("ARM32 (int32, Double2) GoOffset = %d, want 4", goOffLay.Params[1].GoOffset)
+	}
+
+	// Android/arm soft-float passes floats in GPRs.
+	andArm := getABI("android", "arm")
+	softLay := andArm.layout(BindingFunc{
+		Name:   "SoftFloat",
+		Params: []string{"float32", "float64"},
+		Ret:    "float64",
+	}, nil)
+	if !slices.Equal(softLay.Params[0].Regs, []string{"R0"}) ||
+		!slices.Equal(softLay.Params[1].Regs, []string{"R2", "R3"}) ||
+		!slices.Equal(softLay.Ret.Regs, []string{"R0", "R1"}) {
+		t.Errorf("android/arm softfloat layout = %+v", softLay)
+	}
+
+	// AAPCS32 Rule C.5 splits a composite between core registers and the
+	// stack only while no argument has been placed on the stack yet (NSAA ==
+	// SP). Once a VFP argument has spilled, a composite that does not fit in
+	// the remaining core registers goes wholly on the stack (Rules C.6-C.8),
+	// and later core-register arguments follow it on the stack.
+	floats := func(n int, typ string) []string {
+		return slices.Repeat([]string{typ}, n)
+	}
+	c5Types := map[string]BindingType{
+		"Big32":     typeMap["Big32"],
+		"Pair8":     typeMap["Pair8"],
+		"Align8x24": {Name: "Align8x24", Def: "struct {\n\ta int64\n\tb int64\n\tc int64\n}", Size: 24, Align: 8},
+		"Align8x16": {Name: "Align8x16", Def: "struct {\n\ta int64\n\tb int64\n}", Size: 16, Align: 8},
+	}
+	for _, tc := range []struct {
+		name      string
+		params    []string
+		idx       int // index of the composite
+		regs      []string
+		stackOff  int64
+		nextOff   int64 // stack offset of the int32 after the composite, or -1
+		nextIsReg bool
+	}{
+		// The 9th float64 spills to 0(SP), so Big32 cannot split.
+		{"Float64Spill_Big32", append(floats(9, "float64"), "Big32", "int32"), 9, nil, 8, 40, false},
+		// The 17th float32 spills to 0(SP); the 8-byte-aligned composite
+		// goes wholly on the stack at the next 8-byte boundary.
+		{"Float32Spill_Align8x24", append(floats(17, "float32"), "Align8x24", "int32"), 17, nil, 8, 32, false},
+		// A composite that fits in core registers still uses them (Rule C.4).
+		{"Float64Spill_Pair8", append(floats(9, "float64"), "Pair8"), 9, []string{"R0", "R1"}, 0, -1, false},
+		// Rule C.3 rounds the NCRN up to R4, so the composite goes wholly on the stack.
+		{"Int32x3_Align8x16", []string{"int32", "int32", "int32", "Align8x16"}, 3, nil, 0, -1, false},
+	} {
+		lay := armCfg.layout(BindingFunc{Name: "C5", Params: tc.params}, c5Types)
+		p := lay.Params[tc.idx]
+		if !slices.Equal(p.Regs, tc.regs) || p.StackBytes != 0 || (tc.regs == nil && p.StackOff != tc.stackOff) {
+			t.Errorf("ARM32 %s: composite = %+v, want Regs=%v StackBytes=0 StackOff=%d", tc.name, p, tc.regs, tc.stackOff)
+		}
+		if tc.nextOff >= 0 {
+			if next := lay.Params[tc.idx+1]; len(next.Regs) != 0 || next.StackOff != tc.nextOff {
+				t.Errorf("ARM32 %s: following int32 = %+v, want on stack at %d", tc.name, next, tc.nextOff)
+			}
+		}
+	}
+}
+
+// TestARM32SoftFloat checks that the soft-float (softfp) ARM C ABI, which
+// passes and returns floating-point values in core registers, is used on
+// android/arm and openbsd/arm, and on other targets when GOARM selects
+// soft float (GOARM=5 or a ",softfloat" suffix).
+func TestARM32SoftFloat(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Double2": {Name: "Double2", Def: "struct {\n\ta float64\n\tb float64\n}", Size: 16, Align: 8},
+	}
+	fn := BindingFunc{Name: "SoftFP", CName: "softfp", Params: []string{"float32", "float64", "Double2"}, Ret: "Double2"}
+	for _, tc := range []struct {
+		goos, goarm string
+		soft        bool
+	}{
+		{"linux", "7", false},
+		{"linux", "6", false},
+		{"linux", "5", true},
+		{"linux", "7,softfloat", true},
+		{"linux", "5,hardfloat", false},
+		{"openbsd", "7", true},
+		{"android", "7", true},
+	} {
+		t.Run(tc.goos+"_"+tc.goarm, func(t *testing.T) {
+			t.Setenv("GOARM", tc.goarm)
+			cfg := getABI(tc.goos, "arm")
+			lay := cfg.layout(fn, typeMap)
+			var tramp, cb bytes.Buffer
+			cfg.writeTrampoline(&tramp, fn, typeMap)
+			cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbSoftFP", Params: fn.Params, Ret: "float64"}, typeMap)
+			if !tc.soft {
+				if !slices.Equal(lay.Params[0].Regs, []string{"S0"}) || !slices.Equal(lay.Params[1].Regs, []string{"F1"}) {
+					t.Errorf("%s/arm GOARM=%s: hard-float layout = %+v", tc.goos, tc.goarm, lay)
+				}
+				return
+			}
+			// The hidden sret pointer takes R0, the float32 R1, the
+			// float64 R2:R3, and the 8-byte-aligned Double2 the stack.
+			if !lay.Ret.Indirect ||
+				!slices.Equal(lay.Params[0].Regs, []string{"R1"}) || lay.Params[0].IsFloat ||
+				!slices.Equal(lay.Params[1].Regs, []string{"R2", "R3"}) || lay.Params[1].IsFloat ||
+				len(lay.Params[2].Regs) != 0 || lay.Params[2].StackOff != 0 {
+				t.Errorf("%s/arm GOARM=%s: soft-float layout = %+v", tc.goos, tc.goarm, lay)
+			}
+			for name, out := range map[string]string{"trampoline": tramp.String(), "callback": cb.String()} {
+				for _, op := range []string{"MOVF\t", "MOVD\t", "WORD\t"} {
+					if strings.Contains(out, op) {
+						t.Errorf("%s/arm GOARM=%s: soft-float %s uses VFP instruction %q:\n%s", tc.goos, tc.goarm, name, op, out)
+					}
+				}
+			}
+		})
+	}
+}
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
 	{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "arm64"},
 	{"linux", "386"}, {"windows", "386"},
+	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"},
 }
 
 // TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call
