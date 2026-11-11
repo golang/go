@@ -212,6 +212,56 @@ func SaturateIntToUint[xE Ints, W Width, zE Uints](x Vec[xE, W]) (z Vec[zE, W]) 
 	return map1[xE, W, zE, W](x, saturate[xE, zE])
 }
 
+// ConcatSaturateToZ converts each element of x and y to {{.zE}}, saturating
+// values that are outside the range of {{.zE}}, and returns the concatenated
+// result.
+//
+//	z = concat(sat(x[...]), sat(y[...]))
+//
+//specgen:name ConcatSaturateTo{{.zE | title}}
+//specgen:require zB=xB zN=xN/2
+func ConcatSaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	n := x.len()
+	for i := range n {
+		z[i] = saturate[xE, zE](x[i])
+		z[n+i] = saturate[xE, zE](y[i])
+	}
+	return z
+}
+
+// ConcatSaturateIntToUint converts each element of x and y to {{.zE}},
+// saturating values that are outside the range of {{.zE}}, and returns the
+// concatenated result. Negative values become 0.
+//
+//	z = concat(sat(x[...]), sat(y[...]))
+//
+//specgen:name ConcatSaturateTo{{.zE | title}}
+//specgen:require zN=xN/2
+func ConcatSaturateIntToUint[xE Ints, W Width, zE Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
+	// This is split from ConcatSaturateToZ for the same reason as
+	// SaturateIntToUint.
+	return ConcatSaturateToZ[xE, W, zE](x, y)
+}
+
+// ConcatSaturateToZGrouped divides x, y, and z into groups of 128 bits and
+// performs [ConcatSaturateTo{{.zE | title}}] on each group.
+//
+//specgen:name ConcatSaturateTo{{.zE | title}}Grouped
+//specgen:require zB=xB zN=xN/2
+func ConcatSaturateToZGrouped[xE Ints | Uints, W Width, zE Ints | Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
+	return grouped128(ConcatSaturateToZ[xE, Width128, zE], x, y)
+}
+
+// ConcatSaturateIntToUintGrouped divides x, y, and z into groups of 128 bits
+// and performs [ConcatSaturateTo{{.zE | title}}] on each group.
+//
+//specgen:name ConcatSaturateTo{{.zE | title}}Grouped
+//specgen:require zN=xN/2
+func ConcatSaturateIntToUintGrouped[xE Ints, W Width, zE Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
+	return grouped128(ConcatSaturateIntToUint[xE, Width128, zE], x, y)
+}
+
 // ExtendLo* and ConvertLo* on 128-bit vectors are superseded by ExtendTo* and
 // ConvertTo*, which have the same meaning there, work for scalable vectors, and
 // don't put a lane count in the name. The APIs remain as deprecated wrappers,

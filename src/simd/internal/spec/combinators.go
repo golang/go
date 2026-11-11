@@ -28,11 +28,15 @@ func map2[From any, FromW Width, To any, ToW Width](x, y Vec[From, FromW], f fun
 	return z
 }
 
-func grouped128[E1, E2 any, W Width](f func(x Vec[E1, Width128], y Vec[E2, Width128]) Vec[E1, Width128], x Vec[E1, W], y Vec[E2, W]) (z Vec[E1, W]) {
-	z = makeVec[E1, W]()
-	groupLanes := lanes[E1, Width128]()
-	for base := 0; base < len(z); base += groupLanes {
-		copy(z[base:], f(Vec[E1, Width128](x[base:][:groupLanes]), Vec[E2, Width128](y[base:][:groupLanes])))
+// grouped128 divides x, y, and z into groups of 128 bits and returns the vector
+// whose n'th group is f applied to the n'th groups of x and y.
+func grouped128[E1, E2, E3 any, W Width](f func(x Vec[E1, Width128], y Vec[E2, Width128]) Vec[E3, Width128], x Vec[E1, W], y Vec[E2, W]) (z Vec[E3, W]) {
+	z = makeVec[E3, W]()
+	xLanes, yLanes, zLanes := lanes[E1, Width128](), lanes[E2, Width128](), lanes[E3, Width128]()
+	for g := range len(z) / zLanes {
+		xg := Vec[E1, Width128](x[g*xLanes:][:xLanes])
+		yg := Vec[E2, Width128](y[g*yLanes:][:yLanes])
+		copy(z[g*zLanes:], f(xg, yg))
 	}
 	return z
 }
