@@ -418,6 +418,7 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
 // another n elements. After Grow(n), at least n elements can be appended
 // to the slice without another allocation. If n is negative or too large to
 // allocate the memory, Grow panics.
+// The elements between the original capacity and the new capacity are zeroed.
 // The result preserves the nilness of s.
 func Grow[S ~[]E, E any](s S, n int) S {
 	if n < 0 {
