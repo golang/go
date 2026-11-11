@@ -92,7 +92,8 @@ func Max() UUID {
 //
 // It uses the lowercase hex-and-dash representation defined in RFC 9562.
 func (u UUID) String() string {
-	b, _ := u.MarshalText()
+	var buf [36]byte
+	b, _ := u.AppendText(buf[:0])
 	return string(b)
 }
 
