@@ -1334,8 +1334,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			// ignore
 			continue
 
-		case AV128Const:
-			writeOpcode(w, AV128Const)
+		case AV128Const, AI8x16Shuffle16:
+			writeOpcode(w, p.As)
 			// Despite what the spec implies, this is the format of a 128-bit constant.
 			writeLE64(w, p.From.Offset)
 			writeLE64(w, p.To.Offset)

@@ -208,8 +208,9 @@ const (
 	IsCommutative
 	IsConversion  // "Wasm type" is result type, "Go method type" is input time
 	NameHasFormat //
-	NonSigned     // Same bitwise operation whether signed or unsigned.  E.g. 2's complement addition.
-	EmulatedRule  // Emulation occurs at rule expansion.
+	NonSigned      // Same bitwise operation whether signed or unsigned.  E.g. 2's complement addition.
+	EmulatedRule   // Emulation occurs at rule expansion.
+	IsSynthShuffle // Synthesized operation implemented via i8x16.shuffle
 )
 
 func (o OpFlags) OneString() string {
@@ -242,6 +243,8 @@ func (o OpFlags) OneString() string {
 		return "NonSigned"
 	case EmulatedRule:
 		return "RmulatedRule"
+	case IsSynthShuffle:
+		return "IsSynthShuffle"
 	}
 	return fmt.Sprintf("0x%x", o)
 }
@@ -261,6 +264,7 @@ var allFlags = []OpFlags{
 	NameHasFormat,
 	NonSigned,
 	EmulatedRule,
+	IsSynthShuffle,
 }
 
 func (o OpFlags) String() string {
@@ -611,8 +615,48 @@ func (o *wasmOp) ArgType() string {
 
 // I8x16Sub -- no need to prefix the "A", that is handled by the SSA rules generator
 func (o *wasmOp) AsmOp() string {
+	if o.Flag(IsSynthShuffle) {
+		return "I8x16Shuffle16"
+	}
 	r := o.SsaWasmOp()
 	return r
+}
+
+// ShuffleImm computes the two 64-bit little-endian lane index immediates
+// (From, To) for an IsSynthShuffle operation implemented by i8x16.shuffle.
+func (o *wasmOp) ShuffleImm() (from, to uint64) {
+	elemBytes := o.T().ElemSize / 8
+	count := o.T().Count
+	half := count / 2
+	for k := range count {
+		var srcVec, srcElem int
+		switch o.Method() {
+		case "InterleaveLo":
+			srcVec = k % 2
+			srcElem = k / 2
+		case "InterleaveHi":
+			srcVec = k % 2
+			srcElem = half + k/2
+		case "ConcatEven":
+			srcVec = k / half
+			srcElem = 2 * (k % half)
+		case "ConcatOdd":
+			srcVec = k / half
+			srcElem = 2*(k%half) + 1
+		default:
+			panic("unexpected shuffle op: " + o.String())
+		}
+		for b := range elemBytes {
+			outByte := k*elemBytes + b
+			inByte := uint64(srcVec*16 + srcElem*elemBytes + b)
+			if outByte < 8 {
+				from |= inByte << (outByte * 8)
+			} else {
+				to |= inByte << ((outByte - 8) * 8)
+			}
+		}
+	}
+	return from, to
 }
 
 var (
@@ -722,7 +766,8 @@ var (
 	// has an immediate operand, and an element type operand
 	n_x = []string{"replace_lane"}
 
-	rotates = []string{"RotateAllLeft", "RotateAllRight"}
+	rotates  = []string{"RotateAllLeft", "RotateAllRight"}
+	shuffles = []string{"InterleaveLo", "InterleaveHi", "ConcatEven", "ConcatOdd"}
 
 	// N1xM1.narrow_N2xM2_{s,u}
 	// N1xM1 is the result type.  There are two N2xM2 inputs, where N1 = N2/2 and M1 = M2*2
@@ -1059,6 +1104,14 @@ func initWasmOps() {
 	addWasmOpsDetail([]*simdType{vi16}, s16_q2, 2, mulHalf)
 
 	addWasmOpsDetail(unsigned, rotates, 2, rotate)
+
+	synthShuffle := func(s string, t *simdType) OpFlags {
+		if t.IntShaped != nil {
+			return IsSynthShuffle | NonSigned
+		}
+		return IsSynthShuffle
+	}
+	addWasmOps(ints, shuffles, 2, synthShuffle)
 
 	slices.SortFunc(wasmOps, compareWasmOps)
 
@@ -1710,6 +1763,7 @@ func genWasmSSA(f *bytes.Buffer) {
 
 		V
 		VV
+		SHUFFLE
 		V32
 		VVV
 		OP
@@ -1764,6 +1818,9 @@ func genWasmSSA(f *bytes.Buffer) {
 				}
 				return V
 			case 2:
+				if op.Flag(IsSynthShuffle) {
+					return SHUFFLE
+				}
 				if c := op.ArgType()[0]; c == 'i' || c == 'u' {
 					return V32
 				} else {
@@ -1883,6 +1940,15 @@ func genWasmSSA(f *bytes.Buffer) {
 		getValue128(s, v.Args[1])
 		s.Prog(v.Op.Asm())
 `)
+			case SHUFFLE:
+				fmt.Fprintf(f,
+					`		getValue128(s, v.Args[0])
+		getValue128(s, v.Args[1])
+		p := s.Prog(v.Op.Asm())
+		imm := shuffleByOp[v.Op]
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm[0]}
+		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: imm[1]}
+`)
 			case V32:
 				// shifts, 32-bit operand
 				fmt.Fprintf(f,
@@ -1909,6 +1975,16 @@ func genWasmSSA(f *bytes.Buffer) {
 	}
 	return true
 }`)
+				fmt.Fprintln(f)
+				fmt.Fprintln(f, "var shuffleByOp = map[ssaop.Op][2]int64{")
+				for _, cop := range ssagenWasmOps {
+					if cop.class != SHUFFLE {
+						continue
+					}
+					from, to := cop.op.ShuffleImm()
+					fmt.Fprintf(f, "\tssaop.OpWasm%s: {0x%016x, 0x%016x},\n", cop.op.SsaWasmOp(), from, to)
+				}
+				fmt.Fprintln(f, "}")
 				return
 			}
 			// Otherwise begin the next case

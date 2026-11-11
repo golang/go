@@ -224,6 +224,30 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpCom64(v)
 	case ssaop.OpCom8:
 		return rewriteValue_OpCom8(v)
+	case ssaop.OpConcatEvenInt16x8:
+		v.Op = ssaop.OpWasmI16x8ConcatEven
+		return true
+	case ssaop.OpConcatEvenInt32x4:
+		v.Op = ssaop.OpWasmI32x4ConcatEven
+		return true
+	case ssaop.OpConcatEvenInt64x2:
+		v.Op = ssaop.OpWasmI64x2ConcatEven
+		return true
+	case ssaop.OpConcatEvenInt8x16:
+		v.Op = ssaop.OpWasmI8x16ConcatEven
+		return true
+	case ssaop.OpConcatOddInt16x8:
+		v.Op = ssaop.OpWasmI16x8ConcatOdd
+		return true
+	case ssaop.OpConcatOddInt32x4:
+		v.Op = ssaop.OpWasmI32x4ConcatOdd
+		return true
+	case ssaop.OpConcatOddInt64x2:
+		v.Op = ssaop.OpWasmI64x2ConcatOdd
+		return true
+	case ssaop.OpConcatOddInt8x16:
+		v.Op = ssaop.OpWasmI8x16ConcatOdd
+		return true
 	case ssaop.OpCondSelect:
 		v.Op = ssaop.OpWasmSelect
 		return true
@@ -575,6 +599,30 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpInterCall:
 		v.Op = ssaop.OpWasmLoweredInterCall
+		return true
+	case ssaop.OpInterleaveHiInt16x8:
+		v.Op = ssaop.OpWasmI16x8InterleaveHi
+		return true
+	case ssaop.OpInterleaveHiInt32x4:
+		v.Op = ssaop.OpWasmI32x4InterleaveHi
+		return true
+	case ssaop.OpInterleaveHiInt64x2:
+		v.Op = ssaop.OpWasmI64x2InterleaveHi
+		return true
+	case ssaop.OpInterleaveHiInt8x16:
+		v.Op = ssaop.OpWasmI8x16InterleaveHi
+		return true
+	case ssaop.OpInterleaveLoInt16x8:
+		v.Op = ssaop.OpWasmI16x8InterleaveLo
+		return true
+	case ssaop.OpInterleaveLoInt32x4:
+		v.Op = ssaop.OpWasmI32x4InterleaveLo
+		return true
+	case ssaop.OpInterleaveLoInt64x2:
+		v.Op = ssaop.OpWasmI64x2InterleaveLo
+		return true
+	case ssaop.OpInterleaveLoInt8x16:
+		v.Op = ssaop.OpWasmI8x16InterleaveLo
 		return true
 	case ssaop.OpIsInBounds:
 		return rewriteValue_OpIsInBounds(v)

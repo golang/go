@@ -121,6 +121,18 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		s.Prog(v.Op.Asm())
+	case ssaop.OpWasmI8x16ConcatEven, ssaop.OpWasmI16x8ConcatEven, ssaop.OpWasmI32x4ConcatEven,
+		ssaop.OpWasmI64x2ConcatEven, ssaop.OpWasmI8x16ConcatOdd, ssaop.OpWasmI16x8ConcatOdd,
+		ssaop.OpWasmI32x4ConcatOdd, ssaop.OpWasmI64x2ConcatOdd, ssaop.OpWasmI8x16InterleaveHi,
+		ssaop.OpWasmI16x8InterleaveHi, ssaop.OpWasmI32x4InterleaveHi, ssaop.OpWasmI64x2InterleaveHi,
+		ssaop.OpWasmI8x16InterleaveLo, ssaop.OpWasmI16x8InterleaveLo, ssaop.OpWasmI32x4InterleaveLo,
+		ssaop.OpWasmI64x2InterleaveLo:
+		getValue128(s, v.Args[0])
+		getValue128(s, v.Args[1])
+		p := s.Prog(v.Op.Asm())
+		imm := shuffleByOp[v.Op]
+		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: imm[0]}
+		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: imm[1]}
 	case ssaop.OpWasmI8x16Shl, ssaop.OpWasmI16x8Shl, ssaop.OpWasmI32x4Shl,
 		ssaop.OpWasmI64x2Shl, ssaop.OpWasmI8x16ShrS, ssaop.OpWasmI8x16ShrU,
 		ssaop.OpWasmI16x8ShrS, ssaop.OpWasmI16x8ShrU, ssaop.OpWasmI32x4ShrS,
@@ -138,4 +150,23 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		return false
 	}
 	return true
+}
+
+var shuffleByOp = map[ssaop.Op][2]int64{
+	ssaop.OpWasmI8x16ConcatEven:   {0x0e0c0a0806040200, 0x1e1c1a1816141210},
+	ssaop.OpWasmI16x8ConcatEven:   {0x0d0c090805040100, 0x1d1c191815141110},
+	ssaop.OpWasmI32x4ConcatEven:   {0x0b0a090803020100, 0x1b1a191813121110},
+	ssaop.OpWasmI64x2ConcatEven:   {0x0706050403020100, 0x1716151413121110},
+	ssaop.OpWasmI8x16ConcatOdd:    {0x0f0d0b0907050301, 0x1f1d1b1917151311},
+	ssaop.OpWasmI16x8ConcatOdd:    {0x0f0e0b0a07060302, 0x1f1e1b1a17161312},
+	ssaop.OpWasmI32x4ConcatOdd:    {0x0f0e0d0c07060504, 0x1f1e1d1c17161514},
+	ssaop.OpWasmI64x2ConcatOdd:    {0x0f0e0d0c0b0a0908, 0x1f1e1d1c1b1a1918},
+	ssaop.OpWasmI8x16InterleaveHi: {0x1b0b1a0a19091808, 0x1f0f1e0e1d0d1c0c},
+	ssaop.OpWasmI16x8InterleaveHi: {0x1b1a0b0a19180908, 0x1f1e0f0e1d1c0d0c},
+	ssaop.OpWasmI32x4InterleaveHi: {0x1b1a19180b0a0908, 0x1f1e1d1c0f0e0d0c},
+	ssaop.OpWasmI64x2InterleaveHi: {0x0f0e0d0c0b0a0908, 0x1f1e1d1c1b1a1918},
+	ssaop.OpWasmI8x16InterleaveLo: {0x1303120211011000, 0x1707160615051404},
+	ssaop.OpWasmI16x8InterleaveLo: {0x1312030211100100, 0x1716070615140504},
+	ssaop.OpWasmI32x4InterleaveLo: {0x1312111003020100, 0x1716151407060504},
+	ssaop.OpWasmI64x2InterleaveLo: {0x0706050403020100, 0x1716151413121110},
 }
