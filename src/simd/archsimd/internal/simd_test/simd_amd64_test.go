@@ -1914,3 +1914,39 @@ func testEnlarge512(t *testing.T) {
 		checkSlices(t, got[:], want)
 	}
 }
+
+// TestEnlargeExtendTo checks that x.Enlarge().ExtendTo*() computes the same
+// thing as the widening ExtendLo* conversions it replaces. The compiler lowers
+// both to the same instruction.
+func TestEnlargeExtendTo(t *testing.T) {
+	if !archsimd.X86.AVX2() {
+		t.Skip("Test requires X86.AVX2, not available on this hardware")
+		return
+	}
+	i8 := archsimd.LoadInt8x16([]int8{-128, -1, 0, 1, 127, -2, 2, -100, 100, 3, -3, 4, -4, 5, -5, 6})
+	u8 := archsimd.LoadUint8x16([]uint8{255, 0, 1, 128, 127, 2, 254, 3, 100, 200, 4, 5, 6, 7, 8, 9})
+	i16 := archsimd.LoadInt16x8([]int16{-32768, -1, 0, 1, 32767, -2, 2, 3})
+	u16 := archsimd.LoadUint16x8([]uint16{65535, 0, 1, 32768, 32767, 2, 3, 4})
+
+	check := func(t *testing.T, name string, got, want interface{ String() string }) {
+		t.Helper()
+		if got.String() != want.String() {
+			t.Errorf("%s: got %s, want %s", name, got, want)
+		}
+	}
+	check(t, "Int8x16 to Int32", i8.Enlarge().ExtendToInt32(), i8.ExtendLo8ToInt32())
+	check(t, "Uint8x16 to Uint32", u8.Enlarge().ExtendToUint32(), u8.ExtendLo8ToUint32())
+	check(t, "Int8x16 to Int64", i8.Enlarge().ExtendToInt64(), i8.ExtendLo4ToInt64())
+	check(t, "Uint8x16 to Uint64", u8.Enlarge().ExtendToUint64(), u8.ExtendLo4ToUint64())
+	check(t, "Int16x8 to Int64", i16.Enlarge().ExtendToInt64(), i16.ExtendLo4ToInt64())
+	check(t, "Uint16x8 to Uint64", u16.Enlarge().ExtendToUint64(), u16.ExtendLo4ToUint64())
+
+	t.Run("512", func(t *testing.T) {
+		if !archsimd.X86.AVX512() {
+			t.Skip("Test requires X86.AVX512, not available on this hardware")
+			return
+		}
+		check(t, "Int8x16 to Int64x8", i8.Enlarge().Enlarge().ExtendToInt64(), i8.ExtendLo8ToInt64())
+		check(t, "Uint8x16 to Uint64x8", u8.Enlarge().Enlarge().ExtendToUint64(), u8.ExtendLo8ToUint64())
+	})
+}

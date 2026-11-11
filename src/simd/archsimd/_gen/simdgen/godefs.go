@@ -776,6 +776,9 @@ func writeGoDefs(cl unify.Closure) error {
 	writeSIMDMachineOps(files.NewGoFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+"ops.go"), deduped)
 	writeSIMDSSA(files.NewGoFile("cmd/compile/internal/"+archLower+"/"+archInfo.ssaGenFile()), deduped)
 	writeSIMDRules(files.NewRawFile("cmd/compile/internal/ssa/_gen/simd"+simdTag+".rules"), deduped)
+	if buf := writeSIMDEnlargeTables(deduped); buf != nil {
+		files.NewGoFile("cmd/compile/internal/ssacompile/simd" + simdTag + "enlarge_gen.go").Write(buf.Bytes())
+	}
 
 	return nil
 }
