@@ -145,7 +145,7 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 
 func openat(dirfd syscall.Handle, name string, flag uint64, perm FileMode) (syscall.Handle, error) {
 	h, err := windows.Openat(dirfd, name, flag|syscall.O_CLOEXEC|windows.O_NOFOLLOW_ANY, syscallMode(perm))
-	if err == syscall.ELOOP || err == syscall.ENOTDIR {
+	if flag&windows.O_FILE_FLAG_OPEN_REPARSE_POINT == 0 && (err == syscall.ELOOP || err == syscall.ENOTDIR) {
 		if link, err := readReparseLinkAt(dirfd, name); err == nil {
 			return syscall.InvalidHandle, errSymlink(link)
 		}

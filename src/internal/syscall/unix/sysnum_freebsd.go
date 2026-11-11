@@ -4,4 +4,8 @@
 
 package unix
 
-const copyFileRangeTrap uintptr = 569
+const (
+	copyFileRangeTrap uintptr = 569
+
+	O_RESOLVE_BENEATH = 0x00800000
+)

@@ -11,6 +11,8 @@ var ErrWriteAtInAppendMode = errWriteAtInAppendMode
 var ErrPatternHasSeparator = errPatternHasSeparator
 var ErrPathEscapes = errPathEscapes
 
+var ExportRootUnsupportedOpenFlags = rootUnsupportedOpenFlags
+
 func init() {
 	checkWrapErr = true
 }

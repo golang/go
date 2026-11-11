@@ -20,6 +20,7 @@ import (
 )
 
 func init() {
+	openNoFollowFlag = syscall.FILE_FLAG_OPEN_REPARSE_POINT
 	createJunction = func(t *testing.T, link, target string) {
 		if !filepath.IsAbs(target) {
 			target = filepath.Dir(link) + `\` + target

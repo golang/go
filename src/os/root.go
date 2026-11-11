@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"runtime"
 	"slices"
+	"syscall"
 	"time"
 )
 
@@ -114,9 +115,15 @@ func (r *Root) Create(name string) (*File, error) {
 //
 // If perm contains bits other than the nine least-significant bits (0o777),
 // OpenFile returns an error.
+//
+// OpenFile does not support the O_NOFOLLOW_ANY and O_RESOLVE_BENEATH flags.
+// It returns an error if either is passed on platforms which define them.
 func (r *Root) OpenFile(name string, flag int, perm FileMode) (*File, error) {
 	if perm&0o777 != perm {
 		return nil, &PathError{Op: "openat", Path: name, Err: errors.New("unsupported file mode")}
+	}
+	if flag&rootUnsupportedOpenFlags != 0 {
+		return nil, &PathError{Op: "openat", Path: name, Err: syscall.EINVAL}
 	}
 	r.logOpen(name)
 	rf, err := rootOpenFileNolog(r, name, flag, perm)

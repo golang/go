@@ -20,6 +20,7 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -1730,6 +1731,25 @@ func TestRootNonPermissionMode(t *testing.T) {
 	}
 	if err := r.Mkdir("file", 0o1777); err == nil {
 		t.Errorf("r.Mkdir(file, 0o1777) succeeded; want error")
+	}
+}
+
+func TestRootOpenFileUnsupportedFlags(t *testing.T) {
+	dir := makefs(t, []string{
+		"file",
+	})
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	all := os.ExportRootUnsupportedOpenFlags
+	for all != 0 {
+		flags := all & -all // next flag bit in all
+		all ^= flags
+		if _, err := root.OpenFile("file", os.O_RDONLY|flags, 0); !errors.Is(err, syscall.EINVAL) {
+			t.Errorf("r.OpenFile(file, O_RDONLY|0x%x, 0) = %v, want EINVAL", flags, err)
+		}
 	}
 }
 
@@ -3562,6 +3582,81 @@ func TestRootMultiOpenFile(t *testing.T) {
 			test.wantError(t, gotErr, nil)
 			if want := "target"; got != want {
 				t.Fatalf("opened file %q, want %q", got, want)
+			}
+		}
+
+		return got, gotErr
+	})
+}
+
+var openNoFollowFlag int
+
+func TestRootMultiOpenFileNoFollow(t *testing.T) {
+	if openNoFollowFlag == 0 {
+		t.Skip("no O_NOFOLLOW equivalent on " + runtime.GOOS)
+	}
+	runRootMultiTest(t, func(t *testing.T, test *rootMultiTest) (string, error) {
+		var openFile = os.OpenFile
+		if test.root != nil {
+			openFile = test.root.OpenFile
+		}
+
+		test.setOp("OpenFile(%q, O_RDONLY|O_NOFOLLOW, 0)", test.targetPath)
+		f, gotErr := openFile(test.targetPath, os.O_RDONLY|openNoFollowFlag, 0)
+		if gotErr == nil {
+			defer f.Close()
+		}
+
+		var (
+			got     string
+			gotMode fs.FileMode
+			gotFile string
+		)
+		if f != nil {
+			fi, err := f.Stat()
+			if err != nil {
+				t.Fatal(err)
+			}
+			gotMode = fi.Mode().Type()
+			gotFile = test.describeFile(t, f)
+			got = gotMode.String() + " " + gotFile
+		}
+
+		escapes := test.target.lescapes()
+		finalKind := test.target.lfinalKind()
+		if runtime.GOOS == "windows" && test.target.ref.hasSlashSuffix() && test.target.kind == testFileJunction {
+			// A Windows junction always has FILE_ATTRIBUTE_DIRECTORY,
+			// so opening it with a trailing slash and FILE_FLAG_OPEN_REPARSE_POINT
+			// succeeds and opens the junction itself.
+			finalKind = testFileJunction
+		}
+
+		switch {
+		case test.root != nil && escapes:
+			test.wantError(t, gotErr, os.ErrPathEscapes)
+		case finalKind == testFileSymlink:
+			if runtime.GOOS == "windows" {
+				test.wantError(t, gotErr, nil)
+				if got, want := gotMode, fs.ModeSymlink; got != want {
+					test.errorf(t, "opened file type %v, want %v", got, want)
+				}
+			} else {
+				test.wantError(t, gotErr, errAny)
+			}
+		case finalKind == testFileJunction:
+			test.wantError(t, gotErr, nil)
+			if got, want := gotMode, fs.ModeIrregular; got != want {
+				test.errorf(t, "opened file type %v, want %v", got, want)
+			}
+		case test.target.isError():
+			test.wantError(t, gotErr, errAny)
+		case finalKind == testFileAbsent:
+			test.wantError(t, gotErr, errAny)
+		case test.target.anySlashSuffix():
+		default:
+			test.wantError(t, gotErr, nil)
+			if got, want := gotFile, "target"; got != want {
+				test.errorf(t, "opened file %q, want %q", got, want)
 			}
 		}
 

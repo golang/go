@@ -85,15 +85,17 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
 			openFlag := syscall.O_NOFOLLOW | syscall.O_CLOEXEC | flag
 			fd, err = unix.Openat(parent, name, openFlag, uint32(perm))
 			if err != nil {
-				// Never follow symlinks when O_CREATE|O_EXCL, no matter
-				// what error the OS returns.
+				// Never follow symlinks when O_CREATE|O_EXCL or O_NOFOLLOW,
+				// no matter what error the OS returns.
 				isCreateExcl := flag&(O_CREATE|O_EXCL) == (O_CREATE | O_EXCL)
-				if !isCreateExcl && (isNoFollowErr(err) || err == syscall.ENOTDIR) {
+				isNoFollow := flag&syscall.O_NOFOLLOW != 0
+				if !isCreateExcl && !isNoFollow && (isNoFollowErr(err) || err == syscall.ENOTDIR) {
 					err = checkSymlink(parent, name, err)
 				}
-				// AIX returns ELOOP instead of EEXIST for a dangling symlink.
-				// Convert this to EEXIST so it matches ErrExists.
-				if isCreateExcl && err == syscall.ELOOP {
+				// AIX returns ELOOP instead of EEXIST for a dangling symlink
+				// when O_NOFOLLOW is added to O_CREATE|O_EXCL.
+				// Convert this to EEXIST so it matches ErrExist.
+				if !isNoFollow && isCreateExcl && err == syscall.ELOOP {
 					err = syscall.EEXIST
 				}
 			}
