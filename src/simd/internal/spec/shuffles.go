@@ -86,13 +86,6 @@ func LookupModOrZero[E Elt, W Width, E2 Ints](x Vec[E, W], indices Vec[E2, W]) (
 // LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
 // performs [LookupModOrZero] on each group.
 //
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
 //specgen:require indices=Int{xN}x{xL}
 func LookupModOrZeroGrouped[E Elt, W Width, E2 Ints](x Vec[E, W], indices Vec[E2, W]) (z Vec[E, W]) {
 	return grouped128(LookupModOrZero[E, Width128, E2], x, indices)

@@ -5181,25 +5181,11 @@ func (x Uint8x16) LookupModOrZero(indices Int8x16) (z Uint8x16)
 // LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
 // performs [LookupModOrZero] on each group.
 //
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
 // Asm: VPSHUFB, CPU Feature: AVX2
 func (x Int8x32) LookupModOrZeroGrouped(indices Int8x32) (z Int8x32)
 
 // LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
 // performs [LookupModOrZero] on each group.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
 func (x Int8x64) LookupModOrZeroGrouped(indices Int8x64) (z Int8x64)
@@ -5207,25 +5193,11 @@ func (x Int8x64) LookupModOrZeroGrouped(indices Int8x64) (z Int8x64)
 // LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
 // performs [LookupModOrZero] on each group.
 //
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
-//
 // Asm: VPSHUFB, CPU Feature: AVX2
 func (x Uint8x32) LookupModOrZeroGrouped(indices Int8x32) (z Uint8x32)
 
 // LookupModOrZeroGrouped divides x, indices, and z into groups of 128 bits and
 // performs [LookupModOrZero] on each group.
-//
-//	let vₙ be the n'th 128-bit group of vector v
-//	if indicesₙ[i] >= 0 {
-//	    zₙ[i] = xₙ[indicesₙ[i] % len(xₙ)]
-//	} else {
-//	    zₙ[i] = 0
-//	}
 //
 // Asm: VPSHUFB, CPU Feature: AVX512
 func (x Uint8x64) LookupModOrZeroGrouped(indices Int8x64) (z Uint8x64)
