@@ -2267,6 +2267,12 @@ func writeFile(t *testing.T, r *Root, fname string, flag int, text string) strin
 }
 
 func TestAppend(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		// A bug in the Linux kernel of the builder container image breaks
+		// Wasmtime's O_APPEND writes.
+		// TODO(go.dev/issue/82862): remove when the infrastructure is upgraded.
+		t.Skip("skipping on wasip1; see go.dev/issue/82862")
+	}
 	testMaybeRooted(t, func(t *testing.T, r *Root) {
 		const f = "append.txt"
 		s := writeFile(t, r, f, O_CREATE|O_TRUNC|O_RDWR, "new")
@@ -4034,6 +4040,12 @@ func TestCopyFSWithSymlinks(t *testing.T) {
 }
 
 func TestAppendDoesntOverwrite(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		// A bug in the Linux kernel of the builder container image breaks
+		// Wasmtime's O_APPEND writes.
+		// TODO(go.dev/issue/82862): remove when the infrastructure is upgraded.
+		t.Skip("skipping on wasip1; see go.dev/issue/82862")
+	}
 	testMaybeRooted(t, func(t *testing.T, r *Root) {
 		name := "file"
 		if err := WriteFile(name, []byte("hello"), 0666); err != nil {

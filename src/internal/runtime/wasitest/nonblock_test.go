@@ -40,6 +40,11 @@ func TestNonblock(t *testing.T) {
 	switch os.Getenv("GOWASIRUNTIME") {
 	case "wasmer":
 		t.Skip("wasmer does not support non-blocking I/O")
+	case "wasmtime", "":
+		// A bug in the Linux kernel of the builder container image breaks
+		// Wasmtime's FIFO reads.
+		// TODO(go.dev/issue/82862): remove when the infrastructure is upgraded.
+		t.Skip("skipping on wasmtime; see go.dev/issue/82862")
 	}
 
 	testenv.MustHaveGoRun(t)

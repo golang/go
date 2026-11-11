@@ -372,6 +372,12 @@ func TestSplitPath(t *testing.T) {
 //
 // Regression test for go.dev/issue/60181
 func TestIssue60181(t *testing.T) {
+	if runtime.GOOS == "wasip1" {
+		// A bug in the Linux kernel of the builder container image breaks
+		// Wasmtime's O_APPEND writes.
+		// TODO(go.dev/issue/82862): remove when the infrastructure is upgraded.
+		t.Skip("skipping on wasip1; see go.dev/issue/82862")
+	}
 	t.Chdir(t.TempDir())
 
 	want := "hello gopher"
