@@ -129,7 +129,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named) 
 				// index of t in nest. Search again.
 				for start, p := range path {
 					if Identical(p, t) {
-						check.cycleError(makeObjList(path[start:]), 0)
+						check.cycleError(makeObjList(path[start:]), false) // TODO(gri) should last argument be true?
 						return false
 					}
 				}

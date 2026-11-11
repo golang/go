@@ -246,12 +246,14 @@ loop:
 		return true
 	}
 
-	check.cycleError(cycle, firstInSrc(cycle))
+	check.cycleError(cycle, true)
 	return false
 }
 
-// cycleError reports a declaration cycle starting with the object at cycle[start].
-func (check *Checker) cycleError(cycle []Object, start int) {
+// cycleError reports a declaration cycle; cycle must not be empty.
+// If firstInSrc is set, the reported cycle starts with the object
+// with the "smallest" source position; otherwise it starts with cycle[0].
+func (check *Checker) cycleError(cycle []Object, firstInSrc bool) {
 	// name returns the (possibly qualified) object name.
 	// This is needed because with generic types, cycles
 	// may refer to imported types. See go.dev/issue/50788.
@@ -262,6 +264,17 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 			return TypeString(n, check.qualifier)
 		}
 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+	}
+
+	// Determine start index.
+	start := 0
+	if firstInSrc {
+		pos := cycle[0].Pos()
+		for i, t := range cycle[1:] {
+			if cmpPos(t.Pos(), pos) < 0 {
+				start, pos = i+1, t.Pos()
+			}
+		}
 	}
 
 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
@@ -296,18 +309,6 @@ func (check *Checker) cycleError(cycle []Object, start int) {
 		obj = next
 	}
 	err.report()
-}
-
-// firstInSrc reports the index of the object with the "smallest"
-// source position in path. path must not be empty.
-func firstInSrc(path []Object) int {
-	fst, pos := 0, path[0].Pos()
-	for i, t := range path[1:] {
-		if cmpPos(t.Pos(), pos) < 0 {
-			fst, pos = i+1, t.Pos()
-		}
-	}
-	return fst
 }
 
 type (

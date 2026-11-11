@@ -64,7 +64,7 @@ func (check *Checker) directCycle(tname *TypeName, pathIdx map[*TypeName]int) {
 				cycle = append(cycle, tname)
 			}
 
-			check.cycleError(cycle, firstInSrc(cycle))
+			check.cycleError(cycle, true)
 			break
 		}
 
@@ -132,7 +132,7 @@ func (check *Checker) isComplete(t Type) bool {
 
 	if i, found := check.objPathIdx[obj]; found {
 		cycle := check.objPath[i:]
-		check.cycleError(cycle, firstInSrc(cycle))
+		check.cycleError(cycle, true)
 		return false
 	}
 

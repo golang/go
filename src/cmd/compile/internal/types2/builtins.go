@@ -1258,7 +1258,7 @@ func (check *Checker) hasVarSize(t Type) bool {
 
 		if i, ok := check.objPathIdx[t.obj]; ok {
 			cycle := check.objPath[i:]
-			check.cycleError(cycle, firstInSrc(cycle))
+			check.cycleError(cycle, true)
 			return true
 		}
 
