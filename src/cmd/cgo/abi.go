@@ -116,29 +116,30 @@ type regSlot struct {
 	signed  bool
 }
 
-// asmOps defines the assembly mnemonics and format templates for
-// an architecture's load, store, arithmetic, and stack-pointer operations.
-// All fields must be populated.
+// asmOps defines the assembly mnemonics for an architecture's load, store,
+// shift, arithmetic, and stack-pointer operations.
 type asmOps struct {
-	mov    string // Pointer-sized integer load/store/reg-move (e.g. "MOVQ", "MOVD")
-	loadB  string // Signed 1-byte load
-	loadBU string // Unsigned 1-byte load
-	loadH  string // Signed 2-byte load
-	loadHU string // Unsigned 2-byte load
-	loadW  string // Signed 4-byte load
-	loadWU string // Unsigned 4-byte load
-	storeB string // 1-byte store
-	storeH string // 2-byte store
-	storeW string // 4-byte store
-	fmovS  string // 32-bit float load/store
-	fmovD  string // 64-bit float load/store
-	shl    string // Format for in-place left shift; args: (bits, reg)
-	shr    string // Format for in-place logical right shift; args: (bits, reg)
-	or     string // Format for bitwise OR dst |= src; args: (src, dst)
-	addr   string // Format for effective address reg = base+off; args: (base, off, reg)
-	subSP    string // Format for decrementing SP; args: (size, spReg)
-	addSP    string // Format for incrementing SP; args: (size, spReg)
-	useAdjSP bool   // True if SP adjustments must use ADJSP so obj tracks pcsp without FuncFlagSPWrite
+	mov        string // Pointer-sized integer load/store/reg-move (e.g. "MOVQ", "MOVD")
+	loadB      string // Signed 1-byte load
+	loadBU     string // Unsigned 1-byte load
+	loadH      string // Signed 2-byte load
+	loadHU     string // Unsigned 2-byte load
+	loadW      string // Signed 4-byte load
+	loadWU     string // Unsigned 4-byte load
+	storeB     string // 1-byte store
+	storeH     string // 2-byte store
+	storeW     string // 4-byte store
+	fmovS      string // 32-bit float load/store
+	fmovD      string // 64-bit float load/store
+	shl        string // Left shift mnemonic (e.g. "SHLQ", "LSL", "SLL")
+	shr        string // Logical right shift mnemonic (e.g. "SHRQ", "LSR", "SRL")
+	or         string // Bitwise OR mnemonic (e.g. "ORQ", "ORR", "OR")
+	add        string // Add mnemonic (e.g. "ADDQ", "ADD", "ADDV", "ADDU")
+	sub        string // Subtract mnemonic (e.g. "SUBQ", "SUB", "SUBV", "SUBU")
+	lea        string // Effective-address mnemonic on x86 ("LEAQ", "LEAL"), or "" to use add
+	twoOpALU   bool   // True if or/add/sub take 2 operands (src, dst) rather than 3 (src, dst, dst)
+	twoOpShift bool   // True if shl/shr take 2 operands ($bits, reg) rather than 3 ($bits, reg, reg)
+	useAdjSP   bool   // True if SP adjustments must use ADJSP so obj tracks pcsp without FuncFlagSPWrite
 }
 
 // ABIConfig defines the C calling convention rules and assembly primitives
@@ -173,16 +174,17 @@ type ABIConfig struct {
 	CompositeRegSlots func(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool)
 
 	// Trampoline assembly generation parameters:
-	SPReg          string // Hardware stack pointer register in asm (e.g. "SP", "RSP", "R1", "X2")
-	CalleeSavedReg string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
-	TmpReg         string // Primary caller-saved scratch register for stack/memory copies and address math
-	TmpReg2        string // Secondary caller-saved scratch register for multi-chunk loads and copies
-	LRReserve      int64  // Bytes reserved at 0(SP) for saved LR when !hasStackArgs and ShadowSpace == 0
+	SPReg           string // Hardware stack pointer register in asm (e.g. "SP", "RSP", "R1", "X2")
+	CalleeSavedReg  string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
+	TmpReg          string // Primary caller-saved scratch register for stack/memory copies and address math
+	TmpReg2         string // Secondary caller-saved scratch register for multi-chunk loads and copies
+	LRReserve       int64  // Bytes reserved at 0(SP) for saved LR when !hasStackArgs and ShadowSpace == 0
+	IndirectSymCall bool   // External C symbols are PE IAT pointers called indirectly (Windows)
 
 	asm                asmOps
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
 	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
-	CallSymbol         func(w io.Writer, sym string)
+	CallSymbol         func(w io.Writer, sym string, static bool)
 }
 
 // isFloatReg reports whether reg is an architecture floating-point register.
@@ -692,19 +694,35 @@ func (cfg *ABIConfig) emitScalarStoreInt(w io.Writer, reg, base string, off, siz
 	fmt.Fprintf(w, "\t%s\t%s, %d(%s)\n", op, reg, off, base)
 }
 
+func (cfg *ABIConfig) emitShiftOp(w io.Writer, op string, bits int64, reg string) {
+	if cfg.asm.twoOpShift {
+		fmt.Fprintf(w, "\t%s\t$%d, %s\n", op, bits, reg)
+	} else {
+		fmt.Fprintf(w, "\t%s\t$%d, %s, %s\n", op, bits, reg, reg)
+	}
+}
+
+func (cfg *ABIConfig) emitALUOp(w io.Writer, op, src, dst string) {
+	if cfg.asm.twoOpALU {
+		fmt.Fprintf(w, "\t%s\t%s, %s\n", op, src, dst)
+	} else {
+		fmt.Fprintf(w, "\t%s\t%s, %s, %s\n", op, src, dst, dst)
+	}
+}
+
 // emitShiftLeft shifts reg left in place by bits.
 func (cfg *ABIConfig) emitShiftLeft(w io.Writer, bits int64, reg string) {
-	fmt.Fprintf(w, "\t"+cfg.asm.shl+"\n", bits, reg)
+	cfg.emitShiftOp(w, cfg.asm.shl, bits, reg)
 }
 
 // emitShiftRight logically shifts reg right in place by bits.
 func (cfg *ABIConfig) emitShiftRight(w io.Writer, bits int64, reg string) {
-	fmt.Fprintf(w, "\t"+cfg.asm.shr+"\n", bits, reg)
+	cfg.emitShiftOp(w, cfg.asm.shr, bits, reg)
 }
 
 // emitOrReg bitwise-ORs src into dst.
 func (cfg *ABIConfig) emitOrReg(w io.Writer, src, dst string) {
-	fmt.Fprintf(w, "\t"+cfg.asm.or+"\n", src, dst)
+	cfg.emitALUOp(w, cfg.asm.or, src, dst)
 }
 
 // emitLoadInt loads an integer or struct register chunk of 1..8 bytes from
@@ -772,12 +790,26 @@ func (cfg *ABIConfig) emitStoreFloat(w io.Writer, reg, base string, off, size in
 
 // emitAddr computes the effective address base+off into reg.
 func (cfg *ABIConfig) emitAddr(w io.Writer, base string, off int64, reg string) {
-	fmt.Fprintf(w, "\t"+cfg.asm.addr+"\n", base, off, reg)
+	if cfg.asm.lea != "" {
+		fmt.Fprintf(w, "\t%s\t%d(%s), %s\n", cfg.asm.lea, off, base, reg)
+		return
+	}
+	fmt.Fprintf(w, "\t%s\t$%d, %s, %s\n", cfg.asm.add, off, base, reg)
 }
 
 // emitMovReg copies pointer-sized register src into dst.
 func (cfg *ABIConfig) emitMovReg(w io.Writer, src, dst string) {
 	fmt.Fprintf(w, "\t%s\t%s, %s\n", cfg.asm.mov, src, dst)
+}
+
+// emitSubReg subtracts register src from dst (dst -= src).
+func (cfg *ABIConfig) emitSubReg(w io.Writer, src, dst string) {
+	cfg.emitALUOp(w, cfg.asm.sub, src, dst)
+}
+
+// emitAddReg adds register src into dst (dst += src).
+func (cfg *ABIConfig) emitAddReg(w io.Writer, src, dst string) {
+	cfg.emitALUOp(w, cfg.asm.add, src, dst)
 }
 
 // emitSubSP decrements the architecture stack pointer by size bytes.
@@ -786,7 +818,7 @@ func (cfg *ABIConfig) emitSubSP(w io.Writer, size int64) {
 		fmt.Fprintf(w, "\tADJSP\t$%d\n", size)
 		return
 	}
-	fmt.Fprintf(w, "\t"+cfg.asm.subSP+"\n", size, cfg.SPReg)
+	fmt.Fprintf(w, "\t%s\t$%d, %s\n", cfg.asm.sub, size, cfg.SPReg)
 }
 
 // emitAddSP increments the architecture stack pointer by size bytes.
@@ -795,13 +827,36 @@ func (cfg *ABIConfig) emitAddSP(w io.Writer, size int64) {
 		fmt.Fprintf(w, "\tADJSP\t$-%d\n", size)
 		return
 	}
-	fmt.Fprintf(w, "\t"+cfg.asm.addSP+"\n", size, cfg.SPReg)
+	fmt.Fprintf(w, "\t%s\t$%d, %s\n", cfg.asm.add, size, cfg.SPReg)
 }
 
-// emitCallSymbol emits a call to external or runtime symbol sym.
-func (cfg *ABIConfig) emitCallSymbol(w io.Writer, sym string) {
+// emitCallReg emits an indirect branch-and-link through register reg.
+func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
+	if cfg.asm.lea != "" {
+		fmt.Fprintf(w, "\tCALL\t%s\n", reg)
+	} else {
+		fmt.Fprintf(w, "\tCALL\t(%s)\n", reg)
+	}
+}
+
+// emitCallRuntime emits a direct call to an internal Go runtime helper symbol.
+func (cfg *ABIConfig) emitCallRuntime(w io.Writer, sym string) {
+	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
+}
+
+// emitCallSymbol emits a call to external C symbol sym.
+func (cfg *ABIConfig) emitCallSymbol(w io.Writer, sym string, static bool) {
 	if cfg.CallSymbol != nil {
-		cfg.CallSymbol(w, sym)
+		cfg.CallSymbol(w, sym, static)
+		return
+	}
+	if cfg.IndirectSymCall && !static {
+		// On PE, a //go:cgo_import_dynamic symbol is a pointer-sized slot
+		// holding the function's address (an IAT entry for internal linking,
+		// or a relocated data word for external linking; see initdynimport
+		// in cmd/link/internal/ld/pe.go). Load the address and call indirectly.
+		fmt.Fprintf(w, "\t%s\t%s(SB), %s\n", cfg.asm.mov, sym, cfg.TmpReg)
+		cfg.emitCallReg(w, cfg.TmpReg)
 		return
 	}
 	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
@@ -873,80 +928,24 @@ func (cfg *ABIConfig) valueRegSlots(typeName string, size int64, isFloat bool, r
 	return slots
 }
 
-// paramTransfer describes a single register or stack move needed to marshal a
-// parameter from the Go argument struct into its C ABI location.
-type paramTransfer struct {
-	offset    int64
-	reg       string
-	stackOff  int64
-	storeSize int64
-	load      func(w io.Writer, base string, off int64, dstReg string)
-}
-
-// paramTransfers decomposes parameter p into register or C-stack transfers.
-func (cfg *ABIConfig) paramTransfers(fn BindingFunc, idx int, p ParamLoc, types map[string]BindingType) []paramTransfer {
-	ptrSize := cfg.PtrSize
-	if p.PassByPtr {
-		if len(p.Regs) > 0 {
-			return []paramTransfer{{reg: p.Regs[0], load: cfg.emitAddr}}
-		}
-		return []paramTransfer{{stackOff: p.StackOff, storeSize: ptrSize, load: cfg.emitAddr}}
-	}
-	loadInt := func(size int64, signed bool) func(io.Writer, string, int64, string) {
-		return func(w io.Writer, base string, off int64, dstReg string) {
-			cfg.emitLoadInt(w, base, off, size, signed, dstReg)
-		}
-	}
-	loadFloat := func(size int64) func(io.Writer, string, int64, string) {
-		return func(w io.Writer, base string, off int64, dstReg string) {
-			cfg.emitLoadFloat(w, base, off, size, dstReg)
-		}
-	}
-
-	if slots := cfg.paramRegSlots(fn, idx, p, types); len(slots) > 0 {
-		ops := make([]paramTransfer, len(slots))
-		for k, slot := range slots {
-			ld := loadInt(slot.size, slot.signed)
-			if slot.isFloat {
-				ld = loadFloat(slot.size)
-			}
-			ops[k] = paramTransfer{offset: slot.offset, reg: slot.reg, load: ld}
-		}
-		return ops
-	}
-
+func (cfg *ABIConfig) paramTypeInfo(fn BindingFunc, idx int, types map[string]BindingType) typeInfo {
 	var pt string
 	if paramTypes := fn.Params; idx < len(paramTypes) {
 		pt = paramTypes[idx]
 	}
-	info := cfg.inspectType(pt, types)
-	if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
-		storeSize := max(ptrSize, p.Size)
-		if cfg.PackStackArgs {
-			storeSize = p.Size
-		}
-		return []paramTransfer{{
-			stackOff:  p.StackOff,
-			storeSize: storeSize,
-			load:      loadInt(p.Size, info.signed),
-		}}
-	}
-
-	var ops []paramTransfer
-	for off := int64(0); off < p.Size; {
-		chunk := maxPow2Chunk(p.Size-off, ptrSize)
-		ops = append(ops, paramTransfer{
-			offset:    off,
-			stackOff:  p.StackOff + off,
-			storeSize: chunk,
-			load:      loadInt(chunk, false),
-		})
-		off += chunk
-	}
-	return ops
+	return cfg.inspectType(pt, types)
 }
 
-// emitStoreSlot stores a register return piece into off(base).
+// emitLoadSlot loads a single register piece from off+slot.offset(base) into slot.reg.
+func (cfg *ABIConfig) emitLoadSlot(w io.Writer, base string, off int64, slot regSlot) {
+	if slot.isFloat {
+		cfg.emitLoadFloat(w, base, off+slot.offset, slot.size, slot.reg)
+		return
+	}
+	cfg.emitLoadInt(w, base, off+slot.offset, slot.size, slot.signed, slot.reg)
+}
+
+// emitStoreSlot stores a register piece into off+slot.offset(base).
 func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off int64) {
 	if slot.isFloat {
 		cfg.emitStoreFloat(w, slot.reg, base, off+slot.offset, slot.size)
@@ -964,6 +963,7 @@ func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off 
 // stack slots, calls the target C function, and writes any result back to the
 // _cgo_arg_<Name> struct.
 func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[string]BindingType) {
+	ptrSize := cfg.PtrSize
 	lay := cfg.layout(fn, types)
 
 	var epilogue func(io.Writer)
@@ -989,14 +989,32 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	}
 
 	for i, p := range lay.Params {
-		for _, op := range cfg.paramTransfers(fn, i, p, types) {
-			if op.reg != "" {
-				op.load(w, base, p.GoOffset+op.offset, op.reg)
+		if p.PassByPtr {
+			if len(p.Regs) > 0 {
+				cfg.emitAddr(w, base, p.GoOffset, p.Regs[0])
 			} else {
-				op.load(w, base, p.GoOffset+op.offset, cfg.TmpReg)
-				cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, op.stackOff, op.storeSize)
+				cfg.emitAddr(w, base, p.GoOffset, cfg.TmpReg)
+				cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, p.StackOff, ptrSize)
 			}
+			continue
 		}
+		if slots := cfg.paramRegSlots(fn, i, p, types); len(slots) > 0 {
+			for _, slot := range slots {
+				cfg.emitLoadSlot(w, base, p.GoOffset, slot)
+			}
+			continue
+		}
+		info := cfg.paramTypeInfo(fn, i, types)
+		if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
+			cfg.emitLoadInt(w, base, p.GoOffset, p.Size, info.signed, cfg.TmpReg)
+			storeSize := ptrSize
+			if cfg.PackStackArgs {
+				storeSize = p.Size
+			}
+			cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, p.StackOff, storeSize)
+			continue
+		}
+		cfg.emitCopyMem(w, base, p.GoOffset, cfg.SPReg, p.StackOff, p.Size, cfg.TmpReg)
 	}
 
 	if cfg.PreCall != nil {
@@ -1006,13 +1024,7 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	if fn.CName == "" {
 		panic("BindingFunc.CName must be set")
 	}
-	if fn.Static {
-		// A statically linked symbol is defined in the final binary, so
-		// call it directly rather than through a dynamic import slot.
-		fmt.Fprintf(w, "\tCALL\t%s(SB)\n", fn.CName)
-	} else {
-		cfg.emitCallSymbol(w, fn.CName)
-	}
+	cfg.emitCallSymbol(w, fn.CName, fn.Static)
 
 	if fn.Ret != "" && lay.Ret.Size > 0 && !lay.Ret.Indirect {
 		for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
@@ -1211,13 +1223,8 @@ var amd64ABI = &ABIConfig{
 		loadB: "MOVBLSX", loadBU: "MOVBLZX", loadH: "MOVWLSX", loadHU: "MOVWLZX", loadW: "MOVL", loadWU: "MOVL",
 		storeB: "MOVB", storeH: "MOVW", storeW: "MOVL",
 		fmovS: "MOVSS", fmovD: "MOVSD",
-		shl:   "SHLQ\t$%[1]d, %[2]s",
-		shr:   "SHRQ\t$%[1]d, %[2]s",
-		or:    "ORQ\t%[1]s, %[2]s",
-		addr:     "LEAQ\t%[2]d(%[1]s), %[3]s",
-		subSP:    "SUBQ\t$%[1]d, %[2]s",
-		addSP:    "ADDQ\t$%[1]d, %[2]s",
-		useAdjSP: true,
+		shl: "SHLQ", shr: "SHRQ", or: "ORQ", add: "ADDQ", sub: "SUBQ", lea: "LEAQ",
+		twoOpALU: true, twoOpShift: true, useAdjSP: true,
 	},
 	// System V AMD64 psABI Section 3.5.7 requires AL to hold an upper bound
 	// (0..8) on the number of vector registers used to pass arguments to a
@@ -1249,9 +1256,6 @@ var amd64ABI = &ABIConfig{
 //     pointer in CX that consumes positional slot 0 ("Return values").
 //   - Scalar integer/pointer results return in AX; floating-point results
 //     return in X0.
-//   - For variadic calls, floating-point arguments in slots 0..3 must be
-//     duplicated in both the XMM register and the corresponding GPR
-//     ("Varargs").
 
 // isWin64RegStructSize reports whether a composite byte size is passed and
 // returned directly in a GPR under the Windows x64 (and x86) C ABI.
@@ -1279,6 +1283,9 @@ func win64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState)
 // non-power-of-two or >8-byte structs by hidden pointer ("Parameter passing"
 // in the x64 calling convention).
 func win64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
 	slot := max(st.intIdx, st.floatIdx)
 	loc := ParamLoc{Size: info.size, IsFloat: info.isFloat}
 	if info.composite && !isWin64RegStructSize(info.size) {
@@ -1310,6 +1317,7 @@ func newWin64ABI() *ABIConfig {
 	cfg.OS = "windows"
 	cfg.CLongSize = 4
 	cfg.ShadowSpace = 32
+	cfg.IndirectSymCall = true
 	cfg.IntRegs = []string{"CX", "DX", "R8", "R9"}
 	cfg.FloatRegs = []string{"X0", "X1", "X2", "X3"}
 	cfg.IntRetRegs = []string{"AX"}
@@ -1320,18 +1328,6 @@ func newWin64ABI() *ABIConfig {
 	cfg.AssignParam = win64AssignParam
 	cfg.AssignRet = win64AssignRet
 	cfg.CompositeRegSlots = nil
-	// On PE, a //go:cgo_import_dynamic symbol is not the function itself
-	// but a pointer-sized slot holding its address: an IAT entry when
-	// linking internally, or a data word relocated to the host symbol when
-	// linking externally (see initdynimport in cmd/link/internal/ld/pe.go).
-	// A direct CALL sym(SB) would jump into that data, and the linker does
-	// not generate stubs for Go calls to dynamic imports on PE, so load the
-	// function address from the slot and call through a register, as the
-	// runtime does for DLL calls and as C compilers do for dllimport calls.
-	cfg.CallSymbol = func(w io.Writer, sym string) {
-		fmt.Fprintf(w, "\tMOVQ\t%s(SB), R11\n", sym)
-		fmt.Fprintf(w, "\tCALL\tR11\n")
-	}
 	return &cfg
 }
 
@@ -1523,12 +1519,7 @@ var arm64ABI = &ABIConfig{
 		loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
 		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
 		fmovS: "FMOVS", fmovD: "FMOVD",
-		shl:   "LSL\t$%[1]d, %[2]s, %[2]s",
-		shr:   "LSR\t$%[1]d, %[2]s, %[2]s",
-		or:    "ORR\t%[1]s, %[2]s, %[2]s",
-		addr:  "ADD\t$%[2]d, %[1]s, %[3]s",
-		subSP: "SUB\t$%[1]d, %[2]s",
-		addSP: "ADD\t$%[1]d, %[2]s",
+		shl: "LSL", shr: "LSR", or: "ORR", add: "ADD", sub: "SUB",
 	},
 	TrampolinePrologue: emitARM64TrampolinePrologue,
 }
@@ -1539,9 +1530,10 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 	switch targetArch {
 	case "amd64":
 		if targetOS == "windows" {
-			return win64ABI
+			cfg = *win64ABI
+		} else {
+			cfg = *amd64ABI
 		}
-		cfg = *amd64ABI
 	case "arm64":
 		cfg = *arm64ABI
 		if targetOS == "darwin" || targetOS == "ios" {
