@@ -104,8 +104,22 @@ lasx:
 	BEQ     R9, lsx
 	XVMOVQ	R7, X0.B32
 
+	// Process the first R5&31 bytes with one 32-byte block; the
+	// over-read bytes belong to the buffer since R5 >= 32.
+	// Advancing by R5&31 makes R5 a multiple of 32, so the SIMD
+	// path never falls back to the scalar tail.
+	AND	$31, R5, R9
+	BEQ	R9, lasx_aligned
+	XVMOVQ	(R4), X1
+	XVSEQB	X1, X0, X1
+	XVSETNEV	X1, FCC0
+	BFPT	lasx_found_add_0
+	ADDV	R9, R4
+	SUBV	R9, R5
+
+lasx_aligned:
 	MOVV	$128, R9
-	BLT	R5, R9, lasx32_loop
+	BLT	R5, R9, lasx32_prep
 lasx128_loop:
 	XVMOVQ	0(R4), X1
 	XVMOVQ	32(R4), X2
@@ -113,20 +127,16 @@ lasx128_loop:
 	XVMOVQ	96(R4), X4
 
 	XVSEQB	X1, X0, X1
-	XVSETNEV	X1, FCC0
-	BFPT	lasx_found_add_0
+	XVSEQB	X2, X0, X2
+	XVSEQB	X3, X0, X3
+	XVSEQB	X4, X0, X4
 
-	XVSEQB	X2, X0, X1
-	XVSETNEV	X1, FCC0
-	BFPT	lasx_found_add_32
-
-	XVSEQB	X3, X0, X1
-	XVSETNEV	X1, FCC0
-	BFPT	lasx_found_add_64
-
-	XVSEQB	X4, X0, X1
-	XVSETNEV	X1, FCC0
-	BFPT	lasx_found_add_96
+	// Single branch tests all 128 bytes at once.
+	XVORV	X1, X2, X5
+	XVORV	X3, X4, X6
+	XVORV	X5, X6, X5
+	XVSETNEV	X5, FCC0
+	BFPT	lasx128_found
 
 	ADDV	$128, R4
 	ADDV	$-128, R5
@@ -134,37 +144,45 @@ lasx128_loop:
 
 	BEQ	R5, notfound
 
+	// R5 is a multiple of 32 in (32, 64, 96).
+lasx32_prep:
 	MOVV	$32, R9
-	BLT	R5, R9, tail
 lasx32_loop:
 	XVMOVQ	0(R4), X1
-
 	XVSEQB	X1, X0, X1
 	XVSETNEV	X1, FCC0
 	BFPT	lasx_found_add_0
-
 	ADDV	$32, R4
 	ADDV	$-32, R5
 	BGE	R5, R9, lasx32_loop
 
-	BEQ	R5, notfound
+	JMP	notfound	// R5 is a multiple of 32, so R5 == 0
 
-	JMP	tail
+// A match is in one of X1-X4; find which block and put its
+// compare result in X1 for lasx_index_cal.
+lasx128_found:
+	XVSETNEV	X1, FCC0
+	BFPT	lasx_found_add_0
+	XVSETNEV	X2, FCC0
+	BFPT	lasx128_found_32
+	XVSETNEV	X3, FCC0
+	BFPT	lasx128_found_64
+	MOVV	$96, R11
+	XVORV	X4, X4, X1
+	JMP	lasx_index_cal
+
+lasx128_found_32:
+	MOVV	$32, R11
+	XVORV	X2, X2, X1
+	JMP	lasx_index_cal
+
+lasx128_found_64:
+	MOVV	$64, R11
+	XVORV	X3, X3, X1
+	JMP	lasx_index_cal
 
 lasx_found_add_0:
 	MOVV	R0, R11
-	JMP	lasx_index_cal
-
-lasx_found_add_32:
-	MOVV	$32, R11
-	JMP	lasx_index_cal
-
-lasx_found_add_64:
-	MOVV	$64, R11
-	JMP	lasx_index_cal
-
-lasx_found_add_96:
-	MOVV	$96, R11
 	JMP	lasx_index_cal
 
 lasx_index_cal:
@@ -193,8 +211,20 @@ lsx:
 	BEQ     R9, tail
 	VMOVQ	R7, V0.B16
 
+	// Process the first R5&15 bytes with one 16-byte block,
+	// making R5 a multiple of 16.
+	AND	$15, R5, R9
+	BEQ	R9, lsx_aligned
+	VMOVQ	(R4), V1
+	VSEQB	V1, V0, V1
+	VSETNEV	V1, FCC0
+	BFPT	lsx_found_add_0
+	ADDV	R9, R4
+	SUBV	R9, R5
+
+lsx_aligned:
 	MOVV	$64, R9
-	BLT	R5, R9, lsx16_loop
+	BLT	R5, R9, lsx16_prep
 lsx64_loop:
 	VMOVQ	0(R4), V1
 	VMOVQ	16(R4), V2
@@ -202,20 +232,15 @@ lsx64_loop:
 	VMOVQ	48(R4), V4
 
 	VSEQB	V1, V0, V1
-	VSETNEV	V1, FCC0
-	BFPT	lsx_found_add_0
+	VSEQB	V2, V0, V2
+	VSEQB	V3, V0, V3
+	VSEQB	V4, V0, V4
 
-	VSEQB	V2, V0, V1
-	VSETNEV	V1, FCC0
-	BFPT	lsx_found_add_16
-
-	VSEQB	V3, V0, V1
-	VSETNEV	V1, FCC0
-	BFPT	lsx_found_add_32
-
-	VSEQB	V4, V0, V1
-	VSETNEV	V1, FCC0
-	BFPT	lsx_found_add_48
+	VORV	V1, V2, V5
+	VORV	V3, V4, V6
+	VORV	V5, V6, V5
+	VSETNEV	V5, FCC0
+	BFPT	lsx64_found
 
 	ADDV	$64, R4
 	ADDV	$-64, R5
@@ -223,37 +248,43 @@ lsx64_loop:
 
 	BEQ	R5, notfound
 
+	// R5 is a multiple of 16 in (16, 32, 48).
+lsx16_prep:
 	MOVV	$16, R9
-	BLT	R5, R9, tail
 lsx16_loop:
 	VMOVQ	0(R4), V1
-
 	VSEQB	V1, V0, V1
 	VSETNEV	V1, FCC0
 	BFPT	lsx_found_add_0
-
 	ADDV	$16, R4
 	ADDV	$-16, R5
 	BGE	R5, R9, lsx16_loop
 
-	BEQ	R5, notfound
+	JMP	notfound	// R5 is a multiple of 16, so R5 == 0
 
-	JMP	tail
+lsx64_found:
+	VSETNEV	V1, FCC0
+	BFPT	lsx_found_add_0
+	VSETNEV	V2, FCC0
+	BFPT	lsx64_found_16
+	VSETNEV	V3, FCC0
+	BFPT	lsx64_found_32
+	MOVV	$48, R11
+	VORV	V4, V4, V1
+	JMP	lsx_index_cal
+
+lsx64_found_16:
+	MOVV	$16, R11
+	VORV	V2, V2, V1
+	JMP	lsx_index_cal
+
+lsx64_found_32:
+	MOVV	$32, R11
+	VORV	V3, V3, V1
+	JMP	lsx_index_cal
 
 lsx_found_add_0:
 	MOVV	R0, R11
-	JMP	lsx_index_cal
-
-lsx_found_add_16:
-	MOVV	$16, R11
-	JMP	lsx_index_cal
-
-lsx_found_add_32:
-	MOVV	$32, R11
-	JMP	lsx_index_cal
-
-lsx_found_add_48:
-	MOVV	$48, R11
 	JMP	lsx_index_cal
 
 lsx_index_cal:
