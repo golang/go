@@ -587,9 +587,15 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 		} else if vregInCnt == 2 {
 			data.Args = "x y"
 			data.ArgsOut = data.Args
+			if gOp.OperandOrder != nil && *gOp.OperandOrder == "21" {
+				data.ArgsOut = "y x"
+			}
 		} else if vregInCnt == 3 {
 			data.Args = "x y z"
 			data.ArgsOut = data.Args
+			if gOp.OperandOrder != nil && *gOp.OperandOrder == "21" {
+				data.ArgsOut = "y x z"
+			}
 		} else {
 			panic(fmt.Errorf("simdgen does not support more than 3 vreg in inputs"))
 		}

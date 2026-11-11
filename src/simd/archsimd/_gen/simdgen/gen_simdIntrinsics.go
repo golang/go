@@ -76,10 +76,10 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var intrinsicTemplates = new(intrinsicTemplateMap).
 		Add("op1", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen1(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op2", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op2_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op2_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen2(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op2_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen2_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op3", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
-		Add("op3_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
+		Add("op3_21", `		addF(simdPackage, "{{(index .In 0).Go}}.{{.Go}}", opLen3(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op3_21Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_21(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op3_231Type1", `addF(simdPackage, "{{(index .In 1).Go}}.{{.Go}}", opLen3_231(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
 		Add("op3_31Zero3", `addF(simdPackage, "{{(index .In 2).Go}}.{{.Go}}", opLen3_31Zero3(ssaop.Op{{.GenericName}}, {{.SSAType}}), {{GetSysArch}})`).
@@ -102,16 +102,11 @@ func simd{{GetSIMDTag}}Intrinsics(addF func(pkg, fn string, b intrinsicBuilder, 
 	var loadStore = templateNamed("loadStore", `	addF(simdPackage, "Load{{.Name}}Array", simdLoad(), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.StoreArray", simdStore(), {{GetSysArch}})`)
 
-	// TODO the operand order for AndNot on amd64 is cursed and should instead happen at the generic-to-architecture SSA rewrite (or later?)
 	var mask = templateNamed("mask", `	addF(simdPackage, "{{.Name}}.To{{.VectorCounterpart}}", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.VectorCounterpart}}.asMask", func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value { return args[0] }, {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.And", opLen2(ssaop.OpAnd{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 	addF(simdPackage, "{{.Name}}.Or", opLen2(ssaop.OpOr{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
-{{- if eq GetSysArch "sys.AMD64"}}
-	addF(simdPackage, "{{.Name}}.AndNot", opLen2_21(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
-{{- else}}
 	addF(simdPackage, "{{.Name}}.AndNot", opLen2(ssaop.OpAndNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
-{{- end}}
 	addF(simdPackage, "{{.Name}}.Xor", opLen2(ssaop.OpXor{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
 {{- if eq GetSysArch "sys.ARM64"}}
 	addF(simdPackage, "{{.Name}}.Not", opLen1(ssaop.OpNot{{.ReshapedVectorWithAndOr}}, types.TypeVec{{.Size}}), {{GetSysArch}})
