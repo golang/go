@@ -25,6 +25,7 @@ func CompareString1(s string) bool {
 	// arm64:`MOVHU \(.*\), [R]` `MOVD [$]` `CMPW R`
 	// ppc64le:`MOVHZ \(.*\), [R]` `CMPW .*, [$]`
 	// s390x:`MOVHBR \(.*\), [R]` `CMPW .*, [$]`
+	// wasm:`I64Load16U` -`I64Load8U`
 	return s == "xx"
 }
 
@@ -33,6 +34,7 @@ func CompareString2(s string) bool {
 	// arm64:`MOVWU \(.*\), [R]` `CMPW .*, [R]`
 	// ppc64le:`MOVWZ \(.*\), [R]` `CMPW .*, [R]`
 	// s390x:`MOVWBR \(.*\), [R]` `CMPW .*, [$]`
+	// wasm:`I64Load32U` -`I64Load8U`
 	return s == "xxxx"
 }
 
@@ -51,6 +53,7 @@ func CompareArray1(a, b [2]byte) bool {
 	// arm64:-`MOVBU `
 	// ppc64le:-`MOVBZ `
 	// s390x:-`MOVBZ `
+	// wasm:-`I64Load8U`
 	return a == b
 }
 
@@ -69,11 +72,13 @@ func CompareArray3(a, b [3]int16) bool {
 func CompareArray4(a, b [12]int8) bool {
 	// amd64:`CMPQ command-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
 	// amd64:`CMPL command-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// wasm:`I64Load\s` -`Call`
 	return a == b
 }
 
 func CompareArray5(a, b [15]byte) bool {
 	// amd64:`CMPQ command-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
+	// wasm:`I64Load\s` -`Call`
 	return a == b
 }
 
@@ -95,6 +100,7 @@ type T1 struct {
 func CompareStruct1(s1, s2 T1) bool {
 	// amd64:`CMPQ command-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
 	// amd64:-`CALL`
+	// wasm:`I64Load\s` -`Call`
 	return s1 == s2
 }
 
@@ -105,6 +111,7 @@ type T2 struct {
 func CompareStruct2(s1, s2 T2) bool {
 	// amd64:`CMPQ command-line-arguments[.+_a-z0-9]+\(SP\), [A-Z]`
 	// amd64:-`CALL`
+	// wasm:`I64Load\s` -`Call`
 	return s1 == s2
 }
 
