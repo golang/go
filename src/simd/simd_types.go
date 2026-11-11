@@ -13,84 +13,84 @@ type _simd bridge.ZeroSized
 
 // Int8s represents a vector of 8-bit signed integers.
 type Int8s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [16]int8 // the actual vector size may be larger.
 }
 
 // Int16s represents a vector of 16-bit signed integers.
 type Int16s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [8]int16 // the actual vector size may be larger.
 }
 
 // Int32s represents a vector of 32-bit signed integers.
 type Int32s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [4]int32 // the actual vector size may be larger.
 }
 
 // Int64s represents a vector of 64-bit signed integers.
 type Int64s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [2]int64 // the actual vector size may be larger.
 }
 
 // Uint8s represents a vector of 8-bit unsigned integers.
 type Uint8s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [16]uint8 // the actual vector size may be larger.
 }
 
 // Uint16s represents a vector of 16-bit unsigned integers.
 type Uint16s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [8]uint16 // the actual vector size may be larger.
 }
 
 // Uint32s represents a vector of 32-bit unsigned integers.
 type Uint32s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [4]uint32 // the actual vector size may be larger.
 }
 
 // Uint64s represents a vector of 64-bit unsigned integers.
 type Uint64s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [2]uint64 // the actual vector size may be larger.
 }
 
 // Float32s represents a vector of 32-bit floating-point numbers.
 type Float32s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [4]float32 // the actual vector size may be larger.
 }
 
 // Float64s represents a vector of 64-bit floating-point numbers.
 type Float64s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	v [2]float64 // the actual vector size may be larger.
 }
 
 // Mask8s represents a boolean mask for Int8s/Uint8s vectors.
 type Mask8s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	m uint16 // the actual vector size may be larger.
 }
 
 // Mask16s represents a boolean mask for Int16s/Uint16s vectors.
 type Mask16s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	m uint8 // the actual vector size may be larger.
 }
 
 // Mask32s represents a boolean mask for Int32s/Uint32s vectors.
 type Mask32s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	m uint8 // the actual vector size may be larger.
 }
 
 // Mask64s represents a boolean mask for Int64s/Uint64s vectors.
 type Mask64s struct {
-	_    _simd
-	a, b uint64 // the actual vector size may be larger.
+	_ _simd
+	m uint8 // the actual vector size may be larger.
 }

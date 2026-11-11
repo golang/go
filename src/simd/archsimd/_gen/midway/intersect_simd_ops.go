@@ -16,10 +16,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 	"simd/archsimd/_gen/midway/variants"
 	"simd/archsimd/_gen/sgutil"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -478,7 +480,7 @@ type _simd bridge.ZeroSized
 			if c := comments.Types[elem+"s"]; c != "" {
 				pf("// %s\n", c)
 			}
-			pf("type %ss struct {\n\t_       _simd\n\ta, b uint64 // the actual vector size may be larger.\n}\n", elem)
+			pf("type %ss struct {\n\t_ _simd\n\t%s // the actual vector size may be larger.\n}\n", elem, emulatedLanes(elem))
 		}
 	}
 
@@ -903,3 +905,34 @@ func generateBridgeEmulated() {
 //
 //go:embed "variants/variants.go"
 var variantBytes []byte
+
+var emulatedElemRE = regexp.MustCompile(`^(Mask|Int|Uint|Float)(8|16|32|64)$`)
+
+// emulatedLanes returns the field declaration holding the lanes of the
+// 128-bit emulated form of simd type elem+"s". Vectors are an array of
+// their element type, so == on them compares lanes, like a struct with one
+// field per lane. Masks are a bitmask with one bit per lane, using the
+// narrowest unsigned type that fits, whose unused high bits are always zero.
+//
+// Masks could instead be an array of lanes that are 0 or -1, like most
+// native fixed-width masks (AVX-512 masks are bitmasks). That would let
+// Masked and IfElse use bitwise operations instead of testing one bit per
+// lane, but they are only about 4% faster that way, while every mask
+// operation (And, Or, Xor, AndNot, All, Any, None, TrailingZeros, ToBits)
+// would become a loop over the lanes, which is slower than the single word
+// operation it is now.
+func emulatedLanes(elem string) string {
+	m := emulatedElemRE.FindStringSubmatch(elem)
+	if m == nil {
+		panic("unexpected element type " + elem)
+	}
+	elemBits, _ := strconv.Atoi(m[2])
+	lanes := 128 / elemBits
+	if m[1] == "Mask" {
+		if lanes > 8 {
+			return "m uint16"
+		}
+		return "m uint8"
+	}
+	return fmt.Sprintf("v [%d]%s", lanes, strings.ToLower(elem))
+}

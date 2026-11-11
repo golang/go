@@ -34,54 +34,25 @@ func HasHardwareCarrylessMultiply() bool {
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt8s(s []int8) (z Int8s) {
-	var a, b uint64
-	for i := 0; i < 16; i++ {
-		val := uint64(uint8(s[i]))
-		if i < 8 {
-			a |= val << (8 * i)
-		} else {
-			b |= val << (8 * (i - 8))
-		}
-	}
-	return Int8s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadInt8sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadInt8sPart(s []int8) (z Int8s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 16 {
-		n = 16
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(uint8(s[i]))
-		if i < 8 {
-			a |= val << (8 * i)
-		} else {
-			b |= val << (8 * (i - 8))
-		}
-	}
-	return Int8s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Int8s) get(i int) int8 {
-	if i < 8 {
-		return int8(x.a >> (8 * i))
-	}
-	return int8(x.b >> (8 * (i - 8)))
+	return x.v[i]
 }
 
 func (x *Int8s) set(i int, v int8) {
-	val := uint64(uint8(v))
-	if i < 8 {
-		mask := uint64(0xff) << (8 * i)
-		x.a = (x.a &^ mask) | (val << (8 * i))
-	} else {
-		mask := uint64(0xff) << (8 * (i - 8))
-		x.b = (x.b &^ mask) | (val << (8 * (i - 8)))
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
@@ -131,14 +102,20 @@ func (x Int8s) AddSaturated(y Int8s) (z Int8s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Int8s) And(y Int8s) (z Int8s) {
-	return Int8s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Int8s) AndNot(y Int8s) (z Int8s) {
-	return Int8s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -184,7 +161,8 @@ func (x Int8s) GreaterEqual(y Int8s) (z Mask8s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Int8s) HiToLo() (z Int8s) {
-	return Int8s{a: x.b}
+	copy(z.v[:8], x.v[8:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -253,7 +231,12 @@ func (x Int8s) LookupOrZero(indices Uint8s) (z Int8s) {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Int8s) Masked(mask Mask8s) (z Int8s) {
-	return Int8s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -289,10 +272,14 @@ func (x Int8s) Mul(y Int8s) (z Int8s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int8s) IfElse(mask Mask8s, y Int8s) (z Int8s) {
-	return Int8s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -327,14 +314,20 @@ func (x Int8s) Neg() (z Int8s) {
 //
 //	z[i] = ^x[i]
 func (x Int8s) Not() (z Int8s) {
-	return Int8s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Int8s) Or(y Int8s) (z Int8s) {
-	return Int8s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
@@ -350,17 +343,13 @@ func (x Int8s) ReduceSum() (z int8) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int8s) Store(s []int8) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 16; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int8s) StorePart(s []int8) (n int) {
-	var buf [16]int8
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -418,7 +407,10 @@ func (x Int8s) ToMask() (z Mask8s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Int8s) Xor(y Int8s) (z Int8s) {
-	return Int8s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // ConvertToUint8 converts each element of x to uint8.
@@ -427,64 +419,41 @@ func (x Int8s) Xor(y Int8s) (z Int8s) {
 //
 // This wraps unrepresentable values.
 func (x Int8s) ConvertToUint8() (z Uint8s) {
-	return Uint8s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint8(x.v[i])
+	}
+	return z
 }
 
 // ToBits reinterprets the bits of each element of x as type uint8.
 func (x Int8s) ToBits() (z Uint8s) {
-	return Uint8s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint8(x.v[i])
+	}
+	return z
 }
 
 // LoadInt16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt16s(s []int16) (z Int16s) {
-	var a, b uint64
-	for i := 0; i < 8; i++ {
-		val := uint64(uint16(s[i]))
-		if i < 4 {
-			a |= val << (16 * i)
-		} else {
-			b |= val << (16 * (i - 4))
-		}
-	}
-	return Int16s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadInt16sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadInt16sPart(s []int16) (z Int16s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 8 {
-		n = 8
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(uint16(s[i]))
-		if i < 4 {
-			a |= val << (16 * i)
-		} else {
-			b |= val << (16 * (i - 4))
-		}
-	}
-	return Int16s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Int16s) get(i int) int16 {
-	if i < 4 {
-		return int16(x.a >> (16 * i))
-	}
-	return int16(x.b >> (16 * (i - 4)))
+	return x.v[i]
 }
 
 func (x *Int16s) set(i int, v int16) {
-	val := uint64(uint16(v))
-	if i < 4 {
-		mask := uint64(0xffff) << (16 * i)
-		x.a = (x.a &^ mask) | (val << (16 * i))
-	} else {
-		mask := uint64(0xffff) << (16 * (i - 4))
-		x.b = (x.b &^ mask) | (val << (16 * (i - 4)))
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
@@ -534,14 +503,20 @@ func (x Int16s) AddSaturated(y Int16s) (z Int16s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Int16s) And(y Int16s) (z Int16s) {
-	return Int16s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Int16s) AndNot(y Int16s) (z Int16s) {
-	return Int16s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -587,7 +562,8 @@ func (x Int16s) GreaterEqual(y Int16s) (z Mask16s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Int16s) HiToLo() (z Int16s) {
-	return Int16s{a: x.b}
+	copy(z.v[:4], x.v[4:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -638,7 +614,12 @@ func (x Int16s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Int16s) Masked(mask Mask16s) (z Int16s) {
-	return Int16s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -663,10 +644,14 @@ func (x Int16s) Max(y Int16s) (z Int16s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int16s) IfElse(mask Mask16s, y Int16s) (z Int16s) {
-	return Int16s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -712,14 +697,20 @@ func (x Int16s) Neg() (z Int16s) {
 //
 //	z[i] = ^x[i]
 func (x Int16s) Not() (z Int16s) {
-	return Int16s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Int16s) Or(y Int16s) (z Int16s) {
-	return Int16s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -759,17 +750,13 @@ func (x Int16s) ReduceSum() (z int16) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int16s) Store(s []int16) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 8; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int16s) StorePart(s []int16) (n int) {
-	var buf [8]int16
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -827,7 +814,10 @@ func (x Int16s) ToMask() (z Mask16s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Int16s) Xor(y Int16s) (z Int16s) {
-	return Int16s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // ConvertToUint16 converts each element of x to uint16.
@@ -836,64 +826,41 @@ func (x Int16s) Xor(y Int16s) (z Int16s) {
 //
 // This wraps unrepresentable values.
 func (x Int16s) ConvertToUint16() (z Uint16s) {
-	return Uint16s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint16(x.v[i])
+	}
+	return z
 }
 
 // ToBits reinterprets the bits of each element of x as type uint16.
 func (x Int16s) ToBits() (z Uint16s) {
-	return Uint16s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint16(x.v[i])
+	}
+	return z
 }
 
 // LoadInt32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt32s(s []int32) (z Int32s) {
-	var a, b uint64
-	for i := 0; i < 4; i++ {
-		val := uint64(uint32(s[i]))
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Int32s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadInt32sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadInt32sPart(s []int32) (z Int32s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 4 {
-		n = 4
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(uint32(s[i]))
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Int32s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Int32s) get(i int) int32 {
-	if i < 2 {
-		return int32(x.a >> (32 * i))
-	}
-	return int32(x.b >> (32 * (i - 2)))
+	return x.v[i]
 }
 
 func (x *Int32s) set(i int, v int32) {
-	val := uint64(uint32(v))
-	if i < 2 {
-		mask := uint64(0xffff_ffff) << (32 * i)
-		x.a = (x.a &^ mask) | (val << (32 * i))
-	} else {
-		mask := uint64(0xffff_ffff) << (32 * (i - 2))
-		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
@@ -925,14 +892,20 @@ func (x Int32s) Add(y Int32s) (z Int32s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Int32s) And(y Int32s) (z Int32s) {
-	return Int32s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Int32s) AndNot(y Int32s) (z Int32s) {
-	return Int32s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // ConvertToFloat32 converts each element of x to float32.
@@ -989,7 +962,8 @@ func (x Int32s) GreaterEqual(y Int32s) (z Mask32s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Int32s) HiToLo() (z Int32s) {
-	return Int32s{a: x.b}
+	copy(z.v[:2], x.v[2:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1040,7 +1014,12 @@ func (x Int32s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Int32s) Masked(mask Mask32s) (z Int32s) {
-	return Int32s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -1065,10 +1044,14 @@ func (x Int32s) Max(y Int32s) (z Int32s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int32s) IfElse(mask Mask32s, y Int32s) (z Int32s) {
-	return Int32s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -1114,14 +1097,20 @@ func (x Int32s) Neg() (z Int32s) {
 //
 //	z[i] = ^x[i]
 func (x Int32s) Not() (z Int32s) {
-	return Int32s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Int32s) Or(y Int32s) (z Int32s) {
-	return Int32s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -1161,17 +1150,13 @@ func (x Int32s) ReduceSum() (z int32) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int32s) Store(s []int32) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 4; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int32s) StorePart(s []int32) (n int) {
-	var buf [4]int32
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -1211,7 +1196,10 @@ func (x Int32s) ToMask() (z Mask32s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Int32s) Xor(y Int32s) (z Int32s) {
-	return Int32s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // ConvertToUint32 converts each element of x to uint32.
@@ -1220,50 +1208,41 @@ func (x Int32s) Xor(y Int32s) (z Int32s) {
 //
 // This wraps unrepresentable values.
 func (x Int32s) ConvertToUint32() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint32(x.v[i])
+	}
+	return z
 }
 
 // ToBits reinterprets the bits of each element of x as type uint32.
 func (x Int32s) ToBits() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint32(x.v[i])
+	}
+	return z
 }
 
 // LoadInt64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt64s(s []int64) (z Int64s) {
-	var a, b uint64
-	a = uint64(s[0])
-	b = uint64(s[1])
-	return Int64s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadInt64sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadInt64sPart(s []int64) (z Int64s, n int) {
-	n = min(len(s), 2)
-	var a, b uint64
-	if n > 0 {
-		a = uint64(s[0])
-	}
-	if n > 1 {
-		b = uint64(s[1])
-	}
-	return Int64s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Int64s) get(i int) int64 {
-	if i == 0 {
-		return int64(x.a)
-	}
-	return int64(x.b)
+	return x.v[i]
 }
 
 func (x *Int64s) set(i int, v int64) {
-	if i == 0 {
-		x.a = uint64(v)
-	} else {
-		x.b = uint64(v)
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
@@ -1284,47 +1263,48 @@ func (x Int64s) Abs() (z Uint64s) {
 //
 //	z[i] = x[i] + y[i]
 func (x Int64s) Add(y Int64s) (z Int64s) {
-	return Int64s{a: x.a + y.a, b: x.b + y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] + y.v[i]
+	}
+	return z
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Int64s) And(y Int64s) (z Int64s) {
-	return Int64s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Int64s) AndNot(y Int64s) (z Int64s) {
-	return Int64s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Int64s) Equal(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if x.a == y.a {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] == y.v[i])
 	}
-	if x.b == y.b {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Greater returns a mask indicating which elements of x are greater than y.
 //
 //	z[i] = x[i] > y[i]
 func (x Int64s) Greater(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if int64(x.a) > int64(y.a) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] > y.v[i])
 	}
-	if int64(x.b) > int64(y.b) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // GreaterEqual returns a mask indicating which elements of x are greater than
@@ -1332,14 +1312,10 @@ func (x Int64s) Greater(y Int64s) (z Mask64s) {
 //
 //	z[i] = x[i] >= y[i]
 func (x Int64s) GreaterEqual(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if int64(x.a) >= int64(y.a) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] >= y.v[i])
 	}
-	if int64(x.b) >= int64(y.b) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -1347,21 +1323,18 @@ func (x Int64s) GreaterEqual(y Int64s) (z Mask64s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Int64s) HiToLo() (z Int64s) {
-	return Int64s{a: x.b}
+	copy(z.v[:1], x.v[1:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
 //
 //	z[i] = x[i] < y[i]
 func (x Int64s) Less(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if int64(x.a) < int64(y.a) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] < y.v[i])
 	}
-	if int64(x.b) < int64(y.b) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // LessEqual returns a mask indicating which elements of x are less than or
@@ -1369,26 +1342,18 @@ func (x Int64s) Less(y Int64s) (z Mask64s) {
 //
 //	z[i] = x[i] <= y[i]
 func (x Int64s) LessEqual(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if int64(x.a) <= int64(y.a) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] <= y.v[i])
 	}
-	if int64(x.b) <= int64(y.b) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 func (x Int64s) NotEqual(y Int64s) (z Mask64s) {
-	var res Mask64s
-	if x.a != y.a {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] != y.v[i])
 	}
-	if x.b != y.b {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Len returns the number of elements in x.
@@ -1401,7 +1366,12 @@ func (x Int64s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Int64s) Masked(mask Mask64s) (z Int64s) {
-	return Int64s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // IfElse returns a vector with elements from x where mask is true, and y where
@@ -1409,31 +1379,44 @@ func (x Int64s) Masked(mask Mask64s) (z Int64s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Int64s) IfElse(mask Mask64s, y Int64s) (z Int64s) {
-	return Int64s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Neg returns the elementwise negation of x.
 //
 //	z[i] = -x[i]
 func (x Int64s) Neg() (z Int64s) {
-	return Int64s{a: uint64(-int64(x.a)), b: uint64(-int64(x.b))}
+	for i := range z.v {
+		z.v[i] = -x.v[i]
+	}
+	return z
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Int64s) Not() (z Int64s) {
-	return Int64s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Int64s) Or(y Int64s) (z Int64s) {
-	return Int64s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -1441,7 +1424,10 @@ func (x Int64s) Or(y Int64s) (z Int64s) {
 //
 //	z[i] = x[i] << shift
 func (x Int64s) ShiftAllLeft(shift uint64) (z Int64s) {
-	return Int64s{a: x.a << shift, b: x.b << shift}
+	for i := range z.v {
+		z.v[i] = x.v[i] << shift
+	}
+	return z
 }
 
 // ShiftAllRight arithmetically shifts each element of x right by shift bits.
@@ -1458,53 +1444,48 @@ func (x Int64s) ShiftAllRight(shift uint64) (z Int64s) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Int64s) Store(s []int64) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	if len(s) > 0 {
-		s[0] = int64(x.a)
-	}
-	if len(s) > 1 {
-		s[1] = int64(x.b)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Int64s) StorePart(s []int64) (n int) {
-	var buf [2]int64
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
 func (x Int64s) String() string {
-	return simdfmt.SliceToString([]int64{int64(x.a), int64(x.b)})
+	return simdfmt.SliceToString(x.v[:])
 }
 
 // Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Int64s) Sub(y Int64s) (z Int64s) {
-	return Int64s{a: x.a - y.a, b: x.b - y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] - y.v[i]
+	}
+	return z
 }
 
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
 func (x Int64s) ToMask() (z Mask64s) {
-	var res Mask64s
-	if x.a != 0 {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] != 0)
 	}
-	if x.b != 0 {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Int64s) Xor(y Int64s) (z Int64s) {
-	return Int64s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // ConvertToUint64 converts each element of x to uint64.
@@ -1513,64 +1494,41 @@ func (x Int64s) Xor(y Int64s) (z Int64s) {
 //
 // This wraps unrepresentable values.
 func (x Int64s) ConvertToUint64() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint64(x.v[i])
+	}
+	return z
 }
 
 // ToBits reinterprets the bits of each element of x as type uint64.
 func (x Int64s) ToBits() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = uint64(x.v[i])
+	}
+	return z
 }
 
 // LoadUint8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint8s(s []uint8) (z Uint8s) {
-	var a, b uint64
-	for i := 0; i < 16; i++ {
-		val := uint64(s[i])
-		if i < 8 {
-			a |= val << (8 * i)
-		} else {
-			b |= val << (8 * (i - 8))
-		}
-	}
-	return Uint8s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadUint8sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadUint8sPart(s []uint8) (z Uint8s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 16 {
-		n = 16
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(s[i])
-		if i < 8 {
-			a |= val << (8 * i)
-		} else {
-			b |= val << (8 * (i - 8))
-		}
-	}
-	return Uint8s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Uint8s) get(i int) uint8 {
-	if i < 8 {
-		return uint8(x.a >> (8 * i))
-	}
-	return uint8(x.b >> (8 * (i - 8)))
+	return x.v[i]
 }
 
 func (x *Uint8s) set(i int, v uint8) {
-	val := uint64(v)
-	if i < 8 {
-		mask := uint64(0xff) << (8 * i)
-		x.a = (x.a &^ mask) | (val << (8 * i))
-	} else {
-		mask := uint64(0xff) << (8 * (i - 8))
-		x.b = (x.b &^ mask) | (val << (8 * (i - 8)))
-	}
+	x.v[i] = v
 }
 
 // Add adds x and y elementwise.
@@ -1604,14 +1562,20 @@ func (x Uint8s) AddSaturated(y Uint8s) (z Uint8s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Uint8s) And(y Uint8s) (z Uint8s) {
-	return Uint8s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Uint8s) AndNot(y Uint8s) (z Uint8s) {
-	return Uint8s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Average returns the elementwise average of x and y, rounded toward +∞.
@@ -1668,7 +1632,8 @@ func (x Uint8s) GreaterEqual(y Uint8s) (z Mask8s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint8s) HiToLo() (z Uint8s) {
-	return Uint8s{a: x.b}
+	copy(z.v[:8], x.v[8:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -1719,7 +1684,12 @@ func (x Uint8s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Uint8s) Masked(mask Mask8s) (z Uint8s) {
-	return Uint8s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -1744,10 +1714,14 @@ func (x Uint8s) Max(y Uint8s) (z Uint8s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint8s) IfElse(mask Mask8s, y Uint8s) (z Uint8s) {
-	return Uint8s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -1782,14 +1756,20 @@ func (x Uint8s) Mul(y Uint8s) (z Uint8s) {
 //
 //	z[i] = ^x[i]
 func (x Uint8s) Not() (z Uint8s) {
-	return Uint8s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Uint8s) Or(y Uint8s) (z Uint8s) {
-	return Uint8s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
@@ -1805,17 +1785,13 @@ func (x Uint8s) ReduceSum() (z uint8) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint8s) Store(s []uint8) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 16; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint8s) StorePart(s []uint8) (n int) {
-	var buf [16]uint8
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -1859,12 +1835,18 @@ func (x Uint8s) SubSaturated(y Uint8s) (z Uint8s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Uint8s) Xor(y Uint8s) (z Uint8s) {
-	return Uint8s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // BitsToInt8 reinterprets the bits of each element of x as type int8.
 func (x Uint8s) BitsToInt8() (z Int8s) {
-	return Int8s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int8(x.v[i])
+	}
+	return z
 }
 
 // ConvertToInt8 converts each element of x to int8.
@@ -1873,7 +1855,10 @@ func (x Uint8s) BitsToInt8() (z Int8s) {
 //
 // This wraps unrepresentable values.
 func (x Uint8s) ConvertToInt8() (z Int8s) {
-	return Int8s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int8(x.v[i])
+	}
+	return z
 }
 
 // ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
@@ -1886,7 +1871,8 @@ func (x Uint8s) ConvertToInt8() (z Int8s) {
 //	⋯ | 15     ....     0 | 15     ....     0 |
 //	⋯          z[1]                z[0]
 func (x Uint8s) ReshapeToUint16s() (z Uint16s) {
-	return Uint16s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
@@ -1899,7 +1885,8 @@ func (x Uint8s) ReshapeToUint16s() (z Uint16s) {
 //	⋯ | 31               ....               0 | 31               ....               0 |
 //	⋯                    z[1]                                    z[0]
 func (x Uint8s) ReshapeToUint32s() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
@@ -1912,59 +1899,31 @@ func (x Uint8s) ReshapeToUint32s() (z Uint32s) {
 //	⋯ | 63                 ....                 0 | 63                 ....                 0 |
 //	⋯                      z[1]                                        z[0]
 func (x Uint8s) ReshapeToUint64s() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // LoadUint16s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint16s(s []uint16) (z Uint16s) {
-	var a, b uint64
-	for i := 0; i < 8; i++ {
-		val := uint64(s[i])
-		if i < 4 {
-			a |= val << (16 * i)
-		} else {
-			b |= val << (16 * (i - 4))
-		}
-	}
-	return Uint16s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadUint16sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadUint16sPart(s []uint16) (z Uint16s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 8 {
-		n = 8
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(s[i])
-		if i < 4 {
-			a |= val << (16 * i)
-		} else {
-			b |= val << (16 * (i - 4))
-		}
-	}
-	return Uint16s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Uint16s) get(i int) uint16 {
-	if i < 4 {
-		return uint16(x.a >> (16 * i))
-	}
-	return uint16(x.b >> (16 * (i - 4)))
+	return x.v[i]
 }
 
 func (x *Uint16s) set(i int, v uint16) {
-	val := uint64(v)
-	if i < 4 {
-		mask := uint64(0xffff) << (16 * i)
-		x.a = (x.a &^ mask) | (val << (16 * i))
-	} else {
-		mask := uint64(0xffff) << (16 * (i - 4))
-		x.b = (x.b &^ mask) | (val << (16 * (i - 4)))
-	}
+	x.v[i] = v
 }
 
 // Add adds x and y elementwise.
@@ -1998,14 +1957,20 @@ func (x Uint16s) AddSaturated(y Uint16s) (z Uint16s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Uint16s) And(y Uint16s) (z Uint16s) {
-	return Uint16s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Uint16s) AndNot(y Uint16s) (z Uint16s) {
-	return Uint16s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Average returns the elementwise average of x and y, rounded toward +∞.
@@ -2062,7 +2027,8 @@ func (x Uint16s) GreaterEqual(y Uint16s) (z Mask16s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint16s) HiToLo() (z Uint16s) {
-	return Uint16s{a: x.b}
+	copy(z.v[:4], x.v[4:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -2113,7 +2079,12 @@ func (x Uint16s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Uint16s) Masked(mask Mask16s) (z Uint16s) {
-	return Uint16s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -2138,10 +2109,14 @@ func (x Uint16s) Max(y Uint16s) (z Uint16s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint16s) IfElse(mask Mask16s, y Uint16s) (z Uint16s) {
-	return Uint16s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -2176,14 +2151,20 @@ func (x Uint16s) Mul(y Uint16s) (z Uint16s) {
 //
 //	z[i] = ^x[i]
 func (x Uint16s) Not() (z Uint16s) {
-	return Uint16s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Uint16s) Or(y Uint16s) (z Uint16s) {
-	return Uint16s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -2251,17 +2232,13 @@ func (x Uint16s) ReduceSum() (z uint16) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint16s) Store(s []uint16) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 8; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint16s) StorePart(s []uint16) (n int) {
-	var buf [8]uint16
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -2305,12 +2282,18 @@ func (x Uint16s) SubSaturated(y Uint16s) (z Uint16s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Uint16s) Xor(y Uint16s) (z Uint16s) {
-	return Uint16s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // BitsToInt16 reinterprets the bits of each element of x as type int16.
 func (x Uint16s) BitsToInt16() (z Int16s) {
-	return Int16s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int16(x.v[i])
+	}
+	return z
 }
 
 // ConvertToInt16 converts each element of x to int16.
@@ -2319,7 +2302,10 @@ func (x Uint16s) BitsToInt16() (z Int16s) {
 //
 // This wraps unrepresentable values.
 func (x Uint16s) ConvertToInt16() (z Int16s) {
-	return Int16s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int16(x.v[i])
+	}
+	return z
 }
 
 // ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
@@ -2332,7 +2318,8 @@ func (x Uint16s) ConvertToInt16() (z Int16s) {
 //	⋯ | 31     ....     0 | 31     ....     0 |
 //	⋯          z[1]                z[0]
 func (x Uint16s) ReshapeToUint32s() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
@@ -2345,7 +2332,8 @@ func (x Uint16s) ReshapeToUint32s() (z Uint32s) {
 //	⋯ | 63               ....               0 | 63               ....               0 |
 //	⋯                    z[1]                                    z[0]
 func (x Uint16s) ReshapeToUint64s() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
@@ -2358,59 +2346,31 @@ func (x Uint16s) ReshapeToUint64s() (z Uint64s) {
 //	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
 //	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint16s) ReshapeToUint8s() (z Uint8s) {
-	return Uint8s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // LoadUint32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint32s(s []uint32) (z Uint32s) {
-	var a, b uint64
-	for i := 0; i < 4; i++ {
-		val := uint64(s[i])
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Uint32s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadUint32sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadUint32sPart(s []uint32) (z Uint32s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 4 {
-		n = 4
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(s[i])
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Uint32s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Uint32s) get(i int) uint32 {
-	if i < 2 {
-		return uint32(x.a >> (32 * i))
-	}
-	return uint32(x.b >> (32 * (i - 2)))
+	return x.v[i]
 }
 
 func (x *Uint32s) set(i int, v uint32) {
-	val := uint64(v)
-	if i < 2 {
-		mask := uint64(0xffff_ffff) << (32 * i)
-		x.a = (x.a &^ mask) | (val << (32 * i))
-	} else {
-		mask := uint64(0xffff_ffff) << (32 * (i - 2))
-		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
-	}
+	x.v[i] = v
 }
 
 // Add adds x and y elementwise.
@@ -2428,14 +2388,20 @@ func (x Uint32s) Add(y Uint32s) (z Uint32s) {
 //
 //	z[i] = x[i] & y[i]
 func (x Uint32s) And(y Uint32s) (z Uint32s) {
-	return Uint32s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Uint32s) AndNot(y Uint32s) (z Uint32s) {
-	return Uint32s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
@@ -2481,7 +2447,8 @@ func (x Uint32s) GreaterEqual(y Uint32s) (z Mask32s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint32s) HiToLo() (z Uint32s) {
-	return Uint32s{a: x.b}
+	copy(z.v[:2], x.v[2:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -2532,7 +2499,12 @@ func (x Uint32s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Uint32s) Masked(mask Mask32s) (z Uint32s) {
-	return Uint32s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -2557,10 +2529,14 @@ func (x Uint32s) Max(y Uint32s) (z Uint32s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint32s) IfElse(mask Mask32s, y Uint32s) (z Uint32s) {
-	return Uint32s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -2595,14 +2571,20 @@ func (x Uint32s) Mul(y Uint32s) (z Uint32s) {
 //
 //	z[i] = ^x[i]
 func (x Uint32s) Not() (z Uint32s) {
-	return Uint32s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Uint32s) Or(y Uint32s) (z Uint32s) {
-	return Uint32s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -2670,17 +2652,13 @@ func (x Uint32s) ReduceSum() (z uint32) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint32s) Store(s []uint32) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 4; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint32s) StorePart(s []uint32) (n int) {
-	var buf [4]uint32
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -2707,17 +2685,26 @@ func (x Uint32s) Sub(y Uint32s) (z Uint32s) {
 //
 //	z[i] = x[i] ^ y[i]
 func (x Uint32s) Xor(y Uint32s) (z Uint32s) {
-	return Uint32s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // BitsToFloat32 reinterprets the bits of each element of x as type float32.
 func (x Uint32s) BitsToFloat32() (z Float32s) {
-	return Float32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = math.Float32frombits(x.v[i])
+	}
+	return z
 }
 
 // BitsToInt32 reinterprets the bits of each element of x as type int32.
 func (x Uint32s) BitsToInt32() (z Int32s) {
-	return Int32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int32(x.v[i])
+	}
+	return z
 }
 
 // ConvertToInt32 converts each element of x to int32.
@@ -2726,7 +2713,10 @@ func (x Uint32s) BitsToInt32() (z Int32s) {
 //
 // This wraps unrepresentable values.
 func (x Uint32s) ConvertToInt32() (z Int32s) {
-	return Int32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int32(x.v[i])
+	}
+	return z
 }
 
 // ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
@@ -2739,7 +2729,8 @@ func (x Uint32s) ConvertToInt32() (z Int32s) {
 //	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
 //	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint16s() (z Uint16s) {
-	return Uint16s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint64s reinterprets the bits of x as a Uint64s vector.
@@ -2752,7 +2743,8 @@ func (x Uint32s) ReshapeToUint16s() (z Uint16s) {
 //	⋯ | 63     ....     0 | 63     ....     0 |
 //	⋯          z[1]                z[0]
 func (x Uint32s) ReshapeToUint64s() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
@@ -2765,78 +2757,69 @@ func (x Uint32s) ReshapeToUint64s() (z Uint64s) {
 //	⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 |
 //	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint32s) ReshapeToUint8s() (z Uint8s) {
-	return Uint8s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // LoadUint64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadUint64s(s []uint64) (z Uint64s) {
-	var a, b uint64
-	a = s[0]
-	b = s[1]
-	return Uint64s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadUint64sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadUint64sPart(s []uint64) (z Uint64s, n int) {
-	n = min(len(s), 2)
-	var a, b uint64
-	if n > 0 {
-		a = s[0]
-	}
-	if n > 1 {
-		b = s[1]
-	}
-	return Uint64s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Uint64s) get(i int) uint64 {
-	if i == 0 {
-		return x.a
-	}
-	return x.b
+	return x.v[i]
 }
 
 func (x *Uint64s) set(i int, v uint64) {
-	if i == 0 {
-		x.a = v
-	} else {
-		x.b = v
-	}
+	x.v[i] = v
 }
 
 // Add adds x and y elementwise.
 //
 //	z[i] = x[i] + y[i]
 func (x Uint64s) Add(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a + y.a, b: x.b + y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] + y.v[i]
+	}
+	return z
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Uint64s) And(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a & y.a, b: x.b & y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] & y.v[i]
+	}
+	return z
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Uint64s) AndNot(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a &^ y.a, b: x.b &^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] &^ y.v[i]
+	}
+	return z
 }
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Uint64s) Equal(y Uint64s) (z Mask64s) {
-	var res Mask64s
-	if x.a == y.a {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] == y.v[i])
 	}
-	if x.b == y.b {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Greater returns a mask indicating which elements of x are greater than y.
@@ -2871,7 +2854,8 @@ func (x Uint64s) GreaterEqual(y Uint64s) (z Mask64s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Uint64s) HiToLo() (z Uint64s) {
-	return Uint64s{a: x.b}
+	copy(z.v[:1], x.v[1:])
+	return z
 }
 
 // Less returns a mask indicating which elements of x are less than y.
@@ -2903,14 +2887,10 @@ func (x Uint64s) LessEqual(y Uint64s) (z Mask64s) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 func (x Uint64s) NotEqual(y Uint64s) (z Mask64s) {
-	var res Mask64s
-	if x.a != y.a {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] != y.v[i])
 	}
-	if x.b != y.b {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Len returns the number of elements in x.
@@ -2923,7 +2903,12 @@ func (x Uint64s) Len() int {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Uint64s) Masked(mask Mask64s) (z Uint64s) {
-	return Uint64s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // IfElse returns a vector with elements from x where mask is true, and y where
@@ -2931,24 +2916,34 @@ func (x Uint64s) Masked(mask Mask64s) (z Uint64s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Uint64s) IfElse(mask Mask64s, y Uint64s) (z Uint64s) {
-	return Uint64s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Uint64s) Not() (z Uint64s) {
-	return Uint64s{a: ^x.a, b: ^x.b}
+	for i := range z.v {
+		z.v[i] = ^x.v[i]
+	}
+	return z
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Uint64s) Or(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a | y.a, b: x.b | y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] | y.v[i]
+	}
+	return z
 }
 
 // ShiftAllLeft shifts each element of x left by shift bits.
@@ -2956,7 +2951,10 @@ func (x Uint64s) Or(y Uint64s) (z Uint64s) {
 //
 //	z[i] = x[i] << shift
 func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s) {
-	return Uint64s{a: x.a << shift, b: x.b << shift}
+	for i := range z.v {
+		z.v[i] = x.v[i] << shift
+	}
+	return z
 }
 
 // ShiftAllRight logically shifts each element of x right by shift bits.
@@ -2964,76 +2962,82 @@ func (x Uint64s) ShiftAllLeft(shift uint64) (z Uint64s) {
 //
 //	z[i] = x[i] >> shift
 func (x Uint64s) ShiftAllRight(shift uint64) (z Uint64s) {
-	return Uint64s{a: x.a >> shift, b: x.b >> shift}
+	for i := range z.v {
+		z.v[i] = x.v[i] >> shift
+	}
+	return z
 }
 
 // RotateAllLeft rotates each element of x left by shift bits.
 //
 //	z[i] = rotateLeft(x[i], shift)
 func (x Uint64s) RotateAllLeft(shift uint64) (z Uint64s) {
-	d := shift & 63
-	return Uint64s{
-		a: (x.a << d) | (x.a >> ((64 - d) & 63)),
-		b: (x.b << d) | (x.b >> ((64 - d) & 63)),
+	for i := range z.v {
+		z.v[i] = bits.RotateLeft64(x.v[i], int(shift&63))
 	}
+	return z
 }
 
 // RotateAllRight rotates each element of x right by shift bits.
 //
 //	z[i] = rotateRight(x[i], shift)
 func (x Uint64s) RotateAllRight(shift uint64) (z Uint64s) {
-	d := shift & 63
-	return Uint64s{
-		a: (x.a >> d) | (x.a << ((64 - d) & 63)),
-		b: (x.b >> d) | (x.b << ((64 - d) & 63)),
+	for i := range z.v {
+		z.v[i] = bits.RotateLeft64(x.v[i], -int(shift&63))
 	}
+	return z
 }
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Uint64s) Store(s []uint64) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	if len(s) > 0 {
-		s[0] = x.a
-	}
-	if len(s) > 1 {
-		s[1] = x.b
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Uint64s) StorePart(s []uint64) (n int) {
-	var buf [2]uint64
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
 func (x Uint64s) String() string {
-	return simdfmt.SliceToString([]uint64{x.a, x.b})
+	return simdfmt.SliceToString(x.v[:])
 }
 
 // Sub subtracts y from x elementwise.
 //
 //	z[i] = x[i] - y[i]
 func (x Uint64s) Sub(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a - y.a, b: x.b - y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] - y.v[i]
+	}
+	return z
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Uint64s) Xor(y Uint64s) (z Uint64s) {
-	return Uint64s{a: x.a ^ y.a, b: x.b ^ y.b}
+	for i := range z.v {
+		z.v[i] = x.v[i] ^ y.v[i]
+	}
+	return z
 }
 
 // BitsToFloat64 reinterprets the bits of each element of x as type float64.
 func (x Uint64s) BitsToFloat64() (z Float64s) {
-	return Float64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = math.Float64frombits(x.v[i])
+	}
+	return z
 }
 
 // BitsToInt64 reinterprets the bits of each element of x as type int64.
 func (x Uint64s) BitsToInt64() (z Int64s) {
-	return Int64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int64(x.v[i])
+	}
+	return z
 }
 
 // ConvertToInt64 converts each element of x to int64.
@@ -3042,7 +3046,10 @@ func (x Uint64s) BitsToInt64() (z Int64s) {
 //
 // This wraps unrepresentable values.
 func (x Uint64s) ConvertToInt64() (z Int64s) {
-	return Int64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = int64(x.v[i])
+	}
+	return z
 }
 
 // ReshapeToUint16s reinterprets the bits of x as a Uint16s vector.
@@ -3055,7 +3062,8 @@ func (x Uint64s) ConvertToInt64() (z Int64s) {
 //	⋯ | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 | 15 .. 0 |
 //	⋯     z[7]      z[6]      z[5]      z[4]      z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint16s() (z Uint16s) {
-	return Uint16s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint32s reinterprets the bits of x as a Uint32s vector.
@@ -3068,7 +3076,8 @@ func (x Uint64s) ReshapeToUint16s() (z Uint16s) {
 //	⋯ | 31 .. 0 | 31 .. 0 | 31 .. 0 | 31 .. 0 |
 //	⋯     z[3]      z[2]      z[1]      z[0]
 func (x Uint64s) ReshapeToUint32s() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // ReshapeToUint8s reinterprets the bits of x as a Uint8s vector.
@@ -3081,59 +3090,31 @@ func (x Uint64s) ReshapeToUint32s() (z Uint32s) {
 //	⋯ | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 | 7  .. 0 | 7  .. 0 | ⋯ | 7  .. 0 | 7  .. 0 |
 //	⋯    z[15]     z[14]    ⋯     z[9]      z[8]      z[7]      z[6]    ⋯     z[1]      z[0]
 func (x Uint64s) ReshapeToUint8s() (z Uint8s) {
-	return Uint8s{a: x.a, b: x.b}
+	wordsToLanes(lanesToWords(x.v[:]), z.v[:])
+	return z
 }
 
 // LoadFloat32s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadFloat32s(s []float32) (z Float32s) {
-	var a, b uint64
-	for i := 0; i < 4; i++ {
-		val := uint64(math.Float32bits(s[i]))
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Float32s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadFloat32sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadFloat32sPart(s []float32) (z Float32s, n int) {
-	var a, b uint64
-	n = len(s)
-	if n > 4 {
-		n = 4
-	}
-	for i := 0; i < n; i++ {
-		val := uint64(math.Float32bits(s[i]))
-		if i < 2 {
-			a |= val << (32 * i)
-		} else {
-			b |= val << (32 * (i - 2))
-		}
-	}
-	return Float32s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Float32s) get(i int) float32 {
-	if i < 2 {
-		return math.Float32frombits(uint32(x.a >> (32 * i)))
-	}
-	return math.Float32frombits(uint32(x.b >> (32 * (i - 2))))
+	return x.v[i]
 }
 
 func (x *Float32s) set(i int, v float32) {
-	val := uint64(math.Float32bits(v))
-	if i < 2 {
-		mask := uint64(0xffff_ffff) << (32 * i)
-		x.a = (x.a &^ mask) | (val << (32 * i))
-	} else {
-		mask := uint64(0xffff_ffff) << (32 * (i - 2))
-		x.b = (x.b &^ mask) | (val << (32 * (i - 2)))
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
@@ -3263,7 +3244,8 @@ func (x Float32s) GreaterEqual(y Float32s) (z Mask32s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Float32s) HiToLo() (z Float32s) {
-	return Float32s{a: x.b}
+	copy(z.v[:2], x.v[2:])
+	return z
 }
 
 // Len returns the number of elements in x.
@@ -3303,7 +3285,12 @@ func (x Float32s) LessEqual(y Float32s) (z Mask32s) {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Float32s) Masked(mask Mask32s) (z Float32s) {
-	return Float32s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -3340,10 +3327,14 @@ func (x Float32s) Max(y Float32s) (z Float32s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Float32s) IfElse(mask Mask32s, y Float32s) (z Float32s) {
-	return Float32s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -3471,17 +3462,13 @@ func (x Float32s) Sqrt() (z Float32s) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Float32s) Store(s []float32) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	for i := 0; i < 4; i++ {
-		s[i] = x.get(i)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float32s) StorePart(s []float32) (n int) {
-	var buf [4]float32
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -3506,7 +3493,10 @@ func (x Float32s) Sub(y Float32s) (z Float32s) {
 
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float32s) ToBits() (z Uint32s) {
-	return Uint32s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = math.Float32bits(x.v[i])
+	}
+	return z
 }
 
 // Trunc returns the integer value of each element of x, rounded toward zero.
@@ -3526,46 +3516,31 @@ func (x Float32s) Trunc() (z Float32s) {
 
 // LoadFloat64s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadFloat64s(s []float64) (z Float64s) {
-	var a, b uint64
-	a = math.Float64bits(s[0])
-	b = math.Float64bits(s[1])
-	return Float64s{a: a, b: b}
+	_ = s[len(z.v)-1]
+	copy(z.v[:], s)
+	return z
 }
 
 // LoadFloat64sPart loads n=min(len(s), z.Len()) elements from slice s as a
 // vector and returns the vector and n. If len(s) < z.Len(), the
 // remaining vector elements will be zero.
 func LoadFloat64sPart(s []float64) (z Float64s, n int) {
-	n = min(len(s), 2)
-	var a, b uint64
-	if n > 0 {
-		a = math.Float64bits(s[0])
-	}
-	if n > 1 {
-		b = math.Float64bits(s[1])
-	}
-	return Float64s{a: a, b: b}, n
+	n = copy(z.v[:], s)
+	return z, n
 }
 
 func (x Float64s) get(i int) float64 {
-	if i == 0 {
-		return math.Float64frombits(x.a)
-	}
-	return math.Float64frombits(x.b)
+	return x.v[i]
 }
 
 func (x *Float64s) set(i int, v float64) {
-	if i == 0 {
-		x.a = math.Float64bits(v)
-	} else {
-		x.b = math.Float64bits(v)
-	}
+	x.v[i] = v
 }
 
 // Abs returns the elementwise absolute value of x.
 func (x Float64s) Abs() (z Float64s) {
 	var res Float64s
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 2; i++ {
 		v := x.get(i)
 		v = math.Abs(v)
 		res.set(i, v)
@@ -3614,14 +3589,10 @@ func (x Float64s) Div(y Float64s) (z Float64s) {
 
 // Equal returns a mask indicating which elements of x and y are equal.
 func (x Float64s) Equal(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) == y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] == y.v[i])
 	}
-	if x.get(1) == y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Floor returns the greatest integer value less than or equal to each element
@@ -3642,14 +3613,10 @@ func (x Float64s) Floor() (z Float64s) {
 //
 //	z[i] = x[i] > y[i]
 func (x Float64s) Greater(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) > y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] > y.v[i])
 	}
-	if x.get(1) > y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // GreaterEqual returns a mask indicating which elements of x are greater than
@@ -3657,14 +3624,10 @@ func (x Float64s) Greater(y Float64s) (z Mask64s) {
 //
 //	z[i] = x[i] >= y[i]
 func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) >= y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] >= y.v[i])
 	}
-	if x.get(1) >= y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // HiToLo returns a vector whose low half is the high half of x and whose high
@@ -3672,7 +3635,8 @@ func (x Float64s) GreaterEqual(y Float64s) (z Mask64s) {
 //
 //	z = {x[n/2], x[n/2+1], ..., x[n-1], 0, ..., 0}, where n = x.Len()
 func (x Float64s) HiToLo() (z Float64s) {
-	return Float64s{a: x.b}
+	copy(z.v[:1], x.v[1:])
+	return z
 }
 
 // Len returns the number of elements in x.
@@ -3684,14 +3648,10 @@ func (x Float64s) Len() int {
 //
 //	z[i] = x[i] < y[i]
 func (x Float64s) Less(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) < y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] < y.v[i])
 	}
-	if x.get(1) < y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // LessEqual returns a mask indicating which elements of x are less than or
@@ -3699,14 +3659,10 @@ func (x Float64s) Less(y Float64s) (z Mask64s) {
 //
 //	z[i] = x[i] <= y[i]
 func (x Float64s) LessEqual(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) <= y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] <= y.v[i])
 	}
-	if x.get(1) <= y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // Masked returns a vector with elements from x where mask is true, and zero
@@ -3714,7 +3670,12 @@ func (x Float64s) LessEqual(y Float64s) (z Mask64s) {
 //
 //	z[i] = if mask[i] { x[i] } else { 0 }
 func (x Float64s) Masked(mask Mask64s) (z Float64s) {
-	return Float64s{a: x.a & mask.a, b: x.b & mask.b}
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		}
+	}
+	return z
 }
 
 // Max returns the elementwise maximum of x and y.
@@ -3752,10 +3713,14 @@ func (x Float64s) Max(y Float64s) (z Float64s) {
 //
 //	z[i] = if mask[i] { x[i] } else { y[i] }
 func (x Float64s) IfElse(mask Mask64s, y Float64s) (z Float64s) {
-	return Float64s{
-		a: (x.a & mask.a) | (y.a &^ mask.a),
-		b: (x.b & mask.b) | (y.b &^ mask.b),
+	for i := range z.v {
+		if mask.get(i) {
+			z.v[i] = x.v[i]
+		} else {
+			z.v[i] = y.v[i]
+		}
 	}
+	return z
 }
 
 // Min returns the elementwise minimum of x and y.
@@ -3817,7 +3782,7 @@ func (x Float64s) MulAdd(y Float64s, z Float64s) (w Float64s) {
 //	z[i] = -x[i]
 func (x Float64s) Neg() (z Float64s) {
 	var res Float64s
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 2; i++ {
 		res.set(i, -(x.get(i)))
 	}
 	return res
@@ -3825,14 +3790,10 @@ func (x Float64s) Neg() (z Float64s) {
 
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 func (x Float64s) NotEqual(y Float64s) (z Mask64s) {
-	var res Mask64s
-	if x.get(0) != y.get(0) {
-		res.a = ^uint64(0)
+	for i := range x.v {
+		z.set(i, x.v[i] != y.v[i])
 	}
-	if x.get(1) != y.get(1) {
-		res.b = ^uint64(0)
-	}
-	return res
+	return z
 }
 
 // ReduceSum returns the scalar sum of the elements of x.
@@ -3876,20 +3837,13 @@ func (x Float64s) Sqrt() (z Float64s) {
 
 // Store stores the elements of x into a slice. If len(s) < x.Len(), it panics.
 func (x Float64s) Store(s []float64) {
-	_ = s[x.Len()-1] // Panic if s is too short.
-	if len(s) > 0 {
-		s[0] = x.get(0)
-	}
-	if len(s) > 1 {
-		s[1] = x.get(1)
-	}
+	_ = s[len(x.v)-1]
+	copy(s, x.v[:])
 }
 
 // StorePart stores n=min(len(s), x.Len()) elements of x into s and returns n.
 func (x Float64s) StorePart(s []float64) (n int) {
-	var buf [2]float64
-	x.Store(buf[:])
-	return copy(s, buf[:])
+	return copy(s, x.v[:])
 }
 
 // String returns x in the form "{x[0],x[1],...}".
@@ -3909,7 +3863,10 @@ func (x Float64s) Sub(y Float64s) (z Float64s) {
 
 // ToBits returns the IEEE 754 binary representation of each element of x.
 func (x Float64s) ToBits() (z Uint64s) {
-	return Uint64s{a: x.a, b: x.b}
+	for i := range z.v {
+		z.v[i] = math.Float64bits(x.v[i])
+	}
+	return z
 }
 
 // Trunc returns the integer value of each element of x, rounded toward zero.
@@ -3928,49 +3885,49 @@ func (x Float64s) Trunc() (z Float64s) {
 
 func (x *Mask8s) set(i int, v bool) {
 	if v {
-		if i < 8 {
-			mask := uint64(0xff) << (8 * i)
-			x.a |= mask
-		} else {
-			mask := uint64(0xff) << (8 * (i - 8))
-			x.b |= mask
-		}
+		x.m |= 1 << i
+	} else {
+		x.m &^= 1 << i
 	}
+}
+
+func (x Mask8s) get(i int) bool {
+	return x.m>>i&1 != 0
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Mask8s) And(y Mask8s) (z Mask8s) {
-	return Mask8s{a: x.a & y.a, b: x.b & y.b}
+	return Mask8s{m: x.m & y.m}
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Mask8s) AndNot(y Mask8s) (z Mask8s) {
-	return Mask8s{a: x.a &^ y.a, b: x.b &^ y.b}
+	return Mask8s{m: x.m &^ y.m}
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Mask8s) Not() (z Mask8s) {
-	return Mask8s{a: ^x.a, b: ^x.b}
+	return Mask8s{m: ^x.m & 0xffff}
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask8s) Or(y Mask8s) (z Mask8s) {
-	return Mask8s{a: x.a | y.a, b: x.b | y.b}
+	return Mask8s{m: x.m | y.m}
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Mask8s) Xor(y Mask8s) (z Mask8s) {
-	return Mask8s{a: x.a ^ y.a, b: x.b ^ y.b}
+	return Mask8s{m: x.m ^ y.m}
 }
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
@@ -3984,54 +3941,59 @@ func (x Mask8s) String() string {
 // ToInt8s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask8s) ToInt8s() (z Int8s) {
-	return Int8s{a: x.a, b: x.b}
+	for i := range z.v {
+		if x.get(i) {
+			z.v[i] = -1
+		}
+	}
+	return z
 }
 
 func (x *Mask16s) set(i int, v bool) {
 	if v {
-		if i < 4 {
-			mask := uint64(0xffff) << (16 * i)
-			x.a |= mask
-		} else {
-			mask := uint64(0xffff) << (16 * (i - 4))
-			x.b |= mask
-		}
+		x.m |= 1 << i
+	} else {
+		x.m &^= 1 << i
 	}
+}
+
+func (x Mask16s) get(i int) bool {
+	return x.m>>i&1 != 0
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Mask16s) And(y Mask16s) (z Mask16s) {
-	return Mask16s{a: x.a & y.a, b: x.b & y.b}
+	return Mask16s{m: x.m & y.m}
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Mask16s) AndNot(y Mask16s) (z Mask16s) {
-	return Mask16s{a: x.a &^ y.a, b: x.b &^ y.b}
+	return Mask16s{m: x.m &^ y.m}
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Mask16s) Not() (z Mask16s) {
-	return Mask16s{a: ^x.a, b: ^x.b}
+	return Mask16s{m: ^x.m & 0xff}
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask16s) Or(y Mask16s) (z Mask16s) {
-	return Mask16s{a: x.a | y.a, b: x.b | y.b}
+	return Mask16s{m: x.m | y.m}
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Mask16s) Xor(y Mask16s) (z Mask16s) {
-	return Mask16s{a: x.a ^ y.a, b: x.b ^ y.b}
+	return Mask16s{m: x.m ^ y.m}
 }
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
@@ -4045,54 +4007,59 @@ func (x Mask16s) String() string {
 // ToInt16s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask16s) ToInt16s() (z Int16s) {
-	return Int16s{a: x.a, b: x.b}
+	for i := range z.v {
+		if x.get(i) {
+			z.v[i] = -1
+		}
+	}
+	return z
 }
 
 func (x *Mask32s) set(i int, v bool) {
 	if v {
-		if i < 2 {
-			mask := uint64(0xffff_ffff) << (32 * i)
-			x.a |= mask
-		} else {
-			mask := uint64(0xffff_ffff) << (32 * (i - 2))
-			x.b |= mask
-		}
+		x.m |= 1 << i
+	} else {
+		x.m &^= 1 << i
 	}
+}
+
+func (x Mask32s) get(i int) bool {
+	return x.m>>i&1 != 0
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Mask32s) And(y Mask32s) (z Mask32s) {
-	return Mask32s{a: x.a & y.a, b: x.b & y.b}
+	return Mask32s{m: x.m & y.m}
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Mask32s) AndNot(y Mask32s) (z Mask32s) {
-	return Mask32s{a: x.a &^ y.a, b: x.b &^ y.b}
+	return Mask32s{m: x.m &^ y.m}
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Mask32s) Not() (z Mask32s) {
-	return Mask32s{a: ^x.a, b: ^x.b}
+	return Mask32s{m: ^x.m & 0xf}
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask32s) Or(y Mask32s) (z Mask32s) {
-	return Mask32s{a: x.a | y.a, b: x.b | y.b}
+	return Mask32s{m: x.m | y.m}
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Mask32s) Xor(y Mask32s) (z Mask32s) {
-	return Mask32s{a: x.a ^ y.a, b: x.b ^ y.b}
+	return Mask32s{m: x.m ^ y.m}
 }
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
@@ -4106,52 +4073,59 @@ func (x Mask32s) String() string {
 // ToInt32s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask32s) ToInt32s() (z Int32s) {
-	return Int32s{a: x.a, b: x.b}
+	for i := range z.v {
+		if x.get(i) {
+			z.v[i] = -1
+		}
+	}
+	return z
 }
 
 func (x *Mask64s) set(i int, v bool) {
 	if v {
-		if i == 0 {
-			x.a = ^uint64(0)
-		} else {
-			x.b = ^uint64(0)
-		}
+		x.m |= 1 << i
+	} else {
+		x.m &^= 1 << i
 	}
+}
+
+func (x Mask64s) get(i int) bool {
+	return x.m>>i&1 != 0
 }
 
 // And returns the bitwise AND of x and y.
 //
 //	z[i] = x[i] & y[i]
 func (x Mask64s) And(y Mask64s) (z Mask64s) {
-	return Mask64s{a: x.a & y.a, b: x.b & y.b}
+	return Mask64s{m: x.m & y.m}
 }
 
 // AndNot returns the bitwise AND NOT of x and y.
 //
 //	z[i] = x[i] &^ y[i]
 func (x Mask64s) AndNot(y Mask64s) (z Mask64s) {
-	return Mask64s{a: x.a &^ y.a, b: x.b &^ y.b}
+	return Mask64s{m: x.m &^ y.m}
 }
 
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
 func (x Mask64s) Not() (z Mask64s) {
-	return Mask64s{a: ^x.a, b: ^x.b}
+	return Mask64s{m: ^x.m & 0x3}
 }
 
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
 func (x Mask64s) Or(y Mask64s) (z Mask64s) {
-	return Mask64s{a: x.a | y.a, b: x.b | y.b}
+	return Mask64s{m: x.m | y.m}
 }
 
 // Xor returns the bitwise XOR of x and y.
 //
 //	z[i] = x[i] ^ y[i]
 func (x Mask64s) Xor(y Mask64s) (z Mask64s) {
-	return Mask64s{a: x.a ^ y.a, b: x.b ^ y.b}
+	return Mask64s{m: x.m ^ y.m}
 }
 
 // String returns x in the form "{x[0],x[1],...}", where 0 means false and 1
@@ -4165,17 +4139,22 @@ func (x Mask64s) String() string {
 // ToInt64s converts the mask to a vector, where element i is set to ^0 (all bits
 // set, e.g., -1) if mask element i is "true", and 0 otherwise.
 func (x Mask64s) ToInt64s() (z Int64s) {
-	return Int64s{a: x.a, b: x.b}
+	for i := range z.v {
+		if x.get(i) {
+			z.v[i] = -1
+		}
+	}
+	return z
 }
 
 func newT(lo, hi uint64) Uint64s {
-	return Uint64s{a: lo, b: hi}
+	return Uint64s{v: [2]uint64{lo, hi}}
 }
 
 // mwl returns the 128-bit product of the lower halves of x and y
 func (x Uint64s) mwl(y Uint64s) Uint64s {
-	hi, lo := bits.Mul64(x.a, y.a)
-	return Uint64s{a: lo, b: hi}
+	hi, lo := bits.Mul64(x.v[0], y.v[0])
+	return newT(lo, hi)
 }
 
 var (
@@ -4250,7 +4229,7 @@ func (x Uint64s) CarrylessMultiplyEven(y Uint64s) (z Uint64s) {
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
 func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
-	y.a = y.b
+	y.v[0] = y.v[1]
 	return x.clmul(y)
 }
 
@@ -4263,8 +4242,8 @@ func (x Uint64s) CarrylessMultiplyEvenOdd(y Uint64s) (z Uint64s) {
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
 func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
-	x.a = x.b
-	y.a = y.b
+	x.v[0] = x.v[1]
+	y.v[0] = y.v[1]
 	return x.clmul(y)
 }
 
@@ -4278,7 +4257,7 @@ func (x Uint64s) CarrylessMultiplyOdd(y Uint64s) (z Uint64s) {
 //
 // See [CarrylessMultiplyEven] for details about carryless multiply.
 func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s) {
-	x.a = x.b
+	x.v[0] = x.v[1]
 	return x.clmul(y)
 }
 
@@ -4287,20 +4266,10 @@ func (x Uint64s) CarrylessMultiplyOddEven(y Uint64s) (z Uint64s) {
 //
 //	z[i] = bits.OnesCount(x[i])
 func (x Int8s) OnesCount() (z Int8s) {
-	a0, a1 := x.a, x.b
-	m1 := uint64(0x5555555555555555)
-	m2 := uint64(0x3333333333333333)
-	m4 := uint64(0x0f0f0f0f0f0f0f0f)
-	a0 = (a0 & m1) + ((a0 >> 1) & m1)
-	a1 = (a1 & m1) + ((a1 >> 1) & m1)
-
-	a0 = (a0 & m2) + ((a0 >> 2) & m2)
-	a1 = (a1 & m2) + ((a1 >> 2) & m2)
-
-	a0 = (a0 & m4) + ((a0 >> 4) & m4)
-	a1 = (a1 & m4) + ((a1 >> 4) & m4)
-
-	return Int8s{a: a0, b: a1}
+	for i := range z.v {
+		z.v[i] = int8(bits.OnesCount8(uint8(x.v[i])))
+	}
+	return z
 }
 
 // OnesCount counts the number of one bits ("population count") in
@@ -4308,20 +4277,10 @@ func (x Int8s) OnesCount() (z Int8s) {
 //
 //	z[i] = bits.OnesCount(x[i])
 func (x Uint8s) OnesCount() (z Uint8s) {
-	a0, a1 := x.a, x.b
-	m1 := uint64(0x5555555555555555)
-	m2 := uint64(0x3333333333333333)
-	m4 := uint64(0x0f0f0f0f0f0f0f0f)
-	a0 = (a0 & m1) + ((a0 >> 1) & m1)
-	a1 = (a1 & m1) + ((a1 >> 1) & m1)
-
-	a0 = (a0 & m2) + ((a0 >> 2) & m2)
-	a1 = (a1 & m2) + ((a1 >> 2) & m2)
-
-	a0 = (a0 & m4) + ((a0 >> 4) & m4)
-	a1 = (a1 & m4) + ((a1 >> 4) & m4)
-
-	return Uint8s{a: a0, b: a1}
+	for i := range z.v {
+		z.v[i] = uint8(bits.OnesCount8(uint8(x.v[i])))
+	}
+	return z
 }
 
 const (
@@ -4332,192 +4291,175 @@ const (
 // BroadcastInt8s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastInt8s(x int8) (z Int8s) {
-	v := (255 & uint64(x)) * by8
-	return Int8s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastInt16s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastInt16s(x int16) (z Int16s) {
-	v := (65535 & uint64(x)) * by16
-	return Int16s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastInt32s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastInt32s(x int32) (z Int32s) {
-	v := uint64(x) & 0xffff_ffff
-	v = v<<32 | v
-	return Int32s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastInt64s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastInt64s(x int64) (z Int64s) {
-	v := uint64(x)
-	return Int64s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastUint8s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastUint8s(x uint8) (z Uint8s) {
-	v := uint64(x) * by8
-	return Uint8s{a: v, b: v}
-
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastUint16s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastUint16s(x uint16) (z Uint16s) {
-	v := uint64(x) * by16
-	return Uint16s{a: v, b: v}
-
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastUint32s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastUint32s(x uint32) (z Uint32s) {
-	v := uint64(x)
-	v = v<<32 | v
-	return Uint32s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastUint64s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastUint64s(x uint64) (z Uint64s) {
-	return Uint64s{a: x, b: x}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastFloat32s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastFloat32s(x float32) (z Float32s) {
-	v := uint64(math.Float32bits(x))
-	v = v<<32 | v
-	return Float32s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // BroadcastFloat64s returns a vector with the input x assigned to all elements of the
 // result.
 func BroadcastFloat64s(x float64) (z Float64s) {
-	v := math.Float64bits(x)
-	return Float64s{a: v, b: v}
+	for i := range z.v {
+		z.v[i] = x
+	}
+	return z
 }
 
 // All returns true when all positions in mask x are true.
 func (x Mask8s) All() bool {
-	return x.a&x.b == 0xffff_ffff_ffff_ffff
+	return x.m == 0xffff
 }
 
 // Any returns true when any position in mask x is true.
 func (x Mask8s) Any() bool {
-	return x.a|x.b != 0
+	return x.m != 0
 }
 
 // None returns true when no positions in mask x are set.
 func (x Mask8s) None() bool {
-	return x.a|x.b == 0
+	return x.m == 0
 }
 
 // All returns true when all positions in mask x are true.
 func (x Mask16s) All() bool {
-	return x.a&x.b == 0xffff_ffff_ffff_ffff
+	return x.m == 0xff
 }
 
 // Any returns true when any position in mask x is true.
 func (x Mask16s) Any() bool {
-	return x.a|x.b != 0
+	return x.m != 0
 }
 
 // None returns true when no positions in mask x are set.
 func (x Mask16s) None() bool {
-	return x.a|x.b == 0
+	return x.m == 0
 }
 
 // All returns true when all positions in mask x are true.
 func (x Mask32s) All() bool {
-	return x.a&x.b == 0xffff_ffff_ffff_ffff
+	return x.m == 0xf
 }
 
 // Any returns true when any position in mask x is true.
 func (x Mask32s) Any() bool {
-	return x.a|x.b != 0
+	return x.m != 0
 }
 
 // None returns true when no positions in mask x are set.
 func (x Mask32s) None() bool {
-	return x.a|x.b == 0
+	return x.m == 0
 }
 
 // All returns true when all positions in mask x are true.
 func (x Mask64s) All() bool {
-	return x.a&x.b == 0xffff_ffff_ffff_ffff
+	return x.m == 0x3
 }
 
 // Any returns true when any position in mask x is true.
 func (x Mask64s) Any() bool {
-	return x.a|x.b != 0
+	return x.m != 0
 }
 
 // None returns true when no positions in mask x are set.
 func (x Mask64s) None() bool {
-	return x.a|x.b == 0
+	return x.m == 0
 }
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask
 // x. If the mask is entirely false, it returns x.Len().
 func (x Mask8s) TrailingZeros() int {
-	a0 := x.a
-	a := a0 & 0x0101010101010101
-	lane := bits.TrailingZeros64(a)
-	if lane < 64 {
-		return lane >> 3
-	}
-	a0 = x.b
-	a = a0 & 0x0101010101010101
-	lane = bits.TrailingZeros64(a)
-	return lane>>3 + 8
+	return bits.TrailingZeros32(uint32(x.m) | 1<<16)
 }
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask
 // x. If the mask is entirely false, it returns x.Len().
 func (x Mask16s) TrailingZeros() int {
-	a0 := x.a
-	a := a0 & 0x0001000100010001
-	lane := bits.TrailingZeros64(a)
-	if lane < 64 {
-		return lane >> 4
-	}
-	a0 = x.b
-	a = a0 & 0x0001000100010001
-	lane = bits.TrailingZeros64(a)
-	return lane>>4 + 4
+	return bits.TrailingZeros32(uint32(x.m) | 1<<8)
 }
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask
 // x. If the mask is entirely false, it returns x.Len().
 func (x Mask32s) TrailingZeros() int {
-	a0 := x.a
-	a := a0 & 0x0000000100000001
-	lane := bits.TrailingZeros64(a)
-	if lane < 64 {
-		return lane >> 5
-	}
-	a0 = x.b
-	a = a0 & 0x0000000100000001
-	lane = bits.TrailingZeros64(a)
-	return lane>>5 + 2
+	return bits.TrailingZeros32(uint32(x.m) | 1<<4)
 }
 
 // TrailingZeros returns the number of low-order false (zero) elements in mask
 // x. If the mask is entirely false, it returns x.Len().
 func (x Mask64s) TrailingZeros() int {
-	if x.a != 0 {
-		return 0
-	}
-	if x.b != 0 {
-		return 1
-	}
-	return 2
+	return bits.TrailingZeros32(uint32(x.m) | 1<<2)
 }
 
 // Width-changing conversions. These keep the vector width, so narrowing
@@ -4839,4 +4781,23 @@ func (x Float64s) ConvertToFloat32() (z Float32s) {
 		z.set(i, float32(x.get(i)))
 	}
 	return z
+}
+
+// lanesToWords packs the lanes of v into two 64-bit words, with lane 0 in the
+// low bits of the first word. This defines the lane order of reshapes
+// independently of the platform's byte order.
+func lanesToWords[E uint8 | uint16 | uint32 | uint64](v []E) (w [2]uint64) {
+	bits := 128 / len(v)
+	for i, e := range v {
+		w[i*bits/64] |= uint64(e) << (i * bits % 64)
+	}
+	return w
+}
+
+// wordsToLanes is the inverse of lanesToWords.
+func wordsToLanes[E uint8 | uint16 | uint32 | uint64](w [2]uint64, v []E) {
+	bits := 128 / len(v)
+	for i := range v {
+		v[i] = E(w[i*bits/64] >> (i * bits % 64))
+	}
 }
