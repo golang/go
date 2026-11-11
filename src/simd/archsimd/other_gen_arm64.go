@@ -518,6 +518,8 @@ func (x Uint32x4) ReduceMin() (z uint32) {
 //
 //	z = max(x[0], x[1], ...)
 //
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+//
 // Emulated
 func (x Float32x4) ReduceMax() (z float32) {
 	return x.reduceMax().GetElem(0)
@@ -526,6 +528,8 @@ func (x Float32x4) ReduceMax() (z float32) {
 // ReduceMin returns the smallest element of x.
 //
 //	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
 //
 // Emulated
 func (x Float32x4) ReduceMin() (z float32) {
@@ -563,6 +567,8 @@ func (x Float64x2) ReduceSum() (z float64) {
 //
 //	z = max(x[0], x[1], ...)
 //
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+//
 // Emulated
 func (x Float64x2) ReduceMax() (z float64) {
 	return x.ConcatMaxPairs(x).GetElem(0)
@@ -571,6 +577,8 @@ func (x Float64x2) ReduceMax() (z float64) {
 // ReduceMin returns the smallest element of x.
 //
 //	z = min(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Min].
 //
 // Emulated
 func (x Float64x2) ReduceMin() (z float64) {

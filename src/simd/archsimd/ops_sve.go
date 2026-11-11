@@ -1485,12 +1485,16 @@ func (x Uint64s) Or(y Uint64s) (z Uint64s)
 //
 //	z = max(x[0], x[1], ...)
 //
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
+//
 // Asm: ZFMAXVS, CPU Feature: SVE
 func (x Float32s) ReduceMax() (z float32)
 
 // ReduceMax returns the largest element of x.
 //
 //	z = max(x[0], x[1], ...)
+//
+// The handling of NaN and signed zeroes is platform-dependent. See [Max].
 //
 // Asm: ZFMAXVD, CPU Feature: SVE
 func (x Float64s) ReduceMax() (z float64)
