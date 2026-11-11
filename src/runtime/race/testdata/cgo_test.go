@@ -12,6 +12,7 @@ import (
 )
 
 func TestNoRaceCgoSync(t *testing.T) {
+	testenv.MustHaveCGO(t)
 	cmd := exec.Command(testenv.GoToolPath(t), "run", "-race", "cgo_test_main.go")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

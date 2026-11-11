@@ -30,6 +30,9 @@ func TestOutput(t *testing.T) {
 			if test.goos != "" && test.goos != runtime.GOOS {
 				t.Skipf("runs only on %v", test.goos)
 			}
+			if strings.Contains(test.source, `import "C"`) {
+				testenv.MustHaveCGO(t)
+			}
 			dir := t.TempDir()
 			source := "main.go"
 			if test.run == "test" {

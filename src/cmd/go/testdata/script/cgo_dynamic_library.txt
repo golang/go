@@ -28,6 +28,9 @@ stdout '^init: ok$'
 stdout '^directives: ok$'
 stdout '^concurrent: ok$'
 
+[race] go run -race .
+[race] stdout '^concurrent: ok$'
+
 -- c/mul.c --
 int Counter = 7;
 int Compute(int a, int b) { return a * b; }

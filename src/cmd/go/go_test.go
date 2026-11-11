@@ -277,7 +277,9 @@ func TestMain(m *testing.M) {
 
 		canMSan = testenv.HasCGO() && platform.MSanSupported(runtime.GOOS, runtime.GOARCH)
 		canASan = testenv.HasCGO() && platform.ASanSupported(runtime.GOOS, runtime.GOARCH)
-		canRace = testenv.HasCGO() && platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
+		// With GOEXPERIMENT=cgobindings, -race also works with
+		// CGO_ENABLED=bindings.
+		canRace = (testenv.HasCGO() || cgoEnabled == "bindings") && platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH)
 		// The race detector doesn't work on Alpine Linux:
 		// golang.org/issue/14481
 		// gccgo does not support the race detector.

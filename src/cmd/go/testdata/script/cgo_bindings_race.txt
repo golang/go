@@ -1,0 +1,36 @@
+# Test that -race works with CGO_ENABLED=bindings and no C toolchain,
+# and that it still requires cgo with CGO_ENABLED=0.
+
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+[!race] skip
+[short] skip
+
+[!GOOS:windows] env CC=/bin/false
+[GOOS:windows] env CC=nonexistent-cc
+env CGO_ENABLED=bindings
+! go run -race racy.go
+stderr 'WARNING: DATA RACE'
+
+# On macOS, -race does not require cgo.
+[GOOS:darwin] stop
+env CGO_ENABLED=0
+! go build -race racy.go
+stderr '^go: -race requires cgo; enable cgo by setting CGO_ENABLED=1 or CGO_ENABLED=bindings$'
+
+-- racy.go --
+package main
+
+import "fmt"
+
+func main() {
+	x := 0
+	done := make(chan bool)
+	go func() {
+		x = 1
+		done <- true
+	}()
+	x = 2
+	<-done
+	fmt.Println(x)
+}

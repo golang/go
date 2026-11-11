@@ -307,13 +307,16 @@ func TestNoRaceDeferAtomicStore(t *testing.T) {
 		bar int64
 	}
 
+	var wg sync.WaitGroup
 	var doFork func(f *foo, depth int)
 	doFork = func(f *foo, depth int) {
+		defer wg.Done()
 		atomic.StoreInt64(&f.bar, 1)
 		defer atomic.StoreInt64(&f.bar, 0)
 		if depth > 0 {
 			for i := 0; i < 2; i++ {
 				f2 := &foo{}
+				wg.Add(1)
 				go doFork(f2, depth-1)
 			}
 		}
@@ -321,5 +324,7 @@ func TestNoRaceDeferAtomicStore(t *testing.T) {
 	}
 
 	f := &foo{}
+	wg.Add(1)
 	doFork(f, 11)
+	wg.Wait()
 }
