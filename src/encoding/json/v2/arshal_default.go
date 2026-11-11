@@ -1887,6 +1887,20 @@ func makeArrayUnmarshaler(t reflect.Type) *unmarshaler {
 	return &fnc
 }
 
+// isSelfReferentialPointer reports whether following Elem through pointer
+// types leads back to a type already seen (e.g., type P *P).
+func isSelfReferentialPointer(t reflect.Type) bool {
+	seen := make(map[reflect.Type]bool)
+	for t.Kind() == reflect.Pointer {
+		if seen[t] {
+			return true
+		}
+		seen[t] = true
+		t = t.Elem()
+	}
+	return false
+}
+
 func makePointerMarshaler(t reflect.Type) *marshaler {
 	var fnc marshaler
 	var (
@@ -1896,10 +1910,16 @@ func makePointerMarshaler(t reflect.Type) *marshaler {
 	init := func() {
 		valFncs = lookupMarshaler(t.Elem())
 	}
+	// A pointer type that leads back to itself through only pointer types
+	// (e.g., type P *P) can form a cycle without increasing the JSON nesting
+	// depth, so it must always be checked. Other pointer chains (e.g., **int)
+	// end in a non-pointer type and keep the cheaper depth-based check.
+	selfRef := isSelfReferentialPointer(t)
+
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
 		// Check for cycles.
 		xe := export.Encoder(enc)
-		if xe.Tokens.Depth() > startDetectingCyclesAfter {
+		if selfRef || xe.Tokens.Depth() > startDetectingCyclesAfter {
 			if err := visitPointer(&xe.SeenPointers, vm.Value, mo); err != nil {
 				return newMarshalErrorBefore(enc, t, err)
 			}
