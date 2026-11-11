@@ -3644,7 +3644,7 @@ func testRequestBodyLimit(t *testing.T, mode testMode) {
 
 // TestClientWriteShutdown tests that if the client shuts down the write
 // side of their TCP connection, the server doesn't send a 400 Bad Request.
-func TestClientWriteShutdown(t *testing.T) { runSynctest(t, testClientWriteShutdown, http3SkippedMode) }
+func TestClientWriteShutdown(t *testing.T) { runSynctest(t, testClientWriteShutdown, testSkipMode{http3Mode}) }
 func testClientWriteShutdown(t *testing.T, mode testMode) {
 	if runtime.GOOS == "plan9" {
 		t.Skip("skipping test; see https://golang.org/issue/17906")

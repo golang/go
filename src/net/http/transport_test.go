@@ -2312,7 +2312,7 @@ func testTransportConcurrency(t *testing.T, mode testMode) {
 }
 
 func TestIssue4191_InfiniteGetTimeout(t *testing.T) {
-	runSynctest(t, testIssue4191_InfiniteGetTimeout, http3SkippedMode)
+	runSynctest(t, testIssue4191_InfiniteGetTimeout, testSkipMode{http3Mode})
 }
 func testIssue4191_InfiniteGetTimeout(t *testing.T, mode testMode) {
 	mux := NewServeMux()
@@ -3832,7 +3832,7 @@ func testTransportDialTLS(t *testing.T, mode testMode) {
 }
 
 func TestTransportDialContext(t *testing.T) {
-	runNoSynctest(t, testTransportDialContext, http3SkippedMode)
+	runNoSynctest(t, testTransportDialContext, testSkipMode{http3Mode})
 }
 func testTransportDialContext(t *testing.T, mode testMode) {
 	ctxKey := "some-key"
