@@ -104,10 +104,11 @@ func (lay FuncLayout) hasStackArgs() bool {
 
 // abiState tracks register and stack allocation cursors while computing a FuncLayout.
 type abiState struct {
-	intIdx   int
-	floatIdx int
-	vfpMask  uint16 // bitmask of allocated S0..S15 VFP lanes (32-bit ARM only)
-	stackOff int64
+	intIdx       int
+	floatIdx     int
+	vfpMask      uint16 // bitmask of allocated S0..S15 VFP lanes (32-bit ARM only)
+	stackOff     int64
+	fprsDisabled bool // disables FPR arg allocation once a non-float/sret arg or F14 is used (32-bit MIPS O32 only)
 }
 
 // leafField represents a single scalar leaf within a flattened composite type.
@@ -613,6 +614,7 @@ func defaultAssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, st *abiState
 	if info.size > cfg.MaxRegStructSize && (!info.isFloat || len(cfg.FloatRetRegs) == 0) && (info.composite || info.size > ptrSize*int64(len(cfg.IntRetRegs))) {
 		if cfg.IndirectRetInArg {
 			st.intIdx = 1
+			st.fprsDisabled = true
 		}
 		return RetLoc{Size: info.size, Indirect: true}
 	}
@@ -2545,6 +2547,145 @@ var armABI = &ABIConfig{
 	},
 }
 
+// 32-bit MIPS O32 C calling convention:
+// "System V ABI: MIPS RISC Processor Supplement", 3rd Edition, Chapter 3.
+
+func mips32AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	nWords := int((info.size + 3) / 4)
+	need8 := (!info.composite && info.size == 8) || info.align == 8
+	if need8 && st.intIdx < 4 && st.intIdx%2 != 0 {
+		st.intIdx++
+	}
+	loc := ParamLoc{Size: info.size, IsFloat: info.isFloat}
+	// MIPS O32 only passes the first two floating-point arguments in F12/F14,
+	// and only while no preceding non-float (or hidden sret) argument has been
+	// seen. Once F14 is assigned or any non-float argument is encountered, all
+	// subsequent arguments (including floats) are passed in GPRs or on the stack.
+	if len(cfg.FloatRegs) > 0 && !st.fprsDisabled && info.isFloat && st.intIdx < 4 {
+		switch {
+		case info.size == 4 && st.intIdx == 0:
+			loc.Regs = []string{"F12"}
+			st.intIdx = 1
+			st.floatIdx++
+		case info.size == 4 && st.intIdx == 1:
+			loc.Regs = []string{"F14"}
+			st.intIdx = 2
+			st.floatIdx++
+			st.fprsDisabled = true
+		case info.size == 4 && st.intIdx == 2:
+			loc.Regs = []string{"F14"}
+			st.intIdx = 3
+			st.floatIdx++
+			st.fprsDisabled = true
+		case info.size == 8 && st.intIdx == 0:
+			loc.Regs = []string{"F12"}
+			st.intIdx = 2
+			st.floatIdx++
+		case info.size == 8 && st.intIdx == 2:
+			loc.Regs = []string{"F14"}
+			st.intIdx = 4
+			st.floatIdx++
+			st.fprsDisabled = true
+		default:
+			st.fprsDisabled = true
+		}
+	}
+	if len(loc.Regs) == 0 {
+		st.fprsDisabled = true
+		loc.IsFloat = false
+		if st.intIdx+nWords <= len(cfg.IntRegs) {
+			loc.Regs = slices.Clone(cfg.IntRegs[st.intIdx : st.intIdx+nWords])
+			st.intIdx += nWords
+		} else if st.intIdx < len(cfg.IntRegs) && info.composite {
+			// MIPS O32: aggregates starting in R4..R7 split across remaining GPRs and 16(R29)+.
+			loc.Regs = slices.Clone(cfg.IntRegs[st.intIdx:])
+			regBytes := int64(len(loc.Regs)) * 4
+			stackBytes := info.size - regBytes
+			st.intIdx = len(cfg.IntRegs)
+			loc.StackOff = st.stackOff
+			loc.StackBytes = stackBytes
+			st.stackOff += alignUp(stackBytes, 4)
+		} else {
+			st.intIdx = len(cfg.IntRegs)
+			if need8 {
+				st.stackOff = alignUp(st.stackOff, 8)
+			}
+			loc.StackOff = st.stackOff
+			st.stackOff += int64(nWords) * 4
+		}
+	}
+	return loc
+}
+
+// mips32AssignRet returns _Complex float and _Complex double values in F0
+// and F2 (one per half) with hard float, and in R2, R3 (complex64) or
+// R2..R5 (complex128) with soft float. O32 returns every other composite,
+// including structs of two floats or doubles, through a hidden pointer.
+func mips32AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.isComplex {
+		if len(cfg.FloatRetRegs) >= 2 {
+			return RetLoc{Size: info.size, IsFloat: true, Regs: slices.Clone(cfg.FloatRetRegs[:2])}
+		}
+		if info.size == 8 {
+			return RetLoc{Size: info.size, Regs: []string{"R2", "R3"}}
+		}
+		return RetLoc{Size: info.size, Regs: []string{"R2", "R3", "R4", "R5"}}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+func newMIPS32ABI(arch string, bigEndian bool) *ABIConfig {
+	return &ABIConfig{
+		Arch:                   arch,
+		PtrSize:                4,
+		CLongSize:              4,
+		StackAlign:             8,
+		ShadowSpace:            16,
+		IntRegs:                []string{"R4", "R5", "R6", "R7"},
+		FloatRegs:              []string{"F12", "F14"},
+		IntRetRegs:             []string{"R2", "R3"},
+		FloatRetRegs:           []string{"F0", "F2"},
+		MaxRegStructSize:       0,
+		IndirectRetReg:         "R4",
+		IndirectRetInArg:       true,
+		AssignParam:            mips32AssignParam,
+		AssignRet:              mips32AssignRet,
+		CompositeRegSlots:      hfaCompositeRegSlots,
+		SPReg:                  "R29",
+		CalleeSavedReg:         "R16",
+		TmpReg:                 "R8",
+		TmpReg2:                "R9",
+		IndCallReg:             "R25",
+		LinkReg:                "R31",
+		AsmTmpReg:              "R23",
+		ShadowUsesSlot0:        true,
+		ZeroVal:                "R0",
+		LocalFrameOff:          24,
+		BigEndian:              bigEndian,
+		LeftJustifyBEComposite: bigEndian,
+		StrictAlign:            true,
+		asm: asmOps{
+			mov:   "MOVW",
+			loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVW",
+			storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+			fmovS: "MOVF", fmovD: "MOVD",
+			shl: "SLL", shr: "SRL", or: "OR", add: "ADDU", sub: "SUBU",
+			negSubSP: true,
+		},
+		CallSymbol: func(w io.Writer, sym string, _ bool) {
+			// Load $t9 (R25) with target address per MIPS PIC (-mabicalls) ABI.
+			fmt.Fprintf(w, "\tMOVW\t$%s(SB), R25\n", sym)
+			fmt.Fprintf(w, "\tCALL\t(R25)\n")
+		},
+	}
+}
+
+var mipsABI = newMIPS32ABI("mips", true)
+var mipsleABI = newMIPS32ABI("mipsle", false)
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -2584,6 +2725,16 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 			cfg.FloatRetRegs = nil
 			cfg.AssignRet = defaultAssignRet
 			cfg.CompositeRegSlots = nil
+		}
+	case "mips", "mipsle":
+		if targetArch == "mips" {
+			cfg = *mipsABI
+		} else {
+			cfg = *mipsleABI
+		}
+		if gomips := os.Getenv("GOMIPS"); gomips == "softfloat" || (gomips == "" && buildcfg.GOMIPS == "softfloat") {
+			cfg.FloatRegs = nil
+			cfg.FloatRetRegs = nil
 		}
 	default:
 		panic("unsupported arch: " + targetArch)

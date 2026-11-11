@@ -1351,12 +1351,154 @@ func TestARM32SoftFloat(t *testing.T) {
 	}
 }
 
+func TestLayoutMIPS32(t *testing.T) {
+	// The hard-float ABI is used only when GOMIPS does not select soft float.
+	t.Setenv("GOMIPS", "hardfloat")
+	typeMap := map[string]BindingType{
+		"Pair8": {Name: "Pair8", Def: "struct {\n\ta int32\n\tb int32\n}", Size: 8, Align: 4},
+		"Odd5":  {Name: "Odd5", Def: "struct {\n\ta [5]byte\n}", Size: 5, Align: 1},
+	}
+
+	// MIPS32 O32 float rule: int32 first disables FPRs for subsequent float64.
+	mipsCfg := getABI("linux", "mipsle")
+	mipsLay := mipsCfg.layout(BindingFunc{Name: "M", Params: []string{"int32", "float64"}}, nil)
+	if !slices.Equal(mipsLay.Params[0].Regs, []string{"R4"}) || !slices.Equal(mipsLay.Params[1].Regs, []string{"R6", "R7"}) {
+		t.Errorf("mipsle O32 int+double layout = %+v", mipsLay)
+	}
+	// MIPS32 O32 (float64, float32, int32) -> (F12, F14, R7).
+	mipsDF := mipsCfg.layout(BindingFunc{Name: "DF", Params: []string{"float64", "float32", "int32"}}, nil)
+	if !slices.Equal(mipsDF.Params[0].Regs, []string{"F12"}) ||
+		!slices.Equal(mipsDF.Params[1].Regs, []string{"F14"}) ||
+		!slices.Equal(mipsDF.Params[2].Regs, []string{"R7"}) {
+		t.Errorf("mipsle O32 (double, float, int) layout = %+v", mipsDF)
+	}
+	// MIPS32 O32: all structs return via hidden sret in R4, and sret disables FPRs.
+	mipsRet := mipsCfg.layout(BindingFunc{Name: "RetPair", Params: []string{"float32", "float64"}, Ret: "Pair8"}, typeMap)
+	if !mipsRet.Ret.Indirect ||
+		!slices.Equal(mipsRet.Params[0].Regs, []string{"R5"}) ||
+		!slices.Equal(mipsRet.Params[1].Regs, []string{"R6", "R7"}) {
+		t.Errorf("mipsle O32 sret+floats layout = %+v", mipsRet)
+	}
+	// MIPS32 O32 split reg+stack aggregate.
+	mipsSplit := mipsCfg.layout(BindingFunc{Name: "MSplit", Params: []string{"int32", "int32", "int32", "Pair8"}}, typeMap)
+	if !slices.Equal(mipsSplit.Params[3].Regs, []string{"R7"}) || mipsSplit.Params[3].StackBytes != 4 || mipsSplit.Params[3].StackOff != 16 {
+		t.Errorf("mipsle O32 straddling Pair8 = %+v, want Regs=[R7] StackBytes=4 StackOff=16", mipsSplit.Params[3])
+	}
+	// Big-endian mips: left-justified partial struct in R5, strict-align byte loads on Odd5 at GoOffset=1, PIC R25 call.
+	mipsBE := getABI("linux", "mips")
+	var mipsBEAsm bytes.Buffer
+	mipsBE.writeTrampoline(&mipsBEAsm, BindingFunc{Name: "MBE", CName: "mbe", Params: []string{"int8", "Odd5"}}, typeMap)
+	if out := mipsBEAsm.String(); !strings.Contains(out, "SLL\t$24, R6, R6") ||
+		!strings.Contains(out, "MOVBU\t1(R16), R5") ||
+		!strings.Contains(out, "MOVW\t$mbe(SB), R25\n\tCALL\t(R25)") {
+		t.Errorf("mips BE trampoline unexpected:\n%s", out)
+	}
+
+	// O32 returns _Complex float and _Complex double in F0 and F2 (MOVF or
+	// MOVD per half) with hard float, unlike structs of two floats or
+	// doubles, which are returned through a hidden pointer in R4. Complex
+	// arguments are passed in GPRs like structs.
+	typeMap["Float2"] = BindingType{Name: "Float2", Def: "struct {\n\ta float32\n\tb float32\n}", Size: 8, Align: 4}
+	typeMap["Double2"] = BindingType{Name: "Double2", Def: "struct {\n\ta float64\n\tb float64\n}", Size: 16, Align: 8}
+	for _, arch := range []string{"mips", "mipsle"} {
+		cfg := getABI("linux", arch)
+		// The result follows the float32 and float64 arguments at Go offset 12.
+		for _, tc := range []struct {
+			ret, op  string
+			store    []string
+			indirect bool
+		}{
+			{"complex64", "MOVF", []string{"MOVF\tF0, 12(R16)\n", "MOVF\tF2, 16(R16)\n"}, false},
+			{"complex128", "MOVD", []string{"MOVD\tF0, 12(R16)\n", "MOVD\tF2, 20(R16)\n"}, false},
+			{"Float2", "", nil, true},
+			{"Double2", "", nil, true},
+		} {
+			fn := BindingFunc{Name: "C" + tc.ret, CName: "c_" + tc.ret, Params: []string{"float32", "float64"}, Ret: tc.ret}
+			lay := cfg.layout(fn, typeMap)
+			if tc.indirect {
+				if !lay.Ret.Indirect || !slices.Equal(lay.Params[0].Regs, []string{"R5"}) {
+					t.Errorf("%s O32 %s return = %+v, want hidden pointer in R4 and float32 in R5", arch, tc.ret, lay)
+				}
+				continue
+			}
+			if lay.Ret.Indirect || !lay.Ret.IsFloat || !slices.Equal(lay.Ret.Regs, []string{"F0", "F2"}) ||
+				!slices.Equal(lay.Params[0].Regs, []string{"F12"}) || !slices.Equal(lay.Params[1].Regs, []string{"F14"}) {
+				t.Errorf("%s O32 %s return = %+v, want F0, F2 with float args in F12, F14", arch, tc.ret, lay)
+			}
+			var tramp, cb bytes.Buffer
+			cfg.writeTrampoline(&tramp, fn, typeMap)
+			cbFn := BindingFunc{Name: "Cb" + tc.ret, Params: fn.Params, Ret: tc.ret}
+			cfg.writeCallbackTrampoline(&cb, cbFn, typeMap)
+			for _, want := range tc.store {
+				if !strings.Contains(tramp.String(), want) {
+					t.Errorf("%s O32 trampoline returning %s missing %q:\n%s", arch, tc.ret, want, tramp.String())
+				}
+			}
+			for _, want := range []string{"), F0\n", "), F2\n"} {
+				if !strings.Contains(cb.String(), tc.op+"\t") || !strings.Contains(cb.String(), want) {
+					t.Errorf("%s O32 callback returning %s missing %s load %q:\n%s", arch, tc.ret, tc.op, want, cb.String())
+				}
+			}
+			if testenv.HasGoBuild() {
+				dir := t.TempDir()
+				sfile := filepath.Join(dir, "c.s")
+				ofile := filepath.Join(dir, "c.o")
+				src := "#include \"textflag.h\"\n\n" + tramp.String() + cb.String()
+				if err := os.WriteFile(sfile, []byte(src), 0o666); err != nil {
+					t.Fatal(err)
+				}
+				cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-p", "main",
+					"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+				cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH="+arch)
+				if out, err := cmd.CombinedOutput(); err != nil {
+					t.Errorf("go tool asm (linux/%s) returning %s: %v\n%s\n%s", arch, tc.ret, err, out, src)
+				}
+			}
+		}
+		argLay := cfg.layout(BindingFunc{Name: "CArgs", Params: []string{"complex64", "float64"}}, typeMap)
+		if !slices.Equal(argLay.Params[0].Regs, []string{"R4", "R5"}) || argLay.Params[0].IsFloat ||
+			!slices.Equal(argLay.Params[1].Regs, []string{"R6", "R7"}) {
+			t.Errorf("%s O32 complex64 argument layout = %+v, want R4, R5 then float64 in R6, R7", arch, argLay)
+		}
+	}
+
+	// GOMIPS=softfloat passes floats in GPRs.
+	t.Setenv("GOMIPS", "softfloat")
+	mipsSF := getABI("linux", "mipsle")
+	sfLay := mipsSF.layout(BindingFunc{Name: "SF", Params: []string{"float32", "float64"}, Ret: "float64"}, nil)
+	if !slices.Equal(sfLay.Params[0].Regs, []string{"R4"}) ||
+		!slices.Equal(sfLay.Params[1].Regs, []string{"R6", "R7"}) ||
+		!slices.Equal(sfLay.Ret.Regs, []string{"R2", "R3"}) {
+		t.Errorf("GOMIPS=softfloat layout = %+v", sfLay)
+	}
+	// With soft float, complex64 is returned in R2, R3 and complex128 in
+	// R2..R5, not through a hidden pointer.
+	for _, arch := range []string{"mips", "mipsle"} {
+		cfg := getABI("linux", arch)
+		for ret, want := range map[string][]string{"complex64": {"R2", "R3"}, "complex128": {"R2", "R3", "R4", "R5"}} {
+			fn := BindingFunc{Name: "SF" + ret, CName: "sf_" + ret, Params: []string{"int32"}, Ret: ret}
+			lay := cfg.layout(fn, nil)
+			if lay.Ret.Indirect || !slices.Equal(lay.Ret.Regs, want) || !slices.Equal(lay.Params[0].Regs, []string{"R4"}) {
+				t.Errorf("%s GOMIPS=softfloat %s return = %+v, want %v", arch, ret, lay, want)
+			}
+			var tramp, cb bytes.Buffer
+			cfg.writeTrampoline(&tramp, fn, nil)
+			cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbSF" + ret, Params: fn.Params, Ret: ret}, nil)
+			for name, out := range map[string]string{"trampoline": tramp.String(), "callback": cb.String()} {
+				if strings.Contains(out, "MOVF\t") || strings.Contains(out, "MOVD\t") {
+					t.Errorf("%s GOMIPS=softfloat %s returning %s uses FPU instructions:\n%s", arch, name, ret, out)
+				}
+			}
+		}
+	}
+}
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
 	{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "arm64"},
 	{"linux", "386"}, {"windows", "386"},
-	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"},
+	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"}, {"linux", "mips"}, {"linux", "mipsle"},
 }
 
 // TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call
