@@ -58,6 +58,10 @@ type Arch struct {
 	// compiling a jump table.
 	CanJumpTable bool
 
+	// MaxJumpTable is the maximum number of entries of a jump table,
+	// or 0 if there is no limit.
+	MaxJumpTable int64
+
 	// HasLR indicates that this architecture uses a link register
 	// for calls.
 	HasLR bool
@@ -270,6 +274,8 @@ var ArchWasm = &Arch{
 	MinLC:          1,
 	Alignment:      1,
 	CanMergeLoads:  true,
+	CanJumpTable:   true,
+	MaxJumpTable:   65520, // limit of br_table in V8 and SpiderMonkey
 	HasLR:          false,
 	FixedFrameSize: 0,
 }
