@@ -282,6 +282,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		pMorestack = appendp(p, ARESUMEPOINT)
 	}
 
+	structureLoops(s, newprog)
+
 	// Introduce resume points for CALL instructions
 	// and collect other explicit resume points.
 	numResumePoints := 0
@@ -760,25 +762,29 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	currentDepth := 0
+	var open []*obj.Prog // the blocks that the current instruction is in
 	blockDepths := make(map[*obj.Prog]int)
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
-			currentDepth++
-			blockDepths[p] = currentDepth
+			open = append(open, p)
+			blockDepths[p] = len(open)
 		case AEnd:
-			currentDepth--
+			open = open[:len(open)-1]
 		}
 
 		switch p.As {
 		case ABr, ABrIf:
 			if p.To.Type == obj.TYPE_BRANCH {
-				blockDepth, ok := blockDepths[p.To.Val.(*obj.Prog)]
+				label := p.To.Val.(*obj.Prog)
+				blockDepth, ok := blockDepths[label]
 				if !ok {
 					panic("label not at block")
 				}
-				p.To = constAddr(int64(currentDepth - blockDepth))
+				if blockDepth > len(open) || open[blockDepth-1] != label {
+					panic("label not at open block")
+				}
+				p.To = constAddr(int64(len(open) - blockDepth))
 			}
 		}
 	}
