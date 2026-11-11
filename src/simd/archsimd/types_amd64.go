@@ -6,7 +6,11 @@ package archsimd
 
 // v128 is a tag type that tells the compiler that this is really 128-bit SIMD
 type v128 struct {
-	_128 [0]func() // uncomparable
+	// _align gives the tag, and so the vector types that start with it,
+	// the 8-byte alignment that the compiler gives SIMD types. Unlike
+	// the compiler, go/types and types2 compute the alignment from the
+	// fields.
+	_align [0]uint64
 }
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
@@ -415,7 +419,11 @@ func (x Mask64x2) ToBits() (z uint8)
 
 // v256 is a tag type that tells the compiler that this is really 256-bit SIMD
 type v256 struct {
-	_256 [0]func() // uncomparable
+	// _align gives the tag, and so the vector types that start with it,
+	// the 8-byte alignment that the compiler gives SIMD types. Unlike
+	// the compiler, go/types and types2 compute the alignment from the
+	// fields.
+	_align [0]uint64
 }
 
 // Float32x8 is a 256-bit SIMD vector of 8 float32s.
@@ -824,7 +832,11 @@ func (x Mask64x4) ToBits() (z uint8)
 
 // v512 is a tag type that tells the compiler that this is really 512-bit SIMD
 type v512 struct {
-	_512 [0]func() // uncomparable
+	// _align gives the tag, and so the vector types that start with it,
+	// the 8-byte alignment that the compiler gives SIMD types. Unlike
+	// the compiler, go/types and types2 compute the alignment from the
+	// fields.
+	_align [0]uint64
 }
 
 // Float32x16 is a 512-bit SIMD vector of 16 float32s.

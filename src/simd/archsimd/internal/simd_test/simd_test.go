@@ -45,20 +45,6 @@ func TestType(t *testing.T) {
 	checkSlices(t, got[:], want)
 }
 
-func TestUncomparable(t *testing.T) {
-	// Test that simd vectors are not comparable
-	var x, y any = archsimd.LoadUint32x4Array(&[4]uint32{1, 2, 3, 4}), archsimd.LoadUint32x4Array(&[4]uint32{5, 6, 7, 8})
-	shouldPanic := func(fn func()) {
-		defer func() {
-			if recover() == nil {
-				panic("did not panic")
-			}
-		}()
-		fn()
-	}
-	shouldPanic(func() { _ = x == y })
-}
-
 func TestFuncValue(t *testing.T) {
 	// Test that simd intrinsic can be used as a function value.
 	xv := [4]int32{1, 2, 3, 4}

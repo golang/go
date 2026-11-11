@@ -59,6 +59,13 @@ comparison against zero, not a simple bitwise conversion.  Mask types
 convert to signed integers in an operation ([Mask32s.ToInt32s]) that may be a
 zero-cost bitwise conversion, or not, depending on the underlying hardware.
 
+# Equality
+
+Vector and mask types are comparable with == and !=. For comparison, a vector
+behaves like a struct with one field per element, and a mask like a struct
+with one bool per element. Like regular float comparison, NaNs are never equal
+and +0 equals -0.
+
 # Storing
 
 SIMD vector types have two methods, one for storing the entire vector into a slice

@@ -442,3 +442,30 @@ func broadcast128MulToShift(x archsimd.Int32x4) archsimd.Int32x4 {
 	// amd64:`VPSLLD \$3,` -`VPMULLD`
 	return x.Mul(archsimd.BroadcastInt32x4(8))
 }
+
+// == and != on 256- and 512-bit vectors and masks.
+
+func eqInt16x16(x, y archsimd.Int16x16) bool {
+	// amd64:`VPXOR` `VPTEST` `SETEQ` -`CALL`
+	return x == y
+}
+
+func eqFloat32x8(x, y archsimd.Float32x8) bool {
+	// amd64:`VCMPPS` `VPTEST` `SETEQ` -`CALL`
+	return x == y
+}
+
+func eqInt64x8(x, y archsimd.Int64x8) bool {
+	// amd64:`VPCMPQ` `KMOVB` `TESTB` `SETEQ` -`CALL`
+	return x == y
+}
+
+func neFloat64x8(x, y archsimd.Float64x8) bool {
+	// amd64:`VCMPPD` `KMOVB` `TESTB` `SETNE` -`CALL`
+	return x != y
+}
+
+func eqMask8x64(x, y archsimd.Mask8x64) bool {
+	// amd64:`VPCMPQ` `KMOVB` `TESTB` `SETEQ` -`CALL`
+	return x == y
+}

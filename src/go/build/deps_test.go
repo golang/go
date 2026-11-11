@@ -759,7 +759,7 @@ var depsRules = `
 	FMT, DEBUG, flag, runtime/trace, internal/sysinfo, math/rand
 	< testing;
 
-	testing, math
+	testing, math, math/rand/v2
 	< simd/archsimd/internal/test_helpers, simd/internal/test_helpers;
 
 	log/slog, testing

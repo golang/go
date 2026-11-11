@@ -349,7 +349,21 @@ const simdTypesTemplates = `
 {{define "sizeTmpl"}}
 // v{{.}} is a tag type that tells the compiler that this is really {{.}}-bit SIMD
 type v{{.}} struct {
-	_{{.}} [0]func() // uncomparable
+	// _align gives the tag, and so the vector types that start with it,
+	// the 8-byte alignment that the compiler gives SIMD types. Unlike
+	// the compiler, go/types and types2 compute the alignment from the
+	// fields.
+	_align [0]uint64
+}
+{{end}}
+
+{{define "scalableSizeTmpl"}}
+// v{{.}} is a tag type that tells the compiler that this is really scalable SIMD
+// of at most {{.}} bits.
+type v{{.}} struct {
+	// The bytes of a scalable vector above the vector length are undefined, so
+	// == can't compare its fields. Make it uncomparable for now.
+	_{{.}} [0]func()
 }
 {{end}}
 
@@ -1035,7 +1049,9 @@ import (
 
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {
-	_sve [0]func() // uncomparable
+	// Only some bits of an SVE predicate are significant, so == can't
+	// compare its fields. Make it uncomparable for now.
+	_sve [0]func()
 }
 `)
 	}
@@ -1048,7 +1064,7 @@ type psve struct {
 				panic(fmt.Errorf("failed to execute size template for size %d: %w", wInt, err))
 			}
 		} else if CurrentArch().isSVE() {
-			if err := t.ExecuteTemplate(buffer, "sizeTmpl", types.MaxVectorBits); err != nil {
+			if err := t.ExecuteTemplate(buffer, "scalableSizeTmpl", types.MaxVectorBits); err != nil {
 				panic(fmt.Errorf("failed to execute size template for size %d: %w", types.MaxVectorBits, err))
 			}
 		}

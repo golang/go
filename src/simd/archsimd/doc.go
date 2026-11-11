@@ -40,6 +40,15 @@
 // followed by Masked may be optimized to a masked add instruction.
 // For this reason, not all hardware instructions are available as APIs.
 //
+// # Equality
+//
+// Vector and mask types are comparable with == and !=. For comparison, a vector
+// behaves like a struct with one field per element, and a mask like a struct
+// with one bool per element. For example, a Float32x4 compares like a
+// struct{ a, b, c, d float32 }. Like regular float comparison, NaNs are never
+// equal and +0 equals -0. The scalable vector and mask types of arm64 SVE are
+// not currently comparable.
+//
 // # CPU feature checks
 //
 // The package provides global variables to check for CPU features available

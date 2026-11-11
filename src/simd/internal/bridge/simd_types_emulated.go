@@ -7,7 +7,8 @@
 package bridge
 
 type _simd struct {
-	_ [0]func(*_simd) *_simd
+	// _align keeps the emulated vector types 8-byte aligned.
+	_align [0]uint64
 }
 
 // Int8s represents a 128-bit vector of 16 int8 elements.

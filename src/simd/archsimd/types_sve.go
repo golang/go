@@ -11,12 +11,17 @@ import (
 
 // psve is a tag type that tells the compiler that this is an SVE predicate.
 type psve struct {
-	_sve [0]func() // uncomparable
+	// Only some bits of an SVE predicate are significant, so == can't
+	// compare its fields. Make it uncomparable for now.
+	_sve [0]func()
 }
 
-// v256 is a tag type that tells the compiler that this is really 256-bit SIMD
+// v256 is a tag type that tells the compiler that this is really scalable SIMD
+// of at most 256 bits.
 type v256 struct {
-	_256 [0]func() // uncomparable
+	// The bytes of a scalable vector above the vector length are undefined, so
+	// == can't compare its fields. Make it uncomparable for now.
+	_256 [0]func()
 }
 
 // Float32s is a scalable SIMD vector of float32s.

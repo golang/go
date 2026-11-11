@@ -13,7 +13,7 @@ package simd
 // _simd mimics the same type definition in the top-level "simd" package
 // to test the non-constant-sizeof test.
 type _simd struct {
-	_ [0]func(*_simd) *_simd
+	_align [0]uint64
 }
 
 type HasConstantSize24 struct {
