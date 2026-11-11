@@ -3934,11 +3934,6 @@ func (x Mask8s) AndNot(y Mask8s) (z Mask8s) {
 	return Mask8s{a: x.a &^ y.a, b: x.b &^ y.b}
 }
 
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask8s) Equal(y Mask8s) (z Mask8s) {
-	return Mask8s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
-}
-
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
@@ -3998,11 +3993,6 @@ func (x Mask16s) And(y Mask16s) (z Mask16s) {
 //	z[i] = x[i] &^ y[i]
 func (x Mask16s) AndNot(y Mask16s) (z Mask16s) {
 	return Mask16s{a: x.a &^ y.a, b: x.b &^ y.b}
-}
-
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask16s) Equal(y Mask16s) (z Mask16s) {
-	return Mask16s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
 // Not returns the bitwise negation of x.
@@ -4066,11 +4056,6 @@ func (x Mask32s) AndNot(y Mask32s) (z Mask32s) {
 	return Mask32s{a: x.a &^ y.a, b: x.b &^ y.b}
 }
 
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask32s) Equal(y Mask32s) (z Mask32s) {
-	return Mask32s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
-}
-
 // Not returns the bitwise negation of x.
 //
 //	z[i] = ^x[i]
@@ -4128,11 +4113,6 @@ func (x Mask64s) And(y Mask64s) (z Mask64s) {
 //	z[i] = x[i] &^ y[i]
 func (x Mask64s) AndNot(y Mask64s) (z Mask64s) {
 	return Mask64s{a: x.a &^ y.a, b: x.b &^ y.b}
-}
-
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask64s) Equal(y Mask64s) (z Mask64s) {
-	return Mask64s{a: ^(x.a ^ y.a), b: ^(x.b ^ y.b)}
 }
 
 // Not returns the bitwise negation of x.

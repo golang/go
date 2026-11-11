@@ -870,10 +870,6 @@ func (x {{.Name}}) AndNot(y {{.Name}}) {{.Name}}
 
 {{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
 {{end -}}
-func (x {{.Name}}) Equal(y {{.Name}}) {{.Name}}
-
-{{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}
-{{end -}}
 func (x {{.Name}}) Or(y {{.Name}}) {{.Name}}
 
 {{if .VectorCounterpart.CPUFeature}}// CPU Feature: {{.VectorCounterpart.CPUFeature}}

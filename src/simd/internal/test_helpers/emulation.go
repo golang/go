@@ -75,10 +75,6 @@ func AndNot[S integer](x, y S) S {
 	return x &^ y
 }
 
-func Xnor[S integer](x, y S) S {
-	return ^(x ^ y)
-}
-
 func Not[S integer](x S) S {
 	return ^x
 }

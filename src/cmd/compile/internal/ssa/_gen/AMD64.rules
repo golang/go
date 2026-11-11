@@ -1899,7 +1899,8 @@
 
 (VPXOR128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KXORB x y))
 (VPXOR256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KXORB x y))
-(VPXORD512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KXORB x y))
+// Int64x8.Xor is VPXORQ512, and Mask64x8.Not is emulated with it.
+(VPXOR(D|Q)512 (VPMOVMToVec64x8 x) (VPMOVMToVec64x8 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x8 (KXORB x y))
 
 (VPCMPEQQ128 (VPMOVMToVec64x2 x) (VPMOVMToVec64x2 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x2 (KXNORB x y))
 (VPCMPEQQ256 (VPMOVMToVec64x4 x) (VPMOVMToVec64x4 y)) && v.Block.CPUfeatures.HasFeature(ssa.CPUavx512) => (VPMOVMToVec64x4 (KXNORB x y))
@@ -1907,6 +1908,9 @@
 
 (KXOR(B|W|D|Q) x (KXNOR(B|W|D|Q) y y)) => (KNOT(B|W|D|Q) x)
 (KXOR(B|W|D|Q) (KXNOR(B|W|D|Q) y y) x) => (KNOT(B|W|D|Q) x)
+
+// Mask equality, x.Xor(y).Not().
+(KNOT(B|W|D|Q) (KXOR(B|W|D|Q) x y)) => (KXNOR(B|W|D|Q) x y)
 
 (VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
 (VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x

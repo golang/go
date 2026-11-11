@@ -13061,11 +13061,6 @@ func (x Mask8x16) And(y Mask8x16) (z Mask8x16)
 // CPU Feature: AVX
 func (x Mask8x16) AndNot(y Mask8x16) (z Mask8x16)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX
-func (x Mask8x16) Equal(y Mask8x16) (z Mask8x16)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13100,11 +13095,6 @@ func (x Mask8x32) And(y Mask8x32) (z Mask8x32)
 //
 // CPU Feature: AVX2
 func (x Mask8x32) AndNot(y Mask8x32) (z Mask8x32)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX2
-func (x Mask8x32) Equal(y Mask8x32) (z Mask8x32)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -13141,11 +13131,6 @@ func (x Mask8x64) And(y Mask8x64) (z Mask8x64)
 // CPU Feature: AVX512
 func (x Mask8x64) AndNot(y Mask8x64) (z Mask8x64)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX512
-func (x Mask8x64) Equal(y Mask8x64) (z Mask8x64)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13180,11 +13165,6 @@ func (x Mask16x8) And(y Mask16x8) (z Mask16x8)
 //
 // CPU Feature: AVX
 func (x Mask16x8) AndNot(y Mask16x8) (z Mask16x8)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX
-func (x Mask16x8) Equal(y Mask16x8) (z Mask16x8)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -13221,11 +13201,6 @@ func (x Mask16x16) And(y Mask16x16) (z Mask16x16)
 // CPU Feature: AVX2
 func (x Mask16x16) AndNot(y Mask16x16) (z Mask16x16)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX2
-func (x Mask16x16) Equal(y Mask16x16) (z Mask16x16)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13260,11 +13235,6 @@ func (x Mask16x32) And(y Mask16x32) (z Mask16x32)
 //
 // CPU Feature: AVX512
 func (x Mask16x32) AndNot(y Mask16x32) (z Mask16x32)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX512
-func (x Mask16x32) Equal(y Mask16x32) (z Mask16x32)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -13301,11 +13271,6 @@ func (x Mask32x4) And(y Mask32x4) (z Mask32x4)
 // CPU Feature: AVX
 func (x Mask32x4) AndNot(y Mask32x4) (z Mask32x4)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX
-func (x Mask32x4) Equal(y Mask32x4) (z Mask32x4)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13340,11 +13305,6 @@ func (x Mask32x8) And(y Mask32x8) (z Mask32x8)
 //
 // CPU Feature: AVX2
 func (x Mask32x8) AndNot(y Mask32x8) (z Mask32x8)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX2
-func (x Mask32x8) Equal(y Mask32x8) (z Mask32x8)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -13381,11 +13341,6 @@ func (x Mask32x16) And(y Mask32x16) (z Mask32x16)
 // CPU Feature: AVX512
 func (x Mask32x16) AndNot(y Mask32x16) (z Mask32x16)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX512
-func (x Mask32x16) Equal(y Mask32x16) (z Mask32x16)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13420,11 +13375,6 @@ func (x Mask64x2) And(y Mask64x2) (z Mask64x2)
 //
 // CPU Feature: AVX
 func (x Mask64x2) AndNot(y Mask64x2) (z Mask64x2)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX
-func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2)
 
 // Or returns the bitwise OR of x and y.
 //
@@ -13461,11 +13411,6 @@ func (x Mask64x4) And(y Mask64x4) (z Mask64x4)
 // CPU Feature: AVX2
 func (x Mask64x4) AndNot(y Mask64x4) (z Mask64x4)
 
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX2
-func (x Mask64x4) Equal(y Mask64x4) (z Mask64x4)
-
 // Or returns the bitwise OR of x and y.
 //
 //	z[i] = x[i] | y[i]
@@ -13500,11 +13445,6 @@ func (x Mask64x8) And(y Mask64x8) (z Mask64x8)
 //
 // CPU Feature: AVX512
 func (x Mask64x8) AndNot(y Mask64x8) (z Mask64x8)
-
-// Equal returns a mask indicating which elements of x and y are equal.
-//
-// CPU Feature: AVX512
-func (x Mask64x8) Equal(y Mask64x8) (z Mask64x8)
 
 // Or returns the bitwise OR of x and y.
 //

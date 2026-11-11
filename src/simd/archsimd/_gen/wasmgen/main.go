@@ -947,7 +947,6 @@ func initWasmOps() {
 	// Masks have some operations.
 	addWasmOps(masks, iv_2, 2, isMask)
 	addWasmOps(masks, iv_1, 1, isMask)
-	addWasmOps(masks, []string{"eq"}, 2, isMask)
 
 	extractImmediate := func(op *wasmOp) {
 		op.resultType = op.t.Elem

@@ -487,6 +487,38 @@ func TestMaskOpt512(t *testing.T) {
 	checkSlices[float64](t, s, []float64{3, 0, 9, 0, 15, 0, 21, 0})
 }
 
+// TestMaskXnor512 tests mask equality, x.Xor(y).Not(), which the compiler
+// folds into KXNOR.
+func TestMaskXnor512(t *testing.T) {
+	if !archsimd.X86.AVX512() {
+		t.Skip("Test requires X86.AVX512, not available on this hardware")
+		return
+	}
+
+	zero8 := archsimd.Int8x64{}
+	x8 := make([]int8, 64)
+	y8 := make([]int8, 64)
+	want8 := make([]int8, 64)
+	for i := range x8 {
+		x8[i], y8[i] = int8(i&1), int8(i>>1&1)
+		if x8[i] == y8[i] {
+			want8[i] = -1
+		}
+	}
+	m8 := archsimd.LoadInt8x64(x8).Greater(zero8)
+	n8 := archsimd.LoadInt8x64(y8).Greater(zero8)
+	got8 := make([]int8, 64)
+	m8.Xor(n8).Not().ToInt8x64().Store(got8)
+	checkSlices(t, got8, want8)
+
+	zero64 := archsimd.Int64x8{}
+	m64 := archsimd.LoadInt64x8([]int64{0, 1, 0, 1, 0, 1, 0, 1}).Greater(zero64)
+	n64 := archsimd.LoadInt64x8([]int64{0, 0, 1, 1, 0, 0, 1, 1}).Greater(zero64)
+	got64 := make([]int64, 8)
+	m64.Xor(n64).Not().ToInt64x8().Store(got64)
+	checkSlices(t, got64, []int64{-1, 0, 0, -1, -1, 0, 0, -1})
+}
+
 // flattenedTranspose tranposes x and y, regarded as a pair of 2x2
 // matrices, but then flattens the rows in order, i.e
 // x: ABCD ==> a: A1B2

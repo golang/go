@@ -18,7 +18,7 @@ func bool2mask[E MaskElt](b bool) E {
 // Equal returns a mask indicating which elements of x and y are equal.
 //
 //specgen:require zN=xN
-func Equal[E EltOrMask, W Width, zE MaskElt](x, y Vec[E, W]) (z Vec[zE, W]) {
+func Equal[E Elt, W Width, zE MaskElt](x, y Vec[E, W]) (z Vec[zE, W]) {
 	return map2[E, W, zE, W](x, y, func(x, y E) zE {
 		return bool2mask[zE](x == y)
 	})
@@ -27,7 +27,7 @@ func Equal[E EltOrMask, W Width, zE MaskElt](x, y Vec[E, W]) (z Vec[zE, W]) {
 // NotEqual returns a mask indicating which elements of x and y are not equal.
 //
 //specgen:require zN=xN
-func NotEqual[E EltOrMask, W Width, zE MaskElt](x, y Vec[E, W]) (z Vec[zE, W]) {
+func NotEqual[E Elt, W Width, zE MaskElt](x, y Vec[E, W]) (z Vec[zE, W]) {
 	return map2[E, W, zE, W](x, y, func(x, y E) zE {
 		return bool2mask[zE](x != y)
 	})

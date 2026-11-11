@@ -2123,9 +2123,6 @@ func (x Mask8s) AndNot(y Mask8s) (z Mask8s)
 // Any returns true when any position in mask x is true.
 func (x Mask8s) Any() bool
 
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask8s) Equal(y Mask8s) (z Mask8s)
-
 // None returns true when no positions in mask x are set.
 func (x Mask8s) None() bool
 
@@ -2171,9 +2168,6 @@ func (x Mask16s) AndNot(y Mask16s) (z Mask16s)
 
 // Any returns true when any position in mask x is true.
 func (x Mask16s) Any() bool
-
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask16s) Equal(y Mask16s) (z Mask16s)
 
 // None returns true when no positions in mask x are set.
 func (x Mask16s) None() bool
@@ -2221,9 +2215,6 @@ func (x Mask32s) AndNot(y Mask32s) (z Mask32s)
 // Any returns true when any position in mask x is true.
 func (x Mask32s) Any() bool
 
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask32s) Equal(y Mask32s) (z Mask32s)
-
 // None returns true when no positions in mask x are set.
 func (x Mask32s) None() bool
 
@@ -2269,9 +2260,6 @@ func (x Mask64s) AndNot(y Mask64s) (z Mask64s)
 
 // Any returns true when any position in mask x is true.
 func (x Mask64s) Any() bool
-
-// Equal returns a mask indicating which elements of x and y are equal.
-func (x Mask64s) Equal(y Mask64s) (z Mask64s)
 
 // None returns true when no positions in mask x are set.
 func (x Mask64s) None() bool

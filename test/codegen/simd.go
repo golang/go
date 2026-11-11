@@ -289,6 +289,16 @@ func aLtbORbLtc64_avx512(a, b, c archsimd.Int64x8) archsimd.Mask64x8 {
 	return a.Less(b).Or(b.Less(c))
 }
 
+func maskEq8_avx512(a, b, c, d archsimd.Int8x64) archsimd.Mask8x64 {
+	// amd64:`KXNORQ` -`KXORQ` -`KNOTQ`
+	return a.Less(b).Xor(c.Less(d)).Not()
+}
+
+func maskEq64_avx512(a, b, c, d archsimd.Int64x8) archsimd.Mask64x8 {
+	// amd64:`KXNORB` -`KXORB` -`KNOTB`
+	return a.Less(b).Xor(c.Less(d)).Not()
+}
+
 var globalSlice = []uint32{1, 2, 3, 4, 5, 6, 7, 8}
 
 func simdMemoryOperandMerge() archsimd.Uint32x4 {

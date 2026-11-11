@@ -1025,7 +1025,7 @@ func (x {{.VType}}) Neg() {{.VType}} {
 //
 // Emulated, CPU Feature: {{.CPUfeature}}
 func (x Mask{{.WxC}}) Not() Mask{{.WxC}} {
-	return x.ToInt{{.WxC}}().Xor(x.Equal(x).ToInt{{.WxC}}()).asMask()
+	return x.ToInt{{.WxC}}().Not().asMask()
 }
 
 `)
