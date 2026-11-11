@@ -103,6 +103,10 @@ var errTests = []struct {
 	{"00gg", "\x00", InvalidByteError('g')},
 	{"0\x01", "", InvalidByteError('\x01')},
 	{"ffeed", "\xff\xee", ErrLength},
+	{"00g1020304", "\x00", InvalidByteError('g')},
+	{"00010g0304", "\x00\x01", InvalidByteError('g')},
+	{"000102g3", "\x00\x01\x02", InvalidByteError('g')},
+	{"00010203040506g7", "\x00\x01\x02\x03\x04\x05\x06", InvalidByteError('g')},
 }
 
 func TestDecodeErr(t *testing.T) {

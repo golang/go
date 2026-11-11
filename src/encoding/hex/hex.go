@@ -137,10 +137,10 @@ func Decode(dst, src []byte) (int, error) {
 		a = reverseHexTable[p]
 		b = reverseHexTable[q]
 		if a > 0x0f {
-			return dstLen - len(dst), InvalidByteError(p)
+			return dstLen - len(dst) + 1, InvalidByteError(p)
 		}
 		if b > 0x0f {
-			return dstLen - len(dst), InvalidByteError(q)
+			return dstLen - len(dst) + 1, InvalidByteError(q)
 		}
 		dst[1] = (a << 4) | b
 
@@ -149,10 +149,10 @@ func Decode(dst, src []byte) (int, error) {
 		a = reverseHexTable[p]
 		b = reverseHexTable[q]
 		if a > 0x0f {
-			return dstLen - len(dst), InvalidByteError(p)
+			return dstLen - len(dst) + 2, InvalidByteError(p)
 		}
 		if b > 0x0f {
-			return dstLen - len(dst), InvalidByteError(q)
+			return dstLen - len(dst) + 2, InvalidByteError(q)
 		}
 		dst[2] = (a << 4) | b
 
@@ -161,10 +161,10 @@ func Decode(dst, src []byte) (int, error) {
 		a = reverseHexTable[p]
 		b = reverseHexTable[q]
 		if a > 0x0f {
-			return dstLen - len(dst), InvalidByteError(p)
+			return dstLen - len(dst) + 3, InvalidByteError(p)
 		}
 		if b > 0x0f {
-			return dstLen - len(dst), InvalidByteError(q)
+			return dstLen - len(dst) + 3, InvalidByteError(q)
 		}
 		dst[3] = (a << 4) | b
 
