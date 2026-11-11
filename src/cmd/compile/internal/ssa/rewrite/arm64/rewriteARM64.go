@@ -2620,6 +2620,18 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpScalableVectorLen:
 		return rewriteValue_OpScalableVectorLen(v)
+	case ssaop.OpScaleInt16x8:
+		v.Op = ssaop.OpARM64VSSHL8H
+		return true
+	case ssaop.OpScaleInt32x4:
+		v.Op = ssaop.OpARM64VSSHL4S
+		return true
+	case ssaop.OpScaleInt64x2:
+		v.Op = ssaop.OpARM64VSSHL2D
+		return true
+	case ssaop.OpScaleInt8x16:
+		v.Op = ssaop.OpARM64VSSHL16B
+		return true
 	case ssaop.OpScaleSaturatedInt16x8:
 		v.Op = ssaop.OpARM64VSQSHL8H
 		return true
@@ -2643,6 +2655,18 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpScaleSaturatedUint8x16:
 		v.Op = ssaop.OpARM64VUQSHL16B
+		return true
+	case ssaop.OpScaleUint16x8:
+		v.Op = ssaop.OpARM64VUSHL8H
+		return true
+	case ssaop.OpScaleUint32x4:
+		v.Op = ssaop.OpARM64VUSHL4S
+		return true
+	case ssaop.OpScaleUint64x2:
+		v.Op = ssaop.OpARM64VUSHL2D
+		return true
+	case ssaop.OpScaleUint8x16:
+		v.Op = ssaop.OpARM64VUSHL16B
 		return true
 	case ssaop.OpSelect0:
 		return rewriteValue_OpSelect0(v)
@@ -2728,30 +2752,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpShiftAllRightUint64x2(v)
 	case ssaop.OpShiftAllRightUint8x16:
 		return rewriteValue_OpShiftAllRightUint8x16(v)
-	case ssaop.OpShiftInt16x8:
-		v.Op = ssaop.OpARM64VSSHL8H
-		return true
-	case ssaop.OpShiftInt32x4:
-		v.Op = ssaop.OpARM64VSSHL4S
-		return true
-	case ssaop.OpShiftInt64x2:
-		v.Op = ssaop.OpARM64VSSHL2D
-		return true
-	case ssaop.OpShiftInt8x16:
-		v.Op = ssaop.OpARM64VSSHL16B
-		return true
-	case ssaop.OpShiftUint16x8:
-		v.Op = ssaop.OpARM64VUSHL8H
-		return true
-	case ssaop.OpShiftUint32x4:
-		v.Op = ssaop.OpARM64VUSHL4S
-		return true
-	case ssaop.OpShiftUint64x2:
-		v.Op = ssaop.OpARM64VUSHL2D
-		return true
-	case ssaop.OpShiftUint8x16:
-		v.Op = ssaop.OpARM64VUSHL16B
-		return true
 	case ssaop.OpSignExt16to32:
 		v.Op = ssaop.OpARM64MOVHreg
 		return true

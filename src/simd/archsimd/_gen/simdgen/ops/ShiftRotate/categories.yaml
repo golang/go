@@ -1,10 +1,14 @@
 !sum
 
-- go: Shift
+# Constrained to integer elements: the float Scale in FPonlyArith documents
+# VSCALEFP[SD].
+- go: Scale
   commutative: false
+  out:
+  - base: "int|uint"
   documentation: !string |-
     // NAME shifts each element in x by the signed value of the least significant byte
-    // of shift's corresponding element: positive values shift left, negative values shift right.
+    // of y's corresponding element: positive values shift left, negative values shift right.
 - go: ScaleSaturated
   signed: true
   commutative: false

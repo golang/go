@@ -1,7 +1,7 @@
 !sum
 
-# Shift by vector
-- go: Shift
+# Scale (shift by vector)
+- go: Scale
   signed: true
   asm: "VSSHL"
   in:
@@ -9,11 +9,11 @@
     go: $t
     base: int
   - go: $t
-    name: shift
+    name: y
   out:
   - *int
 
-- go: Shift
+- go: Scale
   signed: false
   asm: "VUSHL"
   in:
@@ -23,7 +23,7 @@
   - go: $t
     base: uint
     overwriteBase: int
-    name: shift
+    name: y
   out:
   - *uint
 

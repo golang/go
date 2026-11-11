@@ -21,6 +21,8 @@
     // NAME computes an approximate reciprocal of the square root of each element.
 - go: Scale
   commutative: false
+  out:
+  - base: float
   documentation: !string |-
     // NAME multiplies each element of x by 2 raised to the power of the
     // floor of the corresponding element in y.

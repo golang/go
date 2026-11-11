@@ -2302,6 +2302,56 @@ func (x Int64x2) SaturateToUint32() (z Uint32x4)
 // Asm: VUQXTN
 func (x Uint64x2) SaturateToUint32() (z Uint32x4)
 
+/* Scale */
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL
+func (x Int8x16) Scale(y Int8x16) Int8x16
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL
+func (x Int16x8) Scale(y Int16x8) Int16x8
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL
+func (x Int32x4) Scale(y Int32x4) Int32x4
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VSSHL
+func (x Int64x2) Scale(y Int64x2) Int64x2
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL
+func (x Uint8x16) Scale(y Int8x16) Uint8x16
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL
+func (x Uint16x8) Scale(y Int16x8) Uint16x8
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL
+func (x Uint32x4) Scale(y Int32x4) Uint32x4
+
+// Scale shifts each element in x by the signed value of the least significant byte
+// of y's corresponding element: positive values shift left, negative values shift right.
+//
+// Asm: VUSHL
+func (x Uint64x2) Scale(y Int64x2) Uint64x2
+
 /* ScaleSaturated */
 
 // ScaleSaturated multiplies each element of x by a power of two given by scale,
@@ -2511,56 +2561,6 @@ func (x Float32x4) SetElem(i uint8, y float32) (z Float32x4)
 //
 // Asm: VMOV
 func (x Float64x2) SetElem(i uint8, y float64) (z Float64x2)
-
-/* Shift */
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VSSHL
-func (x Int8x16) Shift(shift Int8x16) Int8x16
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VSSHL
-func (x Int16x8) Shift(shift Int16x8) Int16x8
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VSSHL
-func (x Int32x4) Shift(shift Int32x4) Int32x4
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VSSHL
-func (x Int64x2) Shift(shift Int64x2) Int64x2
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VUSHL
-func (x Uint8x16) Shift(shift Int8x16) Uint8x16
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VUSHL
-func (x Uint16x8) Shift(shift Int16x8) Uint16x8
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VUSHL
-func (x Uint32x4) Shift(shift Int32x4) Uint32x4
-
-// Shift shifts each element in x by the signed value of the least significant byte
-// of shift's corresponding element: positive values shift left, negative values shift right.
-//
-// Asm: VUSHL
-func (x Uint64x2) Shift(shift Int64x2) Uint64x2
 
 /* ShiftAllLeft */
 
