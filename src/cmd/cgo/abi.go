@@ -68,12 +68,13 @@ type ParamLoc struct {
 
 // RetLoc describes how a function return value is returned in the C ABI.
 type RetLoc struct {
-	GoOffset int64    // Byte offset in Go _cgo_arg_<Name> struct
-	Size     int64    // Return value size in bytes
-	IsFloat  bool     // Floating-point return
-	Indirect bool     // True if caller passes a hidden sret return buffer pointer
-	Regs     []string // Register(s) holding the return value upon C return (e.g. AX, X0)
-	G0Off    int64    // Scratch offset on g0 stack when MayCallback
+	GoOffset        int64    // Byte offset in Go _cgo_arg_<Name> struct
+	Size            int64    // Return value size in bytes
+	IsFloat         bool     // Floating-point return
+	Indirect        bool     // True if caller passes a hidden sret return buffer pointer
+	IndirectOnStack bool     // True if hidden sret pointer is passed at 0(SP) (386 ABI)
+	Regs            []string // Register(s) holding the return value upon C return (e.g. AX, X0)
+	G0Off           int64    // Scratch offset on g0 stack when MayCallback
 }
 
 // FuncLayout describes the complete Go argument struct and C ABI layout for a call.
@@ -87,6 +88,9 @@ type FuncLayout struct {
 
 // hasStackArgs reports whether any argument is passed on the C stack.
 func (lay FuncLayout) hasStackArgs() bool {
+	if lay.Ret.IndirectOnStack {
+		return true
+	}
 	for _, p := range lay.Params {
 		if (p.Size > 0 && len(p.Regs) == 0) || p.StackBytes > 0 {
 			return true
@@ -181,10 +185,12 @@ type ABIConfig struct {
 	IntRetRegs   []string
 	FloatRetRegs []string
 
-	MaxRegStructSize int64
-	IndirectRetReg   string // Register holding hidden sret buffer pointer
-	IndirectRetInArg bool   // Hidden sret pointer consumes IntRegs[0]
-	PackStackArgs    bool   // Pack narrow scalar and HFA stack args at natural alignment (Apple ARM64)
+	MaxRegStructSize   int64
+	IndirectRetReg     string // Register holding hidden sret buffer pointer
+	IndirectRetInArg   bool   // Hidden sret pointer consumes IntRegs[0]
+	IndirectRetOnStack bool   // Hidden sret pointer is passed at 0(SP) (386)
+	SysVI386SretPop    bool   // Callee pops 4B sret pointer on return (SysV 386)
+	PackStackArgs      bool   // Pack narrow scalar and HFA stack args at natural alignment (Apple ARM64)
 
 	// AssignParam allocates a single parameter in registers or on the C stack.
 	AssignParam func(cfg *ABIConfig, fn BindingFunc, idx int, info typeInfo, st *abiState) ParamLoc
@@ -220,12 +226,16 @@ type ABIConfig struct {
 	StrictAlign                  bool // Architecture traps on unaligned multi-byte loads/stores (MIPS, ARM)
 
 	asm                asmOps
+	LoadFloat          func(w io.Writer, base string, off, size int64, reg string) bool
+	StoreFloat         func(w io.Writer, reg, base string, off, size int64) bool
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
+	Prologue           func(w io.Writer) (epilogue func(w io.Writer))
 	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
 	CallSymbol         func(w io.Writer, sym string, static bool)
 	StackArgAddr       func(stackOff, callerSPOff int64) (base string, off int64)
 	CallbackPrologue   func(w io.Writer, frameSize int64) (callerSPOff int64)
-	CallbackEpilogue   func(w io.Writer, frameSize int64)
+	CallbackEpilogue   func(w io.Writer, frameSize int64, sretPop bool)
+	CallCrosscall2     func(w io.Writer, fnName string, frameSize, ctxtOff int64)
 }
 
 // isFloatReg reports whether reg is an architecture floating-point register.
@@ -473,7 +483,11 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 		if s.cChar {
 			signed = !targetCCharIsUnsigned(cfg.OS, cfg.Arch)
 		}
-		d := typeInfo{size: sz, align: sz, signed: signed, isFloat: s.isFloat}
+		align := sz
+		if cfg.Arch == "386" && cfg.OS != "windows" {
+			align = min(sz, 4)
+		}
+		d := typeInfo{size: sz, align: align, signed: signed, isFloat: s.isFloat}
 		if sz > 0 {
 			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat, direct: true}}
 			d.fieldsOK = true
@@ -548,7 +562,7 @@ func (cfg *ABIConfig) layout(fn BindingFunc, types map[string]BindingType) FuncL
 	ret, retAlign := cfg.assignRet(fn, &st, types)
 	params, goOff := cfg.assignParams(fn, &st, types)
 	if fn.Ret != "" {
-		ret.GoOffset = alignUp(goOff, retAlign)
+		ret.GoOffset = alignUp(goOff, min(retAlign, cfg.PtrSize))
 	}
 	stkTopOff := cfg.assignG0Scratch(fn, params, &ret, &st)
 
@@ -584,6 +598,10 @@ func (cfg *ABIConfig) assignRet(fn BindingFunc, st *abiState, types map[string]B
 // FloatRetRegs[0], and integers or small composites pack into IntRetRegs.
 func defaultAssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, st *abiState) RetLoc {
 	ptrSize := cfg.PtrSize
+	if cfg.IndirectRetOnStack && info.composite && info.size > 0 {
+		st.stackOff += 4
+		return RetLoc{Size: info.size, Indirect: true, IndirectOnStack: true}
+	}
 	if info.size > cfg.MaxRegStructSize && (!info.isFloat || len(cfg.FloatRetRegs) == 0) && (info.composite || info.size > ptrSize*int64(len(cfg.IntRetRegs))) {
 		if cfg.IndirectRetInArg {
 			st.intIdx = 1
@@ -616,7 +634,7 @@ func (cfg *ABIConfig) assignParams(fn BindingFunc, st *abiState, types map[strin
 	for i, pt := range paramTypes {
 		info := cfg.inspectType(pt, types)
 		loc := cfg.AssignParam(cfg, fn, i, info, st)
-		goOff = alignUp(goOff, info.align)
+		goOff = alignUp(goOff, min(info.align, cfg.PtrSize))
 		loc.GoOffset = goOff
 		goOff += loc.Size
 		params[i] = loc
@@ -922,6 +940,9 @@ func (cfg *ABIConfig) emitStoreIntAlign(w io.Writer, reg, base string, off, size
 // emitLoadFloat loads a 4-byte or 8-byte floating-point value from off(base)
 // into floating-point register reg.
 func (cfg *ABIConfig) emitLoadFloat(w io.Writer, base string, off, size int64, reg string) {
+	if cfg.LoadFloat != nil && cfg.LoadFloat(w, base, off, size, reg) {
+		return
+	}
 	op := cfg.asm.fmovD
 	if size == 4 {
 		op = cfg.asm.fmovS
@@ -932,6 +953,9 @@ func (cfg *ABIConfig) emitLoadFloat(w io.Writer, base string, off, size int64, r
 // emitStoreFloat stores a 4-byte or 8-byte floating-point value from
 // floating-point register reg into off(base).
 func (cfg *ABIConfig) emitStoreFloat(w io.Writer, reg, base string, off, size int64) {
+	if cfg.StoreFloat != nil && cfg.StoreFloat(w, reg, base, off, size) {
+		return
+	}
 	op := cfg.asm.fmovD
 	if size == 4 {
 		op = cfg.asm.fmovS
@@ -1249,6 +1273,10 @@ func (cfg *ABIConfig) emitRISCCallbackEpilogue(w io.Writer, frameSize int64) {
 // emitCallCrosscall2 emits the shared register-ABI callback sequence:
 // _cgo_wait_runtime_init_done -> crosscall2(fn, &frame, frameSize, ctxt) -> _cgo_release_context.
 func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, ctxtOff int64) {
+	if cfg.CallCrosscall2 != nil {
+		cfg.CallCrosscall2(w, fnName, frameSize, ctxtOff)
+		return
+	}
 	ptrSize := cfg.PtrSize
 	arg0, arg1, arg2, arg3 := cfg.IntRegs[0], cfg.IntRegs[1], cfg.IntRegs[2], cfg.IntRegs[3]
 	ret0 := cfg.IntRetRegs[0]
@@ -1295,7 +1323,11 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 		// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
 		// the C callee preserves it per the C ABI, and our caller (runtime.asmcgocall)
 		// does not keep a live value in CalleeSavedReg, so we need not save/restore it.
-		cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+		if cfg.Prologue != nil {
+			epilogue = cfg.Prologue(w)
+		} else {
+			cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+		}
 
 		if lay.StackSize > 0 {
 			cfg.emitSubSP(w, lay.StackSize)
@@ -1322,7 +1354,12 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 		if fn.MayCallback {
 			retBase, retOff = cfg.SPReg, lay.Ret.G0Off
 		}
-		cfg.emitAddr(w, retBase, retOff, cfg.IndirectRetReg)
+		if lay.Ret.IndirectOnStack {
+			cfg.emitAddr(w, retBase, retOff, cfg.TmpReg)
+			cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, 0, ptrSize)
+		} else {
+			cfg.emitAddr(w, retBase, retOff, cfg.IndirectRetReg)
+		}
 	}
 
 	for i, p := range lay.Params {
@@ -1387,6 +1424,12 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	default:
 		cfg.emitCallSymbol(w, fn.CName, fn.Static)
 	}
+	if lay.Ret.IndirectOnStack && cfg.SysVI386SretPop {
+		// The C callee returned with RET $4, popping the 4-byte sret slot
+		// without obj6's deltasp tracking it. Emit SUBL rather than ADJSP so
+		// SP is restored without unbalancing deltasp.
+		fmt.Fprintf(w, "\tSUBL\t$4, SP\n")
+	}
 
 	if fn.Ret != "" && lay.Ret.Size > 0 {
 		retDstBase, retDstOff := base, lay.Ret.GoOffset
@@ -1413,7 +1456,6 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	if epilogue != nil {
 		epilogue(w)
 	}
-
 	fmt.Fprintf(w, "\tRET\n\n")
 }
 
@@ -1458,7 +1500,12 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 	baseOff := cfg.LocalFrameOff
 
 	if lay.Ret.Indirect {
-		cfg.emitStoreInt(w, cfg.IndirectRetReg, cfg.SPReg, baseOff+retBufOff, ptrSize)
+		if lay.Ret.IndirectOnStack {
+			cfg.emitLoadStackArg(w, 0, callerSPOff, ptrSize, cfg.TmpReg)
+			cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, baseOff+retBufOff, ptrSize)
+		} else {
+			cfg.emitStoreInt(w, cfg.IndirectRetReg, cfg.SPReg, baseOff+retBufOff, ptrSize)
+		}
 	}
 
 	for i, p := range lay.Params {
@@ -1533,7 +1580,7 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 		if lay.Ret.Indirect {
 			bufReg := cfg.TmpReg
 			copyReg := cfg.TmpReg2
-			if cfg.IndirectRetInArg && len(cfg.IntRetRegs) > 0 {
+			if (cfg.IndirectRetInArg || lay.Ret.IndirectOnStack) && len(cfg.IntRetRegs) > 0 {
 				bufReg = cfg.IntRetRegs[0]
 				copyReg = cfg.TmpReg
 			}
@@ -1548,7 +1595,7 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 
 	switch {
 	case cfg.CallbackEpilogue != nil:
-		cfg.CallbackEpilogue(w, frameSize)
+		cfg.CallbackEpilogue(w, frameSize, lay.Ret.IndirectOnStack && cfg.SysVI386SretPop)
 		fmt.Fprintf(w, "\n")
 	case cfg.LinkReg != "":
 		cfg.emitRISCCallbackEpilogue(w, frameSize)
@@ -2064,7 +2111,7 @@ var arm64ABI = &ABIConfig{
 		fmt.Fprintf(w, "\tADD\t$%d, RSP, R29\n", fpOff)
 		return total
 	},
-	CallbackEpilogue: func(w io.Writer, frameSize int64) {
+	CallbackEpilogue: func(w io.Writer, frameSize int64, _ bool) {
 		total, small := arm64CallbackFrame(frameSize)
 		if small {
 			fmt.Fprintf(w, "\tMOVD\t%d(RSP), R29\n", total-16)
@@ -2100,6 +2147,150 @@ func arm64CallbackFrame(frameSize int64) (total int64, small bool) {
 	return 48 + frameSize, false
 }
 
+// 32-bit x86 (i386) C calling convention:
+//   - SysV i386 psABI Section 2.2: https://gitlab.com/x86-psABIs/i386-ABI
+//   - Windows x86 (__cdecl): https://learn.microsoft.com/en-us/cpp/cpp/argument-passing-and-naming-conventions
+
+func win32AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.composite && isWin64RegStructSize(info.size) {
+		if info.size <= 4 {
+			return RetLoc{Size: info.size, Regs: []string{"AX"}}
+		}
+		return RetLoc{Size: info.size, Regs: []string{"AX", "DX"}}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+// sysv386AssignRet implements return values on Linux and NetBSD, whose C
+// compilers return every composite through a hidden pointer that the callee
+// pops, except _Complex float (complex64), which is not an aggregate in the
+// SysV i386 psABI and is returned in AX:DX like a 64-bit integer.
+// _Complex double (complex128) is returned through a hidden pointer.
+func sysv386AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.isComplex && info.size == 8 {
+		return RetLoc{Size: info.size, Regs: []string{"AX", "DX"}}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+// bsd386AssignRet implements struct return on FreeBSD and OpenBSD, whose C
+// compilers default to -freg-struct-return on 386: as on Windows, composites
+// of 1, 2, 4, or 8 bytes are returned in AX or AX:DX, except that a composite
+// whose only element is a float or double is returned in F0. Other composites
+// are returned through a hidden pointer, which the callee pops.
+func bsd386AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.composite && isWin64RegStructSize(info.size) && info.fieldsOK &&
+		len(info.fields) == 1 && info.fields[0].isFloat && info.fields[0].size == info.size {
+		return RetLoc{Size: info.size, Regs: []string{"F0"}, IsFloat: true}
+	}
+	return win32AssignRet(cfg, fn, info, st)
+}
+
+func i386AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{IsFloat: info.isFloat}
+	}
+	return cfg.assignStackParam(info.size, info.isFloat, st)
+}
+
+var i386ABI = &ABIConfig{
+	Arch:               "386",
+	PtrSize:            4,
+	CLongSize:          4,
+	StackAlign:         16,
+	IndirectRetOnStack: true,
+	SysVI386SretPop:    true,
+	IntRetRegs:         []string{"AX", "DX"},
+	FloatRetRegs:       []string{"F0"},
+	AssignParam:        i386AssignParam,
+	AssignRet:          sysv386AssignRet,
+	SPReg:              "SP",
+	CalleeSavedReg:     "BX",
+	TmpReg:             "CX",
+	TmpReg2:            "DX",
+	ZeroVal:            "$0",
+	asm: asmOps{
+		mov:   "MOVL",
+		loadB: "MOVBLSX", loadBU: "MOVBLZX", loadH: "MOVWLSX", loadHU: "MOVWLZX", loadW: "MOVL", loadWU: "MOVL",
+		storeB: "MOVB", storeH: "MOVW", storeW: "MOVL",
+		shl: "SHLL", shr: "SHRL", or: "ORL", add: "ADDL", sub: "SUBL", lea: "LEAL",
+		twoOpALU: true, twoOpShift: true, useAdjSP: true,
+	},
+	StackArgAddr: func(stackOff, _ int64) (string, int64) {
+		return "BP", 8 + stackOff
+	},
+	LoadFloat: func(w io.Writer, base string, off, size int64, reg string) bool {
+		if reg != "F0" {
+			return false
+		}
+		if size == 4 {
+			fmt.Fprintf(w, "\tFMOVF\t%d(%s), F0\n", off, base)
+		} else {
+			fmt.Fprintf(w, "\tFMOVD\t%d(%s), F0\n", off, base)
+		}
+		return true
+	},
+	StoreFloat: func(w io.Writer, reg, base string, off, size int64) bool {
+		if reg != "F0" {
+			return false
+		}
+		if size == 4 {
+			fmt.Fprintf(w, "\tFMOVFP\tF0, %d(%s)\n", off, base)
+		} else {
+			fmt.Fprintf(w, "\tFMOVDP\tF0, %d(%s)\n", off, base)
+		}
+		return true
+	},
+	Prologue: func(w io.Writer) func(w io.Writer) {
+		fmt.Fprintf(w, "\tPUSHL\tBP\n")
+		fmt.Fprintf(w, "\tMOVL\tSP, BP\n")
+		fmt.Fprintf(w, "\tADJSP\t$8\n")
+		fmt.Fprintf(w, "\tMOVL\tBX, -4(BP)\n")
+		fmt.Fprintf(w, "\tMOVL\t8(BP), BX\n")
+		return func(w io.Writer) {
+			fmt.Fprintf(w, "\tMOVL\t-4(BP), BX\n")
+			fmt.Fprintf(w, "\tADJSP\t$-8\n")
+			fmt.Fprintf(w, "\tPOPL\tBP\n")
+		}
+	},
+	CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+		fmt.Fprintf(w, "\tPUSHL\tBP\n")
+		fmt.Fprintf(w, "\tMOVL\tSP, BP\n")
+		fmt.Fprintf(w, "\tADJSP\t$%d\n", frameSize+8)
+		// Save C callee-saved BX in the 8-byte alignment padding: under -dynlink,
+		// obj6 prepends LEAL _GLOBAL_OFFSET_TABLE_, BX before non-local CALLs.
+		fmt.Fprintf(w, "\tMOVL\tBX, -4(BP)\n")
+		return 0
+	},
+	CallbackEpilogue: func(w io.Writer, frameSize int64, sretPop bool) {
+		fmt.Fprintf(w, "\tMOVL\t-4(BP), BX\n")
+		fmt.Fprintf(w, "\tADJSP\t$-%d\n", frameSize+8)
+		fmt.Fprintf(w, "\tPOPL\tBP\n")
+		if sretPop {
+			fmt.Fprintf(w, "\tBYTE\t$0xc2\n\tWORD\t$4\n")
+		} else {
+			fmt.Fprintf(w, "\tRET\n")
+		}
+	},
+	CallCrosscall2: func(w io.Writer, fnName string, frameSize, ctxtOff int64) {
+		fmt.Fprintf(w, "\tCALL\t_cgo_wait_runtime_init_done(SB)\n")
+		fmt.Fprintf(w, "\tMOVL\tAX, %d(SP)\n", ctxtOff)
+		fmt.Fprintf(w, "\tADJSP\t$16\n")
+		fmt.Fprintf(w, "\tMOVL\tAX, 12(SP)\n")
+		fmt.Fprintf(w, "\tMOVL\t·_cgo_fn_%s(SB), AX\n", fnName)
+		fmt.Fprintf(w, "\tMOVL\t0(AX), AX\n")
+		fmt.Fprintf(w, "\tMOVL\tAX, 0(SP)\n")
+		fmt.Fprintf(w, "\tLEAL\t16(SP), AX\n")
+		fmt.Fprintf(w, "\tMOVL\tAX, 4(SP)\n")
+		fmt.Fprintf(w, "\tMOVL\t$%d, 8(SP)\n", frameSize)
+		fmt.Fprintf(w, "\tCALL\tcrosscall2(SB)\n")
+		fmt.Fprintf(w, "\tMOVL\t%d(SP), AX\n", 16+ctxtOff)
+		fmt.Fprintf(w, "\tMOVL\tAX, 0(SP)\n")
+		fmt.Fprintf(w, "\tCALL\t_cgo_release_context(SB)\n")
+		fmt.Fprintf(w, "\tADJSP\t$-16\n")
+	},
+}
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -2112,8 +2303,22 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 		}
 	case "arm64":
 		cfg = *arm64ABI
-		if targetOS == "darwin" || targetOS == "ios" {
+		switch targetOS {
+		case "darwin", "ios":
 			cfg.PackStackArgs = true
+		case "windows":
+			cfg.CLongSize = 4
+			cfg.IndirectSymCall = true
+		}
+	case "386":
+		cfg = *i386ABI
+		switch targetOS {
+		case "windows":
+			cfg.SysVI386SretPop = false
+			cfg.AssignRet = win32AssignRet
+			cfg.IndirectSymCall = true
+		case "freebsd", "openbsd":
+			cfg.AssignRet = bsd386AssignRet
 		}
 	default:
 		panic("unsupported arch: " + targetArch)

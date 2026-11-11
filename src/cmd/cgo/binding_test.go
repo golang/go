@@ -301,6 +301,21 @@ func TestBindingLibcAndTargetTypes(t *testing.T) {
 		t.Errorf("linux/amd64 _Ctype_uintptr_t = %q, want uint64", gt)
 	}
 
+	goos = "linux"
+	goarch = "386"
+	if gt, _ := primitiveCtypeToGo("_Ctype_long"); gt != "int32" {
+		t.Errorf("linux/386 _Ctype_long = %q, want int32", gt)
+	}
+	if gt, _ := primitiveCtypeToGo("_Ctype_size_t"); gt != "uint32" {
+		t.Errorf("linux/386 _Ctype_size_t = %q, want uint32", gt)
+	}
+	if gt, _ := primitiveCtypeToGo("_Ctype_ssize_t"); gt != "int32" {
+		t.Errorf("linux/386 _Ctype_ssize_t = %q, want int32", gt)
+	}
+	if gt, _ := primitiveCtypeToGo("_Ctype_uintptr_t"); gt != "uint32" {
+		t.Errorf("linux/386 _Ctype_uintptr_t = %q, want uint32", gt)
+	}
+
 	// C.char is unsigned on linux/arm64 and signed on darwin/arm64 and linux/amd64.
 	for _, tc := range []struct {
 		os, arch string

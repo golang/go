@@ -97,10 +97,14 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	case "dragonfly", "solaris", "illumos", "windows":
 		runtimeCgoPuregoSupported = goarch == "amd64"
 	}
-	// So far, cmd/cgo only knows the C ABI of amd64, and of arm64
-	// outside Windows.
-	cgoBindingsSupported := runtimeCgoPuregoSupported &&
-		(goarch == "amd64" || (goarch == "arm64" && goos != "windows"))
+	// cgoBindingsABISupported reports whether cmd/cgo knows the C ABI
+	// of goarch.
+	var cgoBindingsABISupported bool
+	switch goarch {
+	case "386", "amd64", "arm64":
+		cgoBindingsABISupported = true
+	}
+	cgoBindingsSupported := runtimeCgoPuregoSupported && cgoBindingsABISupported
 
 	baseline := goexperiment.Flags{
 		RegabiWrappers:        regabiSupported,

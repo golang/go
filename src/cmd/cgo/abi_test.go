@@ -823,7 +823,7 @@ func TestCallbackLargeFrameARM64(t *testing.T) {
 		"Big": {Name: "Big", Def: "struct {\n\ta [4096]byte\n}", Size: 4096, Align: 8},
 	}
 	fn := BindingFunc{Name: "GoBig", Params: []string{"Big", "int64"}, Ret: "int32"}
-	for _, goos := range []string{"linux", "darwin"} {
+	for _, goos := range []string{"linux", "darwin", "windows"} {
 		t.Run(goos, func(t *testing.T) {
 			var buf bytes.Buffer
 			buf.WriteString("#include \"textflag.h\"\n\n")
@@ -917,6 +917,263 @@ func TestLayoutWin64(t *testing.T) {
 	for _, want := range []string{"MOVL\tCX, 32(SP)", "LEAQ\t32(SP), DX", "CALL\tcrosscall2(SB)", "MOVL\t36(SP), AX"} {
 		if !strings.Contains(w64CB.String(), want) {
 			t.Errorf("windows/amd64 callback missing %q:\n%s", want, w64CB.String())
+		}
+	}
+}
+
+// TestStructReturn386 verifies the struct return conventions of the 386 C
+// ABIs: Linux and NetBSD always return composites through a hidden pointer
+// that the callee pops, Windows returns 1, 2, 4, and 8-byte composites in
+// AX or AX:DX, and FreeBSD and OpenBSD (-freg-struct-return) do the same
+// except that a composite whose only element is a float or double is
+// returned in F0. Every target returns complex64 (_Complex float) in AX:DX
+// and complex128 (_Complex double) through a hidden pointer.
+func TestStructReturn386(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"S1":   {Name: "S1", Def: "struct {\n\ta int8\n}", Size: 1, Align: 1},
+		"S2":   {Name: "S2", Def: "struct {\n\ta int16\n}", Size: 2, Align: 2},
+		"S3":   {Name: "S3", Def: "struct {\n\ta [3]int8\n}", Size: 3, Align: 1},
+		"S4":   {Name: "S4", Def: "struct {\n\ta int32\n}", Size: 4, Align: 4},
+		"S8":   {Name: "S8", Def: "struct {\n\ta int32\n\tb int32\n}", Size: 8, Align: 4},
+		"S12":  {Name: "S12", Def: "struct {\n\ta int32\n\tb int32\n\tc int32\n}", Size: 12, Align: 4},
+		"SF":   {Name: "SF", Def: "struct {\n\tf float32\n}", Size: 4, Align: 4},
+		"SD":   {Name: "SD", Def: "struct {\n\td float64\n}", Size: 8, Align: 4},
+		"SNF":  {Name: "SNF", Def: "struct {\n\ts struct {\n\t\tf float32\n\t}\n}", Size: 4, Align: 4},
+		"SFA":  {Name: "SFA", Def: "struct {\n\ta [1]float32\n}", Size: 4, Align: 4},
+		"SFF":  {Name: "SFF", Def: "struct {\n\ta float32\n\tb float32\n}", Size: 8, Align: 4},
+		"SFI":  {Name: "SFI", Def: "struct {\n\tf float32\n\ti int32\n}", Size: 8, Align: 4},
+		"Byte": {Name: "Byte", Def: "[4]uint8", Size: 4, Align: 1},
+	}
+	const (
+		sret = "sret"
+		ax   = "AX"
+		axdx = "AX,DX"
+		f0   = "F0"
+	)
+	// wantRet returns how goos/386 returns a value of type ret.
+	wantRet := func(goos, ret string) string {
+		switch ret {
+		case "complex64":
+			return axdx
+		case "complex128":
+			return sret
+		}
+		switch goos {
+		case "windows", "freebsd", "openbsd":
+			if r, ok := map[string]string{
+				"S1": ax, "S2": ax, "S3": sret, "S4": ax, "S8": axdx, "S12": sret,
+				"SFF": axdx, "SFI": axdx,
+			}[ret]; ok {
+				return r
+			}
+			if goos == "windows" {
+				// MSVC does not return float-only structs in F0.
+				return map[string]string{"SF": ax, "SD": axdx, "SNF": ax, "SFA": ax}[ret]
+			}
+			return f0
+		}
+		return sret
+	}
+	for _, goos := range []string{"linux", "netbsd", "windows", "freebsd", "openbsd"} {
+		t.Run(goos, func(t *testing.T) {
+			cfg := getABI(goos, "386")
+			for _, ret := range []string{"S1", "S2", "S3", "S4", "S8", "S12", "SF", "SD", "SNF", "SFA", "SFF", "SFI", "complex64", "complex128"} {
+				want := wantRet(goos, ret)
+				lay := cfg.layout(BindingFunc{Name: "F", Params: []string{"int32"}, Ret: ret}, typeMap)
+				got := strings.Join(lay.Ret.Regs, ",")
+				if lay.Ret.Indirect || lay.Ret.IndirectOnStack {
+					got = sret
+				}
+				if got != want {
+					t.Errorf("%s/386 return %s: got %s, want %s (%+v)", goos, ret, got, want, lay.Ret)
+				}
+				// The argument follows the hidden pointer, if any.
+				if wantOff := map[bool]int64{true: 4, false: 0}[want == sret]; lay.Params[0].StackOff != wantOff {
+					t.Errorf("%s/386 return %s: int32 param at %d, want %d", goos, ret, lay.Params[0].StackOff, wantOff)
+				}
+			}
+
+			// Callbacks pop the hidden pointer (RET $4) exactly when
+			// there is one, except on Windows, and load F0 for
+			// float-only structs on FreeBSD and OpenBSD.
+			for _, ret := range []string{"S8", "S12", "SF", "SD", "complex64", "complex128"} {
+				var cb bytes.Buffer
+				cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CB", Params: []string{"int32"}, Ret: ret}, typeMap)
+				src := cb.String()
+				pop := strings.Contains(src, "BYTE\t$0xc2\n\tWORD\t$4")
+				if wantPop := wantRet(goos, ret) == sret && goos != "windows"; pop != wantPop {
+					t.Errorf("%s/386 callback returning %s: pops hidden pointer = %v, want %v:\n%s", goos, ret, pop, wantPop, src)
+				}
+				if wantRet(goos, ret) == f0 {
+					op := map[string]string{"SF": "FMOVF\t", "SD": "FMOVD\t"}[ret]
+					if !strings.Contains(src, op) {
+						t.Errorf("%s/386 callback returning %s does not load F0 with %s:\n%s", goos, ret, op, src)
+					}
+				}
+			}
+
+			// Callbacks returning complex64 load both halves into
+			// AX:DX, and trampolines calling a function returning
+			// complex64 store both halves without popping a hidden
+			// pointer.
+			var c64CB, c64Tramp bytes.Buffer
+			cfg.writeCallbackTrampoline(&c64CB, BindingFunc{Name: "CBC64", Params: []string{"int32"}, Ret: "complex64"}, typeMap)
+			for _, want := range []string{"), AX\n", "), DX\n"} {
+				if src := c64CB.String(); !strings.Contains(src, want) {
+					t.Errorf("%s/386 callback returning complex64 missing %q:\n%s", goos, want, src)
+				}
+			}
+			cfg.writeTrampoline(&c64Tramp, BindingFunc{Name: "TC64", CName: "c_c64", Params: []string{"int32"}, Ret: "complex64"}, typeMap)
+			src := c64Tramp.String()
+			for _, want := range []string{"MOVL\tAX, ", "MOVL\tDX, "} {
+				if !strings.Contains(src, want) {
+					t.Errorf("%s/386 trampoline returning complex64 missing %q:\n%s", goos, want, src)
+				}
+			}
+			if strings.Contains(src, "SUBL\t$4, SP") {
+				t.Errorf("%s/386 trampoline returning complex64 must not expect the callee to pop a hidden pointer:\n%s", goos, src)
+			}
+
+			// Trampolines store register-returned composites from AX:DX
+			// or F0 into the Go result.
+			if goos == "freebsd" || goos == "openbsd" {
+				for ret, want := range map[string]string{"S8": "MOVL\tDX, ", "SD": "FMOVDP\tF0, ", "SF": "FMOVFP\tF0, "} {
+					var tr bytes.Buffer
+					cfg.writeTrampoline(&tr, BindingFunc{Name: "T" + ret, CName: "c_" + ret, Params: []string{"int32"}, Ret: ret}, typeMap)
+					if src := tr.String(); !strings.Contains(src, want) {
+						t.Errorf("%s/386 trampoline returning %s missing %q:\n%s", goos, ret, want, src)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestLayout386AndWindowsARM64(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Pair8":   {Name: "Pair8", Def: "struct {\n\ta int32\n\tb int32\n}", Size: 8, Align: 4},
+		"Double2": {Name: "Double2", Def: "struct {\n\tx float64\n\ty float64\n}", Size: 16, Align: 8},
+		"Empty":   {Name: "Empty", Def: "struct {}", Size: 0, Align: 1},
+	}
+
+	// 386 Linux vs Windows small struct return (IndirectOnStack vs AX:DX).
+	lin386 := getABI("linux", "386").layout(BindingFunc{Name: "F", Params: []string{"int32"}, Ret: "Pair8"}, typeMap)
+	if !lin386.Ret.IndirectOnStack || lin386.Params[0].StackOff != 4 {
+		t.Errorf("linux/386 sret layout = %+v", lin386)
+	}
+	win386 := getABI("windows", "386").layout(BindingFunc{Name: "F", Params: []string{"int32"}, Ret: "Pair8"}, typeMap)
+	if win386.Ret.Indirect || !slices.Equal(win386.Ret.Regs, []string{"AX", "DX"}) || win386.Params[0].StackOff != 0 {
+		t.Errorf("windows/386 8B struct ret layout = %+v", win386)
+	}
+
+	// Zero-sized struct return on 386 must NOT allocate a hidden sret slot.
+	emptyLay := getABI("linux", "386").layout(BindingFunc{Name: "E", Params: []string{"int32"}, Ret: "Empty"}, typeMap)
+	if emptyLay.Ret.Indirect || emptyLay.Ret.IndirectOnStack || emptyLay.Params[0].StackOff != 0 {
+		t.Errorf("linux/386 empty struct ret layout = %+v, want no sret", emptyLay)
+	}
+
+	// GoOffset on 32-bit targets must cap alignment to PtrSize=4 even when C Align=8.
+	d2Lay := getABI("windows", "386").layout(BindingFunc{Name: "D", Params: []string{"int32", "Double2"}, Ret: "Double2"}, typeMap)
+	if d2Lay.Params[1].GoOffset != 4 || d2Lay.Ret.GoOffset != 20 {
+		t.Errorf("windows/386 (int32, Double2) GoOffsets = %d, %d; want 4, 20", d2Lay.Params[1].GoOffset, d2Lay.Ret.GoOffset)
+	}
+
+	// 386 trampolines and callbacks: x87 FMOV, SysV RET $4 vs Windows RET, PE IAT, BX preservation.
+	var l386Tramp, l386CB, w386Tramp, w386CB bytes.Buffer
+	getABI("linux", "386").writeTrampoline(&l386Tramp, BindingFunc{Name: "Sret", CName: "c_sret", Params: []string{"float64"}, Ret: "Pair8", MayCallback: true}, typeMap)
+	for _, want := range []string{"MOVL\tBX, -4(BP)", "MOVL\t-4(BP), BX", "CALL\tc_sret(SB)", "SUBL\t$4, SP", "CALL\t_cgo_topofstack(SB)"} {
+		if !strings.Contains(l386Tramp.String(), want) {
+			t.Errorf("linux/386 sret trampoline missing %q:\n%s", want, l386Tramp.String())
+		}
+	}
+	getABI("linux", "386").writeCallbackTrampoline(&l386CB, BindingFunc{Name: "CBSret", Params: []string{"int32"}, Ret: "Pair8"}, typeMap)
+	l386CBAsm := l386CB.String()
+	for _, want := range []string{"MOVL\tBX, -4(BP)", "MOVL\t-4(BP), BX", "BYTE\t$0xc2\n\tWORD\t$4"} {
+		if !strings.Contains(l386CBAsm, want) {
+			t.Errorf("linux/386 sret callback missing %q:\n%s", want, l386CBAsm)
+		}
+	}
+	if iSave, iCall, iRest := strings.Index(l386CBAsm, "MOVL\tBX, -4(BP)"), strings.Index(l386CBAsm, "CALL\t_cgo_wait_runtime_init_done(SB)"), strings.Index(l386CBAsm, "MOVL\t-4(BP), BX"); !(iSave >= 0 && iSave < iCall && iCall < iRest) {
+		t.Errorf("linux/386 callback must save BX before calls and restore after:\n%s", l386CBAsm)
+	}
+	if testenv.HasGoBuild() {
+		dir := t.TempDir()
+		sfile := filepath.Join(dir, "cb386.s")
+		ofile := filepath.Join(dir, "cb386.o")
+		if err := os.WriteFile(sfile, []byte("#include \"textflag.h\"\n\n"+l386CBAsm), 0o666); err != nil {
+			t.Fatal(err)
+		}
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-dynlink", "-p", "main",
+			"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=386")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("go tool asm -dynlink (linux/386): %v\n%s", err, out)
+		}
+		out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
+		if err != nil {
+			t.Fatalf("go tool objdump (linux/386): %v\n%s", err, out)
+		}
+		var bxUses []string
+		for _, line := range strings.Split(string(out), "\n") {
+			if strings.Contains(line, "BX") {
+				if f := strings.Fields(line); len(f) >= 4 {
+					bxUses = append(bxUses, strings.Join(f[3:], " "))
+				}
+			}
+		}
+		if len(bxUses) < 3 || bxUses[0] != "MOVL BX, -0x4(BP)" || bxUses[len(bxUses)-1] != "MOVL -0x4(BP), BX" {
+			t.Errorf("BX uses in linux/386 -dynlink callback = %q, want save first and restore last\n%s", bxUses, out)
+		}
+	}
+	getABI("windows", "386").writeTrampoline(&w386Tramp, BindingFunc{Name: "Flt", CName: "c_flt", Params: []string{"float32"}, Ret: "float64"}, nil)
+	for _, want := range []string{"MOVL\tc_flt(SB), CX\n\tCALL\tCX", "FMOVDP\tF0,"} {
+		if !strings.Contains(w386Tramp.String(), want) {
+			t.Errorf("windows/386 float trampoline missing %q:\n%s", want, w386Tramp.String())
+		}
+	}
+	getABI("windows", "386").writeCallbackTrampoline(&w386CB, BindingFunc{Name: "CBFlt", Params: []string{"int64"}, Ret: "float32"}, nil)
+	for _, want := range []string{"MOVL\tBX, -4(BP)", "MOVL\t-4(BP), BX", "FMOVF\t", "\tRET\n"} {
+		if !strings.Contains(w386CB.String(), want) {
+			t.Errorf("windows/386 float callback missing %q:\n%s", want, w386CB.String())
+		}
+	}
+
+	var wArmBuf bytes.Buffer
+	getABI("windows", "arm64").writeTrampoline(&wArmBuf, BindingFunc{Name: "_Add", CName: "Add", Params: []string{"int32"}, Ret: "int32"}, nil)
+	if !strings.Contains(wArmBuf.String(), "MOVD\tAdd(SB), R12\n\tCALL\t(R12)") {
+		t.Errorf("windows/arm64 trampoline missing PE indirect call:\n%s", wArmBuf.String())
+	}
+}
+
+// allABITargets lists every supported OS/arch ABI target.
+var allABITargets = [][2]string{
+	{"linux", "amd64"}, {"windows", "amd64"},
+	{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "arm64"},
+	{"linux", "386"}, {"windows", "386"},
+}
+
+// TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call
+// through the function address at offset 0 of the argument struct, and that
+// static symbols are called directly, on every supported target.
+func TestIndirectAndStaticTrampolines(t *testing.T) {
+	for _, target := range allABITargets {
+		cfg := getABI(target[0], target[1])
+		var ind bytes.Buffer
+		cfg.writeTrampoline(&ind, BindingFunc{Name: "dyn_L_F", Params: []string{"int32", "int32"}, Ret: "int32", Indirect: true}, nil)
+		if out := ind.String(); strings.Count(out, "(SB)") != 1 {
+			t.Errorf("%s/%s: indirect trampoline references a symbol other than itself:\n%s", target[0], target[1], out)
+		}
+		// A static symbol is called like any other external symbol, except
+		// on Windows, where other symbols are called through import slots.
+		var st, dyn bytes.Buffer
+		cfg.writeTrampoline(&st, BindingFunc{Name: "S", CName: "s_fn", Params: []string{"int32"}, Ret: "int32", Static: true}, nil)
+		cfg.writeTrampoline(&dyn, BindingFunc{Name: "S", CName: "s_fn", Params: []string{"int32"}, Ret: "int32"}, nil)
+		if target[0] == "windows" {
+			if out := st.String(); !strings.Contains(out, "CALL\ts_fn(SB)") {
+				t.Errorf("%s/%s: static trampoline does not call s_fn directly:\n%s", target[0], target[1], out)
+			}
+		} else if st.String() != dyn.String() {
+			t.Errorf("%s/%s: static trampoline\n%s\ndiffers from dynamic trampoline\n%s", target[0], target[1], st.String(), dyn.String())
 		}
 	}
 }
