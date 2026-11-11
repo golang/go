@@ -474,24 +474,16 @@ func CalcSize(t *Type) {
 	ResumeCheckSize()
 }
 
-// simdify marks a type either as a SIMD tag or as a SIMD type. A SIMD tag is
-// simply a zero-sized marker type. SIMD vector and mask types are represented
-// as structs whose first field is a SIMD tag. However, at run time, they're
-// allocated to vector registers (on amd64, xmm, ymm, or zmm), so the "fields"
-// of the struct are essentially ignored by the compiler, except for their space
-// and alignment.
-func simdify(st *Type, isTag bool) {
+// simdify marks a type as a SIMD type. SIMD vector and mask types are
+// represented as structs whose first field is a SIMD tag, a zero-sized marker
+// type. However, at run time, they're allocated to vector registers (on amd64,
+// xmm, ymm, or zmm), so the "fields" of the struct are essentially ignored by
+// the compiler, except for their space, alignment, and equality algorithm.
+func simdify(st *Type) {
 	st.align = 8
-	st.alg = ANOALG // not comparable with ==
 	st.intRegs = 0
-	if isTag {
-		st.width = 0
-		st.flags |= typeIsSIMDTag
-		st.floatRegs = 0
-	} else {
-		st.flags |= typeIsSIMD
-		st.floatRegs = 1
-	}
+	st.floatRegs = 1
+	st.flags |= typeIsSIMD
 }
 
 // CalcStructSize calculates the size of t,
@@ -499,6 +491,7 @@ func simdify(st *Type, isTag bool) {
 // even if size calculation is otherwise disabled.
 func CalcStructSize(t *Type) {
 	var maxAlign uint8 = 1
+	isSIMDTag := false
 
 	// Recognize special types. This logic is duplicated in go/types and
 	// cmd/compile/internal/types2.
@@ -510,22 +503,14 @@ func CalcStructSize(t *Type) {
 		case sym.Name == "align128" && isAtomicStdPkg(sym.Pkg):
 			maxAlign = 16
 
-		case buildcfg.Experiment.SIMD && (sym.Pkg.Path == "simd/archsimd") && len(t.Fields()) >= 1:
+		case buildcfg.Experiment.SIMD && sym.Pkg.Path == "simd/archsimd":
 			// This gates the experiment -- without it, no user-visible types can be "simd".
 			// The SSA-visible SIMD types remain.
 			switch sym.Name {
-			case "v128":
-				simdify(t, true)
-				return
-			case "v256":
-				simdify(t, true)
-				return
-			case "v512":
-				simdify(t, true)
-				return
-			case "psve":
-				simdify(t, true)
-				return
+			case "v128", "v256", "v512", "psve":
+				// A tag type. Lay it out like any other struct
+				// below, and then simdify it.
+				isSIMDTag = true
 			}
 		}
 	}
@@ -605,16 +590,30 @@ func CalcStructSize(t *Type) {
 		}
 	}
 
-	if len(t.Fields()) >= 1 && t.Fields()[0].Type.flags&typeIsSIMDTag != 0 {
-		// this catches `type Foo simd.Whatever` -- Foo is also SIMD.
+	if isSIMDTag {
+		// A tag is laid out like any other struct, and is not itself a
+		// SIMD type: it only marks the struct whose first field it is as
+		// one. Every SIMD vector and mask type has a tag as its first
+		// field, followed by an array of its elements, and compares like
+		// a struct with one field per element, so it takes its algorithm
+		// from its fields. Thus a tag with an uncomparable field makes
+		// the vector and mask types that use it uncomparable, which is
+		// how the SVE tags, with their [0]func() fields, keep the SVE
+		// types uncomparable.
+		t.flags |= typeIsSIMDTag
+	} else if len(t.Fields()) >= 1 && t.Fields()[0].Type.flags&typeIsSIMDTag != 0 {
+		// A SIMD vector or mask type: a struct whose first field is a
+		// tag. This includes the types of simd/archsimd, like
+		// archsimd.Float32x4, as well as types defined in terms of them,
+		// like `type Foo archsimd.Float32x4`.
 		if t.Fields()[0].Type.Sym().Name == "psve" {
-			simdify(t, false)
+			simdify(t)
 			// Force it to be passed via memory for now.
 			// TODO: support p registers in the ABI.
 			t.intRegs = math.MaxUint8
 			t.floatRegs = math.MaxUint8
 		} else {
-			simdify(t, false)
+			simdify(t)
 		}
 	}
 }
