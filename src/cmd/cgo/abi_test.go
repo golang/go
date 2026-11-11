@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"internal/testenv"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -809,6 +810,24 @@ func TestLayoutAndTrampolineDarwinARM64(t *testing.T) {
 			}
 			if !ptrLay.Params[9].PassByPtr || ptrLay.StackSize != 32 {
 				t.Errorf("PassByPtr layout = %+v, want PassByPtr=true StackSize=32", ptrLay)
+			}
+
+			// Callback trampoline must read packed narrow stack args at exact offsets/widths.
+			var cbBuf bytes.Buffer
+			cfg.writeCallbackTrampoline(&cbBuf, packedFn, typeMap)
+			cbAsm := cbBuf.String()
+			for _, want := range []string{
+				"MOVBU\t144(RSP), R12",
+				"MOVHU\t146(RSP), R12",
+				"MOVBU\t148(RSP), R12",
+				"MOVBU\t149(RSP), R12",
+				"MOVWU\t152(RSP), R12",
+				"MOVD\t160(RSP), R12",
+				"MOVBU\t168(RSP), R12",
+			} {
+				if !strings.Contains(cbAsm, want) {
+					t.Errorf("%s/arm64 callback trampoline missing %q in:\n%s", targetOS, want, cbAsm)
+				}
 			}
 		})
 	}
@@ -1745,6 +1764,326 @@ func TestLayoutAndTrampolineRISCV64Loong64(t *testing.T) {
 	}
 }
 
+func TestLayoutAndTrampolineMIPS64(t *testing.T) {
+	// The hard-float ABI is used only when GOMIPS64 does not select soft float.
+	t.Setenv("GOMIPS64", "hardfloat")
+	typeMap := map[string]BindingType{
+		"Float2":       {Name: "Float2", Def: "struct {\n\ta, b float32\n}", Size: 8, Align: 4},
+		"Double2":      {Name: "Double2", Def: "struct {\n\ta, b float64\n}", Size: 16, Align: 8},
+		"IntDouble":    {Name: "IntDouble", Def: "struct {\n\ta int64\n\tb float64\n}", Size: 16, Align: 8},
+		"Odd5":         {Name: "Odd5", Def: "struct {\n\tb [5]uint8\n}", Size: 5, Align: 1},
+		"Empty":        {Name: "Empty", Def: "struct{}", Size: 0, Align: 1},
+		"Double1":      {Name: "Double1", Def: "struct {\n\td float64\n}", Size: 8, Align: 8},
+		"ArrDouble2":   {Name: "ArrDouble2", Def: "struct {\n\ta [2]float64\n}", Size: 16, Align: 8},
+		"ArrFloat1":    {Name: "ArrFloat1", Def: "struct {\n\ta [1]float32\n}", Size: 4, Align: 4},
+		"NestedDouble": {Name: "NestedDouble", Def: "struct {\n\tinner Double1\n}", Size: 8, Align: 8},
+		"UnionDouble":  {Name: "UnionDouble", Def: "[1]float64", Size: 8, Align: 8},
+		"ThreeI32":     {Name: "ThreeI32", Def: "struct {\n\ta, b, c int32\n}", Size: 12, Align: 4},
+	}
+
+	m64 := getABI("linux", "mips64")
+
+	// MIPS64 N64 uses positional register slots across ints and floats.
+	posLay := m64.layout(BindingFunc{
+		Name:   "Positional",
+		Params: []string{"int64", "float64", "int64"},
+	}, nil)
+	if !slices.Equal(posLay.Params[0].Regs, []string{"R4"}) ||
+		!slices.Equal(posLay.Params[1].Regs, []string{"F13"}) ||
+		!slices.Equal(posLay.Params[2].Regs, []string{"R6"}) {
+		t.Errorf("mips64 positional layout = %+v", posLay)
+	}
+
+	// Spilled <8B args keep exact Size/GoOffset.
+	spillLay := m64.layout(BindingFunc{
+		Name:   "Spill",
+		Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int32", "float32", "Odd5", "Empty"},
+		Ret:    "int32",
+	}, typeMap)
+	if spillLay.Params[8].Size != 4 || spillLay.Params[8].GoOffset != 64 ||
+		spillLay.Params[9].Size != 4 || spillLay.Params[9].GoOffset != 68 ||
+		spillLay.Params[10].Size != 5 || spillLay.Params[10].GoOffset != 72 ||
+		spillLay.Params[11].Size != 0 || len(spillLay.Params[11].Regs) != 0 ||
+		spillLay.Ret.GoOffset != 80 {
+		t.Errorf("mips64 spilled <8B args layout = %+v", spillLay)
+	}
+	// N64 FP-struct passing (double fields in F12..F19, float32 struct in GPR) and F0/F2 return.
+	m64FP := m64.layout(BindingFunc{
+		Name:   "FP",
+		Params: []string{"Double2", "IntDouble", "Float2"},
+		Ret:    "Float2",
+	}, typeMap)
+	if !slices.Equal(m64FP.Params[0].Regs, []string{"F12", "F13"}) ||
+		!slices.Equal(m64FP.Params[1].Regs, []string{"R6", "F15"}) ||
+		!slices.Equal(m64FP.Params[2].Regs, []string{"R8"}) ||
+		!slices.Equal(m64FP.Ret.Regs, []string{"F0", "F2"}) {
+		t.Errorf("mips64 N64 FP-struct layout = %+v", m64FP)
+	}
+	// N64 straddling struct at slot 7 splits across F19/R11 and stack.
+	m64Split := m64.layout(BindingFunc{
+		Name:   "MSplit",
+		Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "Double2"},
+	}, typeMap)
+	if !slices.Equal(m64Split.Params[7].Regs, []string{"F19"}) ||
+		m64Split.Params[7].StackBytes != 8 || m64Split.Params[7].StackOff != 0 {
+		t.Errorf("mips64 straddling Double2 layout = %+v", m64Split.Params[7])
+	}
+	// Big-endian mips64: Odd5 at GoOffset=1 uses strict-align MOVBU + left-justified SLLV $24 + PIC R25.
+	var m64Tramp, m64Cb bytes.Buffer
+	m64.writeTrampoline(&m64Tramp, BindingFunc{Name: "Odd", CName: "c_odd", Params: []string{"int8", "Odd5"}}, typeMap)
+	if out := m64Tramp.String(); !strings.Contains(out, "MOVBU\t1(R16), R5") ||
+		!strings.Contains(out, "SLLV\t$24, R5, R5") ||
+		!strings.Contains(out, "MOVV\t$c_odd(SB), R25\n\tCALL\t(R25)") {
+		t.Errorf("mips64 BE trampoline unexpected:\n%s", out)
+	}
+	// MIPS64 callback initializes and restores RSB (R28).
+	m64.writeCallbackTrampoline(&m64Cb, BindingFunc{Name: "M64Cb", Params: []string{"int64"}, Ret: "int64"}, nil)
+	for _, want := range []string{
+		"MOVV\tRSB, 8(R29)",
+		"BGEZAL\tR0, 1(PC)\n\tSRLV\t$32, R31, RSB\n\tSLLV\t$32, RSB",
+		"MOVV\t8(R29), RSB",
+	} {
+		if !strings.Contains(m64Cb.String(), want) {
+			t.Errorf("mips64 callback missing %q in:\n%s", want, m64Cb.String())
+		}
+	}
+
+	// N64 passes and returns only the float and double members of a
+	// struct itself in FPRs. Doubles in arrays, nested structs, or unions
+	// go in GPRs.
+	for typ, want := range map[string][2][]string{
+		"Double1":      {{"F12"}, {"F0"}},
+		"ArrDouble2":   {{"R4", "R5"}, {"R2", "R3"}},
+		"ArrFloat1":    {{"R4"}, {"R2"}},
+		"NestedDouble": {{"R4"}, {"R2"}},
+		"UnionDouble":  {{"R4"}, {"R2"}},
+	} {
+		lay := m64.layout(BindingFunc{Name: "S", Params: []string{typ}, Ret: typ}, typeMap)
+		if !slices.Equal(lay.Params[0].Regs, want[0]) || !slices.Equal(lay.Ret.Regs, want[1]) || lay.Ret.Indirect {
+			t.Errorf("mips64 %s argument and result = %+v, want %v and %v", typ, lay, want[0], want[1])
+		}
+	}
+
+	// _Complex float and _Complex double are passed in two consecutive
+	// FPRs (taking two argument slots) and returned in F0 and F2. In the
+	// last argument slot, a complex number is passed in R11 (and the
+	// stack), and after that on the stack.
+	for _, arch := range []string{"mips64", "mips64le"} {
+		cfg := getABI("linux", arch)
+		for _, c := range []struct {
+			typ   string
+			loads []string
+			ret   []string
+		}{
+			{"complex64", []string{"MOVF\t0(R16), F12\n", "MOVF\t4(R16), F13\n"}, []string{"MOVF\tF0, 16(R16)\n", "MOVF\tF2, 20(R16)\n"}},
+			{"complex128", []string{"MOVD\t0(R16), F12\n", "MOVD\t8(R16), F13\n"}, []string{"MOVD\tF0, 24(R16)\n", "MOVD\tF2, 32(R16)\n"}},
+		} {
+			fn := BindingFunc{Name: "C", CName: "c", Params: []string{c.typ, "int64"}, Ret: c.typ}
+			lay := cfg.layout(fn, nil)
+			if !slices.Equal(lay.Params[0].Regs, []string{"F12", "F13"}) || !slices.Equal(lay.Params[1].Regs, []string{"R6"}) ||
+				!lay.Ret.IsFloat || !slices.Equal(lay.Ret.Regs, []string{"F0", "F2"}) {
+				t.Errorf("%s (%s, int64) %s layout = %+v", arch, c.typ, c.typ, lay)
+			}
+			var tramp, cb bytes.Buffer
+			cfg.writeTrampoline(&tramp, fn, nil)
+			for _, want := range append(c.loads, c.ret...) {
+				if !strings.Contains(tramp.String(), want) {
+					t.Errorf("%s trampoline passing and returning %s missing %q:\n%s", arch, c.typ, want, tramp.String())
+				}
+			}
+			cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbC", Params: fn.Params, Ret: c.typ}, nil)
+			for _, want := range []string{"\tF12, ", "\tF13, ", "), F0\n", "), F2\n"} {
+				if !strings.Contains(cb.String(), want) {
+					t.Errorf("%s callback for %s missing %q:\n%s", arch, c.typ, want, cb.String())
+				}
+			}
+
+			int64s := func(n int) []string { return slices.Repeat([]string{"int64"}, n) }
+			lay = cfg.layout(BindingFunc{Name: "C", Params: append(int64s(6), c.typ)}, nil)
+			if !slices.Equal(lay.Params[6].Regs, []string{"F18", "F19"}) {
+				t.Errorf("%s %s in slot 6 = %+v, want F18, F19", arch, c.typ, lay.Params[6])
+			}
+			lay = cfg.layout(BindingFunc{Name: "C", Params: append(int64s(7), c.typ)}, nil)
+			wantStack := map[string]int64{"complex64": 0, "complex128": 8}[c.typ]
+			if p := lay.Params[7]; p.IsFloat || !slices.Equal(p.Regs, []string{"R11"}) || p.StackBytes != wantStack {
+				t.Errorf("%s %s in slot 7 = %+v, want R11 and %d bytes on the stack", arch, c.typ, p, wantStack)
+			}
+			lay = cfg.layout(BindingFunc{Name: "C", Params: append(int64s(8), c.typ)}, nil)
+			if p := lay.Params[8]; len(p.Regs) != 0 || p.StackOff != 0 {
+				t.Errorf("%s %s in slot 8 = %+v, want on the stack at 0", arch, c.typ, p)
+			}
+		}
+	}
+
+	// uint32 values are sign-extended to 64 bits (MOVW) in argument
+	// registers, stack slots, and callback results; uint8 and uint16 are
+	// zero-extended, and struct chunks are not sign-extended. A spilled
+	// float is left-justified in its stack slot on big-endian mips64.
+	m64le := getABI("linux", "mips64le")
+	for _, c := range []struct {
+		cfg    *ABIConfig
+		params []string
+		want   string
+	}{
+		{m64, []string{"uint32"}, "MOVW\t0(R16), R4\n"},
+		{m64, []string{"uint8"}, "MOVBU\t0(R16), R4\n"},
+		{m64, []string{"uint16"}, "MOVHU\t0(R16), R4\n"},
+		{m64le, []string{"ThreeI32"}, "MOVWU\t0(R16), R4\n"},
+		{m64le, []string{"ThreeI32"}, "MOVWU\t8(R16), R5\n"},
+		{m64, append(slices.Repeat([]string{"int64"}, 8), "uint32"), "MOVW\t64(R16), R12\n\tMOVV\tR12, 0(R29)\n"},
+		{m64, append(slices.Repeat([]string{"int64"}, 8), "float32"), "MOVWU\t64(R16), R12\n\tMOVW\tR12, 0(R29)\n"},
+		{m64le, append(slices.Repeat([]string{"int64"}, 8), "float32"), "MOVWU\t64(R16), R12\n\tMOVV\tR12, 0(R29)\n"},
+	} {
+		var tramp bytes.Buffer
+		c.cfg.writeTrampoline(&tramp, BindingFunc{Name: "Ext", CName: "ext", Params: c.params}, typeMap)
+		if !strings.Contains(tramp.String(), c.want) {
+			t.Errorf("%s trampoline passing %v missing %q:\n%s", c.cfg.Arch, c.params, c.want, tramp.String())
+		}
+	}
+	var u32Cb bytes.Buffer
+	m64.writeCallbackTrampoline(&u32Cb, BindingFunc{Name: "CbU32", Params: []string{"uint32"}, Ret: "uint32"}, nil)
+	if want := "MOVW\t20(R29), R2\n"; !strings.Contains(u32Cb.String(), want) {
+		t.Errorf("mips64 callback returning uint32 missing %q:\n%s", want, u32Cb.String())
+	}
+
+	// GOMIPS64=softfloat uses GPRs for floats.
+	t.Setenv("GOMIPS64", "softfloat")
+	m64SF := getABI("linux", "mips64le")
+	sfLay := m64SF.layout(BindingFunc{Name: "SF", Params: []string{"float64"}, Ret: "float64"}, nil)
+	if !slices.Equal(sfLay.Params[0].Regs, []string{"R4"}) || !slices.Equal(sfLay.Ret.Regs, []string{"R2"}) {
+		t.Errorf("GOMIPS64=softfloat layout = %+v", sfLay)
+	}
+	// With soft float, each part of a complex number goes in its own GPR.
+	sfFn := BindingFunc{Name: "SFC", CName: "sfc", Params: []string{"complex64", "int64"}, Ret: "complex64"}
+	sfLay = m64SF.layout(sfFn, nil)
+	if !slices.Equal(sfLay.Params[0].Regs, []string{"R4", "R5"}) || !slices.Equal(sfLay.Params[1].Regs, []string{"R6"}) ||
+		!slices.Equal(sfLay.Ret.Regs, []string{"R2", "R3"}) || sfLay.Ret.Indirect {
+		t.Errorf("GOMIPS64=softfloat complex64 layout = %+v", sfLay)
+	}
+	if lay := m64SF.layout(BindingFunc{Name: "SFC", Ret: "complex128"}, nil); !slices.Equal(lay.Ret.Regs, []string{"R2", "R3"}) || lay.Ret.Indirect {
+		t.Errorf("GOMIPS64=softfloat complex128 result = %+v, want R2, R3", lay.Ret)
+	}
+	var sfTramp, sfCb bytes.Buffer
+	m64SF.writeTrampoline(&sfTramp, sfFn, nil)
+	m64SF.writeCallbackTrampoline(&sfCb, BindingFunc{Name: "CbSFC", Params: sfFn.Params, Ret: sfFn.Ret}, nil)
+	for _, want := range []string{"MOVW\t0(R16), R4\n", "MOVW\t4(R16), R5\n", "MOVW\tR2, 16(R16)\n", "MOVW\tR3, 20(R16)\n"} {
+		if !strings.Contains(sfTramp.String(), want) {
+			t.Errorf("GOMIPS64=softfloat trampoline for complex64 missing %q:\n%s", want, sfTramp.String())
+		}
+	}
+	for name, out := range map[string]string{"trampoline": sfTramp.String(), "callback": sfCb.String()} {
+		if strings.Contains(out, "MOVF\t") || strings.Contains(out, "MOVD\t") {
+			t.Errorf("GOMIPS64=softfloat %s for complex64 uses FPU instructions:\n%s", name, out)
+		}
+	}
+	// With soft float, a float32 in a GPR is sign-extended (MOVW, not
+	// MOVWU), as for any 32-bit value on MIPS64.
+	for _, arch := range []string{"mips64", "mips64le"} {
+		cfg := getABI("linux", arch)
+		var tr, cb bytes.Buffer
+		cfg.writeTrampoline(&tr, BindingFunc{Name: "SF32", CName: "sf32", Params: []string{"float32"}, Ret: "float32"}, nil)
+		cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbSF32", Params: []string{"float32"}, Ret: "float32"}, nil)
+		if out := tr.String(); !strings.Contains(out, "MOVW\t0(R16), R4\n") || strings.Contains(out, "MOVWU") {
+			t.Errorf("GOMIPS64=softfloat %s trampoline does not sign-extend the float32 argument:\n%s", arch, out)
+		}
+		out := cb.String()
+		ret := false
+		for _, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(line, "\tMOVW\t") && strings.HasSuffix(line, ", R2") {
+				ret = true
+			}
+		}
+		if !ret || strings.Contains(out, "MOVWU") {
+			t.Errorf("GOMIPS64=softfloat %s callback does not sign-extend the float32 result:\n%s", arch, out)
+		}
+	}
+}
+
+func TestAssembleTrampolines(t *testing.T) {
+	testenv.MustHaveExec(t)
+	goTool := testenv.GoToolPath(t)
+
+	typeMap := map[string]BindingType{
+		"Odd5":     {Name: "Odd5", Def: "struct {\n\tb [5]uint8\n}", Size: 5, Align: 1},
+		"Big32":    {Name: "Big32", Def: "struct {\n\ta [4]uint64\n}", Size: 32, Align: 8, HasPointers: true},
+		"Big512":   {Name: "Big512", Def: "struct {\n\ta [64]uint64\n}", Size: 512, Align: 8},
+		"Float2":   {Name: "Float2", Def: "struct {\n\ta, b float32\n}", Size: 8, Align: 4},
+		"Float3":   {Name: "Float3", Def: "struct {\n\ta, b, c float32\n}", Size: 12, Align: 4},
+		"Double2":  {Name: "Double2", Def: "struct {\n\ta, b float64\n}", Size: 16, Align: 8},
+		"IntFloat": {Name: "IntFloat", Def: "struct {\n\ta int32\n\tb float32\n}", Size: 8, Align: 4},
+		"ThreeI32": {Name: "ThreeI32", Def: "struct {\n\ta, b, c int32\n}", Size: 12, Align: 4},
+	}
+
+	// Complex numbers and uint32 values in registers, straddling the last
+	// FPR or GPR, and on the stack.
+	complexParams := []string{"complex64", "complex128", "float32", "uint32", "complex64"}
+	complexSpillParams := append(slices.Repeat([]string{"float64"}, 12), "complex64", "complex64", "int64", "int64", "int64", "int64", "int64", "int64", "complex128", "complex64", "uint32")
+
+	funcs := []BindingFunc{
+		{Name: "_Scalars", CName: "c_scalars", Params: []string{"int8", "uint16", "int32", "int64", "float32", "float64", "float32"}, Ret: "float32"},
+		{Name: "_Spill", CName: "c_spill", Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "float64", "float64"}, Ret: "float64"},
+		{Name: "_PackedStack", CName: "c_packed_stack", Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int8", "int16", "int8", "int32", "Odd5", "Big32"}, Ret: "int64"},
+		{Name: "_PackedHFA", CName: "c_packed_hfa", Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "float64", "float64", "float64", "float64", "float64", "float64", "Float3", "float32", "int8", "Float2", "Big32", "int8"}, Ret: "float32", MayCallback: true},
+		{Name: "_Odd", CName: "c_odd", Params: []string{"int8", "Odd5"}, Ret: "Odd5"},
+		{Name: "_Structs", CName: "c_structs", Params: []string{"Double2", "IntFloat", "ThreeI32"}, Ret: "IntFloat"},
+		{Name: "_BigCb", CName: "c_big_cb", Params: []string{"Big32", "int32"}, Ret: "Big32", MayCallback: true},
+		{Name: "_BigFrame", CName: "c_big_frame", Params: []string{"Big512"}, Ret: "Big512", MayCallback: true},
+		{Name: "_Ind", Params: []string{"*byte", "int32", "float64"}, Ret: "int64", Indirect: true},
+		{Name: "_Static", CName: "c_static", Params: []string{"*byte", "int32", "float64"}, Ret: "int32", Static: true},
+		{Name: "_Complex", CName: "c_complex", Params: complexParams, Ret: "complex64"},
+		{Name: "_ComplexSpill", CName: "c_complex_spill", Params: complexSpillParams, Ret: "complex128"},
+	}
+	callbacks := []BindingFunc{
+		{Name: "ExpScalars", Params: []string{"int8", "uint16", "int32", "int64", "float32", "float64", "float32"}, Ret: "float32"},
+		{Name: "ExpPackedStack", Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int8", "int16", "int8", "int32", "Odd5", "Big32"}, Ret: "int64"},
+		{Name: "ExpPackedHFA", Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "float64", "float64", "float64", "float64", "float64", "float64", "Float3", "float32", "int8", "Float2", "Big32", "int8"}, Ret: "float32"},
+		{Name: "ExpOdd", Params: []string{"int8", "Odd5"}, Ret: "Odd5"},
+		{Name: "ExpStructs", Params: []string{"Double2", "IntFloat", "ThreeI32"}, Ret: "Double2"},
+		{Name: "ExpBig", Params: []string{"Big32", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64", "int64"}, Ret: "Big32"},
+		{Name: "ExpBigFrame", Params: []string{"Big512"}, Ret: "Big512"},
+		{Name: "ExpComplex", Params: complexParams, Ret: "complex128"},
+		{Name: "ExpComplexSpill", Params: complexSpillParams, Ret: "complex64"},
+	}
+
+	dir := t.TempDir()
+	for _, tgt := range allABITargets {
+		t.Run(tgt[0]+"_"+tgt[1], func(t *testing.T) {
+			t.Parallel()
+			cfg := getABI(tgt[0], tgt[1])
+			var buf bytes.Buffer
+			buf.WriteString("#include \"textflag.h\"\n\n")
+			for _, fn := range funcs {
+				cfg.writeTrampoline(&buf, fn, typeMap)
+			}
+			for _, cb := range callbacks {
+				cfg.writeCallbackTrampoline(&buf, cb, typeMap)
+			}
+			asmFile := filepath.Join(dir, tgt[0]+"_"+tgt[1]+".s")
+			objFile := filepath.Join(dir, tgt[0]+"_"+tgt[1]+".o")
+			if err := os.WriteFile(asmFile, buf.Bytes(), 0644); err != nil {
+				t.Fatal(err)
+			}
+			cmd := exec.Command(goTool, "tool", "asm", "-v", "-p", "main", "-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", objFile, asmFile)
+			cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1])
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Errorf("go tool asm failed for %s/%s: %v\n%s\nASM:\n%s", tgt[0], tgt[1], err, out, buf.String())
+			}
+			for _, line := range strings.Split(string(out), "\n") {
+				if !strings.Contains(line, "auto-SPWRITE:") {
+					continue
+				}
+				// SysV i386 sret callees return with RET $4, so the trampoline
+				// restores SP with SUBL $4, SP after CALL.
+				if cfg.SysVI386SretPop && strings.Contains(line, "SUBL\t$4, SP") {
+					continue
+				}
+				t.Errorf("unexpected auto-SPWRITE for %s/%s: %s\nASM:\n%s", tgt[0], tgt[1], line, buf.String())
+			}
+		})
+	}
+}
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
@@ -1752,7 +2091,7 @@ var allABITargets = [][2]string{
 	{"linux", "386"}, {"windows", "386"},
 	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"}, {"linux", "mips"}, {"linux", "mipsle"},
 	{"linux", "s390x"},
-	{"linux", "riscv64"}, {"linux", "loong64"},
+	{"linux", "riscv64"}, {"linux", "loong64"}, {"linux", "mips64"}, {"linux", "mips64le"},
 }
 
 // TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call

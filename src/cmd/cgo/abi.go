@@ -2972,6 +2972,233 @@ var loong64ABI = &ABIConfig{
 	},
 }
 
+// 64-bit MIPS N64 C calling convention:
+// "MIPSpro N32 ABI Handbook", Chapter 2 (SGI Document 007-2816-004).
+
+// classifyMIPS64FPRet reports whether a composite is returned in F0 and F2
+// under N64 with hard float: _Complex float and _Complex double, and structs
+// whose only members are one or two floats or doubles. Arrays, nested
+// structs, and unions are returned in GPRs, even if they contain only
+// floating-point values.
+func classifyMIPS64FPRet(info typeInfo) ([]leafField, bool) {
+	if !info.composite || !info.fieldsOK || info.size <= 0 || info.size > 16 || len(info.fields) < 1 || len(info.fields) > 2 {
+		return nil, false
+	}
+	if info.isComplex {
+		return info.fields, len(info.fields) == 2
+	}
+	if !info.isStruct || len(info.fields) != info.directFields || info.fields[0].offset != 0 {
+		return nil, false
+	}
+	for _, f := range info.fields {
+		if !f.direct || !f.isFloat {
+			return nil, false
+		}
+	}
+	return info.fields, true
+}
+
+// mips64StructSlotIsDouble reports whether the 8-byte slot at offset off of
+// a struct argument holds a double member of the struct itself, which N64
+// passes in an FPR. Doubles in arrays, nested structs, or unions are passed
+// in GPRs.
+func mips64StructSlotIsDouble(info typeInfo, off int64) bool {
+	if !info.isStruct || !info.fieldsOK {
+		return false
+	}
+	for _, f := range info.fields {
+		if f.direct && f.offset == off && f.isFloat && f.size == 8 {
+			return true
+		}
+	}
+	return false
+}
+
+func mips64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if fields, ok := classifyMIPS64FPRet(info); ok {
+		if len(cfg.FloatRetRegs) >= len(fields) {
+			return RetLoc{Size: info.size, IsFloat: true, Regs: slices.Clone(cfg.FloatRetRegs[:len(fields)])}
+		}
+		if info.isComplex {
+			// With soft float, each part of a complex number is
+			// returned in its own GPR.
+			return RetLoc{Size: info.size, IsFloat: true, Regs: []string{"R2", "R3"}}
+		}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+// mips64CompositeRegSlots maps each member of a composite returned in F0 and
+// F2 (or R2 and R3 with soft float), or of a complex argument passed in two
+// consecutive FPRs (or GPRs with soft float), to its register.
+func mips64CompositeRegSlots(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool) {
+	if !isFloat || len(regs) == 0 {
+		return nil, false
+	}
+	fields, ok := classifyMIPS64FPRet(info)
+	if !ok || len(fields) != len(regs) {
+		return nil, false
+	}
+	slots := make([]regSlot, len(regs))
+	for k, f := range fields {
+		fl := cfg.isFloatReg(regs[k])
+		slots[k] = regSlot{reg: regs[k], offset: f.offset, size: f.size, align: f.align, isFloat: fl, signed: !fl && cfg.SignExtUint32 && f.size == 4}
+	}
+	return slots, true
+}
+
+func mips64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	slot := st.intIdx
+	if info.isComplex && slot+2 <= len(cfg.IntRegs) {
+		// N64 passes the parts of _Complex float and _Complex double
+		// like two float or double arguments, in two consecutive FPRs (or
+		// GPRs with soft float). In the last argument slot, a complex
+		// number is passed like a struct instead, in R11 and the stack.
+		st.intIdx = slot + 2
+		if len(cfg.FloatRegs) > 0 {
+			st.floatIdx += 2
+			return ParamLoc{Size: info.size, IsFloat: true, Regs: []string{cfg.FloatRegs[slot], cfg.FloatRegs[slot+1]}}
+		}
+		return ParamLoc{Size: info.size, IsFloat: true, Regs: []string{cfg.IntRegs[slot], cfg.IntRegs[slot+1]}}
+	}
+	if info.isFloat {
+		st.intIdx = slot + 1
+		if slot < len(cfg.IntRegs) {
+			if len(cfg.FloatRegs) > 0 {
+				st.floatIdx++
+				return ParamLoc{Size: info.size, IsFloat: true, Regs: []string{cfg.FloatRegs[slot]}}
+			}
+			return ParamLoc{Size: info.size, Regs: []string{cfg.IntRegs[slot]}}
+		}
+		return cfg.assignStackParam(info.size, true, st)
+	}
+	if info.align >= 16 && slot < len(cfg.IntRegs) && slot%2 != 0 {
+		slot++
+	}
+	nSlots := (info.size + 7) / 8
+	if slot < len(cfg.IntRegs) {
+		nReg := min(int(nSlots), len(cfg.IntRegs)-slot)
+		regs := make([]string, nReg)
+		for k := range nReg {
+			if len(cfg.FloatRegs) > 0 && mips64StructSlotIsDouble(info, int64(k)*8) {
+				regs[k] = cfg.FloatRegs[slot+k]
+			} else {
+				regs[k] = cfg.IntRegs[slot+k]
+			}
+		}
+		if slot+int(nSlots) <= len(cfg.IntRegs) {
+			st.intIdx = slot + int(nSlots)
+			return ParamLoc{Size: info.size, Regs: regs}
+		}
+		// Split aggregate straddling R[slot]..R11 / F[12+slot]..F19 and stack.
+		regBytes := int64(nReg) * 8
+		stackBytes := info.size - regBytes
+		st.intIdx = len(cfg.IntRegs)
+		off := st.stackOff
+		st.stackOff += alignUp(stackBytes, 8)
+		return ParamLoc{Size: info.size, Regs: regs, StackOff: off, StackBytes: stackBytes}
+	}
+	st.intIdx = len(cfg.IntRegs)
+	if info.align >= 16 {
+		st.stackOff = alignUp(st.stackOff, 16)
+	}
+	return cfg.assignStackParam(info.size, false, st)
+}
+
+func newMIPS64ABI(arch string, bigEndian bool) *ABIConfig {
+	return &ABIConfig{
+		Arch:                   arch,
+		PtrSize:                8,
+		CLongSize:              8,
+		StackAlign:             16,
+		IntRegs:                []string{"R4", "R5", "R6", "R7", "R8", "R9", "R10", "R11"},
+		FloatRegs:              []string{"F12", "F13", "F14", "F15", "F16", "F17", "F18", "F19"},
+		IntRetRegs:             []string{"R2", "R3"},
+		FloatRetRegs:           []string{"F0", "F2"},
+		MaxRegStructSize:       16,
+		IndirectRetReg:         "R4",
+		IndirectRetInArg:       true,
+		AssignParam:            mips64AssignParam,
+		AssignRet:              mips64AssignRet,
+		CompositeRegSlots:      mips64CompositeRegSlots,
+		SPReg:                  "R29",
+		CalleeSavedReg:         "R16",
+		TmpReg:                 "R12",
+		TmpReg2:                "R13",
+		IndCallReg:             "R25",
+		LinkReg:                "R31",
+		LRReserve:              16,
+		ZeroVal:                "R0",
+		LocalFrameOff:          16,
+		BigEndian:              bigEndian,
+		LeftJustifyBEComposite: bigEndian,
+		// N64 left-justifies a float in its stack slot on big-endian
+		// targets, and sign-extends uint32 values to 64 bits.
+		LeftJustifyBEFloatStack: bigEndian,
+		SignExtUint32:           true,
+		StrictAlign:             true,
+		asm: asmOps{
+			mov:   "MOVV",
+			loadB: "MOVB", loadBU: "MOVBU", loadH: "MOVH", loadHU: "MOVHU", loadW: "MOVW", loadWU: "MOVWU",
+			storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+			fmovS: "MOVF", fmovD: "MOVD",
+			shl: "SLLV", shr: "SRLV", or: "OR", add: "ADDV", sub: "SUBV",
+			negSubSP: true,
+		},
+		CallSymbol: func(w io.Writer, sym string, _ bool) {
+			// Load $t9 (R25) with target address per MIPS64 PIC (-mabicalls) ABI.
+			fmt.Fprintf(w, "\tMOVV\t$%s(SB), R25\n", sym)
+			fmt.Fprintf(w, "\tCALL\t(R25)\n")
+		},
+		CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+			// Save C callee-saved R23 (REGTMP) and RSB (R28/$gp), then initialize
+			// RSB = PC & 0xffffffff00000000 for Go (SB) addressing.
+			total := 32 + frameSize
+			if total <= 32760 {
+				fmt.Fprintf(w, "\tMOVV\tR31, -%d(R29)\n", total)
+				fmt.Fprintf(w, "\tADDV\t$-%d, R29\n", total)
+				fmt.Fprintf(w, "\tMOVV\tR31, 0(R29)\n")
+				fmt.Fprintf(w, "\tMOVV\tRSB, 8(R29)\n")
+				fmt.Fprintf(w, "\tMOVV\tR23, %d(R29)\n", 16+frameSize)
+			} else {
+				fmt.Fprintf(w, "\tADDV\t$-16, R29\n")
+				fmt.Fprintf(w, "\tMOVV\tR23, 0(R29)\n")
+				fmt.Fprintf(w, "\tMOVV\tRSB, 8(R29)\n")
+				fmt.Fprintf(w, "\tMOVV\tR31, -%d(R29)\n", 16+frameSize)
+				fmt.Fprintf(w, "\tADDV\t$-%d, R29\n", 16+frameSize)
+				fmt.Fprintf(w, "\tMOVV\tR31, 0(R29)\n")
+			}
+			fmt.Fprintf(w, "\tBGEZAL\tR0, 1(PC)\n")
+			fmt.Fprintf(w, "\tSRLV\t$32, R31, RSB\n")
+			fmt.Fprintf(w, "\tSLLV\t$32, RSB\n")
+			return total
+		},
+		CallbackEpilogue: func(w io.Writer, frameSize int64, _ bool) {
+			total := 32 + frameSize
+			if total <= 32760 {
+				fmt.Fprintf(w, "\tMOVV\t%d(R29), R23\n", 16+frameSize)
+				fmt.Fprintf(w, "\tMOVV\t8(R29), RSB\n")
+				fmt.Fprintf(w, "\tMOVV\t0(R29), R31\n")
+				fmt.Fprintf(w, "\tADDV\t$%d, R29\n", total)
+				fmt.Fprintf(w, "\tRET\n")
+				return
+			}
+			fmt.Fprintf(w, "\tMOVV\t0(R29), R31\n")
+			fmt.Fprintf(w, "\tADDV\t$%d, R29\n", 16+frameSize)
+			fmt.Fprintf(w, "\tMOVV\t8(R29), RSB\n")
+			fmt.Fprintf(w, "\tMOVV\t0(R29), R23\n")
+			fmt.Fprintf(w, "\tADDV\t$16, R29\n")
+			fmt.Fprintf(w, "\tRET\n")
+		},
+	}
+}
+
+var mips64ABI = newMIPS64ABI("mips64", true)
+var mips64leABI = newMIPS64ABI("mips64le", false)
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -3018,6 +3245,16 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 		cfg = *loong64ABI
 	case "s390x":
 		cfg = *s390xABI
+	case "mips64", "mips64le":
+		if targetArch == "mips64" {
+			cfg = *mips64ABI
+		} else {
+			cfg = *mips64leABI
+		}
+		if gomips64 := os.Getenv("GOMIPS64"); gomips64 == "softfloat" || (gomips64 == "" && buildcfg.GOMIPS64 == "softfloat") {
+			cfg.FloatRegs = nil
+			cfg.FloatRetRegs = nil
+		}
 	case "mips", "mipsle":
 		if targetArch == "mips" {
 			cfg = *mipsABI
