@@ -729,3 +729,27 @@ func TestLayoutAndTrampolineDarwinARM64(t *testing.T) {
 		})
 	}
 }
+
+func TestLayoutWin64(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Odd3": {Name: "Odd3", Def: "struct {\n\tb [3]uint8\n}", Size: 3, Align: 1},
+	}
+
+	w64 := getABI("windows", "amd64")
+	w64SlotsLay := w64.layout(BindingFunc{
+		Name:   "AbiWin64Slots",
+		Params: []string{"int64", "float64", "int64", "float64"},
+		Ret:    "float64",
+	}, typeMap)
+	if w64SlotsLay.StackSize != 32 ||
+		!reflect.DeepEqual(w64SlotsLay.Params[0].Regs, []string{"CX"}) ||
+		!reflect.DeepEqual(w64SlotsLay.Params[1].Regs, []string{"X1"}) ||
+		!reflect.DeepEqual(w64SlotsLay.Params[2].Regs, []string{"R8"}) ||
+		!reflect.DeepEqual(w64SlotsLay.Params[3].Regs, []string{"X3"}) {
+		t.Errorf("Win64 positional layout = %+v", w64SlotsLay)
+	}
+	w64Odd3Lay := w64.layout(BindingFunc{Name: "Odd3", Params: []string{"Odd3"}, Ret: "Odd3"}, typeMap)
+	if !w64Odd3Lay.Params[0].PassByPtr || !reflect.DeepEqual(w64Odd3Lay.Params[0].Regs, []string{"DX"}) || !w64Odd3Lay.Ret.Indirect || w64.IndirectRetReg != "CX" {
+		t.Errorf("Win64 Odd3 layout = %+v", w64Odd3Lay)
+	}
+}

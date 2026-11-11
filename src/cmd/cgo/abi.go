@@ -132,11 +132,12 @@ type asmOps struct {
 // ABIConfig defines the C calling convention rules and assembly primitives
 // for a target OS/architecture. OS, PtrSize, CLongSize, StackAlign, and AssignParam must always be set.
 type ABIConfig struct {
-	Arch       string
-	OS         string
-	PtrSize    int64
-	CLongSize  int64 // Byte size of C long and unsigned long
-	StackAlign int64
+	Arch        string
+	OS          string
+	PtrSize     int64
+	CLongSize   int64 // Byte size of C long and unsigned long
+	StackAlign  int64
+	ShadowSpace int64 // Bytes reserved at the bottom of the C call frame by the ABI (e.g. 32-byte home space on Windows x64)
 
 	IntRegs      []string
 	FloatRegs    []string
@@ -151,9 +152,12 @@ type ABIConfig struct {
 	// AssignParam allocates a single parameter in registers or on the C stack.
 	AssignParam func(cfg *ABIConfig, fn BindingFunc, idx int, info typeInfo, st *abiState) ParamLoc
 
-	// Optional platform-specific ABI hooks. Returning handled=false falls back
-	// to defaultAssignRet or default GPR chunking.
-	AssignRet         func(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) (RetLoc, bool)
+	// AssignRet determines how the return value is returned in the C ABI.
+	// ABIs without special return rules use defaultAssignRet.
+	AssignRet func(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc
+
+	// Optional platform-specific ABI hook. Returning handled=false falls back
+	// to default GPR chunking.
 	CompositeRegSlots func(cfg *ABIConfig, info typeInfo, isFloat bool, regs []string) ([]regSlot, bool)
 
 	// Trampoline assembly generation parameters:
@@ -166,6 +170,7 @@ type ABIConfig struct {
 	asm                asmOps
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
 	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
+	CallSymbol         func(w io.Writer, sym string)
 }
 
 // isFloatReg reports whether reg is an architecture floating-point register.
@@ -413,7 +418,7 @@ func (cfg *ABIConfig) layout(fn BindingFunc, types map[string]BindingType) FuncL
 	if cfg.OS == "" {
 		panic("ABIConfig.OS must be set")
 	}
-	var st abiState
+	st := abiState{stackOff: cfg.ShadowSpace}
 	ret, retAlign := cfg.assignRet(fn, &st, types)
 	params, goOff := cfg.assignParams(fn, &st, types)
 	if fn.Ret != "" {
@@ -428,30 +433,28 @@ func (cfg *ABIConfig) layout(fn BindingFunc, types map[string]BindingType) FuncL
 	}
 }
 
-// assignRet determines how fn's return value is returned in the C ABI and
-// returns its alignment in the Go argument struct, invoking cfg.AssignRet
-// first and falling back to defaultAssignRet.
+// assignRet determines how fn's return value is returned in the C ABI using
+// cfg.AssignRet and returns its alignment in the Go argument struct.
 func (cfg *ABIConfig) assignRet(fn BindingFunc, st *abiState, types map[string]BindingType) (RetLoc, int64) {
+	if cfg.AssignRet == nil {
+		panic("ABIConfig.AssignRet must be set")
+	}
 	if fn.Ret == "" {
 		return RetLoc{}, 1
 	}
 	info := cfg.inspectType(fn.Ret, types)
-	if cfg.AssignRet != nil {
-		if loc, handled := cfg.AssignRet(cfg, fn, info, st); handled {
-			return loc, info.align
-		}
-	}
-	return cfg.defaultAssignRet(info, st), info.align
+	return cfg.AssignRet(cfg, fn, info, st), info.align
 }
 
-// defaultAssignRet implements standard return-value placement when
-// cfg.AssignRet is nil (for ABIs without special composite-return rules) or
-// returns handled=false after handling ABI-specific composite cases (such as
-// scalar returns on amd64, or scalar and non-HFA struct returns on arm64).
+// defaultAssignRet implements standard return-value placement. It is used
+// directly as AssignRet by ABIs without special composite-return rules, and
+// called by ABI-specific AssignRet functions for the cases they do not handle
+// themselves (such as scalar returns on amd64, or scalar and non-HFA struct
+// returns on arm64).
 // Composites exceeding MaxRegStructSize use a hidden sret buffer pointer
 // (consuming IntRegs[0] when IndirectRetInArg is set), floats use
 // FloatRetRegs[0], and integers or small composites pack into IntRetRegs.
-func (cfg *ABIConfig) defaultAssignRet(info typeInfo, st *abiState) RetLoc {
+func defaultAssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, st *abiState) RetLoc {
 	ptrSize := cfg.PtrSize
 	if !info.isFloat && info.size > cfg.MaxRegStructSize && (info.composite || info.size > ptrSize*int64(len(cfg.IntRetRegs))) {
 		if cfg.IndirectRetInArg {
@@ -741,6 +744,10 @@ func (cfg *ABIConfig) emitAddSP(w io.Writer, size int64) {
 
 // emitCallSymbol emits a call to external or runtime symbol sym.
 func (cfg *ABIConfig) emitCallSymbol(w io.Writer, sym string) {
+	if cfg.CallSymbol != nil {
+		cfg.CallSymbol(w, sym)
+		return
+	}
 	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
 }
 
@@ -1071,18 +1078,18 @@ func assignSysVRegs(ebs []sysVEightbyte, intRegs, floatRegs []string, intIdx, fl
 // amd64AssignRet assigns System V AMD64 composite return values to AX/DX and
 // X0/X1 according to their eightbyte classes, or to a hidden sret pointer in DI
 // (SysV AMD64 psABI Section 3.2.3, "Returning of Values").
-func amd64AssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, st *abiState) (RetLoc, bool) {
+func amd64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
 	if !info.composite {
-		return RetLoc{}, false
+		return defaultAssignRet(cfg, fn, info, st)
 	}
 	if ebs, ok := classifySysVStruct(info); ok {
 		var retInt, retFloat int
 		if regs, allFloat, fit := assignSysVRegs(ebs, cfg.IntRetRegs, cfg.FloatRetRegs, &retInt, &retFloat); fit {
-			return RetLoc{Size: info.size, Regs: regs, IsFloat: allFloat}, true
+			return RetLoc{Size: info.size, Regs: regs, IsFloat: allFloat}
 		}
 	}
 	st.intIdx = 1
-	return RetLoc{Size: info.size, Indirect: true}, true
+	return RetLoc{Size: info.size, Indirect: true}
 }
 
 // amd64AssignParam assigns System V AMD64 parameters per SysV AMD64 psABI
@@ -1164,6 +1171,110 @@ var amd64ABI = &ABIConfig{
 	},
 }
 
+// Windows x64 (Microsoft x64) C calling convention.
+//
+// Specification: "x64 calling convention", Microsoft Learn,
+// https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention.
+//
+// Summary:
+//   - The first four argument positions use shared positional slots: CX/X0,
+//     DX/X1, R8/X2, and R9/X3; later arguments pass in 8-byte stack slots above
+//     a mandatory 32-byte caller-allocated shadow ("home") space
+//     ("Parameter passing").
+//   - Aggregates of exactly 1, 2, 4, or 8 bytes pass and return by value in a
+//     single GPR (even if all fields are floating-point); all other aggregate
+//     sizes pass by caller-allocated pointer and return via a hidden sret
+//     pointer in CX that consumes positional slot 0 ("Return values").
+//   - Scalar integer/pointer results return in AX; floating-point results
+//     return in X0.
+//   - For variadic calls, floating-point arguments in slots 0..3 must be
+//     duplicated in both the XMM register and the corresponding GPR
+//     ("Varargs").
+
+// isWin64RegStructSize reports whether a composite byte size is passed and
+// returned directly in a GPR under the Windows x64 (and x86) C ABI.
+func isWin64RegStructSize(size int64) bool {
+	return size == 1 || size == 2 || size == 4 || size == 8
+}
+
+// win64AssignRet assigns Windows x64 composite returns of size 1, 2, 4, or 8
+// bytes to AX, and all other composite sizes to a hidden sret pointer in CX
+// consuming positional slot 0 ("Return values" in the x64 calling convention).
+func win64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if !info.composite {
+		return defaultAssignRet(cfg, fn, info, st)
+	}
+	if isWin64RegStructSize(info.size) {
+		return RetLoc{Size: info.size, Regs: []string{cfg.IntRetRegs[0]}}
+	}
+	st.intIdx = 1
+	st.floatIdx = 1
+	return RetLoc{Size: info.size, Indirect: true}
+}
+
+// win64AssignParam implements Windows x64 positional argument allocation
+// across the 4 shared register slots (CX/X0, DX/X1, R8/X2, R9/X3), passing
+// non-power-of-two or >8-byte structs by hidden pointer ("Parameter passing"
+// in the x64 calling convention).
+func win64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	slot := max(st.intIdx, st.floatIdx)
+	loc := ParamLoc{Size: info.size, IsFloat: info.isFloat}
+	if info.composite && !isWin64RegStructSize(info.size) {
+		loc.PassByPtr = true
+	}
+	if info.isFloat {
+		if slot < len(cfg.FloatRegs) {
+			loc.Regs = []string{cfg.FloatRegs[slot]}
+			slot++
+		} else {
+			loc.StackOff = st.stackOff
+			st.stackOff += 8
+		}
+	} else if slot < len(cfg.IntRegs) {
+		loc.Regs = []string{cfg.IntRegs[slot]}
+		slot++
+	} else {
+		loc.StackOff = st.stackOff
+		st.stackOff += 8
+	}
+	st.intIdx, st.floatIdx = slot, slot
+	return loc
+}
+
+// newWin64ABI derives the Windows x64 ABIConfig from amd64ABI, configuring
+// the 32-byte home space, positional register sets, and PE IAT indirect calls.
+func newWin64ABI() *ABIConfig {
+	cfg := *amd64ABI
+	cfg.OS = "windows"
+	cfg.CLongSize = 4
+	cfg.ShadowSpace = 32
+	cfg.IntRegs = []string{"CX", "DX", "R8", "R9"}
+	cfg.FloatRegs = []string{"X0", "X1", "X2", "X3"}
+	cfg.IntRetRegs = []string{"AX"}
+	cfg.FloatRetRegs = []string{"X0"}
+	cfg.MaxRegStructSize = 8
+	cfg.IndirectRetReg = "CX"
+	cfg.PreCall = nil
+	cfg.AssignParam = win64AssignParam
+	cfg.AssignRet = win64AssignRet
+	cfg.CompositeRegSlots = nil
+	// On PE, a //go:cgo_import_dynamic symbol is not the function itself
+	// but a pointer-sized slot holding its address: an IAT entry when
+	// linking internally, or a data word relocated to the host symbol when
+	// linking externally (see initdynimport in cmd/link/internal/ld/pe.go).
+	// A direct CALL sym(SB) would jump into that data, and the linker does
+	// not generate stubs for Go calls to dynamic imports on PE, so load the
+	// function address from the slot and call through a register, as the
+	// runtime does for DLL calls and as C compilers do for dllimport calls.
+	cfg.CallSymbol = func(w io.Writer, sym string) {
+		fmt.Fprintf(w, "\tMOVQ\t%s(SB), R11\n", sym)
+		fmt.Fprintf(w, "\tCALL\tR11\n")
+	}
+	return &cfg
+}
+
+var win64ABI = newWin64ABI()
+
 // ARM64 (AArch64) C calling convention (AAPCS64 and Darwin/Apple ARM64).
 //
 // Specifications:
@@ -1215,13 +1326,13 @@ func classifyARM64HFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
 // arm64AssignRet returns Homogeneous Floating-Point Aggregates in F0..F3 and
 // falls back to defaultAssignRet (R0..R1 or indirect sret in R8) otherwise
 // (AAPCS64 Section 6.9).
-func arm64AssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, _ *abiState) (RetLoc, bool) {
+func arm64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
 	if info.composite {
 		if _, count, ok := classifyARM64HFA(info); ok {
-			return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}, true
+			return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}
 		}
 	}
-	return RetLoc{}, false
+	return defaultAssignRet(cfg, fn, info, st)
 }
 
 // arm64AssignParam allocates AAPCS64 parameters per Section 6.8.2: HFAs in
@@ -1365,6 +1476,9 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
 	switch targetArch {
 	case "amd64":
+		if targetOS == "windows" {
+			return win64ABI
+		}
 		cfg = *amd64ABI
 	case "arm64":
 		cfg = *arm64ABI
