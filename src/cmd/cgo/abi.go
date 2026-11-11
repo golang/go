@@ -2686,6 +2686,95 @@ func newMIPS32ABI(arch string, bigEndian bool) *ABIConfig {
 var mipsABI = newMIPS32ABI("mips", true)
 var mipsleABI = newMIPS32ABI("mipsle", false)
 
+// IBM Z (s390x) 64-bit ELF C calling convention:
+// "ELF ABI s390x Supplement", Section 1.2: https://github.com/IBM/s390x-abi
+//
+// Summary:
+//   - Integer and pointer arguments use R2..R6; float and double arguments
+//     use F0, F2, F4, F6. Later arguments go in 8-byte stack slots above the
+//     160-byte register save area, right-justified.
+//   - A struct of 1, 2, 4, or 8 bytes is passed in a GPR, except that a
+//     struct whose only member is a float or double (or such a struct) is
+//     passed in an FPR. Arrays (including a one-member array of float), and
+//     unions are not such structs.
+//   - Every other composite, including _Complex float and _Complex double,
+//     is passed by reference to a caller-made copy.
+//   - Every composite is returned through a hidden pointer in R2.
+
+// s390xRegStructSize reports whether a struct or union of size bytes is
+// passed by value in a register under the s390x ELF ABI.
+func s390xRegStructSize(size int64) bool {
+	return size == 1 || size == 2 || size == 4 || size == 8
+}
+
+func s390xAssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	if info.isFloat {
+		return cfg.assignFloatParam(info, st)
+	}
+	if info.composite {
+		if info.isComplex || !s390xRegStructSize(info.size) {
+			return cfg.assignPtrParam(info.size, st)
+		}
+		if info.singleFloatStruct && (info.size == 4 || info.size == 8) {
+			return cfg.assignFloatParam(info, st)
+		}
+	}
+	return cfg.assignIntParam(info, st)
+}
+
+var s390xABI = &ABIConfig{
+	Arch:                         "s390x",
+	PtrSize:                      8,
+	CLongSize:                    8,
+	StackAlign:                   8,
+	ShadowSpace:                  160,
+	IntRegs:                      []string{"R2", "R3", "R4", "R5", "R6"},
+	FloatRegs:                    []string{"F0", "F2", "F4", "F6"},
+	IntRetRegs:                   []string{"R2"},
+	FloatRetRegs:                 []string{"F0"},
+	MaxRegStructSize:             0,
+	IndirectRetReg:               "R2",
+	IndirectRetInArg:             true,
+	AssignParam:                  s390xAssignParam,
+	AssignRet:                    defaultAssignRet,
+	SPReg:                        "R15",
+	CalleeSavedReg:               "R8",
+	TmpReg:                       "R1",
+	TmpReg2:                      "R9",
+	LinkReg:                      "R14",
+	ZeroVal:                      "$0",
+	LocalFrameOff:                160,
+	BigEndian:                    true,
+	RightJustifyBECompositeStack: true,
+	asm: asmOps{
+		mov:   "MOVD",
+		loadB: "MOVB", loadBU: "MOVBZ", loadH: "MOVH", loadHU: "MOVHZ", loadW: "MOVW", loadWU: "MOVWZ",
+		storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+		fmovS: "FMOVS", fmovD: "FMOVD",
+		shl: "SLD", shr: "SRD", or: "OR", add: "ADD", sub: "SUB",
+		twoOpALU: true,
+		negSubSP: true,
+	},
+	CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+		total := 160 + frameSize
+		fmt.Fprintf(w, "\tSTMG\tR6, R14, 48(R15)\n")
+		fmt.Fprintf(w, "\tMOVD\tR14, -%d(R15)\n", total)
+		fmt.Fprintf(w, "\tADD\t$-%d, R15\n", total)
+		fmt.Fprintf(w, "\tMOVD\tR14, 0(R15)\n")
+		return total
+	},
+	CallbackEpilogue: func(w io.Writer, frameSize int64, _ bool) {
+		total := 160 + frameSize
+		fmt.Fprintf(w, "\tMOVD\t0(R15), R14\n")
+		fmt.Fprintf(w, "\tADD\t$%d, R15\n", total)
+		fmt.Fprintf(w, "\tLMG\t48(R15), R6, R14\n")
+		fmt.Fprintf(w, "\tRET\n")
+	},
+}
+
 // getABI returns the ABIConfig for the given targetOS/targetArch.
 func getABI(targetOS, targetArch string) *ABIConfig {
 	var cfg ABIConfig
@@ -2726,6 +2815,8 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 			cfg.AssignRet = defaultAssignRet
 			cfg.CompositeRegSlots = nil
 		}
+	case "s390x":
+		cfg = *s390xABI
 	case "mips", "mipsle":
 		if targetArch == "mips" {
 			cfg = *mipsABI

@@ -1493,12 +1493,135 @@ func TestLayoutMIPS32(t *testing.T) {
 	}
 }
 
+func TestLayoutAndTrampolineS390X(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Pair16":  {Name: "Pair16", Def: "struct {\n\ta int64\n\tb int64\n}", Size: 16, Align: 8},
+		"Odd3":    {Name: "Odd3", Def: "struct {\n\tb [3]uint8\n}", Size: 3, Align: 1},
+		"SingleF": {Name: "SingleF", Def: "struct {\n\tf float32\n}", Size: 4, Align: 4},
+		"Box4":    {Name: "Box4", Def: "struct {\n\tx int32\n}", Size: 4, Align: 4},
+		"Box8":    {Name: "Box8", Def: "struct {\n\tx int64\n}", Size: 8, Align: 8},
+		"Empty":   {Name: "Empty", Def: "struct{}", Size: 0, Align: 1},
+	}
+
+	// s390x returns all structs via sret, passes single-float structs in FPRs,
+	// passes non-{1,2,4,8}-byte structs by hidden pointer, skips empty structs,
+	// right-justifies spilled 1/2/4B structs (including SingleF), and avoids R10/R11.
+	s390 := getABI("linux", "s390x")
+	s390Lay := s390.layout(BindingFunc{Name: "S", Params: []string{"Pair16", "Odd3", "SingleF", "Box8", "Empty"}, Ret: "Box8"}, typeMap)
+	if !s390Lay.Params[0].PassByPtr || !slices.Equal(s390Lay.Params[0].Regs, []string{"R3"}) ||
+		!s390Lay.Params[1].PassByPtr || !slices.Equal(s390Lay.Params[1].Regs, []string{"R4"}) ||
+		!s390Lay.Params[2].IsFloat || !slices.Equal(s390Lay.Params[2].Regs, []string{"F0"}) ||
+		s390Lay.Params[3].PassByPtr || !slices.Equal(s390Lay.Params[3].Regs, []string{"R5"}) ||
+		s390Lay.Params[4].PassByPtr || len(s390Lay.Params[4].Regs) != 0 || s390Lay.Params[4].Size != 0 ||
+		!s390Lay.Ret.Indirect || s390.IndirectRetReg != "R2" {
+		t.Errorf("s390x struct layout = %+v", s390Lay)
+	}
+	var s390Tramp, s390Cb bytes.Buffer
+	s390Fn := BindingFunc{
+		Name:   "S390Spill",
+		CName:  "s390_spill",
+		Params: []string{"float64", "float64", "float64", "float64", "SingleF", "int64", "int64", "int64", "int64", "int64", "Box4"},
+		Ret:    "int32",
+	}
+	s390.writeTrampoline(&s390Tramp, s390Fn, typeMap)
+	s390.writeCallbackTrampoline(&s390Cb, s390Fn, typeMap)
+	for _, nameOut := range [][2]string{{"trampoline", s390Tramp.String()}, {"callback", s390Cb.String()}} {
+		if strings.Contains(nameOut[1], "R10") || strings.Contains(nameOut[1], "R11") {
+			t.Errorf("s390x %s must not touch assembler scratch R10/R11:\n%s", nameOut[0], nameOut[1])
+		}
+	}
+	// Spilled SingleF (stackOff=160) and Box4 (stackOff=168) are right-justified (MOVWZ -> MOVD in trampoline, +4 offset in callback).
+	if out := s390Tramp.String(); !strings.Contains(out, "MOVWZ\t32(R8), R1\n\tMOVD\tR1, 160(R15)") ||
+		!strings.Contains(out, "MOVWZ\t80(R8), R1\n\tMOVD\tR1, 168(R15)") {
+		t.Errorf("s390x spilled SingleF/Box4 trampoline not right-justified:\n%s", out)
+	}
+	// In callback, callerSPOff = 256; SingleF (stackOff=160) is read at 256+160+4=420 and Box4 (stackOff=168) at 256+168+4=428.
+	if out := s390Cb.String(); !strings.Contains(out, "MOVWZ\t420(R15), R1") ||
+		!strings.Contains(out, "MOVWZ\t428(R15), R1") {
+		t.Errorf("s390x callback spilled SingleF/Box4 expected right-justified stack offsets 420 and 428:\n%s", out)
+	}
+
+	// Only a struct of 4 or 8 bytes whose only member (not counting
+	// structs.HostLayout) is a float, a double, or such a struct is passed
+	// in an FPR. One-member arrays, unions (represented as arrays), structs
+	// with another (even empty) member, and structs holding a complex
+	// number are passed in a GPR. _Complex float, _Complex double, and
+	// other sizes are passed by reference.
+	fpTypes := map[string]BindingType{
+		"SingleF":     typeMap["SingleF"],
+		"SingleD":     {Name: "SingleD", Def: "struct {\n\td float64\n}", Size: 8, Align: 8},
+		"SingleFHost": {Name: "SingleFHost", Def: "struct {\n\t_ structs.HostLayout\n\tf float32\n}", Size: 4, Align: 4},
+		"NestedF":     {Name: "NestedF", Def: "struct {\n\tinner SingleF\n}", Size: 4, Align: 4},
+		"AlignedF8":   {Name: "AlignedF8", Def: "struct {\n\tf float32\n}", Size: 8, Align: 8},
+		"AlignedF16":  {Name: "AlignedF16", Def: "struct {\n\tf float32\n}", Size: 16, Align: 16},
+		"ArrF1":       {Name: "ArrF1", Def: "struct {\n\ta [1]float32\n}", Size: 4, Align: 4},
+		"ArrD1":       {Name: "ArrD1", Def: "struct {\n\ta [1]float64\n}", Size: 8, Align: 8},
+		"NestedArrF1": {Name: "NestedArrF1", Def: "struct {\n\tinner struct {\n\t\ta [1]float32\n\t}\n}", Size: 4, Align: 4},
+		"ArrSingleF1": {Name: "ArrSingleF1", Def: "struct {\n\tinner [1]SingleF\n}", Size: 4, Align: 4},
+		"UnionF":      {Name: "UnionF", Def: "[1]float32", Size: 4, Align: 4},
+		"EmptyAndF":   {Name: "EmptyAndF", Def: "struct {\n\te struct{}\n\tf float32\n}", Size: 4, Align: 4},
+		"WrapC64":     {Name: "WrapC64", Def: "struct {\n\tc complex64\n}", Size: 8, Align: 4},
+	}
+	const (
+		fpr = "FPR"
+		gpr = "GPR"
+		ref = "ref"
+	)
+	for typ, want := range map[string]string{
+		"SingleF": fpr, "SingleD": fpr, "SingleFHost": fpr, "NestedF": fpr, "AlignedF8": fpr,
+		"ArrF1": gpr, "ArrD1": gpr, "NestedArrF1": gpr, "ArrSingleF1": gpr, "UnionF": gpr, "EmptyAndF": gpr, "WrapC64": gpr,
+		"complex64": ref, "complex128": ref, "AlignedF16": ref,
+	} {
+		lay := s390.layout(BindingFunc{Name: "P", Params: []string{typ}}, fpTypes)
+		p := lay.Params[0]
+		var got string
+		switch {
+		case p.PassByPtr && slices.Equal(p.Regs, []string{"R2"}):
+			got = ref
+		case !p.PassByPtr && p.IsFloat && slices.Equal(p.Regs, []string{"F0"}):
+			got = fpr
+		case !p.PassByPtr && !p.IsFloat && slices.Equal(p.Regs, []string{"R2"}):
+			got = gpr
+		}
+		if got != want {
+			t.Errorf("s390x %s argument = %+v, want %s", typ, p, want)
+		}
+	}
+	// A complex64 is passed by reference on the stack once R2..R6 are used.
+	spillLay := s390.layout(BindingFunc{Name: "P", Params: []string{"int64", "int64", "int64", "int64", "int64", "complex64"}}, nil)
+	if p := spillLay.Params[5]; !p.PassByPtr || len(p.Regs) != 0 || p.StackOff != 160 {
+		t.Errorf("s390x spilled complex64 argument = %+v, want reference at 160(R15)", p)
+	}
+	// Every composite, including complex numbers and single-float structs,
+	// is returned through a hidden pointer in R2, moving the first argument
+	// to R3.
+	for _, ret := range []string{"complex64", "complex128", "SingleF"} {
+		lay := s390.layout(BindingFunc{Name: "R", Params: []string{"int64"}, Ret: ret}, fpTypes)
+		if !lay.Ret.Indirect || !slices.Equal(lay.Params[0].Regs, []string{"R3"}) {
+			t.Errorf("s390x returning %s = %+v, want hidden pointer in R2 and int64 in R3", ret, lay)
+		}
+	}
+	var c64Tramp, c64Cb bytes.Buffer
+	c64Fn := BindingFunc{Name: "C64", CName: "c64", Params: []string{"complex64"}, Ret: "complex64"}
+	s390.writeTrampoline(&c64Tramp, c64Fn, nil)
+	s390.writeCallbackTrampoline(&c64Cb, BindingFunc{Name: "CbC64", Params: c64Fn.Params, Ret: c64Fn.Ret}, nil)
+	if out := c64Tramp.String(); !strings.Contains(out, "ADD\t$8, R8, R2\n") || !strings.Contains(out, "ADD\t$0, R8, R3\n") {
+		t.Errorf("s390x trampoline for complex64 must pass the result buffer in R2 and the argument by reference in R3:\n%s", out)
+	}
+	for name, out := range map[string]string{"trampoline": c64Tramp.String(), "callback": c64Cb.String()} {
+		if strings.Contains(out, "R10") || strings.Contains(out, "R11") || strings.Contains(out, "FMOV") {
+			t.Errorf("s390x %s for complex64 must not use R10, R11, or FPRs:\n%s", name, out)
+		}
+	}
+}
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
 	{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "arm64"},
 	{"linux", "386"}, {"windows", "386"},
 	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"}, {"linux", "mips"}, {"linux", "mipsle"},
+	{"linux", "s390x"},
 }
 
 // TestIndirectAndStaticTrampolines checks that //cgo:dynload methods call
