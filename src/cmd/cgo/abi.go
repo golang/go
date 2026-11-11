@@ -5,6 +5,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -55,13 +56,14 @@ type BindingFunc struct {
 
 // ParamLoc describes where a function parameter is passed in the C ABI.
 type ParamLoc struct {
-	GoOffset  int64    // Byte offset in Go _cgo_arg_<Name> struct
-	Size      int64    // Parameter size in bytes
-	IsFloat   bool     // Floating-point parameter
-	Regs      []string // Register(s) if passed in register(s)
-	StackOff  int64    // Byte offset in C stack frame when passed on the stack (len(Regs) == 0)
-	PassByPtr bool     // True if passed by hidden reference (pointer in Regs[0] or on stack)
-	G0Off     int64    // Scratch offset on g0 stack when MayCallback && PassByPtr
+	GoOffset   int64    // Byte offset in Go _cgo_arg_<Name> struct
+	Size       int64    // Parameter size in bytes
+	IsFloat    bool     // Floating-point parameter
+	Regs       []string // Register(s) if passed in register(s) (or leading register half of a split param)
+	StackOff   int64    // Byte offset in C stack frame when passed on the stack (or trailing stack half when StackBytes > 0)
+	StackBytes int64    // Trailing byte count placed on the stack when a composite splits across Regs and stack
+	PassByPtr  bool     // True if passed by hidden reference (pointer in Regs[0] or on stack)
+	G0Off      int64    // Scratch offset on g0 stack when MayCallback && PassByPtr
 }
 
 // RetLoc describes how a function return value is returned in the C ABI.
@@ -86,7 +88,7 @@ type FuncLayout struct {
 // hasStackArgs reports whether any argument is passed on the C stack.
 func (lay FuncLayout) hasStackArgs() bool {
 	for _, p := range lay.Params {
-		if p.Size > 0 && len(p.Regs) == 0 {
+		if (p.Size > 0 && len(p.Regs) == 0) || p.StackBytes > 0 {
 			return true
 		}
 	}
@@ -106,28 +108,35 @@ type leafField struct {
 	size    int64
 	align   int64
 	isFloat bool
+	direct  bool // Scalar member of the enclosing struct itself, not flattened from an array, nested struct, or complex type
 }
 
 // typeInfo holds the byte size, alignment, ABI classification, and flattened
 // scalar leaves of a type.
 type typeInfo struct {
-	size        int64
-	align       int64
-	isFloat     bool
-	signed      bool
-	composite   bool
-	hasPointers bool
-	fields      []leafField
-	fieldsOK    bool
+	size              int64
+	align             int64
+	isFloat           bool
+	signed            bool
+	composite         bool
+	isComplex         bool // complex64 or complex128 (C _Complex float or _Complex double)
+	isStruct          bool // Go struct type (C struct), as opposed to an array, complex, or scalar type
+	directFields      int  // Number of members of a struct type, not counting structs.HostLayout
+	singleFloatStruct bool // Struct whose only member is a float32, float64, or such a struct
+	hasPointers       bool
+	fields            []leafField
+	fieldsOK          bool
 }
 
 // regSlot describes a single register piece of a parameter or return value.
 type regSlot struct {
-	reg     string
-	offset  int64 // Byte offset relative to ParamLoc.GoOffset or RetLoc.GoOffset
-	size    int64 // Byte size of this piece (1..8)
-	isFloat bool
-	signed  bool
+	reg         string
+	offset      int64 // Byte offset relative to ParamLoc.GoOffset or RetLoc.GoOffset
+	size        int64 // Byte size of this piece (1..8)
+	align       int64 // Guaranteed alignment of the backing field (0 means PtrSize)
+	isFloat     bool
+	signed      bool
+	leftJustify bool // Big-endian composite piece < PtrSize is left-justified in the upper bytes of reg
 }
 
 // asmOps defines the assembly mnemonics for an architecture's load, store,
@@ -154,6 +163,7 @@ type asmOps struct {
 	twoOpALU   bool   // True if or/add/sub take 2 operands (src, dst) rather than 3 (src, dst, dst)
 	twoOpShift bool   // True if shl/shr take 2 operands ($bits, reg) rather than 3 ($bits, reg, reg)
 	useAdjSP   bool   // True if SP adjustments must use ADJSP so obj tracks pcsp without FuncFlagSPWrite
+	negSubSP   bool   // True if decrementing SP uses add with $-size rather than sub with $size
 }
 
 // ABIConfig defines the C calling convention rules and assembly primitives
@@ -192,10 +202,22 @@ type ABIConfig struct {
 	CalleeSavedReg  string // C callee-saved register holding the Go _cgo_arg struct pointer across C calls
 	TmpReg          string // Primary caller-saved scratch register for stack/memory copies and address math
 	TmpReg2         string // Secondary caller-saved scratch register for multi-chunk loads and copies
+	IndCallReg      string // Register for indirect C calls when different from TmpReg (e.g. "R25" on MIPS)
+	LinkReg         string // Link register saved by default RISC trampoline/callback prologue/epilogue (e.g. "X1", "R31")
+	AsmTmpReg       string // Callee-saved assembler REGTMP saved in RISC callback prologue (e.g. "R23", "R30")
 	LRReserve       int64  // Bytes reserved at 0(SP) for saved LR when !hasStackArgs and ShadowSpace == 0
-	ZeroVal         string // Zero operand or register for zeroing pointer-containing callback return slots
+	ShadowUsesSlot0 bool   // True if C callees may overwrite 0(SP) inside ShadowSpace (MIPS O32)
+	ZeroVal         string // Zero operand or register for zeroing pointer-containing callback return slots, or "" to zero TmpReg
 	LocalFrameOff   int64  // Byte offset from SPReg to the local Go arg struct in writeCallbackTrampoline
 	IndirectSymCall bool   // External C symbols are PE IAT pointers called indirectly (Windows)
+
+	BigEndian                    bool // Multi-byte integer chunks in registers and stack slots use big-endian byte order
+	LeftJustifyBEComposite       bool // Big-endian composite register chunks < PtrSize are left-justified (MIPS, AIX)
+	RightJustifyBECompositeStack bool // Big-endian sub-word composites on the stack are right-justified (s390x, ELFv2 BE)
+	LeftJustifyBEFloatStack      bool // Big-endian float32 stack arguments are left-justified in their slot (AIX, MIPS64)
+	ComplexFloatSplitStack       bool // The float32 halves of a complex64 stack argument occupy separate PtrSize slots (PPC64)
+	SignExtUint32                bool // 32-bit unsigned integers are sign-extended to 64 bits in registers and stack slots (MIPS64, RISC-V, LoongArch)
+	StrictAlign                  bool // Architecture traps on unaligned multi-byte loads/stores (MIPS, ARM)
 
 	asm                asmOps
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
@@ -235,7 +257,7 @@ func (cfg *ABIConfig) ptrTypeInfo() typeInfo {
 	return typeInfo{
 		size:     cfg.PtrSize,
 		align:    cfg.PtrSize,
-		fields:   []leafField{{size: cfg.PtrSize, align: cfg.PtrSize}},
+		fields:   []leafField{{size: cfg.PtrSize, align: cfg.PtrSize, direct: true}},
 		fieldsOK: true,
 	}
 }
@@ -297,6 +319,7 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 			delta := i * ed.size
 			for _, f := range ed.fields {
 				f.offset += delta
+				f.direct = false
 				fields = append(fields, f)
 			}
 		}
@@ -314,6 +337,8 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 		var fields []leafField
 		fieldsOK := true
 		hasPointers := false
+		nFields := 0
+		singleFloat := false
 		for _, fld := range e.Fields.List {
 			if isHostLayoutExpr(fld.Type) {
 				continue
@@ -325,11 +350,17 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 				fieldsOK = false
 				fields = nil
 			}
-			for range max(1, len(fld.Names)) {
+			n := max(1, len(fld.Names))
+			nFields += n
+			singleFloat = nFields == 1 && (fd.isFloat || fd.singleFloatStruct)
+			for range n {
 				off = alignUp(off, fd.align)
 				if fieldsOK {
 					for _, f := range fd.fields {
 						f.offset += off
+						// Leaves of a nested struct are not direct
+						// members of this struct.
+						f.direct = f.direct && !fd.isStruct
 						fields = append(fields, f)
 					}
 				}
@@ -337,12 +368,15 @@ func (cfg *ABIConfig) inspectExpr(expr ast.Expr, types map[string]BindingType, s
 			}
 		}
 		return typeInfo{
-			size:        alignUp(off, maxAlign),
-			align:       maxAlign,
-			composite:   true,
-			hasPointers: hasPointers,
-			fields:      fields,
-			fieldsOK:    fieldsOK,
+			size:              alignUp(off, maxAlign),
+			align:             maxAlign,
+			composite:         true,
+			isStruct:          true,
+			directFields:      nFields,
+			singleFloatStruct: singleFloat,
+			hasPointers:       hasPointers,
+			fields:            fields,
+			fieldsOK:          fieldsOK,
 		}
 	case *ast.SelectorExpr:
 		if id, ok := e.X.(*ast.Ident); ok {
@@ -441,7 +475,7 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 		}
 		d := typeInfo{size: sz, align: sz, signed: signed, isFloat: s.isFloat}
 		if sz > 0 {
-			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat}}
+			d.fields = []leafField{{size: d.size, align: d.align, isFloat: d.isFloat, direct: true}}
 			d.fieldsOK = true
 		}
 		return d
@@ -455,6 +489,7 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 			size:      8,
 			align:     4,
 			composite: true,
+			isComplex: true,
 			fields: []leafField{
 				{offset: 0, size: 4, align: 4, isFloat: true},
 				{offset: 4, size: 4, align: 4, isFloat: true},
@@ -467,6 +502,7 @@ func (cfg *ABIConfig) inspectTypeName(name string, types map[string]BindingType,
 			size:      16,
 			align:     al,
 			composite: true,
+			isComplex: true,
 			fields: []leafField{
 				{offset: 0, size: 8, align: al, isFloat: true},
 				{offset: 8, size: 8, align: al, isFloat: true},
@@ -548,13 +584,13 @@ func (cfg *ABIConfig) assignRet(fn BindingFunc, st *abiState, types map[string]B
 // FloatRetRegs[0], and integers or small composites pack into IntRetRegs.
 func defaultAssignRet(cfg *ABIConfig, _ BindingFunc, info typeInfo, st *abiState) RetLoc {
 	ptrSize := cfg.PtrSize
-	if !info.isFloat && info.size > cfg.MaxRegStructSize && (info.composite || info.size > ptrSize*int64(len(cfg.IntRetRegs))) {
+	if info.size > cfg.MaxRegStructSize && (!info.isFloat || len(cfg.FloatRetRegs) == 0) && (info.composite || info.size > ptrSize*int64(len(cfg.IntRetRegs))) {
 		if cfg.IndirectRetInArg {
 			st.intIdx = 1
 		}
 		return RetLoc{Size: info.size, Indirect: true}
 	}
-	if info.isFloat {
+	if info.isFloat && len(cfg.FloatRetRegs) > 0 {
 		return RetLoc{Size: info.size, Regs: []string{cfg.FloatRetRegs[0]}, IsFloat: true}
 	}
 	if info.size > 0 {
@@ -691,43 +727,49 @@ func (cfg *ABIConfig) assignG0Scratch(fn BindingFunc, params []ParamLoc, ret *Re
 	return stkTopOff
 }
 
-// decomposePow2 splits a byte size (1..8) into descending power-of-two chunks
-// (8, 4, 2, 1) so odd-sized struct pieces can be loaded or stored without
-// reading or writing past the bounds of the Go argument struct.
-func decomposePow2(size int64) []int64 {
+// decomposePow2Aligned splits a byte size (1..8) into descending power-of-two
+// chunks bounded by maxWidth (1, 2, 4, or 8).
+func decomposePow2Aligned(size, maxWidth int64) []int64 {
 	var chunks []int64
 	for rem := size; rem > 0; {
-		switch {
-		case rem >= 8:
-			chunks = append(chunks, 8)
-			rem -= 8
-		case rem >= 4:
-			chunks = append(chunks, 4)
-			rem -= 4
-		case rem >= 2:
-			chunks = append(chunks, 2)
-			rem -= 2
-		default:
-			chunks = append(chunks, 1)
-			rem -= 1
-		}
+		ck := maxPow2Chunk(rem, maxWidth)
+		chunks = append(chunks, ck)
+		rem -= ck
 	}
 	return chunks
 }
 
 // maxPow2Chunk returns the largest power-of-two byte width (1, 2, 4, or 8)
-// that fits within both rem and ptrSize.
-func maxPow2Chunk(rem, ptrSize int64) int64 {
-	if ptrSize >= 8 && rem >= 8 {
+// that fits within both rem and maxWidth.
+func maxPow2Chunk(rem, maxWidth int64) int64 {
+	if maxWidth >= 8 && rem >= 8 {
 		return 8
 	}
-	if rem >= 4 {
+	if maxWidth >= 4 && rem >= 4 {
 		return 4
 	}
-	if rem >= 2 {
+	if maxWidth >= 2 && rem >= 2 {
 		return 2
 	}
 	return 1
+}
+
+// effAlign returns the guaranteed power-of-two alignment of base+off given the
+// backing field's alignment (0 means ptrSize).
+func effAlign(off, align, ptrSize int64) int64 {
+	if align <= 0 || align > ptrSize {
+		align = ptrSize
+	}
+	if off != 0 {
+		offAlign := off & -off
+		if offAlign < align {
+			align = offAlign
+		}
+	}
+	if align < 1 {
+		return 1
+	}
+	return align
 }
 
 // emitScalarLoadInt emits a single power-of-two (1, 2, 4, or 8 byte) integer
@@ -807,12 +849,19 @@ func (cfg *ABIConfig) emitOrReg(w io.Writer, src, dst string) {
 // off(base) into reg, decomposing non-power-of-two sizes into exact sub-loads
 // combined with shifts and ORs.
 func (cfg *ABIConfig) emitLoadInt(w io.Writer, base string, off, size int64, signed bool, reg string) {
-	switch size {
-	case 1, 2, 4, 8:
+	cfg.emitLoadIntAlign(w, base, off, size, cfg.PtrSize, signed, reg)
+}
+
+func (cfg *ABIConfig) emitLoadIntAlign(w io.Writer, base string, off, size, align int64, signed bool, reg string) {
+	maxWidth := cfg.PtrSize
+	if cfg.StrictAlign {
+		maxWidth = effAlign(off, align, cfg.PtrSize)
+	}
+	if (size == 1 || size == 2 || size == 4 || size == 8) && size <= maxWidth {
 		cfg.emitScalarLoadInt(w, base, off, size, signed, reg)
 		return
 	}
-	chunks := decomposePow2(size)
+	chunks := decomposePow2Aligned(size, maxWidth)
 	scratch := cfg.TmpReg2
 	if reg == scratch || base == scratch {
 		scratch = cfg.TmpReg
@@ -820,8 +869,13 @@ func (cfg *ABIConfig) emitLoadInt(w io.Writer, base string, off, size int64, sig
 	cfg.emitScalarLoadInt(w, base, off, chunks[0], false, reg)
 	curOff := chunks[0]
 	for _, ck := range chunks[1:] {
-		cfg.emitScalarLoadInt(w, base, off+curOff, ck, false, scratch)
-		cfg.emitShiftLeft(w, curOff*8, scratch)
+		if !cfg.BigEndian {
+			cfg.emitScalarLoadInt(w, base, off+curOff, ck, false, scratch)
+			cfg.emitShiftLeft(w, curOff*8, scratch)
+		} else {
+			cfg.emitShiftLeft(w, ck*8, reg)
+			cfg.emitScalarLoadInt(w, base, off+curOff, ck, false, scratch)
+		}
 		cfg.emitOrReg(w, scratch, reg)
 		curOff += ck
 	}
@@ -830,18 +884,37 @@ func (cfg *ABIConfig) emitLoadInt(w io.Writer, base string, off, size int64, sig
 // emitStoreInt stores an integer or struct register chunk of 1..8 bytes from
 // reg into off(base), decomposing non-power-of-two sizes into exact sub-stores.
 func (cfg *ABIConfig) emitStoreInt(w io.Writer, reg, base string, off, size int64) {
-	switch size {
-	case 1, 2, 4, 8:
+	cfg.emitStoreIntAlign(w, reg, base, off, size, cfg.PtrSize)
+}
+
+func (cfg *ABIConfig) emitStoreIntAlign(w io.Writer, reg, base string, off, size, align int64) {
+	maxWidth := cfg.PtrSize
+	if cfg.StrictAlign {
+		maxWidth = effAlign(off, align, cfg.PtrSize)
+	}
+	if (size == 1 || size == 2 || size == 4 || size == 8) && size <= maxWidth {
 		cfg.emitScalarStoreInt(w, reg, base, off, size)
 		return
 	}
-	chunks := decomposePow2(size)
-	curOff := int64(0)
-	for i, ck := range chunks {
-		cfg.emitScalarStoreInt(w, reg, base, off+curOff, ck)
-		curOff += ck
-		if i+1 < len(chunks) {
-			cfg.emitShiftRight(w, ck*8, reg)
+	chunks := decomposePow2Aligned(size, maxWidth)
+	if !cfg.BigEndian {
+		curOff := int64(0)
+		for i, ck := range chunks {
+			cfg.emitScalarStoreInt(w, reg, base, off+curOff, ck)
+			curOff += ck
+			if i+1 < len(chunks) {
+				cfg.emitShiftRight(w, ck*8, reg)
+			}
+		}
+	} else {
+		curOff := size
+		for i := len(chunks) - 1; i >= 0; i-- {
+			ck := chunks[i]
+			curOff -= ck
+			cfg.emitScalarStoreInt(w, reg, base, off+curOff, ck)
+			if i > 0 {
+				cfg.emitShiftRight(w, ck*8, reg)
+			}
 		}
 	}
 }
@@ -896,6 +969,10 @@ func (cfg *ABIConfig) emitSubSP(w io.Writer, size int64) {
 		fmt.Fprintf(w, "\tADJSP\t$%d\n", size)
 		return
 	}
+	if cfg.asm.negSubSP {
+		fmt.Fprintf(w, "\t%s\t$-%d, %s\n", cfg.asm.add, size, cfg.SPReg)
+		return
+	}
 	fmt.Fprintf(w, "\t%s\t$%d, %s\n", cfg.asm.sub, size, cfg.SPReg)
 }
 
@@ -929,8 +1006,9 @@ func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
 
 // emitCallIndirect calls the C function pointer stored at 0(base).
 func (cfg *ABIConfig) emitCallIndirect(w io.Writer, base string) {
-	cfg.emitLoadInt(w, base, 0, cfg.PtrSize, false, cfg.TmpReg)
-	cfg.emitCallReg(w, cfg.TmpReg)
+	reg := cmp.Or(cfg.IndCallReg, cfg.TmpReg)
+	cfg.emitLoadInt(w, base, 0, cfg.PtrSize, false, reg)
+	cfg.emitCallReg(w, reg)
 }
 
 // emitCallRuntime emits a direct call to an internal Go runtime helper symbol.
@@ -949,21 +1027,28 @@ func (cfg *ABIConfig) emitCallSymbol(w io.Writer, sym string, static bool) {
 		// holding the function's address (an IAT entry for internal linking,
 		// or a relocated data word for external linking; see initdynimport
 		// in cmd/link/internal/ld/pe.go). Load the address and call indirectly.
-		fmt.Fprintf(w, "\t%s\t%s(SB), %s\n", cfg.asm.mov, sym, cfg.TmpReg)
-		cfg.emitCallReg(w, cfg.TmpReg)
+		reg := cmp.Or(cfg.IndCallReg, cfg.TmpReg)
+		fmt.Fprintf(w, "\t%s\t%s(SB), %s\n", cfg.asm.mov, sym, reg)
+		cfg.emitCallReg(w, reg)
 		return
 	}
 	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
 }
 
 // emitCopyMem copies size bytes from srcOff(srcBase) to dstOff(dstBase) using
-// TmpReg-sized power-of-two loads and stores.
-func (cfg *ABIConfig) emitCopyMem(w io.Writer, srcBase string, srcOff int64, dstBase string, dstOff, size int64, tmpReg string) {
+// alignment-safe power-of-two loads and stores through tmpReg.
+func (cfg *ABIConfig) emitCopyMem(w io.Writer, srcBase string, srcOff int64, dstBase string, dstOff, size, align int64, tmpReg string) {
 	ptrSize := cfg.PtrSize
 	for off := int64(0); off < size; {
-		chunk := maxPow2Chunk(size-off, ptrSize)
-		cfg.emitLoadInt(w, srcBase, srcOff+off, chunk, false, tmpReg)
-		cfg.emitStoreInt(w, tmpReg, dstBase, dstOff+off, chunk)
+		maxWidth := ptrSize
+		if cfg.StrictAlign {
+			srcA := effAlign(srcOff+off, align, ptrSize)
+			dstA := effAlign(dstOff+off, align, ptrSize)
+			maxWidth = min(srcA, dstA)
+		}
+		chunk := maxPow2Chunk(size-off, maxWidth)
+		cfg.emitScalarLoadInt(w, srcBase, srcOff+off, chunk, false, tmpReg)
+		cfg.emitScalarStoreInt(w, tmpReg, dstBase, dstOff+off, chunk)
 		off += chunk
 	}
 }
@@ -981,7 +1066,8 @@ func (cfg *ABIConfig) paramRegSlots(fn BindingFunc, idx int, p ParamLoc, types m
 	if paramTypes := fn.Params; idx < len(paramTypes) {
 		pt = paramTypes[idx]
 	}
-	return cfg.valueRegSlots(pt, p.Size, p.IsFloat, p.Regs, types)
+	regSize := p.Size - p.StackBytes
+	return cfg.valueRegSlots(pt, regSize, p.IsFloat, p.Regs, types)
 }
 
 // retRegSlots decomposes register-returned result ret into per-register
@@ -1004,6 +1090,10 @@ func (cfg *ABIConfig) valueRegSlots(typeName string, size int64, isFloat bool, r
 			return slots
 		}
 	}
+	goAlign := min(info.align, ptrSize)
+	if goAlign < 1 {
+		goAlign = 1
+	}
 	slots := make([]regSlot, len(regs))
 	for k, r := range regs {
 		fl := cfg.isFloatReg(r)
@@ -1011,15 +1101,29 @@ func (cfg *ABIConfig) valueRegSlots(typeName string, size int64, isFloat bool, r
 		if len(regs) == 1 {
 			chunkSz = size
 		}
+		leftJustify := cfg.BigEndian && info.composite && !fl && chunkSz < ptrSize && cfg.LeftJustifyBEComposite
 		slots[k] = regSlot{
-			reg:     r,
-			offset:  int64(k) * ptrSize,
-			size:    chunkSz,
-			isFloat: fl,
-			signed:  !info.composite && !fl && info.signed,
+			reg:         r,
+			offset:      int64(k) * ptrSize,
+			size:        chunkSz,
+			align:       goAlign,
+			isFloat:     fl,
+			signed:      !info.composite && !fl && (info.signed || (cfg.SignExtUint32 && chunkSz == 4)),
+			leftJustify: leftJustify,
 		}
 	}
 	return slots
+}
+
+func (cfg *ABIConfig) goTypeAlign(typeName string, types map[string]BindingType) int64 {
+	if typeName == "" {
+		return 1
+	}
+	a := min(cfg.inspectType(typeName, types).align, cfg.PtrSize)
+	if a < 1 {
+		return 1
+	}
+	return a
 }
 
 func (cfg *ABIConfig) paramTypeInfo(fn BindingFunc, idx int, types map[string]BindingType) typeInfo {
@@ -1036,7 +1140,10 @@ func (cfg *ABIConfig) emitLoadSlot(w io.Writer, base string, off int64, slot reg
 		cfg.emitLoadFloat(w, base, off+slot.offset, slot.size, slot.reg)
 		return
 	}
-	cfg.emitLoadInt(w, base, off+slot.offset, slot.size, slot.signed, slot.reg)
+	cfg.emitLoadIntAlign(w, base, off+slot.offset, slot.size, slot.align, slot.signed, slot.reg)
+	if slot.leftJustify {
+		cfg.emitShiftLeft(w, (cfg.PtrSize-slot.size)*8, slot.reg)
+	}
 }
 
 // emitStoreSlot stores a register piece into off+slot.offset(base).
@@ -1045,7 +1152,98 @@ func (cfg *ABIConfig) emitStoreSlot(w io.Writer, slot regSlot, base string, off 
 		cfg.emitStoreFloat(w, slot.reg, base, off+slot.offset, slot.size)
 		return
 	}
-	cfg.emitStoreInt(w, slot.reg, base, off+slot.offset, slot.size)
+	if slot.leftJustify {
+		cfg.emitShiftRight(w, (cfg.PtrSize-slot.size)*8, slot.reg)
+	}
+	cfg.emitStoreIntAlign(w, slot.reg, base, off+slot.offset, slot.size, slot.align)
+}
+
+// complexFloatStackPad returns the byte offset of each float32 half of a
+// complex64 stack argument within its PtrSize slot when
+// ComplexFloatSplitStack is set.
+func (cfg *ABIConfig) complexFloatStackPad() int64 {
+	if cfg.BigEndian && !cfg.LeftJustifyBEFloatStack {
+		return cfg.PtrSize - 4
+	}
+	return 0
+}
+
+// emitRISCTrampolinePrologue emits a NOFRAME Go-to-C trampoline prologue for
+// link-register architectures and returns its matching epilogue. When 0(SP) is
+// not occupied by C stack arguments or C ABI shadow space, it stores LinkReg at
+// 0(SP) using Go's three-instruction sequence (store at -total(SP), decrement
+// SP, re-store at 0(SP)) so Go traceback and .debug_frame unwinding see saved
+// LR at 0(SP) with no window.
+func (cfg *ABIConfig) emitRISCTrampolinePrologue(w io.Writer, lay FuncLayout) func(io.Writer) {
+	ptrSize := cfg.PtrSize
+	lrAtZero := !cfg.ShadowUsesSlot0 && (cfg.ShadowSpace > 0 || !lay.hasStackArgs())
+	if lrAtZero {
+		total := max(cfg.LRReserve, lay.StackSize)
+		cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, -total, ptrSize)
+		cfg.emitSubSP(w, total)
+		cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, 0, ptrSize)
+		cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+		return func(w io.Writer) {
+			cfg.emitLoadInt(w, cfg.SPReg, 0, ptrSize, false, cfg.LinkReg)
+			cfg.emitAddSP(w, total)
+		}
+	}
+	total := lay.StackSize + cfg.StackAlign
+	lrOff := total - ptrSize
+	cfg.emitSubSP(w, total)
+	cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, lrOff, ptrSize)
+	cfg.emitMovReg(w, cfg.IntRegs[0], cfg.CalleeSavedReg)
+	return func(w io.Writer) {
+		cfg.emitLoadInt(w, cfg.SPReg, lrOff, ptrSize, false, cfg.LinkReg)
+		cfg.emitAddSP(w, total)
+	}
+}
+
+// emitRISCCallbackPrologue saves AsmTmpReg (if any) and LinkReg on the stack
+// and allocates LocalFrameOff+frameSize bytes for writeCallbackTrampoline.
+func (cfg *ABIConfig) emitRISCCallbackPrologue(w io.Writer, frameSize int64) int64 {
+	ptrSize := cfg.PtrSize
+	inner := cfg.LocalFrameOff + frameSize
+	if cfg.AsmTmpReg == "" || inner <= 2032 {
+		if cfg.ShadowSpace == 0 {
+			cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, -inner, ptrSize)
+		}
+		cfg.emitSubSP(w, inner)
+		cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, cfg.ShadowSpace, ptrSize)
+		if cfg.AsmTmpReg != "" {
+			cfg.emitStoreInt(w, cfg.AsmTmpReg, cfg.SPReg, cfg.ShadowSpace+ptrSize, ptrSize)
+		}
+		return inner
+	}
+	outer := cfg.StackAlign
+	cfg.emitSubSP(w, outer)
+	cfg.emitStoreInt(w, cfg.AsmTmpReg, cfg.SPReg, 0, ptrSize)
+	if cfg.ShadowSpace == 0 {
+		cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, -inner, ptrSize)
+	}
+	cfg.emitSubSP(w, inner)
+	cfg.emitStoreInt(w, cfg.LinkReg, cfg.SPReg, cfg.ShadowSpace, ptrSize)
+	return outer + inner
+}
+
+// emitRISCCallbackEpilogue restores LinkReg, AsmTmpReg, and SPReg and returns.
+func (cfg *ABIConfig) emitRISCCallbackEpilogue(w io.Writer, frameSize int64) {
+	ptrSize := cfg.PtrSize
+	inner := cfg.LocalFrameOff + frameSize
+	if cfg.AsmTmpReg == "" || inner <= 2032 {
+		if cfg.AsmTmpReg != "" {
+			cfg.emitLoadInt(w, cfg.SPReg, cfg.ShadowSpace+ptrSize, ptrSize, false, cfg.AsmTmpReg)
+		}
+		cfg.emitLoadInt(w, cfg.SPReg, cfg.ShadowSpace, ptrSize, false, cfg.LinkReg)
+		cfg.emitAddSP(w, inner)
+		fmt.Fprintf(w, "\tRET\n")
+		return
+	}
+	cfg.emitLoadInt(w, cfg.SPReg, cfg.ShadowSpace, ptrSize, false, cfg.LinkReg)
+	cfg.emitAddSP(w, inner)
+	cfg.emitLoadInt(w, cfg.SPReg, 0, ptrSize, false, cfg.AsmTmpReg)
+	cfg.emitAddSP(w, cfg.StackAlign)
+	fmt.Fprintf(w, "\tRET\n")
 }
 
 // emitCallCrosscall2 emits the shared register-ABI callback sequence:
@@ -1089,6 +1287,9 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	if cfg.TrampolinePrologue != nil {
 		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT|NOFRAME, $0-0\n", cPrefix, fn.Name)
 		epilogue = cfg.TrampolinePrologue(w, lay)
+	} else if cfg.LinkReg != "" {
+		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT|NOFRAME, $0-0\n", cPrefix, fn.Name)
+		epilogue = cfg.emitRISCTrampolinePrologue(w, lay)
 	} else {
 		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT, $0-0\n", cPrefix, fn.Name)
 		// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
@@ -1108,9 +1309,10 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 			cfg.emitCallRuntime(w, "_cgo_topofstack")
 			cfg.emitStoreInt(w, cfg.IntRetRegs[0], cfg.SPReg, lay.StkTopOff, ptrSize)
 		}
-		for _, p := range lay.Params {
+		for i, p := range lay.Params {
 			if p.PassByPtr {
-				cfg.emitCopyMem(w, base, p.GoOffset, cfg.SPReg, p.G0Off, p.Size, cfg.TmpReg)
+				pAlign := min(cfg.paramTypeInfo(fn, i, types).align, ptrSize)
+				cfg.emitCopyMem(w, base, p.GoOffset, cfg.SPReg, p.G0Off, p.Size, pAlign, cfg.TmpReg)
 			}
 		}
 	}
@@ -1137,23 +1339,40 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 			}
 			continue
 		}
+		info := cfg.paramTypeInfo(fn, i, types)
+		pAlign := min(info.align, ptrSize)
 		if slots := cfg.paramRegSlots(fn, i, p, types); len(slots) > 0 {
 			for _, slot := range slots {
 				cfg.emitLoadSlot(w, srcBase, srcOff, slot)
 			}
+			if p.StackBytes > 0 {
+				regBytes := p.Size - p.StackBytes
+				cfg.emitCopyMem(w, srcBase, srcOff+regBytes, cfg.SPReg, p.StackOff, p.StackBytes, pAlign, cfg.TmpReg)
+			}
 			continue
 		}
-		info := cfg.paramTypeInfo(fn, i, types)
-		if !info.composite && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
-			cfg.emitLoadInt(w, srcBase, srcOff, p.Size, info.signed, cfg.TmpReg)
+		if cfg.ComplexFloatSplitStack && info.isComplex && p.Size == 8 {
+			// The float32 halves of a complex64 occupy separate stack slots.
+			pad := cfg.complexFloatStackPad()
+			cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, p.StackOff+pad, 4, pAlign, cfg.TmpReg)
+			cfg.emitCopyMem(w, srcBase, srcOff+4, cfg.SPReg, p.StackOff+ptrSize+pad, 4, pAlign, cfg.TmpReg)
+			continue
+		}
+		if (!info.composite || cfg.RightJustifyBECompositeStack) && (p.Size == 1 || p.Size == 2 || p.Size == 4 || p.Size == 8) && p.Size <= ptrSize {
+			signed := !info.composite && !info.isFloat && (info.signed || (cfg.SignExtUint32 && p.Size == 4))
+			cfg.emitLoadIntAlign(w, srcBase, srcOff, p.Size, pAlign, signed, cfg.TmpReg)
 			storeSize := ptrSize
-			if cfg.PackStackArgs {
+			if cfg.PackStackArgs || (cfg.LeftJustifyBEFloatStack && info.isFloat) {
 				storeSize = p.Size
 			}
 			cfg.emitStoreInt(w, cfg.TmpReg, cfg.SPReg, p.StackOff, storeSize)
 			continue
 		}
-		cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, p.StackOff, p.Size, cfg.TmpReg)
+		dstStackOff := p.StackOff
+		if cfg.BigEndian && cfg.RightJustifyBECompositeStack && info.composite && p.Size < ptrSize {
+			dstStackOff += ptrSize - p.Size
+		}
+		cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, dstStackOff, p.Size, pAlign, cfg.TmpReg)
 	}
 
 	if cfg.PreCall != nil {
@@ -1184,11 +1403,11 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 			cfg.emitLoadInt(w, cfg.SPReg, lay.StkTopOff, ptrSize, false, cfg.TmpReg)
 			cfg.emitSubReg(w, cfg.TmpReg, cfg.IntRetRegs[0])
 			cfg.emitAddReg(w, cfg.IntRetRegs[0], base)
-			cfg.emitCopyMem(w, cfg.SPReg, lay.Ret.G0Off, base, lay.Ret.GoOffset, lay.Ret.Size, cfg.TmpReg)
+			cfg.emitCopyMem(w, cfg.SPReg, lay.Ret.G0Off, base, lay.Ret.GoOffset, lay.Ret.Size, cfg.goTypeAlign(fn.Ret, types), cfg.TmpReg)
 		}
 	}
 
-	if cfg.TrampolinePrologue == nil && lay.StackSize > 0 {
+	if cfg.TrampolinePrologue == nil && cfg.LinkReg == "" && lay.StackSize > 0 {
 		cfg.emitAddSP(w, lay.StackSize)
 	}
 	if epilogue != nil {
@@ -1223,10 +1442,14 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 	frameSize := max(16, alignUp(structSize, 16))
 
 	var callerSPOff int64
-	if cfg.CallbackPrologue != nil {
+	switch {
+	case cfg.CallbackPrologue != nil:
 		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT|NOFRAME, $0-0\n", fn.Name)
 		callerSPOff = cfg.CallbackPrologue(w, frameSize)
-	} else {
+	case cfg.LinkReg != "":
+		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT|NOFRAME, $0-0\n", fn.Name)
+		callerSPOff = cfg.emitRISCCallbackPrologue(w, frameSize)
+	default:
 		totalFrame := cfg.LocalFrameOff + frameSize
 		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT, $%d-0\n", fn.Name, totalFrame)
 		callerSPOff = totalFrame
@@ -1239,6 +1462,8 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 	}
 
 	for i, p := range lay.Params {
+		info := cfg.paramTypeInfo(fn, i, types)
+		pAlign := min(info.align, ptrSize)
 		slots := cfg.paramRegSlots(fn, i, p, types)
 
 		if p.PassByPtr {
@@ -1250,26 +1475,54 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 			} else {
 				cfg.emitLoadStackArg(w, p.StackOff, callerSPOff, ptrSize, ptrReg)
 			}
-			cfg.emitCopyMem(w, ptrReg, 0, cfg.SPReg, baseOff+p.GoOffset, p.Size, copyReg)
+			cfg.emitCopyMem(w, ptrReg, 0, cfg.SPReg, baseOff+p.GoOffset, p.Size, pAlign, copyReg)
 		} else if len(slots) > 0 {
 			for _, slot := range slots {
 				cfg.emitStoreSlot(w, slot, cfg.SPReg, baseOff+p.GoOffset)
 			}
-		} else {
-			srcBase, srcOff := cfg.SPReg, callerSPOff+p.StackOff
-			if cfg.StackArgAddr != nil {
-				srcBase, srcOff = cfg.StackArgAddr(p.StackOff, callerSPOff)
+			if p.StackBytes > 0 {
+				regBytes := p.Size - p.StackBytes
+				srcBase, srcOff := cfg.SPReg, callerSPOff+p.StackOff
+				if cfg.StackArgAddr != nil {
+					srcBase, srcOff = cfg.StackArgAddr(p.StackOff, callerSPOff)
+				}
+				cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, baseOff+p.GoOffset+regBytes, p.StackBytes, pAlign, cfg.TmpReg)
 			}
-			cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, baseOff+p.GoOffset, p.Size, cfg.TmpReg)
+		} else if cfg.ComplexFloatSplitStack && info.isComplex && p.Size == 8 {
+			// The float32 halves of a complex64 occupy separate stack slots.
+			pad := cfg.complexFloatStackPad()
+			for k := range int64(2) {
+				srcBase, srcOff := cfg.SPReg, callerSPOff+p.StackOff+k*ptrSize+pad
+				if cfg.StackArgAddr != nil {
+					srcBase, srcOff = cfg.StackArgAddr(p.StackOff+k*ptrSize+pad, callerSPOff)
+				}
+				cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, baseOff+p.GoOffset+k*4, 4, pAlign, cfg.TmpReg)
+			}
+		} else {
+			srcStackOff := p.StackOff
+			if cfg.BigEndian && p.Size < ptrSize && (!info.composite || cfg.RightJustifyBECompositeStack) &&
+				!(cfg.LeftJustifyBEFloatStack && info.isFloat) {
+				srcStackOff += ptrSize - p.Size
+			}
+			srcBase, srcOff := cfg.SPReg, callerSPOff+srcStackOff
+			if cfg.StackArgAddr != nil {
+				srcBase, srcOff = cfg.StackArgAddr(srcStackOff, callerSPOff)
+			}
+			cfg.emitCopyMem(w, srcBase, srcOff, cfg.SPReg, baseOff+p.GoOffset, p.Size, pAlign, cfg.TmpReg)
 		}
 	}
 
 	// Zero pointer-containing return slots on the C stack so Go GC write
 	// barriers in _cgoexp_* never observe uninitialized stack bytes.
 	if fn.Ret != "" && lay.Ret.Size > 0 && cfg.inspectType(fn.Ret, types).hasPointers {
+		zeroSrc := cfg.ZeroVal
+		if zeroSrc == "" {
+			fmt.Fprintf(w, "\t%s\t$0, %s\n", cfg.asm.mov, cfg.TmpReg)
+			zeroSrc = cfg.TmpReg
+		}
 		for off := int64(0); off < lay.Ret.Size; {
 			sz := maxPow2Chunk(lay.Ret.Size-off, ptrSize)
-			cfg.emitStoreInt(w, cfg.ZeroVal, cfg.SPReg, baseOff+lay.Ret.GoOffset+off, sz)
+			cfg.emitStoreInt(w, zeroSrc, cfg.SPReg, baseOff+lay.Ret.GoOffset+off, sz)
 			off += sz
 		}
 	}
@@ -1285,7 +1538,7 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 				copyReg = cfg.TmpReg
 			}
 			cfg.emitLoadInt(w, cfg.SPReg, baseOff+retBufOff, ptrSize, false, bufReg)
-			cfg.emitCopyMem(w, cfg.SPReg, baseOff+lay.Ret.GoOffset, bufReg, 0, lay.Ret.Size, copyReg)
+			cfg.emitCopyMem(w, cfg.SPReg, baseOff+lay.Ret.GoOffset, bufReg, 0, lay.Ret.Size, cfg.goTypeAlign(fn.Ret, types), copyReg)
 		} else {
 			for _, slot := range cfg.retRegSlots(fn, lay.Ret, types) {
 				cfg.emitLoadSlot(w, cfg.SPReg, baseOff+lay.Ret.GoOffset, slot)
@@ -1293,10 +1546,14 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 		}
 	}
 
-	if cfg.CallbackEpilogue != nil {
+	switch {
+	case cfg.CallbackEpilogue != nil:
 		cfg.CallbackEpilogue(w, frameSize)
 		fmt.Fprintf(w, "\n")
-	} else {
+	case cfg.LinkReg != "":
+		cfg.emitRISCCallbackEpilogue(w, frameSize)
+		fmt.Fprintf(w, "\n")
+	default:
 		fmt.Fprintf(w, "\tRET\n\n")
 	}
 }
