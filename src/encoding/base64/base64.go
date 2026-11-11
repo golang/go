@@ -660,15 +660,7 @@ type newlineFilteringReader struct {
 func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 	n, err := r.wrapped.Read(p)
 	for n > 0 {
-		offset := 0
-		for i, b := range p[:n] {
-			if b != '\r' && b != '\n' {
-				if i != offset {
-					p[offset] = b
-				}
-				offset++
-			}
-		}
+		offset := stripNewlines(p[:n])
 		if offset > 0 {
 			return offset, err
 		}
@@ -676,6 +668,48 @@ func (r *newlineFilteringReader) Read(p []byte) (int, error) {
 		n, err = r.wrapped.Read(p)
 	}
 	return n, err
+}
+
+// stripNewlines removes newline characters from p in place
+// and returns the number of bytes that remain.
+func stripNewlines(p []byte) int {
+	n := 0 // bytes kept
+	i := 0
+	for ; len(p)-i >= 8; i += 8 {
+		x := byteorder.LEUint64(p[i:])
+		if mayHaveNewline(x) {
+			n += dropNewlines(p[n:], p[i:i+8])
+			continue
+		}
+		byteorder.LEPutUint64(p[n:], x)
+		n += 8
+	}
+	return n + dropNewlines(p[n:], p[i:])
+}
+
+// dropNewlines copies src to dst, skipping newline characters,
+// and returns the number of bytes copied.
+// The copy is safe when dst starts at or before src.
+func dropNewlines(dst, src []byte) int {
+	n := 0
+	for _, b := range src {
+		if b != '\r' && b != '\n' {
+			dst[n] = b
+			n++
+		}
+	}
+	return n
+}
+
+// mayHaveNewline reports whether any byte of x is '\r' or less,
+// as both newline characters are. It is the classic zero-byte test
+// (see Hacker's Delight, section 6-1) with '\r'+1 in place of 1.
+func mayHaveNewline(x uint64) bool {
+	const (
+		lo = 0x0101010101010101 // low bit of each byte
+		hi = 0x8080808080808080 // high bit of each byte
+	)
+	return (x-lo*('\r'+1))&^x&hi != 0
 }
 
 // NewDecoder constructs a new base64 stream decoder.

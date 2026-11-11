@@ -453,6 +453,17 @@ func TestNewLineCharacters(t *testing.T) {
 			t.Errorf("Decode(%q) = %q, want %q", e, s, expected)
 		}
 	}
+
+	// The stream decoder strips newlines by a different route.
+	for i := range len(bigtest.encoded) + 1 {
+		for _, nl := range []string{"\r", "\n", "\r\n"} {
+			e := bigtest.encoded[:i] + nl + bigtest.encoded[i:]
+			buf, err := io.ReadAll(NewDecoder(StdEncoding, strings.NewReader(e)))
+			if err != nil || string(buf) != bigtest.decoded {
+				t.Errorf("NewDecoder(%q) = %q, %v; want %q", e, buf, err, bigtest.decoded)
+			}
+		}
+	}
 }
 
 type nextRead struct {
@@ -597,6 +608,25 @@ func BenchmarkDecodeString(b *testing.B) {
 	for _, size := range sizes {
 		b.Run(fmt.Sprintf("%d", size), func(b *testing.B) {
 			benchFunc(b, size)
+		})
+	}
+}
+
+func BenchmarkDecoder(b *testing.B) {
+	unwrapped := StdEncoding.EncodeToString(make([]byte, 8192))
+	var wrapped strings.Builder
+	for s := unwrapped; len(s) > 0; s = s[min(76, len(s)):] {
+		wrapped.WriteString(s[:min(76, len(s))] + "\r\n")
+	}
+	for _, input := range []struct{ name, data string }{
+		{"Unwrapped", unwrapped},
+		{"Wrapped", wrapped.String()},
+	} {
+		b.Run(input.name, func(b *testing.B) {
+			b.SetBytes(int64(len(input.data)))
+			for b.Loop() {
+				io.Copy(io.Discard, NewDecoder(StdEncoding, strings.NewReader(input.data)))
+			}
 		})
 	}
 }
