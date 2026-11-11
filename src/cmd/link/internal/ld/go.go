@@ -19,6 +19,7 @@ import (
 	"internal/buildcfg"
 	"io"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -100,6 +101,9 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
 // Set symbol attributes or flags based on cgo directives.
 // Any newly discovered HOSTOBJ syms are added to 'hostObjSyms'.
 func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, hostObjSyms map[loader.Sym]struct{}) {
+	// The linker flags of one package can spell an rpath entry across
+	// consecutive directives (-Wl,-rpath -Wl,dir).
+	var rpathParser cgoRpathParser
 	l := ctxt.loader
 	for _, f := range directives {
 		switch f[0] {
@@ -303,6 +307,15 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				break
 			}
 			ldflag = append(ldflag, f[1])
+			if buildcfg.Experiment.CgoBindings {
+				n := len(cgoRpaths)
+				rpathParser.parse(f[1])
+				if ctxt.HeadType == objabi.Hdarwin {
+					for _, dir := range cgoRpaths[n:] {
+						machoaddrpath(dir, ctxt.LinkMode)
+					}
+				}
+			}
 			continue
 		}
 
@@ -494,4 +507,71 @@ func cgoExportSymbolName(ldr *loader.Loader, s loader.Sym) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// cgoRpaths holds the run-time library search path entries named by
+// -Wl,-rpath and -Wl,-R flags in //go:cgo_ldflag directives, in order and
+// without duplicates. They are used only when linking internally without -r:
+// when linking externally, the flags themselves are passed to the external
+// linker.
+var cgoRpaths []string
+
+// cgoRpathParser extracts run-time library search path entries from a
+// sequence of linker flags as passed to the C compiler driver, adding them to
+// cgoRpaths. It recognizes the forms permitted by cmd/go's flag checks:
+// -Wl,-rpath,dir, -Wl,-rpath=dir, -Wl,-R,dir, -Wl,-R=dir, -Wl,-Rdir,
+// and -Wl,-rpath or -Wl,-R followed by -Wl,dir or dir, as well as several
+// linker options in one -Wl, flag.
+type cgoRpathParser struct {
+	pending bool // the previous linker option was -rpath or -R
+}
+
+func (p *cgoRpathParser) parse(flag string) {
+	opts, ok := strings.CutPrefix(flag, "-Wl,")
+	if !ok {
+		// A compiler driver argument after -Wl,-R or -Wl,-rpath is
+		// passed to the linker, which takes it as the directory.
+		if p.pending && flag != "" && !strings.HasPrefix(flag, "-") {
+			addCgoRpath(flag)
+		}
+		p.pending = false
+		return
+	}
+	for _, opt := range strings.Split(opts, ",") {
+		if p.pending {
+			p.pending = false
+			addCgoRpath(opt)
+			continue
+		}
+		switch {
+		case opt == "-rpath", opt == "--rpath", opt == "-R":
+			p.pending = true
+		case strings.HasPrefix(opt, "-rpath="):
+			addCgoRpath(opt[len("-rpath="):])
+		case strings.HasPrefix(opt, "--rpath="):
+			addCgoRpath(opt[len("--rpath="):])
+		case strings.HasPrefix(opt, "-R="):
+			addCgoRpath(opt[len("-R="):])
+		case strings.HasPrefix(opt, "-R"):
+			addCgoRpath(opt[len("-R"):])
+		}
+	}
+}
+
+func addCgoRpath(dir string) {
+	if dir != "" && !slices.Contains(cgoRpaths, dir) {
+		cgoRpaths = append(cgoRpaths, dir)
+	}
+}
+
+// internalRpaths returns the run-time library search path entries to record
+// in an internally linked binary.
+func internalRpaths() []string {
+	if rpath.set {
+		if rpath.val == "" {
+			return nil
+		}
+		return strings.Split(rpath.val, ":")
+	}
+	return cgoRpaths
 }

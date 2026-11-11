@@ -1,0 +1,62 @@
+# Test that internally linking cgo bindings records -Wl,-rpath and -Wl,-R
+# entries from #cgo LDFLAGS in DT_RUNPATH, without duplicates, and that
+# -ldflags=-r takes precedence.
+
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+[!GOEXPERIMENT:cgobindings] skip
+[!GOOS:linux] skip
+[!GOARCH:amd64] [!GOARCH:arm64] skip
+
+env CGO_ENABLED=bindings
+env CC=/bin/false
+go build -ldflags=-linkmode=internal -o prog.exe ./prog
+env CGO_ENABLED=0
+go run ./runpath prog.exe
+stdout '^/opt/cgo-rpath-a:/opt/cgo-rpath-b:/opt/cgo-rpath-c$'
+
+env CGO_ENABLED=bindings
+go build -ldflags='-linkmode=internal -r /explicit' -o prog2.exe ./prog
+env CGO_ENABLED=0
+go run ./runpath prog2.exe
+stdout '^/explicit$'
+
+-- go.mod --
+module example.com/rpath
+
+go 1.27
+-- prog/main.go --
+package main
+
+// #cgo LDFLAGS: -Wl,-rpath,/opt/cgo-rpath-a -Wl,-rpath -Wl,/opt/cgo-rpath-b
+// #cgo LDFLAGS: -Wl,-R,/opt/cgo-rpath-c -Wl,-rpath,/opt/cgo-rpath-a
+import "C"
+
+//cgo:func getpid getpid libc
+func getpid() int32
+
+func main() {
+	println(getpid())
+}
+-- runpath/main.go --
+package main
+
+import (
+	"debug/elf"
+	"fmt"
+	"log"
+	"os"
+	"strings"
+)
+
+func main() {
+	f, err := elf.Open(os.Args[1])
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	s, err := f.DynString(elf.DT_RUNPATH)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(strings.Join(s, "\n"))
+}

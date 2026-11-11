@@ -547,6 +547,25 @@ func machoadddynlib(lib string, linkmode LinkMode) {
 	dylib = append(dylib, lib)
 }
 
+// machoaddrpath reserves space in the Mach-O header for the LC_RPATH load
+// command that asmbMacho writes for the cgo rpath entry dir, as
+// machoadddynlib does for LC_LOAD_DYLIB.
+func machoaddrpath(dir string, linkmode LinkMode) {
+	if linkmode == LinkExternal || rpath.set {
+		return
+	}
+	// The load command has an 8-byte header, a 4-byte string offset, and
+	// the NUL-terminated string padded to 4 bytes, rounded up to 8 bytes
+	// (see newMachoLoad).
+	ndata := 1 + (len(dir)+1+3)/4
+	loadBudget -= 8 + (ndata+1)/2*8
+	for loadBudget < 0 {
+		HEADR += 4096
+		*FlagTextAddr += 4096
+		loadBudget += 4096
+	}
+}
+
 func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string) {
 	buf := "__" + strings.ReplaceAll(sect.Name[1:], ".", "_")
 
@@ -800,6 +819,16 @@ func asmbMacho(ctxt *Link) {
 			ml.data[2] = 0  /* version */
 			ml.data[3] = 0  /* compatibility version */
 			stringtouint32(ml.data[4:], lib)
+		}
+
+		// The -r flag is documented for ELF only, so only record the
+		// cgo rpath entries.
+		if !rpath.set {
+			for _, dir := range cgoRpaths {
+				ml = newMachoLoad(ctxt.Arch, imacho.LC_RPATH, 1+(uint32(len(dir))+1+3)/4)
+				ml.data[0] = 12 /* offset of string from beginning of load */
+				stringtouint32(ml.data[1:], dir)
+			}
 		}
 	}
 

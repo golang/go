@@ -1568,8 +1568,8 @@ func (ctxt *Link) doelf() {
 			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RELENT, ELF32RELSIZE)
 		}
 
-		if rpath.val != "" {
-			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RUNPATH, uint64(dynstr.Addstring(rpath.val)))
+		if rp := internalRpaths(); len(rp) > 0 {
+			Elfwritedynent(ctxt.Arch, dynamic, elf.DT_RUNPATH, uint64(dynstr.Addstring(strings.Join(rp, ":"))))
 		}
 
 		if ctxt.IsPPC64() {
