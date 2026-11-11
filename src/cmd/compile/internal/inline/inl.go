@@ -319,14 +319,19 @@ func CanInline(fn *ir.Func, profile *pgoir.Profile) {
 		ir.AstDump(fn, "inline, OK, "+ir.FuncName(fn))
 	}
 
+	cost := budget - visitor.budget
+	if base.Ctxt.Arch.CanMergeLoads && isByteOrderLoadStore(fn.Sym()) {
+		// A merged load or store is the whole body. See issue 42958.
+		cost = 1
+	}
 	n.Func.Inl = &ir.Inline{
-		Cost:            budget - visitor.budget,
+		Cost:            cost,
 		Dcl:             pruneUnusedAutos(n.Func.Dcl, &visitor),
 		HaveDcl:         true,
 		CanDelayResults: canDelayResults(fn),
 	}
 	if base.Flag.LowerM != 0 || logopt.Enabled() {
-		noteInlinableFunc(n, fn, budget-visitor.budget)
+		noteInlinableFunc(n, fn, cost)
 	}
 }
 
@@ -566,20 +571,10 @@ opSwitch:
 						// runtime.heapBits.nextArena.
 						cheap = true
 					}
-					// Special case: on architectures that can do unaligned loads,
-					// explicitly mark encoding/binary methods as cheap,
-					// because in practice they are, even though our inlining
-					// budgeting system does not see that. See issue 42958.
-					if base.Ctxt.Arch.CanMergeLoads && s.Pkg.Path == "encoding/binary" {
-						switch s.Name {
-						case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
-							"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
-							"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
-							"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16",
-							"littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
-							"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16":
-							cheap = true
-						}
+					// Loads and stores become a single merged access, and appends a
+					// store plus a growth check, so count the call as one node. See issue 42958.
+					if base.Ctxt.Arch.CanMergeLoads && (isByteOrderLoadStore(s) || isByteOrderAppend(s)) {
+						cheap = true
 					}
 				}
 			}
@@ -591,22 +586,9 @@ opSwitch:
 
 		if n.Fun.Op() == ir.ONAME {
 			name := n.Fun.(*ir.Name)
-			if name.Class == ir.PFUNC {
-				// Special case: on architectures that can do unaligned loads,
-				// explicitly mark internal/byteorder methods as cheap,
-				// because in practice they are, even though our inlining
-				// budgeting system does not see that. See issue 42958.
-				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
-					switch name.Sym().Name {
-					case "LEUint64", "LEUint32", "LEUint16",
-						"BEUint64", "BEUint32", "BEUint16",
-						"LEPutUint64", "LEPutUint32", "LEPutUint16",
-						"BEPutUint64", "BEPutUint32", "BEPutUint16",
-						"LEAppendUint64", "LEAppendUint32", "LEAppendUint16",
-						"BEAppendUint64", "BEAppendUint32", "BEAppendUint16":
-						cheap = true
-					}
-				}
+			// See comment on isByteOrderLoadStore above.
+			if name.Class == ir.PFUNC && base.Ctxt.Arch.CanMergeLoads && (isByteOrderLoadStore(name.Sym()) || isByteOrderAppend(name.Sym())) {
+				cheap = true
 			}
 			if name.Class == ir.PPARAM || name.Class == ir.PAUTOHEAP && name.IsClosureVar() {
 				extraCost = min(extraCost, inlineParamCallCost)
@@ -1359,6 +1341,56 @@ func isAtomicCoverageCounterUpdate(cn *ir.CallExpr) bool {
 	adn := cn.Args[0].(*ir.AddrExpr)
 	v := isIndexingCoverageCounter(adn.X)
 	return v
+}
+
+// isByteOrderLoadStore reports whether s is an encoding/binary or
+// internal/byteorder load or store function.
+func isByteOrderLoadStore(s *types.Sym) bool {
+	if s == nil || s.Pkg == nil {
+		return false
+	}
+	switch s.Pkg.Path {
+	case "encoding/binary":
+		switch s.Name {
+		case "littleEndian.Uint64", "littleEndian.Uint32", "littleEndian.Uint16",
+			"bigEndian.Uint64", "bigEndian.Uint32", "bigEndian.Uint16",
+			"littleEndian.PutUint64", "littleEndian.PutUint32", "littleEndian.PutUint16",
+			"bigEndian.PutUint64", "bigEndian.PutUint32", "bigEndian.PutUint16":
+			return true
+		}
+	case "internal/byteorder":
+		switch s.Name {
+		case "LEUint64", "LEUint32", "LEUint16",
+			"BEUint64", "BEUint32", "BEUint16",
+			"LEPutUint64", "LEPutUint32", "LEPutUint16",
+			"BEPutUint64", "BEPutUint32", "BEPutUint16":
+			return true
+		}
+	}
+	return false
+}
+
+// isByteOrderAppend reports whether s is an encoding/binary or
+// internal/byteorder append function.
+func isByteOrderAppend(s *types.Sym) bool {
+	if s == nil || s.Pkg == nil {
+		return false
+	}
+	switch s.Pkg.Path {
+	case "encoding/binary":
+		switch s.Name {
+		case "littleEndian.AppendUint64", "littleEndian.AppendUint32", "littleEndian.AppendUint16",
+			"bigEndian.AppendUint64", "bigEndian.AppendUint32", "bigEndian.AppendUint16":
+			return true
+		}
+	case "internal/byteorder":
+		switch s.Name {
+		case "LEAppendUint64", "LEAppendUint32", "LEAppendUint16",
+			"BEAppendUint64", "BEAppendUint32", "BEAppendUint16":
+			return true
+		}
+	}
+	return false
 }
 
 func PostProcessCallSites(profile *pgoir.Profile) {

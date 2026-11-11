@@ -457,6 +457,30 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
 				p.From.Type = obj.TYPE_MEM
 				p.From.Reg = REGSP
 			}
+
+		case AMOVV, AMOVW:
+			a := (*obj.Addr)(nil)
+			if p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG {
+				a = &p.From
+			}
+
+			if p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM {
+				a = &p.To
+			}
+
+			if a == nil || a.Index != 0 || a.Sym != nil {
+				break
+			}
+
+			if a.Offset > BIG_12 || a.Offset < -BIG_12 {
+				if a.Offset&0x3 == 0 {
+					if p.As == AMOVV {
+						p.As = AMOVVP
+					} else {
+						p.As = AMOVWP
+					}
+				}
+			}
 		}
 
 		if p.To.Type == obj.TYPE_REG && p.To.Reg == REGSP && p.Spadj == 0 {

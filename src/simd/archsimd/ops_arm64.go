@@ -740,33 +740,31 @@ func (x Uint64x2) ConcatOdd(y Uint64x2) (z Uint64x2)
 // Asm: VEXT
 func (x Uint8x16) ConcatShiftBytesRight(y Uint8x16, shift uint64) Uint8x16
 
-/* ConvertLo2ToFloat64 */
-
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: VFCVTL
-func (x Float32x4) ConvertLo2ToFloat64() (z Float64x2)
-
 /* ConvertToFloat32 */
 
 // ConvertToFloat32 converts each element of x to float32.
 //
+//	z[i] = float32(x[i])
+//
 // The results are rounded to the nearest representable value, or ±inf if they
 // cannot be represented.
 //
-// The low 2 elements of the result are set. The rest are zero.
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VFCVTN
 func (x Float64x2) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts each element of x to float32.
 //
+//	z[i] = float32(x[i])
+//
 // Asm: VSCVTF
 func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts each element of x to float32.
+//
+//	z[i] = float32(x[i])
 //
 // Asm: VUCVTF
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
@@ -775,10 +773,24 @@ func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat64 converts each element of x to float64.
 //
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VFCVTL
+func (x Float32x4) ConvertToFloat64() (z Float64x2)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
 // Asm: VSCVTF
 func (x Int64x2) ConvertToFloat64() (z Float64x2)
 
 // ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
 //
 // Asm: VUCVTF
 func (x Uint64x2) ConvertToFloat64() (z Float64x2)
@@ -786,6 +798,8 @@ func (x Uint64x2) ConvertToFloat64() (z Float64x2)
 /* ConvertToInt32 */
 
 // ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -798,6 +812,8 @@ func (x Float32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToInt64 converts each element of x to int64.
 //
+//	z[i] = int64(x[i])
+//
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
 // is architecture-dependent.
@@ -809,6 +825,8 @@ func (x Float64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint32 converts each element of x to uint32.
 //
+//	z[i] = uint32(x[i])
+//
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
 // is architecture-dependent.
@@ -819,6 +837,8 @@ func (x Float32x4) ConvertToUint32() (z Uint32x4)
 /* ConvertToUint64 */
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -903,53 +923,77 @@ func (x Uint32x4) Equal(y Uint32x4) (z Mask32x4)
 // Asm: VCMEQ
 func (x Uint64x2) Equal(y Uint64x2) (z Mask64x2)
 
-/* ExtendLo2ToInt64 */
+/* ExtendToInt16 */
 
-// ExtendLo2ToInt64 sign-extends
-// the lowest 2 vector elements to int64.
+// ExtendToInt16 sign-extends each element of x to int16.
+//
+//	z[i] = int16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
+func (x Int8x16) ExtendToInt16() (z Int16x8)
 
-/* ExtendLo2ToUint64 */
+/* ExtendToInt32 */
 
-// ExtendLo2ToUint64 zero-extends
-// the lowest 2 vector elements to uint64.
+// ExtendToInt32 sign-extends each element of x to int32.
 //
-// Asm: VUXTL
-func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
-
-/* ExtendLo4ToInt32 */
-
-// ExtendLo4ToInt32 sign-extends
-// the lowest 4 vector elements to int32.
+//	z[i] = int32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
+func (x Int16x8) ExtendToInt32() (z Int32x4)
 
-/* ExtendLo4ToUint32 */
+/* ExtendToInt64 */
 
-// ExtendLo4ToUint32 zero-extends
-// the lowest 4 vector elements to uint32.
+// ExtendToInt64 sign-extends each element of x to int64.
 //
-// Asm: VUXTL
-func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
-
-/* ExtendLo8ToInt16 */
-
-// ExtendLo8ToInt16 sign-extends
-// the lowest 8 vector elements to int16.
+//	z[i] = int64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VSXTL
-func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
+func (x Int32x4) ExtendToInt64() (z Int64x2)
 
-/* ExtendLo8ToUint16 */
+/* ExtendToUint16 */
 
-// ExtendLo8ToUint16 zero-extends
-// the lowest 8 vector elements to uint16.
+// ExtendToUint16 zero-extends each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: VUXTL
-func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
+func (x Uint8x16) ExtendToUint16() (z Uint16x8)
+
+/* ExtendToUint32 */
+
+// ExtendToUint32 zero-extends each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VUXTL
+func (x Uint16x8) ExtendToUint32() (z Uint32x4)
+
+/* ExtendToUint64 */
+
+// ExtendToUint64 zero-extends each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: VUXTL
+func (x Uint32x4) ExtendToUint64() (z Uint64x2)
 
 /* Floor */
 
@@ -2191,69 +2235,114 @@ func (x Float64x2) Round() (z Float64x2)
 
 /* SaturateToInt8 */
 
-// SaturateToInt8 converts element values to int8 with signed saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToInt8 converts each element of x to int8, saturating values
+// that are outside the range of int8.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 8 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTN
-func (x Int16x8) SaturateToInt8() Int8x16
+func (x Int16x8) SaturateToInt8() (z Int8x16)
 
 /* SaturateToInt16 */
 
-// SaturateToInt16 converts element values to int16 with signed saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToInt16 converts each element of x to int16, saturating values
+// that are outside the range of int16.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 4 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTN
-func (x Int32x4) SaturateToInt16() Int16x8
+func (x Int32x4) SaturateToInt16() (z Int16x8)
 
 /* SaturateToInt32 */
 
-// SaturateToInt32 converts element values to int32 with signed saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToInt32 converts each element of x to int32, saturating values
+// that are outside the range of int32.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTN
-func (x Int64x2) SaturateToInt32() Int32x4
+func (x Int64x2) SaturateToInt32() (z Int32x4)
 
 /* SaturateToUint8 */
 
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint8 converts each element of x to uint8, saturating values
+// that are outside the range of uint8. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 8 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTUN
-func (x Int16x8) SaturateToUint8() Uint8x16
+func (x Int16x8) SaturateToUint8() (z Uint8x16)
 
-// SaturateToUint8 converts element values to uint8 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint8 converts each element of x to uint8, saturating values
+// that are outside the range of uint8.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 8 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VUQXTN
-func (x Uint16x8) SaturateToUint8() Uint8x16
+func (x Uint16x8) SaturateToUint8() (z Uint8x16)
 
 /* SaturateToUint16 */
 
-// SaturateToUint16 converts element values to uint16 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint16 converts each element of x to uint16, saturating values
+// that are outside the range of uint16. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 4 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTUN
-func (x Int32x4) SaturateToUint16() Uint16x8
+func (x Int32x4) SaturateToUint16() (z Uint16x8)
 
-// SaturateToUint16 converts element values to uint16 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint16 converts each element of x to uint16, saturating values
+// that are outside the range of uint16.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 4 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VUQXTN
-func (x Uint32x4) SaturateToUint16() Uint16x8
+func (x Uint32x4) SaturateToUint16() (z Uint16x8)
 
 /* SaturateToUint32 */
 
-// SaturateToUint32 converts element values to uint32 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint32 converts each element of x to uint32, saturating values
+// that are outside the range of uint32. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VSQXTUN
-func (x Int64x2) SaturateToUint32() Uint32x4
+func (x Int64x2) SaturateToUint32() (z Uint32x4)
 
-// SaturateToUint32 converts element values to uint32 with unsigned saturation.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// SaturateToUint32 converts each element of x to uint32, saturating values
+// that are outside the range of uint32.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VUQXTN
-func (x Uint64x2) SaturateToUint32() Uint32x4
+func (x Uint64x2) SaturateToUint32() (z Uint32x4)
 
 /* ScaleSaturated */
 
@@ -2827,51 +2916,81 @@ func (x Float64x2) Trunc() (z Float64x2)
 
 /* TruncToInt8 */
 
-// TruncToInt8 truncates element values to int8.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToInt8 converts each element of x to int8 by discarding its high
+// bits.
+//
+//	z[i] = int8(x[i])
+//
+// The results are stored in the low 8 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Int16x8) TruncToInt8() Int8x16
+func (x Int16x8) TruncToInt8() (z Int8x16)
 
 /* TruncToInt16 */
 
-// TruncToInt16 truncates element values to int16.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToInt16 converts each element of x to int16 by discarding its high
+// bits.
+//
+//	z[i] = int16(x[i])
+//
+// The results are stored in the low 4 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Int32x4) TruncToInt16() Int16x8
+func (x Int32x4) TruncToInt16() (z Int16x8)
 
 /* TruncToInt32 */
 
-// TruncToInt32 truncates element values to int32.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToInt32 converts each element of x to int32 by discarding its high
+// bits.
+//
+//	z[i] = int32(x[i])
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Int64x2) TruncToInt32() Int32x4
+func (x Int64x2) TruncToInt32() (z Int32x4)
 
 /* TruncToUint8 */
 
-// TruncToUint8 truncates element values to uint8.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToUint8 converts each element of x to uint8 by discarding its high
+// bits.
+//
+//	z[i] = uint8(x[i])
+//
+// The results are stored in the low 8 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Uint16x8) TruncToUint8() Uint8x16
+func (x Uint16x8) TruncToUint8() (z Uint8x16)
 
 /* TruncToUint16 */
 
-// TruncToUint16 truncates element values to uint16.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToUint16 converts each element of x to uint16 by discarding its high
+// bits.
+//
+//	z[i] = uint16(x[i])
+//
+// The results are stored in the low 4 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Uint32x4) TruncToUint16() Uint16x8
+func (x Uint32x4) TruncToUint16() (z Uint16x8)
 
 /* TruncToUint32 */
 
-// TruncToUint32 truncates element values to uint32.
-// Results are packed to low elements in the returned vector, its upper elements are zeroed.
+// TruncToUint32 converts each element of x to uint32 by discarding its high
+// bits.
+//
+//	z[i] = uint32(x[i])
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
 //
 // Asm: VXTN
-func (x Uint64x2) TruncToUint32() Uint32x4
+func (x Uint64x2) TruncToUint32() (z Uint32x4)
 
 /* Xor */
 
@@ -2936,10 +3055,14 @@ func (x Uint8x16) BitsToInt8() (z Int8x16)
 
 // ConvertToInt8 converts each element of x to int8.
 //
+//	z[i] = int8(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+//	z[i] = uint8(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int8x16) ConvertToUint8() (z Uint8x16)
@@ -2985,10 +3108,14 @@ func (x Uint16x8) BitsToInt16() (z Int16x8)
 
 // ConvertToInt16 converts each element of x to int16.
 //
+//	z[i] = int16(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int16x8) ConvertToUint16() (z Uint16x8)
@@ -3040,10 +3167,14 @@ func (x Uint32x4) BitsToInt32() (z Int32x4)
 
 // ConvertToInt32 converts each element of x to int32.
 //
+//	z[i] = int32(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int32x4) ConvertToUint32() (z Uint32x4)
@@ -3095,10 +3226,14 @@ func (x Uint64x2) BitsToInt64() (z Int64x2)
 
 // ConvertToInt64 converts each element of x to int64.
 //
+//	z[i] = int64(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int64x2) ConvertToUint64() (z Uint64x2)

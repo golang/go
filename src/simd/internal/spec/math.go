@@ -77,196 +77,6 @@ func SubSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	return map2[E, W, E, W](x, y, func(x, y E) E { return subSaturated(x, y) })
 }
 
-// ConcatAddPairs horizontally adds adjacent pairs of elements in x and y and
-// returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {x[0]+x[1], y[0]+y[1]}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {x[0]+x[1], x[2]+x[3], y[0]+y[1], y[2]+y[3]}
-//
-// {{else}}
-//
-//	z = {x[0]+x[1], x[2]+x[3], ..., y[0]+y[1], y[2]+y[3], ...}
-//
-// {{end}}
-func ConcatAddPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = x[2*i] + x[2*i+1]
-		z[half+i] = y[2*i] + y[2*i+1]
-	}
-	return z
-}
-
-// ConcatSubPairs horizontally subtracts adjacent pairs of elements in x and y
-// and returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {x[0]-x[1], y[0]-y[1]}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {x[0]-x[1], x[2]-x[3], y[0]-y[1], y[2]-y[3]}
-//
-// {{else}}
-//
-//	z = {x[0]-x[1], x[2]-x[3], ..., y[0]-y[1], y[2]-y[3], ...}
-//
-// {{end}}
-func ConcatSubPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = x[2*i] - x[2*i+1]
-		z[half+i] = y[2*i] - y[2*i+1]
-	}
-	return z
-}
-
-// ConcatMaxPairs horizontally takes the maximum of adjacent pairs of elements
-// in x and y and returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {max(x[0], x[1]), max(y[0], y[1])}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {max(x[0], x[1]), max(x[2], x[3]), max(y[0], y[1]), max(y[2], y[3])}
-//
-// {{else}}
-//
-//	z = {max(x[0], x[1]), max(x[2], x[3]), ..., max(y[0], y[1]), max(y[2], y[3]), ...}
-//
-// {{end}}
-//
-// For floats, max is Go's max built-in: it returns NaN if either element is
-// NaN, and orders -0 before +0.
-func ConcatMaxPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	// Only ARM64 implements this (FMAXP, SMAXP, UMAXP), and its float form
-	// follows IEEE 754-2019 maximum like Go's max. If another platform
-	// implements it with its own Max, see MaxFloats about AMD64.
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = max(x[2*i], x[2*i+1])
-		z[half+i] = max(y[2*i], y[2*i+1])
-	}
-	return z
-}
-
-// ConcatMinPairs horizontally takes the minimum of adjacent pairs of elements
-// in x and y and returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {min(x[0], x[1]), min(y[0], y[1])}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {min(x[0], x[1]), min(x[2], x[3]), min(y[0], y[1]), min(y[2], y[3])}
-//
-// {{else}}
-//
-//	z = {min(x[0], x[1]), min(x[2], x[3]), ..., min(y[0], y[1]), min(y[2], y[3]), ...}
-//
-// {{end}}
-//
-// For floats, min is Go's min built-in: it returns NaN if either element is
-// NaN, and orders -0 before +0.
-func ConcatMinPairs[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	// See ConcatMaxPairs about platforms.
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = min(x[2*i], x[2*i+1])
-		z[half+i] = min(y[2*i], y[2*i+1])
-	}
-	return z
-}
-
-// ConcatAddPairsSaturated horizontally adds adjacent pairs of elements in x and
-// y with saturation and returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {sat(x[0]+x[1]), sat(y[0]+y[1])}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), sat(y[0]+y[1]), sat(y[2]+y[3])}
-//
-// {{else}}
-//
-//	z = {sat(x[0]+x[1]), sat(x[2]+x[3]), ..., sat(y[0]+y[1]), sat(y[2]+y[3]), ...}
-//
-// {{end}}
-func ConcatAddPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = addSaturated(x[2*i], x[2*i+1])
-		z[half+i] = addSaturated(y[2*i], y[2*i+1])
-	}
-	return z
-}
-
-// ConcatSubPairsSaturated horizontally subtracts adjacent pairs of elements in
-// x and y with saturation and returns the concatenated result.
-//
-// {{if eq .xL 2}}
-//
-//	z = {sat(x[0]-x[1]), sat(y[0]-y[1])}
-//
-// {{else if eq .xL 4}}
-//
-//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), sat(y[0]-y[1]), sat(y[2]-y[3])}
-//
-// {{else}}
-//
-//	z = {sat(x[0]-x[1]), sat(x[2]-x[3]), ..., sat(y[0]-y[1]), sat(y[2]-y[3]), ...}
-//
-// {{end}}
-func ConcatSubPairsSaturated[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	z = makeVec[E, W]()
-	half := z.len() / 2
-	for i := 0; i < half; i++ {
-		z[i] = subSaturated(x[2*i], x[2*i+1])
-		z[half+i] = subSaturated(y[2*i], y[2*i+1])
-	}
-	return z
-}
-
-// ConcatAddPairsGrouped divides x, y, and z into groups of 128 bits and
-// performs [ConcatAddPairs] on each group.
-func ConcatAddPairsGrouped[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	return grouped128(ConcatAddPairs, x, y)
-}
-
-// ConcatSubPairsGrouped divides x, y, and z into groups of 128 bits and
-// performs [ConcatSubPairs] on each group.
-func ConcatSubPairsGrouped[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	return grouped128(ConcatSubPairs, x, y)
-}
-
-// ConcatAddPairsSaturatedGrouped divides x, y, and z into groups of 128 bits
-// and performs [ConcatAddPairsSaturated] on each group.
-func ConcatAddPairsSaturatedGrouped[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	return grouped128(ConcatAddPairsSaturated, x, y)
-}
-
-// ConcatSubPairsSaturatedGrouped divides x, y, and z into groups of 128 bits
-// and performs [ConcatSubPairsSaturated] on each group.
-func ConcatSubPairsSaturatedGrouped[E Ints | Uints, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
-	return grouped128(ConcatSubPairsSaturated, x, y)
-}
-
 // Average returns the elementwise average of x and y, rounded toward +∞.
 //
 //	z[i] = (x[i] + y[i] + 1) / 2
@@ -477,6 +287,46 @@ func Mul[E Elt, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
+// MulWidenLo multiplies corresponding elements in the lower half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[i]) * {{.zE}}(y[i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenLo[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	for i := range z {
+		z[i] = zE(x[i]) * zE(y[i])
+	}
+	return z
+}
+
+// MulWidenHi multiplies corresponding elements in the upper half of x and y,
+// returning a vector of half as many elements, each with twice the input
+// element size.
+//
+//	z[i] = {{.zE}}(x[{{lanes .z "z"}}+i]) * {{.zE}}(y[{{lanes .z "z"}}+i])
+//
+// The doubled element width is sufficient to hold every product without
+// overflow.
+//
+//specgen:experiment
+//specgen:commutative
+//specgen:require z={xB}{xN*2}x{xL/2}
+func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
+	z = makeVec[zE, W]()
+	half := z.len()
+	for i := range z {
+		z[i] = zE(x[half+i]) * zE(y[half+i])
+	}
+	return z
+}
+
 // MulAddInts returns x * y + z elementwise.
 //
 //	w[i] = x[i] * y[i] + z[i]
@@ -541,86 +391,6 @@ func Neg[E Ints | Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
 	})
 }
 
-// ReduceSumInts returns the scalar sum of the elements of x.
-//
-//	z = x[0] + x[1] + ...
-//
-//specgen:name ReduceSum
-func ReduceSumInts[E Ints | Uints, W Width](x Vec[E, W]) (z E) {
-	// Integer addition wraps and is associative, so the order doesn't matter.
-	for _, xi := range x {
-		z += xi
-	}
-	return z
-}
-
-// ReduceSumFloats returns the scalar sum of the elements of x.
-//
-// {{if eq .xL 2}}
-//
-//	z = x[0] + x[1]
-//
-// {{else}}
-//
-// This uses repeated pairwise summation, which may affect the final precision
-// of the result.
-//
-// {{if eq .xL 4}}
-//
-//	z = (x[0] + x[1]) + (x[2] + x[3])
-//
-// {{else}}
-//
-//	z = ((x[0] + x[1]) + (x[2] + x[3])) + ...
-//
-// {{end}}
-//
-// {{end}}
-//
-//specgen:name ReduceSum
-func ReduceSumFloats[E Floats, W Width](x Vec[E, W]) (z E) {
-	// Vector lengths are powers of two, so every level pairs up evenly.
-	tmp := make([]E, x.len()/2, maxScalableWidth/elemBits[E]()/2)
-	for i := range tmp {
-		tmp[i] = x[2*i] + x[2*i+1]
-	}
-	for len(tmp) > 1 {
-		half := len(tmp) / 2
-		for i := range half {
-			tmp[i] = tmp[2*i] + tmp[2*i+1]
-		}
-		tmp = tmp[:half]
-	}
-	return tmp[0]
-}
-
-// ReduceMax returns the largest element of x.
-//
-//	z = max(x[0], x[1], ...)
-func ReduceMax[E Elt, W Width](x Vec[E, W]) (z E) {
-	// TODO: Do we need per-platform handling of non-finites? Since AMD64 is the
-	// only platform that's weird about non-finite values and it doesn't have
-	// ReduceMax, maybe we don't have to, but if we ever want to emulate this on
-	// AMD64, we'd have to decide whether to match AMD64's Max or Go/IEEE Max.
-	z = x[0]
-	for _, xi := range x[1:] {
-		z = max(z, xi)
-	}
-	return z
-}
-
-// ReduceMin returns the smallest element of x.
-//
-//	z = min(x[0], x[1], ...)
-func ReduceMin[E Elt, W Width](x Vec[E, W]) (z E) {
-	// See ReduceMax about the handling of non-finite values.
-	z = x[0]
-	for _, xi := range x[1:] {
-		z = min(z, xi)
-	}
-	return z
-}
-
 // Sqrt returns the elementwise square root of x.
 //
 //	z[i] = sqrt(x[i])
@@ -636,98 +406,4 @@ func Sqrt[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
 	return map1[E, W, E, W](x, func(x E) E {
 		return E(math.Sqrt(float64(x)))
 	})
-}
-
-// Ceil returns the least integer value greater than or equal to each element
-// of x.
-//
-//	z[i] = ceil(x[i])
-//
-// Special cases follow IEEE 754: Ceil(±0) = ±0, Ceil(±Inf) = ±Inf, Ceil(x) = -0
-// for -1 < x < -0, and Ceil(NaN) = NaN. The sign and payload of a NaN result
-// are unspecified.
-func Ceil[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
-	return map1[E, W, E, W](x, func(x E) E {
-		return E(math.Ceil(float64(x)))
-	})
-}
-
-// Floor returns the greatest integer value less than or equal to each element
-// of x.
-//
-//	z[i] = floor(x[i])
-//
-// Special cases follow IEEE 754: Floor(±0) = ±0, Floor(±Inf) = ±Inf, and
-// Floor(NaN) = NaN. The sign and payload of a NaN result are unspecified.
-func Floor[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
-	return map1[E, W, E, W](x, func(x E) E {
-		return E(math.Floor(float64(x)))
-	})
-}
-
-// Round returns the nearest integer value to each element of x, rounding ties
-// to even.
-//
-//	z[i] = roundToEven(x[i])
-//
-// Special cases follow IEEE 754: Round(±0) = ±0, Round(±Inf) = ±Inf,
-// Round(x) = -0 for -0.5 <= x < -0, and Round(NaN) = NaN. The sign and payload
-// of a NaN result are unspecified.
-func Round[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
-	return map1[E, W, E, W](x, func(x E) E {
-		return E(math.RoundToEven(float64(x)))
-	})
-}
-
-// Trunc returns the integer value of each element of x, rounded toward zero.
-//
-//	z[i] = trunc(x[i])
-//
-// Special cases follow IEEE 754: Trunc(±0) = ±0, Trunc(±Inf) = ±Inf,
-// Trunc(x) = -0 for -1 < x < -0, and Trunc(NaN) = NaN. The sign and payload of
-// a NaN result are unspecified.
-func Trunc[E Floats, W Width](x Vec[E, W]) (z Vec[E, W]) {
-	return map1[E, W, E, W](x, func(x E) E {
-		return E(math.Trunc(float64(x)))
-	})
-}
-
-// MulWidenLo multiplies corresponding elements in the lower half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = {{.zE}}(x[i]) * {{.zE}}(y[i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-//specgen:commutative
-//specgen:require z={xB}{xN*2}x{xL/2}
-func MulWidenLo[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	for i := range z {
-		z[i] = zE(x[i]) * zE(y[i])
-	}
-	return z
-}
-
-// MulWidenHi multiplies corresponding elements in the upper half of x and y,
-// returning a vector of half as many elements, each with twice the input
-// element size.
-//
-//	z[i] = {{.zE}}(x[{{lanes .z "z"}}+i]) * {{.zE}}(y[{{lanes .z "z"}}+i])
-//
-// The doubled element width is sufficient to hold every product without
-// overflow.
-//
-//specgen:experiment
-//specgen:commutative
-//specgen:require z={xB}{xN*2}x{xL/2}
-func MulWidenHi[E Ints | Uints, W Width, zE Ints | Uints](x, y Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	half := z.len()
-	for i := range z {
-		z[i] = zE(x[half+i]) * zE(y[half+i])
-	}
-	return z
 }

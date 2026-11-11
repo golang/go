@@ -43,5 +43,6 @@ var (
 	loong64HasDBAR_HINTS bool
 	loong64HasLSX        bool
 
+	riscv64HasV   bool
 	riscv64HasZbb bool
 )

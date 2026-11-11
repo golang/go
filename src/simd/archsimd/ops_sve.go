@@ -428,6 +428,8 @@ func (x Uint64s) ConcatOdd(y Uint64s) (z Uint64s)
 
 // ConvertToInt32 converts each element of x to int32.
 //
+//	z[i] = int32(x[i])
+//
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
 // is architecture-dependent.
@@ -1353,6 +1355,72 @@ func (x Uint32s) NotEqual(y Uint32s) (z Mask32s)
 // Asm: ZCMPNE, CPU Feature: SVE
 func (x Uint64s) NotEqual(y Uint64s) (z Mask64s)
 
+/* OnesCount */
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int8s) OnesCount() (z Int8s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int16s) OnesCount() (z Int16s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int32s) OnesCount() (z Int32s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Int64s) OnesCount() (z Int64s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint8s) OnesCount() (z Uint8s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint16s) OnesCount() (z Uint16s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint32s) OnesCount() (z Uint32s)
+
+// OnesCount counts the number of one bits ("population count") in
+// each element.
+//
+//	z[i] = bits.OnesCount(x[i])
+//
+// Asm: ZCNT, CPU Feature: SVE
+func (x Uint64s) OnesCount() (z Uint64s)
+
 /* Or */
 
 // Or returns the bitwise OR of x and y.
@@ -1782,10 +1850,14 @@ func (x Uint8s) BitsToInt8() (z Int8s)
 
 // ConvertToInt8 converts each element of x to int8.
 //
+//	z[i] = int8(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint8s) ConvertToInt8() (z Int8s)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+//	z[i] = uint8(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int8s) ConvertToUint8() (z Uint8s)
@@ -1831,10 +1903,14 @@ func (x Uint16s) BitsToInt16() (z Int16s)
 
 // ConvertToInt16 converts each element of x to int16.
 //
+//	z[i] = int16(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint16s) ConvertToInt16() (z Int16s)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int16s) ConvertToUint16() (z Uint16s)
@@ -1886,10 +1962,14 @@ func (x Uint32s) BitsToInt32() (z Int32s)
 
 // ConvertToInt32 converts each element of x to int32.
 //
+//	z[i] = int32(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint32s) ConvertToInt32() (z Int32s)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int32s) ConvertToUint32() (z Uint32s)
@@ -1941,10 +2021,14 @@ func (x Uint64s) BitsToInt64() (z Int64s)
 
 // ConvertToInt64 converts each element of x to int64.
 //
+//	z[i] = int64(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint64s) ConvertToInt64() (z Int64s)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int64s) ConvertToUint64() (z Uint64s)

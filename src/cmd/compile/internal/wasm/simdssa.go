@@ -52,22 +52,23 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 	case ssaop.OpWasmF64x2Splat:
 		getValueFxx(s, v.Args[0])
 		s.Prog(v.Op.Asm())
-	case ssaop.OpWasmI8x16AllTrue, ssaop.OpWasmV128AnyTrue, ssaop.OpWasmI16x8AllTrue,
-		ssaop.OpWasmI32x4AllTrue, ssaop.OpWasmI64x2AllTrue, ssaop.OpWasmI8x16Abs,
+	case ssaop.OpWasmI8x16AllTrue, ssaop.OpWasmV128AnyTrue, ssaop.OpWasmI16x8ExtendHighI8x16S,
+		ssaop.OpWasmI16x8ExtendHighI8x16U, ssaop.OpWasmI16x8AllTrue, ssaop.OpWasmI32x4ExtendHighI16x8S,
+		ssaop.OpWasmI32x4ExtendHighI16x8U, ssaop.OpWasmI32x4AllTrue, ssaop.OpWasmI64x2ExtendHighI32x4S,
+		ssaop.OpWasmI64x2ExtendHighI32x4U, ssaop.OpWasmI64x2AllTrue, ssaop.OpWasmI8x16Abs,
 		ssaop.OpWasmI16x8Abs, ssaop.OpWasmI32x4Abs, ssaop.OpWasmF32x4Abs,
 		ssaop.OpWasmI64x2Abs, ssaop.OpWasmF64x2Abs, ssaop.OpWasmF32x4Ceil,
-		ssaop.OpWasmF64x2Ceil, ssaop.OpWasmF64x2ConvertLowI32x4S, ssaop.OpWasmF64x2ConvertLowI32x4U,
-		ssaop.OpWasmF32x4ConvertI32x4S, ssaop.OpWasmF32x4ConvertI32x4U, ssaop.OpWasmI32x4TruncSatF32x4S,
-		ssaop.OpWasmI32x4TruncSatF32x4U, ssaop.OpWasmI64x2ExtendHighI32x4S, ssaop.OpWasmI64x2ExtendHighI32x4U,
-		ssaop.OpWasmI32x4ExtendHighI16x8S, ssaop.OpWasmI32x4ExtendHighI16x8U, ssaop.OpWasmI16x8ExtendHighI8x16S,
-		ssaop.OpWasmI16x8ExtendHighI8x16U, ssaop.OpWasmI64x2ExtendLowI32x4S, ssaop.OpWasmI64x2ExtendLowI32x4U,
-		ssaop.OpWasmI32x4ExtendLowI16x8S, ssaop.OpWasmI32x4ExtendLowI16x8U, ssaop.OpWasmI16x8ExtendLowI8x16S,
-		ssaop.OpWasmI16x8ExtendLowI8x16U, ssaop.OpWasmF32x4Floor, ssaop.OpWasmF64x2Floor,
-		ssaop.OpWasmI8x16Neg, ssaop.OpWasmI16x8Neg, ssaop.OpWasmI32x4Neg,
-		ssaop.OpWasmF32x4Neg, ssaop.OpWasmI64x2Neg, ssaop.OpWasmF64x2Neg,
-		ssaop.OpWasmV128Not, ssaop.OpWasmI8x16Popcnt, ssaop.OpWasmF32x4Nearest,
-		ssaop.OpWasmF64x2Nearest, ssaop.OpWasmF32x4Sqrt, ssaop.OpWasmF64x2Sqrt,
-		ssaop.OpWasmF32x4Trunc, ssaop.OpWasmF64x2Trunc:
+		ssaop.OpWasmF64x2Ceil, ssaop.OpWasmF32x4ConvertI32x4S, ssaop.OpWasmF32x4ConvertI32x4U,
+		ssaop.OpWasmF32x4DemoteF64x2Zero, ssaop.OpWasmF64x2ConvertLowI32x4S, ssaop.OpWasmF64x2ConvertLowI32x4U,
+		ssaop.OpWasmF64x2PromoteLowF32x4, ssaop.OpWasmI32x4TruncSatF32x4S, ssaop.OpWasmI32x4TruncSatF64x2SZero,
+		ssaop.OpWasmI32x4TruncSatF32x4U, ssaop.OpWasmI32x4TruncSatF64x2UZero, ssaop.OpWasmI16x8ExtendLowI8x16S,
+		ssaop.OpWasmI32x4ExtendLowI16x8S, ssaop.OpWasmI64x2ExtendLowI32x4S, ssaop.OpWasmI16x8ExtendLowI8x16U,
+		ssaop.OpWasmI32x4ExtendLowI16x8U, ssaop.OpWasmI64x2ExtendLowI32x4U, ssaop.OpWasmF32x4Floor,
+		ssaop.OpWasmF64x2Floor, ssaop.OpWasmI8x16Neg, ssaop.OpWasmI16x8Neg,
+		ssaop.OpWasmI32x4Neg, ssaop.OpWasmF32x4Neg, ssaop.OpWasmI64x2Neg,
+		ssaop.OpWasmF64x2Neg, ssaop.OpWasmV128Not, ssaop.OpWasmI8x16Popcnt,
+		ssaop.OpWasmF32x4Nearest, ssaop.OpWasmF64x2Nearest, ssaop.OpWasmF32x4Sqrt,
+		ssaop.OpWasmF64x2Sqrt, ssaop.OpWasmF32x4Trunc, ssaop.OpWasmF64x2Trunc:
 		getValue128(s, v.Args[0])
 		s.Prog(v.Op.Asm())
 	case ssaop.OpWasmI16x8Q15MulrSatS, ssaop.OpWasmI16x8RelaxedQ15MulrS, ssaop.OpWasmF32x4Pmax,
@@ -109,7 +110,9 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssaop.OpWasmV128Or, ssaop.OpWasmI8x16Sub, ssaop.OpWasmI16x8Sub,
 		ssaop.OpWasmI32x4Sub, ssaop.OpWasmF32x4Sub, ssaop.OpWasmI64x2Sub,
 		ssaop.OpWasmF64x2Sub, ssaop.OpWasmI8x16SubSatS, ssaop.OpWasmI8x16SubSatU,
-		ssaop.OpWasmI16x8SubSatS, ssaop.OpWasmI16x8SubSatU, ssaop.OpWasmV128Xor:
+		ssaop.OpWasmI16x8SubSatS, ssaop.OpWasmI16x8SubSatU, ssaop.OpWasmV128Xor,
+		ssaop.OpWasmI16x8NarrowI32x4S, ssaop.OpWasmI8x16NarrowI16x8S, ssaop.OpWasmI16x8NarrowI32x4U,
+		ssaop.OpWasmI8x16NarrowI16x8U:
 		getValue128(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		s.Prog(v.Op.Asm())

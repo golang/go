@@ -7,6 +7,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -218,6 +219,14 @@ func (t *Type) String() string {
 	return tconv(t, 0, fmtGo)
 }
 
+var (
+	linkStringmu sync.Mutex // protects linkStrings
+	linkStrings  = map[*Type]string{}
+
+	nameStringmu sync.Mutex // protects nameStrings
+	nameStrings  = map[*Type]string{}
+)
+
 // LinkString returns a string description of t, suitable for use in
 // link symbols.
 //
@@ -226,7 +235,19 @@ func (t *Type) String() string {
 // t2.LinkString()) is true. Thus it's safe to use as a map key to
 // implement a type-identity-keyed map.
 func (t *Type) LinkString() string {
-	return tconv(t, 0, fmtTypeID)
+	linkStringmu.Lock()
+	s, ok := linkStrings[t]
+	linkStringmu.Unlock()
+	if ok {
+		return s
+	}
+
+	s = t.limitString(fmtTypeID)
+
+	linkStringmu.Lock()
+	linkStrings[t] = s
+	linkStringmu.Unlock()
+	return s
 }
 
 // NameString generates a user-readable, mostly unique string
@@ -238,7 +259,38 @@ func (t *Type) LinkString() string {
 // identifiers. It also does not distinguish function-scope defined
 // types from package-scoped defined types or from each other.
 func (t *Type) NameString() string {
-	return tconv(t, 0, fmtTypeIDName)
+	nameStringmu.Lock()
+	s, ok := nameStrings[t]
+	nameStringmu.Unlock()
+	if ok {
+		return s
+	}
+
+	s = t.limitString(fmtTypeIDName)
+
+	nameStringmu.Lock()
+	nameStrings[t] = s
+	nameStringmu.Unlock()
+	return s
+}
+
+func (t *Type) limitString(mode fmtMode) string {
+	buf := fmtBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	defer fmtBufferPool.Put(buf)
+
+	tconv2(buf, t, 0, mode, nil)
+	maxLen := base.Debug.MaxShapeLen
+	if maxLen == 0 {
+		maxLen = 500
+	}
+	if t != nil && t.Sym() == nil && maxLen > 0 && buf.Len() > maxLen {
+		var hexBuf [hash.Size32 * 2]byte
+		h := hash.Sum32(buf.Bytes())
+		hex.Encode(hexBuf[:], h[:])
+		return InternString(hexBuf[:])
+	}
+	return InternString(buf.Bytes())
 }
 
 func tconv(t *Type, verb rune, mode fmtMode) string {

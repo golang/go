@@ -5,6 +5,7 @@
 package noder
 
 import (
+	"internal/buildcfg"
 	"reflect"
 	"runtime"
 	"testing"
@@ -71,6 +72,11 @@ func TestPragcgo(t *testing.T) {
 		{`go:cgo_dynamic_linker "/p ath/"`, []string{`cgo_dynamic_linker`, `/p ath/`}},
 		{`go:cgo_ldflag "arg"`, []string{`cgo_ldflag`, `arg`}},
 		{`go:cgo_ldflag "a rg"`, []string{`cgo_ldflag`, `a rg`}},
+		{`go:cgo_import_dynamic _cgo_panic _cgo_panic,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "_cgo_panic,--plugin=/tmp/pwn.so" in //go:cgo_import_dynamic`}},
+		{`go:cgo_export_dynamic main main,--plugin=/tmp/pwn.so`, []string{`<unknown position>: invalid symbol name "main,--plugin=/tmp/pwn.so" in //go:cgo_export_dynamic`}},
+		{`go:cgo_dynamic_linker "/lib64/ld.so,--plugin=/tmp/pwn.so"`, []string{`<unknown position>: invalid path "/lib64/ld.so,--plugin=/tmp/pwn.so" in //go:cgo_dynamic_linker`}},
+		{`go:cgo_ldflag "-L\"foo\""`, []string{`cgo_ldflag`, `-L"foo"`}},
+		{`go:cgo_ldflag "-L\q\"foo\""`, []string{`<unknown position>: usage: //go:cgo_ldflag "arg"`}},
 	}
 
 	if runtime.GOOS != "aix" {
@@ -89,9 +95,9 @@ func TestPragcgo(t *testing.T) {
 
 	}
 
-	var p noder
-	var nopos syntax.Pos
 	for _, tt := range tests {
+		var p noder
+		var nopos syntax.Pos
 
 		p.err = make(chan syntax.Error)
 		gotch := make(chan [][]string, 1)
@@ -118,5 +124,89 @@ func TestPragcgo(t *testing.T) {
 			}
 		}
 
+	}
+}
+
+func TestSafeArg(t *testing.T) {
+	good := []string{
+		"libc.so.6",
+		"libstdc++.so.6",
+		"libc++.1.dylib",
+		"libSystem.B.dylib",
+		"kernel32.dll",
+		"/usr/lib/libSystem.B.dylib",
+		"lib.a/obj.o",
+	}
+	if runtime.GOOS != "windows" {
+		good = append(good, "@rpath/libfoo.dylib")
+	}
+	for _, s := range good {
+		if !safeArg(s) {
+			t.Errorf("safeArg(%q) = false, want true", s)
+		}
+	}
+
+	bad := []string{
+		"",
+		"-lfoo",
+		"../../../../../../tmp/evil.dll",
+		"foo/../bar.dll",
+		`..\..\evil.dll`,
+		":evil.dll",
+		"foo bar.dll",
+		"foo,bar.so",
+	}
+	if runtime.GOOS == "windows" {
+		bad = append(bad, "@resp")
+	}
+	for _, s := range bad {
+		if safeArg(s) {
+			t.Errorf("safeArg(%q) = true, want false", s)
+		}
+	}
+}
+
+func TestPragmaCgoImportDynamic(t *testing.T) {
+	origGOOS := buildcfg.GOOS
+	defer func() { buildcfg.GOOS = origGOOS }()
+
+	cgoPos := syntax.MakePos(syntax.NewTrimmedFileBase("/tmp/_cgo_import.go", true), 1, 1)
+	userPos := syntax.MakePos(syntax.NewTrimmedFileBase("/tmp/main.go", true), 1, 1)
+	spoofedPos := syntax.MakePos(syntax.NewLineBase(userPos, "/tmp/_cgo_import.go", true, 1, 1), 2, 1)
+
+	libs := []string{
+		"/tmp/r/app/../lib/libfoo.so",
+		"$ORIGIN/libfoo.so",
+		"/Library/Application Support/Foo/libfoo.dylib",
+	}
+
+	check := func(pos syntax.Pos, lib string) error {
+		p := noder{err: make(chan syntax.Error, 4)}
+		p.pragma(pos, true, `go:cgo_import_dynamic _ _ "`+lib+`"`, nil)
+		close(p.err)
+		for err := range p.err {
+			return err
+		}
+		return nil
+	}
+
+	for _, goos := range []string{"linux", "darwin", "windows"} {
+		buildcfg.GOOS = goos
+		for _, lib := range libs {
+			if err := check(userPos, lib); err == nil {
+				t.Errorf("GOOS=%s user file: expected error for library %q, got nil", goos, lib)
+			}
+			if err := check(spoofedPos, lib); err == nil {
+				t.Errorf("GOOS=%s //line-spoofed file: expected error for library %q, got nil", goos, lib)
+			}
+			err := check(cgoPos, lib)
+			if goos == "windows" {
+				if err == nil {
+					t.Errorf("GOOS=%s _cgo_import.go: expected error for library %q, got nil", goos, lib)
+				}
+			} else if err != nil {
+				t.Errorf("GOOS=%s _cgo_import.go: unexpected error for library %q: %v", goos, lib, err)
+			}
+		}
 	}
 }

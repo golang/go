@@ -8,39 +8,64 @@ package spec
 
 import "math"
 
-// TODO: The notes on ConvertXToZ apply to anything that does width rounding.
-// Should we have a quick template for that? Or even just add it automatically?
+// Conversions that change the element size keep the total vector width the
+// same, so the result has a different number of elements than x. A narrowing
+// conversion stores its results in the low elements of the result and zeroes
+// the rest. A widening conversion converts only the low elements of x and
+// ignores the rest. For fixed-width vectors, this composes with GetLo to
+// produce a narrower vector, and with HiToLo to convert the high elements.
+// Because the receiver and result types imply the lane counts, the names of
+// these conversions don't include one (ExtendToInt32, not ExtendLo4ToInt32),
+// and the same name works for fixed-width and scalable vectors.
+//
+// TODO: The narrowing and widening doc paragraphs are duplicated across these
+// functions. It would be nice to share them.
 
 // ConvertFloatToFloat converts each element of x to {{.zE}}.
 //
-// {{ if lt .zN .xN }}
+//	z[i] = {{.zE}}(x[i])
+//
+// {{if lt .zN .xN}}
 // The results are rounded to the nearest representable value, or ±inf if they
 // cannot be represented.
-// {{ end }}
 //
-// {{if lt .xL .zL}}
-// The low {{.xL}} elements of the result are set. The rest are zero.
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+// {{else}}
+// Only the low {{lanes .z "z"}} elements of x are converted.
+// The remaining elements of x are ignored.
 // {{end}}
 //
 //specgen:name ConvertTo{{.zE | title}}
-//specgen:require z={zB}{zN}x{xL} zE!=xE
-func ConvertFloatToFloat[xE Floats, xW Width, zE Floats, zW Width](x Vec[xE, xW]) (z Vec[zE, zW]) {
-	return map1[xE, xW, zE, zW](x, func(x xE) zE { return zE(x) })
+//specgen:require zE!=xE
+func ConvertFloatToFloat[xE Floats, W Width, zE Floats](x Vec[xE, W]) (z Vec[zE, W]) {
+	return map1[xE, W, zE, W](x, func(x xE) zE { return zE(x) })
 }
 
 // ConvertFloatToInt converts each element of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
 // is architecture-dependent.
 //
-// {{if lt .xL .zL}}
-// The low {{.xL}} elements of the result are set. The rest are zero.
+// {{if lt .zN .xN}}
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+// {{else if gt .zN .xN}}
+// Only the low {{lanes .z "z"}} elements of x are converted.
+// The remaining elements of x are ignored.
 // {{end}}
 //
 //specgen:name ConvertTo{{.zE | title}}
-//specgen:require z={zB}{zN}x{xL}
-func ConvertFloatToInt[xE Floats, xW Width, zE Ints | Uints, zW Width](x Vec[xE, xW]) (z Vec[Variation[zE], zW]) {
+func ConvertFloatToInt[xE Floats, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[Variation[zE], W]) {
+	return map1[xE, W, Variation[zE], W](x, convertFloatToInt[xE, zE])
+}
+
+// convertFloatToInt converts x to zE, truncating toward zero. The result
+// varies by platform if x is NaN or outside the range of zE.
+func convertFloatToInt[xE Floats, zE Ints | Uints](x xE) Variation[zE] {
 	// Compute representable range as [minLimit, maxLimit).
 	minLimit := float64(minVal[zE]()) // 0 or -2^(N-1), always exact in float
 	// The max value is a little trickier. Converting maxVal[zE]() directly to
@@ -63,105 +88,160 @@ func ConvertFloatToInt[xE Floats, xW Width, zE Ints | Uints, zW Width](x Vec[xE,
 		amd64Indef = minVal[zE]()
 	}
 
-	return map1[xE, xW, Variation[zE], zW](x, func(x xE) Variation[zE] {
-		if math.IsNaN(float64(x)) {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef,
-				PlatformARM64: 0,
-				PlatformWASM:  0,
-			})
-		}
-		// Truncate toward zero before checking bounds, since fractional values
-		// like 127.9 (for int8) or -0.5 (for uint8) truncate into range.
-		// math.Trunc also preserves ±Inf.
-		tx := math.Trunc(float64(x))
-		// Check that x is in the representable range. Since tx is an integer
-		// (or ±Inf), tx <= maxVal[zE]() is equivalent to tx < maxVal[zE]() + 1.
-		if tx < minLimit {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef, // Matches minVal if zE is signed.
-				PlatformARM64: minVal[zE](),
-				PlatformWASM:  minVal[zE](),
-			})
-		}
-		if tx >= maxLimit {
-			return perPlatform(map[Platform]zE{
-				PlatformAMD64: amd64Indef, // Matches maxVal is zE is unsigned.
-				PlatformARM64: maxVal[zE](),
-				PlatformWASM:  maxVal[zE](),
-			})
-		}
-		return exact(zE(tx))
-	})
+	if math.IsNaN(float64(x)) {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef,
+			PlatformARM64: 0,
+			PlatformWASM:  0,
+		})
+	}
+	// Truncate toward zero before checking bounds, since fractional values
+	// like 127.9 (for int8) or -0.5 (for uint8) truncate into range.
+	// math.Trunc also preserves ±Inf.
+	tx := math.Trunc(float64(x))
+	// Check that x is in the representable range. Since tx is an integer
+	// (or ±Inf), tx <= maxVal[zE]() is equivalent to tx < maxVal[zE]() + 1.
+	if tx < minLimit {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef, // Matches minVal if zE is signed.
+			PlatformARM64: minVal[zE](),
+			PlatformWASM:  minVal[zE](),
+		})
+	}
+	if tx >= maxLimit {
+		return perPlatform(map[Platform]zE{
+			PlatformAMD64: amd64Indef, // Matches maxVal if zE is unsigned.
+			PlatformARM64: maxVal[zE](),
+			PlatformWASM:  maxVal[zE](),
+		})
+	}
+	return exact(zE(tx))
 }
 
 // ConvertIntToFloat converts each element of x to {{.zE}}.
 //
-// {{if lt .xL .zL}}
-// The low {{.xL}} elements of the result are set. The rest are zero.
+//	z[i] = {{.zE}}(x[i])
+//
+// {{if lt .zN .xN}}
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+// {{else if gt .zN .xN}}
+// Only the low {{lanes .z "z"}} elements of x are converted.
+// The remaining elements of x are ignored.
 // {{end}}
 //
 //specgen:name ConvertTo{{.zE | title}}
-//specgen:require z={zB}{zN}x{xL}
-func ConvertIntToFloat[xE Ints | Uints, xW Width, zE Floats, zW Width](x Vec[xE, xW]) (z Vec[zE, zW]) {
-	return map1[xE, xW, zE, zW](x, func(x xE) zE { return zE(x) })
+func ConvertIntToFloat[xE Ints | Uints, W Width, zE Floats](x Vec[xE, W]) (z Vec[zE, W]) {
+	return map1[xE, W, zE, W](x, func(x xE) zE { return zE(x) })
 }
 
 // ConvertIntToUint converts each element of x to {{.zE}}.
 //
+//	z[i] = {{.zE}}(x[i])
+//
 // This wraps unrepresentable values.
 //
-// {{if lt .xL .zL}}
-// The low {{.xL}} elements of the result are set. The rest are zero.
-// {{end}}
-//
 //specgen:name ConvertTo{{.zE | title}}
-//specgen:require z={zB}{zN}x{xL} zB!=xB zN=xN
-func ConvertIntToUint[xE Ints | Uints, xW Width, zE Ints | Uints, zW Width](x Vec[xE, xW]) (z Vec[zE, zW]) {
+//specgen:require zB!=xB zN=xN
+func ConvertIntToUint[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
 	// This implements int->uint and uint->int. Within-kind conversions use
-	// different names.
+	// different names: see ExtendToZ, TruncToZ, and SaturateToZ.
 	//
-	// Currently we also limit this to keeping the same bit-width (which is
-	// always a no-op conversion). We could lift that restriction, but that
-	// raises complex questions about sign-extension versus zero-extension that
-	// are better resolved by doing a two-step conversion. Saturating versions
-	// may make more sense.
-	return map1[xE, xW, zE, zW](x, func(x xE) zE { return zE(x) })
+	// We limit this to keeping the same bit-width (which is always a no-op
+	// conversion). Changing both the kind and the size raises questions about
+	// sign-extension versus zero-extension that are better resolved by doing a
+	// two-step conversion.
+	return map1[xE, W, zE, W](x, func(x xE) zE { return zE(x) })
 }
 
-// TODO: ExtendLo* and ConvertLo* don't work for scalable conversions because we
-// put a literal zL in the name. We could instead just call them XLoToZ and drop
-// the number since it's fully implied by the receiver type and the target type.
-// Note that it's not necessarily the low *half*; for example,
-// Uint8x16.ExtendLo2ToUint64 is the low eighth, but that's implied by going
-// from uint8 to uint64 without changing the width.
+// ExtendToZ {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends each element of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
+//
+// Only the low {{lanes .z "z"}} elements of x are converted.
+// The remaining elements of x are ignored.
+//
+//specgen:name ExtendTo{{.zE | title}}
+//specgen:require zB=xB zN>xN
+func ExtendToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
+	return map1[xE, W, zE, W](x, func(x xE) zE { return zE(x) })
+}
 
-// ExtendLoLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends
-// the lowest {{.zL}} vector elements to {{.zE}}.
+// TruncToZ converts each element of x to {{.zE}} by discarding its high
+// bits.
+//
+//	z[i] = {{.zE}}(x[i])
+//
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+//
+//specgen:name TruncTo{{.zE | title}}
+//specgen:require zB=xB zN<xN
+func TruncToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
+	return map1[xE, W, zE, W](x, func(x xE) zE { return zE(x) })
+}
+
+// SaturateToZ converts each element of x to {{.zE}}, saturating values
+// that are outside the range of {{.zE}}.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+//
+//specgen:name SaturateTo{{.zE | title}}
+//specgen:require zB=xB zN<xN
+func SaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
+	return map1[xE, W, zE, W](x, saturate[xE, zE])
+}
+
+// SaturateIntToUint converts each element of x to {{.zE}}, saturating values
+// that are outside the range of {{.zE}}. Negative values become 0.
+//
+//	z[i] = sat(x[i])
+//
+// The results are stored in the low {{lanes .x "x"}} elements of z.
+// The remaining elements of z are zero.
+//
+//specgen:name SaturateTo{{.zE | title}}
+//specgen:require zN<xN
+func SaturateIntToUint[xE Ints, W Width, zE Uints](x Vec[xE, W]) (z Vec[zE, W]) {
+	// The name and meaning are the same as SaturateToZ: saturate to the
+	// range of the result type. This is split out only because the
+	// constraint language can't express "zB=xB or (xB=int and zB=uint)".
+	return map1[xE, W, zE, W](x, saturate[xE, zE])
+}
+
+// ExtendLo* and ConvertLo* on 128-bit vectors are superseded by ExtendTo* and
+// ConvertTo*, which have the same meaning there, work for scalable vectors, and
+// don't put a lane count in the name. The APIs remain as deprecated wrappers,
+// and ExtendLoLToZ and ConvertLoLToZ describe exactly those. Delete them when
+// the wrappers are deleted.
+//
+// ExtendLoLToZWiden describes the ExtendLo* conversions from a 128-bit vector
+// to a wider vector, which amd64 provides because each is a single instruction.
+// They have no same-width equivalent: x.ExtendTo*() would need the input in a
+// wider vector.
+
+// ExtendLoLToZ {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
+//
+//	z[i] = {{.zE}}(x[i])
 //
 //specgen:name ExtendLo{{.zL}}To{{.zE | title}}
 //specgen:require zB=xB zN>xN
-func ExtendLoLToZ[E Ints | Uints, W FixedWidth, zE Ints | Uints](x Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	for i := range z {
-		z[i] = zE(x[i])
-	}
-	return z
+//specgen:experiment
+func ExtendLoLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE, Width128]) {
+	return map1[E, Width128, zE, Width128](x, func(x E) zE { return zE(x) })
 }
 
-// ExtendHiLToZ {{if eq .xB "int"}}sign-{{else}}zero-{{end}}extends the high-indexed {{.zL}} elements of x to {{.zE}}.
+// ExtendLoLToZWiden {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
 //
-//	z[i] = {{.zE}}(x[{{.zL}}+i])
+//	z[i] = {{.zE}}(x[i])
 //
-//specgen:name ExtendHi{{.zL}}To{{.zE | title}}
-//specgen:require zB=xB zN=xN*2
-func ExtendHiLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE, Width128]) {
-	z = makeVec[zE, Width128]()
-	half := z.len()
-	for i := range z {
-		z[i] = zE(x[half+i])
-	}
-	return z
+//specgen:name ExtendLo{{.zL}}To{{.zE | title}}
+//specgen:require zB=xB zL<xL zW>xW
+func ExtendLoLToZWiden[E Ints | Uints, zE Ints | Uints, zW FixedWidth](x Vec[E, Width128]) (z Vec[zE, zW]) {
+	return map1[E, Width128, zE, zW](x, func(x E) zE { return zE(x) })
 }
 
 // ConvertLoLToZ converts the low-indexed {{.zL}} elements of x to {{.zE}}.
@@ -169,11 +249,8 @@ func ExtendHiLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE
 //	z[i] = {{.zE}}(x[i])
 //
 //specgen:name ConvertLo{{.zL}}To{{.zE | title}}
-//specgen:require zL<xL
-func ConvertLoLToZ[E Nums, W FixedWidth, zE Floats](x Vec[E, W]) (z Vec[zE, W]) {
-	z = makeVec[zE, W]()
-	for i := range z {
-		z[i] = zE(x[i])
-	}
-	return z
+//specgen:require zN=xN*2
+//specgen:experiment
+func ConvertLoLToZ[E Floats, zE Floats](x Vec[E, Width128]) (z Vec[zE, Width128]) {
+	return map1[E, Width128, zE, Width128](x, func(x E) zE { return zE(x) })
 }

@@ -532,7 +532,13 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 	var allData []tplRuleData
 	var optData []tplRuleData    // for mask peephole optimizations, and other misc
 	var memOptData []tplRuleData // for memory peephole optimizations
-	memOpSeen := make(map[string]bool)
+	// memOpKey identifies a memory-operand rule: a machine op and the width
+	// of the load it folds.
+	type memOpKey struct {
+		asm  string
+		bits int
+	}
+	memOpSeen := make(map[memOpKey]bool)
 	// Deduplicate rules shared by operations. Asm and peephole rules are
 	// keyed by machine op, lower rules by generic op.
 	asmRulesDone := make(map[string]bool)
@@ -802,12 +808,20 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					break
 				}
 			}
-			if _, ok := memOpSeen[data.Asm]; ok {
+			// The rule matches a load of the last vreg's Go width, so
+			// operations that share a machine op but differ in that width
+			// (e.g., a widening conversion reads only the low part of its
+			// input, whatever its Go width) each need their own rule. For
+			// example, VPMOVSXBD256 is shared by Int8x16.ExtendLo8ToInt32,
+			// whose input is a VMOVDQUload128, and Int8x32.ExtendToInt32,
+			// whose input is a VMOVDQUload256.
+			lastVreg := gOp.In[vregInCnt-1]
+			memKey := memOpKey{data.Asm, lastVreg.GoWidth().N()}
+			if memOpSeen[memKey] {
 				selected = false
 			}
 			if selected {
-				memOpSeen[data.Asm] = true
-				lastVreg := gOp.In[vregInCnt-1]
+				memOpSeen[memKey] = true
 				// sanity check
 				if lastVreg.Class != "vreg" {
 					panic(fmt.Errorf("simdgen expects vbcst replaced operand to be a vreg, but %v found", lastVreg))
@@ -826,7 +840,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					immArg = "[c] "
 					immArgCombineOff = " [ssa.MakeValAndOff(int32(uint8(c)),off)] "
 				}
-				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", lastVreg.Bits.N())
+				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", lastVreg.GoWidth().N())
 				// Remove the last vreg from the arg and change it to "ptr".
 				memOpData.ArgsAddr = "{sym}" + immArgCombineOff + origArgs + "ptr"
 				if maskType == OneMask {

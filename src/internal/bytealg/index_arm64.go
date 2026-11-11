@@ -4,9 +4,9 @@
 
 package bytealg
 
-// Empirical data shows that using Index can get better
-// performance when len(s) <= 16.
-const MaxBruteForce = 16
+// bytes.Index and strings.Index pass haystacks no longer than this
+// straight to Index, rather than first skipping ahead with IndexByte.
+const MaxBruteForce = 64
 
 func init() {
 	// Optimize cases where the length of the substring is less than 32 bytes

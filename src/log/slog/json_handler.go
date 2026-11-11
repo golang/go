@@ -34,10 +34,10 @@ func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
 	}
 	return &JSONHandler{
 		&commonHandler{
-			json: true,
-			w:    w,
-			opts: *opts,
-			mu:   &sync.Mutex{},
+			appendJSONMarshal: appendJSONMarshal,
+			w:                 w,
+			opts:              *opts,
+			mu:                &sync.Mutex{},
 		},
 	}
 }
@@ -115,7 +115,7 @@ func appendJSONValue(s *handleState, v Value) error {
 		// json.Marshal is funny about floats; it doesn't
 		// always match strconv.AppendFloat. So just call it.
 		// That's expensive, but floats are rare.
-		if err := appendJSONMarshal(s.buf, v.Float64()); err != nil {
+		if err := s.h.appendJSONMarshal(s.buf, v.Float64()); err != nil {
 			return err
 		}
 	case KindBool:
@@ -131,7 +131,7 @@ func appendJSONValue(s *handleState, v Value) error {
 		if err, ok := a.(error); ok && !jm {
 			s.appendString(err.Error())
 		} else {
-			return appendJSONMarshal(s.buf, a)
+			return s.h.appendJSONMarshal(s.buf, a)
 		}
 	default:
 		panic(fmt.Sprintf("bad kind: %s", v.Kind()))

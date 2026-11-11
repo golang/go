@@ -50,7 +50,7 @@ func RTypeSize(kind Kind, ptrSize int) int {
 		}
 		return sz
 	case Interface: // reflect.interfaceType
-		return cs + 5*ptrSize
+		return cs + 4*ptrSize
 	default:
 		// just Sizeof(rtype)
 		return cs

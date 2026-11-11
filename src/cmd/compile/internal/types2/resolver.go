@@ -544,27 +544,24 @@ func (check *Checker) unpackRecv(rtyp syntax.Expr, unpackParams bool) (ptr bool,
 	}
 
 	// unpack type parameters, if any
-	if ptyp, _ := base.(*syntax.IndexExpr); ptyp != nil {
-		base = ptyp.X
-		if unpackParams {
-			for _, arg := range syntax.UnpackListExpr(ptyp.Index) {
-				var par *syntax.Name
-				switch arg := arg.(type) {
-				case *syntax.Name:
-					par = arg
-				case *syntax.BadExpr:
-					// ignore - error already reported by parser
-				case nil:
-					check.error(ptyp, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
-				default:
-					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
-				}
-				if par == nil {
-					par = newIdent(arg.Pos(), "_")
-				}
-				tparams = append(tparams, par)
+	if pbase, params := unpackIndexExpr(base, unpackParams); pbase != nil {
+		base = pbase
+		for _, arg := range params {
+			var par *syntax.Name
+			switch arg := arg.(type) {
+			case *syntax.Name:
+				par = arg
+			case *syntax.BadExpr:
+				// ignore - error already reported by parser
+			case nil:
+				check.error(base, InvalidSyntaxTree, "parameterized receiver contains nil parameters")
+			default:
+				check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
 			}
-
+			if par == nil {
+				par = newIdent(arg.Pos(), "_")
+			}
+			tparams = append(tparams, par)
 		}
 	}
 

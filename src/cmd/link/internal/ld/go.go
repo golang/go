@@ -117,6 +117,12 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				lib = f[3]
 			}
 
+			if strings.Contains(local, ",") || strings.Contains(remote, ",") {
+				fmt.Fprintf(os.Stderr, "%s: %s: invalid symbol in cgo_import_dynamic directive: %q\n", os.Args[0], file, f)
+				nerrors++
+				return
+			}
+
 			if *FlagD {
 				fmt.Fprintf(os.Stderr, "%s: %s: cannot use dynamic imports with -d flag\n", os.Args[0], file)
 				nerrors++
@@ -141,6 +147,10 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				remote, q = before, after
 			}
 			s := l.LookupOrCreateSym(local, 0)
+			// export overrides import
+			if l.AttrCgoExportStatic(s) || l.AttrCgoExportDynamic(s) {
+				continue
+			}
 			st := l.SymType(s)
 			if st == 0 || st == sym.SXREF || st == sym.SBSS || st == sym.SNOPTRBSS || st == sym.SHOSTOBJ {
 				l.SetSymDynimplib(s, lib)
@@ -165,6 +175,11 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				break
 			}
 			local := f[1]
+			if strings.Contains(local, ",") {
+				fmt.Fprintf(os.Stderr, "%s: %s: invalid symbol in cgo_import_static directive: %q\n", os.Args[0], file, f)
+				nerrors++
+				return
+			}
 
 			s := l.LookupOrCreateSym(local, 0)
 			su := l.MakeSymbolUpdater(s)
@@ -181,6 +196,11 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 			remote := local
 			if len(f) > 2 {
 				remote = f[2]
+			}
+			if strings.Contains(local, ",") || strings.Contains(remote, ",") {
+				fmt.Fprintf(os.Stderr, "%s: %s: invalid symbol in %s directive: %q\n", os.Args[0], file, f[0], f)
+				nerrors++
+				return
 			}
 			// The compiler adds a fourth argument giving
 			// the definition ABI of function symbols.
@@ -208,9 +228,10 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 				}
 			}
 
-			// export overrides import, for openbsd/cgo.
-			// see issue 4878.
-			if l.SymDynimplib(s) != "" {
+			// If we saw a cgo_import_dynamic before this cgo_export, the
+			// export overrides the import (for example on openbsd/cgo, see
+			// issue 4878).
+			if l.SymDynimplib(s) != "" || l.SymType(s) == sym.SDYNIMPORT {
 				l.SetSymDynimplib(s, "")
 				l.SetSymDynimpvers(s, "")
 				l.SetSymExtname(s, "")
@@ -258,6 +279,11 @@ func setCgoAttr(ctxt *Link, file string, pkg string, directives [][]string, host
 		case "cgo_dynamic_linker":
 			if len(f) != 2 {
 				break
+			}
+			if strings.Contains(f[1], ",") {
+				fmt.Fprintf(os.Stderr, "%s: %s: invalid path in cgo_dynamic_linker directive: %q\n", os.Args[0], file, f[1])
+				nerrors++
+				return
 			}
 
 			if *flagInterpreter == "" {

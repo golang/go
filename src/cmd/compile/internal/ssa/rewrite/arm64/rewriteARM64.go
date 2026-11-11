@@ -1242,9 +1242,6 @@ func RewriteValue(v *ssa.Value) bool {
 		return rewriteValue_OpConstBool(v)
 	case ssaop.OpConstNil:
 		return rewriteValue_OpConstNil(v)
-	case ssaop.OpConvertLo2ToFloat64Float32x4:
-		v.Op = ssaop.OpARM64VFCVTL4S
-		return true
 	case ssaop.OpConvertToFloat32Float64x2:
 		v.Op = ssaop.OpARM64VFCVTN2D
 		return true
@@ -1253,6 +1250,9 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpConvertToFloat32Uint32x4:
 		v.Op = ssaop.OpARM64VUCVTF4S
+		return true
+	case ssaop.OpConvertToFloat64Float32x4:
+		v.Op = ssaop.OpARM64VFCVTL4S
 		return true
 	case ssaop.OpConvertToFloat64Int64x2:
 		v.Op = ssaop.OpARM64VSCVTF2D
@@ -1461,23 +1461,23 @@ func RewriteValue(v *ssa.Value) bool {
 	case ssaop.OpEqualUint8x16:
 		v.Op = ssaop.OpARM64VCMEQ16B
 		return true
-	case ssaop.OpExtendLo2ToInt64Int32x4:
-		v.Op = ssaop.OpARM64VSXTL4S
-		return true
-	case ssaop.OpExtendLo2ToUint64Uint32x4:
-		v.Op = ssaop.OpARM64VUXTL4S
-		return true
-	case ssaop.OpExtendLo4ToInt32Int16x8:
-		v.Op = ssaop.OpARM64VSXTL8H
-		return true
-	case ssaop.OpExtendLo4ToUint32Uint16x8:
-		v.Op = ssaop.OpARM64VUXTL8H
-		return true
-	case ssaop.OpExtendLo8ToInt16Int8x16:
+	case ssaop.OpExtendToInt16Int8x16:
 		v.Op = ssaop.OpARM64VSXTL16B
 		return true
-	case ssaop.OpExtendLo8ToUint16Uint8x16:
+	case ssaop.OpExtendToInt32Int16x8:
+		v.Op = ssaop.OpARM64VSXTL8H
+		return true
+	case ssaop.OpExtendToInt64Int32x4:
+		v.Op = ssaop.OpARM64VSXTL4S
+		return true
+	case ssaop.OpExtendToUint16Uint8x16:
 		v.Op = ssaop.OpARM64VUXTL16B
+		return true
+	case ssaop.OpExtendToUint32Uint16x8:
+		v.Op = ssaop.OpARM64VUXTL8H
+		return true
+	case ssaop.OpExtendToUint64Uint32x4:
+		v.Op = ssaop.OpARM64VUXTL4S
 		return true
 	case ssaop.OpFMA:
 		return rewriteValue_OpFMA(v)
@@ -2387,9 +2387,25 @@ func RewriteValue(v *ssa.Value) bool {
 		return true
 	case ssaop.OpOffPtr:
 		return rewriteValue_OpOffPtr(v)
+	case ssaop.OpOnesCountInt16s:
+		return rewriteValue_OpOnesCountInt16s(v)
+	case ssaop.OpOnesCountInt32s:
+		return rewriteValue_OpOnesCountInt32s(v)
+	case ssaop.OpOnesCountInt64s:
+		return rewriteValue_OpOnesCountInt64s(v)
+	case ssaop.OpOnesCountInt8s:
+		return rewriteValue_OpOnesCountInt8s(v)
 	case ssaop.OpOnesCountInt8x16:
 		v.Op = ssaop.OpARM64VCNT16B
 		return true
+	case ssaop.OpOnesCountUint16s:
+		return rewriteValue_OpOnesCountUint16s(v)
+	case ssaop.OpOnesCountUint32s:
+		return rewriteValue_OpOnesCountUint32s(v)
+	case ssaop.OpOnesCountUint64s:
+		return rewriteValue_OpOnesCountUint64s(v)
+	case ssaop.OpOnesCountUint8s:
+		return rewriteValue_OpOnesCountUint8s(v)
 	case ssaop.OpOnesCountUint8x16:
 		v.Op = ssaop.OpARM64VCNT16B
 		return true
@@ -21643,6 +21659,37 @@ func rewriteValue_OpARM64ZSELB(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
+	// match: (ZSELB (ZCNTB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32])))) z mask)
+	// result: (ZCNTMergingB z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZCNTB {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTB {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 32 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZCNTMergingB)
+		v.AddArg3(z, x, mask)
+		return true
+	}
 	// match: (ZSELB (ZEORD x y) x mask)
 	// result: (ZEORMergingB x y mask)
 	for {
@@ -22924,6 +22971,37 @@ func rewriteValue_OpARM64ZSELD(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZBICMergingD)
 		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (ZSELD (ZCNTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4])))) z mask)
+	// result: (ZCNTMergingD z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZCNTD {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTD {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 4 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZCNTMergingD)
+		v.AddArg3(z, x, mask)
 		return true
 	}
 	// match: (ZSELD (ZEORD x y) x mask)
@@ -24760,6 +24838,37 @@ func rewriteValue_OpARM64ZSELH(v *ssa.Value) bool {
 		v.AddArg3(x, y, mask)
 		return true
 	}
+	// match: (ZSELH (ZCNTH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16])))) z mask)
+	// result: (ZCNTMergingH z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZCNTH {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTH {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 16 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZCNTMergingH)
+		v.AddArg3(z, x, mask)
+		return true
+	}
 	// match: (ZSELH (ZEORD x y) x mask)
 	// result: (ZEORMergingH x y mask)
 	for {
@@ -26041,6 +26150,37 @@ func rewriteValue_OpARM64ZSELS(v *ssa.Value) bool {
 		mask := v_2
 		v.Reset(ssaop.OpARM64ZBICMergingS)
 		v.AddArg3(x, y, mask)
+		return true
+	}
+	// match: (ZSELS (ZCNTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8])))) z mask)
+	// result: (ZCNTMergingS z x mask)
+	for {
+		if v_0.Op != ssaop.OpARM64ZCNTS {
+			break
+		}
+		_ = v_0.Args[1]
+		x := v_0.Args[0]
+		v_0_1 := v_0.Args[1]
+		if v_0_1.Op != ssaop.OpSelect0 || v_0_1.Type != types.TypeMask {
+			break
+		}
+		v_0_1_0 := v_0_1.Args[0]
+		if v_0_1_0.Op != ssaop.OpARM64PWHILELTS {
+			break
+		}
+		_ = v_0_1_0.Args[1]
+		v_0_1_0_0 := v_0_1_0.Args[0]
+		if v_0_1_0_0.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_0.AuxInt) != 0 {
+			break
+		}
+		v_0_1_0_1 := v_0_1_0.Args[1]
+		if v_0_1_0_1.Op != ssaop.OpARM64MOVDconst || ssa.AuxIntToInt64(v_0_1_0_1.AuxInt) != 8 {
+			break
+		}
+		z := v_1
+		mask := v_2
+		v.Reset(ssaop.OpARM64ZCNTMergingS)
+		v.AddArg3(z, x, mask)
 		return true
 	}
 	// match: (ZSELS (ZEORD x y) x mask)
@@ -33646,6 +33786,174 @@ func rewriteValue_OpOffPtr(v *ssa.Value) bool {
 		v.Reset(ssaop.OpARM64ADDconst)
 		v.AuxInt = ssa.Int64ToAuxInt(off)
 		v.AddArg(ptr)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountInt16s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountInt16s x)
+	// result: (ZCNTH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTH)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(16)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountInt32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountInt32s x)
+	// result: (ZCNTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountInt64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountInt64s x)
+	// result: (ZCNTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountInt8s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountInt8s x)
+	// result: (ZCNTB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTB)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(32)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountUint16s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountUint16s x)
+	// result: (ZCNTH x (Select0 <types.TypeMask> (PWHILELTH (MOVDconst [0]) (MOVDconst [16]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTH)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTH, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(16)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountUint32s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountUint32s x)
+	// result: (ZCNTS x (Select0 <types.TypeMask> (PWHILELTS (MOVDconst [0]) (MOVDconst [8]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTS)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTS, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(8)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountUint64s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountUint64s x)
+	// result: (ZCNTD x (Select0 <types.TypeMask> (PWHILELTD (MOVDconst [0]) (MOVDconst [4]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTD)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTD, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(4)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
+		return true
+	}
+}
+func rewriteValue_OpOnesCountUint8s(v *ssa.Value) bool {
+	v_0 := v.Args[0]
+	b := v.Block
+	typ := &b.Func.Config.Types
+	// match: (OnesCountUint8s x)
+	// result: (ZCNTB x (Select0 <types.TypeMask> (PWHILELTB (MOVDconst [0]) (MOVDconst [32]))))
+	for {
+		x := v_0
+		v.Reset(ssaop.OpARM64ZCNTB)
+		v0 := b.NewValue0(v.Pos, ssaop.OpSelect0, types.TypeMask)
+		v1 := b.NewValue0(v.Pos, ssaop.OpARM64PWHILELTB, types.NewTuple(typ.Mask, types.TypeFlags))
+		v2 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v2.AuxInt = ssa.Int64ToAuxInt(0)
+		v3 := b.NewValue0(v.Pos, ssaop.OpARM64MOVDconst, typ.UInt64)
+		v3.AuxInt = ssa.Int64ToAuxInt(32)
+		v1.AddArg2(v2, v3)
+		v0.AddArg(v1)
+		v.AddArg2(x, v0)
 		return true
 	}
 }

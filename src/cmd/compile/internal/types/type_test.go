@@ -106,3 +106,65 @@ func TestSSACompare(t *testing.T) {
 		}
 	}
 }
+
+func TestLinkString(t *testing.T) {
+	oldLocal := LocalPkg
+	oldPtr, oldReg, oldMax := PtrSize, RegSize, MaxWidth
+	t.Cleanup(func() {
+		LocalPkg = oldLocal
+		PtrSize, RegSize, MaxWidth = oldPtr, oldReg, oldMax
+	})
+	LocalPkg = NewPkg("main", "main")
+	PtrSize = 8
+	RegSize = 8
+	MaxWidth = 1 << 50
+
+	lib := NewPkg("example.com/some/very/long/package/path/lib", "lib")
+	namedT := NewNamed(&testTypeName{sym: lib.Lookup("ExportedFieldType")})
+	namedT.SetUnderlying(NewStruct(nil))
+
+	makeFields := func() []*Field {
+		var fields []*Field
+		for i := range 15 {
+			f := NewField(src.NoXPos, lib.Lookup(fmt.Sprintf("Field%d", i)), namedT)
+			f.Note = fmt.Sprintf(`protobuf:"bytes,%d,opt,name=field_%d,proto3"`, i, i)
+			fields = append(fields, f)
+		}
+		return fields
+	}
+
+	s1 := NewStruct(makeFields())
+	s2 := NewStruct(makeFields())
+
+	for _, tc := range []struct {
+		name string
+		fn   func(*Type) string
+	}{
+		{"LinkString", (*Type).LinkString},
+		{"NameString", (*Type).NameString},
+	} {
+		str1 := tc.fn(s1)
+		str2 := tc.fn(s2)
+
+		if len(str1) != 64 {
+			t.Fatalf("len(s1.%s()) = %d, want 64 (got %q)", tc.name, len(str1), str1)
+		}
+		if str1 != str2 {
+			t.Fatalf("identical unnamed structs got different %ss: %q vs %q", tc.name, str1, str2)
+		}
+
+		if allocs := testing.AllocsPerRun(100, func() {
+			_ = tc.fn(s1)
+		}); allocs != 0 {
+			t.Fatalf("repeated %s() allocated %v times, want 0", tc.name, allocs)
+		}
+
+		// Named types with long names should not be hashed.
+		longName := strings.Repeat("LongTypeName", 50)
+		longNamed := NewNamed(&testTypeName{sym: lib.Lookup(longName)})
+		longNamed.SetUnderlying(NewStruct(nil))
+		if got := tc.fn(longNamed); !strings.HasSuffix(got, "."+longName) {
+			t.Fatalf("named type %s() = %q, want suffix .%s", tc.name, got, longName)
+		}
+	}
+}

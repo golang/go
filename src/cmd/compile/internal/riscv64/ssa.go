@@ -848,10 +848,37 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			v.Fatalf("ZeroLoop too small:%d, expect:%d", n, 3*chunk)
 		}
 
+		if buildcfg.GORISCV64 >= 23 {
+			zeroLoopV(s, ptr, n)
+			break
+		}
+
+		// On older profiles, use RVV when available and otherwise fall back
+		// to the scalar loop below.
+		flagZ := s.Prog(riscv.AMOVBU)
+		flagZ.From.Type = obj.TYPE_MEM
+		flagZ.From.Name = obj.NAME_EXTERN
+		flagZ.From.Sym = ir.Syms.RISCV64HasV
+		flagZ.To.Type = obj.TYPE_REG
+		flagZ.To.Reg = riscv.REG_X5
+
+		noVecZ := s.Prog(riscv.ABEQ)
+		noVecZ.From.Type = obj.TYPE_REG
+		noVecZ.From.Reg = riscv.REG_X5
+		noVecZ.Reg = riscv.REG_ZERO
+		noVecZ.To.Type = obj.TYPE_BRANCH
+
+		zeroLoopV(s, ptr, n)
+
+		skipZ := s.Prog(obj.AJMP)
+		skipZ.To.Type = obj.TYPE_BRANCH
+
 		tmp := v.RegTmp()
 
+		var scalarEntry *obj.Prog
 		if n >= 1<<31 {
 			p := s.Prog(riscv.AMOV)
+			scalarEntry = p
 			p.From.Type = obj.TYPE_CONST
 			p.From.Offset = n - n%chunk
 			p.To.Type = obj.TYPE_REG
@@ -868,6 +895,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		p.Reg = ptr
 		p.To.Type = obj.TYPE_REG
 		p.To.Reg = tmp
+		if scalarEntry == nil {
+			scalarEntry = p
+		}
+		noVecZ.To.SetTarget(scalarEntry)
 
 		for i := int64(0); i < 8; i++ {
 			zeroOp(s, mov, ptr, sz*i)
@@ -905,6 +936,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 			off += tsz
 			n -= tsz
 		}
+
+		zeroDoneV := s.Prog(obj.ANOP)
+		skipZ.To.SetTarget(zeroDoneV)
 
 	case ssaop.OpRISCV64LoweredMove:
 		dst := v.Args[0].Reg()
@@ -1227,6 +1261,88 @@ func zeroOp(s *ssagen.State, mov obj.As, reg int16, off int64) {
 	p.To.Reg = reg
 	p.To.Offset = off
 	return
+}
+
+func zeroLoopV(s *ssagen.State, ptr int16, n int64) {
+	if n == 0 {
+		return
+	}
+
+	const (
+		cntReg  = riscv.REG_X5
+		vlReg   = riscv.REG_X6
+		zeroVec = riscv.REG_V24
+	)
+
+	p := s.Prog(riscv.AMOV)
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = n
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = cntReg
+
+	vsetvli(s, cntReg, vlReg)
+
+	p = s.Prog(riscv.AVMVVI)
+	p.From.Type = obj.TYPE_CONST
+	p.From.Offset = 0
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = zeroVec
+
+	store := s.Prog(riscv.AVSE8V)
+	store.From.Type = obj.TYPE_REG
+	store.From.Reg = zeroVec
+	store.To.Type = obj.TYPE_MEM
+	store.To.Reg = ptr
+
+	p = s.Prog(riscv.AADD)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = vlReg
+	p.Reg = ptr
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = ptr
+
+	p = s.Prog(riscv.ASUB)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = vlReg
+	p.Reg = cntReg
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = cntReg
+
+	loop := s.Prog(riscv.ABGEU)
+	loop.From.Type = obj.TYPE_REG
+	loop.From.Reg = cntReg
+	loop.Reg = vlReg
+	loop.To.Type = obj.TYPE_BRANCH
+	loop.To.SetTarget(store)
+
+	tail := s.Prog(riscv.ABEQ)
+	tail.From.Type = obj.TYPE_REG
+	tail.From.Reg = cntReg
+	tail.Reg = riscv.REG_ZERO
+	tail.To.Type = obj.TYPE_BRANCH
+
+	vsetvli(s, cntReg, vlReg)
+	tailStore := s.Prog(riscv.AVSE8V)
+	tailStore.From.Type = obj.TYPE_REG
+	tailStore.From.Reg = zeroVec
+	tailStore.To.Type = obj.TYPE_MEM
+	tailStore.To.Reg = ptr
+
+	done := s.Prog(obj.ANOP)
+	tail.To.SetTarget(done)
+}
+
+func vsetvli(s *ssagen.State, avlReg, vlReg int16) *obj.Prog {
+	p := s.Prog(riscv.AVSETVLI)
+	p.From.Type = obj.TYPE_REG
+	p.From.Reg = avlReg
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_SPECIAL, Offset: int64(riscv.SPOP_E8)})
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_SPECIAL, Offset: int64(riscv.SPOP_M8)})
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_SPECIAL, Offset: int64(riscv.SPOP_TA)})
+	p.AddRestSource(obj.Addr{Type: obj.TYPE_SPECIAL, Offset: int64(riscv.SPOP_MA)})
+	p.To.Type = obj.TYPE_REG
+	p.To.Reg = vlReg
+	return p
 }
 
 func moveOp(s *ssagen.State, mov obj.As, dst int16, src int16, tmp int16, off int64) {

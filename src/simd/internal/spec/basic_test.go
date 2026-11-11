@@ -65,11 +65,12 @@ func TestAddSubSaturated(t *testing.T) {
 	}
 }
 
-func TestPreserveL(t *testing.T) {
-	// This operation changes T and N
+func TestNarrow(t *testing.T) {
+	// This operation halves the element size, so the results fill the low
+	// half of the result and the high half is zero.
 	x := vecOf[int64, Width256](1, 2, 3, 4)
-	want := vecOf[float32, Width128](1, 2, 3, 4)
-	z := ConvertIntToFloat[int64, Width256, float32, Width128](x)
+	want := vecOf[float32, Width256](1, 2, 3, 4, 0, 0, 0, 0)
+	z := ConvertIntToFloat[int64, Width256, float32](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
@@ -79,18 +80,18 @@ func TestPreserveNxL(t *testing.T) {
 	// This operation changes T
 	x := vecOf[int32, Width128](1, 2, 3, 4)
 	want := vecOf[float32, Width128](1, 2, 3, 4)
-	z := ConvertIntToFloat[int32, Width128, float32, Width128](x)
+	z := ConvertIntToFloat[int32, Width128, float32](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
 }
 
-func TestWidthRounding(t *testing.T) {
-	// The "natural" result of this is only 64 bits, so it gets rounded up to
-	// 128 bits.
-	x := vecOf[int64, Width128](1, 2)
-	want := vecOf[float32, Width128](1, 2, 0, 0)
-	z := ConvertIntToFloat[int64, Width128, float32, Width128](x)
+func TestWiden(t *testing.T) {
+	// This operation doubles the element size, so only the low half of x is
+	// converted.
+	x := vecOf[int32, Width128](1, 2, 3, 4)
+	want := vecOf[float64, Width128](1, 2)
+	z := ConvertIntToFloat[int32, Width128, float64](x)
 	if !slices.Equal(z, want) {
 		t.Fatalf("got %v, want %v", z, want)
 	}
@@ -246,13 +247,16 @@ func TestConvertFloatToInt(t *testing.T) {
 		math.Nextafter(0x1p31, 0), 0x1p31,
 		math.Nextafter(-0x1p31-1, 0), -0x1p31-1,
 	)
-	wantI32 := vecOf[Variation[int32], Width128](
+	// This narrows, so the results fill the low half of the vector.
+	var zI32 Variation[int32]
+	wantI32 := vecOf[Variation[int32], Width256](
 		exact[int32](math.MaxInt32),
 		convertOOB[int32](math.MinInt32, math.MaxInt32),
 		exact[int32](math.MinInt32),
 		convertOOB[int32](math.MinInt32, math.MinInt32),
+		zI32, zI32, zI32, zI32,
 	)
-	if got := ConvertFloatToInt[float64, Width256, int32, Width128](xI32); !reflect.DeepEqual(got, wantI32) {
+	if got := ConvertFloatToInt[float64, Width256, int32](xI32); !reflect.DeepEqual(got, wantI32) {
 		t.Fatalf("got %v, want %v", got, wantI32)
 	}
 
@@ -261,13 +265,15 @@ func TestConvertFloatToInt(t *testing.T) {
 		math.Nextafter(-1, 0), -1,
 		math.Nextafter(0x1p32, 0), 0x1p32,
 	)
-	wantU32 := vecOf[Variation[uint32], Width128](
+	var zU32 Variation[uint32]
+	wantU32 := vecOf[Variation[uint32], Width256](
 		exact[uint32](0),
 		convertOOB[uint32](math.MaxUint32, 0),
 		exact[uint32](math.MaxUint32),
 		convertOOB[uint32](math.MaxUint32, math.MaxUint32),
+		zU32, zU32, zU32, zU32,
 	)
-	if got := ConvertFloatToInt[float64, Width256, uint32, Width128](xU32); !reflect.DeepEqual(got, wantU32) {
+	if got := ConvertFloatToInt[float64, Width256, uint32](xU32); !reflect.DeepEqual(got, wantU32) {
 		t.Fatalf("got %v, want %v", got, wantU32)
 	}
 
@@ -282,7 +288,7 @@ func TestConvertFloatToInt(t *testing.T) {
 		exact[int32](math.MinInt32),
 		convertOOB[int32](math.MinInt32, math.MinInt32),
 	)
-	if got := ConvertFloatToInt[float32, Width128, int32, Width128](x32); !reflect.DeepEqual(got, want32) {
+	if got := ConvertFloatToInt[float32, Width128, int32](x32); !reflect.DeepEqual(got, want32) {
 		t.Fatalf("got %v, want %v", got, want32)
 	}
 }

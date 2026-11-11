@@ -1230,6 +1230,8 @@ type _panic struct {
 	deferBitsPtr *uint8
 	slotsPtr     unsafe.Pointer
 
+	recoverAtToken *recoverAtToken // identify this panic to gorecoverat
+
 	recovered   bool // whether this panic has been recovered
 	repanicked  bool // whether this panic repanicked
 	goexit      bool

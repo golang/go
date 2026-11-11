@@ -456,7 +456,7 @@ wherever its prerequisites and track allow.
 |---|---|---|---|---|---|
 | [x] | A | `width` | Resolve scalable width | — | — |
 | [ ] | A | `compiler-ops` | Compiler-only ops decision | — | — |
-| [ ] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
+| [x] | A | `convert-lo` | `ExtendLo*`/`ConvertLo*` shape and naming | — | `width` |
 | [ ] | A | `mask-bits` | Mask bitmap load/store shape and naming | — | `width` |
 | [x] | A | `impl-defined` | Implementation-defined behavior policy | — | — |
 | [x] | B | `specfill` | API walker + report mode | — | — |
@@ -499,7 +499,7 @@ maintain and nothing here to keep in sync.
 | Milestone | Reached after | What it means |
 |---|---|---|
 | **M1 — Enforced** | `fill-enforce` | Spec is authoritative for what it covers: a name or signature that drifts from it fails the build, in both packages, on all four targets. |
-| **M2 — Documented** | `comments-yaml`, `handwritten-fill`, `spec-all`, `template-docs` | Every operation's doc comment in both public packages derives from spec — the specstats report's "docs sourced from spec" reads 100%. |
+| **M2 — Documented** | `comments-yaml`, `handwritten-fill`, `spec-all`, `template-docs` | Every operation's doc comment in both public packages derives from spec — the specstats report's "spec-covered docs taken from spec" reads 100%, and `spec-all` has brought spec coverage of the API to 100% too (the docs figure counts only what spec covers). |
 | **M3 — Gated** | `conform-flip` | Conformance runs spec-first, so an architecture added later must match spec before it can land. |
 | **M4 — Complete** | `cat-delete` | `categories.yaml` is gone and spec is the only hand-written description of the API; see the section below. |
 
@@ -635,39 +635,41 @@ remaining fields, and `compiler-ops-impl` could be implemented from it without
 further design work.
 
 ### `convert-lo` — `ExtendLo*` / `ConvertLo*` shape and naming
-**Done:** [ ] · **Needs:** — · **Prefers:** `width` · **Blocks:** `spec-all` · **Risk:** `risk-spec-defects`
+**Done:** [x] · **Needs:** — · **Prefers:** `width` · **Blocks:** `spec-all` · **Risk:** `risk-spec-defects`
 
 Settle how the low-elements widening family is shaped and named, across both
 fixed-width and scalable vectors. An API design decision, not a mechanical fix.
 Three entangled problems:
 
-1. **Shape.** `ExtendLoLToZ` declares `x Vec[E,W]` and `z Vec[zE,W]` — the same
-   total width. The shipped API widens instead: `Int8x16.ExtendLo8ToInt64()`
-   takes 128 bits and returns 512. Spec therefore misses 8 real declarations and
-   invents width-preserving ones no platform has.
+1. **Shape.** `ExtendLoLToZ` declared `x Vec[E,W]` and `z Vec[zE,W]` — the same
+   total width. The shipped API widened instead: `Int8x16.ExtendLo8ToInt64()`
+   takes 128 bits and returns 512. Spec therefore missed 8 real declarations and
+   invented width-preserving ones no platform had.
 2. **Naming.** `//specgen:name ExtendLo{zL}To{zE}` embeds the *result lane
    count*, so the same conceptual operation gets a different name at each width.
-   The API has settled on 128-bit receivers only, which hides this.
-3. **Scalable.** The `converts.go` TODO already notes the literal `zL` cannot
-   work for scalable vectors, and suggests dropping the number entirely since it
-   is implied by the receiver and target types — e.g. `Uint8x16.ExtendLo2ToUint64`
-   is really the low *eighth*, not the low half, so the number is arguably
-   misleading even where it works.
+3. **Scalable.** The literal `zL` cannot work for scalable vectors, and is
+   arguably misleading even where it works — e.g. `Uint8x16.ExtendLo2ToUint64`
+   is really the low *eighth*, not the low half.
 
-Any renaming here is API-visible and should be decided before `spec-all`
-migrates the Converts family, which is where the bulk of `categories.yaml`'s
-Converts documentation lands.
+**Resolution.** Every conversion between element types of different sizes keeps
+the total vector width, on every target: narrowing conversions fill the low
+elements of the result and zero the rest, and widening conversions convert only
+the low elements of their input. The names carry no lane count, since the
+receiver and result types imply it: `ExtendTo*`, `TruncTo*`, `SaturateTo*`, and
+`ConvertTo*`, which work unchanged for scalable vectors. This is spec's
+`ExtendToZ`, `TruncToZ`, `SaturateToZ`, `SaturateIntToUint`, and the
+`ConvertTo*` functions in `internal/spec/converts.go`, which documents them.
 
-**Commits.** (1) Write up the options and their consequences for fixed-width and
-scalable vectors, including whether the lane count stays in the name. (2)
-Re-shape `ExtendLoLToZ`, and re-check `ConvertLoLToZ`, whose `zL<xL` constraint
-currently admits conversions no hardware offers. (3) If the API name changes,
-land the rename through the generators as its own CL, separate from the spec
-change.
-
-**Done when** `cmd/specls` produces exactly the `ExtendLo*` declarations the API
-has, plus whatever maximalist extras are deliberate, and the scalable naming
-question is answered in `internal/spec/doc.go`.
+On 128-bit vectors, `ExtendLo*` and `ConvertLo*` mean exactly the same as
+`ExtendTo*` and `ConvertTo*`, so they are deprecated wrappers with
+`//go:fix inline` (`archsimd/deprecated_*.go`), and `ExtendLoLToZ` and
+`ConvertLoLToZ` now describe exactly those. Delete them along with the wrappers.
+amd64's eight `ExtendLo*` conversions from a 128-bit vector to a wider one, such
+as `Int8x16.ExtendLo8ToInt32`, have no same-width equivalent, so they stay and
+are described by `ExtendLoLToZWiden`. Revisit them if a cheap 128-to-256-bit
+widening operation makes `x.ExtendTo*()` on a wider vector just as good.
+`cmd/specls -f 'ExtendLo|ConvertLo'` produces exactly the declarations the API
+has.
 
 ### `mask-bits` — Mask bitmap load/store shape and naming
 **Done:** [ ] · **Needs:** — · **Prefers:** `width` · **Blocks:** `spec-all` · **Risk:** `risk-spec-defects`

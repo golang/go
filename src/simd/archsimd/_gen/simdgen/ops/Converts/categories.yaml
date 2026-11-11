@@ -42,11 +42,6 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to float64.
-- go: "ConvertLo2ToFloat64"
-  commutative: false
-  regexpTag: "convert"
-  documentation: !string |-
-    // NAME converts low-indexed float32 element values to float64.
 
 # Int <-> Int conversions
 - go: "TruncToInt8"
@@ -59,6 +54,13 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to int8 with signed saturation.
+- go: "concatSaturateToInt8(Grouped)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts the element values of x and y to int8 with signed
+    // saturation and packs them into the low and high halves of the result
+    // (of each 128-bit group, for Grouped).
 - go: "ExtendToInt16(Concat)?"
   commutative: false
   regexpTag: "convert"
@@ -104,6 +106,13 @@
   regexpTag: "convert"
   documentation: !string |-
     // NAME converts element values to uint8 with unsigned saturation.
+- go: "concatSaturateToUint8(Grouped)?"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts the signed element values of x and y to uint8 with
+    // saturation and packs them into the low and high halves of the result
+    // (of each 128-bit group, for Grouped).
 - go: "ExtendToUint16(Concat)?"
   commutative: false
   regexpTag: "convert"
@@ -140,66 +149,22 @@
   documentation: !string |-
     // NAME zero-extends element values to uint64.
 # low-part only Int <-> Int conversions
-- go: ExtendLo8ToUint16
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 8 lowest vector element values to uint16.
-- go: ExtendLo8ToInt16
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 8 lowest vector element values to int16.
-- go: ExtendLo4ToUint32
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 4 lowest vector element values to uint32.
-- go: ExtendLo4ToInt32
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 4 lowest vector element values to int32.
-- go: ExtendLo2ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 2 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 2 lowest vector element values to int64.
-- go: ExtendLo2ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 2 lowest vector element values to uint64.
 - go: ExtendLo4ToUint64
   commutative: false
   documentation: !string |-
     // NAME zero-extends 4 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 2 lowest vector element values to int64.
 - go: ExtendLo4ToInt64
   commutative: false
   documentation: !string |-
     // NAME sign-extends 4 lowest vector element values to int64.
-- go: ExtendLo4ToUint32
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 4 lowest vector element values to uint32.
 - go: ExtendLo8ToUint32
   commutative: false
   documentation: !string |-
     // NAME zero-extends 8 lowest vector element values to uint32.
-- go: ExtendLo4ToInt32
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 4 lowest vector element values to int32.
 - go: ExtendLo8ToInt32
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int32.
-- go: ExtendLo2ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 2 lowest vector element values to uint64.
 - go: ExtendLo4ToUint64
   commutative: false
   documentation: !string |-
@@ -208,10 +173,6 @@
   commutative: false
   documentation: !string |-
     // NAME zero-extends 8 lowest vector element values to uint64.
-- go: ExtendLo2ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 2 lowest vector element values to int64.
 - go: ExtendLo4ToInt64
   commutative: false
   documentation: !string |-
@@ -220,3 +181,16 @@
   commutative: false
   documentation: !string |-
     // NAME sign-extends 8 lowest vector element values to int64.
+# Internal 2:1 narrowing conversions, used under a feature check.
+- go: "truncToUint(8|16|32)"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME truncates element values, storing the results in the low half of
+    // the result and zeroing the rest.
+- go: "saturateTo(Int|Uint)(8|16|32)"
+  commutative: false
+  regexpTag: "convert"
+  documentation: !string |-
+    // NAME converts element values with saturation, storing the results in
+    // the low half of the result and zeroing the rest.

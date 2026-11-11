@@ -938,7 +938,6 @@ func (pb *PB) Next() bool {
 // It creates multiple goroutines and distributes b.N iterations among them.
 // The number of goroutines defaults to GOMAXPROCS. To increase parallelism for
 // non-CPU-bound benchmarks, call [B.SetParallelism] before RunParallel.
-// RunParallel is usually used with the go test -cpu flag.
 //
 // The body function will be run in each goroutine. It should set up any
 // goroutine-local state and then iterate until pb.Next returns false.

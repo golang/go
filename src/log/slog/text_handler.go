@@ -32,7 +32,6 @@ func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
 	}
 	return &TextHandler{
 		&commonHandler{
-			json: false,
 			w:    w,
 			opts: *opts,
 			mu:   &sync.Mutex{},

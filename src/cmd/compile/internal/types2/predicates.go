@@ -151,6 +151,15 @@ func Comparable(T Type) bool {
 	return comparableType(T, true, nil) == nil
 }
 
+// StrictlyComparable reports whether values of type T are strictly comparable.
+//
+// A type is strictly comparable if it is comparable and contains no interface type,
+// looking recursively through struct fields and array elements. See
+// https://go.dev/ref/spec#Comparison_operators for the precise definition.
+func StrictlyComparable(T Type) bool {
+	return comparableType(T, false, nil) == nil
+}
+
 // If T is comparable, comparableType returns nil.
 // Otherwise it returns a type error explaining why T is not comparable.
 // If dynamic is set, non-type parameter interfaces are always comparable.

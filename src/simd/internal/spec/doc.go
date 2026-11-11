@@ -106,13 +106,17 @@
 //
 // ### Width rounding
 //
-// Some operations would naturally result in an impossible vector size. For
-// example, converting a Float64x2 vector to float32s would naturally result in
+// Some shape constraints would naturally describe an impossible vector size.
+// For example, the shape Float32x{xL} where x is Float64x2 would naturally be
 // Float32x2, which is only 64 bits and thus smaller than the smallest vector
-// size. For operations like this, we use "width rounding".
+// size. For constraints like this, we use "width rounding".
 //
 // Width rounding is applied specifically by the vector expression form BaseNxL.
 // If NxL would be < 128, the result rounds L up to 128/N.
+//
+// Width rounding was used for conversions between element types of different
+// sizes, but those now keep the vector width the same. No operation currently
+// relies on width rounding, so it may be possible to remove this feature.
 //
 // ## Name and doc templates
 //

@@ -136,13 +136,17 @@ func main() {
 	amd64Files := []string{"ops_amd64.go", "compare_gen_amd64.go", "types_amd64.go",
 		"other_gen_amd64.go", "extra_amd64.go", "maskmerge_gen_amd64.go",
 		"shuffles_amd64.go", "slice_gen_amd64.go", "slicepart_amd64.go",
-		"slicepart_128.go", "ops_emulated_amd64.go", "maskrange_amd64.go"}
+		"slicepart_128.go", "ops_emulated_amd64.go", "maskrange_amd64.go",
+		"deprecated_amd64.go", "converts_emulated_amd64.go",
+		"converts_gen_amd64.go"}
 	wasmFiles := []string{"ops_wasm.go", "types_wasm.go", "slicepart_wasm.go",
-		"slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go", "other_gen_wasm.go"}
+		"slicepart_128.go", "ops_emulated_wasm.go", "maskrange_128.go", "other_gen_wasm.go",
+		"converts_emulated_wasm.go"}
 	neonFiles := []string{"clmul_arm64.go", "compare_gen_arm64.go",
 		"maskmerge_gen_arm64.go", "ops_arm64.go", "slicepart_128.go",
 		"ops_internal_arm64.go", "other_gen_arm64.go", "slice_gen_arm64.go",
-		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go", "maskrange_128.go"}
+		"slicepart_arm64.go", "types_arm64.go", "ops_emulated_arm64.go", "maskrange_128.go",
+		"deprecated_arm64.go"}
 
 	emulatedFile := genFlags.InputPath("simd/simd_emulated.go")
 
@@ -346,9 +350,13 @@ func main() {
 							pv("Skipping Mask ToBits method (has varying return type) %s.%s\n", recvType, methodName)
 							continue
 						}
-						if lastChar := methodName[len(methodName)-1]; unicode.IsDigit(rune(lastChar)) && lastChar != eltType[len(eltType)-1] {
-							pv("Skipping size-changing method %s.%s\n", recvType, methodName)
-							continue
+						if r := funcDecl.Type.Results; r != nil && len(r.List) == 1 {
+							if id, ok := r.List[0].Type.(*ast.Ident); ok {
+								if rs, ok := sizeForType[id.Name]; ok && rs != sizeForType[recvType] {
+									pv("Skipping vector-size-changing method %s.%s\n", recvType, methodName)
+									continue
+								}
+							}
 						}
 					}
 

@@ -7,7 +7,6 @@
 package simd_test
 
 import (
-	"fmt"
 	"math/rand/v2"
 	"simd"
 	"testing"
@@ -77,7 +76,7 @@ func TestIP(t *testing.T) {
 		t.Errorf("Expected 40425, got %f", x)
 	}
 
-	fmt.Printf("ip: sum was computed in width %d, emulated = %v\n", sumWidth, emulated)
+	t.Logf("ip: sum was computed in width %d, emulated = %v", sumWidth, emulated)
 }
 
 func TestIPGoTo(t *testing.T) {
@@ -93,7 +92,7 @@ func TestIPGoTo(t *testing.T) {
 		t.Errorf("Expected 40425, got %f", x)
 	}
 
-	fmt.Printf("ipgoto: sum was computed in width %d, emulated = %v\n", sumWidth, emulated)
+	t.Logf("ipgoto: sum was computed in width %d, emulated = %v", sumWidth, emulated)
 }
 
 func first[T, U any](t T, u U) T {

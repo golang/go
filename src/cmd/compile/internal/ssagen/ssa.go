@@ -186,6 +186,7 @@ func InitConfig(config *ssa.Config) {
 	ir.Syms.Loong64HasLAM_BH = typecheck.LookupRuntimeVar("loong64HasLAM_BH")         // bool
 	ir.Syms.Loong64HasDBAR_HINTS = typecheck.LookupRuntimeVar("loong64HasDBAR_HINTS") // bool
 	ir.Syms.Loong64HasLSX = typecheck.LookupRuntimeVar("loong64HasLSX")               // bool
+	ir.Syms.RISCV64HasV = typecheck.LookupRuntimeVar("riscv64HasV")                   // bool
 	ir.Syms.RISCV64HasZbb = typecheck.LookupRuntimeVar("riscv64HasZbb")               // bool
 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
 	ir.Syms.Typedmemmove = typecheck.LookupRuntimeFunc("typedmemmove")
@@ -4971,7 +4972,11 @@ func (s *state) openDeferExit() {
 		var callArgs []*ssa.Value
 		var call *ssa.Value
 		if r.closure != nil {
-			v := s.load(r.closure.Type.Elem(), r.closure)
+			t := r.closure.Type.Elem()
+			v := s.load(t, r.closure)
+			// The bit was cleared above and panic processing only reads a slot
+			// whose bit is set, so the slot is dead from here.
+			s.store(t, r.closure, s.zeroVal(t))
 			s.maybeNilCheckClosure(v, callDefer)
 			codeptr := s.rawLoad(types.Types[types.TUINTPTR], v)
 			aux := ssa.ClosureAuxCall(s.f.ABIDefault.ABIAnalyzeTypes(nil, nil))

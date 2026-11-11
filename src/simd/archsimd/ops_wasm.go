@@ -412,31 +412,66 @@ func (x Float32x4) Ceil() (z Float32x4)
 // Asm: F64x2Ceil
 func (x Float64x2) Ceil() (z Float64x2)
 
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: F64x2ConvertLowI32x4S
-func (x Int32x4) ConvertLo2ToFloat64() (z Float64x2)
-
-// ConvertLo2ToFloat64 converts the low-indexed 2 elements of x to float64.
-//
-//	z[i] = float64(x[i])
-//
-// Asm: F64x2ConvertLowI32x4U
-func (x Uint32x4) ConvertLo2ToFloat64() (z Float64x2)
-
 // ConvertToFloat32 converts each element of x to float32.
+//
+//	z[i] = float32(x[i])
 //
 // Asm: F32x4ConvertI32x4S
 func (x Int32x4) ConvertToFloat32() (z Float32x4)
 
 // ConvertToFloat32 converts each element of x to float32.
 //
+//	z[i] = float32(x[i])
+//
 // Asm: F32x4ConvertI32x4U
 func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 
+// ConvertToFloat32 converts each element of x to float32.
+//
+//	z[i] = float32(x[i])
+//
+// The results are rounded to the nearest representable value, or ±inf if they
+// cannot be represented.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: F32x4DemoteF64x2Zero
+func (x Float64x2) ConvertToFloat32() (z Float32x4)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2ConvertLowI32x4S
+func (x Int32x4) ConvertToFloat64() (z Float64x2)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2ConvertLowI32x4U
+func (x Uint32x4) ConvertToFloat64() (z Float64x2)
+
+// ConvertToFloat64 converts each element of x to float64.
+//
+//	z[i] = float64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: F64x2PromoteLowF32x4
+func (x Float32x4) ConvertToFloat64() (z Float64x2)
+
 // ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -445,7 +480,23 @@ func (x Uint32x4) ConvertToFloat32() (z Float32x4)
 // Asm: I32x4TruncSatF32x4S
 func (x Float32x4) ConvertToInt32() (z Int32x4)
 
+// ConvertToInt32 converts each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: I32x4TruncSatF64x2SZero
+func (x Float64x2) ConvertToInt32() (z Int32x4)
+
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // When a conversion is inexact, this truncates the result (rounds toward zero).
 // If the converted result would be outside the representable range, the result
@@ -453,6 +504,20 @@ func (x Float32x4) ConvertToInt32() (z Int32x4)
 //
 // Asm: I32x4TruncSatF32x4U
 func (x Float32x4) ConvertToUint32() (z Uint32x4)
+
+// ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// When a conversion is inexact, this truncates the result (rounds toward zero).
+// If the converted result would be outside the representable range, the result
+// is architecture-dependent.
+//
+// The results are stored in the low 2 elements of z.
+// The remaining elements of z are zero.
+//
+// Asm: I32x4TruncSatF64x2UZero
+func (x Float64x2) ConvertToUint32() (z Uint32x4)
 
 // Div divides x by y elementwise.
 //
@@ -546,83 +611,65 @@ func (x Float64x2) Equal(y Float64x2) (z Mask64x2)
 // Asm: I64x2Eq
 func (x Mask64x2) Equal(y Mask64x2) (z Mask64x2)
 
-// ExtendHi2ToInt64 sign-extends the high-indexed 2 elements of x to int64.
+// ExtendToInt16 sign-extends each element of x to int16.
 //
-//	z[i] = int64(x[2+i])
+//	z[i] = int16(x[i])
 //
-// Asm: I64x2ExtendHighI32x4S
-func (x Int32x4) ExtendHi2ToInt64() (z Int64x2)
-
-// ExtendHi2ToUint64 zero-extends the high-indexed 2 elements of x to uint64.
-//
-//	z[i] = uint64(x[2+i])
-//
-// Asm: I64x2ExtendHighI32x4U
-func (x Uint32x4) ExtendHi2ToUint64() (z Uint64x2)
-
-// ExtendHi4ToInt32 sign-extends the high-indexed 4 elements of x to int32.
-//
-//	z[i] = int32(x[4+i])
-//
-// Asm: I32x4ExtendHighI16x8S
-func (x Int16x8) ExtendHi4ToInt32() (z Int32x4)
-
-// ExtendHi4ToUint32 zero-extends the high-indexed 4 elements of x to uint32.
-//
-//	z[i] = uint32(x[4+i])
-//
-// Asm: I32x4ExtendHighI16x8U
-func (x Uint16x8) ExtendHi4ToUint32() (z Uint32x4)
-
-// ExtendHi8ToInt16 sign-extends the high-indexed 8 elements of x to int16.
-//
-//	z[i] = int16(x[8+i])
-//
-// Asm: I16x8ExtendHighI8x16S
-func (x Int8x16) ExtendHi8ToInt16() (z Int16x8)
-
-// ExtendHi8ToUint16 zero-extends the high-indexed 8 elements of x to uint16.
-//
-//	z[i] = uint16(x[8+i])
-//
-// Asm: I16x8ExtendHighI8x16U
-func (x Uint8x16) ExtendHi8ToUint16() (z Uint16x8)
-
-// ExtendLo2ToInt64 sign-extends
-// the lowest 2 vector elements to int64.
-//
-// Asm: I64x2ExtendLowI32x4S
-func (x Int32x4) ExtendLo2ToInt64() (z Int64x2)
-
-// ExtendLo2ToUint64 zero-extends
-// the lowest 2 vector elements to uint64.
-//
-// Asm: I64x2ExtendLowI32x4U
-func (x Uint32x4) ExtendLo2ToUint64() (z Uint64x2)
-
-// ExtendLo4ToInt32 sign-extends
-// the lowest 4 vector elements to int32.
-//
-// Asm: I32x4ExtendLowI16x8S
-func (x Int16x8) ExtendLo4ToInt32() (z Int32x4)
-
-// ExtendLo4ToUint32 zero-extends
-// the lowest 4 vector elements to uint32.
-//
-// Asm: I32x4ExtendLowI16x8U
-func (x Uint16x8) ExtendLo4ToUint32() (z Uint32x4)
-
-// ExtendLo8ToInt16 sign-extends
-// the lowest 8 vector elements to int16.
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: I16x8ExtendLowI8x16S
-func (x Int8x16) ExtendLo8ToInt16() (z Int16x8)
+func (x Int8x16) ExtendToInt16() (z Int16x8)
 
-// ExtendLo8ToUint16 zero-extends
-// the lowest 8 vector elements to uint16.
+// ExtendToInt32 sign-extends each element of x to int32.
+//
+//	z[i] = int32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I32x4ExtendLowI16x8S
+func (x Int16x8) ExtendToInt32() (z Int32x4)
+
+// ExtendToInt64 sign-extends each element of x to int64.
+//
+//	z[i] = int64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I64x2ExtendLowI32x4S
+func (x Int32x4) ExtendToInt64() (z Int64x2)
+
+// ExtendToUint16 zero-extends each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
+//
+// Only the low 8 elements of x are converted.
+// The remaining elements of x are ignored.
 //
 // Asm: I16x8ExtendLowI8x16U
-func (x Uint8x16) ExtendLo8ToUint16() (z Uint16x8)
+func (x Uint8x16) ExtendToUint16() (z Uint16x8)
+
+// ExtendToUint32 zero-extends each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
+//
+// Only the low 4 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I32x4ExtendLowI16x8U
+func (x Uint16x8) ExtendToUint32() (z Uint32x4)
+
+// ExtendToUint64 zero-extends each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
+//
+// Only the low 2 elements of x are converted.
+// The remaining elements of x are ignored.
+//
+// Asm: I64x2ExtendLowI32x4U
+func (x Uint32x4) ExtendToUint64() (z Uint64x2)
 
 // Floor returns the greatest integer value less than or equal to each element
 // of x.
@@ -2155,6 +2202,30 @@ func (x Uint64x2) Xor(y Uint64x2) (z Uint64x2)
 // Asm: V128Xor
 func (x Mask64x2) Xor(y Mask64x2) (z Mask64x2)
 
+// concatSaturateToInt16 converts the elements of x and y to int16 with signed
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I16x8NarrowI32x4S
+func (x Int32x4) concatSaturateToInt16(y Int32x4) Int16x8
+
+// concatSaturateToInt8 converts the elements of x and y to int8 with signed
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I8x16NarrowI16x8S
+func (x Int16x8) concatSaturateToInt8(y Int16x8) Int8x16
+
+// concatSaturateToUint16 converts the signed elements of x and y to uint16 with
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I16x8NarrowI32x4U
+func (x Int32x4) concatSaturateToUint16(y Int32x4) Uint16x8
+
+// concatSaturateToUint8 converts the signed elements of x and y to uint8 with
+// saturation and packs them into the low and high halves of the result.
+//
+// Asm: I8x16NarrowI16x8U
+func (x Int16x8) concatSaturateToUint8(y Int16x8) Uint8x16
+
 // ToMask returns a mask indicating which elements of x are non-zero.
 //
 //	z[i] = x[i] != 0
@@ -2494,10 +2565,14 @@ func (x Uint8x16) BitsToInt8() (z Int8x16)
 
 // ConvertToInt8 converts each element of x to int8.
 //
+//	z[i] = int8(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint8x16) ConvertToInt8() (z Int8x16)
 
 // ConvertToUint8 converts each element of x to uint8.
+//
+//	z[i] = uint8(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int8x16) ConvertToUint8() (z Uint8x16)
@@ -2510,10 +2585,14 @@ func (x Uint16x8) BitsToInt16() (z Int16x8)
 
 // ConvertToInt16 converts each element of x to int16.
 //
+//	z[i] = int16(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint16x8) ConvertToInt16() (z Int16x8)
 
 // ConvertToUint16 converts each element of x to uint16.
+//
+//	z[i] = uint16(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int16x8) ConvertToUint16() (z Uint16x8)
@@ -2526,10 +2605,14 @@ func (x Uint32x4) BitsToInt32() (z Int32x4)
 
 // ConvertToInt32 converts each element of x to int32.
 //
+//	z[i] = int32(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint32x4) ConvertToInt32() (z Int32x4)
 
 // ConvertToUint32 converts each element of x to uint32.
+//
+//	z[i] = uint32(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int32x4) ConvertToUint32() (z Uint32x4)
@@ -2542,10 +2625,14 @@ func (x Uint64x2) BitsToInt64() (z Int64x2)
 
 // ConvertToInt64 converts each element of x to int64.
 //
+//	z[i] = int64(x[i])
+//
 // This wraps unrepresentable values.
 func (x Uint64x2) ConvertToInt64() (z Int64x2)
 
 // ConvertToUint64 converts each element of x to uint64.
+//
+//	z[i] = uint64(x[i])
 //
 // This wraps unrepresentable values.
 func (x Int64x2) ConvertToUint64() (z Uint64x2)

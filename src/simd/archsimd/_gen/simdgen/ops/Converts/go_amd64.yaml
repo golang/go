@@ -1,445 +1,686 @@
 !sum
-# Float <-> Int conversions
+# Conversions that change the element size keep the vector width the same.
+#
+# A narrowing conversion stores its results in the low elements of the result,
+# and the instruction zeroes the rest. When the results don't fill a whole
+# register, the instruction writes a narrower register than the result's Go
+# type, so the result takes its Go width from the input with goBits.
+#
+# A widening conversion reads only the low elements of its input. The
+# instruction reads a narrower register than the input's Go type, so the input
+# takes its Go width from the result with goBits.
+
+# Same-size float <-> int conversions
 # float32 -> int32
 - go: ConvertToInt32
   regexpTag: "convert"
-  asm: "VCVTTP[SD]2DQ"
+  asm: "VCVTTPS2DQ"
   in:
   - &fp
     go: $t
     base: float
   out:
-  - &i32
-    go: $u
+  - go: $u
     base: int
     elemBits: 32
 # float32 -> uint32
 - go: ConvertToUint32
   regexpTag: "convert"
-  asm: "VCVTTP[SD]2UDQ"
+  asm: "VCVTTPS2UDQ"
   in:
   - *fp
   out:
-  - &u32
-    go: $u
+  - go: $u
     base: uint
     elemBits: 32
-# float32|float64 -> int64
+# float64 -> int64
 - go: ConvertToInt64
   regexpTag: "convert"
   asm: "VCVTTPD2QQ"
   in:
   - *fp
   out:
-  - &i64
-    go: $u
-    base: int
-    elemBits: 64
-- go: ConvertToInt64
-  regexpTag: "convert"
-  asm: "VCVTTPS2QQ"
-  in:
-  - *fp
-  out:
   - go: $u
     base: int
     elemBits: 64
-    bits: 256|512
-# float32|float64 -> uint64
+# float64 -> uint64
 - go: ConvertToUint64
   regexpTag: "convert"
   asm: "VCVTTPD2UQQ"
   in:
   - *fp
   out:
-  - &u64
-    go: $u
-    base: uint
-    elemBits: 64
-- go: ConvertToUint64
-  regexpTag: "convert"
-  asm: "VCVTTPS2UQQ"
-  in:
-  - *fp
-  out:
   - go: $u
     base: uint
     elemBits: 64
-    bits: 256|512
-# int -> float32
+# int32 -> float32
 - go: ConvertToFloat32
   regexpTag: "convert"
-  asm: "VCVT[DQ]Q2PS"
-  in: &int
+  asm: "VCVTDQ2PS"
+  in:
   - go: $i
     base: int
   out:
   - *fp
-# int -> float64
+# int64 -> float64
 - go: ConvertToFloat64
   regexpTag: "convert"
   asm: "VCVTQQ2PD"
-  in: *int
+  in:
+  - go: $i
+    base: int
   out:
   - *fp
-- go: ConvertToFloat64
-  regexpTag: "convert"
-  asm: "VCVTDQ2PD"
-  in: *int
-  out:
-  - base: float
-    bits: 256|512
-# uint -> float32
+# uint32 -> float32
 - go: ConvertToFloat32
   regexpTag: "convert"
-  asm: "VCVTU[DQ]Q2PS"
-  in: &uint
+  asm: "VCVTUDQ2PS"
+  in:
   - go: $u
     base: uint
   out:
   - *fp
-# uint -> float64
+# uint64 -> float64
 - go: ConvertToFloat64
   regexpTag: "convert"
   asm: "VCVTUQQ2PD"
-  in: *uint
+  in:
+  - go: $u
+    base: uint
   out:
   - *fp
-- go: ConvertToFloat64
+
+# Narrowing float <-> int and float <-> float conversions
+# float64 -> int32
+- go: ConvertToInt32
   regexpTag: "convert"
-  asm: "VCVTUDQ2PD"
-  in: *uint
+  asm: "VCVTTPD2DQ"
+  in:
+  - base: float
+    elemBits: 64
+    bits: $b
+  out:
+  - base: int
+    elemBits: 32
+    goBits: $b
+# float64 -> uint32
+- go: ConvertToUint32
+  regexpTag: "convert"
+  asm: "VCVTTPD2UDQ"
+  in:
+  - base: float
+    elemBits: 64
+    bits: $b
+  out:
+  - base: uint
+    elemBits: 32
+    goBits: $b
+# int64 -> float32
+- go: ConvertToFloat32
+  regexpTag: "convert"
+  asm: "VCVTQQ2PS"
+  in:
+  - base: int
+    elemBits: 64
+    bits: $b
   out:
   - base: float
-    bits: 256|512
+    elemBits: 32
+    goBits: $b
+# uint64 -> float32
+- go: ConvertToFloat32
+  regexpTag: "convert"
+  asm: "VCVTUQQ2PS"
+  in:
+  - base: uint
+    elemBits: 64
+    bits: $b
+  out:
+  - base: float
+    elemBits: 32
+    goBits: $b
 # float64 -> float32
 - go: ConvertToFloat32
   regexpTag: "convert"
   asm: "VCVTPD2PS"
-  addDoc:
-    !string |-
-    // The result vector's elements are rounded to the nearest value.
-  in: &fp64
+  in:
   - base: float
     elemBits: 64
-  out: &fp32
+    bits: $b
+  out:
   - base: float
     elemBits: 32
+    goBits: $b
+
+# Widening float <-> int and float <-> float conversions
+# float32 -> int64
+- go: ConvertToInt64
+  regexpTag: "convert"
+  asm: "VCVTTPS2QQ"
+  in:
+  - base: float
+    elemBits: 32
+    goBits: $b
+  out:
+  - base: int
+    elemBits: 64
+    bits: $b
+# float32 -> uint64
+- go: ConvertToUint64
+  regexpTag: "convert"
+  asm: "VCVTTPS2UQQ"
+  in:
+  - base: float
+    elemBits: 32
+    goBits: $b
+  out:
+  - base: uint
+    elemBits: 64
+    bits: $b
+# int32 -> float64
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTDQ2PD"
+  in:
+  - base: int
+    elemBits: 32
+    goBits: $b
+  out:
+  - base: float
+    elemBits: 64
+    bits: $b
+# uint32 -> float64
+- go: ConvertToFloat64
+  regexpTag: "convert"
+  asm: "VCVTUDQ2PD"
+  in:
+  - base: uint
+    elemBits: 32
+    goBits: $b
+  out:
+  - base: float
+    elemBits: 64
+    bits: $b
 # float32 -> float64
 - go: ConvertToFloat64
   regexpTag: "convert"
   asm: "VCVTPS2PD"
-  in: *fp32
+  in:
+  - base: float
+    elemBits: 32
+    goBits: $b
   out:
   - base: float
     elemBits: 64
-    bits: 256|512
+    bits: $b
 
-# Widening integer conversions.
-# uint8 -> uint16
-- go: ExtendToUint16
-  regexpTag: "convert"
-  asm: "VPMOVZXBW"
-  in:
-  - &u8x16
-    base: uint
-    elemBits: 8
-    bits: 128
-  out:
-  - &u16x16
-    base: uint
-    elemBits: 16
-    bits: 256
-- go: ExtendToUint16
-  regexpTag: "convert"
-  asm: "VPMOVZXBW"
-  in:
-  - &u8x32
-    base: uint
-    elemBits: 8
-    bits: 256
-  out:
-  - &u16x32
-    base: uint
-    elemBits: 16
-    bits: 512
+# Widening integer conversions
 # int8 -> int16
 - go: ExtendToInt16
   regexpTag: "convert"
   asm: "VPMOVSXBW"
   in:
-  - &i8x16
-    base: int
+  - base: int
     elemBits: 8
-    bits: 128
+    goBits: $b
   out:
-  - &i16x16
-    base: int
+  - base: int
     elemBits: 16
-    bits: 256
-- go: ExtendToInt16
+    bits: $b
+# int8|int16 -> int32
+- go: ExtendToInt32
   regexpTag: "convert"
-  asm: "VPMOVSXBW"
+  asm: "VPMOVSX[BW]D"
   in:
-  - &i8x32
-    base: int
+  - base: int
+    goBits: $b
+  out:
+  - base: int
+    elemBits: 32
+    bits: $b
+# int8|int16|int32 -> int64
+- go: ExtendToInt64
+  regexpTag: "convert"
+  asm: "VPMOVSX[BWD]Q"
+  in:
+  - base: int
+    goBits: $b
+  out:
+  - base: int
+    elemBits: 64
+    bits: $b
+# uint8 -> uint16
+- go: ExtendToUint16
+  regexpTag: "convert"
+  asm: "VPMOVZXBW"
+  in:
+  - base: uint
     elemBits: 8
-    bits: 256
+    goBits: $b
   out:
-  - &i16x32
-    base: int
+  - base: uint
     elemBits: 16
-    bits: 512
-# uint16->uint32
+    bits: $b
+# uint8|uint16 -> uint32
 - go: ExtendToUint32
   regexpTag: "convert"
-  asm: "VPMOVZXWD"
+  asm: "VPMOVZX[BW]D"
   in:
-  - &u16x8
-    base: uint
-    elemBits: 16
-    bits: 128
+  - base: uint
+    goBits: $b
   out:
-  - &u32x8
-    base: uint
+  - base: uint
     elemBits: 32
-    bits: 256
-- go: ExtendToUint32
-  regexpTag: "convert"
-  asm: "VPMOVZXWD"
-  in:
-  - *u16x16
-  out:
-  - &u32x16
-    base: uint
-    elemBits: 32
-    bits: 512
-# int16->int32
-- go: ExtendToInt32
-  regexpTag: "convert"
-  asm: "VPMOVSXWD"
-  in:
-  - &i16x8
-    base: int
-    elemBits: 16
-    bits: 128
-  out:
-  - &i32x8
-    base: int
-    elemBits: 32
-    bits: 256
-- go: ExtendToInt32
-  regexpTag: "convert"
-  asm: "VPMOVSXWD"
-  in:
-  - *i16x16
-  out:
-  - &i32x16
-    base: int
-    elemBits: 32
-    bits: 512
-# uint32 -> uint64
+    bits: $b
+# uint8|uint16|uint32 -> uint64
 - go: ExtendToUint64
   regexpTag: "convert"
-  asm: "VPMOVZXDQ"
+  asm: "VPMOVZX[BWD]Q"
   in:
-  - &u32x4
-    base: uint
-    elemBits: 32
-    bits: 128
+  - base: uint
+    goBits: $b
   out:
-  - &u64x4
-    base: uint
+  - base: uint
     elemBits: 64
-    bits: 256
-- go: ExtendToUint64
-  regexpTag: "convert"
-  asm: "VPMOVZXDQ"
-  in:
-  - *u32x8
-  out:
-  - &u64x8
-    base: uint
-    elemBits: 64
-    bits: 512
-# int32 -> int64
-- go: ExtendToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXDQ"
-  in:
-  - &i32x4
-    base: int
-    elemBits: 32
-    bits: 128
-  out:
-  - &i64x4
-    base: int
-    elemBits: 64
-    bits: 256
-- go: ExtendToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXDQ"
-  in:
-  - *i32x8
-  out:
-  - &i64x8
-    base: int
-    elemBits: 64
-    bits: 512
-# uint16 -> uint64
-- go: ExtendToUint64
-  regexpTag: "convert"
-  asm: "VPMOVZXWQ"
-  in:
-  - *u16x8
-  out:
-  - *u64x8
-# int16 -> int64
-- go: ExtendToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXWQ"
-  in:
-  - *i16x8
-  out:
-  - *i64x8
-# uint8 -> uint32
-- go: ExtendToUint32
-  regexpTag: "convert"
-  asm: "VPMOVZXBD"
-  in:
-  - *u8x16
-  out:
-  - *u32x16
-# int8 -> int32
-- go: ExtendToInt32
-  regexpTag: "convert"
-  asm: "VPMOVSXBD"
-  in:
-  - *i8x16
-  out:
-  - *i32x16
-# Truncating conversions
+    bits: $b
+
+# Narrowing integer conversions
+#
+# The 2:1 forms are only for 512-bit vectors. The 128- and 256-bit 2:1 forms
+# are emulated in converts_emulated_amd64.go using AVX and AVX2 instructions,
+# so they're available everywhere their vector size is.
+
+# int32|int64 -> int8, truncating
 - go: TruncToInt8
   regexpTag: "convert"
-  asm: "VPMOV[WDQ]B"
+  asm: "VPMOV[DQ]B"
   in:
-    - base: int
+  - base: int
+    bits: $b
   out:
-    - base: int
-      bits: 128
-- go: TruncToUint8
-  regexpTag: "convert"
-  asm: "VPMOV[WDQ]B"
-  in:
-    - base: uint
-  out:
-    - base: uint
-      bits: 128
+  - base: int
+    goBits: $b
+# int16 -> int8, truncating, 512-bit only
 - go: TruncToInt8
   regexpTag: "convert"
-  asm: "VPMOV[WDQ]B"
+  asm: "VPMOVWB"
   in:
-    - base: int
+  - base: int
+    bits: 512
   out:
-    - base: int
-      bits: 256|512
-- go: TruncToUint8
-  regexpTag: "convert"
-  asm: "VPMOV[WDQ]B"
-  in:
-    - base: uint
-  out:
-    - base: uint
-      bits: 256|512
+  - base: int
+    goBits: 512
+# int64 -> int16, truncating
 - go: TruncToInt16
   regexpTag: "convert"
-  asm: "VPMOV[DQ]W"
+  asm: "VPMOVQW"
   in:
-    - base: int
+  - base: int
+    bits: $b
   out:
-    - base: int
-- go: TruncToUint16
+  - base: int
+    goBits: $b
+# int32 -> int16, truncating, 512-bit only
+- go: TruncToInt16
   regexpTag: "convert"
-  asm: "VPMOV[DQ]W"
+  asm: "VPMOVDW"
   in:
-    - base: uint
+  - base: int
+    bits: 512
   out:
-    - base: uint
+  - base: int
+    goBits: 512
+# int64 -> int32, truncating, 512-bit only
 - go: TruncToInt32
   regexpTag: "convert"
   asm: "VPMOVQD"
   in:
-    - base: int
+  - base: int
+    bits: 512
   out:
-    - base: int
+  - base: int
+    goBits: 512
+# uint32|uint64 -> uint8, truncating
+- go: TruncToUint8
+  regexpTag: "convert"
+  asm: "VPMOV[DQ]B"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    goBits: $b
+# uint16 -> uint8, truncating, 512-bit only
+- go: TruncToUint8
+  regexpTag: "convert"
+  asm: "VPMOVWB"
+  in:
+  - base: uint
+    bits: 512
+  out:
+  - base: uint
+    goBits: 512
+# uint64 -> uint16, truncating
+- go: TruncToUint16
+  regexpTag: "convert"
+  asm: "VPMOVQW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    goBits: $b
+# uint32 -> uint16, truncating, 512-bit only
+- go: TruncToUint16
+  regexpTag: "convert"
+  asm: "VPMOVDW"
+  in:
+  - base: uint
+    bits: 512
+  out:
+  - base: uint
+    goBits: 512
+# uint64 -> uint32, truncating, 512-bit only
 - go: TruncToUint32
   regexpTag: "convert"
   asm: "VPMOVQD"
   in:
-    - base: uint
+  - base: uint
+    bits: 512
   out:
-    - base: uint
-# Saturated conversions.
+  - base: uint
+    goBits: 512
+# int32|int64 -> int8, saturating
 - go: SaturateToInt8
   regexpTag: "convert"
-  asm: "VPMOVS[WDQ]B"
+  asm: "VPMOVS[DQ]B"
   in:
-    - base: int
+  - base: int
+    bits: $b
   out:
-    - base: int
-      bits: 128
-- go: SaturateToUint8
-  regexpTag: "convert"
-  asm: "VPMOVUS[WDQ]B"
-  in:
-    - base: uint
-  out:
-    - base: uint
-      bits: 128
+  - base: int
+    goBits: $b
+# int16 -> int8, saturating, 512-bit only
 - go: SaturateToInt8
   regexpTag: "convert"
-  asm: "VPMOVS[WDQ]B"
+  asm: "VPMOVSWB"
   in:
-    - base: int
+  - base: int
+    bits: 512
   out:
-    - base: int
-      bits: 256|512
-- go: SaturateToUint8
-  regexpTag: "convert"
-  asm: "VPMOVUS[WDQ]B"
-  in:
-    - base: uint
-  out:
-    - base: uint
-      bits: 256|512
+  - base: int
+    goBits: 512
+# int64 -> int16, saturating
 - go: SaturateToInt16
   regexpTag: "convert"
-  asm: "VPMOVS[DQ]W"
+  asm: "VPMOVSQW"
   in:
-    - base: int
+  - base: int
+    bits: $b
   out:
-    - base: int
-- go: SaturateToUint16
+  - base: int
+    goBits: $b
+# int32 -> int16, saturating, 512-bit only
+- go: SaturateToInt16
   regexpTag: "convert"
-  asm: "VPMOVUS[DQ]W"
+  asm: "VPMOVSDW"
   in:
-    - base: uint
+  - base: int
+    bits: 512
   out:
-    - base: uint
+  - base: int
+    goBits: 512
+# int64 -> int32, saturating, 512-bit only
 - go: SaturateToInt32
   regexpTag: "convert"
   asm: "VPMOVSQD"
   in:
-    - base: int
+  - base: int
+    bits: 512
   out:
-    - base: int
+  - base: int
+    goBits: 512
+# uint32|uint64 -> uint8, saturating
+- go: SaturateToUint8
+  regexpTag: "convert"
+  asm: "VPMOVUS[DQ]B"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    goBits: $b
+# uint16 -> uint8, saturating, 512-bit only
+- go: SaturateToUint8
+  regexpTag: "convert"
+  asm: "VPMOVUSWB"
+  in:
+  - base: uint
+    bits: 512
+  out:
+  - base: uint
+    goBits: 512
+# uint64 -> uint16, saturating
+- go: SaturateToUint16
+  regexpTag: "convert"
+  asm: "VPMOVUSQW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    goBits: $b
+# uint32 -> uint16, saturating, 512-bit only
+- go: SaturateToUint16
+  regexpTag: "convert"
+  asm: "VPMOVUSDW"
+  in:
+  - base: uint
+    bits: 512
+  out:
+  - base: uint
+    goBits: 512
+# uint64 -> uint32, saturating, 512-bit only
 - go: SaturateToUint32
   regexpTag: "convert"
   asm: "VPMOVUSQD"
   in:
-    - base: uint
+  - base: uint
+    bits: 512
   out:
-    - base: uint
+  - base: uint
+    goBits: 512
+
+# 2:1 narrowing conversions on 128- and 256-bit vectors, which
+# converts_emulated_amd64.go uses in place of its emulations when AVX-512 is
+# available. Constraining the result register to 64 or 128 bits excludes the
+# 512-bit forms, which are exported above.
+- go: truncToUint8
+  regexpTag: "convert"
+  asm: "VPMOVWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint16
+  regexpTag: "convert"
+  asm: "VPMOVDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint32
+  regexpTag: "convert"
+  asm: "VPMOVQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt8
+  regexpTag: "convert"
+  asm: "VPMOVSWB"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt16
+  regexpTag: "convert"
+  asm: "VPMOVSDW"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt32
+  regexpTag: "convert"
+  asm: "VPMOVSQD"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint8
+  regexpTag: "convert"
+  asm: "VPMOVUSWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint16
+  regexpTag: "convert"
+  asm: "VPMOVUSDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint32
+  regexpTag: "convert"
+  asm: "VPMOVUSQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+
+# 2:1 narrowing conversions on 128- and 256-bit vectors, which
+# converts_emulated_amd64.go uses in place of its emulations when AVX-512 is
+# available. Constraining the result register to 64 or 128 bits excludes the
+# 512-bit forms, which are exported above.
+- go: truncToUint8
+  regexpTag: "convert"
+  asm: "VPMOVWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint16
+  regexpTag: "convert"
+  asm: "VPMOVDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: truncToUint32
+  regexpTag: "convert"
+  asm: "VPMOVQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt8
+  regexpTag: "convert"
+  asm: "VPMOVSWB"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt16
+  regexpTag: "convert"
+  asm: "VPMOVSDW"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToInt32
+  regexpTag: "convert"
+  asm: "VPMOVSQD"
+  in:
+  - base: int
+    bits: $b
+  out:
+  - base: int
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint8
+  regexpTag: "convert"
+  asm: "VPMOVUSWB"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint16
+  regexpTag: "convert"
+  asm: "VPMOVUSDW"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+- go: saturateToUint32
+  regexpTag: "convert"
+  asm: "VPMOVUSQD"
+  in:
+  - base: uint
+    bits: $b
+  out:
+  - base: uint
+    bits: 64|128
+    goBits: $b
+
 # Truncating saturated packed
 - go: ConcatSaturateToInt16
   regexpTag: "convert"
@@ -489,162 +730,136 @@
     - base: uint
       bits: 256|512
 
-# low-part only conversions.
-# uint8->uint16
-- go: ExtendLo8ToUint16
+# For emulating 2:1 saturating conversions with AVX and AVX2.
+- go: concatSaturateToInt8
   regexpTag: "convert"
-  asm: "VPMOVZXBW"
+  asm: "VPACKSSWB"
   in:
-  - *u8x16
+    - base: int
+    - base: int
+  inVariant: []
   out:
-  - *u16x8
-# int8->int16
-- go: ExtendLo8ToInt16
+    - base: int
+      bits: 128
+- go: concatSaturateToInt8Grouped
   regexpTag: "convert"
-  asm: "VPMOVSXBW"
+  asm: "VPACKSSWB"
   in:
-  - *i8x16
+    - base: int
+    - base: int
+  inVariant: []
   out:
-  - *i16x8
-# uint16->uint32
-- go: ExtendLo4ToUint32
+    - base: int
+      bits: 256
+- go: concatSaturateToUint8
   regexpTag: "convert"
-  asm: "VPMOVZXWD"
+  asm: "VPACKUSWB"
   in:
-  - *u16x8
+    - base: int
+    - base: int
+  inVariant: []
   out:
-  - *u32x4
-# int16->int32
-- go: ExtendLo4ToInt32
+    - base: uint
+      bits: 128
+- go: concatSaturateToUint8Grouped
   regexpTag: "convert"
-  asm: "VPMOVSXWD"
+  asm: "VPACKUSWB"
   in:
-  - *i16x8
+    - base: int
+    - base: int
+  inVariant: []
   out:
-  - *i32x4
-# uint32 -> uint64
-- go: ExtendLo2ToUint64
-  regexpTag: "convert"
-  asm: "VPMOVZXDQ"
-  in:
-  - *u32x4
-  out:
-  - &u64x2
-    base: uint
-    elemBits: 64
-    bits: 128
-# int32 -> int64
-- go: ExtendLo2ToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXDQ"
-  in:
-  - *i32x4
-  out:
-  - &i64x2
-    base: int
-    elemBits: 64
-    bits: 128
-# uint16 -> uint64
-- go: ExtendLo2ToUint64
-  regexpTag: "convert"
-  asm: "VPMOVZXWQ"
-  in:
-  - *u16x8
-  out:
-  - *u64x2
+    - base: uint
+      bits: 256
+
+# Low-part conversions from a 128-bit vector to a wider vector. These have no
+# same-width ExtendTo equivalent. The 128-bit to 128-bit ExtendLo forms are
+# deprecated wrappers around ExtendTo in deprecated_amd64.go.
 - go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
   in:
-  - *u16x8
+  - base: uint
+    elemBits: 16
+    bits: 128
   out:
-  - *u64x4
-# int16 -> int64
-- go: ExtendLo2ToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXWQ"
-  in:
-  - *i16x8
-  out:
-  - *i64x2
+  - base: uint
+    elemBits: 64
+    bits: 256
 - go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
   in:
-  - *i16x8
+  - base: int
+    elemBits: 16
+    bits: 128
   out:
-  - *i64x4
-# uint8 -> uint32
-- go: ExtendLo4ToUint32
-  regexpTag: "convert"
-  asm: "VPMOVZXBD"
-  in:
-  - *u8x16
-  out:
-  - *u32x4
+  - base: int
+    elemBits: 64
+    bits: 256
 - go: ExtendLo8ToUint32
   regexpTag: "convert"
   asm: "VPMOVZXBD"
   in:
-  - *u8x16
+  - base: uint
+    elemBits: 8
+    bits: 128
   out:
-  - *u32x8
-# int8 -> int32
-- go: ExtendLo4ToInt32
-  regexpTag: "convert"
-  asm: "VPMOVSXBD"
-  in:
-  - *i8x16
-  out:
-  - *i32x4
+  - base: uint
+    elemBits: 32
+    bits: 256
 - go: ExtendLo8ToInt32
   regexpTag: "convert"
   asm: "VPMOVSXBD"
   in:
-  - *i8x16
+  - base: int
+    elemBits: 8
+    bits: 128
   out:
-  - *i32x8
-# uint8 -> uint64
-- go: ExtendLo2ToUint64
-  regexpTag: "convert"
-  asm: "VPMOVZXBQ"
-  in:
-  - *u8x16
-  out:
-  - *u64x2
+  - base: int
+    elemBits: 32
+    bits: 256
 - go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
   in:
-  - *u8x16
+  - base: uint
+    elemBits: 8
+    bits: 128
   out:
-  - *u64x4
+  - base: uint
+    elemBits: 64
+    bits: 256
 - go: ExtendLo8ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
   in:
-  - *u8x16
+  - base: uint
+    elemBits: 8
+    bits: 128
   out:
-  - *u64x8
-# int8 -> int64
-- go: ExtendLo2ToInt64
-  regexpTag: "convert"
-  asm: "VPMOVSXBQ"
-  in:
-  - *i8x16
-  out:
-  - *i64x2
+  - base: uint
+    elemBits: 64
+    bits: 512
 - go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
   in:
-  - *i8x16
+  - base: int
+    elemBits: 8
+    bits: 128
   out:
-  - *i64x4
+  - base: int
+    elemBits: 64
+    bits: 256
 - go: ExtendLo8ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
   in:
-  - *i8x16
+  - base: int
+    elemBits: 8
+    bits: 128
   out:
-  - *i64x8
+  - base: int
+    elemBits: 64
+    bits: 512

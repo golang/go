@@ -304,6 +304,25 @@ func sveAbsMaskedFoldsToMerging(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Ui
 	return x.Abs().Masked(m)
 }
 
+func sveOnesCountSynthesizesAllTrue(x archsimd.Int8s) archsimd.Int8s {
+	// arm64:`PWHILELT` `ZCNT.*P[0-9]+\.M`
+	return x.OnesCount()
+}
+
+func sveOnesCountIfElseFoldsToMerging(x, z archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// CNT is predicated-only, like ABS, and names its destination apart from
+	// its source, so the else operand is an operand of the instruction.
+	// arm64:`ZCNT.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`
+	return x.OnesCount().IfElse(m, z)
+}
+
+func sveOnesCountMaskedFoldsToMerging(x archsimd.Int8s, m archsimd.Mask8s) archsimd.Int8s {
+	// Masked folds through the same rule, with the zero vector as the else
+	// operand, as it does for ABS.
+	// arm64:`ZCNT.*P[0-9]+\.M` -`ZSEL` -`PWHILELT`
+	return x.OnesCount().Masked(m)
+}
+
 func sveCeilIfElseFoldsToMerging(x, z archsimd.Float32s, m archsimd.Mask32s) archsimd.Float32s {
 	// FRINTP is predicated-only, like ABS, and folds the same way.
 	// arm64:`ZFRINTP.*P[0-9]+\.M` -`ZSEL` -`PWHILELT` -`ZMOVPRFX`

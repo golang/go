@@ -27,5 +27,4 @@ func sum(x simd.Float32s) float32 {
 	default:
 		return boringSum(x)
 	}
-	panic("nope")
 }

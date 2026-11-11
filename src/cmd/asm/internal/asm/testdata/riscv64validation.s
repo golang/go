@@ -610,4 +610,25 @@ TEXT validation(SB),$0
 	VSM3CVI		$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
 	VSM3CVI		$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
 
+	//
+	// "Zfa" Extension for Additional Floating-Point Instructions
+	//
+	// Minimum and Maximum Instructions
+	FMAXMS	F1, F2, X5				// ERROR "expected float register in rd position"
+	FMAXMD	F1, F2, X5				// ERROR "expected float register in rd position"
+	FMINMS	F1, F2, X5				// ERROR "expected float register in rd position"
+	FMINMD	F1, F2, X5				// ERROR "expected float register in rd position"
+	// Round-to-Integer Instructions
+	FROUNDS	F1, X5					// ERROR "expected float register in rd position"
+	FROUNDD	X5, F1					// ERROR "expected float register in rs2 position"
+	FROUNDNXS	F1, X5				// ERROR "expected float register in rd position"
+	FROUNDNXD	F1, X5				// ERROR "expected float register in rd position"
+	// Modular Convert-to-Integer Instruction
+	FCVTMODWD	X5, X11				// ERROR "expected float register in rs2 position"
+	// Comparison Instructions
+	FLEQS	F1, X5, X11				// ERROR "expected float register in rs1 position"
+	FLTQS	F1, X5, X11				// ERROR "expected float register in rs1 position"
+	FLEQD	X5, F2, X11				// ERROR "expected float register in rs2 position"
+	FLTQD	X5, F2, X11				// ERROR "expected float register in rs2 position"
+
 	RET

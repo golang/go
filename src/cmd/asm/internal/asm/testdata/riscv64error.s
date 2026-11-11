@@ -481,4 +481,15 @@ TEXT errors(SB),$0
 	VSM4RVS		V2, V4, V3			// ERROR "too many operands for instruction"
 	VSM4RVV		V2, V4, V3			// ERROR "too many operands for instruction"
 
+	//
+	// "Zfa" Extension for Additional Floating-Point Instructions
+	//
+	// Load-Immediate Instructions
+	FLIS	$(0.1), F1				// ERROR "invalid floating point immediate"
+	FLID	$(0.1), F1				// ERROR "invalid floating point immediate"
+	FLIS	$(-2.0), F1				// ERROR "invalid floating point immediate"
+	FLID	$(-2.0), F1				// ERROR "invalid floating point immediate"
+	FLIS	$(1e10), F1				// ERROR "invalid floating point immediate"
+	FLID	$(1e10), F1				// ERROR "invalid floating point immediate"
+
 	RET
