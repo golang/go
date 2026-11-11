@@ -1,0 +1,63 @@
+# Test cross-compiling a cgo-binding binary to aix/ppc64.
+
+[short] skip
+
+# Cross-compiling a cgo-binding binary to aix/ppc64 without a working AIX C
+# toolchain produces a clear error, while a working CC cross-compiler links.
+cd aixbind
+env CGO_ENABLED=bindings
+env GOOS=aix
+env GOARCH=ppc64
+env GOEXPERIMENT=$GOEXPERIMENT,runtimecgopurego,cgobindings
+# On an AIX host, the default CC is a working AIX toolchain.
+[!GOOS:aix] env CC=
+[!GOOS:aix] ! go build -o $devnull .
+[!GOOS:aix] stderr 'cgo bindings on aix/ppc64 require an external linker'
+env CC=$WORK${/}nonexistent
+! go build -o $devnull .
+stderr 'cgo bindings on aix/ppc64 require an external linker'
+[GOOS:windows] stop
+[!exec:sh] stop
+chmod 0755 $WORK/gopath/src/fake-aix-cc.sh
+env CC=$WORK/gopath/src/fake-aix-cc.sh
+go build -o $WORK/aix.exe .
+exists $WORK/aix.exe
+
+-- fake-aix-cc.sh --
+#!/bin/sh
+for arg in "$@"; do
+	case "$arg" in
+	-Wl,-V)
+		echo "/usr/bin/ld: LD 7.2.2(1/1/19)"
+		echo "ld: 0711-317 ERROR: Undefined symbol: .main"
+		exit 1
+		;;
+	--print-file-name=*)
+		echo "/lib/${arg#--print-file-name=}"
+		exit 0
+		;;
+	esac
+done
+prev=""
+for arg in "$@"; do
+	if [ "$prev" = "-o" ]; then : > "$arg"; exit 0; fi
+	prev="$arg"
+done
+exit 0
+
+-- aixbind/go.mod --
+module aixbind
+
+go 1.28
+
+-- aixbind/main.go --
+package main
+
+import "C"
+
+//cgo:func puts puts libc
+func puts(s *byte) int32
+
+func main() {
+	puts(nil)
+}

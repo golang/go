@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -1512,6 +1513,499 @@ func TestLayoutMIPS32(t *testing.T) {
 	}
 }
 
+// TestCallbackLargeFramePPC64 verifies that ppc64/ppc64le/aix callback
+// trampolines with total > 32760 use the two-step outer 16-byte frame so C
+// callee-saved R31 (REGTMP) is saved before any large SP/offset expansion and
+// restored after undoing it, that R0 (REGZERO) is re-zeroed after runtime
+// calls whose UNSTACK_AND_RESTORE_GO_TO_HOST_ABI epilogue leaves host CR in R0,
+// and that large SP adjustments never trigger auto-SPWRITE or spadj overflow.
+func TestCallbackLargeFramePPC64(t *testing.T) {
+	targets := [][2]string{
+		{"linux", "ppc64le"},
+		{"linux", "ppc64"},
+		{"aix", "ppc64"},
+	}
+
+	for _, tgt := range targets {
+		t.Run(tgt[0]+"_"+tgt[1], func(t *testing.T) {
+			cfg := getABI(tgt[0], tgt[1])
+			// Pick exact struct sizes hitting total == 32752 (max fast path)
+			// and total == 32768 (min large path) for each target's LocalFrameOff
+			// and AIX descriptor overhead.
+			smallMaxSize := int64(32624)
+			boundarySize := int64(32640)
+			if tgt[0] == "aix" {
+				smallMaxSize = 32592
+				boundarySize = 32608
+			}
+			typeMap := map[string]BindingType{
+				"Odd9":     {Name: "Odd9", Def: "struct {\n\tb [9]byte\n}", Size: 9, Align: 1},
+				"SmallMax": {Name: "SmallMax", Size: smallMaxSize, Align: 8},
+				"Boundary": {Name: "Boundary", Size: boundarySize, Align: 8},
+				"OddBig":   {Name: "OddBig", Size: 32769, Align: 1},
+				"Huge70K":  {Name: "Huge70K", Size: 70000, Align: 8},
+			}
+			cases := []struct {
+				name        string
+				fn          BindingFunc
+				large       bool
+				expectR31Op bool
+			}{
+				{
+					name:  "small_fast_path_32752",
+					fn:    BindingFunc{Name: "GoSmallMax", Params: []string{"SmallMax"}, Ret: "int32"},
+					large: false,
+				},
+				{
+					name:  "boundary_32768",
+					fn:    BindingFunc{Name: "GoBoundary", Params: []string{"Boundary"}, Ret: "int32"},
+					large: true,
+				},
+				{
+					name:        "large_odd_return",
+					fn:          BindingFunc{Name: "GoOddBig", Params: []string{"OddBig", "int64"}, Ret: "Odd9"},
+					large:       true,
+					expectR31Op: true,
+				},
+				{
+					name:        "huge_70k",
+					fn:          BindingFunc{Name: "GoHuge70K", Params: []string{"Huge70K", "int64"}, Ret: "int64"},
+					large:       true,
+					expectR31Op: true,
+				},
+			}
+
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					var buf bytes.Buffer
+					buf.WriteString("#include \"textflag.h\"\n\n")
+					cfg.writeCallbackTrampoline(&buf, tc.fn, typeMap)
+					src := buf.String()
+
+					// Every runtime call whose epilogue runs UNSTACK_AND_RESTORE_GO_TO_HOST_ABI
+					// must be followed by XOR R0, R0.
+					for _, want := range []string{
+						"CALL\t_cgo_wait_runtime_init_done(SB)\n\tXOR\tR0, R0\n",
+						"CALL\tcrosscall2(SB)\n\tXOR\tR0, R0\n",
+						"CALL\t_cgo_release_context(SB)\n\tXOR\tR0, R0\n",
+					} {
+						if !strings.Contains(src, want) {
+							t.Errorf("missing %q in:\n%s", want, src)
+						}
+					}
+
+					if tc.large {
+						wantOrder := []string{
+							"MOVD\tLR, R12\n",
+							"MOVD\tR12, 16(R1)\n",
+							"MOVD\tR1, R12\n",
+							"ADD\t$-16, R1\n",
+							"MOVD\tR31, 0(R1)\n",
+							"MOVD\tR2, 8(R1)\n",
+							"XOR\tR0, R0\n",
+							"ADD\t$-",
+							"MOVD\tR12, 0(R1)\n",
+							"CALL\tcrosscall2(SB)\n",
+							"XOR\tR0, R0\n",
+							"ADD\t$",
+							"MOVD\t8(R1), R2\n",
+							"MOVD\t0(R1), R31\n",
+							"ADD\t$16, R1\n",
+							"MOVD\t16(R1), R12\n",
+							"MOVD\tR12, LR\n",
+							"RET\n",
+						}
+						pos := 0
+						for _, w := range wantOrder {
+							i := strings.Index(src[pos:], w)
+							if i < 0 {
+								t.Fatalf("large-frame callback missing %q (in order)", w)
+							}
+							pos += i + len(w)
+						}
+						if strings.Contains(src, "MOVDU\tR1, -") {
+							t.Errorf("large-frame callback unexpectedly used single-step MOVDU")
+						}
+					} else {
+						if !strings.Contains(src, "MOVDU\tR1, -32752(R1)") {
+							t.Errorf("small-frame callback missing MOVDU R1, -32752(R1) fast path")
+						}
+					}
+
+					if !testenv.HasGoBuild() {
+						return
+					}
+					for _, goppc64 := range []string{"power8", "power10"} {
+						dir := t.TempDir()
+						sfile := filepath.Join(dir, "cb.s")
+						ofile := filepath.Join(dir, "cb.o")
+						if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
+							t.Fatal(err)
+						}
+						cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
+							"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+						cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
+						asmOut, err := cmd.CombinedOutput()
+						if err != nil {
+							t.Fatalf("go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, asmOut)
+						}
+						if strings.Contains(string(asmOut), "auto-SPWRITE:") {
+							t.Errorf("GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, asmOut)
+						}
+						out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "objdump", ofile).CombinedOutput()
+						if err != nil {
+							t.Fatalf("go tool objdump (GOPPC64=%s): %v\n%s", goppc64, err, out)
+						}
+						var r31 []string
+						for _, line := range strings.Split(string(out), "\n") {
+							f := strings.Fields(line)
+							if len(f) < 4 {
+								continue
+							}
+							insn := strings.Join(f[3:], " ")
+							if strings.Contains(insn, "R31") {
+								r31 = append(r31, insn)
+							}
+						}
+						if len(r31) < 2 {
+							t.Fatalf("GOPPC64=%s: expected R31 save/restore in objdump, got %q", goppc64, r31)
+						}
+						if tc.large {
+							wantFirst := "MOVD R31,0(R1)"
+							wantLast := "MOVD 0(R1),R31"
+							if r31[0] != wantFirst || r31[len(r31)-1] != wantLast {
+								t.Errorf("GOPPC64=%s: first/last R31 uses = %q .. %q (count=%d), want %q .. %q",
+									goppc64, r31[0], r31[len(r31)-1], len(r31), wantFirst, wantLast)
+							}
+							if tc.expectR31Op && goppc64 == "power8" && len(r31) < 3 {
+								t.Errorf("GOPPC64=%s: expected assembler REGTMP (R31) expansion between save and restore, got %q", goppc64, r31)
+							}
+						} else {
+							if !strings.HasPrefix(r31[0], "MOVD R31,") || !strings.HasPrefix(r31[len(r31)-1], "MOVD ") || !strings.HasSuffix(r31[len(r31)-1], ",R31") {
+								t.Errorf("GOPPC64=%s: small-frame R31 uses = %q .. %q, want save first and restore last",
+									goppc64, r31[0], r31[len(r31)-1])
+							}
+						}
+					}
+				})
+			}
+
+			// Also verify large-frame Go-to-C trampolines assemble cleanly without
+			// auto-SPWRITE or spadj overflow on both power8 and power10.
+			if testenv.HasGoBuild() {
+				var buf bytes.Buffer
+				buf.WriteString("#include \"textflag.h\"\n\n")
+				cfg.writeTrampoline(&buf, BindingFunc{
+					Name:        "BigTramp",
+					CName:       "c_big_tramp",
+					Params:      []string{"OddBig", "int64"},
+					Ret:         "Odd9",
+					MayCallback: true,
+				}, typeMap)
+				for _, goppc64 := range []string{"power8", "power10"} {
+					dir := t.TempDir()
+					sfile := filepath.Join(dir, "tramp.s")
+					ofile := filepath.Join(dir, "tramp.o")
+					if err := os.WriteFile(sfile, buf.Bytes(), 0o666); err != nil {
+						t.Fatal(err)
+					}
+					cmd := testenv.Command(t, testenv.GoToolPath(t), "tool", "asm", "-v", "-p", "main",
+						"-I", filepath.Join(testenv.GOROOT(t), "src", "runtime"), "-o", ofile, sfile)
+					cmd.Env = append(os.Environ(), "GOOS="+tgt[0], "GOARCH="+tgt[1], "GOPPC64="+goppc64)
+					if out, err := cmd.CombinedOutput(); err != nil {
+						t.Fatalf("large trampoline go tool asm (GOPPC64=%s): %v\n%s", goppc64, err, out)
+					} else if strings.Contains(string(out), "auto-SPWRITE:") {
+						t.Errorf("large trampoline GOPPC64=%s: unexpected auto-SPWRITE:\n%s", goppc64, out)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestLayoutAndTrampolinePPC64(t *testing.T) {
+	typeMap := map[string]BindingType{
+		"Pair16":   {Name: "Pair16", Def: "struct {\n\ta int64\n\tb int64\n}", Size: 16, Align: 8},
+		"Box4":     {Name: "Box4", Def: "struct {\n\tx int32\n}", Size: 4, Align: 4},
+		"Box8":     {Name: "Box8", Def: "struct {\n\tx int64\n}", Size: 8, Align: 8},
+		"ThreeI32": {Name: "ThreeI32", Def: "struct {\n\ta, b, c int32\n}", Size: 12, Align: 4},
+		"Float6":   {Name: "Float6", Def: "struct {\n\ta [6]float32\n}", Size: 24, Align: 4},
+	}
+
+	ppcLE := getABI("linux", "ppc64le")
+	var ppcBuf bytes.Buffer
+	ppcLE.writeTrampoline(&ppcBuf, BindingFunc{
+		Name:   "_Add",
+		CName:  "Add",
+		Params: []string{"int32", "int32"},
+		Ret:    "int32",
+	}, nil)
+	for _, want := range []string{
+		"TEXT _cgo_trampoline__Add(SB), NOSPLIT|NOFRAME, $0-0",
+		"MOVDU\tR1, -96(R1)",
+		"BL\tAdd(SB)\n\tWORD\t$0x60000000\n\tXOR\tR0, R0",
+	} {
+		if !strings.Contains(ppcBuf.String(), want) {
+			t.Errorf("ppc64le trampoline missing %q in:\n%s", want, ppcBuf.String())
+		}
+	}
+
+	// ELFv2 HFA (up to 8 float32/float64 elements) passes in F1..F13 and returns in F1..F8.
+	hfaLay := ppcLE.layout(BindingFunc{Name: "HFA", Params: []string{"Float6", "int32"}, Ret: "Float6"}, typeMap)
+	if !slices.Equal(hfaLay.Params[0].Regs, []string{"F1", "F2", "F3", "F4", "F5", "F6"}) ||
+		!slices.Equal(hfaLay.Params[1].Regs, []string{"R6"}) ||
+		!slices.Equal(hfaLay.Ret.Regs, []string{"F1", "F2", "F3", "F4", "F5", "F6"}) {
+		t.Errorf("ppc64le ELFv2 HFA layout = %+v", hfaLay)
+	}
+	// ELFv2 straddling 16B struct at slot 7 splits across R10 and 96(R1).
+	ppcSplit := ppcLE.layout(BindingFunc{
+		Name:   "Split",
+		Params: []string{"int64", "int64", "int64", "int64", "int64", "int64", "int64", "Pair16"},
+	}, typeMap)
+	if !slices.Equal(ppcSplit.Params[7].Regs, []string{"R10"}) ||
+		ppcSplit.Params[7].StackBytes != 8 || ppcSplit.Params[7].StackOff != 96 {
+		t.Errorf("ppc64le straddling Pair16 = %+v, want Regs=[R10] StackBytes=8 StackOff=96", ppcSplit.Params[7])
+	}
+	// ELFv2 callback stores the back-chain at 0(R1) via MOVDU and
+	// saves/restores R2 (TOC) and R31.
+	var ppcCb bytes.Buffer
+	ppcLE.writeCallbackTrampoline(&ppcCb, BindingFunc{Name: "Cb", Params: []string{"int64"}, Ret: "int64"}, nil)
+	if out := ppcCb.String(); !strings.Contains(out, "MOVDU\tR1, -") ||
+		!strings.Contains(out, "MOVD\tR2, ") || !strings.Contains(out, ", R2\n") {
+		t.Errorf("ppc64le callback missing MOVDU back-chain or R2 save/restore:\n%s", out)
+	}
+
+	// ELFv2 big-endian (linux/ppc64): <=8B structs right-justified; >8B trailing partial word left-justified.
+	ppcBE := getABI("linux", "ppc64")
+	var ppcBE12, ppcBE4 bytes.Buffer
+	ppcBE.writeTrampoline(&ppcBE12, BindingFunc{Name: "T12", CName: "t12", Params: []string{"ThreeI32"}}, typeMap)
+	ppcBE.writeTrampoline(&ppcBE4, BindingFunc{Name: "T4", CName: "t4", Params: []string{"Box4"}}, typeMap)
+	if !strings.Contains(ppcBE12.String(), "SLD\t$32, R4, R4") {
+		t.Errorf("linux/ppc64 12B struct missing trailing SLD $32, R4, R4:\n%s", ppcBE12.String())
+	}
+	if strings.Contains(ppcBE4.String(), "SLD\t") {
+		t.Errorf("linux/ppc64 4B struct must be right-justified (no SLD):\n%s", ppcBE4.String())
+	}
+
+	// AIX places floats in F1..F13 while advancing linear slots, returns all structs
+	// via hidden sret, reserves >=112B (48B linkage + 64B param save area), left-justifies
+	// <8B structs in registers, and emits XCOFF descriptors for trampolines and callbacks.
+	aixCfg := getABI("aix", "ppc64")
+	aixLay := aixCfg.layout(BindingFunc{
+		Name:   "Fn",
+		Params: []string{"*byte", "float64", "int32"},
+	}, nil)
+	if !slices.Equal(aixLay.Params[0].Regs, []string{"R3"}) ||
+		!slices.Equal(aixLay.Params[1].Regs, []string{"F1"}) ||
+		!slices.Equal(aixLay.Params[2].Regs, []string{"R5"}) ||
+		aixLay.StackSize < 112 {
+		t.Errorf("aix/ppc64 layout = %+v", aixLay)
+	}
+	aixRetLay := aixCfg.layout(BindingFunc{Name: "RetBox", Ret: "Box8", MayCallback: true}, typeMap)
+	if !aixRetLay.Ret.Indirect || aixRetLay.Ret.G0Off < 112 || aixRetLay.StkTopOff < 112 {
+		t.Errorf("aix/ppc64 Box8 sret / MayCallback g0 scratch layout = %+v", aixRetLay)
+	}
+	var aixBox4 bytes.Buffer
+	aixCfg.writeTrampoline(&aixBox4, BindingFunc{Name: "AB4", CName: "ab4", Params: []string{"Box4"}}, typeMap)
+	if !strings.Contains(aixBox4.String(), "SLD\t$32, R3, R3") {
+		t.Errorf("aix/ppc64 4B struct missing left-justification SLD $32, R3, R3:\n%s", aixBox4.String())
+	}
+	var aixTramp bytes.Buffer
+	aixCfg.writeTrampoline(&aixTramp, BindingFunc{Name: "Foo", CName: "foo", Ret: "int32", MayCallback: true}, nil)
+	for _, want := range []string{
+		"GLOBL _cgo_trampoline_Foo(SB), NOPTR, $24",
+		"TEXT _cgo_trampoline_Foo_text<>(SB), NOSPLIT|NOFRAME, $0-0",
+		"CALL\t__cgo_topofstack(SB)",
+	} {
+		if !strings.Contains(aixTramp.String(), want) {
+			t.Errorf("aix/ppc64 trampoline missing %q in:\n%s", want, aixTramp.String())
+		}
+	}
+	var aixCb bytes.Buffer
+	aixCfg.writeCallbackTrampoline(&aixCb, BindingFunc{Name: "AixCb", Params: []string{"int64"}, Ret: "int64"}, nil)
+	for _, want := range []string{
+		"GLOBL AixCb(SB), NOPTR, $24",
+		"TEXT AixCb_text<>(SB), NOSPLIT|NOFRAME, $0-0",
+	} {
+		if !strings.Contains(aixCb.String(), want) {
+			t.Errorf("aix/ppc64 callback missing %q in:\n%s", want, aixCb.String())
+		}
+	}
+
+	// ELFv2 starts a 16-byte-aligned aggregate at an even doubleword of the
+	// parameter save area (an even GPR, or wholly on the stack); AIX does not.
+	typeMap["Align16"] = BindingType{Name: "Align16", Def: "struct {\n\ta int64\n\tb int64\n}", Size: 16, Align: 16}
+	int64s := func(n int, more ...string) []string {
+		return append(slices.Repeat([]string{"int64"}, n), more...)
+	}
+	a16Lay := ppcLE.layout(BindingFunc{Name: "A16", Params: int64s(1, "Align16", "int64")}, typeMap)
+	if !slices.Equal(a16Lay.Params[1].Regs, []string{"R5", "R6"}) || !slices.Equal(a16Lay.Params[2].Regs, []string{"R7"}) {
+		t.Errorf("ppc64le Align16 after int64 = %+v, want R5, R6 then R7", a16Lay)
+	}
+	for _, tc := range []struct {
+		n        int
+		stackOff int64
+	}{{7, 96}, {9, 112}} {
+		lay := ppcLE.layout(BindingFunc{Name: "A16", Params: int64s(tc.n, "Align16")}, typeMap)
+		if p := lay.Params[tc.n]; len(p.Regs) != 0 || p.StackBytes != 0 || p.StackOff != tc.stackOff {
+			t.Errorf("ppc64le Align16 after %d int64s = %+v, want wholly on the stack at %d", tc.n, p, tc.stackOff)
+		}
+	}
+	if lay := aixCfg.layout(BindingFunc{Name: "A16", Params: int64s(1, "Align16")}, typeMap); !slices.Equal(lay.Params[1].Regs, []string{"R4", "R5"}) {
+		t.Errorf("aix/ppc64 Align16 after int64 = %+v, want R4, R5", lay)
+	}
+
+	// _Complex float and _Complex double are returned in F1, F2 and passed
+	// as two separate floats or doubles (two FPRs and two doublewords of the
+	// parameter save area) on both ELFv2 and AIX. When only F13 is left, the
+	// imaginary part goes in the next doubleword; when no FPR is left, the
+	// parts of a complex64 go in separate doublewords. ELFv2 BE
+	// right-justifies a float in its doubleword; ELFv2 LE and AIX do not.
+	for _, tc := range []struct {
+		goos, arch string
+		cfg        *ABIConfig
+		straddle   int64     // stack offset of the imaginary part of a complex64 straddling F13
+		next       int64     // stack offset of an int64 following it
+		spill      int64     // stack offset of a spilled complex64
+		tramp      [3]string // trampoline stores of the straddling imaginary part and the spilled parts
+		cbSpill    [2]string // callback loads of the parts of a spilled complex64
+	}{
+		// The callback's caller SP is 240(R1) on ELFv2 and 272(R1) on AIX.
+		{"linux", "ppc64le", ppcLE, 136, 144, 136,
+			[3]string{"MOVWZ\t100(R14), R11\n\tMOVW\tR11, 136(R1)\n", "MOVWZ\t104(R14), R11\n\tMOVW\tR11, 136(R1)\n", "MOVWZ\t108(R14), R11\n\tMOVW\tR11, 144(R1)\n"},
+			[2]string{"MOVWZ\t376(R1), R11\n\tMOVW\tR11, 200(R1)", "MOVWZ\t384(R1), R11\n\tMOVW\tR11, 204(R1)"}},
+		{"linux", "ppc64", ppcBE, 140, 144, 136,
+			[3]string{"MOVWZ\t100(R14), R11\n\tMOVW\tR11, 140(R1)\n", "MOVWZ\t104(R14), R11\n\tMOVW\tR11, 140(R1)\n", "MOVWZ\t108(R14), R11\n\tMOVW\tR11, 148(R1)\n"},
+			[2]string{"MOVWZ\t380(R1), R11\n\tMOVW\tR11, 200(R1)", "MOVWZ\t388(R1), R11\n\tMOVW\tR11, 204(R1)"}},
+		{"aix", "ppc64", aixCfg, 152, 160, 152,
+			[3]string{"MOVWZ\t100(R14), R11\n\tMOVW\tR11, 152(R1)\n", "MOVWZ\t104(R14), R11\n\tMOVW\tR11, 152(R1)\n", "MOVWZ\t108(R14), R11\n\tMOVW\tR11, 160(R1)\n"},
+			[2]string{"MOVWZ\t424(R1), R11\n\tMOVW\tR11, 216(R1)", "MOVWZ\t432(R1), R11\n\tMOVW\tR11, 220(R1)"}},
+	} {
+		target := tc.goos + "/" + tc.arch
+		for _, c := range []struct {
+			typ   string
+			loads []string
+			ret   []string
+		}{
+			{"complex64", []string{"FMOVS\t0(R14), F1\n", "FMOVS\t4(R14), F2\n"}, []string{"FMOVS\tF1, 16(R14)\n", "FMOVS\tF2, 20(R14)\n"}},
+			{"complex128", []string{"FMOVD\t0(R14), F1\n", "FMOVD\t8(R14), F2\n"}, []string{"FMOVD\tF1, 24(R14)\n", "FMOVD\tF2, 32(R14)\n"}},
+		} {
+			fn := BindingFunc{Name: "C", CName: "c", Params: []string{c.typ, "int64"}, Ret: c.typ}
+			lay := tc.cfg.layout(fn, nil)
+			if !slices.Equal(lay.Params[0].Regs, []string{"F1", "F2"}) || !lay.Params[0].IsFloat ||
+				!slices.Equal(lay.Params[1].Regs, []string{"R5"}) ||
+				lay.Ret.Indirect || !lay.Ret.IsFloat || !slices.Equal(lay.Ret.Regs, []string{"F1", "F2"}) {
+				t.Errorf("%s (%s, int64) %s layout = %+v, want F1, F2, then R5, returning F1, F2", target, c.typ, c.typ, lay)
+			}
+			var tramp, cb bytes.Buffer
+			tc.cfg.writeTrampoline(&tramp, fn, nil)
+			for _, want := range append(c.loads, c.ret...) {
+				if !strings.Contains(tramp.String(), want) {
+					t.Errorf("%s trampoline passing and returning %s missing %q:\n%s", target, c.typ, want, tramp.String())
+				}
+			}
+			tc.cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbC", Params: fn.Params, Ret: c.typ}, nil)
+			for _, want := range []string{"), F1\n", "), F2\n"} {
+				if !strings.Contains(cb.String(), want) {
+					t.Errorf("%s callback returning %s missing %q:\n%s", target, c.typ, want, cb.String())
+				}
+			}
+		}
+
+		straddleFn := BindingFunc{Name: "Straddle", CName: "straddle", Params: append(slices.Repeat([]string{"float64"}, 12), "complex64", "int64")}
+		lay := tc.cfg.layout(straddleFn, nil)
+		if p := lay.Params[12]; !slices.Equal(p.Regs, []string{"F13"}) || p.StackBytes != 4 || p.StackOff != tc.straddle ||
+			len(lay.Params[13].Regs) != 0 || lay.Params[13].StackOff != tc.next {
+			t.Errorf("%s complex64 straddling F13 = %+v, then int64 %+v; want F13 + 4 bytes at %d, then int64 at %d", target, p, lay.Params[13], tc.straddle, tc.next)
+		}
+		var tramp bytes.Buffer
+		tc.cfg.writeTrampoline(&tramp, straddleFn, nil)
+		for _, want := range []string{"FMOVS\t96(R14), F13\n", tc.tramp[0]} {
+			if !strings.Contains(tramp.String(), want) {
+				t.Errorf("%s trampoline passing complex64 straddling F13 missing %q:\n%s", target, want, tramp.String())
+			}
+		}
+
+		spillFn := BindingFunc{Name: "Spill", CName: "spill", Params: append(slices.Repeat([]string{"float64"}, 13), "complex64")}
+		lay = tc.cfg.layout(spillFn, nil)
+		if p := lay.Params[13]; len(p.Regs) != 0 || p.StackBytes != 0 || p.StackOff != tc.spill {
+			t.Errorf("%s spilled complex64 = %+v, want on the stack at %d", target, p, tc.spill)
+		}
+		tramp.Reset()
+		tc.cfg.writeTrampoline(&tramp, spillFn, nil)
+		for k, want := range tc.tramp[1:] {
+			if !strings.Contains(tramp.String(), want) {
+				t.Errorf("%s trampoline passing spilled complex64 missing part %d %q:\n%s", target, k, want, tramp.String())
+			}
+		}
+		var cb bytes.Buffer
+		tc.cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbSpill", Params: spillFn.Params}, nil)
+		for k, want := range tc.cbSpill {
+			if !strings.Contains(cb.String(), want) {
+				t.Errorf("%s callback receiving spilled complex64 missing part %d %q:\n%s", target, k, want, cb.String())
+			}
+		}
+	}
+
+	// ELFv2 BE right-justifies spilled composites smaller than a doubleword
+	// (Odd3 at +5, Box4 at +4, Odd5 at +3), and spilled floats (+4); AIX
+	// left-justifies both.
+	typeMap["Odd3"] = BindingType{Name: "Odd3", Def: "struct {\n\tb [3]uint8\n}", Size: 3, Align: 1}
+	typeMap["Odd5"] = BindingType{Name: "Odd5", Def: "struct {\n\tb [5]uint8\n}", Size: 5, Align: 1}
+	for _, tc := range []struct {
+		target   string
+		cfg      *ABIConfig
+		tramp    []string
+		callback []string
+	}{
+		// Odd3, Box4, and Odd5 are at stack offsets 96, 104, and 112;
+		// the callback's caller SP is 208(R1).
+		{"linux/ppc64", ppcBE,
+			[]string{"MOVHZ\t64(R14), R11\n\tMOVH\tR11, 101(R1)\n\tMOVBZ\t66(R14), R11\n\tMOVB\tR11, 103(R1)\n", "MOVWZ\t68(R14), R11\n\tMOVD\tR11, 104(R1)\n", "MOVWZ\t72(R14), R11\n\tMOVW\tR11, 115(R1)\n"},
+			[]string{"MOVHZ\t309(R1), R11\n", "MOVWZ\t316(R1), R11\n", "MOVWZ\t323(R1), R11\n"}},
+		// Odd3, Box4, and Odd5 are at stack offsets 112, 120, and 128;
+		// the callback's caller SP is 240(R1).
+		{"aix/ppc64", aixCfg,
+			[]string{"MOVHZ\t64(R14), R11\n\tMOVH\tR11, 112(R1)\n", "MOVWZ\t68(R14), R11\n\tMOVW\tR11, 120(R1)\n", "MOVWZ\t72(R14), R11\n\tMOVW\tR11, 128(R1)\n"},
+			[]string{"MOVHZ\t352(R1), R11\n", "MOVWZ\t360(R1), R11\n", "MOVWZ\t368(R1), R11\n"}},
+	} {
+		fn := BindingFunc{Name: "Small", CName: "small", Params: int64s(8, "Odd3", "Box4", "Odd5")}
+		var tramp, cb bytes.Buffer
+		tc.cfg.writeTrampoline(&tramp, fn, typeMap)
+		tc.cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbSmall", Params: fn.Params}, typeMap)
+		for _, want := range tc.tramp {
+			if !strings.Contains(tramp.String(), want) {
+				t.Errorf("%s trampoline passing spilled small structs missing %q:\n%s", tc.target, want, tramp.String())
+			}
+		}
+		for _, want := range tc.callback {
+			if !strings.Contains(cb.String(), want) {
+				t.Errorf("%s callback receiving spilled small structs missing %q:\n%s", tc.target, want, cb.String())
+			}
+		}
+	}
+	for _, tc := range []struct {
+		target, tramp, callback string
+		cfg                     *ABIConfig
+	}{
+		// The float32 is at stack offset 136 (ELFv2) or 152 (AIX); the
+		// callback's caller SP is 240(R1) or 272(R1).
+		{"linux/ppc64", "MOVWZ\t104(R14), R11\n\tMOVD\tR11, 136(R1)\n", "MOVWZ\t380(R1), R11\n", ppcBE},
+		{"aix/ppc64", "MOVWZ\t104(R14), R11\n\tMOVW\tR11, 152(R1)\n", "MOVWZ\t424(R1), R11\n", aixCfg},
+	} {
+		fn := BindingFunc{Name: "F32", CName: "f32", Params: append(slices.Repeat([]string{"float64"}, 13), "float32")}
+		var tramp, cb bytes.Buffer
+		tc.cfg.writeTrampoline(&tramp, fn, nil)
+		tc.cfg.writeCallbackTrampoline(&cb, BindingFunc{Name: "CbF32", Params: fn.Params}, nil)
+		if !strings.Contains(tramp.String(), tc.tramp) {
+			t.Errorf("%s trampoline passing spilled float32 missing %q:\n%s", tc.target, tc.tramp, tramp.String())
+		}
+		if !strings.Contains(cb.String(), tc.callback) {
+			t.Errorf("%s callback receiving spilled float32 missing %q:\n%s", tc.target, tc.callback, cb.String())
+		}
+	}
+}
+
 func TestLayoutAndTrampolineS390X(t *testing.T) {
 	typeMap := map[string]BindingType{
 		"Pair16":  {Name: "Pair16", Def: "struct {\n\ta int64\n\tb int64\n}", Size: 16, Align: 8},
@@ -2084,13 +2578,16 @@ func TestAssembleTrampolines(t *testing.T) {
 	}
 }
 
+// directCall matches a direct call to a symbol in a trampoline.
+var directCall = regexp.MustCompile(`(?m)^\t(CALL|BL|JAL)\t[^\n]*\(SB\)`)
+
 // allABITargets lists every supported OS/arch ABI target.
 var allABITargets = [][2]string{
 	{"linux", "amd64"}, {"windows", "amd64"},
 	{"linux", "arm64"}, {"darwin", "arm64"}, {"windows", "arm64"},
 	{"linux", "386"}, {"windows", "386"},
 	{"linux", "arm"}, {"android", "arm"}, {"openbsd", "arm"}, {"linux", "mips"}, {"linux", "mipsle"},
-	{"linux", "s390x"},
+	{"linux", "ppc64"}, {"linux", "ppc64le"}, {"aix", "ppc64"}, {"linux", "s390x"},
 	{"linux", "riscv64"}, {"linux", "loong64"}, {"linux", "mips64"}, {"linux", "mips64le"},
 }
 
@@ -2102,8 +2599,8 @@ func TestIndirectAndStaticTrampolines(t *testing.T) {
 		cfg := getABI(target[0], target[1])
 		var ind bytes.Buffer
 		cfg.writeTrampoline(&ind, BindingFunc{Name: "dyn_L_F", Params: []string{"int32", "int32"}, Ret: "int32", Indirect: true}, nil)
-		if out := ind.String(); strings.Count(out, "(SB)") != 1 {
-			t.Errorf("%s/%s: indirect trampoline references a symbol other than itself:\n%s", target[0], target[1], out)
+		if out := ind.String(); directCall.MatchString(out) {
+			t.Errorf("%s/%s: indirect trampoline calls a symbol directly:\n%s", target[0], target[1], out)
 		}
 		// A static symbol is called like any other external symbol, except
 		// on Windows, where other symbols are called through import slots.
@@ -2113,6 +2610,10 @@ func TestIndirectAndStaticTrampolines(t *testing.T) {
 		if target[0] == "windows" {
 			if out := st.String(); !strings.Contains(out, "CALL\ts_fn(SB)") {
 				t.Errorf("%s/%s: static trampoline does not call s_fn directly:\n%s", target[0], target[1], out)
+			}
+		} else if target[0] == "aix" {
+			if out := st.String(); !strings.Contains(out, "MOVD\t$s_fn(SB), R12") || strings.Contains(out, "__cgo_imp_") {
+				t.Errorf("%s/%s: static trampoline should load $s_fn(SB) descriptor without __cgo_imp_:\n%s", target[0], target[1], out)
 			}
 		} else if st.String() != dyn.String() {
 			t.Errorf("%s/%s: static trampoline\n%s\ndiffers from dynamic trampoline\n%s", target[0], target[1], st.String(), dyn.String())

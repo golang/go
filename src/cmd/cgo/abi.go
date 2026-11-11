@@ -174,17 +174,19 @@ type asmOps struct {
 	twoOpShift bool   // True if shl/shr take 2 operands ($bits, reg) rather than 3 ($bits, reg, reg)
 	useAdjSP   bool   // True if SP adjustments must use ADJSP so obj tracks pcsp without FuncFlagSPWrite
 	negSubSP   bool   // True if decrementing SP uses add with $-size rather than sub with $size
+	alignDisp4 bool   // True if 8-byte loads/stores and signed 4-byte loads require 4-byte-aligned displacements (PPC64 DS-form)
 }
 
 // ABIConfig defines the C calling convention rules and assembly primitives
 // for a target OS/architecture. OS, PtrSize, CLongSize, StackAlign, and AssignParam must always be set.
 type ABIConfig struct {
-	Arch        string
-	OS          string
-	PtrSize     int64
-	CLongSize   int64 // Byte size of C long and unsigned long
-	StackAlign  int64
-	ShadowSpace int64 // Bytes reserved at the bottom of the C call frame by the ABI (e.g. 32-byte home space on Windows x64)
+	Arch             string
+	OS               string
+	PtrSize          int64
+	CLongSize        int64 // Byte size of C long and unsigned long
+	StackAlign       int64
+	ShadowSpace      int64 // Bytes reserved at the bottom of the C call frame by the ABI (e.g. 32-byte home space on Windows x64)
+	MinParamSaveArea int64 // Minimum parameter save area reserved above ShadowSpace before g0 scratch (64B on PPC64/AIX)
 
 	IntRegs      []string
 	FloatRegs    []string
@@ -222,9 +224,11 @@ type ABIConfig struct {
 	ZeroVal         string // Zero operand or register for zeroing pointer-containing callback return slots, or "" to zero TmpReg
 	LocalFrameOff   int64  // Byte offset from SPReg to the local Go arg struct in writeCallbackTrampoline
 	IndirectSymCall bool   // External C symbols are PE IAT pointers called indirectly (Windows)
+	HasFuncDesc     bool   // C and trampoline symbols use 24-byte (PC, TOC, env) XCOFF descriptors (AIX)
 
 	BigEndian                    bool // Multi-byte integer chunks in registers and stack slots use big-endian byte order
 	LeftJustifyBEComposite       bool // Big-endian composite register chunks < PtrSize are left-justified (MIPS, AIX)
+	LeftJustifyBETrailing        bool // Big-endian trailing register chunks of >PtrSize composites are left-justified (ELFv2 BE)
 	RightJustifyBECompositeStack bool // Big-endian sub-word composites on the stack are right-justified (s390x, ELFv2 BE)
 	LeftJustifyBEFloatStack      bool // Big-endian float32 stack arguments are left-justified in their slot (AIX, MIPS64)
 	ComplexFloatSplitStack       bool // The float32 halves of a complex64 stack argument occupy separate PtrSize slots (PPC64)
@@ -238,6 +242,7 @@ type ABIConfig struct {
 	TrampolinePrologue func(w io.Writer, lay FuncLayout) (epilogue func(w io.Writer))
 	Prologue           func(w io.Writer) (epilogue func(w io.Writer))
 	PreCall            func(cfg *ABIConfig, w io.Writer, fn BindingFunc, lay FuncLayout)
+	CallIndirect       func(w io.Writer, base string)
 	CallSymbol         func(w io.Writer, sym string, static bool)
 	StackArgAddr       func(stackOff, callerSPOff int64) (base string, off int64)
 	CallbackPrologue   func(w io.Writer, frameSize int64) (callerSPOff int64)
@@ -574,6 +579,10 @@ func (cfg *ABIConfig) layout(fn BindingFunc, types map[string]BindingType) FuncL
 	if fn.Ret != "" {
 		ret.GoOffset = alignUp(goOff, min(retAlign, cfg.PtrSize))
 	}
+	if cfg.MinParamSaveArea > 0 {
+		saveArea := max(cfg.MinParamSaveArea, int64(st.intIdx)*cfg.PtrSize)
+		st.stackOff = max(st.stackOff, cfg.ShadowSpace+saveArea)
+	}
 	stkTopOff := cfg.assignG0Scratch(fn, params, &ret, &st)
 
 	return FuncLayout{
@@ -801,9 +810,21 @@ func effAlign(off, align, ptrSize int64) int64 {
 	return align
 }
 
+func (cfg *ABIConfig) emitAlignDisp4(w io.Writer, reg, base string, off int64) (string, int64) {
+	scratch := cfg.TmpReg
+	if reg == scratch || base == scratch {
+		scratch = cfg.TmpReg2
+	}
+	cfg.emitAddr(w, base, off, scratch)
+	return scratch, 0
+}
+
 // emitScalarLoadInt emits a single power-of-two (1, 2, 4, or 8 byte) integer
 // load from off(base) into reg, sign- or zero-extending narrow loads.
 func (cfg *ABIConfig) emitScalarLoadInt(w io.Writer, base string, off, size int64, signed bool, reg string) {
+	if cfg.asm.alignDisp4 && (size >= 8 || (size == 4 && signed)) && off%4 != 0 {
+		base, off = cfg.emitAlignDisp4(w, reg, base, off)
+	}
 	a := &cfg.asm
 	var op string
 	switch {
@@ -828,6 +849,9 @@ func (cfg *ABIConfig) emitScalarLoadInt(w io.Writer, base string, off, size int6
 // emitScalarStoreInt emits a single power-of-two (1, 2, 4, or 8 byte) integer
 // store from reg into off(base).
 func (cfg *ABIConfig) emitScalarStoreInt(w io.Writer, reg, base string, off, size int64) {
+	if cfg.asm.alignDisp4 && size >= 8 && off%4 != 0 {
+		base, off = cfg.emitAlignDisp4(w, reg, base, off)
+	}
 	a := &cfg.asm
 	var op string
 	switch size {
@@ -998,6 +1022,40 @@ func (cfg *ABIConfig) emitAddReg(w io.Writer, src, dst string) {
 	cfg.emitALUOp(w, cfg.asm.add, src, dst)
 }
 
+// emitPPC64AddSP adjusts R1 by delta bytes using signed 16-bit ADD steps so
+// cmd/internal/obj/ppc64 never rewrites large offsets to ADDIS (which drops
+// Spadj tracking, triggers auto-SPWRITE, and can overflow pctospadj) and never
+// uses REGTMP (R31) or REGZERO (R0).
+func emitPPC64AddSP(w io.Writer, delta int64) {
+	if delta < 0 {
+		for rem := -delta; rem > 0; {
+			step := min(rem, 32768)
+			fmt.Fprintf(w, "\tADD\t$-%d, R1\n", step)
+			rem -= step
+		}
+		return
+	}
+	for rem := delta; rem > 0; {
+		step := min(rem, 32752)
+		fmt.Fprintf(w, "\tADD\t$%d, R1\n", step)
+		rem -= step
+	}
+}
+
+// emitPPC64AllocBackchain decrements R1 by size bytes and stores the caller's
+// R1 at 0(R1) as the PowerPC64 ELFv2 / AIX XCOFF stack back-chain pointer,
+// using a single MOVDU when size fits in a signed 16-bit displacement.
+// Otherwise it uses tmpReg to hold the caller's R1.
+func emitPPC64AllocBackchain(w io.Writer, tmpReg string, size int64) {
+	if size <= 32760 {
+		fmt.Fprintf(w, "\tMOVDU\tR1, -%d(R1)\n", size)
+	} else {
+		fmt.Fprintf(w, "\tMOVD\tR1, %s\n", tmpReg)
+		emitPPC64AddSP(w, -size)
+		fmt.Fprintf(w, "\tMOVD\t%s, 0(R1)\n", tmpReg)
+	}
+}
+
 // emitSubSP decrements the architecture stack pointer by size bytes.
 func (cfg *ABIConfig) emitSubSP(w io.Writer, size int64) {
 	if cfg.asm.useAdjSP {
@@ -1043,6 +1101,10 @@ func (cfg *ABIConfig) emitCallReg(w io.Writer, reg string) {
 
 // emitCallIndirect calls the C function pointer stored at 0(base).
 func (cfg *ABIConfig) emitCallIndirect(w io.Writer, base string) {
+	if cfg.CallIndirect != nil {
+		cfg.CallIndirect(w, base)
+		return
+	}
 	reg := cmp.Or(cfg.IndCallReg, cfg.TmpReg)
 	cfg.emitLoadInt(w, base, 0, cfg.PtrSize, false, reg)
 	cfg.emitCallReg(w, reg)
@@ -1050,7 +1112,17 @@ func (cfg *ABIConfig) emitCallIndirect(w io.Writer, base string) {
 
 // emitCallRuntime emits a direct call to an internal Go runtime helper symbol.
 func (cfg *ABIConfig) emitCallRuntime(w io.Writer, sym string) {
+	if cfg.HasFuncDesc && sym == "_cgo_topofstack" {
+		sym = "__cgo_topofstack"
+	}
 	fmt.Fprintf(w, "\tCALL\t%s(SB)\n", sym)
+	if (cfg.Arch == "ppc64" || cfg.Arch == "ppc64le") && sym != "_cgo_topofstack" && sym != "__cgo_topofstack" {
+		// _cgo_wait_runtime_init_done, crosscall2, and _cgo_release_context
+		// restore host CR via R0 in UNSTACK_AND_RESTORE_GO_TO_HOST_ABI, leaving
+		// R0 non-zero. Re-zero R0 before any subsequent large-constant load or
+		// large-offset addition that assembles to ORI/ORIS with R0.
+		fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+	}
 }
 
 // emitCallSymbol emits a call to external C symbol sym.
@@ -1138,7 +1210,8 @@ func (cfg *ABIConfig) valueRegSlots(typeName string, size int64, isFloat bool, r
 		if len(regs) == 1 {
 			chunkSz = size
 		}
-		leftJustify := cfg.BigEndian && info.composite && !fl && chunkSz < ptrSize && cfg.LeftJustifyBEComposite
+		leftJustify := cfg.BigEndian && info.composite && !fl && chunkSz < ptrSize &&
+			(cfg.LeftJustifyBEComposite || (cfg.LeftJustifyBETrailing && info.size > ptrSize))
 		slots[k] = regSlot{
 			reg:         r,
 			offset:      int64(k) * ptrSize,
@@ -1283,9 +1356,24 @@ func (cfg *ABIConfig) emitRISCCallbackEpilogue(w io.Writer, frameSize int64) {
 	fmt.Fprintf(w, "\tRET\n")
 }
 
+// emitTextHeader emits the TEXT directive for sym (wrapped in an XCOFF
+// function descriptor when cfg.HasFuncDesc is set).
+func (cfg *ABIConfig) emitTextHeader(w io.Writer, sym, flags string) {
+	if cfg.HasFuncDesc {
+		textSym := sym + "_text<>"
+		fmt.Fprintf(w, "DATA %s+0(SB)/8, $%s(SB)\n", sym, textSym)
+		fmt.Fprintf(w, "DATA %s+8(SB)/8, $TOC(SB)\n", sym)
+		fmt.Fprintf(w, "DATA %s+16(SB)/8, $0\n", sym)
+		fmt.Fprintf(w, "GLOBL %s(SB), NOPTR, $24\n", sym)
+		fmt.Fprintf(w, "TEXT %s(SB), %s, $0-0\n", textSym, flags)
+		return
+	}
+	fmt.Fprintf(w, "TEXT %s(SB), %s, $0-0\n", sym, flags)
+}
+
 // emitCallCrosscall2 emits the shared register-ABI callback sequence:
 // _cgo_wait_runtime_init_done -> crosscall2(fn, &frame, frameSize, ctxt) -> _cgo_release_context.
-func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, ctxtOff int64) {
+func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, ctxtOff, fnDescOff int64) {
 	if cfg.CallCrosscall2 != nil {
 		cfg.CallCrosscall2(w, fnName, frameSize, ctxtOff)
 		return
@@ -1307,6 +1395,12 @@ func (cfg *ABIConfig) emitCallCrosscall2(w io.Writer, fnName string, frameSize, 
 		fmt.Fprintf(w, "\tLEAQ\t·_cgo_fn_%s(SB), %s\n", fnName, arg0)
 		fmt.Fprintf(w, "\tMOVQ\t0(%s), %s\n", arg0, arg0)
 		fmt.Fprintf(w, "\tMOVQ\t0(%s), %s\n", arg0, arg0)
+	} else if cfg.HasFuncDesc {
+		fmt.Fprintf(w, "\tMOVD\t·_cgo_fn_%s(SB), %s\n", fnName, arg0)
+		fmt.Fprintf(w, "\tMOVD\t0(%s), %s\n", arg0, arg0)
+		cfg.emitStoreInt(w, arg0, cfg.SPReg, fnDescOff, 8)
+		cfg.emitStoreInt(w, "R2", cfg.SPReg, fnDescOff+8, 8)
+		cfg.emitAddr(w, cfg.SPReg, fnDescOff, arg0)
 	} else {
 		fmt.Fprintf(w, "\t%s\t·_cgo_fn_%s(SB), %s\n", cfg.asm.mov, fnName, arg0)
 		cfg.emitLoadInt(w, arg0, 0, ptrSize, false, arg0)
@@ -1330,15 +1424,16 @@ func (cfg *ABIConfig) writeTrampoline(w io.Writer, fn BindingFunc, types map[str
 	ptrSize := cfg.PtrSize
 	lay := cfg.layout(fn, types)
 
+	trampSym := fmt.Sprintf("_cgo%s_trampoline_%s", cPrefix, fn.Name)
 	var epilogue func(io.Writer)
 	if cfg.TrampolinePrologue != nil {
-		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT|NOFRAME, $0-0\n", cPrefix, fn.Name)
+		cfg.emitTextHeader(w, trampSym, "NOSPLIT|NOFRAME")
 		epilogue = cfg.TrampolinePrologue(w, lay)
 	} else if cfg.LinkReg != "" {
-		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT|NOFRAME, $0-0\n", cPrefix, fn.Name)
+		cfg.emitTextHeader(w, trampSym, "NOSPLIT|NOFRAME")
 		epilogue = cfg.emitRISCTrampolinePrologue(w, lay)
 	} else {
-		fmt.Fprintf(w, "TEXT _cgo%s_trampoline_%s(SB), NOSPLIT, $0-0\n", cPrefix, fn.Name)
+		cfg.emitTextHeader(w, trampSym, "NOSPLIT")
 		// Hold the _cgo_arg struct pointer in CalleeSavedReg across the C call:
 		// the C callee preserves it per the C ABI, and our caller (runtime.asmcgocall)
 		// does not keep a live value in CalleeSavedReg, so we need not save/restore it.
@@ -1500,12 +1595,17 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 	}
 	ctxtOff := alignUp(structSize, ptrSize)
 	structSize = ctxtOff + ptrSize
+	fnDescOff := int64(-1)
+	if cfg.HasFuncDesc {
+		fnDescOff = alignUp(structSize, ptrSize)
+		structSize = fnDescOff + 16
+	}
 	frameSize := max(16, alignUp(structSize, 16))
 
 	var callerSPOff int64
 	switch {
 	case cfg.CallbackPrologue != nil:
-		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT|NOFRAME, $0-0\n", fn.Name)
+		cfg.emitTextHeader(w, fn.Name, "NOSPLIT|NOFRAME")
 		callerSPOff = cfg.CallbackPrologue(w, frameSize)
 	case cfg.LinkReg != "":
 		fmt.Fprintf(w, "TEXT %s(SB), NOSPLIT|NOFRAME, $0-0\n", fn.Name)
@@ -1593,7 +1693,7 @@ func (cfg *ABIConfig) writeCallbackTrampoline(w io.Writer, fn BindingFunc, types
 		}
 	}
 
-	cfg.emitCallCrosscall2(w, fn.Name, frameSize, baseOff+ctxtOff)
+	cfg.emitCallCrosscall2(w, fn.Name, frameSize, baseOff+ctxtOff, baseOff+fnDescOff)
 
 	if fn.Ret != "" {
 		if lay.Ret.Indirect {
@@ -1953,7 +2053,13 @@ var win64ABI = newWin64ABI()
 // members with no padding) per AAPCS32/AAPCS64, returning its element
 // size and member count.
 func classifyHFA(info typeInfo) (elemSize int64, count int, isHFA bool) {
-	if info.size <= 0 || info.size > 32 || !info.fieldsOK || len(info.fields) < 1 || len(info.fields) > 4 {
+	return classifyHFAMax(info, 4)
+}
+
+// classifyHFAMax reports whether composite type info is an HFA of 1 to maxCount
+// identically sized float32 or float64 members with no padding.
+func classifyHFAMax(info typeInfo, maxCount int) (elemSize int64, count int, isHFA bool) {
+	if info.size <= 0 || !info.fieldsOK || len(info.fields) < 1 || len(info.fields) > maxCount {
 		return 0, 0, false
 	}
 	elemSize = info.fields[0].size
@@ -2018,6 +2124,9 @@ func hfaCompositeRegSlots(_ *ABIConfig, info typeInfo, isFloat bool, regs []stri
 		return nil, false
 	}
 	elemSz := info.size / int64(len(regs))
+	if info.fieldsOK && len(info.fields) > 0 {
+		elemSz = info.fields[0].size
+	}
 	slots := make([]regSlot, len(regs))
 	for k, r := range regs {
 		slots[k] = regSlot{reg: r, offset: int64(k) * elemSz, size: elemSz, isFloat: true}
@@ -2689,6 +2798,274 @@ func newMIPS32ABI(arch string, bigEndian bool) *ABIConfig {
 var mipsABI = newMIPS32ABI("mips", true)
 var mipsleABI = newMIPS32ABI("mipsle", false)
 
+// 64-bit PowerPC C calling conventions:
+//   - Linux ELFv2: https://openpowerfoundation.org/specifications/64bitelfabi/
+//   - AIX 64-bit XCOFF: https://www.ibm.com/docs/en/aix/7.3?topic=overview-subroutine-linkage-convention
+
+// ppc64AssignRet returns _Complex float and _Complex double values in F1 and
+// F2 on both ELFv2 and AIX, and ELFv2 homogeneous floating-point aggregates
+// of up to 8 members in F1..F8. AIX returns every other composite through a
+// hidden pointer.
+func ppc64AssignRet(cfg *ABIConfig, fn BindingFunc, info typeInfo, st *abiState) RetLoc {
+	if info.isComplex {
+		return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:2]), IsFloat: true}
+	}
+	if !cfg.HasFuncDesc && info.composite {
+		if _, count, ok := classifyHFAMax(info, 8); ok {
+			return RetLoc{Size: info.size, Regs: slices.Clone(cfg.FloatRetRegs[:count]), IsFloat: true}
+		}
+	}
+	return defaultAssignRet(cfg, fn, info, st)
+}
+
+func ppc64AssignParam(cfg *ABIConfig, _ BindingFunc, _ int, info typeInfo, st *abiState) ParamLoc {
+	if info.size == 0 {
+		return ParamLoc{}
+	}
+	nSlots := (info.size + 7) / 8
+	slot := st.intIdx
+
+	loc := ParamLoc{Size: info.size, IsFloat: info.isFloat}
+	if info.isComplex {
+		// Both ELFv2 and AIX pass _Complex float and _Complex double as two
+		// separate float or double arguments: each part takes the next FPR
+		// and its own doubleword of the parameter save area.
+		elemSz := info.size / 2
+		st.intIdx = slot + 2
+		loc.IsFloat = true
+		switch {
+		case st.floatIdx+2 <= len(cfg.FloatRegs):
+			loc.Regs = slices.Clone(cfg.FloatRegs[st.floatIdx : st.floatIdx+2])
+			st.floatIdx += 2
+		case st.floatIdx < len(cfg.FloatRegs):
+			// The real part takes F13 and the imaginary part the second
+			// doubleword, where a float is right-justified on ELFv2 BE.
+			loc.Regs = []string{cfg.FloatRegs[st.floatIdx]}
+			st.floatIdx = len(cfg.FloatRegs)
+			loc.StackOff = cfg.ShadowSpace + int64(slot+1)*8
+			if elemSz == 4 {
+				loc.StackOff += cfg.complexFloatStackPad()
+			}
+			loc.StackBytes = elemSz
+			st.stackOff = max(st.stackOff, cfg.ShadowSpace+int64(slot+2)*8)
+		default:
+			// ComplexFloatSplitStack places the parts of a complex64 in
+			// separate doublewords.
+			loc.StackOff = cfg.ShadowSpace + int64(slot)*8
+			st.stackOff = max(st.stackOff, loc.StackOff+16)
+		}
+		return loc
+	}
+	if !cfg.HasFuncDesc && info.composite {
+		if elemSz, count, ok := classifyHFAMax(info, 8); ok {
+			st.intIdx = slot + int(nSlots)
+			loc.IsFloat = true
+			if st.floatIdx+count <= len(cfg.FloatRegs) {
+				loc.Regs = slices.Clone(cfg.FloatRegs[st.floatIdx : st.floatIdx+count])
+				st.floatIdx += count
+				return loc
+			}
+			if st.floatIdx < len(cfg.FloatRegs) {
+				avail := len(cfg.FloatRegs) - st.floatIdx
+				loc.Regs = slices.Clone(cfg.FloatRegs[st.floatIdx:])
+				st.floatIdx = len(cfg.FloatRegs)
+				loc.StackOff = cfg.ShadowSpace + int64(slot)*8 + int64(avail)*elemSz
+				loc.StackBytes = int64(count-avail) * elemSz
+				st.stackOff = max(st.stackOff, cfg.ShadowSpace+int64(slot+int(nSlots))*8)
+				return loc
+			}
+			loc.StackOff = cfg.ShadowSpace + int64(slot)*8
+			st.stackOff = max(st.stackOff, loc.StackOff+nSlots*8)
+			return loc
+		}
+	}
+	if !cfg.HasFuncDesc && info.align >= 16 && slot%2 != 0 {
+		// ELFv2 starts an aggregate with 16-byte alignment (other than
+		// a homogeneous floating-point aggregate) at an even doubleword of
+		// the parameter save area, skipping an odd GPR. AIX does not.
+		slot++
+	}
+	st.intIdx = slot + int(nSlots)
+	switch {
+	case info.isFloat && st.floatIdx < len(cfg.FloatRegs):
+		loc.Regs = []string{cfg.FloatRegs[st.floatIdx]}
+		st.floatIdx++
+	case !info.isFloat && slot+int(nSlots) <= len(cfg.IntRegs):
+		loc.Regs = slices.Clone(cfg.IntRegs[slot : slot+int(nSlots)])
+	case !info.isFloat && slot < len(cfg.IntRegs) && info.composite:
+		// Split aggregate straddling R3..R10 and the parameter save area.
+		loc.Regs = slices.Clone(cfg.IntRegs[slot:])
+		regBytes := int64(len(loc.Regs)) * 8
+		loc.StackOff = cfg.ShadowSpace + int64(len(cfg.IntRegs))*8
+		loc.StackBytes = info.size - regBytes
+		st.stackOff = max(st.stackOff, cfg.ShadowSpace+int64(slot+int(nSlots))*8)
+	default:
+		loc.StackOff = cfg.ShadowSpace + int64(slot)*8
+		st.stackOff = max(st.stackOff, loc.StackOff+nSlots*8)
+	}
+	return loc
+}
+
+func newPPC64ABI(arch string, bigEndian bool, shadowSpace int64, isAIX bool) *ABIConfig {
+	emitAIXDescCall := func(w io.Writer, descSrc string) {
+		fmt.Fprintf(w, "\tMOVD\tR2, 40(R1)\n")
+		fmt.Fprintf(w, "\tMOVD\t%s, R12\n", descSrc)
+		fmt.Fprintf(w, "\tMOVD\t0(R12), R0\n")
+		fmt.Fprintf(w, "\tMOVD\t8(R12), R2\n")
+		fmt.Fprintf(w, "\tMOVD\tR0, CTR\n")
+		fmt.Fprintf(w, "\tBL\t(CTR)\n")
+		fmt.Fprintf(w, "\tMOVD\t40(R1), R2\n")
+		fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+	}
+	maxRegStructSize := int64(16)
+	floatRetRegs := []string{"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"}
+	if isAIX {
+		// AIX returns every composite except _Complex float and
+		// _Complex double through a hidden pointer.
+		maxRegStructSize = 0
+		floatRetRegs = []string{"F1", "F2"}
+	}
+	localFrameOff := shadowSpace + 64
+	return &ABIConfig{
+		Arch:                   arch,
+		PtrSize:                8,
+		CLongSize:              8,
+		StackAlign:             16,
+		ShadowSpace:            shadowSpace,
+		MinParamSaveArea:       64,
+		IntRegs:                []string{"R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"},
+		FloatRegs:              []string{"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "F13"},
+		IntRetRegs:             []string{"R3", "R4"},
+		FloatRetRegs:           floatRetRegs,
+		MaxRegStructSize:       maxRegStructSize,
+		IndirectRetReg:         "R3",
+		IndirectRetInArg:       true,
+		AssignParam:            ppc64AssignParam,
+		AssignRet:              ppc64AssignRet,
+		CompositeRegSlots:      hfaCompositeRegSlots,
+		SPReg:                  "R1",
+		CalleeSavedReg:         "R14",
+		TmpReg:                 "R11",
+		TmpReg2:                "R12",
+		ZeroVal:                "R0",
+		LocalFrameOff:          localFrameOff,
+		BigEndian:              bigEndian,
+		LeftJustifyBEComposite: isAIX,
+		LeftJustifyBETrailing:  !isAIX && bigEndian,
+		// ELFv2 BE right-justifies sub-doubleword composites and floats
+		// in their stack doubleword; AIX left-justifies both.
+		RightJustifyBECompositeStack: !isAIX && bigEndian,
+		LeftJustifyBEFloatStack:      isAIX,
+		ComplexFloatSplitStack:       true,
+		HasFuncDesc:                  isAIX,
+		asm: asmOps{
+			mov:   "MOVD",
+			loadB: "MOVB", loadBU: "MOVBZ", loadH: "MOVH", loadHU: "MOVHZ", loadW: "MOVW", loadWU: "MOVWZ",
+			storeB: "MOVB", storeH: "MOVH", storeW: "MOVW",
+			fmovS: "FMOVS", fmovD: "FMOVD",
+			shl: "SLD", shr: "SRD", or: "OR", add: "ADD", sub: "SUB",
+			alignDisp4: true,
+		},
+		TrampolinePrologue: func(w io.Writer, lay FuncLayout) func(io.Writer) {
+			total := lay.StackSize
+			fmt.Fprintf(w, "\tMOVD\tLR, R0\n")
+			fmt.Fprintf(w, "\tMOVD\tR0, 16(R1)\n")
+			emitPPC64AllocBackchain(w, "R11", total)
+			fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+			if !isAIX {
+				fmt.Fprintf(w, "\tMOVD\tR2, 24(R1)\n")
+			}
+			fmt.Fprintf(w, "\tMOVD\tR3, R14\n")
+			return func(w io.Writer) {
+				if !isAIX {
+					fmt.Fprintf(w, "\tMOVD\t24(R1), R2\n")
+				}
+				emitPPC64AddSP(w, total)
+				fmt.Fprintf(w, "\tMOVD\t16(R1), R0\n")
+				fmt.Fprintf(w, "\tMOVD\tR0, LR\n")
+				fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+			}
+		},
+		CallIndirect: func(w io.Writer, base string) {
+			if isAIX {
+				emitAIXDescCall(w, fmt.Sprintf("0(%s)", base))
+				return
+			}
+			fmt.Fprintf(w, "\tMOVD\tR2, 24(R1)\n")
+			fmt.Fprintf(w, "\tMOVD\t0(%s), R12\n", base)
+			fmt.Fprintf(w, "\tMOVD\tR12, CTR\n")
+			fmt.Fprintf(w, "\tBL\t(CTR)\n")
+			fmt.Fprintf(w, "\tMOVD\t24(R1), R2\n")
+			fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+		},
+		CallSymbol: func(w io.Writer, sym string, static bool) {
+			if isAIX {
+				if static {
+					emitAIXDescCall(w, fmt.Sprintf("$%s(SB)", sym))
+				} else {
+					emitAIXDescCall(w, fmt.Sprintf("__cgo_imp_%s(SB)", sym))
+				}
+				return
+			}
+			fmt.Fprintf(w, "\tBL\t%s(SB)\n", sym)
+			fmt.Fprintf(w, "\tWORD\t$0x60000000\n")
+			fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+		},
+		CallbackPrologue: func(w io.Writer, frameSize int64) int64 {
+			inner := localFrameOff + frameSize
+			total := inner + 16
+			fmt.Fprintf(w, "\tMOVD\tLR, R12\n")
+			fmt.Fprintf(w, "\tMOVD\tR12, 16(R1)\n")
+			if total <= 32760 {
+				emitPPC64AllocBackchain(w, "R12", total)
+				fmt.Fprintf(w, "\tMOVD\tR31, %d(R1)\n", inner)
+				fmt.Fprintf(w, "\tMOVD\tR2, %d(R1)\n", inner+8)
+				fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+				return total
+			}
+			// For total > 32760, large store offsets clobber REGTMP (R31)
+			// before it is saved (and on GOPPC64 < 10, MOVD R31, largeOff(R1)
+			// self-clobbers R31). Allocate an outer 16-byte frame to save R31
+			// and R2 at small displacements before allocating the inner frame.
+			fmt.Fprintf(w, "\tMOVD\tR1, R12\n")
+			fmt.Fprintf(w, "\tADD\t$-16, R1\n")
+			fmt.Fprintf(w, "\tMOVD\tR31, 0(R1)\n")
+			fmt.Fprintf(w, "\tMOVD\tR2, 8(R1)\n")
+			fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+			emitPPC64AddSP(w, -inner)
+			fmt.Fprintf(w, "\tMOVD\tR12, 0(R1)\n")
+			return total
+		},
+		CallbackEpilogue: func(w io.Writer, frameSize int64, _ bool) {
+			inner := localFrameOff + frameSize
+			total := inner + 16
+			if total <= 32760 {
+				fmt.Fprintf(w, "\tMOVD\t%d(R1), R2\n", inner+8)
+				fmt.Fprintf(w, "\tMOVD\t%d(R1), R31\n", inner)
+				fmt.Fprintf(w, "\tADD\t$%d, R1\n", total)
+				fmt.Fprintf(w, "\tMOVD\t16(R1), R12\n")
+				fmt.Fprintf(w, "\tMOVD\tR12, LR\n")
+				fmt.Fprintf(w, "\tRET\n")
+				return
+			}
+			// Re-zero R0 and undo the inner SP adjustment before restoring
+			// R2, R31, and the outer 16-byte frame.
+			fmt.Fprintf(w, "\tXOR\tR0, R0\n")
+			emitPPC64AddSP(w, inner)
+			fmt.Fprintf(w, "\tMOVD\t8(R1), R2\n")
+			fmt.Fprintf(w, "\tMOVD\t0(R1), R31\n")
+			fmt.Fprintf(w, "\tADD\t$16, R1\n")
+			fmt.Fprintf(w, "\tMOVD\t16(R1), R12\n")
+			fmt.Fprintf(w, "\tMOVD\tR12, LR\n")
+			fmt.Fprintf(w, "\tRET\n")
+		},
+	}
+}
+
+var ppc64leABI = newPPC64ABI("ppc64le", false, 32, false)
+var ppc64ABI = newPPC64ABI("ppc64", true, 32, false)
+var aixPPC64ABI = newPPC64ABI("ppc64", true, 48, true)
+
 // IBM Z (s390x) 64-bit ELF C calling convention:
 // "ELF ABI s390x Supplement", Section 1.2: https://github.com/IBM/s390x-abi
 //
@@ -3243,6 +3620,14 @@ func getABI(targetOS, targetArch string) *ABIConfig {
 		cfg = *riscv64ABI
 	case "loong64":
 		cfg = *loong64ABI
+	case "ppc64":
+		if targetOS == "aix" {
+			cfg = *aixPPC64ABI
+		} else {
+			cfg = *ppc64ABI
+		}
+	case "ppc64le":
+		cfg = *ppc64leABI
 	case "s390x":
 		cfg = *s390xABI
 	case "mips64", "mips64le":
