@@ -3005,12 +3005,16 @@ func (x Uint64x8) Expand(mask Mask64x8) Uint64x8
 //
 //	z[i] = int64(x[i])
 //
+// Deprecated: use Int8x32{}.SetLo(x).ExtendToInt64() instead.
+//
 // Asm: VPMOVSXBQ, CPU Feature: AVX2
 func (x Int8x16) ExtendLo4ToInt64() (z Int64x4)
 
 // ExtendLo4ToInt64 sign-extends the low 4 elements of x to int64.
 //
 //	z[i] = int64(x[i])
+//
+// Deprecated: use Int16x16{}.SetLo(x).ExtendToInt64() instead.
 //
 // Asm: VPMOVSXWQ, CPU Feature: AVX2
 func (x Int16x8) ExtendLo4ToInt64() (z Int64x4)
@@ -3021,12 +3025,16 @@ func (x Int16x8) ExtendLo4ToInt64() (z Int64x4)
 //
 //	z[i] = uint64(x[i])
 //
+// Deprecated: use Uint8x32{}.SetLo(x).ExtendToUint64() instead.
+//
 // Asm: VPMOVZXBQ, CPU Feature: AVX2
 func (x Uint8x16) ExtendLo4ToUint64() (z Uint64x4)
 
 // ExtendLo4ToUint64 zero-extends the low 4 elements of x to uint64.
 //
 //	z[i] = uint64(x[i])
+//
+// Deprecated: use Uint16x16{}.SetLo(x).ExtendToUint64() instead.
 //
 // Asm: VPMOVZXWQ, CPU Feature: AVX2
 func (x Uint16x8) ExtendLo4ToUint64() (z Uint64x4)
@@ -3037,6 +3045,8 @@ func (x Uint16x8) ExtendLo4ToUint64() (z Uint64x4)
 //
 //	z[i] = int32(x[i])
 //
+// Deprecated: use Int8x32{}.SetLo(x).ExtendToInt32() instead.
+//
 // Asm: VPMOVSXBD, CPU Feature: AVX2
 func (x Int8x16) ExtendLo8ToInt32() (z Int32x8)
 
@@ -3045,6 +3055,8 @@ func (x Int8x16) ExtendLo8ToInt32() (z Int32x8)
 // ExtendLo8ToInt64 sign-extends the low 8 elements of x to int64.
 //
 //	z[i] = int64(x[i])
+//
+// Deprecated: use Int8x64{}.SetLo(Int8x32{}.SetLo(x)).ExtendToInt64() instead.
 //
 // Asm: VPMOVSXBQ, CPU Feature: AVX512
 func (x Int8x16) ExtendLo8ToInt64() (z Int64x8)
@@ -3055,6 +3067,8 @@ func (x Int8x16) ExtendLo8ToInt64() (z Int64x8)
 //
 //	z[i] = uint32(x[i])
 //
+// Deprecated: use Uint8x32{}.SetLo(x).ExtendToUint32() instead.
+//
 // Asm: VPMOVZXBD, CPU Feature: AVX2
 func (x Uint8x16) ExtendLo8ToUint32() (z Uint32x8)
 
@@ -3063,6 +3077,8 @@ func (x Uint8x16) ExtendLo8ToUint32() (z Uint32x8)
 // ExtendLo8ToUint64 zero-extends the low 8 elements of x to uint64.
 //
 //	z[i] = uint64(x[i])
+//
+// Deprecated: use Uint8x64{}.SetLo(Uint8x32{}.SetLo(x)).ExtendToUint64() instead.
 //
 // Asm: VPMOVZXBQ, CPU Feature: AVX512
 func (x Uint8x16) ExtendLo8ToUint64() (z Uint64x8)

@@ -220,8 +220,9 @@ func SaturateIntToUint[xE Ints, W Width, zE Uints](x Vec[xE, W]) (z Vec[zE, W]) 
 //
 // ExtendLoLToZWiden describes the ExtendLo* conversions from a 128-bit vector
 // to a wider vector, which amd64 provides because each is a single instruction.
-// They have no same-width equivalent: x.ExtendTo*() would need the input in a
-// wider vector.
+// These are also deprecated: they have no same-width equivalent, but can be
+// written by placing x in the low part of a wider vector with SetLo and using
+// ExtendTo*.
 
 // ExtendLoLToZ {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
 //
@@ -240,6 +241,7 @@ func ExtendLoLToZ[E Ints | Uints, zE Ints | Uints](x Vec[E, Width128]) (z Vec[zE
 //
 //specgen:name ExtendLo{{.zL}}To{{.zE | title}}
 //specgen:require zB=xB zL<xL zW>xW
+//specgen:experiment
 func ExtendLoLToZWiden[E Ints | Uints, zE Ints | Uints, zW FixedWidth](x Vec[E, Width128]) (z Vec[zE, zW]) {
 	return map1[E, Width128, zE, zW](x, func(x E) zE { return zE(x) })
 }

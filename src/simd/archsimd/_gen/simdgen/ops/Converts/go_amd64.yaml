@@ -772,12 +772,17 @@
     - base: uint
       bits: 256
 
-# Low-part conversions from a 128-bit vector to a wider vector. These have no
-# same-width ExtendTo equivalent. The 128-bit to 128-bit ExtendLo forms are
-# deprecated wrappers around ExtendTo in deprecated_amd64.go.
+# Low-part conversions from a 128-bit vector to a wider vector. These are
+# deprecated in favor of placing x in the low part of a wider vector and using
+# ExtendTo, but remain because each is a single instruction. The 128-bit to
+# 128-bit ExtendLo forms are deprecated wrappers around ExtendTo in
+# deprecated_amd64.go.
 - go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXWQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Uint16x16{}.SetLo(x).ExtendToUint64() instead.
   in:
   - base: uint
     elemBits: 16
@@ -789,6 +794,9 @@
 - go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXWQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Int16x16{}.SetLo(x).ExtendToInt64() instead.
   in:
   - base: int
     elemBits: 16
@@ -800,6 +808,9 @@
 - go: ExtendLo8ToUint32
   regexpTag: "convert"
   asm: "VPMOVZXBD"
+  addDoc: !string |-
+    //
+    // Deprecated: use Uint8x32{}.SetLo(x).ExtendToUint32() instead.
   in:
   - base: uint
     elemBits: 8
@@ -811,6 +822,9 @@
 - go: ExtendLo8ToInt32
   regexpTag: "convert"
   asm: "VPMOVSXBD"
+  addDoc: !string |-
+    //
+    // Deprecated: use Int8x32{}.SetLo(x).ExtendToInt32() instead.
   in:
   - base: int
     elemBits: 8
@@ -822,6 +836,9 @@
 - go: ExtendLo4ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Uint8x32{}.SetLo(x).ExtendToUint64() instead.
   in:
   - base: uint
     elemBits: 8
@@ -833,6 +850,9 @@
 - go: ExtendLo8ToUint64
   regexpTag: "convert"
   asm: "VPMOVZXBQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Uint8x64{}.SetLo(Uint8x32{}.SetLo(x)).ExtendToUint64() instead.
   in:
   - base: uint
     elemBits: 8
@@ -844,6 +864,9 @@
 - go: ExtendLo4ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Int8x32{}.SetLo(x).ExtendToInt64() instead.
   in:
   - base: int
     elemBits: 8
@@ -855,6 +878,9 @@
 - go: ExtendLo8ToInt64
   regexpTag: "convert"
   asm: "VPMOVSXBQ"
+  addDoc: !string |-
+    //
+    // Deprecated: use Int8x64{}.SetLo(Int8x32{}.SetLo(x)).ExtendToInt64() instead.
   in:
   - base: int
     elemBits: 8
