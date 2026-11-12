@@ -142,3 +142,16 @@ func simdEnlargeExtendToInt32Shared(x archsimd.Int8x16, y archsimd.Int8x32) (arc
 	e := x.Enlarge()                   // amd64:`VMOVDQA X0, X[0-9]+`
 	return e.ExtendToInt32(), e.Add(y) // amd64:`VPMOVSXBD X0, Y[0-9]+`
 }
+
+// A load narrower than the conversion's input type also folds, as long as it
+// contains everything the conversion reads.
+
+func simdEnlargeExtendToInt32LoadFold256(s []int16) archsimd.Int32x16 {
+	// amd64:`VPMOVSXWD \([A-Z0-9]+\), Z[0-9]+` -`VMOVDQA` -`VMOVDQU`
+	return archsimd.LoadInt16x16(s).Enlarge().ExtendToInt32()
+}
+
+func simdEnlargeConvertToFloat64LoadFold256(s []float32) archsimd.Float64x8 {
+	// amd64:`VCVTPS2PD \([A-Z0-9]+\), Z[0-9]+` -`VMOVAPS` -`VMOVUPS` -`VMOVDQU`
+	return archsimd.LoadFloat32x8(s).Enlarge().ConvertToFloat64()
+}

@@ -808,24 +808,59 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					break
 				}
 			}
-			// The rule matches a load of the last vreg's Go width, so
-			// operations that share a machine op but differ in that width
-			// (e.g., a widening conversion reads only the low part of its
-			// input, whatever its Go width) each need their own rule. For
-			// example, VPMOVSXBD256 is shared by Int8x16.ExtendLo8ToInt32,
-			// whose input is a VMOVDQUload128, and Int8x32.ExtendToInt32,
-			// whose input is a VMOVDQUload256.
+			// Each rule combines a load with the operation, in
+			// place of its last vreg, giving a single instruction
+			// that both loads from memory and performs the
+			// operation. Most operations load and operate on the
+			// same size, so they get one rule, for a load of that
+			// vreg's Go width. A machine op shared by operations
+			// whose last vregs have different Go widths gets one
+			// rule for each of those widths.
+			//
+			// Operations with a narrow input (see
+			// [Operand.NarrowReg]), such as the widening ExtendTo*
+			// conversions, use only the low N < M bits of their
+			// M-bit input vector, so they can be combined with a
+			// load of any width between N and M. For example,
+			// Int8x32.ExtendToInt32 is VPMOVSXBD256, which uses
+			// only the low 128 bits of its 256-bit input. Usually
+			// its input is a VMOVDQUload256, but after the
+			// compiler's "simd enlarge" pass (see
+			// writeSIMDEnlargeTables) rewrites
+			// LoadInt8x16(s).Enlarge().ExtendToInt32(), its input
+			// is a VMOVDQUload128. We can still combine the load
+			// and the extend into one instruction, but need
+			// additional rules for each valid load width.
 			lastVreg := gOp.In[vregInCnt-1]
-			memKey := memOpKey{data.Asm, lastVreg.GoWidth().N()}
-			if memOpSeen[memKey] {
-				selected = false
+			// Sanity check
+			if selected && lastVreg.Class != "vreg" {
+				panic(fmt.Errorf("simdgen expects vbcst replaced operand to be a vreg, but %v found", lastVreg))
 			}
-			if selected {
-				memOpSeen[memKey] = true
-				// sanity check
-				if lastVreg.Class != "vreg" {
-					panic(fmt.Errorf("simdgen expects vbcst replaced operand to be a vreg, but %v found", lastVreg))
+			// loadWidths are the widths of the loads to generate
+			// rules for combining with the operation.
+			var loadWidths []int
+			if !selected {
+				// Leave loadWidths empty. An operation with an
+				// input treated as a scalar (see
+				// [Operand.TreatLikeAScalarOfSize]) has no
+				// load form for a rule to produce:
+				// writeSIMDMachineOps doesn't create one.
+			} else {
+				// The operation uses the low N bits of its
+				// M-bit input. In the common case of an
+				// operation that uses its whole input, N == M,
+				// so this is a single width.
+				n, m := lastVreg.Bits.N(), lastVreg.GoWidth().N()
+				for w := n; w <= m; w *= 2 {
+					loadWidths = append(loadWidths, w)
 				}
+			}
+			for _, loadWidth := range loadWidths {
+				memKey := memOpKey{data.Asm, loadWidth}
+				if memOpSeen[memKey] {
+					continue
+				}
+				memOpSeen[memKey] = true
 				memOpData := data
 				// Remove the last vreg from the arg and change it to a load.
 				origArgs := data.Args[:len(data.Args)-1]
@@ -840,7 +875,7 @@ func writeSIMDRules(buffer *bytes.Buffer, ops []Operation) {
 					immArg = "[c] "
 					immArgCombineOff = " [ssa.MakeValAndOff(int32(uint8(c)),off)] "
 				}
-				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", lastVreg.GoWidth().N())
+				memOpData.ArgsLoadAddr = immArg + origArgs + fmt.Sprintf("l:(VMOVDQUload%d {sym} [off] ptr mem)", loadWidth)
 				// Remove the last vreg from the arg and change it to "ptr".
 				memOpData.ArgsAddr = "{sym}" + immArgCombineOff + origArgs + "ptr"
 				if maskType == OneMask {

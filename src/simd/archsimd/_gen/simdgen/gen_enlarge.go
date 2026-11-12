@@ -32,11 +32,11 @@ import (
 // already has the bypassed input.
 //
 // After the pass, the op's input is narrower than its Go type. This is fine:
-// lowering passes the input through to the machine op, and codegen names the
-// input's register by the size the instruction reads (see simdNarrowArg).
-// A load of a 128-bit x is still combined with the instruction, because the
-// widening ExtendLo* conversions share these machine ops and give them rules
-// that combine them with 128-bit loads.
+// lowering passes the input through to the machine op, codegen names the
+// input's register by the size the instruction reads (see simdNarrowArg), and
+// writeSIMDRules generates rules that combine the instruction with a load of
+// any width that contains that part, so a load of x is still combined with
+// it.
 func writeSIMDEnlargeTables(ops []Operation) *bytes.Buffer {
 	// narrowArg identifies an op's narrow input: the index of the argument
 	// and how many bits of it the op reads.
