@@ -1,4 +1,4 @@
-// -lang=go1.22
+// -lang=go1.23
 
 // Copyright 2024 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -7,4 +7,4 @@
 package aliasTypes
 
 type _ = int
-type _[P /* ERROR "generic type alias requires go1.23 or later" */ any] = int
+type _[P /* ERROR "generic type alias requires go1.24 or later" */ any] = int

@@ -1,5 +1,16 @@
 ## Compiler {#compiler}
 
+<!-- go.dev/issue/83032 -->
+
+[Generic type aliases](/ref/spec#Alias_declarations) were introduced in
+[Go 1.24](/doc/go1.24#language), but due to an oversight, the compiler and
+[go/types] checked for language version Go 1.23 instead of Go 1.24.
+Starting with Go 1.28, declaring a generic type alias requires language
+version Go 1.24 or later. Packages targeting Go 1.23 (for instance, via
+`go 1.23` in `go.mod`) that declare generic type aliases will now be
+rejected unless updated to at least `go 1.24`.
+See [issue #83032](/issue/83032).
+
 ## Assembler {#assembler}
 
 ## Linker {#linker}

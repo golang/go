@@ -46,6 +46,7 @@ var (
 	go1_21 = asGoVersion("go1.21")
 	go1_22 = asGoVersion("go1.22")
 	go1_23 = asGoVersion("go1.23")
+	go1_24 = asGoVersion("go1.24")
 	go1_26 = asGoVersion("go1.26")
 	go1_27 = asGoVersion("go1.27")
 	go1_28 = asGoVersion("go1.28")

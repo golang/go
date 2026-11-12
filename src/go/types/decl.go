@@ -517,8 +517,8 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec) {
 	// alias declaration
 	if tdecl.Assign.IsValid() {
 		// Report highest version requirement first so that fixing a version issue
-		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.23).
-		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_23, "generic type alias") {
+		// avoids possibly two -lang changes (first to Go 1.9 and then to Go 1.24).
+		if !versionErr && tparam0 != nil && !check.verifyVersionf(tparam0, go1_24, "generic type alias") {
 			versionErr = true
 		}
 		if !versionErr && !check.verifyVersionf(atPos(tdecl.Assign), go1_9, "type alias") {
