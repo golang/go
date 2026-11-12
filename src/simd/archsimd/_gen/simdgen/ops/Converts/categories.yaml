@@ -148,39 +148,6 @@
   commutative: false
   documentation: !string |-
     // NAME zero-extends element values to uint64.
-# low-part only Int <-> Int conversions
-- go: ExtendLo4ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 4 lowest vector element values to uint64.
-- go: ExtendLo4ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 4 lowest vector element values to int64.
-- go: ExtendLo8ToUint32
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 8 lowest vector element values to uint32.
-- go: ExtendLo8ToInt32
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 8 lowest vector element values to int32.
-- go: ExtendLo4ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 4 lowest vector element values to uint64.
-- go: ExtendLo8ToUint64
-  commutative: false
-  documentation: !string |-
-    // NAME zero-extends 8 lowest vector element values to uint64.
-- go: ExtendLo4ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 4 lowest vector element values to int64.
-- go: ExtendLo8ToInt64
-  commutative: false
-  documentation: !string |-
-    // NAME sign-extends 8 lowest vector element values to int64.
 # Internal 2:1 narrowing conversions, used under a feature check.
 - go: "truncToUint(8|16|32)"
   commutative: false

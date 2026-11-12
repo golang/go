@@ -162,9 +162,10 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	// narrowFix maps the case expression of a machine op, such as
 	// "ssaop.OpAMD64VPMOVSXBD256" (or its Merging or load form), to the Go
 	// statements that fix up its narrow registers (see narrowRegFixes).
-	// Several operations can share a machine op (for example, ExtendLo8ToInt32
-	// and ExtendToInt32 both use VPMOVSXBD256), so this collects fixes from all
-	// of them, not just the first.
+	// Several operations can share a machine op (for example,
+	// Int32x8.TruncToInt8 and Uint32x8.TruncToUint8 both use
+	// VPMOVDB256), so this collects fixes from all of them, not just the
+	// first.
 	narrowFix := map[string]string{}
 	addNarrow := func(op Operation, caseStr string) {
 		fixes := narrowRegFixes(op)
@@ -288,14 +289,17 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 	for _, op := range ops {
 		shapeIn, shapeOut, maskType, immType, gOp, immOpArg := op.shape()
 		asm := machineOpName(maskType, gOp)
-		// Collect the narrow register fixes for op's machine op and its
-		// merging and load-folded forms. This comes before the seen check
-		// below because op may share its machine op with an earlier operation
-		// that has no narrow operands. For example, VPMOVSXBD256 is first seen
-		// for Int8x16.ExtendLo8ToInt32, whose X register input matches its Go
-		// type, and only Int8x32.ExtendToInt32 needs a fix. The fix is harmless
-		// for the other operation, since it renames a register to the name it
-		// already has.
+		// Collect the narrow register fixes for op's machine op and
+		// its merging and load-folded forms. This comes before the
+		// seen check below because op may share its machine op with
+		// an earlier operation that has no narrow operands. The fix
+		// is harmless for the other operation, since it renames a
+		// register to the name it already has. The same holds when
+		// the compiler's "simd enlarge" pass (see
+		// writeSIMDEnlargeTables) gives a machine op an input
+		// narrower than its Go type: VPMOVSXBD256 can take an
+		// Int8x16 input from x.Enlarge().ExtendToInt32(), whose X
+		// register already has the name the fix gives it.
 		addNarrow(op, fmt.Sprintf("ssaop.Op%s%s", archInfo.ArchUpper, asm))
 		if op.hasMaskedMerging(maskType, shapeOut) {
 			mop := op

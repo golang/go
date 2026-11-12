@@ -8011,14 +8011,6 @@ const (
 	OpExpandUint8x16
 	OpExpandUint8x32
 	OpExpandUint8x64
-	OpExtendLo4ToInt64Int16x8
-	OpExtendLo4ToInt64Int8x16
-	OpExtendLo4ToUint64Uint16x8
-	OpExtendLo4ToUint64Uint8x16
-	OpExtendLo8ToInt32Int8x16
-	OpExtendLo8ToInt64Int8x16
-	OpExtendLo8ToUint32Uint8x16
-	OpExtendLo8ToUint64Uint8x16
 	OpExtendToInt16Int8x16
 	OpExtendToInt16Int8x32
 	OpExtendToInt16Int8x64
@@ -120308,46 +120300,6 @@ var OpcodeTable = [...]OpInfo{
 	{
 		Name:    "ExpandUint8x64",
 		ArgLen:  2,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToInt64Int16x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToInt64Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToUint64Uint16x8",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo4ToUint64Uint8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo8ToInt32Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo8ToInt64Int8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo8ToUint32Uint8x16",
-		ArgLen:  1,
-		Generic: true,
-	},
-	{
-		Name:    "ExtendLo8ToUint64Uint8x16",
-		ArgLen:  1,
 		Generic: true,
 	},
 	{
