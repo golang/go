@@ -1867,6 +1867,11 @@ func genWasmSSA(f *bytes.Buffer) {
 				fmt.Fprintf(f,
 					`		getValue128(s, v.Args[0])
 		s.Prog(v.Op.Asm())
+		if extend && v.Type.IsBoolean() {
+			// The tests, like v128.any_true, produce an i32, but
+			// the rest of the backend expects booleans to be i64s.
+			s.Prog(wasm.AI64ExtendI32U)
+		}
 `)
 			case VV:
 				fmt.Fprintf(f,

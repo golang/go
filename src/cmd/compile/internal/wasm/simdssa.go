@@ -71,6 +71,11 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value, extend bool) bool {
 		ssaop.OpWasmF64x2Sqrt, ssaop.OpWasmF32x4Trunc, ssaop.OpWasmF64x2Trunc:
 		getValue128(s, v.Args[0])
 		s.Prog(v.Op.Asm())
+		if extend && v.Type.IsBoolean() {
+			// The tests, like v128.any_true, produce an i32, but
+			// the rest of the backend expects booleans to be i64s.
+			s.Prog(wasm.AI64ExtendI32U)
+		}
 	case ssaop.OpWasmI16x8Q15MulrSatS, ssaop.OpWasmI16x8RelaxedQ15MulrS, ssaop.OpWasmF32x4Pmax,
 		ssaop.OpWasmF32x4Pmin, ssaop.OpWasmF32x4RelaxedMax, ssaop.OpWasmF32x4RelaxedMin,
 		ssaop.OpWasmF64x2Pmax, ssaop.OpWasmF64x2Pmin, ssaop.OpWasmF64x2RelaxedMax,
