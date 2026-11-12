@@ -113,6 +113,13 @@ func TestRoundTrip(t *testing.T) {
 			} else if !bytes.Equal(got, kb) {
 				t.Errorf("re-serialized key mismatch: got %x, want %x", got, kb)
 			}
+			want := bytes.Clone(kb)
+			clear(kb) // the caller owns the slice returned by Bytes
+			if got, err := k.Bytes(); err != nil {
+				t.Fatal(err)
+			} else if !bytes.Equal(got, want) {
+				t.Errorf("Bytes after clearing a previous result: got %x, want %x", got, want)
+			}
 			pk, err := kem.NewPublicKey(k.PublicKey().Bytes())
 			if err != nil {
 				t.Fatal(err)
