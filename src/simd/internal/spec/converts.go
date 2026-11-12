@@ -183,20 +183,7 @@ func TruncToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE
 
 // SaturateToZ converts each element of x to {{.zE}}, saturating values
 // that are outside the range of {{.zE}}.
-//
-//	z[i] = sat(x[i])
-//
-// The results are stored in the low {{lanes .x "x"}} elements of z.
-// The remaining elements of z are zero.
-//
-//specgen:name SaturateTo{{.zE | title}}
-//specgen:require zB=xB zN<xN
-func SaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
-	return map1[xE, W, zE, W](x, saturate[xE, zE])
-}
-
-// SaturateIntToUint converts each element of x to {{.zE}}, saturating values
-// that are outside the range of {{.zE}}. Negative values become 0.
+// {{- if and (eq .xB "int") (eq .zB "uint")}} Negative values become 0.{{end}}
 //
 //	z[i] = sat(x[i])
 //
@@ -205,22 +192,27 @@ func SaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec
 //
 //specgen:name SaturateTo{{.zE | title}}
 //specgen:require zN<xN
-func SaturateIntToUint[xE Ints, W Width, zE Uints](x Vec[xE, W]) (z Vec[zE, W]) {
-	// The name and meaning are the same as SaturateToZ: saturate to the
-	// range of the result type. This is split out only because the
-	// constraint language can't express "zB=xB or (xB=int and zB=uint)".
+func SaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x Vec[xE, W]) (z Vec[zE, W]) {
+	// No hardware we know of has a saturating uint->int narrowing
+	// (amd64, arm64, and wasm provide at most int->int, uint->uint,
+	// and int->uint), but it's well-defined and easy to cover here,
+	// so spec allows all four combinations.
 	return map1[xE, W, zE, W](x, saturate[xE, zE])
 }
 
 // ConcatSaturateToZ converts each element of x and y to {{.zE}}, saturating
 // values that are outside the range of {{.zE}}, and returns the concatenated
 // result.
+// {{- if and (eq .xB "int") (eq .zB "uint")}} Negative values become 0.{{end}}
 //
 //	z = concat(sat(x[...]), sat(y[...]))
 //
 //specgen:name ConcatSaturateTo{{.zE | title}}
-//specgen:require zB=xB zN=xN/2
+//specgen:require zN=xN/2
 func ConcatSaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
+	// As with SaturateToZ, no hardware we know of has a saturating
+	// uint->int narrowing, but it's easy to cover here, so spec allows
+	// all four combinations.
 	z = makeVec[zE, W]()
 	n := x.len()
 	for i := range n {
@@ -230,36 +222,13 @@ func ConcatSaturateToZ[xE Ints | Uints, W Width, zE Ints | Uints](x, y Vec[xE, W
 	return z
 }
 
-// ConcatSaturateIntToUint converts each element of x and y to {{.zE}},
-// saturating values that are outside the range of {{.zE}}, and returns the
-// concatenated result. Negative values become 0.
-//
-//	z = concat(sat(x[...]), sat(y[...]))
-//
-//specgen:name ConcatSaturateTo{{.zE | title}}
-//specgen:require zN=xN/2
-func ConcatSaturateIntToUint[xE Ints, W Width, zE Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
-	// This is split from ConcatSaturateToZ for the same reason as
-	// SaturateIntToUint.
-	return ConcatSaturateToZ[xE, W, zE](x, y)
-}
-
 // ConcatSaturateToZGrouped divides x, y, and z into groups of 128 bits and
 // performs [ConcatSaturateTo{{.zE | title}}] on each group.
 //
 //specgen:name ConcatSaturateTo{{.zE | title}}Grouped
-//specgen:require zB=xB zN=xN/2
+//specgen:require zN=xN/2
 func ConcatSaturateToZGrouped[xE Ints | Uints, W Width, zE Ints | Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
 	return grouped128(ConcatSaturateToZ[xE, Width128, zE], x, y)
-}
-
-// ConcatSaturateIntToUintGrouped divides x, y, and z into groups of 128 bits
-// and performs [ConcatSaturateTo{{.zE | title}}] on each group.
-//
-//specgen:name ConcatSaturateTo{{.zE | title}}Grouped
-//specgen:require zN=xN/2
-func ConcatSaturateIntToUintGrouped[xE Ints, W Width, zE Uints](x, y Vec[xE, W]) (z Vec[zE, W]) {
-	return grouped128(ConcatSaturateIntToUint[xE, Width128, zE], x, y)
 }
 
 // ExtendLo* and ConvertLo* on 128-bit vectors are superseded by ExtendTo* and

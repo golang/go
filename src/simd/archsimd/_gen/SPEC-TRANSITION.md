@@ -657,7 +657,7 @@ elements of the result and zero the rest, and widening conversions convert only
 the low elements of their input. The names carry no lane count, since the
 receiver and result types imply it: `ExtendTo*`, `TruncTo*`, `SaturateTo*`, and
 `ConvertTo*`, which work unchanged for scalable vectors. This is spec's
-`ExtendToZ`, `TruncToZ`, `SaturateToZ`, `SaturateIntToUint`, and the
+`ExtendToZ`, `TruncToZ`, `SaturateToZ`, and the
 `ConvertTo*` functions in `internal/spec/converts.go`, which documents them.
 
 On 128-bit vectors, `ExtendLo*` and `ConvertLo*` mean exactly the same as

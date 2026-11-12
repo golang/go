@@ -2043,9 +2043,9 @@ func (x Int32x16) ConcatSaturateToInt16Grouped(y Int32x16) (z Int16x32)
 
 /* ConcatSaturateToUint16 */
 
-// ConcatSaturateToUint16 converts each element of x and y to uint16,
-// saturating values that are outside the range of uint16, and returns the
-// concatenated result. Negative values become 0.
+// ConcatSaturateToUint16 converts each element of x and y to uint16, saturating
+// values that are outside the range of uint16, and returns the concatenated
+// result. Negative values become 0.
 //
 //	z = concat(sat(x[...]), sat(y[...]))
 //
@@ -2054,14 +2054,14 @@ func (x Int32x4) ConcatSaturateToUint16(y Int32x4) (z Uint16x8)
 
 /* ConcatSaturateToUint16Grouped */
 
-// ConcatSaturateToUint16Grouped divides x, y, and z into groups of 128 bits
-// and performs [ConcatSaturateToUint16] on each group.
+// ConcatSaturateToUint16Grouped divides x, y, and z into groups of 128 bits and
+// performs [ConcatSaturateToUint16] on each group.
 //
 // Asm: VPACKUSDW, CPU Feature: AVX2
 func (x Int32x8) ConcatSaturateToUint16Grouped(y Int32x8) (z Uint16x16)
 
-// ConcatSaturateToUint16Grouped divides x, y, and z into groups of 128 bits
-// and performs [ConcatSaturateToUint16] on each group.
+// ConcatSaturateToUint16Grouped divides x, y, and z into groups of 128 bits and
+// performs [ConcatSaturateToUint16] on each group.
 //
 // Asm: VPACKUSDW, CPU Feature: AVX512
 func (x Int32x16) ConcatSaturateToUint16Grouped(y Int32x16) (z Uint16x32)
