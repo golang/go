@@ -1497,6 +1497,13 @@ func init() {
 		{name: "Zero256", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
 		{name: "Zero512", argLength: 0, reg: x15only, zeroWidth: true, fixedReg: true},
 
+		// Enlarge (arg0 with twice as many elements, upper half
+		// zeroed) when arg0's register is already zero above arg0's
+		// width (see zeroUpperVec), so the result is just arg0's
+		// register viewed at the wider width. Emits no code.
+		{name: "LoweredEnlarge256", argLength: 1, reg: w11, resultInArg0: true, zeroWidth: true, zeroUpperVec: true, typ: "Vec256"},
+		{name: "LoweredEnlarge512", argLength: 1, reg: w11, resultInArg0: true, zeroWidth: true, zeroUpperVec: true, typ: "Vec512"},
+
 		// Move a 32/64 bit float to a 128-bit SIMD register.
 		{name: "VMOVSDf2v", argLength: 1, reg: fpv, asm: "VMOVSD"},
 		{name: "VMOVSSf2v", argLength: 1, reg: fpv, asm: "VMOVSS"},
@@ -1603,14 +1610,18 @@ func init() {
 		{name: "JUMPTABLE", controls: 2, aux: "Sym"},
 	}
 
+	simdOps := simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv,
+		w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw, wkwload, v21load, v31load, v11load,
+		w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2)
+	allOps := append(AMD64ops, simdOps...)
+	markZeroUpperVec(allOps, w)
+
 	archs = append(archs, arch{
-		name:        "AMD64",
-		pkg:         "cmd/internal/obj/x86",
-		genfile:     "../../amd64/ssa.go",
-		genSIMDfile: "../../amd64/simdssa.go",
-		ops: append(AMD64ops, simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv,
-			w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw, wkwload, v21load, v31load, v11load,
-			w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2)...), // AMD64ops,
+		name:               "AMD64",
+		pkg:                "cmd/internal/obj/x86",
+		genfile:            "../../amd64/ssa.go",
+		genSIMDfile:        "../../amd64/simdssa.go",
+		ops:                allOps,
 		blocks:             AMD64blocks,
 		regnames:           regNamesAMD64,
 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
@@ -1623,4 +1634,25 @@ func init() {
 		framepointerreg:    int8(num["BP"]),
 		linkreg:            -1, // not used
 	})
+}
+
+// markZeroUpperVec sets zeroUpperVec on each op in ops that writes a
+// register in vregs with a VEX- or EVEX-encoded instruction.
+//
+// A VEX- or EVEX-encoded instruction zeroes its destination vector register
+// above the width it writes, up to the maximum vector length. Legacy SSE
+// instructions, such as MOVUPS and the SHA extensions, instead leave the
+// upper bits unchanged. Every VEX and EVEX vector mnemonic begins with "V",
+// and no legacy SSE one does. This ignores ops that don't output a register
+// in vregs.
+func markZeroUpperVec(ops []opData, vregs regMask) {
+	for i := range ops {
+		op := &ops[i]
+		if !strings.HasPrefix(op.asm, "V") || len(op.reg.outputs) == 0 {
+			continue
+		}
+		if op.reg.outputs[0].intersects(vregs) {
+			op.zeroUpperVec = true
+		}
+	}
 }

@@ -155,3 +155,72 @@ func simdEnlargeConvertToFloat64LoadFold256(s []float32) archsimd.Float64x8 {
 	// amd64:`VCVTPS2PD \([A-Z0-9]+\), Z[0-9]+` -`VMOVAPS` -`VMOVUPS` -`VMOVDQU`
 	return archsimd.LoadFloat32x8(s).Enlarge().ConvertToFloat64()
 }
+
+// Enlarge needs no move when its input's register is already zero above the
+// input, as it is when a VEX or EVEX instruction writes it, including
+// through phis, spills, and restores.
+
+func simdEnlargeOfResult(x, y archsimd.Int32x4) archsimd.Int32x8 {
+	// amd64:`VPADDD X[0-9]+, X[0-9]+, X[0-9]+` -`VMOVDQA`
+	return x.Add(y).Enlarge()
+}
+
+func simdEnlargeOfLoad(s []int32) archsimd.Int32x8 {
+	// amd64:`VMOVDQU \([A-Z0-9]+\), X[0-9]+` -`VMOVDQA`
+	return archsimd.LoadInt32x4(s).Enlarge()
+}
+
+func simdEnlargeEnlargeOfResult(x, y archsimd.Float32x4) archsimd.Float32x16 {
+	// amd64:`VADDPS X[0-9]+, X[0-9]+, X[0-9]+` -`VMOVAPS`
+	return x.Add(y).Enlarge().Enlarge()
+}
+
+func simdEnlargeOfResultFullWidthUse(x, y archsimd.Int32x4, z archsimd.Int32x8) archsimd.Int32x8 {
+	// amd64:`VPADDD X[0-9]+, X[0-9]+, X[0-9]+` `VPADDD Y[0-9]+, Y[0-9]+, Y[0-9]+` -`VMOVDQA`
+	return x.Add(y).Enlarge().Add(z)
+}
+
+func simdEnlargeOfPhi(x, y archsimd.Int32x4, c bool) archsimd.Int32x8 {
+	v := x.Add(y)
+	if c {
+		v = x.Sub(y)
+	}
+	// amd64:-`VMOVDQA`
+	return v.Enlarge()
+}
+
+var simdSinkInt32x4 archsimd.Int32x4
+
+//go:noinline
+func simdClobber() {}
+
+func simdEnlargeOfRestored(x, y archsimd.Int32x4) archsimd.Int32x8 {
+	v := x.Add(y)
+	simdSinkInt32x4 = v
+	simdClobber()
+	// amd64:`VMOVUPS [^,]+\(SP\), X[0-9]+` -`VMOVDQA`
+	return v.Enlarge()
+}
+
+// But Enlarge still needs its move when the upper bits of its input's
+// register are unknown, as for arguments and call results (see also
+// simdEnlargeInt32x4 above), or a phi with such an input.
+
+//go:noinline
+func simdInt32x4Result() archsimd.Int32x4 {
+	return archsimd.Int32x4{}
+}
+
+func simdEnlargeOfCallResult() archsimd.Int32x8 {
+	// amd64:`VMOVDQA X[0-9]+, X[0-9]+`
+	return simdInt32x4Result().Enlarge()
+}
+
+func simdEnlargeOfPhiWithArg(x, y archsimd.Int32x4, c bool) archsimd.Int32x8 {
+	v := x
+	if c {
+		v = x.Add(y)
+	}
+	// amd64:`VMOVDQA X[0-9]+, X[0-9]+`
+	return v.Enlarge()
+}

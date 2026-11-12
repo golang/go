@@ -1926,6 +1926,12 @@
 // Mask equality, x.Xor(y).Not().
 (KNOT(B|W|D|Q) (KXOR(B|W|D|Q) x y)) => (KXNOR(B|W|D|Q) x y)
 
+// Enlarge is a VEX move at x's width, which zeroes the register above it. If
+// x's register is already zero above x, the move is unnecessary, and the result
+// is just x's register viewed at the wider width.
+(VMOV(APD|APS|DQA)256 x) && ssa.ZeroUpperVec(x) => (LoweredEnlarge256 x)
+(VMOV(APD|APS|DQA)512 x) && ssa.ZeroUpperVec(x) => (LoweredEnlarge512 x)
+
 (VPMOVVec8x16ToM (VPMOVMToVec8x16 x)) => x
 (VPMOVVec8x32ToM (VPMOVMToVec8x32 x)) => x
 (VPMOVVec8x64ToM (VPMOVMToVec8x64 x)) => x

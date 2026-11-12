@@ -118,6 +118,7 @@ type comparableOpData struct {
 	symEffect         string // effect this op has on symbol in aux
 	scale             uint8  // amd64/386 indexed load scale
 	zeroUpperBits     uint8  // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
+	zeroUpperVec      bool   // the op writes a vector register whose bits above the result's width are always zero
 }
 
 type opData struct {
@@ -159,6 +160,11 @@ func regMaskAt(i uint) regMask {
 
 func (r regMask) empty() bool {
 	return r.v1 == 0 && r.v2 == 0
+}
+
+// intersects reports whether r and s have any registers in common.
+func (r regMask) intersects(s regMask) bool {
+	return r.v1&s.v1 != 0 || r.v2&s.v2 != 0
 }
 
 func (r regMask) hasReg(i uint) bool {
@@ -477,6 +483,9 @@ func genOp() {
 			}
 			if v.earlyOk {
 				fmt.Fprintln(w, simpleTitle("earlyOk: true,"))
+			}
+			if v.zeroUpperVec {
+				fmt.Fprintln(w, simpleTitle("zeroUpperVec: true,"))
 			}
 			if v.addrSinkArg0 {
 				fmt.Fprintln(w, simpleTitle("addrSinkArg0: true,"))

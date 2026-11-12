@@ -201,6 +201,37 @@ func zeroUpperBits(x *Value, bits int64, depth int) bool {
 	return false
 }
 
+// ZeroUpperVec reports whether the vector register holding x provably has
+// all of its bits above x's width zero, so viewing it at a wider width
+// zero-extends x.
+//
+// Which ops guarantee this is declared per op in the _gen op definitions (the
+// zeroUpperVec attribute). This holds through spills, restores, and register
+// moves only because those use VEX encodings for SIMD values (see
+// amd64.avxMove).
+func ZeroUpperVec(x *Value) bool { return zeroUpperVec(x, 3) }
+
+func zeroUpperVec(x *Value, depth int) bool {
+	if ssaop.OpcodeTable[x.Op].ZeroUpperVec {
+		return true
+	}
+	switch x.Op {
+	case ssaop.OpPhi:
+		// As in zeroUpperBits, limit the recursion depth rather than
+		// tracking visited values.
+		if depth <= 0 {
+			return false
+		}
+		for _, a := range x.Args {
+			if !zeroUpperVec(a, depth-1) {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
 // ZeroUpper48Bits is similar to ZeroUpper32Bits, but for upper 48 bits.
 func ZeroUpper48Bits(x *Value) bool { return zeroUpperBits(x, 48, 3) }
 

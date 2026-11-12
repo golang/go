@@ -86,6 +86,7 @@ type OpInfo struct {
 	symEffect         SymEffect // effect this op has on symbol in aux
 	scale             uint8     // amd64/386 indexed load scale
 	ZeroUpperBits     uint8     // the op writes a 64-bit GPR whose upper N bits are always zero (0, 32, 48 or 56); for a tuple op, this holds for every integer result
+	ZeroUpperVec      bool      // the op writes a vector register whose bits above the result's width are always zero
 }
 
 type OutputInfo struct {
