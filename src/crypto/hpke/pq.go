@@ -319,7 +319,7 @@ func (k *hybridPrivateKey) Bytes() ([]byte, error) {
 	if k.seed == nil {
 		return nil, errors.New("private key seed not available")
 	}
-	return k.seed, nil
+	return bytes.Clone(k.seed), nil
 }
 
 func (k *hybridPrivateKey) PublicKey() PublicKey {
