@@ -15,7 +15,9 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 // Test basic operations in a safe manner.
@@ -1059,6 +1061,39 @@ func TestMultipleEncodingsOfBadType(t *testing.T) {
 	}
 }
 
+type Bug4CycleA struct {
+	B      *Bug4CycleB
+	Secret Bug4Secret
+}
+
+type Bug4CycleB struct {
+	A *Bug4CycleA
+}
+
+func TestCyclicalEncodingOfBadType(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("unexpected panic encoding cyclical bad type: %v", r)
+		}
+	}()
+	err := NewEncoder(io.Discard).Encode(Bug4CycleA{})
+	if err == nil {
+		t.Fatal("first cyclical encoding: expected error")
+	}
+	if !strings.Contains(err.Error(), "no exported fields") {
+		t.Errorf("expected error about no exported fields; got %v", err)
+	}
+
+	err = NewEncoder(io.Discard).Encode(Bug4CycleB{A: &Bug4CycleA{}})
+	if err == nil {
+		t.Fatal("second cyclical encoding: expected error")
+	}
+
+	if !strings.Contains(err.Error(), "no exported fields") {
+		t.Errorf("expected error about no exported fields; got %v", err)
+	}
+}
+
 // There was an error check comparing the length of the input with the
 // length of the slice being decoded. It was wrong because the next
 // thing in the input might be a type definition, which would lead to
@@ -1320,5 +1355,88 @@ func TestLargeMap(t *testing.T) {
 	}
 	if len(m) != entries {
 		t.Errorf("got %d entries, want %d", len(m), entries)
+	}
+}
+
+// Issue 82740.
+type (
+	t82740_00 struct{ Next *t82740_01 }
+	t82740_01 struct{ Next *t82740_02 }
+	t82740_02 struct{ Next *t82740_03 }
+	t82740_03 struct{ Next *t82740_04 }
+	t82740_04 struct{ Next *t82740_05 }
+	t82740_05 struct{ Next *t82740_06 }
+	t82740_06 struct{ Next *t82740_07 }
+	t82740_07 struct{ Next *t82740_08 }
+	t82740_08 struct{ Next *t82740_09 }
+	t82740_09 struct{ Next *t82740_10 }
+	t82740_10 struct{ Next *t82740_11 }
+	t82740_11 struct{ Next *t82740_12 }
+	t82740_12 struct{ Next *t82740_13 }
+	t82740_13 struct{ Next *t82740_14 }
+	t82740_14 struct{ Next *t82740_15 }
+	t82740_15 struct{ Next *t82740_16 }
+	t82740_16 struct{ Next *t82740_17 }
+	t82740_17 struct{ Next *t82740_18 }
+	t82740_18 struct{ Next *t82740_19 }
+	t82740_19 struct{ Next *t82740_20 }
+	t82740_20 struct{ Next *t82740_21 }
+	t82740_21 struct{ Next *t82740_22 }
+	t82740_22 struct{ Next *t82740_23 }
+	t82740_23 struct{ Next *t82740_24 }
+	t82740_24 struct{ Next *t82740_25 }
+	t82740_25 struct{ Next *t82740_26 }
+	t82740_26 struct{ Next *t82740_27 }
+	t82740_27 struct{ Next *t82740_28 }
+	t82740_28 struct{ Next *t82740_29 }
+	t82740_29 struct{ Next *t82740_30 }
+	t82740_30 struct{ Next *t82740_31 }
+	t82740_31 struct{ Next *t82740_00 }
+)
+
+func TestConcurrentEncodeCyclicalTypes(t *testing.T) {
+	allTypes := []any{
+		t82740_00{}, t82740_01{}, t82740_02{}, t82740_03{}, t82740_04{}, t82740_05{}, t82740_06{}, t82740_07{},
+		t82740_08{}, t82740_09{}, t82740_10{}, t82740_11{}, t82740_12{}, t82740_13{}, t82740_14{}, t82740_15{},
+		t82740_16{}, t82740_17{}, t82740_18{}, t82740_19{}, t82740_20{}, t82740_21{}, t82740_22{}, t82740_23{},
+		t82740_24{}, t82740_25{}, t82740_26{}, t82740_27{}, t82740_28{}, t82740_29{}, t82740_30{}, t82740_31{},
+	}
+	roots := []any{t82740_00{}, t82740_16{}}
+
+	for range 10 {
+		for _, v := range allTypes {
+			if info := lookupTypeInfo(reflect.TypeOf(v)); info != nil {
+				info.encoder.Store(nil)
+			}
+		}
+
+		start := make(chan struct{})
+		done := make(chan struct{})
+		var wg sync.WaitGroup
+		for _, v := range roots {
+			wg.Add(1)
+			go func(v any) {
+				defer wg.Done()
+				<-start
+				if err := NewEncoder(io.Discard).Encode(v); err != nil {
+					t.Errorf("Encode(%T) failed: %v", v, err)
+				}
+			}(v)
+		}
+		go func() {
+			wg.Wait()
+			close(done)
+		}()
+		close(start)
+
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for concurrent Encode of cyclical types (deadlock)")
+		}
+
+		if err := NewEncoder(io.Discard).Encode(t82740_00{Next: &t82740_01{}}); err != nil {
+			t.Fatalf("Encode non-nil cyclical value failed: %v", err)
+		}
 	}
 }
