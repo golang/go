@@ -16,3 +16,12 @@ func f(x int) {
 	_ = new /* ERROR "new(f) requires go1.26 or later" */ (f)
 	_ = new /* ERROR "new(1 < 2) requires go1.26 or later" */ (1 < 2)
 }
+
+// Self-referential generic constraints require Go 1.26 or later.
+type T /* ERROR "requires go1.26 or later" */ [P T[P]] interface{}
+
+func infer[P T[P]](P) {}
+
+func useInference() {
+	infer(1)
+}

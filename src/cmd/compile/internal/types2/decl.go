@@ -227,6 +227,7 @@ loop:
 
 	// Cycles through type parameter lists are ok (go.dev/issue/68162).
 	if tparCycle {
+		check.verifyVersionf(obj, go1_26, "self-referential generic type")
 		return true
 	}
 
