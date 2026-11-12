@@ -1,6 +1,6 @@
 <!--{
 	"Title": "The Go Programming Language Specification",
-	"Subtitle": "Language version go1.28 (November 11, 2026)",
+	"Subtitle": "Language version go1.28 (November 12, 2026)",
 	"Path": "/ref/spec"
 }-->
 
@@ -2000,8 +2000,7 @@ valid composite literal of type <code>T</code>.
 <code>x</code> is a (possibly partially instantiated) generic function, <code>T</code>
 is a function type, and any type arguments not provided explicitly for <code>x</code>
 can be <a href="#Type_inference">inferred</a> such that (after full instantiation)
-<code>x</code> and <code>T</code> have identical underlying types
-[<a href="#Go_1.27">Go 1.27</a>].
+<code>x</code> and <code>T</code> have identical underlying types.
 </li>
 
 <li>
@@ -8908,17 +8907,10 @@ An <a href="#Alias_declarations">alias declaration</a> may declare
 The predeclared function <a href="#Allocation"><code>new</code></a> may also be used
 with an expression (rather than a type) argument.
 </li>
-<li>
-Generic type declarations may refer to themselves in their own type parameter list.
-</li>
 </ul>
 
 <h4 id="Go_1.27">Go 1.27</h4>
 <ul>
-<li>
-Function <a href="#Type_inference">type inference</a> applies in all
-<a href="#Assignability">assignment contexts</a> involving functions.
-</li>
 <li>
 A <a href="#Method_declarations">method declaration</a> may declare
 <a href="#Type_parameter_declarations">type parameters</a>.
