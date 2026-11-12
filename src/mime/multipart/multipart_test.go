@@ -1018,3 +1018,36 @@ func TestNoBoundary(t *testing.T) {
 		t.Errorf("NextPart error = %v; want %v", got, want)
 	}
 }
+
+func BenchmarkNextPart(b *testing.B) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	for i := range 100 {
+		if err := w.WriteField(fmt.Sprintf("field%d", i), "value"); err != nil {
+			b.Fatal(err)
+		}
+	}
+	if err := w.Close(); err != nil {
+		b.Fatal(err)
+	}
+	body := buf.Bytes()
+	boundary := w.Boundary()
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(body)))
+	for b.Loop() {
+		r := NewReader(bytes.NewReader(body), boundary)
+		for {
+			p, err := r.NextPart()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				b.Fatal(err)
+			}
+			if _, err := io.Copy(io.Discard, p); err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+}
