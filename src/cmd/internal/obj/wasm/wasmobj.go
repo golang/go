@@ -407,14 +407,15 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 	// their targets will be filled in later
 	var entryPointLoopBranches []*obj.Prog
 	var unwindExitBranches []*obj.Prog
-	currentDepth := 0
+	currentExplicitDepth := 0
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
-			currentDepth++
+			currentExplicitDepth++
 		case AEnd:
-			if currentDepth > 0 { // not a resume point
-				currentDepth--
+			// A resume point is an End at depth 0. Its Block is added later.
+			if currentExplicitDepth > 0 {
+				currentExplicitDepth--
 			}
 		}
 
@@ -427,8 +428,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				// jump to basic block
 				target := jmp.To.Val.(*obj.Prog)
 				if idx, here := resumeIdx(target), resumeIdx(p); idx > here {
-					// the Block ending at its resume point is still open
-					p = appendp(p, ABr, constAddr(int64(currentDepth)+int64(idx-here-1)))
+					// Branch out of the currentExplicitDepth explicit blocks,
+					// then over the idx-here-1 resume points before the target.
+					p = appendp(p, ABr, constAddr(int64(currentExplicitDepth)+int64(idx-here-1)))
 					break
 				}
 				p = appendp(p, AI32Const, constAddr(target.Pc))
@@ -758,7 +760,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	currentDepth = 0
+	currentDepth := 0
 	blockDepths := make(map[*obj.Prog]int)
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
