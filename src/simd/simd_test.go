@@ -577,3 +577,33 @@ func TestLookupOrZero(t *testing.T) {
 		t.Errorf("Wanted %v, got %v", want, got)
 	}
 }
+
+func TestStoreShort(t *testing.T) {
+	// Store panics if the slice is shorter than the vector, and StorePart
+	// stores as much as fits.
+	x := simd.BroadcastInt8s(1)
+	s := make([]int8, x.Len()-1)
+	if n := x.StorePart(s); n != len(s) || slices.ContainsFunc(s, func(e int8) bool { return e != 1 }) {
+		t.Errorf("StorePart into %d elements returned %d and stored %v", len(s), n, s)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Errorf("Store into %d elements of a %d-element vector didn't panic", len(s), x.Len())
+		}
+	}()
+	x.Store(s)
+}
+
+func TestStoreShortFloat64s(t *testing.T) {
+	x := simd.BroadcastFloat64s(1)
+	s := make([]float64, x.Len()-1)
+	if n := x.StorePart(s); n != len(s) || slices.ContainsFunc(s, func(e float64) bool { return e != 1 }) {
+		t.Errorf("StorePart into %d elements returned %d and stored %v", len(s), n, s)
+	}
+	defer func() {
+		if recover() == nil {
+			t.Errorf("Store into %d elements of a %d-element vector didn't panic", len(s), x.Len())
+		}
+	}()
+	x.Store(s)
+}
