@@ -1691,14 +1691,9 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.HasShape() {
 		t.SetHasShape(true)
 	}
-	if underlying.flags&(typeIsSIMD|typeIsSIMDTag) != 0 {
-		simdify(t, underlying.flags&typeIsSIMDTag != 0)
-		// simdify assigns the register counts of a vector; keep the
-		// underlying type's, which differ for an SVE predicate (passed in
-		// memory, see CalcStructSize).
-		t.intRegs = underlying.intRegs
-		t.floatRegs = underlying.floatRegs
-	}
+	// A type defined in terms of a SIMD type or tag is one too. Its layout,
+	// copied above, already reflects that.
+	t.flags |= underlying.flags & (typeIsSIMD | typeIsSIMDTag)
 
 	// spec: "The declared type does not inherit any methods bound
 	// to the existing type, but the method set of an interface
