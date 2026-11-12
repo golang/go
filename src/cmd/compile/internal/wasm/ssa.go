@@ -284,12 +284,26 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
 		setReg(s, v.Reg0()) // move result from wasm stack to register local
 
 	case ssaop.OpWasmI64Store8, ssaop.OpWasmI64Store16, ssaop.OpWasmI64Store32, ssaop.OpWasmI64Store, ssaop.OpWasmF32Store, ssaop.OpWasmF64Store:
+		if to, ok := stackAddr(s, v.Args[0], v.AuxInt); ok {
+			getReg(s, wasm.REG_SP)
+			getValue64(s, v.Args[1])
+			p := s.Prog(v.Op.Asm())
+			p.To = to
+			break
+		}
 		getValue32(s, v.Args[0])
 		getValue64(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
 		p.To = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
 
 	case ssaop.OpWasmV128Store:
+		if to, ok := stackAddr(s, v.Args[0], v.AuxInt); ok {
+			getReg(s, wasm.REG_SP)
+			getValue128(s, v.Args[1])
+			p := s.Prog(v.Op.Asm())
+			p.To = to
+			break
+		}
 		getValue32(s, v.Args[0])
 		getValue128(s, v.Args[1])
 		p := s.Prog(v.Op.Asm())
@@ -400,6 +414,11 @@ func ssaGenValueOnStack(s *ssagen.State, v *ssa.Value, extend bool) {
 
 	case ssaop.OpWasmI64Load8U, ssaop.OpWasmI64Load8S, ssaop.OpWasmI64Load16U, ssaop.OpWasmI64Load16S,
 		ssaop.OpWasmI64Load32U, ssaop.OpWasmI64Load32S, ssaop.OpWasmI64Load, ssaop.OpWasmF32Load, ssaop.OpWasmF64Load, ssaop.OpWasmV128Load:
+		if from, ok := stackAddr(s, v.Args[0], v.AuxInt); ok {
+			p := s.Prog(v.Op.Asm())
+			p.From = from
+			break
+		}
 		getValue32(s, v.Args[0])
 		p := s.Prog(v.Op.Asm())
 		p.From = obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt}
@@ -505,6 +524,18 @@ func isAlready32(v *ssa.Value) bool {
 	default:
 		return false
 	}
+}
+
+// stackAddr returns the operand of a load or store at v+off and true,
+// or false if v is not an offset from SP whose generation was delayed.
+func stackAddr(s *ssagen.State, v *ssa.Value, off int64) (obj.Addr, bool) {
+	if !v.OnWasmStack || v.Op != ssaop.OpWasmLoweredAddr || v.Args[0].Op != ssaop.OpSP {
+		return obj.Addr{}, false
+	}
+	s.OnWasmStackSkipped--
+	a := obj.Addr{Type: obj.TYPE_MEM, Reg: wasm.REG_SP}
+	ssagen.AddAux2(&a, v, v.AuxInt+off)
+	return a, true
 }
 
 func getValue32(s *ssagen.State, v *ssa.Value) {
