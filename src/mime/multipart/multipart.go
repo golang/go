@@ -146,10 +146,7 @@ func (r *stickyErrorReader) Read(p []byte) (n int, _ error) {
 }
 
 func newPart(mr *Reader, rawPart bool, maxMIMEHeaderSize, maxMIMEHeaders int64) (*Part, error) {
-	bp := &Part{
-		Header: make(map[string][]string),
-		mr:     mr,
-	}
+	bp := &Part{mr: mr}
 	if err := bp.populateHeaders(maxMIMEHeaderSize, maxMIMEHeaders); err != nil {
 		return nil, err
 	}
