@@ -205,7 +205,7 @@ func (rd *reparseData) pathBuffeLen() uint16 {
 // Windows REPARSE_DATA_BUFFER contains union member, and cannot be
 // translated into Go directly. _REPARSE_DATA_BUFFER type is to help
 // construct alternative versions of Windows REPARSE_DATA_BUFFER with
-// union part of SymbolicLinkReparseBuffer or MountPointReparseBuffer type.
+// different layouts for its union member.
 type _REPARSE_DATA_BUFFER struct {
 	header windows.REPARSE_DATA_BUFFER_HEADER
 	detail [syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE]byte
@@ -225,6 +225,10 @@ func createDirLink(link string, rdb *_REPARSE_DATA_BUFFER) error {
 	}
 	defer syscall.CloseHandle(fd)
 
+	return setReparsePoint(fd, rdb)
+}
+
+func setReparsePoint(fd syscall.Handle, rdb *_REPARSE_DATA_BUFFER) error {
 	buflen := uint32(rdb.header.ReparseDataLength) + uint32(unsafe.Sizeof(rdb.header))
 	var bytesReturned uint32
 	return syscall.DeviceIoControl(fd, windows.FSCTL_SET_REPARSE_POINT,
@@ -540,23 +544,33 @@ func TestNetworkSymbolicLink(t *testing.T) {
 }
 
 func TestStatLxSymLink(t *testing.T) {
-	if _, err := exec.LookPath("wsl"); err != nil {
-		t.Skip("skipping: WSL not detected")
-	}
-
-	t.Chdir(t.TempDir())
-
+	tmpdir := t.TempDir()
 	const target = "target"
-	const link = "link"
-
-	_, err := testenv.Command(t, "wsl", "/bin/mkdir", target).Output()
-	if err != nil {
-		// This normally happens when WSL still doesn't have a distro installed to run on.
-		t.Skipf("skipping: WSL is not correctly installed: %v", err)
+	if err := os.Mkdir(filepath.Join(tmpdir, target), 0777); err != nil {
+		t.Fatal(err)
 	}
 
-	_, err = testenv.Command(t, "wsl", "/bin/ln", "-s", target, link).Output()
+	link := filepath.Join(tmpdir, "link")
+	f, err := os.Create(link)
 	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	// Create the reparse point directly so the test doesn't depend on WSL.
+	// Version 1 stores the UTF-8 link target in the file data.
+	const IO_REPARSE_TAG_LX_SYMLINK = 0xA000001D
+	var rdb _REPARSE_DATA_BUFFER
+	rdb.header.ReparseTag = IO_REPARSE_TAG_LX_SYMLINK
+	rdb.header.ReparseDataLength = 4
+	rdb.detail[0] = 1
+	if err := setReparsePoint(syscall.Handle(f.Fd()), &rdb); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteString(target); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
 		t.Fatal(err)
 	}
 
@@ -565,10 +579,9 @@ func TestStatLxSymLink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if m := fi.Mode(); m&fs.ModeSymlink != 0 {
-		// This can happen depending on newer WSL versions when running as admin or in developer mode.
-		t.Skip("skipping: WSL created reparse tag IO_REPARSE_TAG_SYMLINK instead of an IO_REPARSE_TAG_LX_SYMLINK")
+		t.Fatalf("os.Lstat(%q).Mode() = %v, want ModeSymlink unset", link, m)
 	}
-	// Stat'ing a IO_REPARSE_TAG_LX_SYMLINK from outside WSL always return ERROR_CANT_ACCESS_FILE.
+	// Stat'ing an IO_REPARSE_TAG_LX_SYMLINK from outside WSL always returns ERROR_CANT_ACCESS_FILE.
 	// We check this condition to validate that os.Stat has tried to follow the link.
 	_, err = os.Stat(link)
 	const ERROR_CANT_ACCESS_FILE = syscall.Errno(1920)
