@@ -5562,6 +5562,50 @@ func TestIPv4MappedIPsConstraintCreate(t *testing.T) {
 	}
 }
 
+func TestCreateCertificateEmptySANNames(t *testing.T) {
+	testcases := map[string][]any{
+		"dNSName":                   {""},
+		"rfc822Name":                {""},
+		"uniformResourceIdentifier": {nil, &url.URL{}},
+		"iPAddress":                 {nil, []byte{}, []byte{1}, bytes.Repeat({0}, 17)},
+	}
+
+	for sanType, sanValues := range testcases {
+		t.Run(sanType, func(t *testing.T) {
+			tmpl := &Certificate{
+				NotBefore: time.Now().Add(-24 * time.Hour),
+				NotAfter:  time.Now().Add(24 * time.Hour),
+			}
+
+			for _, sanValue := range sanValues {
+				switch sanType {
+				case "dNSName":
+					tmpl.DNSNames = {sanValue.(string)}
+				case "rfc822Name":
+					tmpl.EmailAddresses = {sanValue.(string)}
+				case "uniformResourceIdentifier":
+					if sanValue == nil {
+						tmpl.URIs = {nil}
+					} else {
+						tmpl.URIs = {sanValue.(*url.URL)}
+					}
+				case "iPAddress":
+					if sanValue == nil {
+						tmpl.IPAddresses = {nil}
+					} else {
+						tmpl.IPAddresses = {sanValue.([]uint8)}
+					}
+				}
+
+				_, err := CreateCertificate(rand.Reader, tmpl, tmpl, rsaPrivateKey.Public(), rsaPrivateKey)
+				if err == nil {
+					t.Errorf("CreateCertificate didn't fail with an empty (or malformed) SAN type %s with value %v", sanType, sanValue)
+				}
+			}
+		})
+	}
+}
+
 // RFC 9935, Appendix C.1.2.1.
 var rfc9935ExamplePrivateKeyMLKEM768 = testingKey(`
 -----BEGIN TESTING KEY-----

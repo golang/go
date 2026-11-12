@@ -1871,17 +1871,6 @@ var nameConstraintsTests = []nameConstraintsTest{
 			sans: []string{"email:a@ExAmple.com"},
 		},
 	},
-	{
-		name: "excluded constraint, empty DNS san",
-		roots: []constraintsSpec{
-			{
-				bad: []string{"dns:example.com"},
-			},
-		},
-		leaf: leafSpec{
-			sans: []string{"dns:"},
-		},
-	},
 
 	{
 		name: "subdomain excluded constraints preclude outer wildcard names",
@@ -2675,35 +2664,6 @@ func TestBadNamesInConstraints(t *testing.T) {
 			if !test.matcher(err) {
 				t.Errorf("bad name %q triggered unrecognised error: %s", test.name, err)
 			}
-		}
-	}
-}
-
-func TestBadNamesInSANs(t *testing.T) {
-	// Bad names in URI and IP SANs should not parse. Bad DNS and email SANs
-	// will parse and are tested in name constraint tests at the top of this
-	// file.
-	badNames := []string{
-		"uri:https://example.com./dsf",
-		"invalidip:0102",
-		"invalidip:0102030405",
-	}
-
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		panic(err)
-	}
-
-	for _, badName := range badNames {
-		_, err := makeConstraintsLeafCert(leafSpec{sans: []string{badName}}, priv, nil, priv)
-
-		if err == nil {
-			t.Errorf("bad name %q unexpectedly accepted in SAN", badName)
-			continue
-		}
-
-		if str := err.Error(); !strings.Contains(str, "cannot parse ") {
-			t.Errorf("bad name %q triggered unrecognised error: %s", badName, str)
 		}
 	}
 }

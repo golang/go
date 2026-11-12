@@ -509,18 +509,27 @@ func parseSANExtension(der cryptobyte.String) (dnsNames, emailAddresses []string
 		switch tag {
 		case nameTypeEmail:
 			email := string(data)
+			if len(email) == 0 {
+				return nil
+			}
 			if err := isIA5String(email); err != nil {
 				return errors.New("x509: SAN rfc822Name is malformed")
 			}
 			emailAddresses = append(emailAddresses, email)
 		case nameTypeDNS:
 			name := string(data)
+			if len(name) == 0 {
+				return nil
+			}
 			if err := isIA5String(name); err != nil {
 				return errors.New("x509: SAN dNSName is malformed")
 			}
 			dnsNames = append(dnsNames, string(name))
 		case nameTypeURI:
 			uriStr := string(data)
+			if len(uriStr) == 0 {
+				return nil
+			}
 			if err := isIA5String(uriStr); err != nil {
 				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
 			}

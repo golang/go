@@ -1273,18 +1273,27 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
 	var rawValues []asn1.RawValue
 	for _, name := range dnsNames {
+		if len(name) == 0 {
+			return nil, errors.New("x509: DNSNames cannot contain an empty string")
+		}
 		if err := isIA5String(name); err != nil {
 			return nil, err
 		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
 	}
 	for _, email := range emailAddresses {
+		if len(email) == 0 {
+			return nil, errors.New("x509: EmailAddresses cannot contain an empty string")
+		}
 		if err := isIA5String(email); err != nil {
 			return nil, err
 		}
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeEmail, Class: 2, Bytes: []byte(email)})
 	}
 	for _, rawIP := range ipAddresses {
+		if len(rawIP) != net.IPv6len && len(rawIP) != net.IPv4len {
+			return nil, errors.New("x509: IPAddresses cannot contain an address which is neither IPv4 or IPv6")
+		}
 		// If possible, we always want to encode IPv4 addresses in 4 bytes.
 		ip := rawIP.To4()
 		if ip == nil {
@@ -1293,6 +1302,9 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris [
 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeIP, Class: 2, Bytes: ip})
 	}
 	for _, uri := range uris {
+		if uri == nil || len(uri.String()) == 0 {
+			return nil, errors.New("x509: URIs cannot contain a nil or empty URI")
+		}
 		uriStr := uri.String()
 		if err := isIA5String(uriStr); err != nil {
 			return nil, err
