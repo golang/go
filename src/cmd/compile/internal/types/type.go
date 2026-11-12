@@ -234,8 +234,8 @@ const (
 	// typeIsFullyInstantiated reports whether a type is fully instantiated generic type; i.e.
 	// an instantiated generic type where all type arguments are non-generic or fully instantiated generic types.
 	typeIsFullyInstantiated
-	typeIsSIMDTag // type is the SIMD marker type
-	typeIsSIMD    // type contains the SIMD marker type
+	typeIsSIMDTag // type is a SIMD marker (tag) type
+	typeIsSIMD    // type is a SIMD type: a SIMD vector or mask
 	typeMethodsComputed
 )
 
@@ -1691,7 +1691,7 @@ func (t *Type) SetUnderlying(underlying *Type) {
 	if underlying.HasShape() {
 		t.SetHasShape(true)
 	}
-	if underlying.flags&typeIsSIMD != 0 {
+	if underlying.flags&(typeIsSIMD|typeIsSIMDTag) != 0 {
 		simdify(t, underlying.flags&typeIsSIMDTag != 0)
 		// simdify assigns the register counts of a vector; keep the
 		// underlying type's, which differ for an SVE predicate (passed in

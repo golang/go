@@ -474,22 +474,22 @@ func CalcSize(t *Type) {
 	ResumeCheckSize()
 }
 
-// simdify marks as type as "SIMD", either as a tag field,
-// or having the SIMD attribute.  The tag field is a marker
-// type used to identify a struct that is not really a struct.
-// A SIMD type is allocated to a vector register (on amd64,
-// xmm, ymm, or zmm).  The fields of a SIMD type are ignored
-// by the compiler except for the space that they reserve.
+// simdify marks a type either as a SIMD tag or as a SIMD type. A SIMD tag is
+// simply a zero-sized marker type. SIMD vector and mask types are represented
+// as structs whose first field is a SIMD tag. However, at run time, they're
+// allocated to vector registers (on amd64, xmm, ymm, or zmm), so the "fields"
+// of the struct are essentially ignored by the compiler, except for their space
+// and alignment.
 func simdify(st *Type, isTag bool) {
 	st.align = 8
 	st.alg = ANOALG // not comparable with ==
 	st.intRegs = 0
-	st.flags |= typeIsSIMD
 	if isTag {
 		st.width = 0
 		st.flags |= typeIsSIMDTag
 		st.floatRegs = 0
 	} else {
+		st.flags |= typeIsSIMD
 		st.floatRegs = 1
 	}
 }
