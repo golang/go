@@ -240,7 +240,7 @@ func ConcatSaturateToZGrouped[xE Ints | Uints, W Width, zE Ints | Uints](x, y Ve
 // ExtendLoLToZWiden describes the ExtendLo* conversions from a 128-bit vector
 // to a wider vector, which amd64 provides because each is a single instruction.
 // These are also deprecated: they have no same-width equivalent, but can be
-// written by placing x in the low part of a wider vector with SetLo and using
+// written by enlarging x to the result's width with Enlarge and using
 // ExtendTo*.
 
 // ExtendLoLToZ {{if eq .xB "int"}}sign{{else}}zero{{end}}-extends the low {{.zL}} elements of x to {{.zE}}.
