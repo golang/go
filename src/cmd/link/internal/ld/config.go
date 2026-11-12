@@ -34,7 +34,7 @@ func (mode *BuildMode) Set(s string) error {
 		return fmt.Errorf("invalid buildmode: %q", s)
 	case "exe":
 		switch buildcfg.GOOS + "/" + buildcfg.GOARCH {
-		case "darwin/arm64", "windows/arm64": // On these platforms, everything is PIE
+		case "darwin/amd64", "darwin/arm64", "windows/arm64": // On these platforms, everything is PIE
 			*mode = BuildModePIE
 		default:
 			*mode = BuildModeExe
