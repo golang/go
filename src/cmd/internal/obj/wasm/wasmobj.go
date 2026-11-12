@@ -399,17 +399,24 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		p = appendp(p, AEnd)
 	}
 
+	resumeIdx := func(p *obj.Prog) uint64 {
+		return tableIdxs[min(p.Pc, int64(len(tableIdxs)-1))] // the last entry is the default
+	}
+
 	// record the branches targeting the entry loop and the unwind exit,
 	// their targets will be filled in later
 	var entryPointLoopBranches []*obj.Prog
 	var unwindExitBranches []*obj.Prog
-	currentDepth := 0
+	currentExplicitDepth := 0
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
 		case ABlock, ALoop, AIf:
-			currentDepth++
+			currentExplicitDepth++
 		case AEnd:
-			currentDepth--
+			// A resume point is an End at depth 0. Its Block is added later.
+			if currentExplicitDepth > 0 {
+				currentExplicitDepth--
+			}
 		}
 
 		switch p.As {
@@ -419,7 +426,14 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 
 			if jmp.To.Type == obj.TYPE_BRANCH {
 				// jump to basic block
-				p = appendp(p, AI32Const, constAddr(jmp.To.Val.(*obj.Prog).Pc))
+				target := jmp.To.Val.(*obj.Prog)
+				if idx, here := resumeIdx(target), resumeIdx(p); idx > here {
+					// Branch out of the currentExplicitDepth explicit blocks,
+					// then over the idx-here-1 resume points before the target.
+					p = appendp(p, ABr, constAddr(int64(currentExplicitDepth)+int64(idx-here-1)))
+					break
+				}
+				p = appendp(p, AI32Const, constAddr(target.Pc))
 				p = appendp(p, ASet, regAddr(REG_PC_B)) // write next basic block to PC_B
 				p = appendp(p, ABr)                     // jump to beginning of entryPointLoop
 				entryPointLoopBranches = append(entryPointLoopBranches, p)
@@ -746,7 +760,7 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 		}
 	}
 
-	currentDepth = 0
+	currentDepth := 0
 	blockDepths := make(map[*obj.Prog]int)
 	for p := s.Func().Text; p != nil; p = p.Link {
 		switch p.As {
