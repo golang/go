@@ -19,8 +19,9 @@ const (
 	// slot. We may want to reevaluate if this is best for us.
 	maxAvgGroupLoad = 7
 
-	ctrlEmpty   ctrl = 0b10000000
-	ctrlDeleted ctrl = 0b11111110
+	ctrlEmpty   ctrl = 0b00000000
+	ctrlDeleted ctrl = 0b01111110
+	ctrlFull    ctrl = 0b10000000
 
 	bitsetLSB   = 0x0101010101010101
 	bitsetMSB   = 0x8080808080808080
@@ -115,11 +116,9 @@ func (b bitset) count() int {
 // Each slot in the hash table has a control byte which can have one of three
 // states: empty, deleted, and full. They have the following bit patterns:
 //
-//	  empty: 1 0 0 0 0 0 0 0
-//	deleted: 1 1 1 1 1 1 1 0
-//	   full: 0 h h h h h h h  // h represents the H2 hash bits
-//
-// TODO(prattmic): Consider inverting the top bit so that the zero value is empty.
+//	  empty: 0 0 0 0 0 0 0 0
+//	deleted: 0 1 1 1 1 1 1 0
+//	   full: 1 h h h h h h h  // h represents the H2 hash bits
 type ctrl uint8
 
 // ctrlGroup is a fixed size array of abi.MapGroupSlots control bytes
@@ -148,9 +147,9 @@ func (g *ctrlGroup) setEmpty() {
 	*g = ctrlGroup(bitsetEmpty)
 }
 
-// matchH2 returns the set of slots which are full and for which the 7-bit hash
-// matches the given value. May return false positives.
-func (g ctrlGroup) matchH2(h uintptr) bitset {
+// matchH2 returns the set of slots which match the occupied control byte
+// returned by h2. May return false positives.
+func (g ctrlGroup) matchH2(h ctrl) bitset {
 	return ctrlGroupMatchH2(g, h)
 }
 
@@ -158,15 +157,15 @@ func (g ctrlGroup) matchH2(h uintptr) bitset {
 //
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
-func ctrlGroupMatchH2(g ctrlGroup, h uintptr) bitset {
+func ctrlGroupMatchH2(g ctrlGroup, h ctrl) bitset {
 	v := uint64(g) ^ (bitsetLSB * uint64(h))
 	if goarch.IsArm64 == 1 {
 		v = ^v
 		return bitset((v&bitsetL7B + bitsetLSB) & (v & bitsetMSB))
 	}
-	// NB: This generic matching routine produces false positive matches when
-	// h is 2^N and the control bytes have a seq of 2^N followed by 2^N+1. For
-	// example: if ctrls==0x0302 and h=02, we'll compute v as 0x0100. When we
+	// NB: This generic matching routine can produce a false positive when a
+	// matching control byte is followed by that byte XOR 1. For example, if
+	// ctrls==0x8382 and h=0x82, we'll compute v as 0x0100. When we
 	// subtract off 0x0101 the first 2 bytes we'll become 0xffff and both be
 	// considered matches of h. The false positive matches are not a problem,
 	// just a rare inefficiency. Note that they only occur if there is a real
@@ -185,14 +184,14 @@ func (g ctrlGroup) matchEmpty() bitset {
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmpty(g ctrlGroup) bitset {
-	// An empty slot is   1000 0000
-	// A deleted slot is  1111 1110
-	// A full slot is     0??? ????
+	// An empty slot is   0000 0000
+	// A deleted slot is  0111 1110
+	// A full slot is     1??? ????
 	//
-	// A slot is empty iff bit 7 is set and bit 1 is not. We could select any
+	// A slot is empty iff bits 7 and 1 are clear. We could select any
 	// of the other bits here (e.g. v << 1 would also work).
 	v := uint64(g)
-	return bitset((v &^ (v << 6)) & bitsetMSB)
+	return bitset(^(v | (v << 6)) & bitsetMSB)
 }
 
 // matchEmptyOrDeleted returns the set of slots in the group that are empty or
@@ -206,13 +205,13 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchEmptyOrDeleted(g ctrlGroup) bitset {
-	// An empty slot is  1000 0000
-	// A deleted slot is 1111 1110
-	// A full slot is    0??? ????
+	// An empty slot is  0000 0000
+	// A deleted slot is 0111 1110
+	// A full slot is    1??? ????
 	//
-	// A slot is empty or deleted iff bit 7 is set.
+	// A slot is empty or deleted iff bit 7 is clear.
 	v := uint64(g)
-	return bitset(v & bitsetMSB)
+	return bitset(^v & bitsetMSB)
 }
 
 // matchFull returns the set of slots in the group that are full.
@@ -222,8 +221,8 @@ func (g ctrlGroup) matchFull() bitset {
 
 // anyFull reports whether any slots in the group are full.
 func (g ctrlGroup) anyFull() bool {
-	// A slot is full iff bit 7 is unset. Test whether any slot has bit 7 unset.
-	return (^g)&bitsetMSB != 0
+	// A slot is full iff bit 7 is set.
+	return g&bitsetMSB != 0
 }
 
 // Portable implementation of matchFull.
@@ -231,13 +230,13 @@ func (g ctrlGroup) anyFull() bool {
 // Note: On AMD64, this is an intrinsic implemented with SIMD instructions. See
 // note on bitset about the packed intrinsified return value.
 func ctrlGroupMatchFull(g ctrlGroup) bitset {
-	// An empty slot is  1000 0000
-	// A deleted slot is 1111 1110
-	// A full slot is    0??? ????
+	// An empty slot is  0000 0000
+	// A deleted slot is 0111 1110
+	// A full slot is    1??? ????
 	//
-	// A slot is full iff bit 7 is unset.
+	// A slot is full iff bit 7 is set.
 	v := uint64(g)
-	return bitset(^v & bitsetMSB)
+	return bitset(v & bitsetMSB)
 }
 
 // groupReference is a wrapper type representing a single slot group stored at
