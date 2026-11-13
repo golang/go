@@ -83,8 +83,7 @@ func TestHTTP1ServerInvalidTrailers(t *testing.T) {
 	}} {
 		synctest.Subtest(t, test.name, func(t *testing.T) {
 			handler := newTestHandler(t)
-			st := newHTTP1ServerTest(t, handler.ServeHTTP)
-			defer handler.Close()
+			st := newHTTP1ServerTest(t, handler)
 
 			conn := st.dial()
 			conn.writeMessage(test.request)
@@ -107,8 +106,7 @@ func TestHTTP1ServerInvalidTrailers(t *testing.T) {
 func TestHTTP1ServerSwitchingProtocolsWithoutHijack(t *testing.T) {
 	synctest.Subtest(t, "upgrade", func(t *testing.T) {
 		handler := newTestHandler(t)
-		st := newHTTP1ServerTest(t, handler.ServeHTTP)
-		defer handler.Close()
+		st := newHTTP1ServerTest(t, handler)
 
 		conn := st.dial()
 		conn.writeMessage(joinCRLF(
@@ -132,8 +130,7 @@ func TestHTTP1ServerSwitchingProtocolsWithoutHijack(t *testing.T) {
 
 	synctest.Subtest(t, "non-upgrade", func(t *testing.T) {
 		handler := newTestHandler(t)
-		st := newHTTP1ServerTest(t, handler.ServeHTTP)
-		defer handler.Close()
+		st := newHTTP1ServerTest(t, handler)
 
 		conn := st.dial()
 		conn.writeMessage(joinCRLF(
@@ -161,13 +158,16 @@ type http1ServerTest struct {
 	ts *httptest.Server
 }
 
-func newHTTP1ServerTest(t *testing.T, h http.HandlerFunc) *http1ServerTest {
+func newHTTP1ServerTest(t *testing.T, h http.Handler) *http1ServerTest {
 	if h == nil {
-		h = func(w http.ResponseWriter, req *http.Request) {}
+		h = http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {})
 	}
 	st := &http1ServerTest{
 		t:  t,
 		ts: httptest.NewTestServer(t, h),
+	}
+	if c, ok := h.(interface{ Cleanup() }); ok {
+		t.Cleanup(c.Cleanup)
 	}
 	return st
 }
@@ -327,16 +327,16 @@ type testHandler struct {
 func newTestHandler(t *testing.T) *testHandler {
 	h := &testHandler{t: t}
 	t.Cleanup(func() {
-		// testHandler.Close should be called before the server shuts down.
+		// testHandler.Cleanup should be called before the server shuts down.
 		// Catch the case where we forgot to do this.
 		if !h.closed {
-			t.Errorf("testHandler.Close not called")
+			t.Errorf("testHandler.Cleanup not called")
 		}
 	})
 	return h
 }
 
-func (h *testHandler) Close() {
+func (h *testHandler) Cleanup() {
 	h.t.Helper()
 	synctest.Wait()
 	h.mu.Lock()

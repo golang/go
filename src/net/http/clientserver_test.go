@@ -155,6 +155,9 @@ type clientServerTest struct {
 }
 
 func (t *clientServerTest) close() {
+	if c, ok := t.h.(interface{ Cleanup() }); ok {
+		c.Cleanup()
+	}
 	t.tr.CloseIdleConnections()
 	t.ts.Close()
 }
