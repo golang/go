@@ -627,6 +627,7 @@ var depsRules = `
 	< crypto/x509/internal/macos
 	< crypto/x509/pkix
 	< crypto/x509
+	< crypto/internal/upki
 	< crypto/tls;
 
 	# crypto-aware packages
