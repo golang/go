@@ -8,6 +8,7 @@ import (
 	"internal/abi"
 	"internal/bytealg"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/pprof/label"
 	"internal/runtime/sys"
 	"internal/stringslite"
@@ -1704,9 +1705,16 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
 // to Go will not show a traceback for the C portion of the call stack.
 //
 // SetCgoTraceback should be called only once, ideally from an init function.
+//
+// SetCgoTraceback does not have any effect when the cgobindings
+// GOEXPERIMENT is enabled.
 func SetCgoTraceback(version int, traceback, context, symbolizer unsafe.Pointer) {
 	if version != 0 {
 		panic("unsupported version")
+	}
+
+	if goexperiment.CgoBindings {
+		return
 	}
 
 	if cgoTraceback != nil && cgoTraceback != traceback ||

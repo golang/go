@@ -7,6 +7,7 @@ package runtime
 import (
 	"internal/abi"
 	"internal/goarch"
+	"internal/goexperiment"
 	"internal/runtime/atomic"
 	"internal/runtime/syscall/linux"
 	"internal/strconv"
@@ -487,7 +488,7 @@ func setsig(i uint32, fn uintptr) {
 		sa.sa_restorer = abi.FuncPCABI0(sigreturn__sigaction)
 	}
 	if fn == abi.FuncPCABIInternal(sighandler) { // abi.FuncPCABIInternal(sighandler) matches the callers in signal_unix.go
-		if iscgo {
+		if iscgo && (!goexperiment.CgoBindings || _cgo_callers != nil) {
 			fn = abi.FuncPCABI0(cgoSigtramp)
 		} else {
 			fn = abi.FuncPCABI0(sigtramp)

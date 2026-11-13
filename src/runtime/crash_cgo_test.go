@@ -9,6 +9,7 @@ package runtime_test
 import (
 	"fmt"
 	"internal/asan"
+	"internal/goexperiment"
 	"internal/goos"
 	"internal/msan"
 	"internal/race"
@@ -343,6 +344,9 @@ func TestCgoPprofCallback(t *testing.T) {
 }
 
 func TestCgoCrashTraceback(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	t.Parallel()
 	switch platform := runtime.GOOS + "/" + runtime.GOARCH; platform {
 	case "darwin/amd64":
@@ -393,6 +397,9 @@ func TestCgoCrashTracebackGo(t *testing.T) {
 }
 
 func TestCgoTracebackContext(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -405,6 +412,9 @@ func TestCgoTracebackContext(t *testing.T) {
 }
 
 func TestCgoTracebackContextPreemption(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -417,6 +427,9 @@ func TestCgoTracebackContextPreemption(t *testing.T) {
 }
 
 func TestCgoTracebackContextProfile(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	t.Parallel()
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
@@ -499,10 +512,16 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
 }
 
 func TestCgoPprof(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	testCgoPprof(t, "", "CgoPprof", "cpuHog", "runtime.main")
 }
 
 func TestCgoPprofPIE(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	if race.Enabled {
 		t.Skip("skipping test: -race + PIE not supported")
 	}
@@ -510,6 +529,9 @@ func TestCgoPprofPIE(t *testing.T) {
 }
 
 func TestCgoPprofThread(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	testCgoPprof(t, "", "CgoPprofThread", "cpuHogThread", "cpuHogThread2")
 }
 
@@ -518,6 +540,9 @@ func TestCgoPprofThreadNoTraceback(t *testing.T) {
 }
 
 func TestRaceProf(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	if !race.Enabled {
 		t.Skip("skipping: race detector not enabled")
 	}
@@ -958,6 +983,9 @@ func TestCgoEscapeWithMultiplePointers(t *testing.T) {
 }
 
 func TestCgoTracebackGoroutineProfile(t *testing.T) {
+	if goexperiment.CgoBindings {
+		t.Skip("SetCgoTraceback disabled under GOEXPERIMENT=cgobindings")
+	}
 	if runtime.GOOS == "freebsd" && race.Enabled {
 		t.Skipf("race + cgo freebsd not supported. See https://go.dev/issue/73788.")
 	}
