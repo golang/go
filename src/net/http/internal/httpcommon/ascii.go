@@ -30,35 +30,36 @@ func lower(b byte) byte {
 	return b
 }
 
-// asciiToLower returns the lowercase version of s and true if s is ASCII and
-// printable according to https://tools.ietf.org/html/rfc20#section-4.2.
-// Otherwise it returns "" and false. If s is already lowercase, it returns s.
+// isASCIIPrint returns whether b is ASCII and printable according to
+// https://tools.ietf.org/html/rfc20#section-4.2.
+func isASCIIPrint(b byte) bool {
+	return ' ' <= b && b <= '~'
+}
+
+// asciiToLower returns the lowercase version of s if s is ASCII and printable,
+// and whether or not it was.
 func asciiToLower(s string) (lower string, ok bool) {
 	// Check s and find its first uppercase letter in a single pass.
-	i := 0
-	for ; i < len(s); i++ {
-		c := s[i]
-		if c < ' ' || c > '~' {
+	for i, c := range []byte(s) {
+		if !isASCIIPrint(c) {
 			return "", false
 		}
 		if 'A' <= c && c <= 'Z' {
-			break
-		}
-	}
-	if i == len(s) {
-		return s, true
-	}
-	// Lowercase a copy of s. Most names fit in buf, so the copy does not allocate.
-	var buf [64]byte
-	b := append(buf[:0], s...)
-	for ; i < len(b); i++ {
-		c := b[i]
-		if c < ' ' || c > '~' {
-			return "", false
-		}
-		if 'A' <= c && c <= 'Z' {
+			// Lowercase a copy of s. Most names fit in buf, so the copy does not allocate.
+			var buf [64]byte
+			b := append(buf[:0], s...)
 			b[i] = c + ('a' - 'A')
+			for i++; i < len(b); i++ {
+				c = b[i]
+				if !isASCIIPrint(c) {
+					return "", false
+				}
+				if 'A' <= c && c <= 'Z' {
+					b[i] = c + ('a' - 'A')
+				}
+			}
+			return string(b), true
 		}
 	}
-	return string(b), true
+	return s, true
 }

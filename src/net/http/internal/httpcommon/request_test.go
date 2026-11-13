@@ -748,6 +748,7 @@ func BenchmarkLowerHeader(b *testing.B) {
 		"x-request-id",
 		"X-Envoy-Upstream-Service-Time",
 		"X-Amz-Server-Side-Encryption-Customer-Algorithm",
+		"X-Very-Long-Custom-Header-Name-That-Does-Not-Fit-In-Sixty-Four-Bytes",
 	} {
 		b.Run(name, func(b *testing.B) {
 			b.ReportAllocs()
