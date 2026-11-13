@@ -426,12 +426,13 @@ func {{.Name}}FromCount(count int) {{.Name}}
 // Asm: PNEXT, CPU Feature: SVE
 func (x {{.Name}}) First() {{.Name}}
 
-// Next returns a mask with only the lane after the last active lane of x
-// active. If x has no active lanes, lane 0 is active; if its last active lane
-// is the last lane, no lanes are active.
+// Next returns a mask with only the first active lane of x that follows
+// the last active lane of cursor active, or no lanes active if x has no
+// such lane. If cursor has no active lanes, it returns the first active
+// lane of x.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (x {{.Name}}) Next() {{.Name}}
+func (x {{.Name}}) Next(cursor {{.Name}}) {{.Name}}
 
 // All reports whether every lane of x is active.
 //

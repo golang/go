@@ -1981,10 +1981,10 @@
 (Mask32sFirst m) => (PPNEXTS (PPFALSEB) m)
 (Mask64sFirst m) => (PPNEXTD (PPFALSEB) m)
 
-(Mask8sNext m) => (PPNEXTB m (Mask8sAllTrue <types.TypeMask>))
-(Mask16sNext m) => (PPNEXTH m (Mask16sAllTrue <types.TypeMask>))
-(Mask32sNext m) => (PPNEXTS m (Mask32sAllTrue <types.TypeMask>))
-(Mask64sNext m) => (PPNEXTD m (Mask64sAllTrue <types.TypeMask>))
+(Mask8sNext m cursor) => (PPNEXTB cursor m)
+(Mask16sNext m cursor) => (PPNEXTH cursor m)
+(Mask32sNext m cursor) => (PPNEXTS cursor m)
+(Mask64sNext m cursor) => (PPNEXTD cursor m)
 
 // Every lane is active when no lane survives all-true AND NOT m.
 (Mask8sAll m) => (Equal (Select1 <types.TypeFlags> (PBICSB t:(Mask8sAllTrue <types.TypeMask>) t m)))

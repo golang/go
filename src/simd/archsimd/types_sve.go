@@ -1119,12 +1119,13 @@ func Mask8sFromCount(count int) (z Mask8s)
 // Asm: PNEXT, CPU Feature: SVE
 func (x Mask8s) First() Mask8s
 
-// Next returns a mask with only the lane after the last active lane of x
-// active. If x has no active lanes, lane 0 is active; if its last active lane
-// is the last lane, no lanes are active.
+// Next returns a mask with only the first active lane of x that follows
+// the last active lane of cursor active, or no lanes active if x has no
+// such lane. If cursor has no active lanes, it returns the first active
+// lane of x.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (x Mask8s) Next() Mask8s
+func (x Mask8s) Next(cursor Mask8s) Mask8s
 
 // All returns true when all positions in mask x are true.
 //
@@ -1200,12 +1201,13 @@ func Mask16sFromCount(count int) (z Mask16s)
 // Asm: PNEXT, CPU Feature: SVE
 func (x Mask16s) First() Mask16s
 
-// Next returns a mask with only the lane after the last active lane of x
-// active. If x has no active lanes, lane 0 is active; if its last active lane
-// is the last lane, no lanes are active.
+// Next returns a mask with only the first active lane of x that follows
+// the last active lane of cursor active, or no lanes active if x has no
+// such lane. If cursor has no active lanes, it returns the first active
+// lane of x.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (x Mask16s) Next() Mask16s
+func (x Mask16s) Next(cursor Mask16s) Mask16s
 
 // All returns true when all positions in mask x are true.
 //
@@ -1281,12 +1283,13 @@ func Mask32sFromCount(count int) (z Mask32s)
 // Asm: PNEXT, CPU Feature: SVE
 func (x Mask32s) First() Mask32s
 
-// Next returns a mask with only the lane after the last active lane of x
-// active. If x has no active lanes, lane 0 is active; if its last active lane
-// is the last lane, no lanes are active.
+// Next returns a mask with only the first active lane of x that follows
+// the last active lane of cursor active, or no lanes active if x has no
+// such lane. If cursor has no active lanes, it returns the first active
+// lane of x.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (x Mask32s) Next() Mask32s
+func (x Mask32s) Next(cursor Mask32s) Mask32s
 
 // All returns true when all positions in mask x are true.
 //
@@ -1362,12 +1365,13 @@ func Mask64sFromCount(count int) (z Mask64s)
 // Asm: PNEXT, CPU Feature: SVE
 func (x Mask64s) First() Mask64s
 
-// Next returns a mask with only the lane after the last active lane of x
-// active. If x has no active lanes, lane 0 is active; if its last active lane
-// is the last lane, no lanes are active.
+// Next returns a mask with only the first active lane of x that follows
+// the last active lane of cursor active, or no lanes active if x has no
+// such lane. If cursor has no active lanes, it returns the first active
+// lane of x.
 //
 // Asm: PNEXT, CPU Feature: SVE
-func (x Mask64s) Next() Mask64s
+func (x Mask64s) Next(cursor Mask64s) Mask64s
 
 // All returns true when all positions in mask x are true.
 //

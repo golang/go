@@ -31055,15 +31055,15 @@ func rewriteValue_OpMask16sFromCount(v *ssa.Value) bool {
 	}
 }
 func rewriteValue_OpMask16sNext(v *ssa.Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Mask16sNext m)
-	// result: (PPNEXTH m (Mask16sAllTrue <types.TypeMask>))
+	// match: (Mask16sNext m cursor)
+	// result: (PPNEXTH cursor m)
 	for {
 		m := v_0
+		cursor := v_1
 		v.Reset(ssaop.OpARM64PPNEXTH)
-		v0 := b.NewValue0(v.Pos, ssaop.OpMask16sAllTrue, types.TypeMask)
-		v.AddArg2(m, v0)
+		v.AddArg2(cursor, m)
 		return true
 	}
 }
@@ -31166,15 +31166,15 @@ func rewriteValue_OpMask32sFromCount(v *ssa.Value) bool {
 	}
 }
 func rewriteValue_OpMask32sNext(v *ssa.Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Mask32sNext m)
-	// result: (PPNEXTS m (Mask32sAllTrue <types.TypeMask>))
+	// match: (Mask32sNext m cursor)
+	// result: (PPNEXTS cursor m)
 	for {
 		m := v_0
+		cursor := v_1
 		v.Reset(ssaop.OpARM64PPNEXTS)
-		v0 := b.NewValue0(v.Pos, ssaop.OpMask32sAllTrue, types.TypeMask)
-		v.AddArg2(m, v0)
+		v.AddArg2(cursor, m)
 		return true
 	}
 }
@@ -31277,15 +31277,15 @@ func rewriteValue_OpMask64sFromCount(v *ssa.Value) bool {
 	}
 }
 func rewriteValue_OpMask64sNext(v *ssa.Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Mask64sNext m)
-	// result: (PPNEXTD m (Mask64sAllTrue <types.TypeMask>))
+	// match: (Mask64sNext m cursor)
+	// result: (PPNEXTD cursor m)
 	for {
 		m := v_0
+		cursor := v_1
 		v.Reset(ssaop.OpARM64PPNEXTD)
-		v0 := b.NewValue0(v.Pos, ssaop.OpMask64sAllTrue, types.TypeMask)
-		v.AddArg2(m, v0)
+		v.AddArg2(cursor, m)
 		return true
 	}
 }
@@ -31388,15 +31388,15 @@ func rewriteValue_OpMask8sFromCount(v *ssa.Value) bool {
 	}
 }
 func rewriteValue_OpMask8sNext(v *ssa.Value) bool {
+	v_1 := v.Args[1]
 	v_0 := v.Args[0]
-	b := v.Block
-	// match: (Mask8sNext m)
-	// result: (PPNEXTB m (Mask8sAllTrue <types.TypeMask>))
+	// match: (Mask8sNext m cursor)
+	// result: (PPNEXTB cursor m)
 	for {
 		m := v_0
+		cursor := v_1
 		v.Reset(ssaop.OpARM64PPNEXTB)
-		v0 := b.NewValue0(v.Pos, ssaop.OpMask8sAllTrue, types.TypeMask)
-		v.AddArg2(m, v0)
+		v.AddArg2(cursor, m)
 		return true
 	}
 }

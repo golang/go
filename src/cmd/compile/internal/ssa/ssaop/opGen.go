@@ -120956,22 +120956,22 @@ var OpcodeTable = [...]OpInfo{
 	},
 	{
 		Name:    "Mask8sNext",
-		ArgLen:  1,
+		ArgLen:  2,
 		Generic: true,
 	},
 	{
 		Name:    "Mask16sNext",
-		ArgLen:  1,
+		ArgLen:  2,
 		Generic: true,
 	},
 	{
 		Name:    "Mask32sNext",
-		ArgLen:  1,
+		ArgLen:  2,
 		Generic: true,
 	},
 	{
 		Name:    "Mask64sNext",
-		ArgLen:  1,
+		ArgLen:  2,
 		Generic: true,
 	},
 	{

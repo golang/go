@@ -840,12 +840,12 @@ var genericOps = []opData{
 	{name: "Mask32sFirst", argLength: 1},
 	{name: "Mask64sFirst", argLength: 1},
 
-	// Next returns a mask with only the lane after the last active lane of
-	// arg0 active; lane 0 if arg0 has none.
-	{name: "Mask8sNext", argLength: 1},
-	{name: "Mask16sNext", argLength: 1},
-	{name: "Mask32sNext", argLength: 1},
-	{name: "Mask64sNext", argLength: 1},
+	// Next returns a mask with only the first active lane of arg0 that follows
+	// the last active lane of arg1 (cursor) active.
+	{name: "Mask8sNext", argLength: 2},
+	{name: "Mask16sNext", argLength: 2},
+	{name: "Mask32sNext", argLength: 2},
+	{name: "Mask64sNext", argLength: 2},
 
 	// All reports whether every lane of arg0 is active.
 	{name: "Mask8sAll", argLength: 1},

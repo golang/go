@@ -131,28 +131,60 @@ func TestMaskFirstSVE(t *testing.T) {
 	testMaskToMask(t, "Mask64s.First", 8, archsimd.Mask64s.First, firstWant)
 }
 
-func nextWant(lanes []bool) []bool {
+func nextWant(lanes, cursor []bool) []bool {
 	last := -1
-	for i, l := range lanes {
+	for i, l := range cursor {
 		if l {
 			last = i
 		}
 	}
 	out := make([]bool, len(lanes))
-	if last+1 < len(lanes) {
-		out[last+1] = true
+	for i := last + 1; i < len(lanes); i++ {
+		if lanes[i] {
+			out[i] = true
+			break
+		}
 	}
 	return out
+}
+
+func testMaskNext[M sveMask](t *testing.T, name string, laneBytes int, op func(M, M) M) {
+	t.Helper()
+	n := archsimd.Int8s{}.Len() / laneBytes
+	pats := maskPatterns(laneBytes, n)
+	for _, pBits := range pats {
+		p := maskFromBits[M](pBits)
+		pLanes := lanesOf(pBits, laneBytes, n)
+		for _, cBits := range pats {
+			got := maskBits(op(p, maskFromBits[M](cBits)))
+			if w := bitsOf(nextWant(pLanes, lanesOf(cBits, laneBytes, n)), laneBytes); got != w {
+				t.Errorf("%s(%#x, %#x) = %#x, want %#x", name, pBits, cBits, got, w)
+			}
+		}
+	}
 }
 
 func TestMaskNextSVE(t *testing.T) {
 	if !archsimd.ARM64.SVE() {
 		t.Skip("no SVE")
 	}
-	testMaskToMask(t, "Mask8s.Next", 1, archsimd.Mask8s.Next, nextWant)
-	testMaskToMask(t, "Mask16s.Next", 2, archsimd.Mask16s.Next, nextWant)
-	testMaskToMask(t, "Mask32s.Next", 4, archsimd.Mask32s.Next, nextWant)
-	testMaskToMask(t, "Mask64s.Next", 8, archsimd.Mask64s.Next, nextWant)
+	testMaskNext(t, "Mask8s.Next", 1, archsimd.Mask8s.Next)
+	testMaskNext(t, "Mask16s.Next", 2, archsimd.Mask16s.Next)
+	testMaskNext(t, "Mask32s.Next", 4, archsimd.Mask32s.Next)
+	testMaskNext(t, "Mask64s.Next", 8, archsimd.Mask64s.Next)
+
+	// Verify the First/Any/Next iteration idiom.
+	n := archsimd.Int8s{}.Len()
+	for _, pBits := range maskPatterns(1, n) {
+		p := maskFromBits[archsimd.Mask8s](pBits)
+		var visited uint64
+		for c := p.First(); c.Any(); c = p.Next(c) {
+			visited |= maskBits(c)
+		}
+		if visited != pBits {
+			t.Errorf("First/Next loop(%#x) visited %#x, want %#x", pBits, visited, pBits)
+		}
+	}
 }
 
 func allWant(lanes []bool) bool {
