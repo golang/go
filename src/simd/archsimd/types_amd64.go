@@ -337,8 +337,8 @@ func (x Uint64x2) StoreArrayMasked(y *[2]uint64, mask Mask64x2)
 //
 // CPU Feature: AVX
 type Mask8x16 struct {
-	int8x16 v128
-	vals    [16]int8
+	mask8x16 v128
+	vals     [16]int8
 }
 
 // Mask8x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -357,8 +357,8 @@ func (x Mask8x16) ToBits() (z uint16)
 //
 // CPU Feature: AVX
 type Mask16x8 struct {
-	int16x8 v128
-	vals    [8]int16
+	mask16x8 v128
+	vals     [8]int16
 }
 
 // Mask16x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -377,8 +377,8 @@ func (x Mask16x8) ToBits() (z uint8)
 //
 // CPU Feature: AVX
 type Mask32x4 struct {
-	int32x4 v128
-	vals    [4]int32
+	mask32x4 v128
+	vals     [4]int32
 }
 
 // Mask32x4FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -397,8 +397,8 @@ func (x Mask32x4) ToBits() (z uint8)
 //
 // CPU Feature: AVX
 type Mask64x2 struct {
-	int64x2 v128
-	vals    [2]int64
+	mask64x2 v128
+	vals     [2]int64
 }
 
 // Mask64x2FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -746,8 +746,8 @@ func (x Uint64x4) StoreArrayMasked(y *[4]uint64, mask Mask64x4)
 //
 // CPU Feature: AVX
 type Mask8x32 struct {
-	int8x32 v256
-	vals    [32]int8
+	mask8x32 v256
+	vals     [32]int8
 }
 
 // Mask8x32FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -766,8 +766,8 @@ func (x Mask8x32) ToBits() (z uint32)
 //
 // CPU Feature: AVX
 type Mask16x16 struct {
-	int16x16 v256
-	vals     [16]int16
+	mask16x16 v256
+	vals      [16]int16
 }
 
 // Mask16x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -786,8 +786,8 @@ func (x Mask16x16) ToBits() (z uint16)
 //
 // CPU Feature: AVX
 type Mask32x8 struct {
-	int32x8 v256
-	vals    [8]int32
+	mask32x8 v256
+	vals     [8]int32
 }
 
 // Mask32x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -806,8 +806,8 @@ func (x Mask32x8) ToBits() (z uint8)
 //
 // CPU Feature: AVX
 type Mask64x4 struct {
-	int64x4 v256
-	vals    [4]int64
+	mask64x4 v256
+	vals     [4]int64
 }
 
 // Mask64x4FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -1231,8 +1231,8 @@ func (x Uint64x8) StoreArrayMasked(y *[8]uint64, mask Mask64x8)
 //
 // CPU Feature: AVX512
 type Mask8x64 struct {
-	int8x64 v512
-	vals    [64]int8
+	mask8x64 v512
+	vals     [64]int8
 }
 
 // Mask8x64FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -1251,8 +1251,8 @@ func (x Mask8x64) ToBits() (z uint64)
 //
 // CPU Feature: AVX512
 type Mask16x32 struct {
-	int16x32 v512
-	vals     [32]int16
+	mask16x32 v512
+	vals      [32]int16
 }
 
 // Mask16x32FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -1271,8 +1271,8 @@ func (x Mask16x32) ToBits() (z uint32)
 //
 // CPU Feature: AVX512
 type Mask32x16 struct {
-	int32x16 v512
-	vals     [16]int32
+	mask32x16 v512
+	vals      [16]int32
 }
 
 // Mask32x16FromBits returns bitmap x as a mask. If bit i of x is set, then mask
@@ -1291,8 +1291,8 @@ func (x Mask32x16) ToBits() (z uint16)
 //
 // CPU Feature: AVX512
 type Mask64x8 struct {
-	int64x8 v512
-	vals    [8]int64
+	mask64x8 v512
+	vals     [8]int64
 }
 
 // Mask64x8FromBits returns bitmap x as a mask. If bit i of x is set, then mask

@@ -341,24 +341,24 @@ func BroadcastFloat64x2(x float64) (z Float64x2)
 
 // Mask8x16 is a 128-bit SIMD mask of 16 int8s.
 type Mask8x16 struct {
-	int8x16 v128
-	vals    [16]int8
+	mask8x16 v128
+	vals     [16]int8
 }
 
 // Mask16x8 is a 128-bit SIMD mask of 8 int16s.
 type Mask16x8 struct {
-	int16x8 v128
-	vals    [8]int16
+	mask16x8 v128
+	vals     [8]int16
 }
 
 // Mask32x4 is a 128-bit SIMD mask of 4 int32s.
 type Mask32x4 struct {
-	int32x4 v128
-	vals    [4]int32
+	mask32x4 v128
+	vals     [4]int32
 }
 
 // Mask64x2 is a 128-bit SIMD mask of 2 int64s.
 type Mask64x2 struct {
-	int64x2 v128
-	vals    [2]int64
+	mask64x2 v128
+	vals     [2]int64
 }
