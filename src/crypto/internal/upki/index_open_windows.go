@@ -12,11 +12,6 @@ import (
 	"syscall"
 )
 
-// OpenIndex opens the UPKI index at path.
-func OpenIndex(path string) (*os.File, error) {
-	return openCacheFile(path)
-}
-
 func readFilterFile(path string) ([]byte, error) {
 	f, err := openCacheFile(path)
 	if err != nil {
@@ -29,7 +24,7 @@ func readFilterFile(path string) ([]byte, error) {
 // windows.Openat shares delete access so a cache producer can replace the
 // index or remove an obsolete filter while a check is reading it.
 func openCacheFile(path string) (*os.File, error) {
-	parent, err := os.Open(filepath.Dir(path))
+	parent, err := os.OpenFile(filepath.Dir(path), os.O_RDONLY|windows.O_DIRECTORY, 0)
 	if err != nil {
 		return nil, err
 	}

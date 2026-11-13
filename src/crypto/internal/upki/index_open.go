@@ -8,8 +8,7 @@ package upki
 
 import "os"
 
-// OpenIndex opens the UPKI index at path.
-func OpenIndex(path string) (*os.File, error) {
+func openCacheFile(path string) (*os.File, error) {
 	return os.Open(path)
 }
 

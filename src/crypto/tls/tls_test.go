@@ -1004,6 +1004,14 @@ func TestCloneNonFuncFields(t *testing.T) {
 			f.Set(reflect.ValueOf([]EncryptedClientHelloKey{
 				{Config: []byte{1}, PrivateKey: []byte{1}},
 			}))
+		case "UPKIRevocation":
+			f.Set(reflect.ValueOf(UPKIRevocationConfig{
+				Disabled:    true,
+				Directory:   "test",
+				MissingData: UPKIRevocationPolicyAllow,
+				NotCovered:  UPKIRevocationPolicyReject,
+				MissingSCTs: UPKIRevocationPolicyReject,
+			}))
 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
 			continue // these are unexported fields that are handled separately
 		default:

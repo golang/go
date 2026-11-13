@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"slices"
+	"syscall"
 )
 
 // On-disk layout of index.bin from
@@ -49,8 +50,21 @@ const (
 )
 
 var (
+	// ErrNoData reports that the cache index is absent or inaccessible.
+	ErrNoData = errors.New("upki: no revocation data")
+
 	errInvalidIndex = errors.New("upki: invalid index")
 )
+
+// OpenIndex opens the UPKI index at path. If the path is missing, a parent
+// is not a directory, or access is denied, the error wraps ErrNoData.
+func OpenIndex(path string) (*os.File, error) {
+	f, err := openCacheFile(path)
+	if errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, os.ErrPermission) {
+		return nil, fmt.Errorf("%w: %w", ErrNoData, err)
+	}
+	return f, err
+}
 
 // index is the in-memory index of revocation filter coverage built from an
 // upki revocation index.bin.

@@ -2867,10 +2867,14 @@ func TestTLS13ECHRejectionCallbacks(t *testing.T) {
 	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
 	clientConfig.ServerName = "example.golang"
 
+	requireSCTs := UPKIRevocationConfig{Directory: t.TempDir(), MissingSCTs: UPKIRevocationPolicyReject}
+	const missingSCTsError = "tls: failed to verify certificate: UPKI revocation check requires embedded SCTs"
 	for _, tc := range []struct {
 		name        string
 		expectedErr string
 
+		upki                                UPKIRevocationConfig
+		insecureSkipVerify                  bool
 		verifyConnection                    func(ConnectionState) error
 		verifyPeerCertificate               func([][]byte, [][]*x509.Certificate) error
 		encryptedClientHelloRejectionVerify func(ConnectionState) error
@@ -2880,7 +2884,19 @@ func TestTLS13ECHRejectionCallbacks(t *testing.T) {
 			expectedErr: "tls: server rejected ECH",
 		},
 		{
+			name:        "UPKI checks public name",
+			upki:        requireSCTs,
+			expectedErr: missingSCTsError,
+		},
+		{
+			name:               "UPKI checks public name even with InsecureSkipVerify",
+			upki:               requireSCTs,
+			insecureSkipVerify: true,
+			expectedErr:        missingSCTsError,
+		},
+		{
 			name: "EncryptedClientHelloRejectionVerify, no err",
+			upki: requireSCTs,
 			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
 				return nil
 			},
@@ -2921,6 +2937,8 @@ func TestTLS13ECHRejectionCallbacks(t *testing.T) {
 			}()
 
 			cConfig := clientConfig.Clone()
+			cConfig.UPKIRevocation = tc.upki
+			cConfig.InsecureSkipVerify = tc.insecureSkipVerify
 			cConfig.VerifyConnection = tc.verifyConnection
 			cConfig.VerifyPeerCertificate = tc.verifyPeerCertificate
 			cConfig.EncryptedClientHelloRejectionVerify = tc.encryptedClientHelloRejectionVerify
@@ -2928,10 +2946,8 @@ func TestTLS13ECHRejectionCallbacks(t *testing.T) {
 			clientErr := Client(c, cConfig).Handshake()
 			c.Close()
 
-			if tc.expectedErr == "" && clientErr != nil {
-				t.Fatalf("unexpected err: %s", clientErr)
-			} else if clientErr != nil && tc.expectedErr != clientErr.Error() {
-				t.Fatalf("unexpected err: got %q, want %q", clientErr, tc.expectedErr)
+			if clientErr == nil || clientErr.Error() != tc.expectedErr {
+				t.Fatalf("got %v, want %q", clientErr, tc.expectedErr)
 			}
 		})
 	}

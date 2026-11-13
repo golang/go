@@ -39,9 +39,6 @@ const (
 )
 
 var (
-	// ErrNoData reports that the selected cache has no index.bin.
-	ErrNoData = errors.New("upki: no revocation data")
-
 	errMalformedSCTExtension   = errors.New("upki: malformed SCT extension")
 	errMalformedTBSCertificate = errors.New("upki: malformed TBSCertificate")
 )
@@ -96,9 +93,6 @@ func Check(dir string, indexFile *os.File, chains [][]*x509.Certificate) (Result
 		// contract means the index was superseded, so reopen it and retry.
 		_ = indexFile.Close()
 		nextIndex, openErr := OpenIndex(filepath.Join(dir, IndexFilename))
-		if errors.Is(openErr, fs.ErrNotExist) {
-			return NotCovered, fmt.Errorf("%w at %s", ErrNoData, filepath.Join(dir, IndexFilename))
-		}
 		if openErr != nil {
 			return NotCovered, fmt.Errorf("upki: reopening superseded index: %w", openErr)
 		}

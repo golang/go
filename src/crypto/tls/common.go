@@ -657,6 +657,18 @@ type Config struct {
 	// value of the returned Config.
 	GetConfigForClient func(*ClientHelloInfo) (*Config, error)
 
+	// UPKIRevocation controls checking server certificates against a local
+	// UPKI revocation cache.
+	//
+	// With the zero value, a platform-default cache is automatically used, if
+	// one is available. It rejects certificates reported as revoked, but
+	// permits certificates that are not covered by the cache data or contain no
+	// embedded SCTs.
+	//
+	// UPKIRevocation applies only to client-side verification of server
+	// certificates.
+	UPKIRevocation UPKIRevocationConfig
+
 	// VerifyPeerCertificate, if not nil, is called after normal
 	// certificate verification by either a TLS client or server. It
 	// receives the raw ASN.1 certificates provided by the peer and also
@@ -1021,6 +1033,7 @@ func (c *Config) Clone() *Config {
 		GetClientCertificate:                c.GetClientCertificate,
 		GetConfigForClient:                  c.GetConfigForClient,
 		GetEncryptedClientHelloKeys:         c.GetEncryptedClientHelloKeys,
+		UPKIRevocation:                      c.UPKIRevocation,
 		VerifyPeerCertificate:               c.VerifyPeerCertificate,
 		VerifyConnection:                    c.VerifyConnection,
 		RootCAs:                             c.RootCAs,
