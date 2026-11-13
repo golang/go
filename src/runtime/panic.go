@@ -659,7 +659,7 @@ func deferreturn() {
 	var p _panic
 	p.deferreturn = true
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+	p.start(sys.GetCallerPC(), getg().toStackOff(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -685,7 +685,7 @@ func Goexit() {
 	var p _panic
 	p.goexit = true
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+	p.start(sys.GetCallerPC(), getg().toStackOff(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -850,7 +850,7 @@ func gopanic(e any) {
 
 	runningPanicDefers.Add(1)
 
-	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+	p.start(sys.GetCallerPC(), getg().toStackOff(sys.GetCallerSP()))
 	for {
 		fn, ok := p.nextDefer()
 		if !ok {
@@ -881,8 +881,14 @@ func gopanic(e any) {
 
 // start initializes a panic to start unwinding the stack.
 //
+// pc and sp are the PC and SP of start's caller's caller. sp is a stackOff
+// so that it remains valid if start's prologue grows the stack, without
+// keeping the stack object at that SP alive (see _panic). Callers must
+// convert their caller's SP with toStackOff without any intervening call
+// that could move the stack (toStackOff itself is nosplit).
+//
 // If p.goexit is true, then start may return multiple times.
-func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
+func (p *_panic) start(pc uintptr, sp stackOff) {
 	gp := getg()
 
 	// Record the caller's PC and SP, so recovery can identify panics
@@ -890,7 +896,7 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
 	// can restart its defer processing loop if a recovered panic tries
 	// to jump past it.
 	p.startPC = sys.GetCallerPC()
-	p.startSP = unsafe.Pointer(sys.GetCallerSP())
+	p.startSP = gp.toStackOff(sys.GetCallerSP())
 
 	if p.deferreturn {
 		p.sp = sp
@@ -902,8 +908,9 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
 			gp.param = nil
 
 			p.retpc = s.retpc
-			p.deferBitsPtr = (*byte)(add(sp, s.deferBitsOffset))
-			p.slotsPtr = add(sp, s.slotsOffset)
+			spp := unsafe.Pointer(gp.fromStackOff(sp))
+			p.deferBitsPtr = (*byte)(add(spp, s.deferBitsOffset))
+			p.slotsPtr = add(spp, s.slotsOffset)
 		}
 
 		return
@@ -969,7 +976,7 @@ func (p *_panic) nextDefer() (func(), bool) {
 		}
 
 	Recheck:
-		if d := gp._defer; d != nil && d.sp == uintptr(p.sp) {
+		if d := gp._defer; d != nil && d.sp == gp.fromStackOff(p.sp) {
 			if d.rangefunc {
 				deferconvert(d)
 				popDefer(gp)
@@ -1008,7 +1015,9 @@ func (p *_panic) nextFrame() (ok bool) {
 		}
 
 		var u unwinder
-		u.initAt(p.pc, uintptr(p.sp), 0, gp, 0)
+		// We're on the system stack, so gp's stack can't move while we
+		// work with absolute addresses from fromStackOff here.
+		u.initAt(p.pc, gp.fromStackOff(p.sp), 0, gp, 0)
 		for {
 			if !u.valid() {
 				p.pc = 0
@@ -1028,7 +1037,7 @@ func (p *_panic) nextFrame() (ok bool) {
 				break // found a frame with open-coded defers
 			}
 
-			if p.link != nil && uintptr(u.frame.sp) == uintptr(p.link.startSP) && uintptr(p.link.sp) > u.frame.sp {
+			if p.link != nil && u.frame.sp == gp.fromStackOff(p.link.startSP) && gp.fromStackOff(p.link.sp) > u.frame.sp {
 				// Skip ahead to where the next panic up the stack was last looking
 				// for defers. See issue 77062.
 				//
@@ -1039,7 +1048,7 @@ func (p *_panic) nextFrame() (ok bool) {
 				//
 				// The final condition is just to make sure that the line below
 				// is actually helpful.
-				u.initAt(p.link.pc, uintptr(p.link.sp), 0, gp, 0)
+				u.initAt(p.link.pc, gp.fromStackOff(p.link.sp), 0, gp, 0)
 				continue
 			}
 
@@ -1047,8 +1056,8 @@ func (p *_panic) nextFrame() (ok bool) {
 		}
 
 		p.pc = u.frame.pc
-		p.sp = unsafe.Pointer(u.frame.sp)
-		p.fp = u.frame.fp
+		p.sp = gp.toStackOff(u.frame.sp)
+		p.fp = gp.toStackOff(u.frame.fp)
 
 		ok = true
 	})
@@ -1228,7 +1237,7 @@ func recoverablePanic(skip int) *_panic {
 				case abi.FuncIDWrapper:
 					continue
 				case abi.FuncID_gopanic:
-					if u.frame.sp == uintptr(p.startSP) && nonWrapperFrames > 0 {
+					if u.frame.sp == gp.fromStackOff(p.startSP) && nonWrapperFrames > 0 {
 						canRecover = true
 					}
 					break loop
@@ -1389,9 +1398,15 @@ var paniclk mutex
 // However, if unwinding the stack would skip over a Goexit call, we
 // return into the Goexit loop instead, so it can continue processing
 // defers instead.
+//
+// recovery runs on the system stack (via mcall), so gp's stack can't move
+// while it runs. That makes it safe to work with absolute stack addresses
+// converted from p's stackOffs.
+//
+//go:systemstack
 func recovery(gp *g) {
 	p := gp._panic
-	pc, sp, fp := p.retpc, uintptr(p.sp), p.fp
+	pc, sp, fp := p.retpc, gp.fromStackOff(p.sp), gp.fromStackOff(p.fp)
 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
 
 	// The linker records the f-relative address of a call to deferreturn in f's funcInfo.
@@ -1404,7 +1419,7 @@ func recovery(gp *g) {
 	gotoPc := f.entry() + uintptr(f.deferreturn)
 
 	// Unwind the panic stack.
-	for ; p != nil && uintptr(p.startSP) < sp; p = p.link {
+	for ; p != nil && gp.fromStackOff(p.startSP) < sp; p = p.link {
 		// Don't allow jumping past a pending Goexit.
 		// Instead, have its _panic.start() call return again.
 		//
@@ -1425,7 +1440,7 @@ func recovery(gp *g) {
 		// With how subtle defer handling is, this might not actually be
 		// worthwhile though.
 		if p.goexit {
-			gotoPc, sp = p.startPC, uintptr(p.startSP)
+			gotoPc, sp = p.startPC, gp.fromStackOff(p.startSP)
 			saveOpenDeferState = false // goexit is unwinding the stack anyway
 			break
 		}
@@ -1451,8 +1466,8 @@ func recovery(gp *g) {
 			// We need to save deferBitsPtr and slotsPtr too, but those are
 			// stack pointers. To avoid issues around heap objects pointing
 			// to the stack, save them as offsets from SP.
-			deferBitsOffset: uintptr(unsafe.Pointer(p0.deferBitsPtr)) - uintptr(p0.sp),
-			slotsOffset:     uintptr(p0.slotsPtr) - uintptr(p0.sp),
+			deferBitsOffset: uintptr(unsafe.Pointer(p0.deferBitsPtr)) - gp.fromStackOff(p0.sp),
+			slotsOffset:     uintptr(p0.slotsPtr) - gp.fromStackOff(p0.sp),
 		})
 	}
 
@@ -1481,7 +1496,7 @@ func recovery(gp *g) {
 	// binaries. (Admittedly, both of these are modest savings.)
 
 	// Ensure we're recovering within the appropriate stack.
-	if sp != 0 && (sp < gp.stack.lo || gp.stack.hi < sp) {
+	if sp < gp.stack.lo || gp.stack.hi < sp {
 		print("recover: ", hex(sp), " not in [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
 		throw("bad recovery")
 	}
@@ -1813,8 +1828,8 @@ func dumpPanicDeferState(where string, gp *g) {
 			// Print frame.
 			println("  frame sp=", hex(u.frame.sp), "fp=", hex(u.frame.fp), "pc=", pcName(u.frame.pc), "+", pcOff(u.frame.pc))
 			// Print panic.
-			for p != nil && uintptr(p.sp) == u.frame.sp {
-				println("    panic", p, "sp=", p.sp, "fp=", p.fp, "arg=", p.arg, "recovered=", p.recovered, "pc=", pcName(p.pc), "+", pcOff(p.pc), "retpc=", pcName(p.retpc), "+", pcOff(p.retpc), "startsp=", p.startSP, "startPC=", hex(p.startPC), pcName(p.startPC), "+", pcOff(p.startPC))
+			for p != nil && gp.fromStackOff(p.sp) == u.frame.sp {
+				println("    panic", p, "sp=", hex(gp.fromStackOff(p.sp)), "fp=", hex(gp.fromStackOff(p.fp)), "arg=", p.arg, "recovered=", p.recovered, "pc=", pcName(p.pc), "+", pcOff(p.pc), "retpc=", pcName(p.retpc), "+", pcOff(p.retpc), "startsp=", hex(gp.fromStackOff(p.startSP)), "startPC=", hex(p.startPC), pcName(p.startPC), "+", pcOff(p.startPC))
 				p = p.link
 			}
 

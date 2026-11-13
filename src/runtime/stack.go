@@ -841,17 +841,13 @@ func adjustdefers(gp *g, adjinfo *adjustinfo) {
 }
 
 // adjustpanics runs after adjustframe, so the records and their link fields
-// have already moved with the stack. Only fp is left, because fp is a plain
-// integer that the typed pass does not touch. It is adjusted directly rather
-// than through adjustpointer, which is there to reinterpret a pointer slot.
+// have already moved with the stack.
 func adjustpanics(gp *g, adjinfo *adjustinfo) {
 	// Update pointer to head of list in G.
+	//
+	// The frame positions in each record are stackOffs, which don't need
+	// adjustment.
 	adjustpointer(adjinfo, unsafe.Pointer(&gp._panic))
-	for p := gp._panic; p != nil; p = p.link {
-		if adjinfo.old.lo <= p.fp && p.fp < adjinfo.old.hi {
-			p.fp += adjinfo.delta
-		}
-	}
 }
 
 func adjustWaitingGChan(gp *g, adjinfo *adjustinfo) {

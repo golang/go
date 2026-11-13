@@ -484,6 +484,51 @@ type stack struct {
 	hi uintptr
 }
 
+// A stackOff is a position on a goroutine's stack, recorded as its distance
+// below the top of the stack (gp.stack.hi).
+//
+// Stack copying preserves the distance from every stack address to the top of
+// the stack, so unlike an address, a stackOff remains valid across stack copies
+// without any adjustment. And unlike a pointer, it does not keep stack objects
+// alive during stack scanning.
+type stackOff uintptr
+
+// toStackOff returns the stackOff of addr, which must be on gp's stack
+// (or exactly gp.stack.hi, which can be a frame boundary). It throws if addr
+// isn't, which catches addresses taken on the wrong goroutine or left stale by
+// a stack move.
+//
+// This must be nosplit: callers pass absolute stack addresses, which a stack
+// move in this function's prologue would leave stale.
+//
+//go:nosplit
+func (gp *g) toStackOff(addr uintptr) stackOff {
+	if addr < gp.stack.lo || addr > gp.stack.hi {
+		badStackOff(gp, addr)
+	}
+	return stackOff(gp.stack.hi - addr)
+}
+
+// badStackOff reports a toStackOff of an address that is not on gp's stack.
+// It is out of line to keep toStackOff inlinable.
+//
+//go:noinline
+func badStackOff(gp *g, addr uintptr) {
+	print("runtime: address ", hex(addr), " not on goroutine ", gp.goid, " stack [", hex(gp.stack.lo), ", ", hex(gp.stack.hi), "]\n")
+	throw("toStackOff: address not on stack")
+}
+
+// fromStackOff returns the current address of off on gp's stack. The result is
+// only valid until gp's stack next moves.
+//
+// This must be nosplit for the same reason as toStackOff: callers may have
+// loaded other absolute stack addresses to compare against the result.
+//
+//go:nosplit
+func (gp *g) fromStackOff(off stackOff) uintptr {
+	return gp.stack.hi - uintptr(off)
+}
+
 // heldLockInfo gives info on a held lock and the rank of that lock
 type heldLockInfo struct {
 	lockAddr uintptr
@@ -1240,10 +1285,17 @@ type _defer struct {
 //
 // A _panic value must only ever live on the stack.
 //
-// The gopanicFP and link fields are stack pointers, but don't need special
-// handling during stack growth: because they are pointer-typed and
-// _panic values only live on the stack, regular stack pointer
-// adjustment takes care of them.
+// The link, deferBitsPtr, and slotsPtr fields are stack pointers, but
+// don't need special handling during stack growth: because they are
+// pointer-typed and _panic values only live on the stack, regular stack
+// pointer adjustment takes care of them.
+//
+// startSP, sp, and fp record frame boundaries. These are stackOffs rather
+// than pointers because a frame boundary is often also the address of a
+// stack object (for example, on amd64, a caller's SP is the address of the
+// stack arguments it passes to its callee), and a pointer would keep that
+// object alive after it is dead. See go.dev/issue/82394 and
+// go.dev/issue/82917.
 type _panic struct {
 	arg  any     // argument to panic
 	link *_panic // link to earlier panic
@@ -1251,17 +1303,12 @@ type _panic struct {
 	// startPC and startSP track where _panic.start was called.
 	// (These are the SP and PC of the gopanic frame itself.)
 	startPC uintptr
-	startSP unsafe.Pointer
+	startSP stackOff
 
 	// The current stack frame that we're running deferred calls for.
 	pc uintptr
-	sp unsafe.Pointer
-	// fp is a plain integer rather than an unsafe.Pointer so that it does not
-	// keep the stack object it points at alive. On amd64 it is the address of
-	// the frame's argument area, so a pointer there resurrects a dead argument
-	// during the scan that runs while deferred calls execute. copystack moves
-	// it explicitly in adjustpanics.
-	fp uintptr
+	sp stackOff
+	fp stackOff
 
 	// retpc stores the PC where the panic should jump back to, if the
 	// function last returned by _panic.nextDefer() recovers the panic.
