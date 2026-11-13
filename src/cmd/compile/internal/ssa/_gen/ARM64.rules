@@ -1084,7 +1084,7 @@
 (MNEGW x (MOVDconst [c])) && int32(c)==-1 => (MOVWUreg x)
 (MNEGW _ (MOVDconst [c])) && int32(c)==0 => (MOVDconst [0])
 (MNEGW x (MOVDconst [c])) && int32(c)==1 => (MOVWUreg (NEG <x.Type> x))
-(MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (NEG (SLLconst <x.Type> [ssa.Log64(c)] x))
+(MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c) => (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [ssa.Log64(c)] x)))
 (MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c-1) && int32(c) >= 3 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> x x [ssa.Log64(c-1)])))
 (MNEGW x (MOVDconst [c])) && ssa.IsPowerOfTwo(c+1) && int32(c) >= 7 => (MOVWUreg (NEG <x.Type> (ADDshiftLL <x.Type> (NEG <x.Type> x) x [ssa.Log64(c+1)])))
 (MNEGW x (MOVDconst [c])) && c%3 == 0 && ssa.IsPowerOfTwo(c/3) && ssa.Is32Bit(c) => (MOVWUreg (SLLconst <x.Type> [ssa.Log64(c/3)] (SUBshiftLL <x.Type> x x [2])))

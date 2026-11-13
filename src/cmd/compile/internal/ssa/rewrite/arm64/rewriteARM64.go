@@ -10613,7 +10613,7 @@ func rewriteValue_OpARM64MNEGW(v *ssa.Value) bool {
 	}
 	// match: (MNEGW x (MOVDconst [c]))
 	// cond: ssa.IsPowerOfTwo(c)
-	// result: (NEG (SLLconst <x.Type> [ssa.Log64(c)] x))
+	// result: (MOVWUreg (NEG <x.Type> (SLLconst <x.Type> [ssa.Log64(c)] x)))
 	for {
 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
 			x := v_0
@@ -10624,10 +10624,12 @@ func rewriteValue_OpARM64MNEGW(v *ssa.Value) bool {
 			if !(ssa.IsPowerOfTwo(c)) {
 				continue
 			}
-			v.Reset(ssaop.OpARM64NEG)
-			v0 := b.NewValue0(v.Pos, ssaop.OpARM64SLLconst, x.Type)
-			v0.AuxInt = ssa.Int64ToAuxInt(ssa.Log64(c))
-			v0.AddArg(x)
+			v.Reset(ssaop.OpARM64MOVWUreg)
+			v0 := b.NewValue0(v.Pos, ssaop.OpARM64NEG, x.Type)
+			v1 := b.NewValue0(v.Pos, ssaop.OpARM64SLLconst, x.Type)
+			v1.AuxInt = ssa.Int64ToAuxInt(ssa.Log64(c))
+			v1.AddArg(x)
+			v0.AddArg(v1)
 			v.AddArg(v0)
 			return true
 		}
