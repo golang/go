@@ -28,9 +28,9 @@ var _cgoMmapFn = cgoMmapFn
 //go:nocheckptr
 func cgoMmapFn(addr unsafe.Pointer, length uintptr, prot, flags, fd int32, offset uint32) uintptr {
 	tsanAcquire()
-	p := callC(uintptr(libc_mmap), uintptr(addr), length, uintptr(uint32(prot)), uintptr(uint32(flags)), uintptr(fd), uintptr(offset))
+	p := asmcgocall(uintptr(libc_mmap), uintptr(addr), length, uintptr(uint32(prot)), uintptr(uint32(flags)), uintptr(fd), uintptr(offset))
 	if int(p) == -1 {
-		errnoPtr := callC(uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
+		errnoPtr := asmcgocall(uintptr(libc_errno_location), 0, 0, 0, 0, 0, 0)
 		errno := uintptr(*(*int32)(unsafe.Pointer(errnoPtr)))
 		tsanRelease()
 		return errno
@@ -46,7 +46,7 @@ var _cgoMunmapFn = cgoMunmapFn
 //go:norace
 func cgoMunmapFn(addr unsafe.Pointer, length uintptr) int32 {
 	tsanAcquire()
-	r := int32(callC(uintptr(libc_munmap), uintptr(addr), length, 0, 0, 0, 0))
+	r := int32(asmcgocall(uintptr(libc_munmap), uintptr(addr), length, 0, 0, 0, 0))
 	tsanRelease()
 	return r
 }

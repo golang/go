@@ -4,22 +4,28 @@
 
 //go:build goexperiment.cgobindings && (darwin || (linux && !android)) && arm64
 
+#include "go_asm.h"
 #include "textflag.h"
-#include "abi_arm64.h"
 
-// callC calls a C function with up to 6 integer/pointer arguments
-// in the AAPCS64 C ABI and returns its integer/pointer result.
-TEXT ·callC<ABIInternal>(SB),NOSPLIT,$0
-	// Convert from Go ABIInternal (R0=fn, R1..R6=a0..a5)
-	// to AAPCS64 (fn in R9; args in R0..R5).
-	MOVD	R0, R9
-	MOVD	R1, R0
-	MOVD	R2, R1
-	MOVD	R3, R2
-	MOVD	R4, R3
-	MOVD	R5, R4
-	MOVD	R6, R5
-	SUB	$16, RSP	// reserve 16 bytes for sp-8 where fp is saved
+// cgoCallTrampoline is called by runtime.asmcgocall (or runtime.cgocall)
+// using the AAPCS64 C ABI with R0 pointing to a cgoCallFrame.
+TEXT ·cgoCallTrampoline(SB),NOSPLIT|NOFRAME,$0-0
+	SUB	$32, RSP
+	STP	(R29, R30), 0(RSP)
+	MOVD	RSP, R29
+	MOVD	R19, 16(RSP)
+	MOVD	R0, R19
+	MOVD	cgoCallFrame_fn(R0), R9
+	MOVD	cgoCallFrame_a1(R0), R1
+	MOVD	cgoCallFrame_a2(R0), R2
+	MOVD	cgoCallFrame_a3(R0), R3
+	MOVD	cgoCallFrame_a4(R0), R4
+	MOVD	cgoCallFrame_a5(R0), R5
+	MOVD	cgoCallFrame_a0(R0), R0
 	BL	(R9)
-	ADD	$16, RSP
+	MOVD	R0, cgoCallFrame_r1(R19)
+	MOVD	$0, R0
+	MOVD	16(RSP), R19
+	LDP	0(RSP), (R29, R30)
+	ADD	$32, RSP
 	RET
