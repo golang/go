@@ -935,6 +935,10 @@ havem:
 
 	// Gather our arguments into registers.
 	MOVD	fn+0(FP), R0
+#ifdef GOEXPERIMENT_arm64e
+	// C passes fn as a function pointer, signed with key IA and a zero modifier.
+	AUTIZA	R0
+#endif
 	MOVD	frame+8(FP), R1
 	MOVD	ctxt+16(FP), R2
 

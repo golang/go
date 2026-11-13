@@ -2691,6 +2691,10 @@ func externalLinkingReason(s *modload.Loader, p *Package) (what string) {
 		return cfg.Goos + "/" + cfg.Goarch
 	}
 
+	if cfg.Experiment.ARM64E {
+		return "GOEXPERIMENT=arm64e"
+	}
+
 	// Some build modes always require external linking.
 	switch cfg.BuildBuildmode {
 	case "c-shared":

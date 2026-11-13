@@ -13,9 +13,11 @@ import (
 	"bufio"
 	"bytes"
 	"cmd/cgo/internal/cgotest"
+	"context"
 	"debug/elf"
 	"flag"
 	"fmt"
+	"internal/goexperiment"
 	"internal/testenv"
 	"io"
 	"log"
@@ -1288,6 +1290,220 @@ func TestPreemption(t *testing.T) {
 	t.Logf("%v\n%s", cmd.Args, sb)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+// TestPreemptionRegisters checks that a goroutine that is preempted
+// asynchronously gets all of its registers back, including R30, which
+// holds data in a function that is not a leaf. On arm64e, the kernel does
+// not sign a value in x30 that is not a canonical address, and the runtime
+// must not strip it.
+func TestPreemptionRegisters(t *testing.T) {
+	if GOOS != "darwin" || GOARCH != "arm64" {
+		t.Skip("skipping test of darwin/arm64 signal contexts")
+	}
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp12" + exeSuffix)
+			os.Remove("libgo12.a")
+			os.Remove("libgo12.h")
+		}()
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo12.a", "./libgo12")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo12.h")
+	checkArchive(t, "libgo12.a")
+
+	ccArgs := append(cc, "-o", "testp12"+exeSuffix, "main12.c", "libgo12.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp12")
+	out, err = testenv.Command(t, argv[0], argv[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", argv, out)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestFaultRegisters checks that the runtime reports faults whose saved
+// registers are unusual: the pc after a call to an invalid address, a
+// non-canonical frame pointer, and a link register that C code signed
+// with pacibsp. On arm64e, the signatures that the kernel adds to the
+// first two in the signal context do not authenticate.
+func TestFaultRegisters(t *testing.T) {
+	if GOOS != "darwin" || GOARCH != "arm64" {
+		t.Skip("skipping test that uses darwin/arm64 assembly and addresses")
+	}
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp11" + exeSuffix)
+			os.Remove("libgo11.a")
+			os.Remove("libgo11.h")
+		}()
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo11.a", "./libgo11")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo11.h")
+	checkArchive(t, "libgo11.a")
+
+	ccArgs := append(cc, "-o", "testp11"+exeSuffix, "main11.c", "libgo11.a")
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tt := range []struct {
+		name string
+		want string
+	}{
+		{"badpc", "unexpected fault address 0x12345600001000"},
+		{"badfp", "invalid memory address or nil pointer dereference"},
+		// The register dump ends with fault, after lr.
+		{"signedlr", "\nfault "},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			// A fault in the signal handler leaves the program
+			// spinning, so do not wait for the test's deadline.
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			argv := cmdToRun("./testp11")
+			cmd := testenv.CommandContext(t, ctx, argv[0], append(argv[1:], tt.name)...)
+			out, err := cmd.CombinedOutput()
+			t.Logf("%v\n%s", cmd.Args, out)
+			if ctx.Err() != nil {
+				t.Fatal("program did not exit")
+			}
+			if !strings.Contains(string(out), tt.want) {
+				t.Errorf("output does not contain %q", tt.want)
+			}
+			// In a c-archive, fatal errors abort, unless the SIGQUIT
+			// that asks other threads for their stacks gets there first.
+			expectSignal(t, err, syscall.SIGABRT, syscall.SIGQUIT)
+		})
+	}
+}
+
+// Test C functions used as values: passed back to C, and registered with
+// runtime.SetCgoTraceback, whose context function C calls on every call
+// into Go.
+func TestCFuncValue(t *testing.T) {
+	globalSkip(t)
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	t.Parallel()
+
+	if !testWork {
+		defer func() {
+			os.Remove("testp13" + exeSuffix)
+			os.Remove("libgo13.a")
+			os.Remove("libgo13.h")
+		}()
+	}
+
+	cmd := exec.Command(testenv.GoToolPath(t), "build", "-buildmode=c-archive", "-o", "libgo13.a", "./libgo13")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%v\n%s", cmd.Args, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkLineComments(t, "libgo13.h")
+	checkArchive(t, "libgo13.a")
+
+	ccArgs := append(cc, "-o", "testp13"+exeSuffix, "main13.c", "libgo13.a")
+	if runtime.Compiler == "gccgo" {
+		ccArgs = append(ccArgs, "-lgo")
+	}
+	out, err = exec.Command(ccArgs[0], ccArgs[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", ccArgs, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	argv := cmdToRun("./testp13")
+	out, err = testenv.Command(t, argv[0], argv[1:]...).CombinedOutput()
+	t.Logf("%v\n%s", argv, out)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+// TestARM64E runs the other tests again with GOEXPERIMENT=arm64e, which
+// builds the archives and the C programs for arm64e.
+func TestARM64E(t *testing.T) {
+	globalSkip(t)
+	if GOOS != "darwin" || GOARCH != "arm64" {
+		t.Skip("GOEXPERIMENT=arm64e requires darwin/arm64")
+	}
+	if goexperiment.ARM64E {
+		t.Skip("already testing GOEXPERIMENT=arm64e")
+	}
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	testenv.MustHaveBuildMode(t, "c-archive")
+
+	// Not every version of macOS runs arm64e programs.
+	dir := t.TempDir()
+	src := filepath.Join(dir, "main.c")
+	if err := os.WriteFile(src, []byte("int main(void) { return 0; }\n"), 0666); err != nil {
+		t.Fatal(err)
+	}
+	exe := filepath.Join(dir, "main")
+	if out, err := exec.Command(cc[0], "-arch", "arm64e", "-o", exe, src).CombinedOutput(); err != nil {
+		t.Skipf("cannot build an arm64e program: %v\n%s", err, out)
+	}
+	if err := exec.Command(exe).Run(); err != nil {
+		t.Skipf("cannot run an arm64e program: %v", err)
+	}
+
+	args := []string{"-test.skip=^TestARM64E$"}
+	if testing.Short() {
+		args = append(args, "-test.short")
+	}
+	if testing.Verbose() {
+		args = append(args, "-test.v")
+	}
+	cmd := testenv.Command(t, testenv.Executable(t), args...)
+	cmd.Dir = filepath.Join(testenv.GOROOT(t), "src", "cmd", "cgo", "internal", "testcarchive")
+	exp := goEnv("GOEXPERIMENT")
+	if exp != "" {
+		exp += ","
+	}
+	cmd.Env = append(cmd.Environ(), "GOEXPERIMENT="+exp+"arm64e")
+	out, err := cmd.CombinedOutput()
+	t.Logf("%s", out)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

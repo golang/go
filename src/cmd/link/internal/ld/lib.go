@@ -2437,6 +2437,9 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
 		return []string{"-marm"}
 	case sys.ARM64:
 		if buildcfg.GOOS == "darwin" {
+			if buildcfg.Experiment.ARM64E {
+				return []string{"-arch", "arm64e"}
+			}
 			return []string{"-arch", "arm64"}
 		}
 	case sys.Loong64:

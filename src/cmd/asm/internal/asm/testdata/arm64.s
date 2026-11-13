@@ -2340,6 +2340,22 @@ next:
 	AUTIBSP                                    // ff2303d5
 	AUTIA1716                                  // 9f2103d5
 	AUTIB1716                                  // df2103d5
+	PACIA	R17, R16                           // 3002c1da
+	PACIA	RSP, R0                            // e003c1da
+	AUTIA	R1, R2                             // 2210c1da
+	AUTIA	RSP, R3                            // e313c1da
+	PACDA	R3, R4                             // 6408c1da
+	PACDA	RSP, R5                            // e50bc1da
+	AUTDA	R7, R6                             // e618c1da
+	AUTDA	RSP, R8                            // e81bc1da
+	PACIZA	R9                                 // e923c1da
+	PACIZA	R30                                // fe23c1da
+	AUTIZA	R10                                // ea33c1da
+	AUTIZA	R0                                 // e033c1da
+	XPACI	R11                                // eb43c1da
+	XPACI	R30                                // fe43c1da
+	XPACD	R12                                // ec47c1da
+	XPACD	R29                                // fd47c1da
 
 // Vector Reduction Instructions
 	VSMAXV	V0.B8, V0                          // 00a8300e

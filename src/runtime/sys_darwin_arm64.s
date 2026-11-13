@@ -173,6 +173,10 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
 	MOVD	info+16(FP), R1
 	MOVD	ctx+24(FP), R2
 	MOVD	fn+0(FP), R11
+#ifdef GOEXPERIMENT_arm64e
+	// fn is a C function pointer.
+	AUTIZA	R11
+#endif
 	BL	(R11)
 	RET
 
@@ -619,3 +623,71 @@ TEXT runtime·proc_regionfilename_trampoline(SB),NOSPLIT,$0
 	MOVD	0(R0), R0 // pid
 	BL	libc_proc_regionfilename(SB)
 	RET
+
+#ifdef GOEXPERIMENT_arm64e
+// func cfuncptr(pc uintptr) uintptr
+TEXT runtime·cfuncptr<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	PACIZA	R0
+	RET
+
+// func cfuncaddr(p uintptr) uintptr
+TEXT runtime·cfuncaddr<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	AUTIZA	R0
+	RET
+
+// func xpaci(p uint64) uint64
+TEXT runtime·xpaci<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	XPACI	R0
+	RET
+
+// func xpacd(p uint64) uint64
+TEXT runtime·xpacd<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-16
+	XPACD	R0
+	RET
+
+// func pacia(p, mod uint64) uint64
+TEXT runtime·pacia<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+	PACIA	R1, R0
+	RET
+
+// func pushsp(sp, newsp, mod uint64) uint64
+TEXT runtime·pushsp<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-32
+	MOVD	R0, R3
+	XPACD	R3
+	MOVD	R3, R4
+	PACDA	R2, R4
+	CBZ	R0, ok	// zero is not signed, as in the SDK's accessors
+	CMP	R0, R4
+	BNE	bad	// sp is not signed with mod
+ok:
+	SUB	R1, R3, R4
+	CMP	$16, R4
+	BHI	bad	// newsp > sp, or more than 16 below
+	PACDA	R2, R1
+	MOVD	R1, R0
+	RET
+bad:
+	MOVD	ZR, R0
+	RET
+
+// func resignpc(pc, pcmod, newpc, lo, mod uint64) uint64
+TEXT runtime·resignpc<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-48
+	MOVD	R0, R5
+	XPACI	R5
+	MOVD	R5, R6
+	PACIA	R1, R6
+	CBZ	R0, ok	// zero is not signed, as in the SDK's accessors
+	CMP	R0, R6
+	BNE	bad	// pc is not signed with pcmod
+ok:
+	CMP	R5, R2
+	BHI	bad	// newpc > pc
+	CMP	R3, R2
+	BLO	bad	// newpc < lo
+	PACIA	R4, R2
+	MOVD	R2, R0
+	RET
+bad:
+	MOVD	ZR, R0
+	RET
+#endif

@@ -879,8 +879,8 @@ func timelog(op, name string) {
 // to switch between the host and target configurations when cross-compiling.
 func toolenv() []string {
 	var env []string
-	if !mustLinkExternal(goos, goarch, false) {
-		// Unless the platform requires external linking,
+	if !mustLinkExternal(goos, goarch, false) && !arm64eEnabled() {
+		// Unless the platform or GOEXPERIMENT=arm64e requires external linking,
 		// we disable cgo to get static binaries for cmd/go and cmd/pprof,
 		// so that they work on systems without the same dynamic libraries
 		// as the original build system.
@@ -895,6 +895,25 @@ func toolenv() []string {
 		env = append(env, "GOFLAGS=-trimpath -ldflags=-w -gcflags=cmd/...=-dwarf=false")
 	}
 	return env
+}
+
+// arm64eEnabled reports whether GOEXPERIMENT enables arm64e for goos and
+// goarch, which it can only do on darwin and ios on arm64. The experiment
+// requires external linking.
+func arm64eEnabled() bool {
+	if goarch != "arm64" || (goos != "darwin" && goos != "ios") {
+		return false
+	}
+	enabled := false
+	for _, exp := range strings.Split(goexperiment, ",") {
+		switch exp {
+		case "arm64e":
+			enabled = true
+		case "noarm64e", "none":
+			enabled = false
+		}
+	}
+	return enabled
 }
 
 var (

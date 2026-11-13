@@ -185,7 +185,7 @@ type regs64 struct {
 	sp    uint64     // stack pointer, x31
 	pc    uint64     // program counter
 	cpsr  uint32     // current program status register
-	__pad uint32
+	flags uint32     // pointer authentication flags (arm64e)
 }
 
 type neonstate64 struct {

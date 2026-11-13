@@ -1285,6 +1285,7 @@ func (b *Builder) cgoCompileActionID(a *Action, f string, flags []string) cache.
 	p := a.Package
 
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	fmt.Fprintf(h, "arch %q\n", b.gccArchArgs())
 
 	fmt.Fprintf(h, "file %s %s\n", filepath.Base(f), b.fileHash(f))
 	fmt.Fprintf(h, "flags %q\n", replaceAll(flags, a.Objdir, "$OBJDIR/"))
@@ -1314,6 +1315,11 @@ func (b *Builder) cgoRunActionID(a *Action) cache.ActionID {
 	h := cache.NewHash("cgo " + p.ImportPath)
 
 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+	fmt.Fprintf(h, "arch %q\n", b.gccArchArgs())
+	// cmd/cgo reads GOEXPERIMENT.
+	if cfg.CleanGOEXPERIMENT != "" {
+		fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
+	}
 
 	fmt.Fprintf(h, "cgo %q\n", b.toolID("cgo"))
 
@@ -3347,6 +3353,9 @@ func (b *Builder) gccArchArgs() []string {
 		return []string{"-m64"}
 	case "arm64":
 		if cfg.Goos == "darwin" {
+			if cfg.Experiment.ARM64E {
+				return []string{"-arch", "arm64e"}
+			}
 			return []string{"-arch", "arm64"}
 		}
 	case "arm":

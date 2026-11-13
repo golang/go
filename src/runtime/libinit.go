@@ -15,7 +15,9 @@ import (
 // creation. On most platforms it is zero, meaning the raw code address should
 // be used. On AIX it is set by libpreinit to a function descriptor pointer,
 // because pthread_create on AIX expects a function descriptor, not a raw
-// code address.
+// code address. On darwin with GOEXPERIMENT=arm64e it is set by libpreinit
+// to a signed function pointer, because pthread_create calls the function
+// through an authenticating branch.
 var rt0LibGoFn uintptr
 
 // libInit is common startup code for most architectures when

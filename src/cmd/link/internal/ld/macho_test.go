@@ -14,6 +14,8 @@ import (
 	"internal/testenv"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"testing"
 )
 
@@ -248,4 +250,83 @@ func TestMachoSplitDWARF(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestMachoARM64E(t *testing.T) {
+	t.Parallel()
+	testenv.MustHaveGoBuild(t)
+	testenv.MustHaveCGO(t)
+	if runtime.GOARCH != "arm64" {
+		t.Skip("arm64e requires darwin/arm64")
+	}
+
+	const (
+		prog = `package main; func main() {}`
+		// The preamble fails to compile unless cgo and the C compiler
+		// both target arm64e.
+		progC = `package main
+
+// #if !__has_feature(ptrauth_calls)
+// #error not arm64e
+// #endif
+import "C"
+
+func main() {}
+`
+	)
+
+	build := func(t *testing.T, prog string, ldflags string) (exe string, out []byte, err error) {
+		dir := t.TempDir()
+		src := filepath.Join(dir, "main.go")
+		if err := os.WriteFile(src, []byte(prog), 0666); err != nil {
+			t.Fatal(err)
+		}
+		exe = filepath.Join(dir, "main")
+		cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, "-ldflags="+ldflags, src)
+		cmd.Env = append(cmd.Environ(), "GOEXPERIMENT=arm64e")
+		out, err = cmd.CombinedOutput()
+		return exe, out, err
+	}
+
+	for _, test := range []struct{ name, prog string }{{"go", prog}, {"cgo", progC}} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			tmpdir := t.TempDir()
+			exe, out, err := build(t, test.prog, "-tmpdir="+tmpdir)
+			if err != nil {
+				t.Fatalf("build failed: %v\n%s", err, out)
+			}
+			obj, err := macho.Open(filepath.Join(tmpdir, "go.o"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer obj.Close()
+			// The same as clang's arm64e objects.
+			if want := uint32(MACHO_SUBCPU_ARM64E | MACHO_SUBCPU_PTRAUTH_ABI); obj.SubCpu != want {
+				t.Errorf("go.o: subcpu %#x, want %#x", obj.SubCpu, want)
+			}
+
+			f, err := macho.Open(exe)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer f.Close()
+			// The system linker sets the capability bits of an executable.
+			if f.Cpu != macho.CpuArm64 || f.SubCpu&0x00ffffff != MACHO_SUBCPU_ARM64E {
+				t.Errorf("executable: cpu %v, subcpu %#x, want arm64e", f.Cpu, f.SubCpu)
+			}
+			// Threads must be started through C, by runtime/cgo.
+			if !slices.ContainsFunc(f.Symtab.Syms, func(s macho.Symbol) bool { return s.Name == "_x_cgo_init" }) {
+				t.Errorf("runtime/cgo is not linked")
+			}
+		})
+	}
+
+	t.Run("internal", func(t *testing.T) {
+		t.Parallel()
+		_, out, err := build(t, prog, "-linkmode=internal")
+		if err == nil || !bytes.Contains(out, []byte("GOEXPERIMENT=arm64e")) {
+			t.Errorf("internal linking with GOEXPERIMENT=arm64e: got %v, want an error naming GOEXPERIMENT=arm64e\n%s", err, out)
+		}
+	})
 }
