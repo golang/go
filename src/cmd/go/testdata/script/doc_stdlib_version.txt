@@ -16,11 +16,11 @@ stderr 'argument must not be a package in the standard library'
 # handled by the period-splitting loop: it must fail instead of
 # showing documentation for the current version of the package.
 ! go doc encoding/json.Marshal@go1.19.0
-stderr .
+stderr 'argument must not be a package in the standard library'
 ! stdout .
 
 ! go doc encoding/json/v2.Marshal@go1.19.0
-stderr .
+stderr 'argument must not be a package in the standard library'
 ! stdout .
 
 # And for the two-argument form with a versioned package.
