@@ -153,7 +153,7 @@ func interhash(p unsafe.Pointer, h uintptr) uintptr {
 	a := (*iface)(p)
 	tab := a.tab
 	if tab == nil {
-		return h
+		return trimHash(h)
 	}
 	t := tab.Type
 	if t.Equal == nil {
@@ -184,7 +184,7 @@ func nilinterhash(p unsafe.Pointer, h uintptr) uintptr {
 	a := (*eface)(p)
 	t := a._type
 	if t == nil {
-		return h
+		return trimHash(h)
 	}
 	if t.Equal == nil {
 		// See comment in interhash above.

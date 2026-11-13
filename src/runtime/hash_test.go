@@ -76,6 +76,27 @@ func TestMemHash64Equality(t *testing.T) {
 	}
 }
 
+func TestNilInterfaceHash(t *testing.T) {
+	// A seed with nonzero high bits must be truncated on wasm.
+	seed := ^uintptr(0)
+	want := seed
+	if GOARCH == "wasm" {
+		want = uintptr(uint32(seed))
+	}
+
+	t.Run("EmptyInterface", func(t *testing.T) {
+		if got := EfaceHash(nil, seed); got != want {
+			t.Errorf("EfaceHash(nil, %#x) = %#x, want %#x", seed, got, want)
+		}
+	})
+
+	t.Run("NonEmptyInterface", func(t *testing.T) {
+		if got := IfaceHash(nil, seed); got != want {
+			t.Errorf("IfaceHash(nil, %#x) = %#x, want %#x", seed, got, want)
+		}
+	})
+}
+
 // Smhasher is a torture test for hash functions.
 // https://code.google.com/p/smhasher/
 // This code is a port of some of the Smhasher tests to Go.
