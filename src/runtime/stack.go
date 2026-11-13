@@ -1,4 +1,4 @@
-// Copyright 2013 The Go Authors. All rights reserved.
+// Copyright 2026 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -1009,8 +1009,12 @@ func copystack(gp *g, newsize uintptr) {
 
 	// Adjust pointers in the new stack.
 	var u unwinder
-	for u.init(gp, 0); u.valid(); u.next() {
+	u.init(gp, 0)
+	adjustUserFrame(&u, &adjinfo)
+	for u.valid() {
 		adjustframe(&u.frame, &adjinfo)
+		u.next()
+		adjustUserFrame(&u, &adjinfo)
 	}
 
 	// Panic records live on the stack and have just moved with it, so this
@@ -1041,6 +1045,43 @@ func copystack(gp *g, newsize uintptr) {
 		fillstack(old, 0xfc)
 	}
 	stackfree(old)
+}
+
+// adjustUserFrame relocates stack pointers held in a contiguous chain of active
+// user frames using the same precise maps used by the garbage collector.
+func adjustUserFrame(u *unwinder, adjinfo *adjustinfo) {
+	if !goexperiment.JIT {
+		return
+	}
+	pc, sp := u.userFrameScanPC, u.userFrameScanSP
+	newLo := adjinfo.old.lo + adjinfo.delta
+	newHi := adjinfo.old.hi + adjinfo.delta
+	for pc != 0 {
+		if base, words, pointerMask, ok := userFramePointerMap(pc, sp); ok && words != 0 {
+			bytes := words * goarch.PtrSize
+			if pointerMask == nil || bytes/goarch.PtrSize != words || base < newLo || base+bytes < base || base+bytes > newHi {
+				badUserFrame("pointer map outside copied stack", pc, sp, base, words)
+			}
+			bits := bitvector{n: int32(words), bytedata: pointerMask}
+			if uintptr(bits.n) != words {
+				badUserFrame("pointer map too large", pc, sp, base, words)
+			}
+			adjustpointers(unsafe.Pointer(base), &bits, adjinfo, funcInfo{})
+		}
+
+		if bpSlot, ok := userFrameCallerBPSlot(pc, sp); ok {
+			if bpSlot < newLo || bpSlot+goarch.PtrSize < bpSlot || bpSlot+goarch.PtrSize > newHi {
+				badUserFrame("saved frame pointer outside copied stack", pc, sp, bpSlot, 1)
+			}
+			adjustpointer(adjinfo, unsafe.Pointer(bpSlot))
+		}
+
+		nextPC, nextSP, more := userFrameNextUser(pc, sp)
+		if !more {
+			return
+		}
+		pc, sp = nextPC, nextSP
+	}
 }
 
 // round x up to a power of 2.
