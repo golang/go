@@ -25,14 +25,14 @@ var _cgo_mmap unsafe.Pointer
 //go:linkname _cgo_munmap _cgo_munmap
 var _cgo_munmap unsafe.Pointer
 
-// cgoMmapFn and cgoMunmapFn are Go equivalents of _cgo_mmap and _cgo_munmap,
+// cgoMmap and cgoMunmap are Go equivalents of _cgo_mmap and _cgo_munmap,
 // used on platforms where runtime/cgo implements them in Go.
 //
-//go:linknamestd cgoMmapFn
-var cgoMmapFn func(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
+//go:linknamestd cgoMmap
+var cgoMmap func(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) uintptr
 
-//go:linknamestd cgoMunmapFn
-var cgoMunmapFn func(addr unsafe.Pointer, n uintptr) int32
+//go:linknamestd cgoMunmap
+var cgoMunmap func(addr unsafe.Pointer, n uintptr) int32
 
 // mmap is used to route the mmap system call through C code when using cgo, to
 // support sanitizer interceptors. Don't allow stack splits, since this function
@@ -41,7 +41,7 @@ var cgoMunmapFn func(addr unsafe.Pointer, n uintptr) int32
 //
 //go:nosplit
 func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
-	if (goexperiment.CgoBindings && cgoMmapFn != nil) || _cgo_mmap != nil {
+	if (goexperiment.CgoBindings && cgoMmap != nil) || _cgo_mmap != nil {
 		// Make ret a uintptr so that writing to it in the
 		// function literal does not trigger a write barrier.
 		// A write barrier here could break because of the way
@@ -49,8 +49,8 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 		// an errno value.
 		var ret uintptr
 		systemstack(func() {
-			if goexperiment.CgoBindings && cgoMmapFn != nil {
-				ret = cgoMmapFn(addr, n, prot, flags, fd, off)
+			if goexperiment.CgoBindings && cgoMmap != nil {
+				ret = cgoMmap(addr, n, prot, flags, fd, off)
 			} else {
 				ret = callCgoMmap(addr, n, prot, flags, fd, off)
 			}
@@ -64,10 +64,10 @@ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (un
 }
 
 func munmap(addr unsafe.Pointer, n uintptr) {
-	if (goexperiment.CgoBindings && cgoMunmapFn != nil) || _cgo_munmap != nil {
+	if (goexperiment.CgoBindings && cgoMunmap != nil) || _cgo_munmap != nil {
 		systemstack(func() {
-			if goexperiment.CgoBindings && cgoMunmapFn != nil {
-				if cgoMunmapFn(addr, n) < 0 {
+			if goexperiment.CgoBindings && cgoMunmap != nil {
+				if cgoMunmap(addr, n) < 0 {
 					// The Go runtime is not prepared for munmap to fail.
 					throw("cgo munmap")
 				}
