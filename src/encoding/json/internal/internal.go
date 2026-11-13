@@ -45,6 +45,8 @@ var (
 	// TransformUnmarshalError converts a v2 error into a v1 error.
 	// It is called only at the top-level of an Unmarshal function.
 	TransformUnmarshalError func(any, error) error
+	// AddErrorContext annotates a jsonv1.UnmarshalTypeError with position information.
+	AddErrorContext func(error, string) error
 
 	// NewRawNumber returns new(jsonv1.Number).
 	NewRawNumber func() any
