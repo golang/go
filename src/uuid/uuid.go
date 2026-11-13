@@ -106,14 +106,17 @@ func (u UUID) MarshalText() ([]byte, error) {
 // AppendText implements the [encoding.TextAppender] interface.
 // The encoding is the same as returned by [UUID.String]
 func (u UUID) AppendText(b []byte) ([]byte, error) {
+	var buf [32]byte
+	hex.Encode(buf[:], u[:])
+	const placeholder = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+	b = append(b, placeholder...)
 	off := len(b)
-	b = append(b, "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"...)
-	dst := b[off:]
-	hex.Encode(dst[0:8], u[0:4])
-	hex.Encode(dst[9:13], u[4:6])
-	hex.Encode(dst[14:18], u[6:8])
-	hex.Encode(dst[19:23], u[8:10])
-	hex.Encode(dst[24:36], u[10:16])
+	dst := b[off-len(placeholder) : off : off] // Eliminate bounds checks.
+	copy(dst[:8], buf[:8])
+	copy(dst[9:13], buf[8:12])
+	copy(dst[14:18], buf[12:16])
+	copy(dst[19:23], buf[16:20])
+	copy(dst[24:36], buf[20:])
 	return b, nil
 }
 
@@ -146,19 +149,13 @@ func (u *UUID) UnmarshalText(b []byte) error {
 	if b[8] != '-' || b[13] != '-' || b[18] != '-' || b[23] != '-' {
 		return errInvalid
 	}
-	if _, err := hex.Decode(dst[0:4], b[0:8]); err != nil {
-		return errInvalid
-	}
-	if _, err := hex.Decode(dst[4:6], b[9:13]); err != nil {
-		return errInvalid
-	}
-	if _, err := hex.Decode(dst[6:8], b[14:18]); err != nil {
-		return errInvalid
-	}
-	if _, err := hex.Decode(dst[8:10], b[19:23]); err != nil {
-		return errInvalid
-	}
-	if _, err := hex.Decode(dst[10:16], b[24:36]); err != nil {
+	var buf [32]byte
+	copy(buf[0:8], b[0:8])
+	copy(buf[8:12], b[9:13])
+	copy(buf[12:16], b[14:18])
+	copy(buf[16:20], b[19:23])
+	copy(buf[20:32], b[24:36])
+	if _, err := hex.Decode(dst[:], buf[:]); err != nil {
 		return errInvalid
 	}
 	*u = dst
