@@ -547,6 +547,7 @@ type g struct {
 	ditWanted       bool // set if g wants to be executed with DIT enabled
 	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
 	runningCleanups atomic.Bool
+	stackLent       bool // set if g holds lend budget for its stack; see stacklend.go
 	sig             uint32
 	secret          int32 // current nesting of runtime/secret.Do calls.
 	writebuf        []byte
@@ -906,6 +907,9 @@ type p struct {
 	// Flushed to gcController.maxStackScan once maxStackScanSlack
 	// or -maxStackScanSlack is reached.
 	maxStackScanDelta int64
+
+	// stackLendCredit is the lend budget that this P holds. See stacklend.go.
+	stackLendCredit int64
 
 	// gc-time statistics about current goroutines
 	// Note that this differs from maxStackScan in that this
