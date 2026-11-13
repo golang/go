@@ -141,7 +141,6 @@ func TestLinkString(t *testing.T) {
 		fn   func(*Type) string
 	}{
 		{"LinkString", (*Type).LinkString},
-		{"NameString", (*Type).NameString},
 	} {
 		str1 := tc.fn(s1)
 		str2 := tc.fn(s2)

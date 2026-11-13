@@ -242,7 +242,11 @@ func (t *Type) LinkString() string {
 		return s
 	}
 
-	s = t.limitString(fmtTypeID)
+	maxLen := base.Debug.MaxShapeLen
+	if maxLen == 0 {
+		maxLen = 500
+	}
+	s = t.limitString(fmtTypeID, maxLen)
 
 	linkStringmu.Lock()
 	linkStrings[t] = s
@@ -266,7 +270,8 @@ func (t *Type) NameString() string {
 		return s
 	}
 
-	s = t.limitString(fmtTypeIDName)
+	// NameStrings cannot be hash-shortened.
+	s = t.limitString(fmtTypeIDName, 0)
 
 	nameStringmu.Lock()
 	nameStrings[t] = s
@@ -274,16 +279,13 @@ func (t *Type) NameString() string {
 	return s
 }
 
-func (t *Type) limitString(mode fmtMode) string {
+func (t *Type) limitString(mode fmtMode, maxLen int) string {
 	buf := fmtBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()
 	defer fmtBufferPool.Put(buf)
 
 	tconv2(buf, t, 0, mode, nil)
-	maxLen := base.Debug.MaxShapeLen
-	if maxLen == 0 {
-		maxLen = 500
-	}
+
 	if t != nil && t.Sym() == nil && maxLen > 0 && buf.Len() > maxLen {
 		var hexBuf [hash.Size32 * 2]byte
 		h := hash.Sum32(buf.Bytes())
