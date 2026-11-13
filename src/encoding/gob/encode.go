@@ -654,6 +654,11 @@ func getEncEngineOuter(ut *userTypeInfo) *encEngine {
 	// serialize all encoder compilation, because type cycles can cause deadlocks.
 	encLock.Lock()
 	defer encLock.Unlock()
+	// if some other goroutine took care of this while the mutex was locked,
+	// don't repeat the work.
+	if enc := info.encoder.Load(); enc != nil {
+		return enc
+	}
 	building := make(map[*typeInfo]*encEngine)
 	enc := compileEnc(info, ut, building)
 	for info, e := range building {
