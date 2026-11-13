@@ -101,6 +101,9 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	for i, a := range all {
 		a.priority = i
 	}
+	if cfg.Experiment.VetFiles {
+		b.prioritizeAnalysisTool(all) // see analysis.go
+	}
 
 	// Write action graph, without timing information, in case we fail and exit early.
 	writeActionGraph := func() {

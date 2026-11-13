@@ -699,6 +699,14 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 	pkgArgs, testArgs = testFlags(args)
 	moduleLoader.InitWorkfile() // The test command does custom flag processing; initialize workspaces after that.
 
+	if cfg.Experiment.VetFiles {
+		if runAnalysisToolChild(ctx, moduleLoader) {
+			// This process is 'go test' running as a child of 'go test'
+			// in a special mode to build the analysis tool for its parent.
+			return
+		}
+	}
+
 	if cfg.DebugTrace != "" {
 		var close func() error
 		var err error
@@ -1073,6 +1081,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
 		prints = append(prints, printTest)
 	}
 
+	// Link the analysis tool, if any packages need it.
+	if cfg.Experiment.VetFiles {
+		buildAnalysisTool(moduleLoader, ctx, b, pkgOpts)
+	}
+
 	// Order runs for coordinating start JSON prints via two mechanisms:
 	// 1. Channel locking forces runTest actions to start in-order.
 	// 2. Barrier tasks force runTest actions to be scheduled in-order.
@@ -1388,6 +1401,11 @@ func builderTest(ld *modload.Loader, b *work.Builder, ctx context.Context, pkgOp
 
 func addTestVet(ld *modload.Loader, b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
 	if testVet.off {
+		return
+	}
+	if cfg.Experiment.VetFiles {
+		// Use the analysis driver instead of cmd/vet (see analysis.go).
+		addTestAnalysis(ld, b, p, runAction, installAction)
 		return
 	}
 

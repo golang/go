@@ -63,6 +63,9 @@ type Builder struct {
 	toolIDCache    par.Cache[string, string] // tool name -> tool ID
 	gccToolIDCache map[string]string         // tool name -> tool ID
 	buildIDCache   map[string]string         // file name -> build ID
+
+	// Analysis in go test (see analysis.go).
+	analysis analysisState
 }
 
 // NOTE: Much of Action would not need to be exported if not for test.
@@ -115,6 +118,8 @@ type Action struct {
 	vetCfg     *vetConfig // vet config
 	FixArchive string     // the created .zip file containing fixes (if needFix)
 	output     []byte     // output redirect buffer (nil means use b.Print)
+
+	analysis *analysisAction // Mode=="analysisvet" only; see analysis.go
 
 	sh *Shell // lazily created per-Action shell; see Builder.Shell
 
