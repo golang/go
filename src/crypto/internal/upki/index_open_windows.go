@@ -6,15 +6,29 @@ package upki
 
 import (
 	"internal/syscall/windows"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
 )
 
-// OpenIndex opens the UPKI index at path. windows.Openat opens the file with
-// FILE_SHARE_DELETE, allowing a cache producer to atomically replace the index
-// while a check retains this handle.
+// OpenIndex opens the UPKI index at path.
 func OpenIndex(path string) (*os.File, error) {
+	return openCacheFile(path)
+}
+
+func readFilterFile(path string) ([]byte, error) {
+	f, err := openCacheFile(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
+}
+
+// windows.Openat shares delete access so a cache producer can replace the
+// index or remove an obsolete filter while a check is reading it.
+func openCacheFile(path string) (*os.File, error) {
 	parent, err := os.Open(filepath.Dir(path))
 	if err != nil {
 		return nil, err

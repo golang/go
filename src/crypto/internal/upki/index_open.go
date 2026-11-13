@@ -12,3 +12,7 @@ import "os"
 func OpenIndex(path string) (*os.File, error) {
 	return os.Open(path)
 }
+
+func readFilterFile(path string) ([]byte, error) {
+	return os.ReadFile(path)
+}

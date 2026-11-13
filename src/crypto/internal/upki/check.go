@@ -5,18 +5,225 @@
 package upki
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
 
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"
 )
 
+// Result is the aggregate result of checking a leaf certificate across all
+// of its verified chains.
+type Result uint8
+
+const (
+	// NotCovered means the cache could not determine the certificate's status.
+	// Reasons include: the leaf has no embedded SCTs, no filter covers any of
+	// the SCT (log ID, timestamp) pairs, the covering filters' own coverage
+	// disagrees with the index, or covering filters were found but every one
+	// reported the issuer as not enrolled.
+	NotCovered Result = iota
+
+	// Revoked means a covering filter listed the certificate as revoked.
+	Revoked
+
+	// NotRevoked means at least one covering filter answered conclusively that
+	// the certificate is not in its revoked set, and no covering filter listed
+	// it as revoked.
+	NotRevoked
+)
+
 var (
+	// ErrNoData reports that the selected cache has no index.bin.
+	ErrNoData = errors.New("upki: no revocation data")
+
 	errMalformedSCTExtension   = errors.New("upki: malformed SCT extension")
 	errMalformedTBSCertificate = errors.New("upki: malformed TBSCertificate")
 )
+
+// Check checks the end-entity certificate in chains against the C2SP
+// revocation cache in dir. The chains must already have been verified. Check
+// takes ownership of indexFile and closes it before returning.
+func Check(dir string, indexFile *os.File, chains [][]*x509.Certificate) (Result, error) {
+	defer func() { _ = indexFile.Close() }()
+
+	if len(chains) == 0 || len(chains[0]) == 0 {
+		return NotCovered, errors.New("upki: no verified certificate chains")
+	}
+
+	leaf := chains[0][0]
+	scts, err := ExtractSCTs(leaf)
+	if err != nil {
+		return NotCovered, fmt.Errorf("upki: extracting SCTs: %w", err)
+	}
+	if len(scts) == 0 {
+		return NotCovered, nil
+	}
+
+	serial, err := rawSerial(leaf)
+	if err != nil {
+		return NotCovered, fmt.Errorf("upki: extracting serial: %w", err)
+	}
+
+	for attempt := 0; ; attempt++ {
+		idx, err := newIndex(indexFile)
+		if err != nil {
+			return NotCovered, err
+		}
+
+		c := checker{
+			idx:     idx,
+			dir:     dir,
+			chains:  chains,
+			serial:  serial,
+			scts:    scts,
+			filters: make(map[string]*revocationFilter),
+		}
+		result, err := c.checkChains()
+		if err == nil {
+			return result, nil
+		}
+		if !errors.Is(err, fs.ErrNotExist) || attempt == maxIndexReopens {
+			return NotCovered, err
+		}
+
+		// A filter named by the open index disappeared. The cache update
+		// contract means the index was superseded, so reopen it and retry.
+		_ = indexFile.Close()
+		nextIndex, openErr := OpenIndex(filepath.Join(dir, IndexFilename))
+		if errors.Is(openErr, fs.ErrNotExist) {
+			return NotCovered, fmt.Errorf("%w at %s", ErrNoData, filepath.Join(dir, IndexFilename))
+		}
+		if openErr != nil {
+			return NotCovered, fmt.Errorf("upki: reopening superseded index: %w", openErr)
+		}
+		indexFile = nextIndex
+	}
+}
+
+// maxIndexReopens bounds how many times a single [Check] call reopens a
+// superseded index before surfacing the missing-filter error, per the spec's
+// allowance to bound retries under pathological cache update patterns.
+const maxIndexReopens = 2
+
+// checker holds the state shared by the chain and filter checks in one pass.
+type checker struct {
+	idx     *index
+	dir     string
+	chains  [][]*x509.Certificate
+	serial  []byte
+	scts    []SCT
+	filters map[string]*revocationFilter
+}
+
+func (c *checker) checkChains() (Result, error) {
+	// Every verified chain's second certificate verified the leaf's
+	// signature, so the chains share one issuer public key and, unless two
+	// intermediates encode that key with different SPKI bytes, one lookup
+	// key. Query each distinct key once rather than once per chain.
+	notRevoked := false
+	seen := make(map[issuerSPKIHash]bool, 1)
+	for _, chain := range c.chains {
+		if len(chain) < 2 {
+			continue
+		}
+
+		issuerHash := sha256.Sum256(chain[1].RawSubjectPublicKeyInfo)
+		if seen[issuerHash] {
+			continue
+		}
+		seen[issuerHash] = true
+
+		key := newLookupKey(issuerHash, c.serial)
+		result, err := c.checkChain(&key)
+		if err != nil {
+			return NotCovered, err
+		}
+		switch result {
+		case Revoked:
+			// Every verified chain describes the same leaf. Finding its
+			// issuer-and-serial pair revoked on any valid path is conclusive.
+			// Another path cannot make the same leaf acceptable.
+			return Revoked, nil
+		case NotRevoked:
+			notRevoked = true
+		}
+	}
+	if notRevoked {
+		return NotRevoked, nil
+	}
+
+	return NotCovered, nil
+}
+
+func (c *checker) checkChain(key *lookupKey) (Result, error) {
+	notRevoked := false
+	seen := make(map[string]bool)
+	for _, sct := range c.scts {
+		filenames, err := c.idx.lookup(sct.logID, sct.timestamp)
+		if err != nil {
+			return NotCovered, err
+		}
+		for _, filename := range filenames {
+			if seen[filename] {
+				continue
+			}
+			seen[filename] = true
+
+			status, err := c.queryFilter(filename, key)
+			if err != nil {
+				return NotCovered, err
+			}
+
+			switch status {
+			case statusRevoked:
+				return Revoked, nil
+			case statusGood:
+				// Conclusive, but a later filter may still revoke. Remember
+				// the result but keep looking.
+				notRevoked = true
+			case statusNotCovered, statusNotEnrolled:
+				// The filter couldn't answer: either its own coverage
+				// disagrees with the index about this SCT, or it has no
+				// block for the issuer. Keep looking. The spec says an
+				// implementation SHOULD treat the former as an error, but
+				// the reference implementation does not, and failing
+				// closed on a producer bug that other consumers tolerate
+				// would single out Go clients. If no filter answers the
+				// result is NotCovered, which the caller's policy decides.
+			}
+		}
+	}
+	if notRevoked {
+		return NotRevoked, nil
+	}
+
+	return NotCovered, nil
+}
+
+// queryFilter loads, parses, and queries filename, reusing a parsed filter
+// when another verified chain selected the same file.
+func (c *checker) queryFilter(filename string, key *lookupKey) (filterStatus, error) {
+	filter, ok := c.filters[filename]
+	if !ok {
+		data, err := readFilterFile(filepath.Join(c.dir, filename))
+		if err != nil {
+			return statusNotCovered, fmt.Errorf("upki: reading filter %s: %w", filename, err)
+		}
+		filter, err = parseFilter(data)
+		if err != nil {
+			return statusNotCovered, fmt.Errorf("upki: parsing filter %s: %w", filename, err)
+		}
+		c.filters[filename] = filter
+	}
+
+	return filter.contains(key, c.scts), nil
+}
 
 // ExtractSCTs decodes the RFC 6962 SignedCertificateTimestampList
 // extension from cert and returns one [SCT] per entry.
