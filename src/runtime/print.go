@@ -68,7 +68,7 @@ var debuglock mutex
 
 func printlock() {
 	gp := getg()
-	if gp.writebuf != nil && gp.m.dying == 0 {
+	if gp.m.writebufg.ptr() == gp && gp.m.dying == 0 {
 		// Output is being diverted into this goroutine's own buffer
 		// (see gwrite), so there is nothing shared to protect. Once
 		// the M is dying gwrite writes to stderr instead, so keep the lock.
@@ -85,7 +85,7 @@ func printlock() {
 
 func printunlock() {
 	gp := getg()
-	if gp.writebuf != nil && gp.m.dying == 0 {
+	if gp.m.writebufg.ptr() == gp && gp.m.dying == 0 {
 		return
 	}
 	mp := gp.m
@@ -95,7 +95,7 @@ func printunlock() {
 	}
 }
 
-// write to goroutine-local buffer if diverting output,
+// write to the M's writebuf if diverting this goroutine's output,
 // or else standard error.
 func gwrite(b []byte) {
 	if len(b) == 0 {
@@ -107,14 +107,15 @@ func gwrite(b []byte) {
 	// than be written to in some buffer, if we're in a panicking state.
 	// Note that we can't just clear writebuf in the gp.m.dying case
 	// because a panic isn't allowed to have any write barriers.
-	if gp == nil || gp.writebuf == nil || gp.m.dying > 0 {
+	if gp == nil || gp.m.writebufg.ptr() != gp || gp.m.dying > 0 {
 		recordForPanic(b)
 		writeErr(b)
 		return
 	}
 
-	n := copy(gp.writebuf[len(gp.writebuf):cap(gp.writebuf)], b)
-	gp.writebuf = gp.writebuf[:len(gp.writebuf)+n]
+	mp := gp.m
+	n := copy(mp.writebuf[len(mp.writebuf):cap(mp.writebuf)], b)
+	mp.writebuf = mp.writebuf[:len(mp.writebuf)+n]
 }
 
 func printsp() {

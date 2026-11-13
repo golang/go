@@ -1638,7 +1638,7 @@ func startpanic_m() bool {
 
 	switch gp.m.dying {
 	case 0:
-		// Setting dying >0 has the side-effect of disabling this G's writebuf.
+		// Setting dying >0 has the side-effect of disabling this M's writebuf.
 		gp.m.dying = 1
 		panicking.Add(1)
 		lock(&paniclk)

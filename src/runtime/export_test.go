@@ -2101,48 +2101,56 @@ func (head *ListHeadManual) Remove(p unsafe.Pointer) {
 	head.l.remove(p)
 }
 
+// capturePrint calls f. Any print output of f is appended to buf and
+// returned. Output that does not fit in cap(buf) is dropped.
+func capturePrint(buf []byte, f func()) []byte {
+	// The goroutine must stay on this M while writebufg is set.
+	mp := acquirem()
+	mp.writebuf = buf
+	mp.writebufg.set(getg())
+	f()
+	buf = mp.writebuf
+	mp.writebuf = nil
+	mp.writebufg = 0
+	releasem(mp)
+	return buf
+}
+
 func Hexdumper(base uintptr, wordBytes int, mark func(addr uintptr, start func()), data ...[]byte) string {
-	buf := make([]byte, 0, 2048)
-	getg().writebuf = buf
-	h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
-	if mark != nil {
-		h.mark = func(addr uintptr, m hexdumpMarker) {
-			mark(addr, m.start)
+	buf := capturePrint(make([]byte, 0, 2048), func() {
+		h := hexdumper{addr: base, addrBytes: 4, wordBytes: uint8(wordBytes)}
+		if mark != nil {
+			h.mark = func(addr uintptr, m hexdumpMarker) {
+				mark(addr, m.start)
+			}
 		}
-	}
-	for _, d := range data {
-		h.write(d)
-	}
-	h.close()
-	n := len(getg().writebuf)
-	getg().writebuf = nil
-	if n == cap(buf) {
+		for _, d := range data {
+			h.write(d)
+		}
+		h.close()
+	})
+	if len(buf) == cap(buf) {
 		panic("Hexdumper buf too small")
 	}
-	return string(buf[:n])
+	return string(buf)
 }
 
 func HexdumpWords(p, bytes uintptr) string {
-	buf := make([]byte, 0, 2048)
-	getg().writebuf = buf
-	hexdumpWords(p, bytes, nil)
-	n := len(getg().writebuf)
-	getg().writebuf = nil
-	if n == cap(buf) {
+	buf := capturePrint(make([]byte, 0, 2048), func() {
+		hexdumpWords(p, bytes, nil)
+	})
+	if len(buf) == cap(buf) {
 		panic("HexdumpWords buf too small")
 	}
-	return string(buf[:n])
+	return string(buf)
 }
 
 // DumpPrintQuoted provides access to print(quoted()) for the tests in
 // runtime/print_quoted_test.go, allowing us to test that implementation.
 func DumpPrintQuoted(s string) string {
-	gp := getg()
-	gp.writebuf = make([]byte, 0, 1<<20)
-	print(quoted(s))
-	buf := gp.writebuf
-	gp.writebuf = nil
-
+	buf := capturePrint(make([]byte, 0, 1<<20), func() {
+		print(quoted(s))
+	})
 	return string(buf)
 }
 
@@ -2157,12 +2165,9 @@ func PrintBacklog() []byte {
 
 // DumpPrint returns the output of print(v).
 func DumpPrint[T any](v T) string {
-	gp := getg()
-	gp.writebuf = make([]byte, 0, 2048)
-	print(v)
-	buf := gp.writebuf
-	gp.writebuf = nil
-
+	buf := capturePrint(make([]byte, 0, 2048), func() {
+		print(v)
+	})
 	return string(buf)
 }
 

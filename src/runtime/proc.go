@@ -4572,7 +4572,6 @@ func gdestroy(gp *g) {
 	gp.paniconfault = false
 	gp._defer = nil // should be true already but just in case.
 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
-	gp.writebuf = nil
 	gp.waitreason = waitReasonZero
 	gp.param = nil
 	gp.labels = nil

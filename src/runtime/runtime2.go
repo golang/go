@@ -636,7 +636,6 @@ type g struct {
 
 	sig        uint32
 	secret     int32 // current nesting of runtime/secret.Do calls.
-	writebuf   []byte
 	sigcode0   uintptr
 	sigcode1   uintptr
 	sigpc      uintptr
@@ -810,6 +809,13 @@ type m struct {
 
 	// self points this M until mexit clears it to return nil.
 	self mWeakPointer
+
+	// While writebufg is set, its print output goes to writebuf (see
+	// gwrite). Output of any other goroutine on this M, for example a
+	// signal handler running on gsignal, still goes to standard error.
+	// writebufg must not move to another M while it is set.
+	writebuf  []byte
+	writebufg guintptr
 }
 
 const mRedZoneSize = (16 << 3) * asanenabledBit // redZoneSize(2048)

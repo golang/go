@@ -1704,15 +1704,17 @@ func Stack(buf []byte, all bool) int {
 			// so that Stack's results are consistent.
 			// GOTRACEBACK is only about crash dumps.
 			g0.m.traceback = 1
-			g0.writebuf = buf[0:0:len(buf)]
+			g0.m.writebuf = buf[0:0:len(buf)]
+			g0.m.writebufg.set(g0)
 			goroutineheader(gp)
 			traceback(pc, sp, 0, gp)
 			if all {
 				tracebackothers(gp)
 			}
 			g0.m.traceback = 0
-			n = len(g0.writebuf)
-			g0.writebuf = nil
+			n = len(g0.m.writebuf)
+			g0.m.writebuf = nil
+			g0.m.writebufg = 0
 		})
 	}
 
