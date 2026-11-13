@@ -88,6 +88,7 @@ var amd64RegInfoKeys = []string{
 	"v21ResultInArg0Imm8",
 	"v31x0AtIn2ResultInArg0",
 	"v2kvResultInArg0",
+	"v2kvResultInArg0Imm8",
 }
 
 var arm64RegInfoKeys = []string{

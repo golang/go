@@ -3040,18 +3040,6 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPABSDMasked256Merging,
 		ssaop.OpAMD64VPABSDMasked512Merging,
 		ssaop.OpAMD64VPABSQMasked512Merging,
-		ssaop.OpAMD64VRNDSCALEPSMasked512Merging,
-		ssaop.OpAMD64VRNDSCALEPDMasked512Merging,
-		ssaop.OpAMD64VRNDSCALEPSMasked128Merging,
-		ssaop.OpAMD64VRNDSCALEPSMasked256Merging,
-		ssaop.OpAMD64VRNDSCALEPDMasked128Merging,
-		ssaop.OpAMD64VRNDSCALEPDMasked256Merging,
-		ssaop.OpAMD64VREDUCEPSMasked128Merging,
-		ssaop.OpAMD64VREDUCEPSMasked256Merging,
-		ssaop.OpAMD64VREDUCEPSMasked512Merging,
-		ssaop.OpAMD64VREDUCEPDMasked128Merging,
-		ssaop.OpAMD64VREDUCEPDMasked256Merging,
-		ssaop.OpAMD64VREDUCEPDMasked512Merging,
 		ssaop.OpAMD64VCVTDQ2PSMasked128Merging,
 		ssaop.OpAMD64VCVTDQ2PSMasked256Merging,
 		ssaop.OpAMD64VCVTDQ2PSMasked512Merging,
@@ -3181,7 +3169,21 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPBROADCASTBMasked512Merging,
 		ssaop.OpAMD64VPOPCNTBMasked128Merging,
 		ssaop.OpAMD64VPOPCNTBMasked256Merging,
-		ssaop.OpAMD64VPOPCNTBMasked512Merging,
+		ssaop.OpAMD64VPOPCNTBMasked512Merging:
+		p = simdV2kvResultInArg0(s, v)
+
+	case ssaop.OpAMD64VRNDSCALEPSMasked512Merging,
+		ssaop.OpAMD64VRNDSCALEPDMasked512Merging,
+		ssaop.OpAMD64VRNDSCALEPSMasked128Merging,
+		ssaop.OpAMD64VRNDSCALEPSMasked256Merging,
+		ssaop.OpAMD64VRNDSCALEPDMasked128Merging,
+		ssaop.OpAMD64VRNDSCALEPDMasked256Merging,
+		ssaop.OpAMD64VREDUCEPSMasked128Merging,
+		ssaop.OpAMD64VREDUCEPSMasked256Merging,
+		ssaop.OpAMD64VREDUCEPSMasked512Merging,
+		ssaop.OpAMD64VREDUCEPDMasked128Merging,
+		ssaop.OpAMD64VREDUCEPDMasked256Merging,
+		ssaop.OpAMD64VREDUCEPDMasked512Merging,
 		ssaop.OpAMD64VPSHUFDMasked256Merging,
 		ssaop.OpAMD64VPSHUFDMasked512Merging,
 		ssaop.OpAMD64VPSHUFHWMasked256Merging,
@@ -3230,7 +3232,7 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
 		ssaop.OpAMD64VPSRLQMasked128constMerging,
 		ssaop.OpAMD64VPSRLQMasked256constMerging,
 		ssaop.OpAMD64VPSRLQMasked512constMerging:
-		p = simdV2kvResultInArg0(s, v)
+		p = simdV2kvResultInArg0Imm8(s, v)
 
 	default:
 		// Unknown reg shape

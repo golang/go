@@ -265,6 +265,11 @@ func sftImmZeroMerge(x, dst archsimd.Int16x32, bits uint32) archsimd.Int16x32 {
 	return x.ShiftAllLeft(0).IfElse(mask, dst)
 }
 
+func sftImmMerge(x, y archsimd.Uint64x8, m archsimd.Mask64x8) archsimd.Uint64x8 {
+	// amd64:`VPSLLQ \$2, Z[0-9]+, K[1-7], Z[0-9]+` -`VPBLENDMQ`
+	return x.ShiftAllLeft(2).IfElse(m, y)
+}
+
 func aLtbLtc8_avx512(a, b, c archsimd.Int8x64) archsimd.Mask8x64 {
 	// the vector length implies AVX512 implies the mask operations.
 	// amd64:`KANDQ`

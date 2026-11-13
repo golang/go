@@ -251,8 +251,7 @@ func writeSIMDSSA(buffer *bytes.Buffer, ops []Operation) {
 			regShapeMerging := regShape
 			if shapeOut != OneVregOutAtIn {
 				op = op.mergingOp()
-				regShapeMerging, err = op.regShape(mem)
-				regShapeMerging += "ResultInArg0"
+				regShapeMerging, err = computeBaseRegShape(op, mem, shapeIn, OneVregOutAtIn, immOpArg, immType)
 			}
 			if err != nil {
 				return err
