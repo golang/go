@@ -204,9 +204,20 @@ func (enc *Encoding) AppendEncode(dst, src []byte) []byte {
 
 // EncodeToString returns the base64 encoding of src.
 func (enc *Encoding) EncodeToString(src []byte) string {
-	buf := make([]byte, enc.EncodedLen(len(src)))
-	enc.Encode(buf, src)
-	return string(buf)
+	// Kept small so that it is inlined and a short
+	// result can stay on the caller's stack.
+	var buf [64]byte
+	return string(enc.encodeBuf(buf[:], src))
+}
+
+// encodeBuf returns the encoding of src, using buf if it fits.
+func (enc *Encoding) encodeBuf(buf, src []byte) []byte {
+	n := enc.EncodedLen(len(src))
+	if n > len(buf) {
+		buf = make([]byte, n)
+	}
+	enc.Encode(buf[:n], src)
+	return buf[:n]
 }
 
 type encoder struct {

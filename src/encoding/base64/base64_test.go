@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"math"
 	"reflect"
@@ -118,6 +119,30 @@ func TestEncode(t *testing.T) {
 			testEqual(t, "Encode(%q) = %q, want %q", p.decoded, got, tt.conv(p.encoded))
 			dst := tt.enc.AppendEncode([]byte("lead"), []byte(p.decoded))
 			testEqual(t, `AppendEncode("lead", %q) = %q, want %q`, p.decoded, string(dst), "lead"+tt.conv(p.encoded))
+		}
+	}
+}
+
+var sink string
+
+func TestEncodeToStringAllocs(t *testing.T) {
+	testenv.SkipIfOptimizationOff(t)
+
+	for _, size := range []int{16, 32, 48} {
+		src := make([]byte, size)
+
+		discarded := testing.AllocsPerRun(100, func() {
+			StdEncoding.EncodeToString(src)
+		})
+		if want := 0.0; discarded != want {
+			t.Errorf("size %d, result discarded: %v allocs, want %v", size, discarded, want)
+		}
+
+		kept := testing.AllocsPerRun(100, func() {
+			sink = StdEncoding.EncodeToString(src)
+		})
+		if want := 1.0; kept != want {
+			t.Errorf("size %d, result kept: %v allocs, want %v", size, kept, want)
 		}
 	}
 }
