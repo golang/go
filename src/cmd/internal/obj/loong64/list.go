@@ -20,7 +20,7 @@ func arrange(valid int16) string {
 
 	// bits 0-4 indicates register: Vn or Xn
 	// bits 5-9 indicates arrangement: <T>
-	// bits 10 indicates SMID type: 0: LSX, 1: LASX
+	// bits 10 indicates SIMD type: 0: LSX, 1: LASX
 	simdType := (valid >> EXT_SIMDTYPE_SHIFT) & EXT_SIMDTYPE_MASK
 	simdReg := (valid >> EXT_REG_SHIFT) & EXT_REG_MASK
 	arngType := (valid >> EXT_TYPE_SHIFT) & EXT_TYPE_MASK

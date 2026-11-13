@@ -34,7 +34,7 @@ TEXT countbody<>(SB),NOSPLIT,$0
 	MOVV	$8, R8
 	BLT	R5, R8, tail
 
-	// Implemented using 256-bit SMID instructions
+	// Implemented using 256-bit SIMD instructions
 lasxCountBody:
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLASX(SB), R8
 	BEQ	R8, lsxCountBody
@@ -121,7 +121,7 @@ lasx8Loop:
 	BGE	R5, R8, lasx8Loop
 	JMP	tail
 
-	// Implemented using 128-bit SMID instructions
+	// Implemented using 128-bit SIMD instructions
 lsxCountBody:
 	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R8
 	BEQ	R8, genericCountBody
