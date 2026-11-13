@@ -644,7 +644,7 @@ type g struct {
 	ancestors  *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
 	startpc    uintptr         // pc of goroutine function
 	racectx    uintptr
-	cgoCtxt    []uintptr      // cgo traceback context
+	cgoCtxt    *[]uintptr     // cgo traceback contexts, allocated on first use (see cgocallbackg1)
 	labels     unsafe.Pointer // profiler labels
 	timer      *timer         // cached timer for time.Sleep
 	sleepWhen  int64          // when to sleep until

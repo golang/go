@@ -410,6 +410,18 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
 	gp.m.g0StackAccurate = oldAccurate
 }
 
+// cgoCtxtTop returns the index of the innermost cgo traceback context
+// of gp, or -1 if gp has none.
+//
+//go:nosplit
+func (gp *g) cgoCtxtTop() int {
+	c := gp.cgoCtxt
+	if c == nil {
+		return -1
+	}
+	return len(*c) - 1
+}
+
 func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	gp := getg()
 
@@ -419,24 +431,32 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
 	}
 
 	if ctxt != 0 {
-		s := append(gp.cgoCtxt, ctxt)
+		c := gp.cgoCtxt
+		if c == nil {
+			// Few goroutines ever have a cgo traceback context,
+			// so the slice is allocated on first use and kept
+			// when the g is reused.
+			c = new([]uintptr)
+			gp.cgoCtxt = c
+		}
+		s := append(*c, ctxt)
 
-		// Now we need to set gp.cgoCtxt = s, but we could get
+		// Now we need to set *gp.cgoCtxt = s, but we could get
 		// a SIGPROF signal while manipulating the slice, and
 		// the SIGPROF handler could pick up gp.cgoCtxt while
 		// tracing up the stack. We need to ensure that the
 		// handler always sees a valid slice, so set the
 		// values in an order such that it always does.
-		p := (*slice)(unsafe.Pointer(&gp.cgoCtxt))
+		p := (*slice)(unsafe.Pointer(c))
 		atomicstorep(unsafe.Pointer(&p.array), unsafe.Pointer(&s[0]))
 		p.cap = cap(s)
 		p.len = len(s)
 
-		defer func(gp *g) {
+		defer func(c *[]uintptr) {
 			// Decrease the length of the slice by one, safely.
-			p := (*slice)(unsafe.Pointer(&gp.cgoCtxt))
+			p := (*slice)(unsafe.Pointer(c))
 			p.len--
-		}(gp)
+		}(c)
 	}
 
 	if gp.m.ncgo == 0 {

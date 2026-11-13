@@ -230,7 +230,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
 	*u = unwinder{
 		frame:        frame,
 		g:            gp.guintptr(),
-		cgoCtxt:      len(gp.cgoCtxt) - 1,
+		cgoCtxt:      gp.cgoCtxtTop(),
 		calleeFuncID: abi.FuncIDNormal,
 		flags:        flags,
 	}
@@ -320,7 +320,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 					frame.lr = 0
 				}
 				frame.sp = gp.sched.sp
-				u.cgoCtxt = len(gp.cgoCtxt) - 1
+				u.cgoCtxt = gp.cgoCtxtTop()
 			case abi.FuncID_systemstack:
 				// systemstack returns normally, so just follow the
 				// stack transition.
@@ -338,7 +338,7 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
 				gp = gp.m.curg
 				u.g.set(gp)
 				frame.sp = gp.sched.sp
-				u.cgoCtxt = len(gp.cgoCtxt) - 1
+				u.cgoCtxt = gp.cgoCtxtTop()
 				flag &^= abi.FuncFlagSPWrite
 			}
 		}
@@ -633,7 +633,7 @@ func (u *unwinder) cgoCallers(pcBuf []uintptr) int {
 		return 0
 	}
 
-	ctxt := u.g.ptr().cgoCtxt[u.cgoCtxt]
+	ctxt := (*u.g.ptr().cgoCtxt)[u.cgoCtxt]
 	u.cgoCtxt--
 	cgoContextPCs(ctxt, pcBuf)
 	for i, pc := range pcBuf {

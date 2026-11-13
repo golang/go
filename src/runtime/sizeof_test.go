@@ -28,7 +28,7 @@ func TestSizeof(t *testing.T) {
 		_32bit uintptr // size on 32bit platforms
 		_64bit uintptr // size on 64bit platforms
 	}{
-		{runtime.G{}, 252 + xreg + valgrind, 392 + xreg + valgrind + wasmCont}, // g, but exported for testing
+		{runtime.G{}, 244 + xreg + valgrind, 376 + xreg + valgrind + wasmCont}, // g, but exported for testing
 		{runtime.WaitingG{}, 68, 112},                                          // sudog, but exported for testing
 	}
 
