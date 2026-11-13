@@ -11,7 +11,6 @@
 package cgotest
 
 /*
-#include <complex.h>
 #include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -849,7 +848,7 @@ static int twoargs3(void * p) { return 0; }
 // issue 28545
 // Failed to add type conversion for negative constant.
 
-static void issue28545F(char **p, int n, complex double a) {}
+static void issue28545F(char **p, int n, _Complex double a) {}
 
 // issue 28772 part 1 - part 2 in testx.go
 // Failed to add type conversion for Go constant set to C constant.
@@ -1466,7 +1465,7 @@ func testPrintf(t *testing.T) {
 
 // issue 4054
 
-var issue4054a = []int{C.A, C.B, C.C, C.D, C.E, C.F, C.G, C.H, C.I, C.J}
+var issue4054a = []int{C.A, C.B, C.C, C.D, C.E, C.F, C.G, C.H, C.II, C.J}
 
 // issue 4339
 

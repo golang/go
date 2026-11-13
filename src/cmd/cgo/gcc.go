@@ -2600,8 +2600,10 @@ func (c *typeConv) loadType(dtype dwarf.Type, pos token.Pos, parent string) *Typ
 			fatalf("%s: unexpected: %d-byte complex type - %s", lineno(pos), t.Size, dtype)
 		case 8:
 			t.Go = c.complex64
+			t.C.Set(cname("complexfloat"))
 		case 16:
 			t.Go = c.complex128
+			t.C.Set(cname("complexdouble"))
 		}
 		if t.Align = t.Size / 2; t.Align >= c.ptrSize {
 			t.Align = c.ptrSize
