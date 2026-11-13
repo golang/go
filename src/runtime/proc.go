@@ -3356,7 +3356,7 @@ func execute(gp *g, inheritTime bool) {
 	casgstatus(gp, _Grunnable, _Grunning)
 	gp.waitsince = 0
 	gp.preempt = false
-	gp.stackguard0 = gp.stack.lo + stackGuard
+	gp.stackguard0 = regularStackGuard(gp)
 	if !inheritTime {
 		mp.p.ptr().schedtick++
 	}
@@ -5044,7 +5044,7 @@ func exitsyscall() {
 			gp.stackguard0 = stackPreempt
 		} else {
 			// Otherwise restore the real stackGuard, we clobbered it in entersyscall/entersyscallblock.
-			gp.stackguard0 = gp.stack.lo + stackGuard
+			gp.stackguard0 = regularStackGuard(gp)
 		}
 		gp.throwsplit = false
 
@@ -5242,7 +5242,7 @@ func syscall_runtime_AfterFork() {
 	gp := getg().m.curg
 
 	// See the comments in beforefork.
-	gp.stackguard0 = gp.stack.lo + stackGuard
+	gp.stackguard0 = regularStackGuard(gp)
 
 	msigrestore(gp.m.sigmask)
 
@@ -5531,8 +5531,10 @@ func gfput(pp *p, gp *g) {
 
 	stksize := gp.stack.hi - gp.stack.lo
 
-	if stksize != uintptr(startingStackSize) {
-		// non-standard stack size - free it.
+	// Keep a grown stack, up to maxCachedStackSize, for the next goroutine
+	// that reuses gp, until its tokens run out; see stacktokens.go. Without
+	// stack shrinking, keep only stacks of startingStackSize, as before.
+	if stksize > maxCachedStackSize || stackTokensGone(gp) || (debug.gcshrinkstackoff > 0 && stksize != uintptr(startingStackSize)) {
 		stackfree(gp.stack)
 		gp.stack.lo = 0
 		gp.stack.hi = 0
@@ -5589,7 +5591,7 @@ retry:
 	if gp == nil {
 		return nil
 	}
-	if gp.stack.lo != 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
+	if gp.stack.lo != 0 && debug.gcshrinkstackoff > 0 && gp.stack.hi-gp.stack.lo != uintptr(startingStackSize) {
 		// Deallocate old stack. We kept it in gfput because it was the
 		// right size when the goroutine was put on the free list, but
 		// the right size has changed since then.
@@ -5613,6 +5615,7 @@ retry:
 			}
 		})
 		gp.stackguard0 = gp.stack.lo + stackGuard
+		gp.stackUnused = 0 // a new stack has all its tokens
 	} else {
 		if raceenabled {
 			racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
@@ -5623,6 +5626,9 @@ retry:
 		if asanenabled {
 			asanunpoison(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
 		}
+		stackTokenLend(gp)
+		// A coroutine starts without execute, so set the guard here.
+		gp.stackguard0 = regularStackGuard(gp)
 	}
 	return gp
 }
