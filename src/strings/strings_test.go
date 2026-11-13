@@ -443,6 +443,15 @@ func BenchmarkIndexByte(b *testing.B) {
 	}
 }
 
+func BenchmarkLastIndexByte(b *testing.B) {
+	if got := LastIndexByte(benchmarkString, 'v'); got != 17 {
+		b.Fatalf("wrong index: expected 17, got=%d", got)
+	}
+	for i := 0; i < b.N; i++ {
+		LastIndexByte(benchmarkString, 'v')
+	}
+}
+
 type SplitTest struct {
 	s   string
 	sep string

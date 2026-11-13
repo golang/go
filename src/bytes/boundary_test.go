@@ -63,6 +63,21 @@ func TestIndexByteNearPageBoundary(t *testing.T) {
 	}
 }
 
+func TestLastIndexByteNearPageBoundary(t *testing.T) {
+	t.Parallel()
+	b := dangerousSlice(t)
+	for i := range b {
+		idx := LastIndexByte(b[i:], 1)
+		if idx != -1 {
+			t.Fatalf("LastIndexByte(b[%d:])=%d, want -1\n", i, idx)
+		}
+		idx = LastIndexByte(b[:i], 1)
+		if idx != -1 {
+			t.Fatalf("LastIndexByte(b[:%d])=%d, want -1\n", i, idx)
+		}
+	}
+}
+
 func TestIndexNearPageBoundary(t *testing.T) {
 	t.Parallel()
 	q := dangerousSlice(t)

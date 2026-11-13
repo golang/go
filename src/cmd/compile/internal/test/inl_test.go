@@ -250,7 +250,6 @@ func TestIntendedInlining(t *testing.T) {
 			"UUID.String",
 		},
 		"path": {
-			"Base",
 			"scanChunk",
 		},
 		"path/filepath": {
@@ -285,6 +284,12 @@ func TestIntendedInlining(t *testing.T) {
 		want["internal/runtime/maps"] = append(want["internal/runtime/maps"], "mix")
 		// (*Bool).CompareAndSwap is just over budget on 32-bit systems (386, arm).
 		want["sync/atomic"] = append(want["sync/atomic"], "(*Bool).CompareAndSwap")
+	}
+	if runtime.GOARCH != "amd64" {
+		// path.Base calls bytealg.LastIndexByteString. On amd64 it is implemented in
+		// assembly and is therefore not inlinable. This pushes path.Base over the
+		// inlining budget.
+		want["path"] = append(want["path"], "Base")
 	}
 
 	switch runtime.GOARCH {

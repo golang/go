@@ -641,6 +641,24 @@ func bmIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
 	}
 }
 
+func BenchmarkLastIndexByte(b *testing.B) {
+	benchBytes(b, indexSizes, bmLastIndexByte(LastIndexByte))
+}
+
+func bmLastIndexByte(index func([]byte, byte) int) func(b *testing.B, n int) {
+	return func(b *testing.B, n int) {
+		buf := bmbuf[0:n]
+		buf[0] = 'x'
+		for i := 0; i < b.N; i++ {
+			j := index(buf, 'x')
+			if j != 0 {
+				b.Fatal("bad index", j)
+			}
+		}
+		buf[0] = '\x00'
+	}
+}
+
 func BenchmarkIndexRune(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexRune(IndexRune))
 }
