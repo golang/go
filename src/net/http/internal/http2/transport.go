@@ -24,6 +24,7 @@ import (
 	"net/http/internal/ascii"
 	"net/http/internal/httpcommon"
 	"net/textproto"
+	"runtime"
 	"slices"
 	"strconv"
 	"sync"
@@ -1713,6 +1714,18 @@ type clientConnReadLoop struct {
 func (cc *ClientConn) readLoop() {
 	rl := &clientConnReadLoop{cc: cc}
 	defer rl.cleanup()
+	defer func() {
+		// A panic while processing a frame fails this connection, like any
+		// other read error. This runs before cleanup, which aborts the
+		// connection's streams with readerErr.
+		if e := recover(); e != nil {
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+			cc.logf("http2: Transport: panic in read loop: %v\n%s", e, buf)
+			cc.readerErr = fmt.Errorf("http2: panic in client connection read loop: %v", e)
+		}
+	}()
 	cc.readerErr = rl.run()
 	if ce, ok := cc.readerErr.(ConnectionError); ok {
 		// Try to send a GOAWAY frame, but if this blocks for too long
@@ -2323,7 +2336,18 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 		}
 		// Check connection-level flow control.
 		cc.mu.Lock()
+		// Release cc.mu if buffering the frame panics. The read loop's
+		// cleanup needs cc.mu: if it stays locked, cleanup blocks forever,
+		// the panic never finishes unwinding, and the connection can be
+		// neither used nor closed.
+		muHeld := true
+		defer func() {
+			if muHeld {
+				cc.mu.Unlock()
+			}
+		}()
 		if !takeInflows(&cc.inflow, &cs.inflow, f.Length) {
+			muHeld = false
 			cc.mu.Unlock()
 			return ConnectionError(ErrCodeFlowControl)
 		}
@@ -2350,6 +2374,7 @@ func (rl *clientConnReadLoop) processData(f *DataFrame) error {
 		if !didReset {
 			sendStream = cs.inflow.add(refund)
 		}
+		muHeld = false
 		cc.mu.Unlock()
 
 		if sendConn > 0 || sendStream > 0 {

@@ -6279,3 +6279,44 @@ func TestTransportUnblockPendingRequestOnUnusableConn(t *testing.T) {
 		}
 	})
 }
+
+// A panic while the read loop buffers response data must fail the
+// connection. It used to leave the connection mutex locked: the read loop's
+// cleanup then blocked on it forever, and so did every request, health check
+// and Close on the connection.
+func TestTransportReadLoopPanic(t *testing.T) {
+	synctest.Test(t, testTransportReadLoopPanic)
+}
+func testTransportReadLoopPanic(t *testing.T) {
+	// Discard log output reporting the panic.
+	log.SetOutput(io.Discard)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) }) // after other cleanup is done
+
+	tc := newTestClientConn(t)
+	tc.greet()
+
+	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
+	rt := tc.roundTrip(req)
+	tc.wantFrameType(FrameHeaders)
+	tc.writeHeaders(HeadersFrameParam{
+		StreamID:   rt.streamID(),
+		EndHeaders: true,
+		BlockFragment: tc.makeHeaderBlockFragment(
+			":status", "200",
+		),
+	})
+	rt.wantStatus(200)
+
+	tc.cc.TestPanicOnResponseData(rt.streamID())
+	tc.writeData(rt.streamID(), false, []byte("payload"))
+
+	if _, err := rt.readBody(); err == nil || !strings.Contains(err.Error(), "panic") {
+		t.Fatalf("reading response body: got error %v, want an error reporting the panic", err)
+	}
+	if !tc.isClosed() {
+		t.Fatalf("connection is not closed after a panic in the read loop")
+	}
+	if err := tc.roundTrip(req).err(); err == nil {
+		t.Fatalf("RoundTrip on the failed connection succeeded, want an error")
+	}
+}
