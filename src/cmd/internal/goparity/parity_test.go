@@ -32,7 +32,7 @@
 // # Oracles
 //
 // Tier U compares each fork configuration against the pinned upstream oracle
-// (flag -goparity.upstream, default $UPROOT1273/bin/go). The fork VERSION and
+// (flag -goparity.upstream, default $UPROOT1274/bin/go). The fork VERSION and
 // the oracle VERSION are pinned exactly; any other pair fails with a re-audit
 // message. A missing oracle fails the test (owner answer Q2) unless
 // -goparity.upstream=off is passed, in which case only Tier M runs and the
@@ -136,12 +136,12 @@ import (
 )
 
 const (
-	forkVersionPin     = "go1.27.2"
-	upstreamVersionPin = "go1.27.3"
+	forkVersionPin     = "go1.27.4"
+	upstreamVersionPin = "go1.27.4"
 )
 
 var (
-	upstreamFlag = flag.String("goparity.upstream", "", `upstream oracle go binary, or "off" (default $UPROOT1273/bin/go)`)
+	upstreamFlag = flag.String("goparity.upstream", "", `upstream oracle go binary, or "off" (default $UPROOT1274/bin/go)`)
 	releaseFlag  = flag.Bool("goparity.release", false, "add the release tier configurations and the mutation probes")
 )
 
@@ -408,8 +408,8 @@ func fakeToolchain(t *testing.T, fileVersion, binVersion string) (goroot, bin st
 
 func TestToolVersionComesFromTheBinary(t *testing.T) {
 	for _, tc := range []struct{ name, file, bin string }{
-		{"file claims the pin, binary does not", "go1.27.3", "go1.0.0"},
-		{"binary reports the pin, file does not", "go1.0.0", "go1.27.3"},
+		{"file claims the pin, binary does not", "go1.27.4", "go1.0.0"},
+		{"binary reports the pin, file does not", "go1.0.0", "go1.27.4"},
 	} {
 		goroot, bin := fakeToolchain(t, tc.file, tc.bin)
 		if v, err := toolVersion(bin, goroot); err != nil || v != tc.bin {
@@ -485,9 +485,9 @@ func upstreamTool(t *testing.T) (toolchain, bool) {
 	}
 	bin := *upstreamFlag
 	if bin == "" {
-		goroot := os.Getenv("UPROOT1273")
+		goroot := os.Getenv("UPROOT1274")
 		if goroot == "" {
-			t.Fatalf("upstream oracle missing: $UPROOT1273 is not set (pass -goparity.upstream=off to run the metamorphic tier only)")
+			t.Fatalf("upstream oracle missing: $UPROOT1274 is not set (pass -goparity.upstream=off to run the metamorphic tier only)")
 		}
 		bin = filepath.Join(goroot, "bin", "go")
 	}

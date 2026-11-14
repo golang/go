@@ -1,13 +1,13 @@
 # loGos
 
-loGos is a fork of Go 1.27.2 that adds the loGo/s language (`.lgo` files) and the `logos` command. It is one toolchain for Go and loGo/s. Backend, runtime, cgo, and tooling improvements apply to Go packages too.
+loGos is a fork of Go 1.27.4 that adds the loGo/s language (`.lgo` files) and the `logos` command. It is one toolchain for Go and loGo/s. Backend, runtime, cgo, and tooling improvements apply to Go packages too.
 
 ## Commands
 
 Run from `src/` with the fork first on PATH: `export PATH="$(cd .. && pwd)/bin:$PATH"`.
 
 - Build the toolchain: `./make.bash` installs `bin/go` and `bin/logos`. Rerun it after every compiler, runtime, or cmd/go change, because tests use the installed binaries.
-- Smoke: `logos version` prints `logos version go1.27.2`, and `logos help` prints the `logos <command> [arguments]` usage.
+- Smoke: `logos version` prints `logos version go1.27.4`, and `logos help` prints the `logos <command> [arguments]` usage.
 - Test one package: `go test -count=1 -short <pkg>`. Cached results are not evidence.
 - Add `-race` for concurrency, runtime, and cmd/go changes.
 - Script tests: `go test -count=1 cmd/go -run 'Script/^logos_<name>$'`.

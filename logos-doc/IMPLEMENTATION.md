@@ -36,12 +36,12 @@ The user's direction of 2026-10-19 makes loGos one toolchain for Go and loGo/s. 
 7. Correction budget: at most three implementation attempts per slice. If the attacks are still red after the third, discard the implementation, save the red attack files as `logos-doc/blocked/<slice id>.patch` (`git diff` of the attack files only), mark the slice's REDTEAM rows `blocked`, commit both as `Record blocked slice <slice id>`, and stop that slice; dependent slices wait.
 
 ### G2. Environment and gates
-- Go baseline: the tree is go1.27.2 (`VERSION`); `src/go.mod` and `src/cmd/go.mod` declare `go 1.27`, so new code may use every Go 1.27 feature (generic methods, `new(expr)`, `testing/synctest`, `sync.WaitGroup.Go`, `errors.AsType`) and nothing newer.
+- Go baseline: the tree is go1.27.4 (`VERSION`); `src/go.mod` and `src/cmd/go.mod` declare `go 1.27`, so new code may use every Go 1.27 feature (generic methods, `new(expr)`, `testing/synctest`, `sync.WaitGroup.Go`, `errors.AsType`) and nothing newer.
 - Go conventions for new packages (production-go): `ctx context.Context` first; errors wrapped with `%w`, messages lowercase without punctuation; error types named `XxxError`; table-driven tests with subtests; new packages also pass `go test -race -count=1 <pkg>`.
 
 - Toolchain build: run `./make.bash` in `src`. After M0-S1 this installs `bin/go` and `bin/logos`.
 - Shell setup for every command below: put the fork `bin` directory first on `PATH` and work from `src` unless a step says otherwise.
-- Upstream toolchains: set `UPROOT1272` to the upstream Go 1.27.2 tree. Set `UPROOT1273` to the upstream Go 1.27.3 tree. `UPROOT1272` builds ejected output. `UPROOT1273` is the behavior oracle. `src/cmd/go/script_test.go` passes both names through `extraEnvKeys`. `src/cmd/internal/goparity` reads `UPROOT1273`.
+- Upstream toolchains: set `UPROOT1272` to the upstream Go 1.27.2 tree. Set `UPROOT1273` to the upstream Go 1.27.3 tree. Set `UPROOT1274` to the upstream Go 1.27.4 tree. `UPROOT1272` and `UPROOT1273` build ejected output. `UPROOT1274` is the behavior oracle. `src/cmd/go/script_test.go` passes all three names through `extraEnvKeys`. `src/cmd/internal/goparity` reads `UPROOT1274`.
 - Slice gate (every slice): `./make.bash` succeeds; the slice's named `go test` commands pass when run with `-count=1` (no cached results count as evidence); `gofmt -l` over changed `.go` files prints nothing; `go vet` over changed packages passes.
 - Race gate (slices that touch concurrency, runtime, or the go command): the slice's tests also pass with `go test -race -short <pkgs>`.
 - Milestone gate: `./run.bash --no-rebuild` passes (this is PLAN Sec 22.1 "upstream regression gate"), then the milestone's acceptance command.
@@ -2985,9 +2985,9 @@ Anchor: John Carmack, Dieter Rams
 
 ### M16-A-S5 Assert the js/wasm default loader behaves as upstream
 Anchor: John Carmack, Dieter Rams
-- Attack: `src/cmd/go/testdata/script/logos_go_parity_wasm.txt`: five js/wasm programs (init order over three packages, goroutine ping-pong over unbuffered channels, an unrecovered panic, `os.Exit(3)`, and `syscall/js` calls) built with `go build` and with `logos build` run through the tree's `lib/wasm/go_js_wasm_exec` and print the same stdout and exit status as the upstream go1.27.3 build run through the upstream exec; the default loader file exists and no `rt` line appears. The script fails when `UPROOT1273` or the oracle is missing.
+- Attack: `src/cmd/go/testdata/script/logos_go_parity_wasm.txt`: five js/wasm programs (init order over three packages, goroutine ping-pong over unbuffered channels, an unrecovered panic, `os.Exit(3)`, and `syscall/js` calls) built with `go build` and with `logos build` run through the tree's `lib/wasm/go_js_wasm_exec` and print the same stdout and exit status as the upstream go1.27.4 build run through the upstream exec; the default loader file exists and no `rt` line appears. The script fails when `UPROOT1274` or the oracle is missing.
 - Build: none (test-only).
-- Gate: `go test -count=1 cmd/go -run 'Script/^logos_go_parity_wasm$'` (needs `node` and `UPROOT1273`).
+- Gate: `go test -count=1 cmd/go -run 'Script/^logos_go_parity_wasm$'` (needs `node` and `UPROOT1274`).
 - Commits: `cbca20cfb8` Add js/wasm parity script for go and logos builds; `4569bc5bdc` Fail the wasm parity script when upstream Go is missing; `411e0a1435` Read upstream go1.27.3 oracle from UPROOT1273.
 - Red-team rows: #213.
 - Docs: none.

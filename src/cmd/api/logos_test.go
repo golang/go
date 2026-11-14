@@ -19,7 +19,7 @@ import (
 // Walker scan the same way unsafe, vendor/, and internal/ already are.
 // Leaving it in would fail the check with +pkg logos/rt lines, while an
 // api/next entry would be wrong: next files only load on devel/beta
-// toolchains (this tree is release go1.27.2, so they stay empty), every
+// toolchains (this tree is release go1.27.4, so they stay empty), every
 // next line needs a proposal number that must not be invented, and
 // promotion would bless fork API as Go 1 compatibility surface.
 func isLogosSupportPackage(ip string) bool {
