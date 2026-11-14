@@ -134,7 +134,7 @@ func BenchmarkEqualFunc_Large(b *testing.B) {
 
 	xs := make([]Large, 1024)
 	ys := make([]Large, 1024)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = EqualFunc(xs, ys, func(x, y Large) bool { return x == y })
 	}
 }
@@ -343,6 +343,16 @@ func TestCompareFunc(t *testing.T) {
 	}
 	if got := CompareFunc(s1, s3, cmpIntString); got != 0 {
 		t.Errorf("CompareFunc(%v, %v, cmpIntString) = %d, want 0", s1, s3, got)
+	}
+}
+
+func BenchmarkCompareFunc_Large(b *testing.B) {
+	type Large [4 * 1024]byte
+
+	xs := make([]Large, 1024)
+	ys := make([]Large, 1024)
+	for b.Loop() {
+		_ = CompareFunc(xs, ys, func(x, y Large) int { return cmp.Compare(x[0], y[0]) })
 	}
 }
 
