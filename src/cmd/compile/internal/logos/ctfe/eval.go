@@ -291,6 +291,16 @@ func (e *evaluator) evalList(fr *frame, e2 syntax.Expr) ([]Value, error) {
 	return []Value{v}, nil
 }
 
+func unitValue(t *Type) Value {
+	switch {
+	case t != nil && isFloat(t.Kind):
+		return FloatValue(1.0, t)
+	case t != nil && isComplex(t.Kind):
+		return complexConst(t, 1)
+	}
+	return intValue(big.NewInt(1), t, true)
+}
+
 func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 	if s.Rhs == nil {
 		p, err := e.resolvePlace(fr, s.Lhs)
@@ -298,12 +308,7 @@ func (e *evaluator) execAssign(fr *frame, s *syntax.AssignStmt) error {
 			return err
 		}
 		v := p.get()
-		var one Value
-		if v.typ != nil && isFloat(v.typ.Kind) {
-			one = FloatValue(1.0, v.typ)
-		} else {
-			one = intValue(big.NewInt(1), v.typ, true)
-		}
+		one := unitValue(v.typ)
 		var r Value
 		if s.Op == syntax.Add {
 			r, err = e.add(v, one, posOf(s))
