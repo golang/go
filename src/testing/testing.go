@@ -1915,6 +1915,8 @@ func parallelConflict(op string) string {
 
 // Parallel signals that this test is to be run in parallel with (and only with)
 // other parallel tests, and pauses until all non-parallel tests have finished.
+// When called in a subtest, execution does not resume until the parent
+// test function has returned.
 //
 // When a test is run multiple times due to use of -test.count or -test.cpu,
 // multiple instances of a single test never run in parallel with each other.
