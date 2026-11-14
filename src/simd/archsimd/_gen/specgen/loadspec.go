@@ -122,7 +122,13 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 		return nil
 	}
 
-	var pkg specPackage
+	pkg := &specPackage{
+		Fset:      &ctx.root.fset,
+		Pkg:       typesPkg,
+		TypesInfo: info,
+	}
+
+	pkg.loadKnownTypes(ctx)
 
 	// Gather exported functions
 	var funcs []*specFunc
@@ -153,101 +159,17 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 		}
 
 		for _, decl := range file.Decls {
-			d, ok := decl.(*ast.FuncDecl)
-			if !ok || d.Recv != nil || !d.Name.IsExported() {
-				continue
-			}
-			switch d.Name.Name {
-			case "ScalableWidth", "SetScalableWidth":
-				continue
-			}
-
-			obj := typesPkg.Scope().Lookup(d.Name.Name)
-			if obj == nil {
-				continue
-			}
-			fn, ok := obj.(*types.Func)
-			if !ok {
-				continue
-			}
-
-			sig := fn.Type().(*types.Signature)
-
-			var typeParams []*types.TypeParam
-			tparams := sig.TypeParams()
-			for tparam := range tparams.TypeParams() {
-				typeParams = append(typeParams, tparam)
-			}
-
-			var params []*types.Var
-			p := sig.Params()
-			for v := range p.Variables() {
-				params = append(params, v)
-			}
-
-			var results []*types.Var
-			r := sig.Results()
-			for v := range r.Variables() {
-				results = append(results, v)
-			}
-
-			f := &specFunc{
-				Pkg:        &pkg,
-				Name:       d.Name.Name,
-				Pos:        decl.Pos(),
-				Sig:        sig,
-				TypeParams: typeParams,
-				Params:     params,
-				Results:    results,
-				Category:   category,
-			}
-			f.NameTmpl = specTemplate{raw: f.Name}
-			if d.Doc != nil {
-				var err error
-				f.Doc, err = newSpecTemplate(d.Doc.Text())
-				if err != nil {
-					ctx.at(d.Doc.Pos()).errorf("malformed doc comment: %s", err)
+			switch decl := decl.(type) {
+			case *ast.FuncDecl:
+				f := pkg.loadSpecFunc(ctx, decl, category, directives)
+				if f == nil {
+					break
 				}
-				for _, comment := range d.Doc.List {
-					if dir, ok := directives[comment]; ok {
-						delete(directives, comment)
-						switch dir.Name {
-						default:
-							panic("directive lists out of sync")
-						case "name":
-							f.NameTmpl, err = newSpecTemplate(dir.Args)
-							if err != nil {
-								ctx.at(dir.Pos()).errorf("malformed //specgen:name directive: %s", err)
-							}
-						case "commutative":
-							if dir.Args != "" {
-								ctx.at(dir.Pos()).errorf("malformed //specgen:commutative directive: expected no argument")
-							}
-							f.Commutative = true
-						case "require":
-							args, err := dir.ParseArgs()
-							if err != nil {
-								ctx.at(dir.Pos()).errorf("malformed //specgen:require directive: %s", err)
-								break
-							}
-							for _, arg := range args {
-								expr, err := specexpr.ParseExpr(arg.Arg)
-								if err != nil {
-									ctx.at(arg.Pos).errorf("failed to parse require argument %q: %s", arg.Arg, err)
-									continue
-								}
-								f.Requirements = append(f.Requirements, expr)
-							}
-						}
-					}
+				if opts.Filter != nil && !opts.Filter(decl) {
+					break
 				}
+				funcs = append(funcs, f)
 			}
-
-			if opts.Filter != nil && !opts.Filter(d) {
-				continue
-			}
-
-			funcs = append(funcs, f)
 		}
 
 		for _, dir := range directives {
@@ -255,10 +177,17 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 		}
 	}
 
+	pkg.Funcs = funcs
+	return pkg
+}
+
+// loadKnownTypes looks up the spec types that specgen gives special meaning to,
+// and records them in pkg.
+func (pkg *specPackage) loadKnownTypes(ctx context) {
 	lookupType := func(name string) types.Type {
-		obj := typesPkg.Scope().Lookup(name)
+		obj := pkg.Pkg.Scope().Lookup(name)
 		if obj == nil {
-			ctx.errorf("type %q missing from package %s", name, typesPkg.Path())
+			ctx.errorf("type %q missing from package %s", name, pkg.Pkg.Path())
 			return nil
 		}
 		tn, ok := obj.(*types.TypeName)
@@ -270,44 +199,140 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 	}
 
 	// Gather types corresponding to shape constraints
-	typeElems := make(map[types.Type]specexpr.Basic)
-	elemTypes := make(map[specexpr.Basic]types.Type)
+	pkg.TypeElems = make(map[types.Type]specexpr.Basic)
+	pkg.ElemTypes = make(map[specexpr.Basic]types.Type)
 	if eltOrMask := lookupType("EltOrMask"); eltOrMask != nil {
 		for _, elt := range typeSet(eltOrMask) {
 			basic := shapeElemType(elt)
-			typeElems[elt] = basic
-			elemTypes[basic] = elt
+			pkg.TypeElems[elt] = basic
+			pkg.ElemTypes[basic] = elt
 		}
 	}
-	typeWidths := make(map[types.Type]specexpr.Num)
-	widthTypes := make(map[specexpr.Num]types.Type)
+	pkg.TypeWidths = make(map[types.Type]specexpr.Num)
+	pkg.WidthTypes = make(map[specexpr.Num]types.Type)
 	if width := lookupType("Width"); width != nil {
 		for _, width := range typeSet(width) {
 			val := shapeWidthVal(width)
-			typeWidths[width] = val
-			widthTypes[val] = width
+			pkg.TypeWidths[width] = val
+			pkg.WidthTypes[val] = width
 		}
 	}
 
 	// Gather other known types
-	vecType := lookupType("Vec")
-	arrayType := lookupType("Array")
-	uintNType := lookupType("UintN")
-	variationType := lookupType("Variation")
+	pkg.VecType = lookupType("Vec")
+	pkg.ArrayType = lookupType("Array")
+	pkg.UintNType = lookupType("UintN")
+	pkg.VariationType = lookupType("Variation")
+}
 
-	pkg = specPackage{
-		Fset:          &ctx.root.fset,
-		Pkg:           typesPkg,
-		TypesInfo:     info,
-		Funcs:         funcs,
-		TypeElems:     typeElems,
-		TypeWidths:    typeWidths,
-		ElemTypes:     elemTypes,
-		WidthTypes:    widthTypes,
-		VecType:       vecType,
-		ArrayType:     arrayType,
-		UintNType:     uintNType,
-		VariationType: variationType,
+// loadSpecFunc returns the specFunc for the spec function declaration d in a
+// file whose //specgen:category is category, or nil if d does not describe an
+// API function. It removes the directives attached to d from directives.
+func (pkg *specPackage) loadSpecFunc(ctx context, d *ast.FuncDecl, category string, directives map[*ast.Comment]ast.Directive) *specFunc {
+	if d.Recv != nil || !d.Name.IsExported() {
+		return nil
 	}
-	return &pkg
+	switch d.Name.Name {
+	case "ScalableWidth", "SetScalableWidth":
+		return nil
+	}
+
+	obj := pkg.Pkg.Scope().Lookup(d.Name.Name)
+	if obj == nil {
+		return nil
+	}
+	fn, ok := obj.(*types.Func)
+	if !ok {
+		return nil
+	}
+
+	sig := fn.Type().(*types.Signature)
+
+	var typeParams []*types.TypeParam
+	tparams := sig.TypeParams()
+	for tparam := range tparams.TypeParams() {
+		typeParams = append(typeParams, tparam)
+	}
+
+	var params []*types.Var
+	p := sig.Params()
+	for v := range p.Variables() {
+		params = append(params, v)
+	}
+
+	var results []*types.Var
+	r := sig.Results()
+	for v := range r.Variables() {
+		results = append(results, v)
+	}
+
+	f := &specFunc{
+		Pkg:        pkg,
+		Name:       d.Name.Name,
+		Pos:        d.Pos(),
+		Sig:        sig,
+		TypeParams: typeParams,
+		Params:     params,
+		Results:    results,
+		Category:   category,
+	}
+	f.NameTmpl = specTemplate{raw: f.Name}
+	doc, dirs := loadDoc(ctx, d.Doc, directives)
+	f.Doc = doc
+	for _, dir := range dirs {
+		switch dir.Name {
+		default:
+			panic("directive lists out of sync")
+		case "name":
+			var err error
+			f.NameTmpl, err = newSpecTemplate(dir.Args)
+			if err != nil {
+				ctx.at(dir.Pos()).errorf("malformed //specgen:name directive: %s", err)
+			}
+		case "commutative":
+			if dir.Args != "" {
+				ctx.at(dir.Pos()).errorf("malformed //specgen:commutative directive: expected no argument")
+			}
+			f.Commutative = true
+		case "require":
+			args, err := dir.ParseArgs()
+			if err != nil {
+				ctx.at(dir.Pos()).errorf("malformed //specgen:require directive: %s", err)
+				break
+			}
+			for _, arg := range args {
+				expr, err := specexpr.ParseExpr(arg.Arg)
+				if err != nil {
+					ctx.at(arg.Pos).errorf("failed to parse require argument %q: %s", arg.Arg, err)
+					continue
+				}
+				f.Requirements = append(f.Requirements, expr)
+			}
+		}
+	}
+
+	return f
+}
+
+// loadDoc parses the doc comment doc as a spec doc template. It returns the
+// template and the specgen directives attached to doc, removing them from
+// directives.
+func loadDoc(ctx context, doc *ast.CommentGroup, directives map[*ast.Comment]ast.Directive) (specTemplate, []ast.Directive) {
+	if doc == nil {
+		return specTemplate{}, nil
+	}
+
+	tmpl, err := newSpecTemplate(doc.Text())
+	if err != nil {
+		ctx.at(doc.Pos()).errorf("malformed doc comment: %s", err)
+	}
+
+	var dirs []ast.Directive
+	for _, comment := range doc.List {
+		if dir, ok := directives[comment]; ok {
+			delete(directives, comment)
+			dirs = append(dirs, dir)
+		}
+	}
+	return tmpl, dirs
 }
