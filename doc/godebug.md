@@ -171,7 +171,7 @@ To avoid denial of service attacks, this setting and default
 was backported to Go 1.27.2 and Go 1.26.9.
 
 Go 1.28 added a new `netmarshal` setting that controls whether
-the text marshaling of the types `net.IPMask`, `net.IPNet`, and
+the text marshaling of the types `net.IPMask` and
 `net.HardwareAddr` is readable. The value `netmarshal=0` will
 JSON encode those types using an unreadable base64 encoding.
 The value `netmarshal=1` will use a readable version such as the IP address.
