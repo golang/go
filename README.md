@@ -1,33 +1,15 @@
 # loGo/s
 
-Go whose errors the compiler checks, closed variants, and an exit to plain Go.
+Go with checked errors, closed unions, and a way back to plain Go.
 
----
+loGo/s is a Go toolchain fork that compiles both Go and extended `.lgo` source. You get compiler-checked error handling and nil safety, lowered to Go 1.27 by `logos`. Plain `go` keeps upstream language semantics and command text ([README.go.md](README.go.md)). When you want out, `logos eject` returns standard Go with your comments preserved.
 
-loGos provides a single toolchain for standard Go and the extended loGo/s language. Authoring in `.lgo` files adds compiler-enforced nil safety, compile-time field unrolling, read-only views, and structured concurrency without giving up Go idioms or runtime compatibility. The `logos` compiler checks these constructs, lowers them to standard Go code, and compiles them using a Go 1.27 backend, while plain `go` keeps upstream Go language semantics and command text (see [README.go.md](README.go.md)). When standard Go source is required, `logos eject` converts `.lgo` projects into standard Go modules with original comments preserved.
-
-Why the extra syntax:
-- **Compile-time unrolling**: inspect struct fields and branch on types with `comptime` without run-time field lookups or heap allocations.
-- **Read-only views**: share slices and pointers without data copies while preventing writes through that name.
-- **Static nil safety**: ensure locally declared pointers are non-nil and make missing values explicit with `T?`.
-- **Structured concurrency**: bound goroutines in a `go group` that coordinates cancellation, limits, and joins.
-- **Type-directed dispatch**: specialize generic functions with `const switch T` without writing reflection by hand.
-- **Closed unions**: enforce exhaustive variant matching across sum types at compile time.
-
-* **Backend**: Go 1.27 (`src/go.mod` specifies `module std` with `go 1.27`).
-* **Bootstrap toolchain**: Go 1.24.6 or newer (`src/make.bash` requires `bootgo=1.24.6`).
-* **File extensions**: `.lgo` for loGo/s source packages, plus three alias extensions (U+1F4DC, U+26A1, and the gopher sequence) that `logos` accepts; `.go` for plain Go packages.
-* **Module boundaries**: One language per module; Go and loGo/s modules interoperate across imports.
-* **Ejection**: `logos eject [-o DIR]` emits an upstream-compatible Go 1.27 module tree.
-* **Plain Go underneath**: the ejected module builds with upstream Go and prints the output of `logos run`, proven by the `logos_eject.txt` script test ([src/cmd/go/testdata/script/logos_eject.txt](src/cmd/go/testdata/script/logos_eject.txt)).
-* **Go keeps its meaning**: plain `go` retains upstream language semantics and command text ([src/run.bash](src/run.bash) runs the regression suite).
-* **Imports cross kinds, one kind per module**: Go and loGo/s packages import each other, and a module holds one language, proven by the `logos_interop.txt` script test ([src/cmd/go/testdata/script/logos_interop.txt](src/cmd/go/testdata/script/logos_interop.txt)).
-* **Diagnostics**: `logos lint` provides in-compiler analysis for main-module packages without building binaries.
-* **License**: BSD-3-Clause (see [LICENSE](LICENSE)).
-
-Contents: [What is this](#what-is-this) · [Install](#install) · [Quick start](#quick-start) · [Features](#features) · [Usage](#usage) · [Agent skills](#agent-skills) · [Development](#development) · [License](#license)
-
-## What is this
+- **Checked errors**: `?` returns early on a non-nil error from a call returning `(T, error)`.
+- **Closed unions**: the compiler checks that type switch expressions cover every variant and `nil`, unless you provide `default`.
+- **Way back**: `logos eject` writes the module as standard Go that builds with upstream Go of the same version or newer ([walkthrough](#eject-to-standard-go)).
+- **Shared toolchain**: Go and loGo/s modules can import each other under `logos`, with one language per module.
+- **Comptime**: `const for` expands struct-field loops during compilation without run-time field lookup.
+- **Diagnostics**: `logos lint` checks main-module packages without generating binaries.
 
 ```go
 package main
@@ -40,13 +22,13 @@ func double() (int, error) {
 func main() { fmt.Println(double()) } // 42 <nil>
 ```
 
-In `double()`, the `?` operator tests the error result of `strconv.Atoi("21")`. If `Atoi` returns a non-nil error, `double()` returns early with that error. When the call succeeds, `n` receives the integer value. Running `logos run .` prints `42 <nil>`.
+In `double()`, `?` gives `n` the value from `strconv.Atoi("21")` on success, or returns early with the error.
 
-The full language definition is in [logos-doc/SPEC.md](logos-doc/SPEC.md).
+Contents: [Install](#install) · [Quick start](#quick-start) · [Features](#features) · [Usage](#usage) · [Language](#language) · [Agent skills](#agent-skills) · [Development](#development) · [License](#license)
 
 ## Install
 
-Building loGo/s from source requires Bash and a working bootstrap Go installation of version 1.24.6 or newer (see [src/make.bash](src/make.bash)).
+Building loGo/s from source requires Bash and a bootstrap Go installation. Go 1.27.3 is known to work; Go 1.26.8 fails to compile the fork's compiler sources.
 
 1. Clone the repository:
 
@@ -64,7 +46,7 @@ Building loGo/s from source requires Bash and a working bootstrap Go installatio
    (cd src && GOROOT_BOOTSTRAP="$bootstrap_root" ./make.bash)
    ```
 
-   If your bootstrap Go 1.24.6+ binary is not on your `PATH`, specify `GOROOT_BOOTSTRAP=/path/to/go1.24.6` directly.
+   If your bootstrap binary is not on your `PATH`, specify `GOROOT_BOOTSTRAP=/path/to/go` directly.
 
 3. Configure your environment from the repository root:
 
@@ -81,7 +63,7 @@ Building loGo/s from source requires Bash and a working bootstrap Go installatio
    go version
    ```
 
-   `logos version` reports version details (for example, `logos version go1.27.2 linux/amd64` on Linux/amd64). `go version` reports `go version go1.27.2 linux/amd64`.
+   Both report the Go release the fork is based on, for example `logos version go1.27.4 linux/amd64` and `go version go1.27.4 linux/amd64`.
 
 ## Quick start
 
@@ -112,55 +94,62 @@ logos run .
 
 Output:
 
-```
+```text
 42 <nil>
 ```
 
 ### Eject to standard Go
 
-The `logos eject` command converts a loGo/s module into standard Go code that builds with an upstream Go 1.27.2 or newer toolchain:
+To build the ejected module, you need an upstream Go toolchain at least as new as the version `logos version` reports, because `logos mod init` writes that version into `go.mod`.
+
+- Keep using the installation shell, where `upstream_go` holds the upstream executable.
+- If that executable does not meet the requirement, select a suitable installation before continuing.
+- In a new shell, set `upstream_go` to the absolute path of your upstream Go executable.
 
 ```sh
 logos eject -o ../logos-hello-go
 cd ../logos-hello-go
 ```
 
-Use the same shell as the installation steps, which saved the upstream executable in `upstream_go`.
-In a new shell, set `upstream_go` to the absolute path of your upstream Go executable.
-If you used Go 1.24 through 1.26 for bootstrap, select an upstream Go 1.27.2 or newer installation instead.
-Check its version before running the ejected module.
+Check the saved upstream executable's version, then run the ejected module:
 
 ```sh
-: "${upstream_go:?Set upstream_go to an upstream Go 1.27.2+ executable}"
+: "${upstream_go:?Set upstream_go to an upstream Go executable}"
 env -u GOROOT -u GOTOOLCHAIN "$upstream_go" version
 env -u GOROOT -u GOTOOLCHAIN "$upstream_go" run .
 ```
 
 Output:
 
-```
+```text
 42 <nil>
 ```
 
-Both invocations print `42 <nil>`. The ejected module is pure Go.
+Ejection details:
 
-`logos eject [-o DIR]` requires that the target directory `DIR` either does not exist or is empty. Ejection translates `.lgo` sources into standard `.go` files, preserves source comments, places dependency modules under `DIR/_logos_deps`, and writes runtime support under `DIR/_logos_deps/rt` as module `github.com/gosuda/loGos/rt`. Upstream Go 1.27.2 or newer is required to compile the ejected output.
+- `logos eject [-o DIR]` requires a target directory that does not exist or is empty.
+- Each `.lgo` source becomes a standard `.go` file, with source comments preserved.
+- Dependency modules go under `DIR/_logos_deps`.
+- Runtime support goes under `DIR/_logos_deps/rt` as module `github.com/gosuda/loGos/rt`.
 
 ## Features
 
 ### Modules and interoperability
 
-loGos enforces a single language per module:
+You can import Go packages from loGo/s and loGo/s packages from Go when you build with `logos`. Exported loGo/s functions and types have standard Go signatures, with option types and closed unions represented as canonical Go types.
 
-- A module contains either `.lgo` packages or `.go` packages, never a mixture of both in the same module.
-- Packages interoperate across module boundaries through standard Go `import` paths:
-  - A `.lgo` package can import standard library packages and external Go modules. Calls returning `(T, error)` bind directly to `?`.
-  - A `.go` package can import a `.lgo` package. Exported functions and types are projected into standard Go signatures, with option types and closed unions represented as canonical Go types.
+- Import standard library packages and external Go modules through standard Go `import` paths.
+- Use `?` directly on calls returning `(T, error)`.
+- Use `.lgo` for loGo/s source, or the aliases U+1F4DC, U+26A1, and the gopher sequence; use `.go` for plain Go.
+
+Limits:
+- Each module contains either `.lgo` packages or `.go` packages, never both.
+- Plain `go` ignores `.lgo` files, so it cannot build a Go package that imports a loGo/s package; [eject first](#eject-to-standard-go).
 - Property interfaces require an explicit assertion on the implementing struct declaration (`type S struct : I`), not automatic structural subtyping.
 
 ### Comptime
 
-`const for` unrolls loop bodies across struct fields during compilation, and `val.[f]` reads or writes each field directly without run-time field lookup. Field metadata such as `f.Name` and `f.Tag.Get` folds into string constants with no interface boxing. The compiler produces specialized code for each struct type.
+Use `const for` to unroll a loop across struct fields and `val.[f]` to read or write each field without run-time lookup. The compiler specializes the code for each struct type and folds metadata such as `f.Name` and `f.Tag.Get` into string constants without interface boxing.
 
 `main.lgo`:
 
@@ -174,7 +163,7 @@ import (
 
 type Server struct {
 	Host string `json:"host"`
-	Port int    `json:"port"`
+	Port int32  `json:"port"`
 }
 
 func main() {
@@ -190,17 +179,21 @@ func main() {
 
 Output:
 
-```
+```text
 Host host
 Port port
 {db 5432}
 ```
 
-Comptime inspection operates during compilation only; referencing comptime APIs at run time produces a compile error. Loop expansion accepts only `comptime.Fields[T]()` over a struct type, visits fields in declaration order, skips unexported fields from other packages, and defaults to a 4,096-node expansion limit.
+Limits:
+- Comptime inspection works only during compilation; referencing comptime APIs at run time is a compile error.
+- Loop expansion accepts only `comptime.Fields[T]()` over a struct type.
+- Fields follow declaration order; unexported fields from other packages are skipped.
+- The default expansion limit is 4,096 nodes.
 
 ### Read-only views
 
-A `const` view allows functions to read slices and pointers without defensive copies while the compiler prevents writes through that name. Converting `string` to `const []byte` performs no allocation; converting back is zero-copy when the bytes originated from a string or constant. The qualifier is checked during compilation and erased before code generation.
+Use a `const` view to read slices and pointers without defensive copies; the compiler rejects writes through that name and erases the qualifier before code generation. Converting a `string` to `const []byte` allocates nothing, and converting back is zero-copy when the bytes came from a string or constant.
 
 `main.lgo`:
 
@@ -237,17 +230,19 @@ func main() {
 
 Output:
 
-```
+```text
 6
 15
 8080 9090
 ```
 
-A view is an alias to existing memory rather than an isolated snapshot, so modifications made through the original mutable holder remain visible through the view. When true isolation is required, `logos/rt.Freeze` deep-copies the value and returns a protected view at the cost of heap allocations.
+Limits:
+- A view aliases existing memory; changes through the original mutable holder remain visible.
+- For an isolated snapshot, `logos/rt.Freeze` deep-copies the value and returns a protected view, at the cost of heap allocations.
 
 ### Nil safety
 
-Locally declared pointers written `*T` cannot be nil, eliminating defensive nil checks across local application code. Potential absence is typed explicitly as `T?`, requiring safe navigation (`?.`), coalescing (`??`), or nil guards before the compiler permits dereferencing. Field access on unnarrowed optional pointers is rejected at compile time.
+Locally declared `*T` pointers cannot be nil, so you do not need defensive nil checks for them. Use `T?` for possible absence, then use safe navigation (`?.`), coalescing (`??`), or a nil guard before dereferencing.
 
 `main.lgo`:
 
@@ -284,18 +279,22 @@ func main() {
 
 Output:
 
-```
+```text
 Ada
 anonymous
 Ada
 unknown
 ```
 
-Pointers crossing the boundary from plain Go packages are platform pointers that may be nil. When this toolchain compiles the Go caller, a direct call that passes a nil pointer into a non-nil loGo/s parameter gets a run-time check via `logos/rt.MustNonNil` rather than failing the build. Calls through function values, method values, or interfaces are a documented exception.
+Limits:
+- The compiler rejects field access on optional pointers until you narrow them with a guard or use safe navigation.
+- Pointers from plain Go packages are platform pointers and may be nil.
+- When this toolchain compiles the Go caller, a direct call that passes nil to a non-nil loGo/s parameter gets a run-time `logos/rt.MustNonNil` check instead of a build failure.
+- Calls through function values, method values, or interfaces are exceptions to that boundary check.
 
 ### Structured concurrency
 
-A `go group` binds concurrent tasks to a lexical block where all child goroutines are joined before exit, cancellation propagates automatically on failure, and concurrency is capped by `limit`. Paired with `logos/sync.Locked`, data and mutex travel together so shared fields cannot be accessed unlocked. Unsupervised goroutines outside a group are rejected at compile time.
+Use `go group` to keep child goroutines within a block: it joins them before exit, propagates cancellation on failure, and caps concurrency with `limit`. Pair it with `logos/sync.Locked` to keep data and its mutex together and prevent unlocked field access.
 
 `main.lgo`:
 
@@ -334,15 +333,19 @@ func main() {
 
 Output:
 
-```
+```text
 sum: 60
 ```
 
-Structured concurrency does not provide universal data-race freedom; concurrent writes to shared storage still require locks, channels, or atomic values. Cancellation unblocks plain channel operations written directly in a child and wakes netpoll-backed network I/O, but cgo calls cannot be interrupted this way and must run until completion before the group joins.
+Limits:
+- The compiler rejects unsupervised goroutines outside a group.
+- Groups do not prevent all data races; concurrent writes to shared storage still need locks, channels, or atomic values.
+- Cancellation unblocks plain channel operations written directly in a child and wakes netpoll-backed network I/O.
+- Cancellation cannot interrupt cgo calls; those calls must finish before the group joins.
 
 ### Generic type switches
 
-`const switch T` dispatches on the type argument of a generic function, so one function holds specialized paths without user-written reflection. Matching an exact type rebinds the value to that type, `~basic` matches underlying types while preserving the named type, and interface cases expose the interface method set. Unmatched branches cost nothing when the type tag is concrete.
+Use `const switch T` to choose a path by a generic function's type argument without writing reflection. Exact cases rebind the value to that type, `~basic` cases preserve the named type while matching its underlying type, and interface cases expose the interface method set.
 
 `main.lgo`:
 
@@ -377,18 +380,22 @@ func main() {
 
 Output:
 
-```
+```text
 int:42
 userid:7
 stringer:hi
 other
 ```
 
-`const switch` is a statement rather than an expression and does not permit a `default` arm or multiple types per case; unhandled types fall through to statements following the block. Compile-time branch folding occurs only for concrete type tags and comptime generics, while standard generic functions evaluate the switch at run time.
+Limits:
+- `const switch` is a statement, not an expression.
+- It accepts neither a `default` arm nor multiple types per case; unhandled types fall through to statements after the block.
+- The compiler folds branches only for concrete type tags and comptime generics; unmatched branches then cost nothing.
+- Standard generic functions evaluate the switch at run time.
 
 ### Closed unions and property interfaces
 
-Closed unions define a fixed set of variants as an interface value type, allowing exhaustive type switch expressions without silent fallthrough. Property interfaces provide field-style contracts where structs implement accessors only through an explicit declaration assertion (`: I`). The compiler validates that all cases and interface properties match at compile time.
+Use a closed union to define a fixed set of variants and check type switch expressions for exhaustive coverage. Property interfaces give you field-style contracts through an explicit struct declaration assertion (`: I`); the compiler checks the cases and interface properties.
 
 `main.lgo`:
 
@@ -425,15 +432,18 @@ func main() {
 
 Output:
 
-```
+```text
 int nil gorg 90
 ```
 
-Closed unions use Go's standard interface representation at run time rather than a tagged-union layout. Property interfaces require pointers when writing to properties, and type switch expressions over unions must explicitly handle every member plus `nil` unless a `default` case is provided.
+Limits:
+- Closed unions use Go's standard interface representation at run time, not a tagged-union layout.
+- Writing to properties requires a pointer.
+- A type switch expression over a union must handle every member and `nil`, unless it has a `default` case.
 
 ### Named tuples
 
-Multi-value function results can be packed into a single first-class tuple value without declaring a standalone struct type. Tuple values can be passed as arguments, stored in channels and slices, accessed by field names (`t.host`), or unpacked via destructuring assignments. This removes the boilerplate of temporary struct declarations for internal multi-value records.
+Pack multi-value function results into a tuple without declaring a separate struct. You can pass tuples as arguments, store them in channels or slices, access named fields such as `t.host`, and unpack them with destructuring assignments.
 
 `main.lgo`:
 
@@ -470,18 +480,21 @@ func main() {
 
 Output:
 
-```
+```text
 api.example.com 443
 http://api.example.com:443
 api.example.com 443
 api.example.com 443
 ```
 
-Field names are defined by the tuple type or function signature rather than in literal expressions, and positional indexing like `t.0` is rejected by the compiler. Under the hood, tuples lower to generated structs, and printing a tuple value directly displays the underlying struct representation.
+Limits:
+- Field names come from the tuple type or function signature, not the literal expression.
+- The compiler rejects positional indexing such as `t.0`.
+- Tuples lower to generated structs; printing a tuple directly shows that struct representation.
 
 ### Element-wise array math
 
-Small fixed-size numeric arrays support arithmetic operators (`+`, `-`, `*`, `/`, `&`, `|`, `^`) and reductions (`.sum()`, `.min()`, `.max()`, `.dot()`) directly without manual loops. Reductions use a language-specified pairwise evaluation order so floating-point results remain deterministic across supported vector lowerings and scalar fallback. The compiler eliminates manual vectorization loops while guaranteeing identical numeric results across amd64, arm64, and scalar lowerings.
+Use arithmetic operators (`+`, `-`, `*`, `/`, `&`, `|`, `^`) and reductions (`.sum()`, `.min()`, `.max()`, `.dot()`) on small fixed-size numeric arrays without writing loops. Reductions use a specified pairwise order, keeping numeric results identical across amd64 and arm64 vector lowerings and the scalar fallback.
 
 `main.lgo`:
 
@@ -509,7 +522,7 @@ func main() {
 
 Output:
 
-```
+```text
 add [6 8 10 12]
 mul [5 12 21 32]
 sum 10 min 1 max 4 dot 70
@@ -517,22 +530,33 @@ div [3 -4 -33 3]
 intsum 105 intdot -277
 ```
 
-Element-wise math is supported on arrays only, not slices, and requires a power-of-two element count whose total size does not exceed 64 bytes. Vectorized execution requires `GOEXPERIMENT=simd` on supported architectures and instruction sets; otherwise the compiler falls back to unrolled scalar instructions with identical numeric results and no throughput guarantee.
+Limits:
+- Element-wise math works on arrays, not slices.
+- The element count must be a power of two, and the total size must not exceed 64 bytes.
+- Vectorized execution needs `GOEXPERIMENT=simd` and a supported architecture and instruction set.
+- Otherwise, the compiler emits unrolled scalar instructions with identical numeric results but no throughput guarantee.
 
 ### Also in the language
 
-The language also provides these concise extensions defined in [logos-doc/SPEC.md](logos-doc/SPEC.md):
+You can also use these extensions; see [logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4:
 
-- **Error propagation** (`n := f()?` or `f()?`): unwraps values or returns early on non-nil error from functions returning `(T, error)` ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
-- **Error cleanup** (`errdefer f()`): registers deferred cleanup executed only when the enclosing function exits with an error, a panic, or Goexit ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
-- **String interpolation** (`$"user {name}: {count}"`): embeds formatted expressions directly within string literals ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
-- **Iterator chains** (`xs.filter(...).map(...).take(n)`): runs functional slice transformations with predicate and mapping closures ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
-- **Literal addressing** (`&100`, `&f()`): takes the address of scalar literals and function call returns without temporary variables ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
-- **Struct field defaults** (`type Config struct { Port int = 8080 }`): evaluates default field values when struct literals omit fields ([logos-doc/SPEC.md](logos-doc/SPEC.md) Sec 1.4).
+- Error propagation (`n := f()?` or `f()?`): unwrap values or return early on a non-nil error from a function returning `(T, error)`.
+- Error cleanup (`errdefer f()`): register cleanup that runs only when the enclosing function exits with an error, a panic, or Goexit.
+- String interpolation (`$"user {name}: {count}"`): embed formatted expressions in string literals.
+- Iterator chains (`xs.filter(...).map(...).take(n)`): transform slices with predicate and mapping closures.
+- Literal addressing (`&100`, `&f()`): take the address of a scalar literal or function call result without a temporary variable.
+- Struct field defaults (`type Config struct { Port int = 8080 }`): evaluate default values when struct literals omit fields.
 
 ## Usage
 
-Day to day, `logos` mirrors the `go` command: `logos run`, `logos build`, and `logos test` work on loGo/s modules the way their `go` counterparts work on Go modules. Five commands are specific to loGo/s: `logos context`, `logos eject [-o DIR]`, `logos lint`, `logos lsp`, and `logos next`. `logos eject [-o DIR]` writes the module as standard Go (see [Eject to standard Go](#eject-to-standard-go)). `logos lint` runs the in-compiler checks below.
+Use `logos run`, `logos build`, and `logos test` on loGo/s modules as you would use their `go` counterparts on Go modules.
+
+Five commands are specific to loGo/s:
+- `logos context`
+- [`logos eject [-o DIR]`](#eject-to-standard-go)
+- [`logos lint`](#lint)
+- `logos lsp`
+- `logos next`
 
 ### Lint
 
@@ -544,16 +568,16 @@ logos lint [build flags] [--pedantic] [--json-diagnostics] [packages]
 
 #### Scope and rules
 
-- **Target scope**: `logos lint` inspects packages within the main module only. The standard library and external module dependencies are never linted.
-- **Language checks**:
+- Target scope: `logos lint` checks packages in the main module only, never the standard library or external module dependencies.
+- Language checks:
   - In `.lgo` packages, the compiler runs all registered compiler rules.
-  - In standard `.go` packages, the compiler runs language-neutral rules only.
-- **Directives**:
-  - `//logos:allow(<rule>)`: Placed directly above a declaration or statement to suppress a `deny` or `warn` diagnostic. In Go packages, `forbid` rules run at `deny` severity and can be silenced by this directive; in `.lgo` packages, `forbid` rules cannot be silenced.
-  - `//logos:zeroalloc`: Placed above a function declaration as a static escape-analysis site contract requiring the compiler to reject local heap allocations at that site (see [logos-doc/SPEC.md](logos-doc/SPEC.md)).
-- **Flags**:
-  - `--pedantic`: Enables the pedantic group, raising it from `allow` to `warn`. A stricter `logos.toml` severity stays in force. `--pedantic=false` turns the group off.
-  - `--json-diagnostics`: Emits one JSON object per diagnostic line on standard error.
+  - In standard `.go` packages, it runs only language-neutral rules.
+- Directives:
+  - `//logos:allow(<rule>)`: place directly above a declaration or statement to suppress a `deny` or `warn` diagnostic. In Go packages, `forbid` rules run at `deny` severity and this directive can silence them. In `.lgo` packages, it cannot silence `forbid` rules.
+  - `//logos:zeroalloc`: place above a function declaration to require the compiler to reject local heap allocations at that escape-analysis site (see [logos-doc/SPEC.md](logos-doc/SPEC.md)).
+- Flags:
+  - `--pedantic`: raise the pedantic group from `allow` to `warn`. A stricter `logos.toml` severity stays in force. `--pedantic=false` turns the group off.
+  - `--json-diagnostics`: emit one JSON object per diagnostic line on standard error.
 
 ## Language
 
@@ -561,7 +585,7 @@ One row per shipped form, with milestone IDs from [logos-doc/IMPLEMENTATION.md](
 
 | Milestone | Form | Summary |
 |---|---|---|
-| M1 | `?`, `errdefer`, eject | Checked error propagation with early return, failure-only cleanup, and error traces; `logos eject` writes standard Go. |
+| M1 | `?`, `errdefer`, eject | Checked error propagation with early return, failure-only cleanup, and error traces; see [Eject to standard Go](#eject-to-standard-go). |
 | M2 | Closed unions | Fixed variant sets with exhaustive type switches. |
 | M7 | `const if`, `const for`, `const switch T`, `comptime.ViewAs` | Compile-time branching, field unrolling, type dispatch, and read-only views. |
 | M8 | `go group (ctx, limit = N)` | Structured concurrency with automatic joins, cancellation, and a concurrency cap. |
@@ -611,10 +635,10 @@ Each command enters `src` before it runs the tests:
 3. Add test fixtures under `test/logos/run/` or `src/internal/types/testdata/logos/` covering new syntax or compiler behavior.
 4. Verify that targeted tests pass before submitting changes.
 5. Commit your changes with concise, descriptive commit messages adhering to standard Go conventions.
-6. Open a Pull Request on GitHub.
+6. Open a pull request on GitHub.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [README.go.md](README.go.md) for contribution guidelines.
 
 ## License
 
-Standard Go source code is licensed under the BSD-style license in [LICENSE](LICENSE). loGo/s additions and toolchain modifications are distributed under the same license terms.
+loGo/s additions and toolchain modifications use the same BSD-3-Clause license as the standard Go source. See [LICENSE](LICENSE) for the terms.
