@@ -19,7 +19,7 @@ Run from `src/` with the fork first on PATH: `export PATH="$(cd .. && pwd)/bin:$
 ## Gotchas
 
 - Plain `go` keeps Go language semantics and its upstream command text (`go version`, `go help`), and `run.bash` is its regression floor. It may differ from upstream in performance, code generation, runtime, and tooling.
-- Upstream files take hook lines only: one call into a `*_logos.go` file or a new package. Guard loGo/s language behavior with a logos condition. Backend, runtime, and cgo improvements take no logos guard. A changed default for plain `go` lands only after `run.bash` passes with it. Put the logic in new files, because every upstream line costs rebase work.
+- Fork logic SHOULD stand in a `*_logos.go` file or a new package, and an upstream file SHOULD take only the hook line that calls it, because every upstream line costs rebase work. Fork code MAY stand in an upstream file when a move gives no clear gain: a field of an upstream struct, a changed signature, a generated file, or a declaration or helper of about 20 lines or fewer that its upstream caller uses directly. Guard loGo/s language behavior with a logos condition. Backend, runtime, and cgo improvements take no logos guard. A changed default for plain `go` lands only after `run.bash` passes with it.
 - Leave `src/vendor` and `src/cmd/vendor` unchanged; they are vendored copies.
 - A module holds only `.go` packages or only `.lgo` packages. Go and loGo/s packages can import each other. Only `logos` builds `.lgo` files.
 
