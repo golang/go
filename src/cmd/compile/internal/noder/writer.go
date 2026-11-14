@@ -514,22 +514,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
 	// bodies anyway. Otherwise, they can cause types.Sym collisions
 	// (e.g., "main.C" for both of the local type aliases in
 	// test/fixedbugs/issue50190.go).
-normalize:
-	for {
-		switch t := typ.(type) {
-		case *types2.ConstView:
-			typ = t.Elem
-		case *types2.ReadonlyDescendants:
-			typ = t.Elem
-		case *types2.Alias:
-			if isGlobal(t.Obj()) {
-				break normalize
-			}
-			typ = t.Rhs()
-		default:
-			break normalize
-		}
-	}
+	typ = logosWriterNormalizeType(typ)
 
 	if idx, ok := pw.typsIdx[typ]; ok {
 		return typeInfo{idx: idx, derived: false}
@@ -1939,7 +1924,7 @@ func (w *writer) expr(expr syntax.Expr) {
 			return
 		}
 
-		if _, isNil := obj.(*types2.Nil); isNil || tv.IsNil() {
+		if logosWriterIsNil(obj, tv) {
 			w.Code(exprZero)
 			w.pos(expr)
 			w.typ(tv.Type)
@@ -2254,19 +2239,6 @@ func (w *writer) expr(expr syntax.Expr) {
 func sliceElem(typ types2.Type) types2.Type {
 	return types2.CoreType(typ).(*types2.Slice).Elem()
 }
-func unconstView(t types2.Type) types2.Type {
-	for {
-		switch typ := types2.Unalias(t).(type) {
-		case *types2.ConstView:
-			t = typ.Elem
-			continue
-		case *types2.ReadonlyDescendants:
-			t = typ.Elem
-			continue
-		}
-		return t
-	}
-}
 
 func (w *writer) optExpr(expr syntax.Expr) {
 	if w.Bool(expr != nil) {
@@ -2485,15 +2457,9 @@ func (w *writer) implicitConvExpr(dst types2.Type, expr syntax.Expr) {
 
 func (w *writer) convertExpr(dst types2.Type, expr syntax.Expr, implicit bool) {
 	src := w.p.typeOf(expr)
-	usrc := unconstView(src)
-	udst := unconstView(dst)
-	identical := dst == nil || types2.Identical(src, dst) || (implicit && types2.Identical(usrc, udst))
-	if implicit && identical {
-		w.expr(expr)
+	identical, done := w.logosWriterConvertExpr(src, dst, expr, implicit)
+	if done {
 		return
-	}
-	if implicit && !types2.AssignableTo(src, dst) && !types2.AssignableTo(usrc, udst) {
-		w.p.fatalf(expr, "%v is not assignable to %v", src, dst)
 	}
 
 	w.Code(exprConvert)
