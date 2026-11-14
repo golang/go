@@ -1,0 +1,86 @@
+name: "logos"
+
+"on":
+  pull_request:
+  push:
+    branches:
+      - "release-branch.go1.27"
+
+permissions:
+  contents: "read"
+
+concurrency:
+  group: "logos-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  LOGOS_PACKAGES: >-
+    logos/...
+    cmd/go/internal/logos/...
+    cmd/compile/internal/logos/...
+    cmd/internal/logos/...
+    cmd/internal/logosowned
+    internal/logosfile
+    cmd/cgo/internal/testlogos
+  GOLANGCI_LINT_VERSION: "2.15.0"
+  GOLANGCI_LINT_SHA256: "9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea"
+
+jobs:
+  logos:
+    name: "${{ matrix.suite }}"
+    runs-on: "ubuntu-26.04"
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: "unit"
+            run: |
+              go test -count=1 -short $LOGOS_PACKAGES
+              go test -count=1 -race logos/... cmd/go/internal/logos/lsp/...
+          - suite: "scripts"
+            run: |
+              go test -count=1 -timeout 60m cmd/go -run 'Script/^logos_'
+          - suite: "testdir"
+            run: |
+              go test -count=1 -timeout 60m cmd/internal/testdir -run 'Test/logos/'
+          - suite: "lint"
+            run: |
+              unformatted=$(gofmt -l logos internal/logosfile cmd/go/internal/logos cmd/compile/internal/logos cmd/internal/logos cmd/internal/logosowned cmd/cgo/internal/testlogos)
+              printf '%s\n' "$unformatted"
+              test -z "$unformatted"
+              go vet $LOGOS_PACKAGES
+              archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+              curl --fail --silent --show-error --location --output "$RUNNER_TEMP/$archive.tar.gz" "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/$archive.tar.gz"
+              printf '%s  %s\n' "$GOLANGCI_LINT_SHA256" "$RUNNER_TEMP/$archive.tar.gz" | sha256sum --check --strict -
+              tar -xzf "$RUNNER_TEMP/$archive.tar.gz" -C "$RUNNER_TEMP"
+              cd cmd
+              "$RUNNER_TEMP/$archive/golangci-lint" run --config ../../logos-doc/golangci.yml ./go/internal/logos/...
+    defaults:
+      run:
+        shell: "bash"
+        working-directory: "src"
+    steps:
+      - uses: "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1" # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e" # v7.0.0
+        with:
+          go-version: "1.27.4"
+          cache: false
+      - uses: "actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1" # v7.1.0
+        if: "matrix.suite == 'scripts'"
+        with:
+          node-version: "26.13.1"
+      - name: "Build the toolchain"
+        run: |
+          GOROOT_BOOTSTRAP=$(go env GOROOT)
+          export GOROOT_BOOTSTRAP
+          ./make.bash
+          printf '%s\n' "$GITHUB_WORKSPACE/bin" >> "$GITHUB_PATH"
+      - name: "Smoke"
+        run: |
+          logos version | grep -F "logos version $(head -n 1 ../VERSION)"
+          logos help 2>&1 | grep -F 'logos <command> [arguments]'
+      - name: "Run ${{ matrix.suite }}"
+        run: "${{ matrix.run }}"
