@@ -694,6 +694,16 @@ var depsRules = `
 	< golang.org/x/net/idna
 	< golang.org/x/net/http/httpguts, golang.org/x/net/http/httpproxy;
 
+	encoding/base64,
+	errors,
+	fmt,
+	io,
+	math,
+	reflect,
+	strconv,
+	strings
+	< net/http/sfv;
+
 	NET, crypto/tls
 	< net/http/httptrace;
 
@@ -705,6 +715,7 @@ var depsRules = `
 	net/http/internal/ascii,
 	net/http/internal/testcert,
 	net/http/httptrace,
+	net/http/sfv,
 	mime/multipart,
 	log
 	< net/http/internal/httpcommon, net/http/internal/httpsfv
