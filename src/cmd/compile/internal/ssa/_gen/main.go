@@ -147,6 +147,13 @@ type regInfo struct {
 	outputs []regMask
 }
 
+// clone returns a copy of r that shares no slices with r.
+func (r regInfo) clone() regInfo {
+	r.inputs = slices.Clone(r.inputs)
+	r.outputs = slices.Clone(r.outputs)
+	return r
+}
+
 type regMask struct {
 	v1, v2 uint64
 }

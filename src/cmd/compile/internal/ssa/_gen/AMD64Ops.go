@@ -1612,8 +1612,9 @@ func init() {
 
 	simdOps := simdAMD64Ops(v11, v21, v2k, vkv, v2kv, v2kk, v31, v3kv, vgpv, vgp, vfpv, vfpkv,
 		w11, w21, w2k, wkw, w2kw, w2kk, w31, w3kw, wgpw, wgp, wfpw, wfpkw, wkwload, v21load, v31load, v11load,
-		w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2)
+		w21load, w31load, w2kload, w2kwload, w11load, w3kwload, w2kkload, v31x0AtIn2, x15)
 	allOps := append(AMD64ops, simdOps...)
+	checkX15NotOverwritten(allOps, x15)
 	markZeroUpperVec(allOps, w)
 
 	archs = append(archs, arch{
@@ -1634,6 +1635,34 @@ func init() {
 		framepointerreg:    int8(num["BP"]),
 		linkreg:            -1, // not used
 	})
+}
+
+// checkX15NotOverwritten panics if any op in ops could write to X15, which
+// must always hold zero. An op could write to X15 if it:
+//
+//   - overwrites its first input (resultInArg0 or clobbersArg0) and permits
+//     that input to be in X15,
+//   - permits an output to be in X15, unless it's zero-width (such as
+//     Zero128), so it doesn't actually write the register, or
+//   - clobbers X15.
+func checkX15NotOverwritten(ops []opData, x15 regMask) {
+	for _, op := range ops {
+		if op.resultInArg0 || op.reg.clobbersArg0 {
+			if len(op.reg.inputs) > 0 && op.reg.inputs[0].intersects(x15) {
+				panic("op " + op.name + " overwrites its first input, but permits it in X15")
+			}
+		}
+		if !op.zeroWidth {
+			for _, out := range op.reg.outputs {
+				if out.intersects(x15) {
+					panic("op " + op.name + " permits an output in X15")
+				}
+			}
+		}
+		if op.reg.clobbers.intersects(x15) {
+			panic("op " + op.name + " clobbers X15")
+		}
+	}
 }
 
 // markZeroUpperVec sets zeroUpperVec on each op in ops that writes a

@@ -8,7 +8,9 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"maps"
 	"simd/archsimd/_gen/simdgen/types"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -17,6 +19,21 @@ const simdMachineOpsTmpl = `
 package main
 
 func simd{{.SIMDTag}}Ops({{.RegInfoParams}}) []opData {
+{{- if .ZeroVariants}}
+	// The *z forms of regInfos permit all vector inputs to be in zeroReg,
+	// the zero register. They're for ops that don't overwrite their first
+	// input (neither resultInArg0 nor clobbersArg0). Whether an op
+	// overwrites its first input is a property of the op, not the regInfo,
+	// so the caller checks this for the ops this returns.
+	zeroForm := func(r regInfo) regInfo {
+		r = r.clone()
+		r.inputs[0] = r.inputs[0].union(zeroReg)
+		return r
+	}
+{{- range .ZeroVariants}}
+	{{.}}z := zeroForm({{.}})
+{{- end}}
+{{end}}
 	return []opData{
 {{- range .OpsData }}
 		{name: "{{.OpName}}", argLength: {{.OpInLen}}, reg: {{.RegInfo}}, asm: "{{.Asm}}",{{if .Comm}} commutative: true,{{end}} typ: "{{.Type}}"{{if .ResultInArg0}}, resultInArg0: true{{end}}},
@@ -64,6 +81,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 	type machineOpsData struct {
 		SIMDTag           string
 		RegInfoParams     string
+		ZeroVariants      []string
 		OpsData           []opData
 		OpsDataImm        []opData
 		OpsDataLoad       []opData
@@ -123,6 +141,19 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 
 	regInfoErrs := make([]error, 0)
 	regInfoMissing := make(map[string]bool, 0)
+	// zeroUsed is the set of regInfos whose *z form some op uses.
+	zeroUsed := make(map[string]bool)
+	// hasVregInput reports whether op has a vreg input, which is the first
+	// input of its machine op.
+	hasVregInput := func(op Operation) bool {
+		_, _, _, _, gOp, _ := op.shape()
+		for _, in := range gOp.In {
+			if in.Class == "vreg" {
+				return true
+			}
+		}
+		return false
+	}
 	// sveSeenUnpred dedups the base machine op across the defs that share it:
 	// only SVE produces such sharing (a width-agnostic bitwise operation is one
 	// .D instruction serving every element width); on other architectures every
@@ -185,6 +216,23 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 		if shapeOut == OneVregOutAtIn {
 			resultInArg0 = true
 		}
+		// zeroForm returns the regInfo to use for op, whose regInfo is r,
+		// if op doesn't overwrite its first input.
+		//
+		// On amd64, that's the *z form of r, which also permits a vector
+		// first input to be in X15. X15 is always zero: the Go ABI requires
+		// it, and it's never allocated for a result. So the only values in
+		// X15 are zero vectors (Zero128/256/512), and an op that only reads
+		// its first input can read a zero vector directly from X15. Ops that
+		// overwrite their first input (resultInArg0) can't. The generated
+		// function builds the *z forms from the base regInfos.
+		zeroForm := func(op Operation, r string) string {
+			if archInfo.Arch != "amd64" || !hasVregInput(op) {
+				return r
+			}
+			zeroUsed[r] = true
+			return r + "z"
+		}
 		if CurrentArch().isSVE() {
 			switch idx := gOp.sveInPlaceInput(); {
 			case idx < 0:
@@ -202,6 +250,12 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 				panic(fmt.Errorf("simdgen: %s overwrites input %d; only the first input is supported: %s",
 					gOp.Asm, idx, gOp))
 			}
+		}
+		// baseRegInfo is the regInfo of the op itself, which can be the
+		// *z form unless the op overwrites its first input.
+		baseRegInfo := regInfo
+		if !resultInArg0 {
+			baseRegInfo = zeroForm(op, regInfo)
 		}
 		var memOpData *opData
 		// AVX-512 only: x86 spells masked merging as an extra merge-source
@@ -225,6 +279,9 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 					log.Printf("Seen error: %e", err)
 				}
 			} else {
+				if !resultInArg0 {
+					regInfo = zeroForm(opMem, regInfo)
+				}
 				memOpData = &opData{asm + "load", gOp.Asm, len(gOp.In) + 1, regInfo, false, outType, resultInArg0}
 			}
 		}
@@ -290,7 +347,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 			}
 		}
 		if shapeIn == OneImmIn || shapeIn == OneKmaskImmIn {
-			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+			opsDataImm = append(opsDataImm, opData{asm, gOp.Asm, len(gOp.In), baseRegInfo, gOp.Commutative, outType, resultInArg0})
 			appendSVEPredicated(&opsDataImm)
 			if memOpData != nil {
 				if *op.MemFeatures != "vbcst" {
@@ -308,7 +365,7 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 		} else {
 			if !sveSeenUnpred[asm] {
 				sveSeenUnpred[asm] = true
-				opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), regInfo, gOp.Commutative, outType, resultInArg0})
+				opsData = append(opsData, opData{asm, gOp.Asm, len(gOp.In), baseRegInfo, gOp.Commutative, outType, resultInArg0})
 			}
 			appendSVEPredicated(&opsData)
 			if memOpData != nil {
@@ -374,9 +431,12 @@ func writeSIMDMachineOps(buffer *bytes.Buffer, ops []Operation) {
 		return compareNatural(opsDataImmMerging[i].OpName, opsDataImmMerging[j].OpName) < 0
 	})
 
+	zeroVariants := slices.SortedFunc(maps.Keys(zeroUsed), compareNatural)
+
 	err := t.Execute(buffer, machineOpsData{
 		SIMDTag:           archInfo.SIMDTag,
 		RegInfoParams:     archInfo.RegInfoParams,
+		ZeroVariants:      zeroVariants,
 		OpsData:           opsData,
 		OpsDataImm:        opsDataImm,
 		OpsDataLoad:       opsDataLoad,

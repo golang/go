@@ -474,3 +474,16 @@ func eqMask8x64(x, y archsimd.Mask8x64) bool {
 	// amd64:`VPCMPQ` `KMOVB` `TESTB` `SETEQ` -`CALL`
 	return x == y
 }
+
+// A zero vector is in X15, which ops can read directly, even as their first
+// input.
+
+func zeroFirstInput(y archsimd.Int32x8) archsimd.Int32x8 {
+	// amd64:`VPSUBD Y[0-9]+, Y15, Y[0-9]+` -`VMOVDQU`
+	return archsimd.Int32x8{}.Sub(y)
+}
+
+func zeroFirstInput512(y archsimd.Int32x16) archsimd.Int32x16 {
+	// amd64:`VPSUBD Z[0-9]+, Z15, Z[0-9]+` -`VMOVDQU`
+	return archsimd.Int32x16{}.Sub(y)
+}
