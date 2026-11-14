@@ -22,6 +22,18 @@ import (
 func init() {
 	internal.TransformMarshalError = transformMarshalError
 	internal.TransformUnmarshalError = transformUnmarshalError
+	internal.AddErrorContext = func(err error, fieldPath string) error {
+		if ute, ok := err.(*UnmarshalTypeError); ok {
+			fieldPath = strings.TrimPrefix(fieldPath, "/")
+			fieldPath = strings.ReplaceAll(fieldPath, "/", ".")
+			if ute.Field != "" {
+				ute.Field = fieldPath + "." + ute.Field
+			} else {
+				ute.Field = fieldPath
+			}
+		}
+		return err
+	}
 	internal.NewMarshalerError = func(val any, err error, funcName string) error {
 		return &MarshalerError{reflect.TypeOf(val), err, funcName}
 	}
@@ -67,6 +79,17 @@ func transformMarshalError(root any, err error) error {
 }
 
 func transformUnmarshalError(root any, err error) error {
+	if ute, ok := err.(*UnmarshalTypeError); ok {
+		var rootName string
+		if t := reflect.TypeOf(root); t != nil && ute.Field != "" {
+			if t.Kind() == reflect.Pointer {
+				t = t.Elem()
+			}
+			rootName = t.Name()
+		}
+		ute.Struct = rootName
+		return ute
+	}
 	// Historically, errors from Unmarshal methods were never wrapped and
 	// returned verbatim while operating under [ReportErrorsWithLegacySemantics].
 	if err, ok := err.(*jsonv2.SemanticError); err != nil {

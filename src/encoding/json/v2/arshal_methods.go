@@ -12,6 +12,7 @@ import (
 	"io"
 	"reflect"
 
+	"encoding/json/internal"
 	"encoding/json/internal/jsonflags"
 	"encoding/json/internal/jsonopts"
 	"encoding/json/internal/jsonwire"
@@ -336,6 +337,9 @@ func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 			if err := unmarshaler.UnmarshalText(s); err != nil {
 				err = wrapErrUnsupported(err, "UnmarshalText method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+					if internal.AddErrorContext != nil {
+						err = internal.AddErrorContext(err, string(export.Decoder(dec).AppendStackPointer(nil, -1)))
+					}
 					return err // unlike marshal, never wrapped
 				}
 				if !isSemanticError(err) && !isSyntacticError(err) && !export.IsIOError(err) {
@@ -364,6 +368,9 @@ func makeMethodUnmarshaler(fncs *unmarshaler, t reflect.Type) *unmarshaler {
 			if err := unmarshaler.UnmarshalJSON(val); err != nil {
 				err = wrapErrUnsupported(err, "UnmarshalJSON method")
 				if uo.Flags.Get(jsonflags.ReportErrorsWithLegacySemantics) {
+					if internal.AddErrorContext != nil {
+						err = internal.AddErrorContext(err, string(export.Decoder(dec).AppendStackPointer(nil, -1)))
+					}
 					return err // unlike marshal, never wrapped
 				}
 				err = newUnmarshalErrorAfter(dec, t, err)
