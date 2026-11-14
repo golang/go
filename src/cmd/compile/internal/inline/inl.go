@@ -367,14 +367,8 @@ func InlineImpossible(fn *ir.Func) string {
 		reason = "no name"
 		return reason
 	}
-	if sym := fn.Nname.Sym(); sym != nil && sym.Pkg != nil && sym.Pkg.Path == "reflect" {
-		switch sym.Name {
-		case "Value.Method", "Value.MethodByName",
-			"(*rtype).Method", "(*rtype).MethodByName",
-			"(*interfaceType).Method", "(*interfaceType).MethodByName":
-			reason = "reflect method lookup must stay visible to walk.usemethod"
-			return reason
-		}
+	if reason := logosInlImpossible(fn); reason != "" {
+		return reason
 	}
 
 	// If marked "go:noinline", don't inline.
@@ -959,11 +953,7 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
 // that it refers to if statically known. Otherwise, it returns nil.
 // resolveOnly skips cost-based inlineability checks for closures; the result may not actually be inlineable.
 func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile, resolveOnly bool, ro *ir.ReassignOracle) (res *ir.Func) {
-	if ro != nil {
-		fn = ro.StaticValue(fn)
-	} else {
-		fn = ir.StaticValue(fn)
-	}
+	fn = logosInlStaticValue(fn, ro)
 	switch fn.Op() {
 	case ir.OMETHEXPR:
 		fn := fn.(*ir.SelectorExpr)
@@ -1102,7 +1092,7 @@ func parsePos(pos src.XPos, posTmp []src.Pos) ([]src.Pos, src.Pos) {
 //
 // Preconditions: CanInline(callee) has already been called.
 func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller, closureCalledOnce bool, log bool) (bool, int32, bool) {
-	if ir.LogosRegionsEnabled() && ir.LogosRegionNoInline(callee) {
+	if logosInlRegionNoInline(callee) {
 		return false, 0, false
 	}
 	if callee.Inl == nil {
