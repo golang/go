@@ -790,6 +790,14 @@ func (t *tester) registerTests() {
 				pkg:     "simd/archsimd/...",
 			})
 		}
+		// hash/crc64 has an arm64 implementation built only with simd.
+		if goarch == "arm64" {
+			t.registerTest("GOEXPERIMENT=simd go test hash/crc64", &goTest{
+				variant: "simd",
+				env:     []string{"GOEXPERIMENT=" + goexperiments("simd")},
+				pkg:     "hash/crc64",
+			})
+		}
 	}
 
 	// Test ios/amd64 for the iOS simulator.
