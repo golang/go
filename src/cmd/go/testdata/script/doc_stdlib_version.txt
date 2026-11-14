@@ -1,0 +1,29 @@
+# go doc with @version on a standard library package must be
+# rejected, not silently fall back to the current standard library
+# documentation. The period-splitting loop in parseArgs must not
+# drop a version error by reloading the package without a version.
+# See golang/go#81670.
+
+! go doc encoding/json@go1.19.0
+stderr 'argument must not be a package in the standard library'
+! stdout .
+
+! go doc encoding/json/v2@go1.19.0
+stderr 'argument must not be a package in the standard library'
+! stdout .
+
+# The same must hold for the pkg.Symbol@version form, which is also
+# handled by the period-splitting loop: it must fail instead of
+# showing documentation for the current version of the package.
+! go doc encoding/json.Marshal@go1.19.0
+stderr 'argument must not be a package in the standard library'
+! stdout .
+
+! go doc encoding/json/v2.Marshal@go1.19.0
+stderr 'argument must not be a package in the standard library'
+! stdout .
+
+# And for the two-argument form with a versioned package.
+! go doc encoding/json@go1.19.0 Marshal
+stderr 'argument must not be a package in the standard library'
+! stdout .
