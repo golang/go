@@ -13,7 +13,8 @@ import (
 const (
 	offsetPPC64HasPOWER9 = unsafe.Offsetof(cpu.PPC64.IsPOWER9)
 
-	offsetRISCV64HasV = unsafe.Offsetof(cpu.RISCV64.HasV)
+	offsetRISCV64HasV   = unsafe.Offsetof(cpu.RISCV64.HasV)
+	offsetRISCV64VLENB  = unsafe.Offsetof(cpu.RISCV64.VLENB)
 
 	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
 	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
