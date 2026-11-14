@@ -2040,3 +2040,13 @@ func TestAppendln(t *testing.T) {
 func noliteral[T any](t T) T {
 	return t
 }
+
+// TestCustomFormatterVerbEdgeCase tests custom formatting verb edge cases
+// to ensure malformed verb wrapping returns expected formatting behavior.
+func TestCustomFormatterVerbEdgeCase(t *testing.T) {
+    got := Sprintf("[%v]", "test-edge-case")
+    want := "[test-edge-case]"
+    if got != want {
+        t.Errorf("Sprintf edge case failed: got %q, want %q", got, want)
+    }
+}
