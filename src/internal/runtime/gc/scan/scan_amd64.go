@@ -34,7 +34,12 @@ func ScanSpanPackedAVX512(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMas
 //go:noescape
 func scanSpanPackedAVX512(mem unsafe.Pointer, bufp *uintptr, objMarks *gc.ObjMask, sizeClass uintptr, ptrMask *gc.PtrMask) (count int32)
 
-var avx512ScanPackedReqsMet = cpu.X86.HasAVX512VL &&
+// HasAVX512 is redundant with the individual AVX-512 flags below (doDerived
+// clears them when !HasAVX512), but stating it explicitly documents the
+// dependency shared with runtime preemption (which gates ZMM/opmask
+// save/restore on HasAVX512).
+var avx512ScanPackedReqsMet = cpu.X86.HasAVX512 &&
+	cpu.X86.HasAVX512VL &&
 	cpu.X86.HasAVX512BW &&
 	cpu.X86.HasGFNI &&
 	cpu.X86.HasAVX512BITALG &&
