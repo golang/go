@@ -7562,6 +7562,182 @@ func testServerExpect100ContinueUnreadBody(t *testing.T, mode testMode) {
 	}
 }
 
+// A handler that panics after sending a final response must not wait for a
+// request body that an Expect: 100-continue client will never send.
+// See go.dev/issue/83069.
+func TestServerPanicExpect100ContinueUnsentBody(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		panicValue any
+	}{
+		{"ErrAbortHandler", ErrAbortHandler},
+		{"Panic", "boom"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			runSynctest(t, func(t *testing.T, mode testMode) {
+				testServerPanicExpect100ContinueUnsentBody(t, mode, tt.panicValue)
+			}, testAddMode{https1Mode})
+		})
+	}
+}
+
+func testServerPanicExpect100ContinueUnsentBody(t *testing.T, mode testMode, panicValue any) {
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		w.WriteHeader(StatusOK)
+		w.(Flusher).Flush()
+		panic(panicValue)
+	})
+	var logBuf bytes.Buffer
+	cst := newClientServerTest(t, mode, handler, func(ts *httptest.Server) {
+		ts.Config.ErrorLog = log.New(&logBuf, "", 0)
+	})
+	// Remove httptest's swallowing of panics.
+	cst.ts.Config.Handler = handler
+
+	req, _ := NewRequest("POST", cst.ts.URL, strings.NewReader("some body"))
+	req.Header.Set("Expect", "100-continue")
+
+	// Set a short timeout on the client to catch the hang quickly.
+	cst.c.Timeout = 2 * time.Second
+	cst.tr.ExpectContinueTimeout = 10 * time.Second
+
+	resp, err := cst.c.Do(req)
+	if err != nil && mode != http3Mode {
+		t.Fatalf("Do: %v", err)
+	}
+	if err == nil {
+		if resp.StatusCode != StatusOK {
+			t.Errorf("status = %v, want 200 OK", resp.Status)
+		}
+		_, err = io.ReadAll(resp.Body)
+		resp.Body.Close()
+	}
+	// With HTTP/3, the stream reset can arrive before or after the response headers.
+	switch {
+	case isTimeoutError(err):
+		t.Fatalf("timed out reading the aborted response (likely due to hang): %v", err)
+	case (mode == http1Mode || mode == https1Mode) && !errors.Is(err, io.ErrUnexpectedEOF):
+		t.Errorf("ReadAll error = %v, want unexpected EOF", err)
+	case mode == http2Mode && (err == nil || !strings.Contains(err.Error(), "INTERNAL_ERROR")):
+		t.Errorf("ReadAll error = %v, want a stream INTERNAL_ERROR", err)
+	case mode == http3Mode && (err == nil || !strings.Contains(err.Error(), "stream reset by peer")):
+		t.Errorf("error = %v, want stream reset by peer", err)
+	}
+	checkServerPanicLog(t, cst, &logBuf, panicValue)
+}
+
+// A handler that panics while a request body is only partly uploaded must not
+// wait for the rest of it, and must stop a goroutine blocked reading it.
+// See go.dev/issue/83069.
+func TestServerPanicIncompleteUpload(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		readBody bool // the handler leaves a goroutine blocked in r.Body.Read
+	}{
+		{"NoReader", false},
+		{"ConcurrentRead", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			runSynctest(t, func(t *testing.T, mode testMode) {
+				testServerPanicIncompleteUpload(t, mode, tt.readBody)
+			}, []testMode{http1Mode, https1Mode})
+		})
+	}
+}
+
+var errServerStillBusy = errors.New("server still handling the aborted request")
+
+func testServerPanicIncompleteUpload(t *testing.T, mode testMode, readBody bool) {
+	var readErr error
+	readExited := make(chan struct{})
+	connClosed := make(chan struct{}, 1)
+	handler := HandlerFunc(func(w ResponseWriter, r *Request) {
+		if readBody {
+			go func() {
+				_, readErr = io.Copy(io.Discard, r.Body)
+				close(readExited)
+			}()
+			synctest.Wait() // The goroutine is blocked reading the rest of the body.
+		}
+		panic(ErrAbortHandler)
+	})
+	var logBuf bytes.Buffer
+	cst := newClientServerTest(t, mode, handler, func(ts *httptest.Server) {
+		ts.Config.ErrorLog = log.New(&logBuf, "", 0)
+		ts.Config.ConnState = func(_ net.Conn, state ConnState) {
+			if state == StateClosed {
+				connClosed <- struct{}{}
+			}
+		}
+	})
+	// Remove httptest's swallowing of panics.
+	cst.ts.Config.Handler = handler
+
+	// The request declares 10 bytes of body and the client sends 4.
+	pr, pw := io.Pipe()
+	go pw.Write([]byte("part"))
+	req, _ := NewRequest("POST", cst.ts.URL, pr)
+	req.ContentLength = 10
+
+	// Set a short timeout on the client to catch the hang quickly.
+	cst.c.Timeout = 2 * time.Second
+
+	// The client never completes the body, and its transport waits for the
+	// body to end before Do returns. Wait for the server to close the
+	// connection, then end the body.
+	serverErr := make(chan error, 1)
+	go func() {
+		var err error
+		select {
+		case <-connClosed:
+		case <-time.After(time.Second):
+			err = errServerStillBusy
+		}
+		serverErr <- err
+		pw.Close()
+	}()
+
+	resp, err := cst.c.Do(req)
+	if err == nil {
+		resp.Body.Close()
+		t.Errorf("Do succeeded, want an error after the handler panicked")
+	}
+	if err := <-serverErr; err != nil {
+		t.Errorf("%v (likely due to hang)", err)
+	}
+	if readBody {
+		select {
+		case <-readExited:
+			if readErr == nil {
+				t.Errorf("handler goroutine's body read ended without an error")
+			}
+		case <-time.After(time.Second):
+			t.Errorf("handler goroutine still blocked reading the request body")
+		}
+	}
+	checkServerPanicLog(t, cst, &logBuf, ErrAbortHandler)
+}
+
+func isTimeoutError(err error) bool {
+	var ne net.Error
+	return errors.Is(err, context.DeadlineExceeded) || (errors.As(err, &ne) && ne.Timeout())
+}
+
+// checkServerPanicLog closes the server and checks that an ordinary panic was
+// logged, and that ErrAbortHandler was not.
+func checkServerPanicLog(t *testing.T, cst *clientServerTest, logBuf *bytes.Buffer, panicValue any) {
+	t.Helper()
+	cst.ts.Close()
+	synctest.Wait()
+	if panicValue == ErrAbortHandler {
+		if got := logBuf.String(); got != "" {
+			t.Errorf("unexpected log output:\n%v", got)
+		}
+	} else if logBuf.String() == "" {
+		t.Errorf("nothing logged after panic; want something")
+	}
+}
+
 func TestServer1xxExpect100ContinueRace(t *testing.T) {
 	runSynctest(t, func(t *testing.T, mode testMode) {
 		cst := newClientServerTest(t, mode, HandlerFunc(func(w ResponseWriter, r *Request) {
