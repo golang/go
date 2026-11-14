@@ -858,6 +858,11 @@ var procInstTests = []struct {
 	{`version= encoding=`, [2]string{"", ""}},
 	{`encoding="version=1.0"`, [2]string{"", "version=1.0"}},
 	{``, [2]string{"", ""}},
+	{`version = "1.0" encoding = 'utf-8'`, [2]string{"1.0", "utf-8"}},
+	{`version ="1.0" encoding= "utf-8"`, [2]string{"1.0", "utf-8"}},
+	{"version\t=\n\"1.0\"\r\nencoding\r\n=\t'utf-8'", [2]string{"1.0", "utf-8"}},
+	{`version = 1.0 encoding = utf-8`, [2]string{"", ""}},
+	{`version = encoding = `, [2]string{"", ""}},
 	// TODO: what's the right approach to handle these nested cases?
 	{`encoding="version='1.0'"`, [2]string{"1.0", "version='1.0'"}},
 	{`version="encoding='utf-8'"`, [2]string{"encoding='utf-8'", "utf-8"}},
@@ -870,6 +875,37 @@ func TestProcInstEncoding(t *testing.T) {
 		}
 		if got := procInst("encoding", test.input); got != test.expect[1] {
 			t.Errorf("procInst(encoding, %q) = %q; want %q", test.input, got, test.expect[1])
+		}
+	}
+}
+
+// Issue 83004: white space around the "=" of the encoding declaration
+// must not hide the encoding.
+func TestCharsetReaderEncodingDeclSpace(t *testing.T) {
+	for _, decl := range []string{
+		`encoding="x-testing"`,
+		`encoding ="x-testing"`,
+		`encoding= "x-testing"`,
+		`encoding = "x-testing"`,
+	} {
+		d := NewDecoder(strings.NewReader(`<?xml version="1.0" ` + decl + `?><a/>`))
+		var charset string
+		d.CharsetReader = func(cs string, input io.Reader) (io.Reader, error) {
+			charset = cs
+			return input, nil
+		}
+		for {
+			_, err := d.Token()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				t.Errorf("%s: %v", decl, err)
+				break
+			}
+		}
+		if charset != "x-testing" {
+			t.Errorf("%s: CharsetReader called with %q; want %q", decl, charset, "x-testing")
 		}
 	}
 }
