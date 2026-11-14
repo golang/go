@@ -18,8 +18,9 @@ import (
 )
 
 var dnsReadConfigTests = []struct {
-	name string
-	want *dnsConfig
+	name      string
+	want      *dnsConfig
+	searchSet bool
 }{
 	{
 		name: "testdata/resolv.conf",
@@ -62,6 +63,7 @@ var dnsReadConfigTests = []struct {
 			timeout:  5 * time.Second,
 			attempts: 2,
 		},
+		searchSet: true,
 	},
 	{
 		name: "testdata/empty-resolv.conf",
@@ -174,11 +176,13 @@ var dnsReadConfigTests = []struct {
 func TestDNSReadConfig(t *testing.T) {
 	origGetHostname := getHostname
 	defer func() { getHostname = origGetHostname }()
-	getHostname = func() (string, error) { return "host.domain.local", nil }
+	getHostname = func() (string, error) {
+		return "host.domain.local", nil
+	}
 
 	for _, tt := range dnsReadConfigTests {
 		want := *tt.want
-		if len(want.search) == 0 {
+		if len(want.search) == 0 && !tt.searchSet {
 			want.search = dnsDefaultSearch()
 		}
 		conf := dnsReadConfig(tt.name)
@@ -311,5 +315,30 @@ func TestDNSNameLength(t *testing.T) {
 		if tooLongResults != nil {
 			t.Errorf("suffixed names %v; want nil", tooLongResults)
 		}
+	}
+}
+
+func TestDNSReadConfigSearchDotDisablesDefaultSearch(t *testing.T) {
+	origGetHostname := getHostname
+	t.Cleanup(func() { getHostname = origGetHostname })
+	getHostname = func() (string, error) {
+		return "server.example.com", nil
+	}
+
+	// creating a temp file in order to prevent using host resolve
+	path := t.TempDir() + "/resolv.conf"
+	if err := os.WriteFile(path, []byte("search .\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	conf := dnsReadConfig(path)
+	if conf.err != nil {
+		t.Fatal(conf.err)
+	}
+
+	got := conf.nameList("domain.does.not.exist")
+	want := []string{"domain.does.not.exist."}
+	if !slices.Equal(got, want) {
+		t.Fatalf("nameList() = %v, want %v", got, want)
 	}
 }
