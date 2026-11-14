@@ -51,11 +51,7 @@ const (
 	// name constraints, but leaf certificate contains a name of an
 	// unsupported or unconstrained type.
 	UnconstrainedName
-	// TooManyConstraints results when the number of comparison operations
-	// needed to check a certificate exceeds the limit set by
-	// VerifyOptions.MaxConstraintComparisions. This limit exists to
-	// prevent pathological certificates can consuming excessive amounts of
-	// CPU time to verify.
+	// TooManyConstraints is a legacy error and is no longer returned.
 	TooManyConstraints
 	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
 	// certificate does not permit a requested extended key usage.
@@ -214,11 +210,13 @@ type VerifyOptions struct {
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []ExtKeyUsage
 
-	// MaxConstraintComparisions is the maximum number of comparisons to
-	// perform when checking a given certificate's name constraints. If
-	// zero, a sensible default is used. This limit prevents pathological
-	// certificates from consuming excessive amounts of CPU time when
-	// validating. It does not apply to the platform verifier.
+	// MaxConstraintComparisions is a legacy field and has no effect.
+	//
+	// It used to limit the number of comparisons performed when checking
+	// a certificate's name constraints. Name constraints are now checked
+	// with an algorithm that does not need this limit.
+	//
+	// Deprecated: MaxConstraintComparisions is ignored.
 	MaxConstraintComparisions int
 
 	// CertificatePolicies specifies which certificate policy OIDs are
