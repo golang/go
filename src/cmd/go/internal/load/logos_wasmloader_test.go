@@ -118,6 +118,20 @@ func TestFileWasmExportNames(t *testing.T) {
 			src:  "package p\n//go:wasmexport exported\nfuncs()\n",
 		},
 		{
+			name: "newline before the function name",
+			src:  "package p\n//go:wasmexport exported\nfunc\nf() {}\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "comments before the function name",
+			src:  "package p\n//go:wasmexport exported\nfunc /* a */ // b\n\tf() {}\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "receiver after a newline",
+			src:  "package p\ntype T int\n//go:wasmexport exported\nfunc\n(T) f() {}\n",
+		},
+		{
 			name: "logos spelling",
 			src:  "package p\n//logos:wasmexport exported\nfunc f() string { return $\"x\" }\n",
 			want: []string{"exported"},

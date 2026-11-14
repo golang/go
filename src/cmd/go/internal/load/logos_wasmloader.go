@@ -405,11 +405,26 @@ func (s *wasmExportScanner) code() {
 }
 
 func (s *wasmExportScanner) startsIdentifier() bool {
-	pos := s.pos
-	for pos < len(s.data) && (s.data[pos] == ' ' || s.data[pos] == '\t') {
-		pos++
+	ahead := wasmExportScanner{data: s.data, pos: s.pos}
+	ahead.skipSpaceAndComments()
+	return ahead.pos < len(ahead.data) && isLetterByte(ahead.data[ahead.pos])
+}
+
+func (s *wasmExportScanner) skipSpaceAndComments() {
+	for s.pos < len(s.data) {
+		switch {
+		case isSpaceByte(s.data[s.pos]):
+			s.pos++
+		case s.atComment():
+			s.holeComment()
+		default:
+			return
+		}
 	}
-	return pos < len(s.data) && isLetterByte(s.data[pos])
+}
+
+func isSpaceByte(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n'
 }
 
 func (s *wasmExportScanner) peek(n int) byte {
