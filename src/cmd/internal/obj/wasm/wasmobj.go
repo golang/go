@@ -621,7 +621,9 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
-			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load:
+			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load,
+			AV128Load8x8S, AV128Load8x8U, AV128Load16x4S, AV128Load16x4U, AV128Load32x2S, AV128Load32x2U,
+			AV128Load8Splat, AV128Load16Splat, AV128Load32Splat, AV128Load64Splat, AV128Load32Zero, AV128Load64Zero:
 			if p.From.Type == obj.TYPE_MEM {
 				as := p.As
 				from := p.From
@@ -1411,7 +1413,9 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			w.Write(b)
 
 		case AI32Load, AI64Load, AF32Load, AF64Load, AI32Load8S, AI32Load8U, AI32Load16S, AI32Load16U,
-			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load:
+			AI64Load8S, AI64Load8U, AI64Load16S, AI64Load16U, AI64Load32S, AI64Load32U, AV128Load,
+			AV128Load8x8S, AV128Load8x8U, AV128Load16x4S, AV128Load16x4U, AV128Load32x2S, AV128Load32x2U,
+			AV128Load8Splat, AV128Load16Splat, AV128Load32Splat, AV128Load64Splat, AV128Load32Zero, AV128Load64Zero:
 			if p.From.Offset < 0 {
 				panic("negative offset for *Load")
 			}
@@ -1433,6 +1437,19 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 			writeUleb128(w, align(p.As))
 			writeUleb128(w, uint64(p.To.Offset))
+
+		case AV128Load8Lane, AV128Load16Lane, AV128Load32Lane, AV128Load64Lane,
+			AV128Store8Lane, AV128Store16Lane, AV128Store32Lane, AV128Store64Lane:
+			if p.From.Type != obj.TYPE_CONST || p.From.Offset < 0 || p.From.Offset > math.MaxUint32 {
+				ctxt.Diag("bad offset in %v", p)
+			}
+			// A v128 has 16>>align(p.As) lanes.
+			if p.To.Type != obj.TYPE_CONST || p.To.Offset < 0 || p.To.Offset >= 16>>align(p.As) {
+				ctxt.Diag("bad lane index in %v", p)
+			}
+			writeUleb128(w, align(p.As))
+			writeUleb128(w, uint64(p.From.Offset))
+			w.WriteByte(byte(p.To.Offset))
 
 		case ACurrentMemory, AGrowMemory, AMemoryFill:
 			w.WriteByte(0x00)
@@ -1549,13 +1566,18 @@ func regType(reg int16) valueType {
 
 func align(as obj.As) uint64 {
 	switch as {
-	case AI32Load8S, AI32Load8U, AI64Load8S, AI64Load8U, AI32Store8, AI64Store8:
+	case AI32Load8S, AI32Load8U, AI64Load8S, AI64Load8U, AI32Store8, AI64Store8,
+		AV128Load8Splat, AV128Load8Lane, AV128Store8Lane:
 		return 0
-	case AI32Load16S, AI32Load16U, AI64Load16S, AI64Load16U, AI32Store16, AI64Store16:
+	case AI32Load16S, AI32Load16U, AI64Load16S, AI64Load16U, AI32Store16, AI64Store16,
+		AV128Load16Splat, AV128Load16Lane, AV128Store16Lane:
 		return 1
-	case AI32Load, AF32Load, AI64Load32S, AI64Load32U, AI32Store, AF32Store, AI64Store32:
+	case AI32Load, AF32Load, AI64Load32S, AI64Load32U, AI32Store, AF32Store, AI64Store32,
+		AV128Load32Splat, AV128Load32Zero, AV128Load32Lane, AV128Store32Lane:
 		return 2
-	case AI64Load, AF64Load, AI64Store, AF64Store:
+	case AI64Load, AF64Load, AI64Store, AF64Store,
+		AV128Load8x8S, AV128Load8x8U, AV128Load16x4S, AV128Load16x4U, AV128Load32x2S, AV128Load32x2U,
+		AV128Load64Splat, AV128Load64Zero, AV128Load64Lane, AV128Store64Lane:
 		return 3
 	case AV128Load, AV128Store:
 		return 0 // TODO do we want more alignment
