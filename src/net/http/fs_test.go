@@ -278,6 +278,8 @@ var fsRedirectTestData = []struct {
 	{"/test/index.html", "/test/", 200},
 	{"/test/testdata", "/test/testdata/", 200},
 	{"/test/testdata/file/", "/test/testdata/file", 200},
+	{"/test/testdata/file//", "/test/testdata/file", 200},
+	{"/test/testdata/file///", "/test/testdata/file", 200},
 	// Redirect attempts for path with escaped slashes should result in 404.
 	// However, escaped paths are okay if they do not trigger a redirect.
 	// See https://go.dev/issue/80289.
@@ -303,6 +305,38 @@ func testFSRedirect(t *testing.T, mode testMode) {
 		}
 		if res.StatusCode != data.status {
 			t.Errorf("redirect from %s: got status %d, want %d", data.original, res.StatusCode, data.status)
+		}
+	}
+}
+
+func TestFileServerTrailingSlashRedirect(t *testing.T) {
+	fsys := fstest.MapFS{"file.txt": {Data: []byte("contents")}}
+	tests := []struct {
+		h    Handler
+		req  string
+		want string
+	}{
+		{FileServerFS(fsys), "/file.txt/", "../file.txt"},
+		{FileServerFS(fsys), "/file.txt//", "../../file.txt"},
+		{FileServerFS(fsys), "/file.txt///?q=1", "../../../file.txt?q=1"},
+		{StripPrefix("/static", FileServerFS(fsys)), "/static/file.txt//", "../../file.txt"},
+		{StripPrefix("/static/", FileServerFS(fsys)), "/static/file.txt//", "../../file.txt"},
+		{StripPrefix("/static/", FileServerFS(fsys)), "/static/fil%65.txt//", "../../file.txt"},
+		// A redirect cannot be resolved reliably when the path has escaped
+		// slashes, so these are not redirected (see localRedirect).
+		{StripPrefix("/static/", FileServerFS(fsys)), "/static/file.txt%2F/", ""},
+		{StripPrefix("/static/", FileServerFS(fsys)), "/static/file.txt%2F", ""},
+		{StripPrefix("/static/", FileServerFS(fsys)), "/static/file.txt/%2F", ""},
+	}
+	for _, tt := range tests {
+		rec := httptest.NewRecorder()
+		tt.h.ServeHTTP(rec, httptest.NewRequest("GET", tt.req, nil))
+		wantCode := StatusMovedPermanently
+		if tt.want == "" {
+			wantCode = StatusNotFound
+		}
+		if got := rec.Header().Get("Location"); rec.Code != wantCode || got != tt.want {
+			t.Errorf("GET %s: status = %d, Location = %q; want %d, %q", tt.req, rec.Code, got, wantCode, tt.want)
 		}
 	}
 }
