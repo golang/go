@@ -3819,15 +3819,11 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
 
 	case ir.ONEW:
 		n := n.(*ir.UnaryExpr)
-		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
-			rtype := s.expr(x.RType)
-			if escape.LogosArenaObject(n, s.curfn) {
-				return s.logosArenaNewObject(n.Type().Elem(), rtype)
-			}
-			return s.newObjectNonSpecialized(n.Type().Elem(), rtype)
-		}
 		if escape.LogosArenaObject(n, s.curfn) {
-			return s.logosArenaNewObject(n.Type().Elem(), s.reflectType(n.Type().Elem()))
+			return s.logosArenaNew(n)
+		}
+		if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
+			return s.newObjectNonSpecialized(n.Type().Elem(), s.expr(x.RType))
 		}
 		return s.newObject(n.Type().Elem())
 

@@ -136,6 +136,13 @@ func (s *state) logosArenaLoopRestoreDepth(depth int) {
 	}
 }
 
+func (s *state) logosArenaNew(n *ir.UnaryExpr) *ssa.Value {
+	if x, ok := n.X.(*ir.DynamicType); ok && x.Op() == ir.ODYNAMICTYPE {
+		return s.logosArenaNewObject(n.Type().Elem(), s.expr(x.RType))
+	}
+	return s.logosArenaNewObject(n.Type().Elem(), s.reflectType(n.Type().Elem()))
+}
+
 func (s *state) logosArenaNewObject(typ *types.Type, rtype *ssa.Value) *ssa.Value {
 	one := s.constInt(types.Types[types.TINT64], 1)
 	return s.rtcall(typecheck.LookupRuntimeFunc("logosArenaMakeSlice"), true,
