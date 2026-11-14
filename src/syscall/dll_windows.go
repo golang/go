@@ -251,6 +251,11 @@ func (p *Proc) Addr() uintptr {
 // [math.Float32frombits](uint32(r2)). For C type "double", it is
 // [math.Float64frombits](uint64(r2)).
 //
+// On 386, an argument with C type "double" takes two arguments, the
+// low and the high word of math.Float64bits(x). Floating-point return
+// values, for C types "float" and "double" alike, are returned in r1
+// and r2 as [math.Float64frombits](uint64(r2)<<32 | uint64(r1)).
+//
 //go:uintptrescapes
 func (p *Proc) Call(a ...uintptr) (uintptr, uintptr, error) {
 	return SyscallN(p.Addr(), a...)

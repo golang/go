@@ -879,7 +879,7 @@ func TestFloatReturn(t *testing.T) {
 	if _, err := exec.LookPath("gcc"); err != nil {
 		t.Skip("skipping test: gcc is missing")
 	}
-	if runtime.GOARCH != "amd64" {
+	if runtime.GOARCH != "amd64" && runtime.GOARCH != "386" {
 		t.Skipf("skipping test: GOARCH=%s", runtime.GOARCH)
 	}
 
@@ -920,28 +920,40 @@ double cfuncDouble(uintptr_t a, double b, float c, double d) {
 	dll := syscall.MustLoadDLL(dllpath)
 	defer dll.Release()
 
-	proc := dll.MustFindProc("cfuncFloat")
-
-	_, r, err := proc.Call(
+	args := []uintptr{
 		1,
 		uintptr(math.Float64bits(2.2)),
 		uintptr(math.Float32bits(3.3)),
 		uintptr(math.Float64bits(4.4e44)),
-	)
-	fr := math.Float32frombits(uint32(r))
+	}
+	if runtime.GOARCH == "386" {
+		// A double takes two arguments, its low and its high word.
+		b, d := math.Float64bits(2.2), math.Float64bits(4.4e44)
+		args = []uintptr{1, uintptr(b), uintptr(b >> 32), uintptr(math.Float32bits(3.3)), uintptr(d), uintptr(d >> 32)}
+	}
+
+	proc := dll.MustFindProc("cfuncFloat")
+
+	r1, r2, err := proc.Call(args...)
+	var fr float32
+	if runtime.GOARCH == "386" {
+		fr = float32(math.Float64frombits(uint64(r2)<<32 | uint64(r1)))
+	} else {
+		fr = math.Float32frombits(uint32(r2))
+	}
 	if fr != 1.5 {
 		t.Errorf("got %f want 1.5 (err=%v)", fr, err)
 	}
 
 	proc = dll.MustFindProc("cfuncDouble")
 
-	_, r, err = proc.Call(
-		1,
-		uintptr(math.Float64bits(2.2)),
-		uintptr(math.Float32bits(3.3)),
-		uintptr(math.Float64bits(4.4e44)),
-	)
-	dr := math.Float64frombits(uint64(r))
+	r1, r2, err = proc.Call(args...)
+	var dr float64
+	if runtime.GOARCH == "386" {
+		dr = math.Float64frombits(uint64(r2)<<32 | uint64(r1))
+	} else {
+		dr = math.Float64frombits(uint64(r2))
+	}
 	if dr != 2.5 {
 		t.Errorf("got %f want 2.5 (err=%v)", dr, err)
 	}
