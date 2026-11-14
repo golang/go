@@ -8,6 +8,7 @@ import (
 	"errors"
 	"internal/filepathlite"
 	"internal/syscall/windows"
+	"runtime"
 	"syscall"
 	"unsafe"
 )
@@ -18,7 +19,16 @@ func (file *File) Stat() (FileInfo, error) {
 	if file == nil {
 		return nil, ErrInvalid
 	}
-	return statHandle(file.name, file.pfd.Sysfd)
+	var info FileInfo
+	var statErr error
+	err := file.pfd.RawControl(func(fd uintptr) {
+		info, statErr = statHandle(file.name, syscall.Handle(fd))
+	})
+	runtime.KeepAlive(file)
+	if err != nil {
+		return nil, file.wrapErr("stat", err)
+	}
+	return info, statErr
 }
 
 // stat implements both Stat and Lstat of a file.
