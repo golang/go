@@ -25,11 +25,19 @@ func TestURIAuthorityRejected(t *testing.T) {
 	}
 }
 
-func initProxy(t *testing.T, root string) *Proxy {
+func initProxy(t *testing.T, root string, folders ...string) *Proxy {
 	t.Helper()
 	p := newProxy(discardWriter{}, Options{})
 	p.server = &writer{w: discardWriter{}}
-	raw, err := encode(map[string]any{"rootUri": pathURI(root)})
+	params := map[string]any{"rootUri": pathURI(root)}
+	if len(folders) > 0 {
+		var workspaceFolders []map[string]string
+		for _, folder := range folders {
+			workspaceFolders = append(workspaceFolders, map[string]string{"uri": pathURI(folder), "name": filepath.Base(folder)})
+		}
+		params["workspaceFolders"] = workspaceFolders
+	}
+	raw, err := encode(params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -141,5 +149,61 @@ func TestWorkspaceFolderChangesUpdateTrackedRoots(t *testing.T) {
 	open("after.lgo", false)
 	if got := p.docPath(pathURI(filepath.Join(root, "still.lgo"))); got == "" {
 		t.Fatal("removing the added folder also removed the initial workspace root")
+	}
+}
+
+func TestOpenDocumentSurvivesWorkspaceFolderRemoval(t *testing.T) {
+	root := t.TempDir()
+	removed := t.TempDir()
+	p := initProxy(t, root, root, removed)
+	notify := func(method string, params any) {
+		t.Helper()
+		raw, err := encode(params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.clientNotification(t.Context(), &message{Method: method, Params: raw})
+	}
+	path := filepath.Join(removed, "open.lgo")
+	uri := pathURI(path)
+	wantText := "package edited\n"
+	if err := os.WriteFile(path, []byte(wantText), 0600); err != nil {
+		t.Fatal(err)
+	}
+	notify("textDocument/didOpen", didOpenParams{TextDocument: textDocumentItem{
+		URI: uri, LanguageID: "logos", Version: 1, Text: "package original\n",
+	}})
+	if !p.st.open(path) {
+		t.Fatal("document in the second workspace folder was not tracked")
+	}
+	notify("workspace/didChangeWorkspaceFolders", map[string]any{
+		"event": map[string]any{
+			"added":   []any{},
+			"removed": []any{map[string]any{"uri": pathURI(removed), "name": "removed"}},
+		},
+	})
+	notify("textDocument/didChange", didChangeParams{
+		TextDocument:   versionedID{URI: uri, Version: 2},
+		ContentChanges: []contentChange{{Text: wantText}},
+	})
+	var gotText string
+	p.st.mu.Lock()
+	if doc := p.st.docs[path]; doc != nil {
+		gotText = string(doc.text.data)
+	}
+	p.st.mu.Unlock()
+	if gotText != wantText {
+		t.Errorf("document text after folder removal = %q, want %q", gotText, wantText)
+	}
+	notify("textDocument/didClose", docParams{TextDocument: docIdentifier{URI: uri}})
+	if p.st.open(path) {
+		t.Error("closed document from the removed workspace folder is still tracked")
+	}
+	newPath := filepath.Join(removed, "new.lgo")
+	notify("textDocument/didOpen", didOpenParams{TextDocument: textDocumentItem{
+		URI: pathURI(newPath), LanguageID: "logos", Version: 1, Text: "package newdoc\n",
+	}})
+	if p.st.open(newPath) {
+		t.Error("new document in the removed workspace folder was tracked")
 	}
 }

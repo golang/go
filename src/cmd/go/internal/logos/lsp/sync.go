@@ -109,6 +109,9 @@ func (p *Proxy) docPath(uri string) string {
 	if err != nil || !trackedPath(path) {
 		return ""
 	}
+	if p.st.open(path) {
+		return path
+	}
 	return p.contain(path)
 }
 
