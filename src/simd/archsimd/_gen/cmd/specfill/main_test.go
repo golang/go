@@ -22,11 +22,10 @@ import (
 func TestFill(t *testing.T) {
 	goroot := gentools.DefaultGOROOT()
 	specDir := specgen.MustFindSpecDir(goroot)
-	specFuncs, err := specgen.Load(specDir, nil)
+	specIdx, err := specgen.LoadIndex(specDir, nil)
 	if err != nil {
 		t.Fatalf("loading spec: %v", err)
 	}
-	specIdx := specgen.NewIndex(specFuncs)
 
 	dirs := []string{
 		filepath.Join(goroot, "src/simd"),

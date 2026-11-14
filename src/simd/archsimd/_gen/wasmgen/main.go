@@ -1130,12 +1130,11 @@ func main() {
 	}
 
 	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
-	specFuncs, err := specgen.Load(specDir, nil)
+	specIdx, err := specgen.LoadIndex(specDir, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "loading spec: %v\n", err)
 		os.Exit(1)
 	}
-	specIdx := specgen.NewIndex(specFuncs)
 
 	var files gentools.Files
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{

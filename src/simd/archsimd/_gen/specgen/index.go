@@ -33,6 +33,16 @@ func NewIndex(funcs []*Func) *Index {
 	}
 }
 
+// LoadIndex loads a Go SIMD spec from the package in directory dir, like
+// [Load], and returns an [Index] over it.
+func LoadIndex(dir string, opts *LoadOptions) (*Index, error) {
+	funcs, err := Load(dir, opts)
+	if err != nil {
+		return nil, err
+	}
+	return NewIndex(funcs), nil
+}
+
 // Lookup finds the spec function for the given receiver and function/method name.
 // For package-level functions, recv should be "".
 func (idx *Index) Lookup(recv, name string) *Func {

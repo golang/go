@@ -749,11 +749,10 @@ func writeGoDefs(cl unify.Closure) error {
 	archLower := archInfo.Arch
 
 	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
-	specFuncs, err := specgen.Load(specDir, nil)
+	specIdx, err := specgen.LoadIndex(specDir, nil)
 	if err != nil {
 		return fmt.Errorf("loading spec: %w", err)
 	}
-	specIdx := specgen.NewIndex(specFuncs)
 
 	var files gentools.Files
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{

@@ -44,12 +44,11 @@ func main() {
 	flag.Parse()
 
 	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
-	specFuncs, err := specgen.Load(specDir, nil)
+	specIdx, err := specgen.LoadIndex(specDir, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "loading spec: %v\n", err)
 		os.Exit(1)
 	}
-	specIdx := specgen.NewIndex(specFuncs)
 
 	var targetFiles []string
 	filesArgs := false

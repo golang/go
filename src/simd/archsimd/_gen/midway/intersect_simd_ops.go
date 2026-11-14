@@ -102,11 +102,10 @@ func main() {
 	flag.Parse()
 
 	specDir := specgen.MustFindSpecDir(genFlags.GOROOT)
-	specFuncs, err := specgen.Load(specDir, nil)
+	specIdx, err := specgen.LoadIndex(specDir, nil)
 	if err != nil {
 		log.Fatalf("loading spec: %v", err)
 	}
-	specIdx := specgen.NewIndex(specFuncs)
 	files.AddPostProcessor(specdoc.Filler(specIdx, specdoc.Options{
 		AllowDocRewrite: true,
 	}))
