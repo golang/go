@@ -20,8 +20,8 @@ export async function instantiateLogos(wasmBytes, imports) {
      if (!ArrayBuffer.isView(a)) return [a];
      const v = new Uint8Array(a.buffer, a.byteOffset, a.byteLength);
      const p = wasmExports._logos_scratch_alloc(v.length) >>> 0;
-     held.push([v, p]);
      getMem().set(v, p);
+     held.push([v, p]);
      return [p, v.length];
     });
     if (fn(...flat)) throw new Error(readErrorString(wasmExports, getMem));

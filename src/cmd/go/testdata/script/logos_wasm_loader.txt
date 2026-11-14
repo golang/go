@@ -325,6 +325,15 @@ assert.equal(Buffer.compare(input, want), 0, "incr result differs after memory.g
 exports.incr(input);
 assert.equal(input[0], (want[0] + 1) & 255, "a call after growth saw stale memory");
 
+const guest = instance.exports.mem ?? instance.exports.memory;
+const oversized = new Uint8Array(256 * 2 ** 20 + 1).fill(170, 0, 64);
+guest.grow(Math.max(0, Math.ceil((oversized.length - guest.buffer.byteLength) / 65536)) + 1);
+const lowMemory = () => Buffer.from(new Uint8Array(guest.buffer, 0, 64));
+const lowBefore = lowMemory();
+assert.throws(() => exports.incr(oversized), RangeError);
+assert.equal(Buffer.compare(lowMemory(), lowBefore), 0, "an oversized argument wrote to low guest memory");
+exports.incr(input);
+
 if (mode === "text") {
   assert.throws(() => exports.fail(new Uint8Array(3)), { message: "fail: refused 3 bytes" });
   assert.throws(() => exports.checkHost(2, 3, 6), { message: "host add mismatch" });
