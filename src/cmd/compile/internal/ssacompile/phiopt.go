@@ -231,7 +231,9 @@ func phiopt(f *ssa.Func) {
 				// if another successor sb1 of b0(pb0) dominates pb1, do replace.
 				ei := b.Preds[0].I
 				sb1 := pb0.Succs[1-ei].B
-				if sdom.IsAncestorEq(sb1, pb1) {
+				// A single predecessor ensures that reaching sb1 takes this
+				// branch, including when b is part of a loop.
+				if len(sb1.Preds) == 1 && sdom.IsAncestorEq(sb1, pb1) {
 					convertPhi(pb0, v, ei)
 					break
 				}
@@ -247,7 +249,8 @@ func phiopt(f *ssa.Func) {
 				// if another successor sb0 of b0(pb0) dominates pb0, do replace.
 				ei := b.Preds[1].I
 				sb0 := pb1.Succs[1-ei].B
-				if sdom.IsAncestorEq(sb0, pb0) {
+				// As above, reaching sb0 must take this branch.
+				if len(sb0.Preds) == 1 && sdom.IsAncestorEq(sb0, pb0) {
 					convertPhi(pb1, v, 1-ei)
 					break
 				}
