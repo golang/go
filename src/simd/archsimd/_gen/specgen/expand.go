@@ -91,6 +91,7 @@ func (sFn *specFunc) instantiate(ctx context, b *specexpr.Bindings, argGet map[*
 
 	f.Commutative = sFn.Commutative
 	f.Category = sFn.Category
+	f.Experiment = sFn.Experiment
 	f.Pos = sFn.Pkg.Fset.Position(sFn.Pos)
 	f.specFunc = sFn
 	f.instance = b

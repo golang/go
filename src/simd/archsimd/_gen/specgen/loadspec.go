@@ -44,6 +44,7 @@ type specFunc struct {
 	Doc          specTemplate // Comment markers removed; \n-terminated unless ""
 	Category     string
 	Commutative  bool
+	Experiment   bool
 	Sig          *types.Signature
 	TypeParams   []*types.TypeParam
 	Params       []*types.Var
@@ -165,11 +166,9 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 							ctx.at(dir.Pos()).errorf("multiple category directives in file")
 						}
 						category = dir.Args
-					case "name", "commutative", "require":
+					case "name", "commutative", "require", "experiment":
 						// Gather other directives to process with decls
 						directives[comment] = dir
-					case "experiment":
-						// do nothing for now; this indicates that the operation should remain a GOEXPERIMENT
 					default:
 						ctx.at(dir.Pos()).errorf("unknown //specgen directive")
 					}
@@ -324,6 +323,13 @@ func (pkg *specPackage) loadSpecFunc(ctx context, d *ast.FuncDecl, category stri
 				ctx.at(dir.Pos()).errorf("malformed //specgen:commutative directive: expected no argument")
 			}
 			f.Commutative = true
+		case "experiment":
+			// This indicates that the operation should remain behind a
+			// GOEXPERIMENT.
+			if dir.Args != "" {
+				ctx.at(dir.Pos()).errorf("malformed //specgen:experiment directive: expected no argument")
+			}
+			f.Experiment = true
 		case "require":
 			args, err := dir.ParseArgs()
 			if err != nil {

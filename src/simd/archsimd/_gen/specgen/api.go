@@ -27,6 +27,11 @@ type Func struct {
 	// documentation).
 	Category string
 
+	// Experiment indicates that this operation is experimental and should
+	// remain behind a GOEXPERIMENT (from the `//specgen:experiment`
+	// directive).
+	Experiment bool
+
 	// Recv, if non-zero, is the shape of the receiver. The name of the receiver
 	// is always "x".
 	Recv Arg
