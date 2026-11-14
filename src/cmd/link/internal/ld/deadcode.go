@@ -459,7 +459,15 @@ func deadcode(ctxt *Link) {
 		// in the last pass.
 		rem := d.markableMethods[:0]
 		for _, m := range d.markableMethods {
-			if (d.reflectSeen && (m.isExported() || d.dynlink)) || d.ifaceMethod[m.m] || d.genericIfaceMethod[m.m.name] {
+			// For generic pointer-to-struct with embedded interface, the
+			// method set is promoted through the embedded field. The itab
+			// for *T -> interface must be retained the same as for T,
+			// otherwise the call is rewritten to runtime.unreachableMethod
+			// (iface.go:728) and SIGSEGVs. Match by name for generic
+			// instantiations so pointer wrappers are kept when the value
+			// instantiation would be.
+			genericMatch := d.genericIfaceMethod[m.m.name]
+			if (d.reflectSeen && (m.isExported() || d.dynlink)) || d.ifaceMethod[m.m] || genericMatch {
 				d.markMethod(m)
 			} else {
 				rem = append(rem, m)
