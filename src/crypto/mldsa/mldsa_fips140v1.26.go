@@ -18,7 +18,7 @@ import (
 //
 // A PrivateKey is safe for concurrent use.
 type PrivateKey struct {
-	k mldsa.PrivateKey
+	k *mldsa.PrivateKey
 }
 
 var errInvalidParameters = errors.New("mldsa: invalid parameters")
@@ -27,11 +27,11 @@ var errInvalidParameters = errors.New("mldsa: invalid parameters")
 func GenerateKey(params Parameters) (*PrivateKey, error) {
 	switch params {
 	case MLDSA44():
-		return &PrivateKey{k: *mldsa.GenerateKey44()}, nil
+		return &PrivateKey{k: mldsa.GenerateKey44()}, nil
 	case MLDSA65():
-		return &PrivateKey{k: *mldsa.GenerateKey65()}, nil
+		return &PrivateKey{k: mldsa.GenerateKey65()}, nil
 	case MLDSA87():
-		return &PrivateKey{k: *mldsa.GenerateKey87()}, nil
+		return &PrivateKey{k: mldsa.GenerateKey87()}, nil
 	default:
 		return nil, errInvalidParameters
 	}
@@ -56,7 +56,7 @@ func NewPrivateKey(params Parameters, seed []byte) (*PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &PrivateKey{k: *k}, nil
+	return &PrivateKey{k: k}, nil
 }
 
 // Public returns the corresponding [PublicKey] for this private key.
@@ -75,7 +75,7 @@ func (sk *PrivateKey) Equal(x crypto.PrivateKey) bool {
 	if !ok || other == nil {
 		return false
 	}
-	return sk.k.Equal(&other.k)
+	return sk.k != nil && other.k != nil && sk.k.Equal(other.k)
 }
 
 // PublicKey returns the corresponding [PublicKey] for this private key.
@@ -103,7 +103,7 @@ var errInvalidSignerOpts = errors.New("mldsa: invalid SignerOpts")
 //
 // [pre-hashed μ message representative]: https://www.rfc-editor.org/rfc/rfc9881.html#externalmu
 func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	if sk.k == (mldsa.PrivateKey{}) {
+	if sk.k == nil {
 		return nil, errors.New("mldsa: zero private key")
 	}
 	if opts == nil {
@@ -115,9 +115,9 @@ func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) 
 		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
-		return mldsa.Sign(&sk.k, message, context)
+		return mldsa.Sign(sk.k, message, context)
 	case crypto.MLDSAMu:
-		return mldsa.SignExternalMu(&sk.k, message)
+		return mldsa.SignExternalMu(sk.k, message)
 	default:
 		return nil, errInvalidSignerOpts
 	}
@@ -126,7 +126,7 @@ func (sk *PrivateKey) Sign(_ io.Reader, message []byte, opts crypto.SignerOpts) 
 // SignDeterministic works like [PrivateKey.Sign], but the signature is
 // deterministic.
 func (sk *PrivateKey) SignDeterministic(message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	if sk.k == (mldsa.PrivateKey{}) {
+	if sk.k == nil {
 		return nil, errors.New("mldsa: zero private key")
 	}
 	if opts == nil {
@@ -138,9 +138,9 @@ func (sk *PrivateKey) SignDeterministic(message []byte, opts crypto.SignerOpts) 
 		if opts, ok := opts.(*Options); ok && opts != nil {
 			context = opts.Context
 		}
-		return mldsa.SignDeterministic(&sk.k, message, context)
+		return mldsa.SignDeterministic(sk.k, message, context)
 	case crypto.MLDSAMu:
-		return mldsa.SignExternalMuDeterministic(&sk.k, message)
+		return mldsa.SignExternalMuDeterministic(sk.k, message)
 	default:
 		return nil, errInvalidSignerOpts
 	}
