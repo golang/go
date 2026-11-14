@@ -149,7 +149,7 @@ func writeLogdHeader() int {
 	//   hdr[3:11] log_time defined in <log/log_read.h>
 	//      hdr[3:7] sec unsigned uint32, little endian.
 	//      hdr[7:11] nsec unsigned uint32, little endian.
-	hdr[0] = 0 // LOG_ID_MAIN
+	hdr[0] = 4 // LOG_ID_CRASH
 	sec, nsec, _ := time_now()
 	byteorder.LEPutUint32(hdr[3:7], uint32(sec))
 	byteorder.LEPutUint32(hdr[7:11], uint32(nsec))
