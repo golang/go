@@ -469,18 +469,7 @@ func (e *evaluator) convertNumber(v Value, t *Type, pos syntax.Pos) (Value, erro
 		}
 		return e.wrapInt(n, t, false, pos)
 	}
-	var f float64
-	if isFloat(vk) {
-		if v.constant {
-			r := xFloat(v)
-			f, _ = r.Float64()
-		} else {
-			f = toFloat64(v, v.typ)
-		}
-	} else {
-		r := new(big.Rat).SetInt(v.ival)
-		f, _ = r.Float64()
-	}
+	f := toFloat64(v, t)
 	if v.constant {
 		if t.Kind == KFloat32 && math.IsInf(float64(float32(f)), 0) {
 			return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
@@ -513,7 +502,7 @@ func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, err
 	}
 	var c complex128
 	switch {
-	case v.constant && isUntyped(vk):
+	case v.constant:
 		re, im := complexParts(v)
 		if t.Kind == KComplex64 {
 			rf, _ := re.Float32()
@@ -526,11 +515,8 @@ func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, err
 		}
 	case isComplex(vk):
 		c = v.Complex()
-	case isFloat(vk):
-		c = complex(v.Float64(), 0)
-	case isInteger(vk):
-		f, _ := new(big.Rat).SetInt(v.ival).Float64()
-		c = complex(f, 0)
+	case isFloat(vk) || isInteger(vk):
+		c = complex(toFloatParts(v, t), 0)
 	}
 	if v.constant && (math.IsInf(real(c), 0) || math.IsInf(imag(c), 0)) {
 		if t.Kind == KComplex64 {
@@ -548,7 +534,7 @@ func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, err
 }
 
 func toFloatParts(v Value, t *Type) float64 {
-	if t.Kind == KComplex64 && v.constant && (v.fval != nil || v.ival != nil) {
+	if t.Kind == KComplex64 && (v.fval != nil || v.ival != nil) {
 		f, _ := xFloat(v).Float32()
 		return float64(f)
 	}

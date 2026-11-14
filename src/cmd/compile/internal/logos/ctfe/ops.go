@@ -467,7 +467,7 @@ func (e *evaluator) quo(x, y Value, pos syntax.Pos) (Value, error) {
 				return Value{}, e.fail(pos, "division by zero in const evaluation")
 			}
 			if cst {
-				return Value{typ: t, constant: true, fval: new(big.Rat).Quo(xFloat(x), xFloat(y))}, nil
+				return e.floatOp(syntax.Div, x, y, t, true, pos)
 			}
 		}
 		xf, yf := toFloat64(x, t), toFloat64(y, t)
@@ -697,17 +697,19 @@ func xFloat(v Value) *big.Rat {
 
 func toFloat64(v Value, t *Type) float64 {
 	if v.fval != nil {
-		f, _ := v.fval.Float64()
 		if t != nil && t.Kind == KFloat32 {
-			return float64(float32(f))
+			f, _ := v.fval.Float32()
+			return float64(f)
 		}
+		f, _ := v.fval.Float64()
 		return f
 	}
 	if v.ival != nil {
-		f, _ := new(big.Rat).SetInt(v.ival).Float64()
 		if t != nil && t.Kind == KFloat32 {
-			return float64(float32(f))
+			f, _ := new(big.Float).SetInt(v.ival).Float32()
+			return float64(f)
 		}
+		f, _ := new(big.Float).SetInt(v.ival).Float64()
 		return f
 	}
 	if t != nil && t.Kind == KFloat32 {
@@ -751,8 +753,12 @@ func (e *evaluator) floatOp(op syntax.Operator, x, y Value, t *Type, cst bool, p
 		case syntax.Div:
 			r = new(big.Rat).Quo(xFloat(x), xFloat(y))
 		}
-		if t.Kind == KFloat32 && !ratFitsFloat32(r) {
-			return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
+		if t.Kind == KFloat32 {
+			f, _ := r.Float32()
+			if math.IsInf(float64(f), 0) {
+				return Value{}, e.fail(pos, "constant overflows float32 in const evaluation")
+			}
+			return floatResult(t, float64(f), true, pos)
 		}
 		if t.Kind == KFloat64 && !ratFitsFloat64(r) {
 			return Value{}, e.fail(pos, "constant overflows float64 in const evaluation")
@@ -772,11 +778,6 @@ func (e *evaluator) floatOp(op syntax.Operator, x, y Value, t *Type, cst bool, p
 		r = xf / yf
 	}
 	return floatResult(t, r, false, pos)
-}
-
-func ratFitsFloat32(r *big.Rat) bool {
-	f, _ := r.Float64()
-	return !math.IsInf(float64(float32(f)), 0) || r.Sign() == 0
 }
 
 func ratFitsFloat64(r *big.Rat) bool {
