@@ -6,6 +6,11 @@ package ctfe
 
 import (
 	"cmd/compile/internal/syntax"
+	"go/ast"
+	"go/constant"
+	"go/parser"
+	"go/token"
+	"go/types"
 	"math"
 	"math/big"
 	"strconv"
@@ -682,6 +687,64 @@ func TestExactComplexRendering(t *testing.T) {
 			eq, _ := evalOne(t, h, Config{}, parseExpr(t, tt.check))
 			if !eq.Bool() {
 				t.Fatalf("rendering %s did not preserve its exact value", tt.expr)
+			}
+		})
+	}
+}
+
+func TestComplexRenderingShadowedBuiltin(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		expr string
+		typ  string
+	}{
+		{"pureImaginary", `1i`, ""},
+		{"negativeImaginary", `2 - 3i`, ""},
+		{"exactRationals", `1.0/3 - 9007199254740993i`, ""},
+		{"negativeRationals", `-1.0/3 - 2i/7`, ""},
+		{"complex128", `complex128(0.1 - 0.2i)`, "complex128"},
+		{"complex64", `complex64(0.1 - 0.2i)`, "complex64"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			v, _ := evalOne(t, newFakeHost(t), Config{}, parseExpr(t, tt.expr))
+			rendered, err := v.Expr(syntax.Pos{})
+			if err != nil {
+				t.Fatalf("Expr: %v", err)
+			}
+			syntax.Inspect(rendered, func(n syntax.Node) bool {
+				if call, ok := n.(*syntax.CallExpr); ok {
+					if name, ok := call.Fun.(*syntax.Name); ok && name.Value == "complex" {
+						t.Error("rendered expression calls the shadowable complex builtin")
+					}
+				}
+				return true
+			})
+			var text strings.Builder
+			if _, err := syntax.Fprint(&text, rendered, syntax.LineForm); err != nil {
+				t.Fatalf("Fprint: %v", err)
+			}
+			expr := text.String()
+			if tt.typ != "" {
+				expr = tt.typ + "(" + expr + ")"
+			}
+			src := "package p\nvar complex = 7\nconst got = " + expr + "\nconst want = " + tt.expr
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "render.go", src, 0)
+			if err != nil {
+				t.Fatalf("parse rendered expression: %v", err)
+			}
+			conf := types.Config{}
+			pkg, err := conf.Check("p", fset, []*ast.File{file}, nil)
+			if err != nil {
+				t.Fatalf("type-check rendered expression %s: %v", expr, err)
+			}
+			got := pkg.Scope().Lookup("got").(*types.Const)
+			want := pkg.Scope().Lookup("want").(*types.Const)
+			if !types.Identical(got.Type(), want.Type()) {
+				t.Errorf("rendered type = %s, want %s", got.Type(), want.Type())
+			}
+			if !constant.Compare(got.Val(), token.EQL, want.Val()) {
+				t.Errorf("rendered value = %s, want %s", got.Val().ExactString(), want.Val().ExactString())
 			}
 		})
 	}

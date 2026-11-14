@@ -102,32 +102,39 @@ func (r *renderer) floatLit(v Value) (syntax.Expr, error) {
 }
 
 func (r *renderer) complexLit(v Value) (syntax.Expr, error) {
+	var rexp, iexp syntax.Expr
 	if v.constant && kindOf(v) == KUntypedComplex {
 		re, im := complexParts(v)
 		if re == nil || im == nil {
 			return nil, fmt.Errorf("cannot spell non-finite complex constant in const evaluation")
 		}
-		return &syntax.CallExpr{
-			Fun:     syntax.NewName(r.pos, "complex"),
-			ArgList: []syntax.Expr{r.ratLit(re), r.ratLit(im)},
-		}, nil
+		rexp, iexp = r.ratLit(re), r.ratLit(im)
+	} else {
+		c := v.Complex()
+		re, im := real(c), imag(c)
+		if v.typ != nil && v.typ.Kind == KComplex64 {
+			re = float64(float32(re))
+			im = float64(float32(im))
+		}
+		rs, rneg := r.floatText(re)
+		is, ineg := r.floatText(im)
+		rexp, iexp = &syntax.BasicLit{Value: rs, Kind: syntax.FloatLit}, &syntax.BasicLit{Value: is, Kind: syntax.FloatLit}
+		if rneg {
+			rexp = &syntax.Operation{Op: syntax.Sub, X: rexp}
+		}
+		if ineg {
+			iexp = &syntax.Operation{Op: syntax.Sub, X: iexp}
+		}
 	}
-	c := v.Complex()
-	re, im := real(c), imag(c)
-	if v.typ != nil && v.typ.Kind == KComplex64 {
-		re = float64(float32(re))
-		im = float64(float32(im))
-	}
-	rs, rneg := r.floatText(re)
-	is, ineg := r.floatText(im)
-	var rexp, iexp syntax.Expr = &syntax.BasicLit{Value: rs, Kind: syntax.FloatLit}, &syntax.BasicLit{Value: is, Kind: syntax.FloatLit}
-	if rneg {
-		rexp = &syntax.Operation{Op: syntax.Sub, X: rexp}
-	}
-	if ineg {
-		iexp = &syntax.Operation{Op: syntax.Sub, X: iexp}
-	}
-	return &syntax.CallExpr{Fun: syntax.NewName(r.pos, "complex"), ArgList: []syntax.Expr{rexp, iexp}}, nil
+	return &syntax.ParenExpr{X: &syntax.Operation{
+		Op: syntax.Add,
+		X:  &syntax.ParenExpr{X: rexp},
+		Y: &syntax.Operation{
+			Op: syntax.Mul,
+			X:  &syntax.ParenExpr{X: iexp},
+			Y:  &syntax.BasicLit{Value: "1i", Kind: syntax.ImagLit},
+		},
+	}}, nil
 }
 
 func (r *renderer) ratLit(v *big.Rat) syntax.Expr {
