@@ -290,11 +290,13 @@ func (fl *fileLower) synthQualifier(p *types2.Package) string {
 		}
 		return existing
 	}
-	var q string
-	for i := 0; ; i++ {
-		q = fmt.Sprintf("_logos_t%d", i)
-		if !reg.used[q] {
-			break
+	q := interpUnsafePkg
+	if p != types2.Unsafe {
+		for i := 0; ; i++ {
+			q = fmt.Sprintf("_logos_t%d", i)
+			if !reg.used[q] {
+				break
+			}
 		}
 	}
 	reg.used[q] = true
