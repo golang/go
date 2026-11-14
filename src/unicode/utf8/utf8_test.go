@@ -773,6 +773,34 @@ func BenchmarkDecodeJapaneseRuneInString(b *testing.B) {
 	}
 }
 
+func BenchmarkDecodeLastASCIIRune(b *testing.B) {
+	a := []byte{'a'}
+	for b.Loop() {
+		DecodeLastRune(a)
+	}
+}
+
+func BenchmarkDecodeLastJapaneseRune(b *testing.B) {
+	nihon := []byte("本")
+	for b.Loop() {
+		DecodeLastRune(nihon)
+	}
+}
+
+func BenchmarkDecodeLastASCIIRuneInString(b *testing.B) {
+	a := "a"
+	for b.Loop() {
+		DecodeLastRuneInString(a)
+	}
+}
+
+func BenchmarkDecodeLastJapaneseRuneInString(b *testing.B) {
+	nihon := "本"
+	for b.Loop() {
+		DecodeLastRuneInString(nihon)
+	}
+}
+
 var (
 	runeSink rune
 	sizeSink int
