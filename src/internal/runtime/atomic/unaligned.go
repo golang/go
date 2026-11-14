@@ -7,3 +7,7 @@ package atomic
 func panicUnaligned() {
 	panic("unaligned 64-bit atomic operation")
 }
+
+func panicUnaligned128() {
+	panic("unaligned 128-bit atomic operation")
+}
