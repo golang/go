@@ -58,6 +58,7 @@ var X86 struct {
 	HasSSE42            bool
 	HasVAES             bool
 	HasVPCLMULQDQ       bool
+	HasXGETBV1          bool // Supports XGETBV with ECX=1 (XINUSE bitmap)
 	_                   CacheLinePad
 }
 

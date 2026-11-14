@@ -65,6 +65,9 @@ const (
 	cpuid_FSRM = 1 << 4
 	// edx bits for CPUID 0x80000001
 	cpuid_RDTSCP = 1 << 27
+
+	// eax bits for CPUID 0x0d, 1
+	cpuid_XGETBV1 = 1 << 2
 )
 
 var maxExtendedFunctionInformation uint32
@@ -79,6 +82,7 @@ func doinit() {
 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
 		{Name: "sha", Feature: &X86.HasSHA},
 		{Name: "vpclmulqdq", Feature: &X86.HasAVX512VPCLMULQDQ},
+		{Name: "xgetbv1", Feature: &X86.HasXGETBV1},
 	}
 	level := getGOAMD64level()
 	if level < 2 {
@@ -199,6 +203,14 @@ func doinit() {
 		//
 		// Check if opmask, ZMMhi256 and Hi16_ZMM have OS support.
 		osSupportsAVX512 = osSupportsAVX && isSet(eax, 1<<5) && isSet(eax, 1<<6) && isSet(eax, 1<<7)
+
+		// Check if CPU supports XGETBV with ECX=1 (returns XINUSE in EAX, the
+		// bitmap of XSAVE state components currently not in INIT state).
+		// Gated on HasOSXSAVE because executing XGETBV requires CR4.OSXSAVE=1.
+		if maxID >= 0x0d {
+			eax0d1, _, _, _ := cpuid(0x0d, 1)
+			X86.HasXGETBV1 = isSet(eax0d1, cpuid_XGETBV1)
+		}
 	}
 
 	X86.HasAVX = isSet(ecx1, cpuid_AVX) && osSupportsAVX

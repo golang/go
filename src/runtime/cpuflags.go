@@ -11,11 +11,12 @@ import (
 
 // Offsets into internal/cpu records for use in assembly.
 const (
-	offsetX86HasAVX    = unsafe.Offsetof(cpu.X86.HasAVX)
-	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
-	offsetX86HasAVX512 = unsafe.Offsetof(cpu.X86.HasAVX512) // F+CD+BW+DQ+VL
-	offsetX86HasERMS   = unsafe.Offsetof(cpu.X86.HasERMS)
-	offsetX86HasRDTSCP = unsafe.Offsetof(cpu.X86.HasRDTSCP)
+	offsetX86HasAVX     = unsafe.Offsetof(cpu.X86.HasAVX)
+	offsetX86HasAVX2    = unsafe.Offsetof(cpu.X86.HasAVX2)
+	offsetX86HasAVX512  = unsafe.Offsetof(cpu.X86.HasAVX512) // F+CD+BW+DQ+VL
+	offsetX86HasERMS    = unsafe.Offsetof(cpu.X86.HasERMS)
+	offsetX86HasRDTSCP  = unsafe.Offsetof(cpu.X86.HasRDTSCP)
+	offsetX86HasXGETBV1 = unsafe.Offsetof(cpu.X86.HasXGETBV1)
 
 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
 
