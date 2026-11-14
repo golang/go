@@ -205,6 +205,8 @@ type clientStream struct {
 	abort     chan struct{} // closed to signal stream should end immediately
 	abortErr  error         // set if abort is closed
 
+	discardOnce sync.Once // discardResponseBody has run
+
 	peerClosed chan struct{} // closed when the peer sends an END_STREAM flag
 	donec      chan struct{} // closed after the stream is in the closed state
 	on100      chan struct{} // buffered; written to if a 100 is received
@@ -830,6 +832,7 @@ func (cc *ClientConn) roundTrip(req *ClientRequest, streamf func(*clientStream))
 	}
 
 	cancelRequest := func(cs *clientStream, err error) error {
+		cs.discardResponseBody(err)
 		cs.cc.mu.Lock()
 		bodyClosed := cs.reqBodyClosed
 		cs.cc.mu.Unlock()
@@ -865,6 +868,7 @@ func (cc *ClientConn) roundTrip(req *ClientRequest, streamf func(*clientStream))
 				// golang.org/issue/49645
 				return handleResponseHeaders()
 			default:
+				cs.discardResponseBody(cs.abortErr)
 				if err := waitDone(); err != nil {
 					// If request cancellation races the abort cleaning up
 					// the request, prefer the cancellation error.
@@ -2224,28 +2228,8 @@ var errClosedResponseBody = errors.New("http2: response body closed")
 
 func (b transportResponseBody) Close() error {
 	cs := b.cs
-	cc := cs.cc
 
-	cs.bufPipe.BreakWithError(errClosedResponseBody)
-	cs.abortStream(errClosedResponseBody)
-
-	unread := cs.bufPipe.Len()
-	if unread > 0 {
-		cc.mu.Lock()
-		// Return connection-level flow control.
-		connAdd := cc.inflow.add(unread)
-		cc.mu.Unlock()
-
-		// TODO(dneil): Acquiring this mutex can block indefinitely.
-		// Move flow control return to a goroutine?
-		cc.wmu.Lock()
-		// Return connection-level flow control.
-		if connAdd > 0 {
-			cc.fr.WriteWindowUpdate(0, uint32(connAdd))
-		}
-		cc.bw.Flush()
-		cc.wmu.Unlock()
-	}
+	cs.discardResponseBody(errClosedResponseBody)
 
 	select {
 	case <-cs.donec:
@@ -2258,6 +2242,38 @@ func (b transportResponseBody) Close() error {
 		return errRequestCanceled
 	}
 	return nil
+}
+
+// discardResponseBody aborts the stream, discards any response data
+// buffered for it and returns the connection-level flow control of that
+// data, once. Data arriving afterwards is not buffered, so processData
+// returns its flow control on receipt. It is called when nobody will
+// read the response body.
+func (cs *clientStream) discardResponseBody(err error) {
+	cs.discardOnce.Do(func() {
+		cc := cs.cc
+
+		cs.bufPipe.BreakWithError(err)
+		cs.abortStream(err)
+
+		unread := cs.bufPipe.Len()
+		if unread > 0 {
+			cc.mu.Lock()
+			// Return connection-level flow control.
+			connAdd := cc.inflow.add(unread)
+			cc.mu.Unlock()
+
+			// TODO(dneil): Acquiring this mutex can block indefinitely.
+			// Move flow control return to a goroutine?
+			cc.wmu.Lock()
+			// Return connection-level flow control.
+			if connAdd > 0 {
+				cc.fr.WriteWindowUpdate(0, uint32(connAdd))
+			}
+			cc.bw.Flush()
+			cc.wmu.Unlock()
+		}
+	})
 }
 
 func (rl *clientConnReadLoop) processData(f *DataFrame) error {
