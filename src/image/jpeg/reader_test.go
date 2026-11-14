@@ -548,6 +548,29 @@ func TestIssue78368(t *testing.T) {
 	}))
 }
 
+func TestDCCategory(t *testing.T) {
+	// An 8x8 gray image whose DC table has a single code, for category ssss.
+	data := func(ssss byte, scan ...byte) []byte {
+		b := []byte{0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00}
+		b = append(b, bytes.Repeat([]byte{1}, 64)...)
+		b = append(b,
+			0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x08, 0x00, 0x08, 0x01, 0x01, 0x11, 0x00,
+			0xff, 0xc4, 0x00, 0x14, 0x00, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ssss,
+			0xff, 0xc4, 0x00, 0x14, 0x10, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x00,
+			0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00,
+		)
+		b = append(b, scan...)
+		return append(b, 0xff, 0xd9)
+	}
+	if _, err := Decode(bytes.NewReader(data(15, 0x40, 0x00, 0x7f))); err != nil {
+		t.Errorf("category 15: %v", err)
+	}
+	_, err := Decode(bytes.NewReader(data(16, 0x40, 0x00, 0x3f)))
+	if want := UnsupportedError("excessive DC component"); err != want {
+		t.Errorf("category 16: got %v, want %v", err, want)
+	}
+}
+
 func TestBadRestartMarker(t *testing.T) {
 	b, err := os.ReadFile("../testdata/video-001.restart2.jpeg")
 	if err != nil {
