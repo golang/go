@@ -14,23 +14,66 @@ import (
 )
 
 const COFFSymbolSize = 18
+const BigObjSymbolSize = 20
 
 // COFFSymbol represents single COFF symbol table record.
+// NOTE: This is actually the format of a bigobj COFF symbol.
+// The only difference between a bigobj symbol and regular symbol
+// is that the SectionNumber is 32-bits.
 type COFFSymbol struct {
 	Name               [8]uint8
 	Value              uint32
-	SectionNumber      int16
+	SectionNumber      int32 // bigobj format (this field is 32 bits, rather than 16)
 	Type               uint16
 	StorageClass       uint8
 	NumberOfAuxSymbols uint8
 }
 
+// rawCOFFSymbol represents a COFF symbol as stored in a regular COFF file
+type rawCOFFSymbol struct {
+	Name               [8]uint8
+	Value              uint32
+	SectionNumber      int16 // 16-bit in regular COFF
+	Type               uint16
+	StorageClass       uint8
+	NumberOfAuxSymbols uint8
+}
+
+// readBigObjSymbol reads a single symbol from bigobj COFF format (20 bytes)
+func readBigObjSymbol(r io.ReadSeeker) (COFFSymbol, error) {
+	var sym COFFSymbol
+	err := binary.Read(r, binary.LittleEndian, &sym)
+	return sym, err
+}
+
+// readRegularSymbol reads a single symbol from regular COFF format (18 bytes) and converts to COFFSymbol
+func readRegularSymbol(r io.ReadSeeker) (COFFSymbol, error) {
+	var rawSym rawCOFFSymbol
+	err := binary.Read(r, binary.LittleEndian, &rawSym)
+	if err != nil {
+		return COFFSymbol{}, err
+	}
+
+	sym := COFFSymbol{
+		Name:               rawSym.Name,
+		Value:              rawSym.Value,
+		SectionNumber:      int32(rawSym.SectionNumber), // Extend to 32 bits
+		Type:               rawSym.Type,
+		StorageClass:       rawSym.StorageClass,
+		NumberOfAuxSymbols: rawSym.NumberOfAuxSymbols,
+	}
+	return sym, nil
+}
+
 // readCOFFSymbols reads in the symbol table for a PE file, returning
-// a slice of COFFSymbol objects. The PE format includes both primary
-// symbols (whose fields are described by COFFSymbol above) and
-// auxiliary symbols; all symbols are 18 bytes in size. The auxiliary
-// symbols for a given primary symbol are placed following it in the
-// array, e.g.
+// a slice of COFFSymbol objects containing both primary and auxiliary symbols.
+// In a regular COFF file, each symbol is 18 bytes, with a 16-bit SectionNumber field.
+// In a bigobj COFF file, each symbol is 20 bytes, with a 32-bit SectionNumber field.
+//
+// The COFF symbol table contains both primary symbols and auxiliary symbols.
+// Auxiliary symbols immediately follow their associated primary symbol in both
+// the binary data and the returned slice.
+// In the binary format, symbols are arranged like this:
 //
 //	...
 //	k+0:  regular sym k
@@ -48,44 +91,45 @@ type COFFSymbol struct {
 //
 // At the moment this package only provides APIs for looking at
 // aux symbols of format 5 (associated with section definition symbols).
-func readCOFFSymbols(fh *FileHeader, r io.ReadSeeker) ([]COFFSymbol, error) {
-	if fh.PointerToSymbolTable == 0 {
+func readCOFFSymbols(f *File, r io.ReadSeeker) ([]COFFSymbol, error) {
+	if f.GetPointerToSymbolTable() == 0 {
 		return nil, nil
 	}
-	if fh.NumberOfSymbols <= 0 {
+	if f.GetNumberOfSymbols() <= 0 {
 		return nil, nil
 	}
-	_, err := r.Seek(int64(fh.PointerToSymbolTable), io.SeekStart)
+	_, err := r.Seek(int64(f.GetPointerToSymbolTable()), io.SeekStart)
 	if err != nil {
 		return nil, fmt.Errorf("fail to seek to symbol table: %v", err)
 	}
-	c := saferio.SliceCap[COFFSymbol](uint64(fh.NumberOfSymbols))
+	c := saferio.SliceCap[COFFSymbol](uint64(f.GetNumberOfSymbols()))
 	if c < 0 {
 		return nil, errors.New("too many symbols; file may be corrupt")
 	}
 	syms := make([]COFFSymbol, 0, c)
 	naux := 0
-	for k := uint32(0); k < fh.NumberOfSymbols; k++ {
+
+	isBigObj := f.IsBigObj()
+
+	for k := uint32(0); k < f.GetNumberOfSymbols(); k++ {
 		var sym COFFSymbol
+
+		if isBigObj {
+			sym, err = readBigObjSymbol(r)
+		} else {
+			sym, err = readRegularSymbol(r)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("fail to read symbol table: %v", err)
+		}
+
 		if naux == 0 {
-			// Read a primary symbol.
-			err = binary.Read(r, binary.LittleEndian, &sym)
-			if err != nil {
-				return nil, fmt.Errorf("fail to read symbol table: %v", err)
-			}
-			// Record how many auxiliary symbols it has.
+			// This is a primary symbol
+			// Record how many auxilliary symbols it has
 			naux = int(sym.NumberOfAuxSymbols)
 		} else {
-			// Read an aux symbol. At the moment we assume all
-			// aux symbols are format 5 (obviously this doesn't always
-			// hold; more cases will be needed below if more aux formats
-			// are supported in the future).
+			// This is an auxilliary symbol
 			naux--
-			aux := (*COFFSymbolAuxFormat5)(unsafe.Pointer(&sym))
-			err = binary.Read(r, binary.LittleEndian, aux)
-			if err != nil {
-				return nil, fmt.Errorf("fail to read symbol table: %v", err)
-			}
 		}
 		syms = append(syms, sym)
 	}
@@ -151,7 +195,7 @@ func removeAuxSymbols(allsyms []COFFSymbol, st StringTable) ([]*Symbol, error) {
 type Symbol struct {
 	Name          string
 	Value         uint32
-	SectionNumber int16
+	SectionNumber int32
 	Type          uint16
 	StorageClass  uint8
 }
