@@ -283,3 +283,35 @@ func TestGoexitInCleanupAfterPanicHelper(t *testing.T) {
 	t.Parallel()
 	panic("die")
 }
+
+func TestBenchmarkPanic(t *testing.T) {
+	testenv.MustHaveExec(t)
+
+	cmd := exec.Command(testenv.Executable(t), "-test.run=^$", "-test.bench=^BenchmarkPanicHelper$", "-test.benchtime=1x")
+	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+	b, err := cmd.CombinedOutput()
+	got := string(b)
+	if err == nil {
+		t.Error("subprocess succeeded; want it to crash from the panic")
+	}
+	for _, want := range []string{"ran inner cleanup", "ran middle cleanup", "ran outer cleanup", "panic: die"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output does not contain %q:\n%s", want, got)
+		}
+	}
+}
+
+func BenchmarkPanicHelper(b *testing.B) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+
+	b.Cleanup(func() { fmt.Println("ran outer cleanup") })
+	b.Run("middle", func(b *testing.B) {
+		b.Cleanup(func() { fmt.Println("ran middle cleanup") })
+		b.Run("inner", func(b *testing.B) {
+			b.Cleanup(func() { fmt.Println("ran inner cleanup") })
+			panic("die")
+		})
+	})
+}
