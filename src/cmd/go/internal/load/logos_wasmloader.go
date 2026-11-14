@@ -7,6 +7,9 @@ package load
 import (
 	"bytes"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -115,24 +118,41 @@ func collectPackageWasmLoaderHelpers(q *Package, found map[string]bool) {
 		if err != nil {
 			continue
 		}
-		for line := range bytes.SplitSeq(data, []byte("\n")) {
-			if name, ok := wasmExportName(line); ok && slices.Contains(loaderHelpers, name) {
+		for _, name := range fileWasmExportNames(data) {
+			if slices.Contains(loaderHelpers, name) {
 				found[name] = true
 			}
 		}
 	}
 }
 
-func wasmExportName(line []byte) (string, bool) {
-	rest, ok := bytes.CutPrefix(bytes.TrimLeft(line, " \t"), []byte("//go:wasmexport "))
-	if !ok {
-		return "", false
+func fileWasmExportNames(data []byte) []string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", data, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		return nil
 	}
-	fields := bytes.Fields(rest)
-	if len(fields) != 1 {
-		return "", false
+	var names []string
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok || fn.Recv != nil || fn.Doc == nil {
+			continue
+		}
+		for _, comment := range fn.Doc.List {
+			if !strings.HasPrefix(comment.Text, "//go:wasmexport ") {
+				continue
+			}
+			pos := fset.PositionFor(comment.Pos(), false)
+			if len(bytes.TrimSpace(data[pos.Offset-pos.Column+1:pos.Offset])) != 0 {
+				continue
+			}
+			fields := strings.Fields(comment.Text)
+			if len(fields) == 2 {
+				names = append(names, fields[1])
+			}
+		}
 	}
-	return string(fields[0]), true
+	return names
 }
 
 func dropLogosRTImport(pkgs []*Package) []*Package {
