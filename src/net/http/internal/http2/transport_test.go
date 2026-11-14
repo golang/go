@@ -4914,6 +4914,68 @@ func testTransportCloseResponseBodyWhileRequestBodyHangs(t *testing.T) {
 	pw.Close()
 }
 
+func TestTransportResponseBodyReadUnblocksOnContextCancel(t *testing.T) {
+	synctest.Test(t, testTransportResponseBodyReadUnblocksOnContextCancel)
+}
+func testTransportResponseBodyReadUnblocksOnContextCancel(t *testing.T) {
+	// golang/go#83068: cancelling the request context while the response
+	// body is being read must unblock Read, even when the request body
+	// is unfinished and the stream is detached.
+	ts := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		w.(http.Flusher).Flush()
+		io.Copy(io.Discard, r.Body)
+	})
+
+	tr := newTransport(t)
+
+	pr, pw := net.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	req, err := http.NewRequestWithContext(ctx, "POST", ts.URL, pr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := tr.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+
+	// The request body is unfinished, so the stream is detached and the
+	// writeRequest goroutine is still parked. Cancel the context and
+	// confirm the blocked Read returns promptly with the context error.
+	cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := res.Body.Read(make([]byte, 1))
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("Read returned nil error after context cancellation")
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Read error = %v; want context.Canceled", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Read is still blocked 5s after the context was canceled")
+	}
+	pw.Close()
+
+	// The cancelled stream must not poison connection reuse: a second
+	// request on the same Transport should succeed.
+	req2, err := http.NewRequest("GET", ts.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res2, err := tr.RoundTrip(req2)
+	if err != nil {
+		t.Fatalf("second RoundTrip: %v", err)
+	}
+	res2.Body.Close()
+}
+
 func TestTransport300ResponseBody(t *testing.T) { synctest.Test(t, testTransport300ResponseBody) }
 func testTransport300ResponseBody(t *testing.T) {
 	reqc := make(chan struct{})
