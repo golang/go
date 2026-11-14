@@ -14,25 +14,15 @@ import (
 	"simd/internal/simdfmt"
 )
 
-// VectorBitSize returns the bit length of the emulated vector (fixed to 128).
-func VectorBitSize() int {
-	return 128
-}
-
-// Emulated returns whether simd is emulated.
-func Emulated() bool {
-	return true
-}
-
-// HasHardwareCarrylessMultiply returns whether this platform
-// has a hardware-implemented version of carryless multiply.
-// With default GODEBUG=simd settings, if this is false,
-// it is emulated and merely slow, but with non-default settings
-// this can indicate the possibility of a missing instruction
-// that will fail ("SIGILL") if it is executed.
-func HasHardwareCarrylessMultiply() bool {
-	return false
-}
+// State reported by VectorBitSize, Emulated, and HasHardwareCarrylessMultiply
+// (see config.go). On GOARCHes without SIMD hardware support, operations are
+// always emulated.
+const (
+	maxVectorSize  = 128
+	emulated       = true
+	hwClmul        = false
+	archHasHwClmul = false
+)
 
 // LoadInt8s loads a slice into a vector. If len(s) < z.Len(), it panics.
 func LoadInt8s(s []int8) (z Int8s) {
