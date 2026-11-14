@@ -562,7 +562,10 @@ const defaultUserAgent = "Go-http-client/1.1"
 //
 // If Body is present, Content-Length is <= 0 and [Request.TransferEncoding]
 // hasn't been set to "identity", Write adds "Transfer-Encoding:
-// chunked" to the header. Body is closed after it is sent.
+// chunked" to the header. If TransferEncoding is set to a value other than
+// "chunked" (such as "identity"), ContentLength must be set for a non-empty
+// Body, since HTTP/1.1 has no other way to mark where the body ends;
+// otherwise Write returns an error. Body is closed after it is sent.
 //
 // Header values for Host, Content-Length, Transfer-Encoding,
 // and Trailer are not used; these are derived from other Request fields.
