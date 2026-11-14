@@ -302,12 +302,8 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			inner := targets{ctxt.breaks, ctxt.continues, -1}
 			innerBlock(inner, s.Pos(), s.List)
 
-		case *GroupStmt:
-			inner := targets{ctxt.breaks, ctxt.continues, -1}
-			innerBlock(inner, s.Body.Pos(), s.Body.List)
-
-		case *GroupChild:
-			checkBranches(s.Body, ls.errh)
+		case *GroupStmt, *GroupChild:
+			logosBranchesGroup(ls, s, ctxt, innerBlock)
 
 		case *IfStmt:
 			inner := targets{ctxt.breaks, ctxt.continues, -1}
@@ -321,27 +317,13 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
 			innerBlock(inner, s.Body.Pos(), s.Body.List)
 
 		case *ConstForStmt:
-			inner := targets{ctxt.breaks, ctxt.continues, -1}
-			innerBlock(inner, s.Body.Pos(), s.Body.List)
+			logosBranchesConstFor(s, ctxt, innerBlock)
 
 		case *SwitchStmt:
-			inner := targets{s, ls.logosContinues(ctxt), -1}
-			depth := ls.constSwitchDepth
-			ls.constSwitchDepth = 0
-			for i, cc := range s.Body {
-				inner.caseIndex = i
-				innerBlock(inner, cc.Pos(), cc.Body)
-			}
-			ls.constSwitchDepth = depth
+			logosBranchesSwitch(ls, s, ctxt, innerBlock)
 
 		case *SelectStmt:
-			inner := targets{s, ls.logosContinues(ctxt), -1}
-			depth := ls.constSwitchDepth
-			ls.constSwitchDepth = 0
-			for _, cc := range s.Body {
-				innerBlock(inner, cc.Pos(), cc.Body)
-			}
-			ls.constSwitchDepth = depth
+			logosBranchesSelect(ls, s, ctxt, innerBlock)
 
 		case *ConstIfStmt, *ConstSwitchStmt:
 			logosConstBranches(ls, s, ctxt, innerBlock) // logos M7-S1/S4 hook.
