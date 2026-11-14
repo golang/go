@@ -2112,7 +2112,7 @@ func computeTestInputsID(a *work.Action, testlog []byte, inputs *bytes.Buffer) (
 			})
 		case "stat":
 			if !filepath.IsAbs(name) {
-				name = filepath.Join(pwd, name)
+				name = joinTestLogName(pwd, name)
 			}
 			add(op, name, func() (cache.ActionID, error) {
 				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
@@ -2123,7 +2123,7 @@ func computeTestInputsID(a *work.Action, testlog []byte, inputs *bytes.Buffer) (
 			})
 		case "open":
 			if !filepath.IsAbs(name) {
-				name = filepath.Join(pwd, name)
+				name = joinTestLogName(pwd, name)
 			}
 			add(op, name, func() (cache.ActionID, error) {
 				if a.Package.Root == "" || search.InDir(name, a.Package.Root) == "" {
@@ -2179,6 +2179,15 @@ func computeTestInputsID(a *work.Action, testlog []byte, inputs *bytes.Buffer) (
 
 	sum := h.Sum()
 	return sum, nil
+}
+
+// joinTestLogName returns the relative name from the test log
+// as an absolute name in the directory dir. Unlike filepath.Join,
+// it does not clean the result: the operating system may resolve
+// a symbolic link before a ".." that follows it, in which case the
+// cleaned name refers to a different file from the one the test used.
+func joinTestLogName(dir, name string) string {
+	return str.WithFilePathSeparator(dir) + name
 }
 
 func hashGetenv(name string) cache.ActionID {
