@@ -33,6 +33,7 @@ var (
 //go:cgo_import_dynamic libc_clock_gettime clock_gettime "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_close close "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_exit _exit "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_free free "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_getpid getpid "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_getsystemcfg getsystemcfg "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_kill kill "libc.a/shr_64.o"
@@ -46,6 +47,7 @@ var (
 //go:cgo_import_dynamic libc_raise raise "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_read read "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_sched_yield sched_yield "libc.a/shr_64.o"
+//go:cgo_import_dynamic libc_sem_destroy sem_destroy "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_sem_init sem_init "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_sem_post sem_post "libc.a/shr_64.o"
 //go:cgo_import_dynamic libc_sem_timedwait sem_timedwait "libc.a/shr_64.o"
@@ -77,6 +79,7 @@ var (
 //go:linkname libc_clock_gettime libc_clock_gettime
 //go:linkname libc_close libc_close
 //go:linkname libc_exit libc_exit
+//go:linkname libc_free libc_free
 //go:linkname libc_getpid libc_getpid
 //go:linkname libc_getsystemcfg libc_getsystemcfg
 //go:linkname libc_kill libc_kill
@@ -90,6 +93,7 @@ var (
 //go:linkname libc_raise libc_raise
 //go:linkname libc_read libc_read
 //go:linkname libc_sched_yield libc_sched_yield
+//go:linkname libc_sem_destroy libc_sem_destroy
 //go:linkname libc_sem_init libc_sem_init
 //go:linkname libc_sem_post libc_sem_post
 //go:linkname libc_sem_timedwait libc_sem_timedwait
@@ -123,6 +127,7 @@ var (
 	libc_clock_gettime,
 	libc_close,
 	libc_exit,
+	libc_free,
 	libc_getpid,
 	libc_getsystemcfg,
 	libc_kill,
@@ -136,6 +141,7 @@ var (
 	libc_raise,
 	libc_read,
 	libc_sched_yield,
+	libc_sem_destroy,
 	libc_sem_init,
 	libc_sem_post,
 	libc_sem_timedwait,
@@ -575,8 +581,19 @@ func malloc(size uintptr) unsafe.Pointer {
 }
 
 //go:nosplit
+func free(p unsafe.Pointer) {
+	syscall1(&libc_free, uintptr(p))
+}
+
+//go:nosplit
 func sem_init(sem *semt, pshared int32, value uint32) int32 {
 	r, _ := syscall3(&libc_sem_init, uintptr(unsafe.Pointer(sem)), uintptr(pshared), uintptr(value))
+	return int32(r)
+}
+
+//go:nosplit
+func sem_destroy(sem *semt) int32 {
+	r, _ := syscall1(&libc_sem_destroy, uintptr(unsafe.Pointer(sem)))
 	return int32(r)
 }
 
