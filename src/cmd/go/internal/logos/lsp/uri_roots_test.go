@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -54,6 +55,51 @@ func TestOutsideRootsNotTracked(t *testing.T) {
 	}
 	if got := p.docPath("file://" + root + "/%2e%2e/etc/x.lgo"); got != "" {
 		t.Fatalf("docPath tracked an escaped path: %q", got)
+	}
+}
+
+func TestRootSeparatorsTrackDocuments(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "work")
+	for _, tt := range []struct {
+		name string
+		root string
+		path string
+		want bool
+	}{
+		{
+			name: "filesystem root",
+			root: filepath.VolumeName(dir) + string(os.PathSeparator),
+			path: filepath.Join(dir, "a.lgo"),
+			want: true,
+		},
+		{
+			name: "trailing separator",
+			root: root + "/",
+			path: filepath.Join(root, "a.lgo"),
+			want: true,
+		},
+		{
+			name: "sibling prefix",
+			root: root,
+			path: filepath.Join(dir, "workspace", "a.lgo"),
+			want: false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			p := initProxy(t, tt.root)
+			uri := pathURI(tt.path)
+			raw, err := encode(didOpenParams{TextDocument: textDocumentItem{
+				URI: uri, LanguageID: "logos", Version: 1, Text: "package p\n",
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			p.clientNotification(t.Context(), &message{Method: "textDocument/didOpen", Params: raw})
+			if got := p.st.open(tt.path); got != tt.want {
+				t.Errorf("open(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
 	}
 }
 

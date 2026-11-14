@@ -119,7 +119,11 @@ func (p *Proxy) contain(path string) string {
 		return path
 	}
 	for _, root := range p.roots {
-		if path == root || strings.HasPrefix(path, root+string(os.PathSeparator)) {
+		prefix := root
+		if !strings.HasSuffix(prefix, string(os.PathSeparator)) {
+			prefix += string(os.PathSeparator)
+		}
+		if path == root || strings.HasPrefix(path, prefix) {
 			return path
 		}
 	}
