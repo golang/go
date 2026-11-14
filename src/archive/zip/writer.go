@@ -322,33 +322,7 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
 	fh.CreatorVersion = fh.CreatorVersion&0xff00 | zipVersion20 // preserve compatibility byte
 	fh.ReaderVersion = zipVersion20
 
-	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
-	if !fh.Modified.IsZero() {
-		// Contrary to the FileHeader.SetModTime method, we intentionally
-		// do not convert to UTC, because we assume the user intends to encode
-		// the date using the specified timezone. A user may want this control
-		// because many legacy ZIP readers interpret the timestamp according
-		// to the local timezone.
-		//
-		// The timezone is only non-UTC if a user directly sets the Modified
-		// field directly themselves. All other approaches sets UTC.
-		fh.ModifiedDate, fh.ModifiedTime = timeToMsDosTime(fh.Modified)
-
-		// Use "extended timestamp" format since this is what Info-ZIP uses.
-		// Nearly every major ZIP implementation uses a different format,
-		// but at least most seem to be able to understand the other formats.
-		//
-		// This format happens to be identical for both local and central header
-		// if modification time is the only timestamp being encoded.
-		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
-		mt := uint32(fh.Modified.Unix())
-		eb := writeBuf(mbuf[:])
-		eb.uint16(extTimeExtraID)
-		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
-		eb.uint8(1)   // Flags: ModTime
-		eb.uint32(mt) // ModTime
-		fh.Extra = append(fh.Extra, mbuf[:]...)
-	}
+	encodeModified(fh)
 
 	var (
 		ow io.Writer
@@ -488,6 +462,38 @@ func writeHeader(w io.Writer, h *header) error {
 	return nil
 }
 
+// encodeModified encodes fh.Modified, if set, into the MS-DOS timestamp fields
+// and an extended timestamp extra field.
+func encodeModified(fh *FileHeader) {
+	// If Modified is set, this takes precedence over MS-DOS timestamp fields.
+	if !fh.Modified.IsZero() {
+		// Contrary to the FileHeader.SetModTime method, we intentionally
+		// do not convert to UTC, because we assume the user intends to encode
+		// the date using the specified timezone. A user may want this control
+		// because many legacy ZIP readers interpret the timestamp according
+		// to the local timezone.
+		//
+		// The timezone is only non-UTC if a user directly sets the Modified
+		// field directly themselves. All other approaches sets UTC.
+		fh.ModifiedDate, fh.ModifiedTime = timeToMsDosTime(fh.Modified)
+
+		// Use "extended timestamp" format since this is what Info-ZIP uses.
+		// Nearly every major ZIP implementation uses a different format,
+		// but at least most seem to be able to understand the other formats.
+		//
+		// This format happens to be identical for both local and central header
+		// if modification time is the only timestamp being encoded.
+		var mbuf [9]byte // 2*SizeOf(uint16) + SizeOf(uint8) + SizeOf(uint32)
+		mt := uint32(fh.Modified.Unix())
+		eb := writeBuf(mbuf[:])
+		eb.uint16(extTimeExtraID)
+		eb.uint16(5)  // Size: SizeOf(uint8) + SizeOf(uint32)
+		eb.uint8(1)   // Flags: ModTime
+		eb.uint32(mt) // ModTime
+		fh.Extra = append(fh.Extra, mbuf[:]...)
+	}
+}
+
 // CreateRaw adds a file to the zip archive using the provided [FileHeader] and
 // returns a [Writer] to which the file contents should be written. The file's
 // contents must be written to the io.Writer before the next call to [Writer.Create],
@@ -502,7 +508,13 @@ func (w *Writer) CreateRaw(fh *FileHeader) (io.Writer, error) {
 	if err := w.prepare(fh); err != nil {
 		return nil, err
 	}
+	encodeModified(fh)
+	return w.createRaw(fh)
+}
 
+// createRaw is CreateRaw without encoding fh.Modified, for callers whose
+// fh.Extra and MS-DOS timestamp fields already describe the file.
+func (w *Writer) createRaw(fh *FileHeader) (io.Writer, error) {
 	fh.CompressedSize = uint32(min(fh.CompressedSize64, uint32max))
 	fh.UncompressedSize = uint32(min(fh.UncompressedSize64, uint32max))
 
@@ -539,7 +551,12 @@ func (w *Writer) Copy(f *File) error {
 	// Copy the FileHeader so w doesn't store a pointer to the data
 	// of f's entire archive. See #65499.
 	fh := f.FileHeader
-	fw, err := w.CreateRaw(&fh)
+	// fh's MS-DOS fields and Extra already hold f's timestamps.
+	// Encoding fh.Modified again would add a second, possibly different, one.
+	if err := w.prepare(&fh); err != nil {
+		return err
+	}
+	fw, err := w.createRaw(&fh)
 	if err != nil {
 		return err
 	}
