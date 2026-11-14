@@ -300,6 +300,91 @@ func TestToolchainOneRunYieldsAllOutputs(t *testing.T) {
 	}
 }
 
+func TestToolchainDiskChangedRefreshesDiagnostics(t *testing.T) {
+	root, _ := realWorkspace(t)
+	scratch := t.TempDir()
+	logPath := filepath.Join(scratch, "argv.log")
+	wrapper := filepath.Join(scratch, "wrap.sh")
+	script := fmt.Sprintf("#!/bin/bash\nprintf '%%s\\n' \"$*\" >>%q\nexec -a logos %q \"$@\"\n", logPath, testenv.GoToolPath(t))
+	if err := os.WriteFile(wrapper, []byte(script), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	tc := newToolchain(wrapper)
+	dir := filepath.Join(root, "gomod", "plain")
+	buffers := map[string][]byte{
+		filepath.Join(dir, "p.go"): []byte("package plain\n\nfunc F() int { return 1 }\n"),
+	}
+	diagnose := func() []Diagnostic {
+		t.Helper()
+		diags, err := tc.Diagnose(t.Context(), dir, buffers)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return diags
+	}
+	assertRuns := func(want int) {
+		t.Helper()
+		argv, err := os.ReadFile(logPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := len(strings.Split(strings.TrimSpace(string(argv)), "\n")); got != want {
+			t.Fatalf("list invocations = %d, want %d: %q", got, want, argv)
+		}
+	}
+	if diags := diagnose(); len(diags) != 0 {
+		t.Fatalf("initial diagnostics = %+v, want none", diags)
+	}
+	path := filepath.Join(dir, "unopened.go")
+	if err := os.WriteFile(path, []byte("package plain\n\nfunc G() { var unused int }\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if diags := diagnose(); len(diags) != 0 {
+		t.Fatalf("diagnostics before disk notification = %+v, want the cached empty result", diags)
+	}
+	assertRuns(1)
+	tc.DiskChanged()
+	diags := diagnose()
+	if len(diags) != 1 || diags[0].File != path || !strings.Contains(diags[0].Message, "declared and not used") {
+		t.Fatalf("diagnostics after disk notification = %+v, want an unused variable in %s", diags, path)
+	}
+	assertRuns(2)
+}
+
+func TestWatchedFilesInvalidateCompilerRun(t *testing.T) {
+	compiler := newFakeCompiler()
+	p := newProxy(discardWriter{}, Options{Compiler: compiler})
+	p.server = &writer{w: discardWriter{}}
+	dir := t.TempDir()
+	notify := func(name string) {
+		t.Helper()
+		raw, err := encode(map[string]any{
+			"changes": []any{map[string]any{"uri": pathURI(filepath.Join(dir, name)), "type": 2}},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.clientNotification(t.Context(), &message{Method: "workspace/didChangeWatchedFiles", Params: raw})
+	}
+	notify("a.go")
+	if compiler.changes != 0 {
+		t.Fatal("a watched change with no units invalidated the compiler")
+	}
+	u := &unit{dir: dir}
+	p.st.units[dir] = u
+	notify("README")
+	if compiler.changes != 0 || u.dirty || u.gen != 0 {
+		t.Fatal("an unrelated watched change invalidated a unit or the compiler")
+	}
+	for i, name := range []string{"a.go", "a.lgo", "go.mod"} {
+		u.dirty = false
+		notify(name)
+		if compiler.changes != i+1 || !u.dirty || u.gen != i+1 {
+			t.Fatalf("watched %s: invalidations = %d, dirty = %v, generation = %d; want %d, true, %d", name, compiler.changes, u.dirty, u.gen, i+1, i+1)
+		}
+	}
+}
+
 func failingToolchain(t *testing.T) *toolchain {
 	t.Helper()
 	wrapper := filepath.Join(t.TempDir(), "failing-logos")

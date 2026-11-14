@@ -16,6 +16,8 @@ type Compiler interface {
 	Lower(ctx context.Context, dir string, buffers map[string][]byte) (*Lowering, error)
 
 	Diagnose(ctx context.Context, dir string, buffers map[string][]byte) ([]Diagnostic, error)
+
+	DiskChanged()
 }
 
 type Lowering struct {

@@ -101,10 +101,17 @@ type fakeCompiler struct {
 	lowered [][]string
 	buffers []map[string][]byte
 	closed  bool
+	changes int
 }
 
 func newFakeCompiler() *fakeCompiler {
 	return &fakeCompiler{closure: map[string][]string{}, diags: map[string][]Diagnostic{}, errs: map[string]error{}, missing: map[string]bool{}, waits: map[string]chan struct{}{}}
+}
+
+func (f *fakeCompiler) DiskChanged() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changes++
 }
 
 func (f *fakeCompiler) setMissing(paths ...string) {

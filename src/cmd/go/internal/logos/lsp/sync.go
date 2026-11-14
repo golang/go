@@ -303,6 +303,7 @@ func (p *Proxy) markIfRelevant(params watchedParams) {
 		u.gen++
 	}
 	if len(p.st.units) > 0 {
+		p.opts.Compiler.DiskChanged()
 	}
 }
 

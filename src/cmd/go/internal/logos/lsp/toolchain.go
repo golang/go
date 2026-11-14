@@ -46,12 +46,20 @@ type listRun struct {
 type toolchain struct {
 	exe string
 
-	mu   sync.Mutex
-	last *listRun
+	mu         sync.Mutex
+	last       *listRun
+	generation uint64
 }
 
 func newToolchain(exe string) *toolchain {
 	return &toolchain{exe: exe}
+}
+
+func (t *toolchain) DiskChanged() {
+	t.mu.Lock()
+	t.last = nil
+	t.generation++
+	t.mu.Unlock()
 }
 
 type overlay struct {
@@ -133,6 +141,7 @@ func (t *toolchain) runOnce(ctx context.Context, dir string, buffers map[string]
 	key := runKey(dir, buffers)
 	t.mu.Lock()
 	last := t.last
+	generation := t.generation
 	t.mu.Unlock()
 	if last != nil && last.key == key {
 		return last, nil
@@ -174,7 +183,9 @@ func (t *toolchain) runOnce(ctx context.Context, dir string, buffers map[string]
 		}
 	}
 	t.mu.Lock()
-	t.last = last
+	if t.generation == generation {
+		t.last = last
+	}
 	t.mu.Unlock()
 	return last, nil
 }
