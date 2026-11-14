@@ -2,6 +2,8 @@
 
 package runtime
 
+import "unsafe"
+
 type xRegs struct {
 	X0  [32]byte
 	X1  [32]byte
@@ -35,4 +37,12 @@ type xRegs struct {
 	X29 [32]byte
 	X30 [32]byte
 	X31 [32]byte
+}
+
+func (dst *xRegs) copyFrom(src *xRegs) {
+	*dst = *src
+}
+
+func (x *xRegs) scanRange() (off, size uintptr) {
+	return 0, unsafe.Sizeof(*x)
 }

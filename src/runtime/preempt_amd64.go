@@ -2,45 +2,45 @@
 
 package runtime
 
+import "unsafe"
+
 type xRegs struct {
-	Z0  [64]byte
-	Z1  [64]byte
-	Z2  [64]byte
-	Z3  [64]byte
-	Z4  [64]byte
-	Z5  [64]byte
-	Z6  [64]byte
-	Z7  [64]byte
-	Z8  [64]byte
-	Z9  [64]byte
-	Z10 [64]byte
-	Z11 [64]byte
-	Z12 [64]byte
-	Z13 [64]byte
-	Z14 [64]byte
-	Z15 [64]byte
-	Z16 [64]byte
-	Z17 [64]byte
-	Z18 [64]byte
-	Z19 [64]byte
-	Z20 [64]byte
-	Z21 [64]byte
-	Z22 [64]byte
-	Z23 [64]byte
-	Z24 [64]byte
-	Z25 [64]byte
-	Z26 [64]byte
-	Z27 [64]byte
-	Z28 [64]byte
-	Z29 [64]byte
-	Z30 [64]byte
-	Z31 [64]byte
-	K0  uint64
-	K1  uint64
-	K2  uint64
-	K3  uint64
-	K4  uint64
-	K5  uint64
-	K6  uint64
-	K7  uint64
+	XINUSE uint64
+	// data holds contiguously packed SSE/AVX/AVX-512 vector and opmask register
+	// state, laid out according to XINUSE:
+	//   - if XINUSE&xcr0_AX_ZMM_Hi256 != 0: [16][64]byte for Z0-Z15
+	//     else if XINUSE&xcr0_AX_YMM != 0:  [16][32]byte for Y0-Y15
+	//     else:                             [16][16]byte for X0-X15
+	//   - if XINUSE&xcr0_AX_Hi16_ZMM != 0:  [16][64]byte for Z16-Z31
+	//   - if XINUSE&xcr0_AX_OpMask != 0:    [8][8]byte for K0-K7
+	data [16*64 + 16*64 + 8*8]byte
+}
+
+func (x *xRegs) activeSizes() (scanSize, totalSize uintptr) {
+	switch {
+	case x.XINUSE&xcr0_AX_ZMM_Hi256 != 0:
+		scanSize = 16 * 64 // Z0-Z15
+	case x.XINUSE&xcr0_AX_YMM != 0:
+		scanSize = 16 * 32 // Y0-Y15
+	default:
+		scanSize = 16 * 16 // X0-X15
+	}
+	if x.XINUSE&xcr0_AX_Hi16_ZMM != 0 {
+		scanSize += 16 * 64 // Z16-Z31
+	}
+	totalSize = scanSize
+	if x.XINUSE&xcr0_AX_OpMask != 0 {
+		totalSize += 8 * 8 // K0-K7
+	}
+	return scanSize, totalSize
+}
+
+func (dst *xRegs) copyFrom(src *xRegs) {
+	_, totalSize := src.activeSizes()
+	memmove(unsafe.Pointer(dst), unsafe.Pointer(src), unsafe.Offsetof(src.data)+totalSize)
+}
+
+func (x *xRegs) scanRange() (off, size uintptr) {
+	scanSize, _ := x.activeSizes()
+	return unsafe.Offsetof(x.data), scanSize
 }

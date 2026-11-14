@@ -29,6 +29,41 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ R13, 88(SP)
 	MOVQ R14, 96(SP)
 	MOVQ R15, 104(SP)
+	// Determine which extended registers are in use via XGETBV(ECX=1),
+	// which returns the XINUSE bitmap in EAX using the xcr0_AX_* bits:
+	//   xcr0_AX_SSE:       X0-X15 (always saved unconditionally)
+	//   xcr0_AX_YMM:       upper 128 bits of Y0-Y15
+	//   xcr0_AX_OpMask:    K0-K7
+	//   xcr0_AX_ZMM_Hi256: upper 256 bits of Z0-Z15
+	//   xcr0_AX_Hi16_ZMM:  Z16-Z31 (any width X16/Y16/Z16)
+	XORL BX, BX
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE saveXRegs
+	CMPB internal∕cpu·X86+const_offsetX86HasXGETBV1(SB), $1
+	JNE noXGETBV1
+	MOVL $1, CX
+	XGETBV
+	MOVL AX, BX
+	// Keep only xcr0_AX_YMM if Go has disabled AVX-512 (e.g. via GODEBUG
+	// or missing subset flags) so we never execute EVEX/opmask instructions.
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
+	JEQ saveXRegs
+	ANDL $const_xcr0_AX_YMM, BX
+	JMP saveXRegs
+noXGETBV1:
+	// On CPUs without XGETBV(ECX=1) (or with GODEBUG=cpu.xgetbv1=off),
+	// standard non-SIMD Go code never holds live YMM/ZMM/K registers at
+	// preemption safe points, so only assume upper registers are dirty
+	// when GOEXPERIMENT_simd is enabled.
+	#ifdef GOEXPERIMENT_simd
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
+	JNE useAVX
+	MOVL $(const_xcr0_AX_YMM|const_xcr0_AX_OpMask|const_xcr0_AX_ZMM_Hi256|const_xcr0_AX_Hi16_ZMM), BX
+	JMP saveXRegs
+useAVX:
+	MOVL $const_xcr0_AX_YMM, BX
+	#endif
+saveXRegs:
 	// Save extended register state to p.xRegs.scratch
 	// Don't make assumptions about ABI register state. See mkpreempt.go
 	get_tls(CX)
@@ -36,49 +71,56 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
 	LEAQ (p_xRegs+xRegPerP_scratch)(AX), AX
-	#ifdef GOEXPERIMENT_simd
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JE saveAVX512
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JE saveAVX
-	#endif
+	MOVQ BX, xRegs_XINUSE(AX)
+    // Advance AX to point at the byte block. We'll continue advancing AX as we pack data into it.
+	ADDQ $xRegs_data, AX
+	TESTL $const_xcr0_AX_ZMM_Hi256, BX
+	JNZ saveZLo
+	TESTL $const_xcr0_AX_YMM, BX
+	JNZ saveAVX
 saveSSE:
 	MOVUPS X0, 0(AX)
-	MOVUPS X1, 64(AX)
-	MOVUPS X2, 128(AX)
-	MOVUPS X3, 192(AX)
-	MOVUPS X4, 256(AX)
-	MOVUPS X5, 320(AX)
-	MOVUPS X6, 384(AX)
-	MOVUPS X7, 448(AX)
-	MOVUPS X8, 512(AX)
-	MOVUPS X9, 576(AX)
-	MOVUPS X10, 640(AX)
-	MOVUPS X11, 704(AX)
-	MOVUPS X12, 768(AX)
-	MOVUPS X13, 832(AX)
-	MOVUPS X14, 896(AX)
-	MOVUPS X15, 960(AX)
-	JMP preempt
+	MOVUPS X1, 16(AX)
+	MOVUPS X2, 32(AX)
+	MOVUPS X3, 48(AX)
+	MOVUPS X4, 64(AX)
+	MOVUPS X5, 80(AX)
+	MOVUPS X6, 96(AX)
+	MOVUPS X7, 112(AX)
+	MOVUPS X8, 128(AX)
+	MOVUPS X9, 144(AX)
+	MOVUPS X10, 160(AX)
+	MOVUPS X11, 176(AX)
+	MOVUPS X12, 192(AX)
+	MOVUPS X13, 208(AX)
+	MOVUPS X14, 224(AX)
+	MOVUPS X15, 240(AX)
+	ADDQ $256, AX
+	// Z16-Z31 (including 128-bit X16-X31) and K0-K7 are tracked
+	// independently of Y0-Y15/Z0-Z15 and may still be dirty here.
+	TESTL $(const_xcr0_AX_Hi16_ZMM|const_xcr0_AX_OpMask), BX
+	JZ preempt
+	JMP saveZHiCheck
 saveAVX:
 	VMOVDQU Y0, 0(AX)
-	VMOVDQU Y1, 64(AX)
-	VMOVDQU Y2, 128(AX)
-	VMOVDQU Y3, 192(AX)
-	VMOVDQU Y4, 256(AX)
-	VMOVDQU Y5, 320(AX)
-	VMOVDQU Y6, 384(AX)
-	VMOVDQU Y7, 448(AX)
-	VMOVDQU Y8, 512(AX)
-	VMOVDQU Y9, 576(AX)
-	VMOVDQU Y10, 640(AX)
-	VMOVDQU Y11, 704(AX)
-	VMOVDQU Y12, 768(AX)
-	VMOVDQU Y13, 832(AX)
-	VMOVDQU Y14, 896(AX)
-	VMOVDQU Y15, 960(AX)
-	JMP preempt
-saveAVX512:
+	VMOVDQU Y1, 32(AX)
+	VMOVDQU Y2, 64(AX)
+	VMOVDQU Y3, 96(AX)
+	VMOVDQU Y4, 128(AX)
+	VMOVDQU Y5, 160(AX)
+	VMOVDQU Y6, 192(AX)
+	VMOVDQU Y7, 224(AX)
+	VMOVDQU Y8, 256(AX)
+	VMOVDQU Y9, 288(AX)
+	VMOVDQU Y10, 320(AX)
+	VMOVDQU Y11, 352(AX)
+	VMOVDQU Y12, 384(AX)
+	VMOVDQU Y13, 416(AX)
+	VMOVDQU Y14, 448(AX)
+	VMOVDQU Y15, 480(AX)
+	ADDQ $512, AX
+	JMP saveZHiCheck
+saveZLo:
 	VMOVDQU64 Z0, 0(AX)
 	VMOVDQU64 Z1, 64(AX)
 	VMOVDQU64 Z2, 128(AX)
@@ -95,121 +137,252 @@ saveAVX512:
 	VMOVDQU64 Z13, 832(AX)
 	VMOVDQU64 Z14, 896(AX)
 	VMOVDQU64 Z15, 960(AX)
-	VMOVDQU64 Z16, 1024(AX)
-	VMOVDQU64 Z17, 1088(AX)
-	VMOVDQU64 Z18, 1152(AX)
-	VMOVDQU64 Z19, 1216(AX)
-	VMOVDQU64 Z20, 1280(AX)
-	VMOVDQU64 Z21, 1344(AX)
-	VMOVDQU64 Z22, 1408(AX)
-	VMOVDQU64 Z23, 1472(AX)
-	VMOVDQU64 Z24, 1536(AX)
-	VMOVDQU64 Z25, 1600(AX)
-	VMOVDQU64 Z26, 1664(AX)
-	VMOVDQU64 Z27, 1728(AX)
-	VMOVDQU64 Z28, 1792(AX)
-	VMOVDQU64 Z29, 1856(AX)
-	VMOVDQU64 Z30, 1920(AX)
-	VMOVDQU64 Z31, 1984(AX)
-	KMOVQ K0, 2048(AX)
-	KMOVQ K1, 2056(AX)
-	KMOVQ K2, 2064(AX)
-	KMOVQ K3, 2072(AX)
-	KMOVQ K4, 2080(AX)
-	KMOVQ K5, 2088(AX)
-	KMOVQ K6, 2096(AX)
-	KMOVQ K7, 2104(AX)
-	JMP preempt
+	ADDQ $1024, AX
+saveZHiCheck:
+	TESTL $const_xcr0_AX_Hi16_ZMM, BX
+	JZ saveKCheck
+	VMOVDQU64 Z16, 0(AX)
+	VMOVDQU64 Z17, 64(AX)
+	VMOVDQU64 Z18, 128(AX)
+	VMOVDQU64 Z19, 192(AX)
+	VMOVDQU64 Z20, 256(AX)
+	VMOVDQU64 Z21, 320(AX)
+	VMOVDQU64 Z22, 384(AX)
+	VMOVDQU64 Z23, 448(AX)
+	VMOVDQU64 Z24, 512(AX)
+	VMOVDQU64 Z25, 576(AX)
+	VMOVDQU64 Z26, 640(AX)
+	VMOVDQU64 Z27, 704(AX)
+	VMOVDQU64 Z28, 768(AX)
+	VMOVDQU64 Z29, 832(AX)
+	VMOVDQU64 Z30, 896(AX)
+	VMOVDQU64 Z31, 960(AX)
+	ADDQ $1024, AX
+	// Zero Z16-Z31 after saving so xcr0_AX_Hi16_ZMM returns to INIT state (0)
+	// while running the runtime/scheduler and other goroutines on this M.
+	// Using 128-bit EVEX self-XOR (VPXORQ Xn, Xn, Xn) zeroes all 512 bits of Zn,
+	// is recognized by hardware as a zeroing idiom, avoids touching Z0-Z15,
+	// and avoids requesting a 512-bit execution license.
+	VPXORQ X16, X16, X16
+	VPXORQ X17, X17, X17
+	VPXORQ X18, X18, X18
+	VPXORQ X19, X19, X19
+	VPXORQ X20, X20, X20
+	VPXORQ X21, X21, X21
+	VPXORQ X22, X22, X22
+	VPXORQ X23, X23, X23
+	VPXORQ X24, X24, X24
+	VPXORQ X25, X25, X25
+	VPXORQ X26, X26, X26
+	VPXORQ X27, X27, X27
+	VPXORQ X28, X28, X28
+	VPXORQ X29, X29, X29
+	VPXORQ X30, X30, X30
+	VPXORQ X31, X31, X31
+saveKCheck:
+	TESTL $const_xcr0_AX_OpMask, BX
+	JZ saveVzeroCheck
+	KMOVQ K0, 0(AX)
+	KMOVQ K1, 8(AX)
+	KMOVQ K2, 16(AX)
+	KMOVQ K3, 24(AX)
+	KMOVQ K4, 32(AX)
+	KMOVQ K5, 40(AX)
+	KMOVQ K6, 48(AX)
+	KMOVQ K7, 56(AX)
+	// Zero K0-K7 via self-XOR zeroing idioms so xcr0_AX_OpMask returns
+	// to INIT state (0); VZEROUPPER does not clear opmask state.
+	KXORQ K0, K0, K0
+	KXORQ K1, K1, K1
+	KXORQ K2, K2, K2
+	KXORQ K3, K3, K3
+	KXORQ K4, K4, K4
+	KXORQ K5, K5, K5
+	KXORQ K6, K6, K6
+	KXORQ K7, K7, K7
+	// End of the byte block, so we don't need to advance AX
+saveVzeroCheck:
+	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), BX
+	JZ preempt
+	// Reset xcr0_AX_YMM and xcr0_AX_ZMM_Hi256 to INIT state (0) and
+	// avoid AVX-to-SSE transition penalties in runtime code.
+	VZEROUPPER
 preempt:
 	CALL ·asyncPreempt2(SB)
+	// Read current XINUSE into DX before restoring. While this goroutine was
+	// parked, other goroutines or runtime code on this M (or on a new M after
+	// migration) may have dirtied register banks that were clean (0 in saved BX)
+	// when this goroutine was preempted. Any bank with BX bit == 0 and DX bit == 1
+	// must be explicitly zeroed back to INIT state so we neither leak another
+	// goroutine's register values nor leave XINUSE bits set.
+	XORL DX, DX
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
+	JNE restoreXRegs
+	CMPB internal∕cpu·X86+const_offsetX86HasXGETBV1(SB), $1
+	JNE restoreNoXGETBV1
+	MOVL $1, CX
+	XGETBV
+	MOVL AX, DX
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
+	JEQ restoreXRegs
+	ANDL $const_xcr0_AX_YMM, DX
+	JMP restoreXRegs
+restoreNoXGETBV1:
+	#ifdef GOEXPERIMENT_simd
+	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
+	JNE restoreUseAVX
+	MOVL $(const_xcr0_AX_YMM|const_xcr0_AX_OpMask|const_xcr0_AX_ZMM_Hi256|const_xcr0_AX_Hi16_ZMM), DX
+	JMP restoreXRegs
+restoreUseAVX:
+	MOVL $const_xcr0_AX_YMM, DX
+	#endif
+restoreXRegs:
 	// Restore non-GPs from *p.xRegs.cache
 	MOVQ g_m(R14), AX
 	MOVQ m_p(AX), AX
 	MOVQ (p_xRegs+xRegPerP_cache)(AX), AX
-	#ifdef GOEXPERIMENT_simd
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
-	JE restoreAVX512
-	CMPB internal∕cpu·X86+const_offsetX86HasAVX(SB), $1
-	JE restoreAVX
-	#endif
+	MOVQ (xRegState_regs+xRegs_XINUSE)(AX), BX
+	ADDQ $(xRegState_regs+xRegs_data), AX
+	TESTL $const_xcr0_AX_ZMM_Hi256, BX
+	JNZ restoreZLo
+	TESTL $const_xcr0_AX_YMM, BX
+	JNZ restoreAVXCheckZ
+	// Upper Y0-Y15 and Z0-Z15 were clean when preempted; clear them if dirty
+	// before restoring X0-X15 with legacy SSE MOVUPS (which preserves upper bits).
+	TESTL $(const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), DX
+	JZ restoreSSE
+	VZEROUPPER
 restoreSSE:
-	MOVUPS 960(AX), X15
-	MOVUPS 896(AX), X14
-	MOVUPS 832(AX), X13
-	MOVUPS 768(AX), X12
-	MOVUPS 704(AX), X11
-	MOVUPS 640(AX), X10
-	MOVUPS 576(AX), X9
-	MOVUPS 512(AX), X8
-	MOVUPS 448(AX), X7
-	MOVUPS 384(AX), X6
-	MOVUPS 320(AX), X5
-	MOVUPS 256(AX), X4
-	MOVUPS 192(AX), X3
-	MOVUPS 128(AX), X2
-	MOVUPS 64(AX), X1
 	MOVUPS 0(AX), X0
-	JMP restoreGPs
+	MOVUPS 16(AX), X1
+	MOVUPS 32(AX), X2
+	MOVUPS 48(AX), X3
+	MOVUPS 64(AX), X4
+	MOVUPS 80(AX), X5
+	MOVUPS 96(AX), X6
+	MOVUPS 112(AX), X7
+	MOVUPS 128(AX), X8
+	MOVUPS 144(AX), X9
+	MOVUPS 160(AX), X10
+	MOVUPS 176(AX), X11
+	MOVUPS 192(AX), X12
+	MOVUPS 208(AX), X13
+	MOVUPS 224(AX), X14
+	MOVUPS 240(AX), X15
+	ADDQ $256, AX
+	MOVL BX, CX
+	ORL DX, CX
+	TESTL $(const_xcr0_AX_Hi16_ZMM|const_xcr0_AX_OpMask), CX
+	JZ restoreGPs
+	JMP restoreZHiCheck
+restoreAVXCheckZ:
+	// xcr0_AX_ZMM_Hi256 was clean when preempted; if currently dirty,
+	// transition out of 512-bit upper state before 256-bit VEX loads.
+	TESTL $const_xcr0_AX_ZMM_Hi256, DX
+	JZ restoreAVX
+	VZEROUPPER
 restoreAVX:
-	VMOVDQU 960(AX), Y15
-	VMOVDQU 896(AX), Y14
-	VMOVDQU 832(AX), Y13
-	VMOVDQU 768(AX), Y12
-	VMOVDQU 704(AX), Y11
-	VMOVDQU 640(AX), Y10
-	VMOVDQU 576(AX), Y9
-	VMOVDQU 512(AX), Y8
-	VMOVDQU 448(AX), Y7
-	VMOVDQU 384(AX), Y6
-	VMOVDQU 320(AX), Y5
-	VMOVDQU 256(AX), Y4
-	VMOVDQU 192(AX), Y3
-	VMOVDQU 128(AX), Y2
-	VMOVDQU 64(AX), Y1
 	VMOVDQU 0(AX), Y0
-	JMP restoreGPs
-restoreAVX512:
-	KMOVQ 2104(AX), K7
-	KMOVQ 2096(AX), K6
-	KMOVQ 2088(AX), K5
-	KMOVQ 2080(AX), K4
-	KMOVQ 2072(AX), K3
-	KMOVQ 2064(AX), K2
-	KMOVQ 2056(AX), K1
-	KMOVQ 2048(AX), K0
-	VMOVDQU64 1984(AX), Z31
-	VMOVDQU64 1920(AX), Z30
-	VMOVDQU64 1856(AX), Z29
-	VMOVDQU64 1792(AX), Z28
-	VMOVDQU64 1728(AX), Z27
-	VMOVDQU64 1664(AX), Z26
-	VMOVDQU64 1600(AX), Z25
-	VMOVDQU64 1536(AX), Z24
-	VMOVDQU64 1472(AX), Z23
-	VMOVDQU64 1408(AX), Z22
-	VMOVDQU64 1344(AX), Z21
-	VMOVDQU64 1280(AX), Z20
-	VMOVDQU64 1216(AX), Z19
-	VMOVDQU64 1152(AX), Z18
-	VMOVDQU64 1088(AX), Z17
-	VMOVDQU64 1024(AX), Z16
-	VMOVDQU64 960(AX), Z15
-	VMOVDQU64 896(AX), Z14
-	VMOVDQU64 832(AX), Z13
-	VMOVDQU64 768(AX), Z12
-	VMOVDQU64 704(AX), Z11
-	VMOVDQU64 640(AX), Z10
-	VMOVDQU64 576(AX), Z9
-	VMOVDQU64 512(AX), Z8
-	VMOVDQU64 448(AX), Z7
-	VMOVDQU64 384(AX), Z6
-	VMOVDQU64 320(AX), Z5
-	VMOVDQU64 256(AX), Z4
-	VMOVDQU64 192(AX), Z3
-	VMOVDQU64 128(AX), Z2
-	VMOVDQU64 64(AX), Z1
+	VMOVDQU 32(AX), Y1
+	VMOVDQU 64(AX), Y2
+	VMOVDQU 96(AX), Y3
+	VMOVDQU 128(AX), Y4
+	VMOVDQU 160(AX), Y5
+	VMOVDQU 192(AX), Y6
+	VMOVDQU 224(AX), Y7
+	VMOVDQU 256(AX), Y8
+	VMOVDQU 288(AX), Y9
+	VMOVDQU 320(AX), Y10
+	VMOVDQU 352(AX), Y11
+	VMOVDQU 384(AX), Y12
+	VMOVDQU 416(AX), Y13
+	VMOVDQU 448(AX), Y14
+	VMOVDQU 480(AX), Y15
+	ADDQ $512, AX
+	JMP restoreZHiCheck
+restoreZLo:
 	VMOVDQU64 0(AX), Z0
+	VMOVDQU64 64(AX), Z1
+	VMOVDQU64 128(AX), Z2
+	VMOVDQU64 192(AX), Z3
+	VMOVDQU64 256(AX), Z4
+	VMOVDQU64 320(AX), Z5
+	VMOVDQU64 384(AX), Z6
+	VMOVDQU64 448(AX), Z7
+	VMOVDQU64 512(AX), Z8
+	VMOVDQU64 576(AX), Z9
+	VMOVDQU64 640(AX), Z10
+	VMOVDQU64 704(AX), Z11
+	VMOVDQU64 768(AX), Z12
+	VMOVDQU64 832(AX), Z13
+	VMOVDQU64 896(AX), Z14
+	VMOVDQU64 960(AX), Z15
+	ADDQ $1024, AX
+restoreZHiCheck:
+	TESTL $const_xcr0_AX_Hi16_ZMM, BX
+	JZ restoreZHiCleanCheck
+	VMOVDQU64 0(AX), Z16
+	VMOVDQU64 64(AX), Z17
+	VMOVDQU64 128(AX), Z18
+	VMOVDQU64 192(AX), Z19
+	VMOVDQU64 256(AX), Z20
+	VMOVDQU64 320(AX), Z21
+	VMOVDQU64 384(AX), Z22
+	VMOVDQU64 448(AX), Z23
+	VMOVDQU64 512(AX), Z24
+	VMOVDQU64 576(AX), Z25
+	VMOVDQU64 640(AX), Z26
+	VMOVDQU64 704(AX), Z27
+	VMOVDQU64 768(AX), Z28
+	VMOVDQU64 832(AX), Z29
+	VMOVDQU64 896(AX), Z30
+	VMOVDQU64 960(AX), Z31
+	ADDQ $1024, AX
+	JMP restoreKCheck
+restoreZHiCleanCheck:
+	// Z16-Z31 were clean when preempted; zero them if currently dirty on this M.
+	TESTL $const_xcr0_AX_Hi16_ZMM, DX
+	JZ restoreKCheck
+	VPXORQ X16, X16, X16
+	VPXORQ X17, X17, X17
+	VPXORQ X18, X18, X18
+	VPXORQ X19, X19, X19
+	VPXORQ X20, X20, X20
+	VPXORQ X21, X21, X21
+	VPXORQ X22, X22, X22
+	VPXORQ X23, X23, X23
+	VPXORQ X24, X24, X24
+	VPXORQ X25, X25, X25
+	VPXORQ X26, X26, X26
+	VPXORQ X27, X27, X27
+	VPXORQ X28, X28, X28
+	VPXORQ X29, X29, X29
+	VPXORQ X30, X30, X30
+	VPXORQ X31, X31, X31
+restoreKCheck:
+	TESTL $const_xcr0_AX_OpMask, BX
+	JZ restoreKCleanCheck
+	KMOVQ 0(AX), K0
+	KMOVQ 8(AX), K1
+	KMOVQ 16(AX), K2
+	KMOVQ 24(AX), K3
+	KMOVQ 32(AX), K4
+	KMOVQ 40(AX), K5
+	KMOVQ 48(AX), K6
+	KMOVQ 56(AX), K7
 	JMP restoreGPs
+restoreKCleanCheck:
+	// K0-K7 were clean when preempted; zero them if currently dirty on this M.
+	TESTL $const_xcr0_AX_OpMask, DX
+	JZ restoreGPs
+	KXORQ K0, K0, K0
+	KXORQ K1, K1, K1
+	KXORQ K2, K2, K2
+	KXORQ K3, K3, K3
+	KXORQ K4, K4, K4
+	KXORQ K5, K5, K5
+	KXORQ K6, K6, K6
+	KXORQ K7, K7, K7
 restoreGPs:
 	// Restore GPs
 	MOVQ 104(SP), R15
