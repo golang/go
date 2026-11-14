@@ -5,17 +5,19 @@
  license that can be found in the LICENSE file.
 -->
 <head>
-<script src="gopher.js"></script>
-<script src="popup.js"></script>
+    <script src="gopher.js" type="module"></script>
+    <script src="popup.js" type="module"></script>
 </head>
-<body style='margin: 0.5em; font-family: sans;'>
+<body style='margin: 0.5em; font-family: sans-serif;'>
 <small><a href="#" url="https://golang.org/issue">issue</a>,
-<a href="#" url="https://golang.org/cl">codereview</a>,
-<a href="#" url="https://golang.org/change">commit</a>, or
-<a href="#" url="https://golang.org/pkg/">pkg</a> id/name:</small>
-<form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+    <a href="#" url="https://golang.org/cl">codereview</a>,
+    <a href="#" url="https://golang.org/change">commit</a>, or
+    <a href="#" url="https://golang.org/pkg/">pkg</a> id/name:</small>
+<form style='margin: 0' id='navform'>
+    <nobr><input id="inputbox" size=10 tabindex=1/><input type="submit" value="go"/></nobr>
+</form>
 <small>Also: <a href="#" url="https://build.golang.org">buildbots</a>
-<a href="#" url="https://github.com/golang/go">GitHub</a>
+    <a href="#" url="https://github.com/golang/go">GitHub</a>
 </small>
 </body>
 </html>
