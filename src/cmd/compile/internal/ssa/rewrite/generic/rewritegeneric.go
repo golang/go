@@ -14752,8 +14752,8 @@ func rewriteValue_OpLoad(v *ssa.Value) bool {
 		v.CopyOf(x)
 		return true
 	}
-	// match: (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] p2 src mem))
-	// cond: o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)
+	// match: (Load <t1> op1:(OffPtr [o1] p1) move:(Move [n] {t} p2 src mem))
+	// cond: o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src) && (config.UnalignedOK || (t.Alignment() >= t1.Alignment() && o1%t1.Alignment() == 0))
 	// result: @move.Block (Load <t1> (OffPtr <op1.Type> [o1] src) mem)
 	for {
 		t1 := v.Type
@@ -14768,10 +14768,11 @@ func rewriteValue_OpLoad(v *ssa.Value) bool {
 			break
 		}
 		n := ssa.AuxIntToInt64(move.AuxInt)
+		t := ssa.AuxToType(move.Aux)
 		mem := move.Args[2]
 		p2 := move.Args[0]
 		src := move.Args[1]
-		if !(o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)) {
+		if !(o1 >= 0 && o1+t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src) && (config.UnalignedOK || (t.Alignment() >= t1.Alignment() && o1%t1.Alignment() == 0))) {
 			break
 		}
 		b = move.Block
@@ -14783,8 +14784,8 @@ func rewriteValue_OpLoad(v *ssa.Value) bool {
 		v0.AddArg2(v1, mem)
 		return true
 	}
-	// match: (Load <t1> p1 move:(Move [n] p2 src mem))
-	// cond: t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)
+	// match: (Load <t1> p1 move:(Move [n] {t} p2 src mem))
+	// cond: t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src) && (config.UnalignedOK || t.Alignment() >= t1.Alignment())
 	// result: @move.Block (Load <t1> src mem)
 	for {
 		t1 := v.Type
@@ -14794,10 +14795,11 @@ func rewriteValue_OpLoad(v *ssa.Value) bool {
 			break
 		}
 		n := ssa.AuxIntToInt64(move.AuxInt)
+		t := ssa.AuxToType(move.Aux)
 		mem := move.Args[2]
 		p2 := move.Args[0]
 		src := move.Args[1]
-		if !(t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src)) {
+		if !(t1.Size() <= n && ssa.IsSamePtr(p1, p2) && !ssa.IsVolatile(src) && (config.UnalignedOK || t.Alignment() >= t1.Alignment())) {
 			break
 		}
 		b = move.Block
