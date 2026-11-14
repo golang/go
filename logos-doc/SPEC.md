@@ -1872,6 +1872,7 @@ m.WithLock(func(c *Config) {
 - The lowering MUST come from one `logos list` run with compiled JSON output and the overlay that returns, per `.lgo` file, the lowered text and the edit map; per package, the hints JSON and the compiler diagnostics. [T-Sec16]
 - Position translation MUST rest on the compiler-written origin segments of the eject map: a lowered offset inside a copied segment maps to its exact original offset, and an offset inside a compiler-generated run maps to the anchor position of that run; no heuristic or size-capped textual matching takes part. [T-Sec16]
 - Closing an unsaved `.lgo` document MUST discard its unsaved overlay and MUST refresh the retained package's compiler results. [T-Sec16]
+- Closing the last open document of a package MUST retire that package's lowered snapshot and its lowered documents in `gopls`. [T-Sec16]
 - A `textDocument/formatting` request for a `.lgo` document MUST be refused instead of returning edits to lowered Go. Formatting requests for Go documents MUST pass through to `gopls`. [T-Sec16][R-U1]
 - It MUST merge compiler JSON diagnostics into `publishDiagnostics`. [T-Sec16]
 - It MUST report `logos lsp: gopls not found on PATH` when `gopls` is missing. [T-Sec16]

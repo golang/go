@@ -92,11 +92,8 @@ func (s *store) forget(path string) bool {
 	unsaved := !diskEqual(path, doc.text.data)
 	delete(s.docs, path)
 	s.touchLocked(path)
-	if unsaved {
-		return true
-	}
 	s.dropUnitLocked(filepath.Dir(path))
-	return false
+	return unsaved
 }
 
 func diskEqual(path string, data []byte) bool {

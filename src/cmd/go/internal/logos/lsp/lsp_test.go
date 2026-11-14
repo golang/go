@@ -2555,55 +2555,89 @@ func TestProxyConcurrentHoversShareOneRun(t *testing.T) {
 	}
 }
 
-func TestProxyHoverAfterCloseSeesDiskText(t *testing.T) {
+func TestProxyCloseLastOpenDocumentRetiresSnapshot(t *testing.T) {
+	const goSrc = "package g\n\nfunc G() int { return 1 }\n"
 	unsaved := "// unsaved\n" + aLgo
-	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{
+	f := newFixture(t, map[string]string{"a/a.lgo": aLgo, "g/g.go": goSrc}, fixtureOptions{
 		Script: func(string) fakeScript {
 			return fakeScript{Responses: map[string]json.RawMessage{
-				"textDocument/hover": toJSON(t, map[string]any{"contents": map[string]any{"kind": "plaintext", "value": "disk"}}),
+				"textDocument/hover": toJSON(t, map[string]any{"contents": map[string]any{"kind": "plaintext", "value": "unsaved"}}),
 			}}
 		},
 	})
 	aPath, aURI := f.path("a/a.lgo"), f.uri("a/a.lgo")
 	f.openText("a/a.lgo", 1, unsaved)
+	operand := shift(findPos(t, unsaved, "ReadFile(path)?", 0), len("ReadFile("))
+	f.client.call("textDocument/hover", positionParams(aURI, operand))
+	compiled := len(f.comp.bufferCalls())
 	f.client.notify("textDocument/didClose", map[string]any{"textDocument": map[string]any{"uri": aURI}})
 
-	origOperand := shift(findPos(t, aLgo, "ReadFile(path)?", 0), len("ReadFile("))
-	res := f.client.call("textDocument/hover", positionParams(aURI, origOperand))
-	if string(res) == "null" {
-		t.Fatal("hover on a closed document answered null, want a lowering of the disk text")
+	res := f.client.call("textDocument/hover", positionParams(aURI, operand))
+	if string(res) != "null" {
+		t.Fatalf("hover on the closed document = %s, want null", res)
 	}
-	for _, b := range f.comp.bufferCalls() {
+	f.sync()
+	for _, b := range f.comp.bufferCalls()[compiled:] {
 		if string(b[aPath]) == unsaved {
-			t.Errorf("a lowering used the discarded unsaved text")
+			t.Error("a lowering after the close used the discarded unsaved text")
 		}
 	}
-	disk, err := os.ReadFile(aPath)
-	if err != nil {
+	virt := f.virtURI("a/a.lgo")
+	var opens, closes int
+	for _, p := range f.receivedMethod("textDocument/didOpen") {
+		if td, _ := p["textDocument"].(map[string]any); td["uri"] == virt {
+			opens++
+		}
+	}
+	for _, p := range f.receivedMethod("textDocument/didClose") {
+		if td, _ := p["textDocument"].(map[string]any); td["uri"] == virt {
+			closes++
+		}
+	}
+	if opens != closes {
+		t.Errorf("gopls saw %d didOpen and %d didClose for the lowered document, want every open matched by a close", opens, closes)
+	}
+	var counts snapshotCountsResult
+	if err := json.Unmarshal(f.client.call("logos/snapshotCounts", map[string]any{}), &counts); err != nil {
 		t.Fatal(err)
 	}
-	opened := f.receivedMethod("textDocument/didOpen")
-	if len(opened) != 1 {
-		t.Fatalf("gopls got %d lowered didOpen messages, want the one of the disk text", len(opened))
+	if _, ok := counts.Dirs[filepath.Dir(aPath)]; ok {
+		t.Errorf("snapshotCounts reports %s after the close: %v", filepath.Dir(aPath), counts.Dirs)
 	}
-	doc, _ := opened[0]["textDocument"].(map[string]any)
-	fwdText, _ := doc["text"].(string)
-	if strings.Contains(fwdText, "// unsaved") {
-		t.Errorf("gopls holds a lowering of the discarded unsaved text")
+	if calls := f.comp.lowerCalls(); len(calls) != 1 {
+		t.Errorf("the proxy lowered %d times, want only the pre-close hover: %v", len(calls), calls)
 	}
-	lowDisk, _, ok := lowerQuestion(disk)
-	if !ok {
-		t.Fatal("the disk text does not lower")
+}
+
+func TestProxyWatchedFileAfterCloseDoesNotRecompile(t *testing.T) {
+	const goSrc = "package g\n\nfunc G() int { return 1 }\n"
+	f := newFixture(t, map[string]string{"a/a.lgo": aLgo, "g/g.go": goSrc}, fixtureOptions{})
+	aDir, aURI := f.path("a"), f.uri("a/a.lgo")
+	f.open("a/a.lgo", 1)
+	edited := aLgo + "// v2\n"
+	f.client.notify("textDocument/didChange", map[string]any{
+		"textDocument":   map[string]any{"uri": aURI, "version": 2},
+		"contentChanges": []any{map[string]any{"text": edited}},
+	})
+	operand := shift(findPos(t, edited, "ReadFile(path)?", 0), len("ReadFile("))
+	f.client.call("textDocument/hover", positionParams(aURI, operand))
+	f.client.notify("textDocument/didClose", map[string]any{"textDocument": map[string]any{"uri": aURI}})
+	f.sync()
+	if calls := f.comp.lowerCalls(); !slices.Equal(calls, []string{aDir}) {
+		t.Fatalf("lowerings after the close = %v, want only the pre-close hover of %s", calls, aDir)
 	}
-	if fwdText != string(lowDisk) {
-		t.Errorf("gopls holds %q, want the lowering of the disk text", fwdText)
+	f.client.notify("workspace/didChangeWatchedFiles", map[string]any{
+		"changes": []any{map[string]any{"uri": aURI}},
+	})
+	f.client.call("textDocument/hover", positionParams(f.uri("g/g.go"), Position{}))
+	lowered := 0
+	for _, d := range f.comp.lowerCalls() {
+		if d == aDir {
+			lowered++
+		}
 	}
-	_, pos := forwardedPosition(t, f, "textDocument/hover", 0)
-	lines := strings.Split(fwdText, "\n")
-	if pos.Line < 0 || pos.Line >= len(lines) || pos.Character < 0 || pos.Character > len(lines[pos.Line]) {
-		t.Fatalf("hover forwarded at %v, outside the lowered text", pos)
-	} else if got := lines[pos.Line][pos.Character:]; !strings.HasPrefix(got, "path)") {
-		t.Errorf("the hover was mapped at %v reaching %q, want the path operand of the disk lowering", pos, got)
+	if lowered != 1 {
+		t.Errorf("the compiler lowered %s %d times, want only the pre-close hover", aDir, lowered)
 	}
 }
 
