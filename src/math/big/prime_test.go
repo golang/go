@@ -203,6 +203,27 @@ func TestLucasPseudoprimes(t *testing.T) {
 		[]int{989, 3239, 5777, 10877, 27971, 29681, 30739, 31631, 39059, 72389, 73919, 75077})
 }
 
+// Jacobi(P²-4, n) = 1 for every P from 3 through 10000.
+func TestProbablyPrimeLucasLongSearch(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping in short mode: n has more than 14000 bits")
+	}
+	n := NewInt(8 * 655)
+	q := new(Int)
+	for i := int64(3); i <= 10002; i += 2 {
+		if q.SetInt64(i).ProbablyPrime(0) {
+			n.Mul(n, q)
+		}
+	}
+	n.Add(n, intOne)
+
+	stk := getStack()
+	defer stk.free()
+	if !n.abs.probablyPrimeLucas(stk) {
+		t.Errorf("probablyPrimeLucas(n) = false, want true")
+	}
+}
+
 func testPseudoprimes(t *testing.T, name string, cond func(nat) bool, want []int) {
 	n := nat{1}
 	for i := 3; i < 100000; i += 2 {
