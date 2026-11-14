@@ -38,6 +38,11 @@ vector_loop:
 	CMPL R12, $8	// Compare (n - scanned) with 8
 	JGE vector_loop	// If (n - scanned) >= 8, continue loop
 
+	// Zero K1 so the opmask state component (XINUSE bit 5, 0x20) returns to
+	// INIT state; VZEROUPPER only resets YMM_Hi128 and ZMM_Hi256 (bits 2 and 6).
+	KXORQ K1, K1, K1
+	VZEROUPPER
+
 scalar_loop:
 	CMPL R10, R9	// Compare scanned with n
 	JGE end			// If scanned >= n, loop is done
@@ -62,5 +67,4 @@ scalar_increment_i:
 
 end:
 	MOVL R11, ret+16(FP)
-	VZEROUPPER
 	RET

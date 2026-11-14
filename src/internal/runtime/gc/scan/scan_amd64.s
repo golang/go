@@ -18,6 +18,9 @@ TEXT ·ExpandAVX512(SB), NOSPLIT, $0-24
 	MOVQ unpacked+16(FP), DI // Expanded output bitmap pointer
 	VMOVDQU64 Z1, 0(DI)
 	VMOVDQU64 Z2, 64(DI)
+	// Zero K1 so the opmask state component (XINUSE bit 5, 0x20) returns to
+	// INIT state; VZEROUPPER only resets YMM_Hi128 and ZMM_Hi256 (bits 2 and 6).
+	KXORQ K1, K1, K1
 	VZEROUPPER
 	RET
 
@@ -118,5 +121,8 @@ skip:
 
 end:
 	MOVL DX, count+40(FP)
+	// Zero K1 so the opmask state component (XINUSE bit 5, 0x20) returns to
+	// INIT state; VZEROUPPER only resets YMM_Hi128 and ZMM_Hi256 (bits 2 and 6).
+	KXORQ K1, K1, K1
 	VZEROUPPER
 	RET
