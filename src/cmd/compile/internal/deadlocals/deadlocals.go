@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// The deadlocals pass removes assignments to unused local variables.
+// The deadlocals pass removes assignments to unused local variables and unused
+// dictionary captures from generic closures.
 package deadlocals
 
 import (
@@ -58,6 +59,7 @@ func Funcs(fns []*ir.Func) {
 			ir.AstDump(fn, "deadLocals, "+ir.FuncName(fn))
 		}
 	}
+	removeUnusedClosureDicts(fns)
 }
 
 type visitor struct {
