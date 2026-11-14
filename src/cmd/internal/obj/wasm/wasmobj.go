@@ -320,6 +320,11 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 				panic("CALL can only be used on toplevel, try CALLNORESUME instead")
 			}
 			appendp(p, ARESUMEPOINT)
+
+		case ABrTable:
+			if p.To.Type == obj.TYPE_BRANCH && explicitBlockDepth != 0 {
+				panic("jump table can only be used on toplevel")
+			}
 		}
 
 		p.Pc = pc
@@ -470,6 +475,64 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			}
 
 			p = appendp(p, AReturn)
+
+		case ABrTable:
+			if p.To.Type != obj.TYPE_BRANCH {
+				break
+			}
+
+			// jump table, one BrTable for each basic block
+			var targets []*obj.Prog
+			last := p
+			for q := p; q != nil && q.As == ABrTable && q.To.Type == obj.TYPE_BRANCH; q = q.Link {
+				targets = append(targets, q.To.Val.(*obj.Prog))
+				last = q
+			}
+			p.Link = last.Link
+			p.As = obj.ANOP
+
+			// Branch directly to the basic blocks after the jump table, the
+			// Blocks ending at their resume points are still open. The basic
+			// blocks before it can only be reached via entryPointLoop.
+			here := resumeIdx(p)
+			var loopTargets []*obj.Prog
+			loopIdxs := make(map[uint64]uint64) // resume index -> index in loopTargets
+			for _, target := range targets {
+				idx := resumeIdx(target)
+				if idx > here {
+					continue
+				}
+				if _, ok := loopIdxs[idx]; !ok {
+					loopIdxs[idx] = uint64(len(loopTargets))
+					loopTargets = append(loopTargets, target)
+				}
+			}
+			idxs := make([]uint64, len(targets))
+			for i, target := range targets {
+				idx := resumeIdx(target)
+				if idx > here {
+					idxs[i] = uint64(len(loopTargets)) + idx - here - 1
+				} else {
+					idxs[i] = loopIdxs[idx]
+				}
+			}
+
+			if len(loopTargets) > 0 {
+				// keep the index in PC_B while entering the Blocks
+				p = appendp(p, ASet, regAddr(REG_PC_B))
+				for range loopTargets {
+					p = appendp(p, ABlock)
+				}
+				p = appendp(p, AGet, regAddr(REG_PC_B))
+			}
+			p = appendp(p, ABrTable, obj.Addr{Val: idxs})
+			for _, target := range loopTargets {
+				p = appendp(p, AEnd)
+				p = appendp(p, AI32Const, constAddr(target.Pc))
+				p = appendp(p, ASet, regAddr(REG_PC_B)) // write next basic block to PC_B
+				p = appendp(p, ABr)                     // jump to beginning of entryPointLoop
+				entryPointLoopBranches = append(entryPointLoopBranches, p)
+			}
 
 		case obj.ACALL, ACALLNORESUME:
 			call := *p

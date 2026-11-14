@@ -31,6 +31,7 @@ func squareJump(x int) (int, int) {
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
+	// wasm:`BrTable`
 	switch x {
 	case 1:
 		return 1, 1
@@ -282,6 +283,7 @@ func length(x string) int {
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
+	// wasm:`BrTable`
 	switch x {
 	case "a":
 		return 1
@@ -339,6 +341,7 @@ func typeSwitch(x any) int {
 	// mips64:`SLLV` `ADDVU` `MOVV` `JMP`
 	// riscv64/rva20u64:`SLLI` `ADD` `MOV` `JALR`
 	// riscv64/rva22u64,riscv64/rva23u64:`SH3ADD` `MOV` `JALR`
+	// wasm:`BrTable`
 	switch x.(type) {
 	case int:
 		return 0

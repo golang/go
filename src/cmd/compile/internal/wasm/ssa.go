@@ -200,6 +200,13 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
 			s.Br(obj.AJMP, b.Succs[1].Block())
 		}
 
+	case block.BlockJumpTable:
+		// The assembler turns these into a single BrTable instruction.
+		getValue32(s, b.Controls[0])
+		for _, e := range b.Succs {
+			s.Br(wasm.ABrTable, e.Block())
+		}
+
 	case block.BlockRet:
 		s.Prog(obj.ARET)
 
