@@ -341,7 +341,6 @@ func (w *walkState) walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// if hint <= abi.MapGroupSlots {
 			//     var gv group
 			//     g = &gv
-			//     g.ctrl = abi.MapCtrlEmpty
 			//     m.dirPtr = g
 			// }
 
@@ -353,15 +352,6 @@ func (w *walkState) walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
 			// var gv group
 			// g = &gv
 			g := w.stackTempAddr(&nif.Body, groupType)
-
-			// Can't use ir.NewInt because bit 63 is set, which
-			// makes conversion to uint64 upset.
-			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.MapCtrlEmpty))
-
-			// g.ctrl = abi.MapCtrlEmpty
-			csym := groupType.Field(0).Sym // g.ctrl see reflectdata/map.go
-			ca := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, g, csym), empty)
-			nif.Body.Append(ca)
 
 			// m.dirPtr = g
 			dsym := mapType.Field(2).Sym // m.dirPtr see reflectdata/map.go

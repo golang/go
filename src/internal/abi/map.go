@@ -21,12 +21,6 @@ const (
 	// Must fit in a uint8.
 	MapMaxKeyBytes  = 128
 	MapMaxElemBytes = 128
-
-	ctrlEmpty = 0b10000000
-	bitsetLSB = 0x0101010101010101
-
-	// Value of control word with all empty slots.
-	MapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
 )
 
 type MapType struct {
