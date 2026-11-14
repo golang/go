@@ -547,7 +547,11 @@ func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, err
 	return Value{typ: t, constant: v.constant, cval: c}, nil
 }
 
-func toFloatParts(v Value) float64 {
+func toFloatParts(v Value, t *Type) float64 {
+	if t.Kind == KComplex64 && v.constant && (v.fval != nil || v.ival != nil) {
+		f, _ := xFloat(v).Float32()
+		return float64(f)
+	}
 	if isFloat(kindOf(v)) {
 		return v.Float64()
 	}
@@ -1408,10 +1412,10 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 				parts[1].Set(xFloat(im))
 				return Value{typ: t, constant: true, cparts: parts}, nil
 			}
-			rf, imf := toFloatParts(re), toFloatParts(im)
+			rf, imf := toFloatParts(re, t), toFloatParts(im, t)
 			return complexConst(t, complex(rf, imf)), nil
 		}
-		rf, imf := toFloatParts(re), toFloatParts(im)
+		rf, imf := toFloatParts(re, t), toFloatParts(im, t)
 		return complexDyn(t, complex(rf, imf)), nil
 	case "real", "imag":
 		return Value{}, e.fail(pos, "complex numbers in const func not supported")
