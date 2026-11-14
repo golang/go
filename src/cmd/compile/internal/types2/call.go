@@ -220,7 +220,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
 		case 1:
 			check.expr(newTarget(T, "conversion"), x, call.ArgList[0])
 			if x.isValid() {
-				if check.conf.Logos && check.logosReadonlyBoundary(x, T, "conversion") {
+				if check.logosCallReadonlyConversion(x, T) {
 					break
 				}
 				if t, _ := T.Underlying().(*Interface); t != nil && !isTypeParam(T) {
@@ -646,11 +646,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	assert(len(tparams) == len(targs))
 
 	// at the moment we only support implicit instantiations of argument functions
-	if check.conf.Logos {
-		for i, a := range args {
-			check.logosReadonlyBoundary(a, sigParams.vars[i].typ, "argument")
-		}
-	}
+	check.logosCallReadonlyArguments(sigParams, args)
 	check.logosConstMapArgs(call, sigParams, args) // logos M5-S4 hook: const map arguments before inference.
 	_ = len(genericArgs) > 0 && check.verifyVersionf(args[genericArgs[0]], go1_21, "implicitly instantiated function as argument")
 
@@ -702,9 +698,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
 	// check arguments
 	if len(args) > 0 {
 		context := check.sprintf("argument to %s", call.Fun)
-		for i, a := range args {
-			check.logosLambdaResolve(a, sigParams.vars[i].typ)
-		}
+		check.logosCallResolveLambdas(sigParams, args)
 		check.logosPushGoCall(call) // logos M3-S5 hook.
 		if n > 0 {
 			check.logosPushGenericArgs(targs) // logos M3-S5 hook.
