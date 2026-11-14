@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"path/filepath"
 	"testing"
 )
 
@@ -53,5 +54,46 @@ func TestOutsideRootsNotTracked(t *testing.T) {
 	}
 	if got := p.docPath("file://" + root + "/%2e%2e/etc/x.lgo"); got != "" {
 		t.Fatalf("docPath tracked an escaped path: %q", got)
+	}
+}
+
+func TestWorkspaceFolderChangesUpdateTrackedRoots(t *testing.T) {
+	root := t.TempDir()
+	added := t.TempDir()
+	p := initProxy(t, root)
+	notify := func(method string, params any) {
+		t.Helper()
+		raw, err := encode(params)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p.clientNotification(t.Context(), &message{Method: method, Params: raw})
+	}
+	open := func(name string, wantTracked bool) {
+		t.Helper()
+		path := filepath.Join(added, name)
+		uri := pathURI(path)
+		notify("textDocument/didOpen", didOpenParams{TextDocument: textDocumentItem{
+			URI: uri, LanguageID: "logos", Version: 1, Text: "package added\n",
+		}})
+		if got := p.docPath(uri); (got != "") != wantTracked {
+			t.Errorf("docPath(%q) = %q, want tracked = %v", uri, got, wantTracked)
+		}
+		if got := p.st.open(path); got != wantTracked {
+			t.Errorf("open(%q) = %v, want %v", path, got, wantTracked)
+		}
+	}
+	folder := map[string]any{"uri": pathURI(added), "name": "added"}
+	open("before.lgo", false)
+	notify("workspace/didChangeWorkspaceFolders", map[string]any{
+		"event": map[string]any{"added": []any{folder, folder}, "removed": []any{}},
+	})
+	open("during.lgo", true)
+	notify("workspace/didChangeWorkspaceFolders", map[string]any{
+		"event": map[string]any{"added": []any{}, "removed": []any{folder}},
+	})
+	open("after.lgo", false)
+	if got := p.docPath(pathURI(filepath.Join(root, "still.lgo"))); got == "" {
+		t.Fatal("removing the added folder also removed the initial workspace root")
 	}
 }

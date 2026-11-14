@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -75,6 +76,9 @@ func (p *Proxy) clientNotification(ctx context.Context, m *message) {
 		p.didClose(ctx, m)
 	case "workspace/didChangeWatchedFiles":
 		p.watched(ctx, m)
+	case "workspace/didChangeWorkspaceFolders":
+		p.changeWorkspaceFolders(m.Params)
+		p.send(p.server, m)
 	case "$/cancelRequest":
 		p.cancelPending(m)
 		p.send(p.server, m)
@@ -145,6 +149,34 @@ func (p *Proxy) rememberRoots(params any) {
 	p.rootsMu.Lock()
 	p.roots = roots
 	p.rootsMu.Unlock()
+}
+
+func (p *Proxy) changeWorkspaceFolders(raw json.RawMessage) {
+	type folder struct {
+		URI string `json:"uri"`
+	}
+	var params struct {
+		Event struct {
+			Added   []folder `json:"added"`
+			Removed []folder `json:"removed"`
+		} `json:"event"`
+	}
+	if err := json.Unmarshal(raw, &params); err != nil {
+		p.logf("didChangeWorkspaceFolders: %v", err)
+		return
+	}
+	p.rootsMu.Lock()
+	defer p.rootsMu.Unlock()
+	for _, f := range params.Event.Removed {
+		if path, err := uriPath(f.URI); err == nil && path != "" {
+			p.roots = slices.DeleteFunc(p.roots, func(root string) bool { return root == path })
+		}
+	}
+	for _, f := range params.Event.Added {
+		if path, err := uriPath(f.URI); err == nil && path != "" && !slices.Contains(p.roots, path) {
+			p.roots = append(p.roots, path)
+		}
+	}
 }
 
 func (p *Proxy) forwardUnlessLogos(m *message, path string) {
@@ -269,6 +301,8 @@ func (p *Proxy) markIfRelevant(params watchedParams) {
 	for _, u := range p.st.units {
 		u.dirty = true
 		u.gen++
+	}
+	if len(p.st.units) > 0 {
 	}
 }
 
