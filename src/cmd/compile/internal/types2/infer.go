@@ -306,9 +306,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, 
 				var cause string
 				constraint := tpar.iface()
 				if check.logosPropGateConstraint(constraint, tx) {
-					var propCause string
-					if !check.logosImplementsProperty(tx, constraint, constraint, &propCause, pos) {
-						err.addf(pos, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), propCause)
+					if check.logosInferProperty(pos, tpar, tx, constraint, err) {
 						return nil
 					}
 					continue
@@ -601,20 +599,16 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
 		return w.isParameterized(t.base)
 
 	case *ReadonlyDescendants:
-		return w.isParameterized(t.Elem)
+		return w.logosInferParameterized(t)
 
 	case *ConstView:
-		return w.isParameterized(t.Elem)
+		return w.logosInferParameterized(t)
 
 	case *Option:
-		return w.isParameterized(t.Elem)
+		return w.logosInferParameterized(t)
 
 	case *LogosTuple:
-		for _, e := range t.types {
-			if w.isParameterized(e) {
-				return true
-			}
-		}
+		return w.logosInferParameterized(t)
 
 	case *Tuple:
 		// This case does not occur from within isParameterized
@@ -773,18 +767,16 @@ func (w *cycleFinder) typ(typ Type) {
 		w.typ(t.base)
 
 	case *ReadonlyDescendants:
-		w.typ(t.Elem)
+		w.logosInferType(t)
 
 	case *ConstView:
-		w.typ(t.Elem)
+		w.logosInferType(t)
 
 	case *Option:
-		w.typ(t.Elem)
+		w.logosInferType(t)
 
 	case *LogosTuple:
-		for _, e := range t.types {
-			w.typ(e)
-		}
+		w.logosInferType(t)
 
 	// case *Tuple:
 	//      This case should not occur because tuples only appear
