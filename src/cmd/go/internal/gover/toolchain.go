@@ -45,6 +45,15 @@ func FromToolchain(name string) string {
 	return v
 }
 
+// ToolchainForGoVersion returns the implied toolchain name for the Go version v.
+func ToolchainForGoVersion(v string) string {
+	name := "go" + v
+	if IsLang(v) && Compare(v, GoStrictVersion) >= 0 {
+		name += ".0"
+	}
+	return name
+}
+
 func maybeToolchainVersion(name string) string {
 	if IsValid(name) {
 		return name

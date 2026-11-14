@@ -918,8 +918,9 @@ func UpdateWorkGoVersion(wf *modfile.WorkFile, goVers string) (changed bool) {
 	// This behavior seemed to cause user confusion without much
 	// benefit so it was removed. See #65847.
 	toolchain := wf.Toolchain.Name
+	impliedToolchain := gover.ToolchainForGoVersion(goVers)
 	toolVers := gover.FromToolchain(toolchain)
-	if toolchain == "go"+goVers || gover.Compare(toolVers, goVers) < 0 || gover.Compare(toolVers, gover.GoStrictVersion) < 0 {
+	if toolchain == "go"+goVers || toolchain == impliedToolchain || gover.Compare(toolVers, goVers) < 0 || gover.Compare(toolVers, gover.GoStrictVersion) < 0 {
 		wf.DropToolchainStmt()
 	}
 
@@ -2012,11 +2013,12 @@ func UpdateGoModFromReqs(ld *Loader, ctx context.Context, opts WriteOpts) (befor
 		forceGoStmt(modFile, mainModule, gover.GoModToolVersion)
 	}
 
+	impliedToolchain := gover.ToolchainForGoVersion(goVersion)
 	if toolchain == "" {
-		toolchain = "go" + goVersion
+		toolchain = impliedToolchain
 	}
 	toolVers := gover.FromToolchain(toolchain)
-	if opts.DropToolchain || toolchain == "go"+goVersion || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
+	if opts.DropToolchain || toolchain == "go"+goVersion || toolchain == impliedToolchain || (gover.Compare(toolVers, gover.GoStrictVersion) < 0 && !opts.ExplicitToolchain) {
 		// go get toolchain@none or toolchain matches go line or isn't valid; drop it.
 		// TODO(#57001): 'go get' should reject explicit toolchains below GoStrictVersion.
 		modFile.DropToolchainStmt()
