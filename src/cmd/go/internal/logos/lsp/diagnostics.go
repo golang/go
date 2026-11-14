@@ -42,10 +42,14 @@ func (p *Proxy) publish(uri string) {
 		p.logf("encoding diagnostics of %s: %v", uri, err)
 		return
 	}
+	open := false
+	if count == 0 {
+		open = p.st.open(p.docPath(uri))
+	}
 	p.mu.Lock()
 	prev, seen := p.sent[uri]
 	same := prev == string(raw) || (count == 0 && !seen)
-	if count == 0 && !p.st.open(p.docPath(uri)) {
+	if count == 0 && !open {
 		delete(p.sent, uri)
 	} else {
 		p.sent[uri] = string(raw)
