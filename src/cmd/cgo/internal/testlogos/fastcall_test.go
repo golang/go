@@ -590,10 +590,12 @@ func TestFastcallSigprofSurvives(t *testing.T) {
 	requireCgo(t)
 	prof := filepath.Join(t.TempDir(), "cpu.prof")
 	const floor = 50
+	const maxIters = 2000000000
 	deadline := time.Now().Add(120 * time.Second)
+	iters := uint64(100000000)
 	var n, total int
 	for {
-		collectBusyProfile(t, prof, 10, callFastBusy, 100000000)
+		collectBusyProfile(t, prof, 10, callFastBusy, iters)
 		n, total = profileCallerSamples(t, prof, "callFastBusy")
 		t.Logf("fast caller %d of %d samples", n, total)
 		if n == 0 && total >= floor {
@@ -607,6 +609,7 @@ func TestFastcallSigprofSurvives(t *testing.T) {
 			t.Fatalf("sigprof floor unmet: fast caller %d of %d samples (floor %d)",
 				n, total, floor)
 		}
+		iters = growProfileWork(total, floor, iters, maxIters)
 	}
 	if total == 0 {
 		t.Fatal("empty cpu profile")
@@ -704,6 +707,15 @@ const fastcallProfileFloorSamples = 200
 const fastcallAttributionFloorSamples = 100
 const fastcallProfileCap = 300 * time.Second
 
+func growProfileWork(total, floor int, work, maxWork uint64) uint64 {
+	factor := uint64(2)
+	if total > 0 {
+		f := (2*uint64(floor) + uint64(total) - 1) / uint64(total)
+		factor = max(f, factor)
+	}
+	return min(work*factor, maxWork)
+}
+
 func profileCallerSamples(t *testing.T, prof string, want string) (found, total int) {
 	t.Helper()
 	f, err := os.Open(prof)
@@ -800,7 +812,9 @@ func TestFastcallProfileAttribution(t *testing.T) {
 	dir := t.TempDir()
 	fastProf := filepath.Join(dir, "fast.prof")
 	plainProf := filepath.Join(dir, "plain.prof")
-	const iters = 100000000
+	const maxIters = 1000000000
+	fastIters := uint64(100000000)
+	plainIters := uint64(100000000)
 	fastWants := []string{"callFastBusy", "_Cfunc_busy_spin"}
 	plainWants := []string{"callPlainBusy", "_Cfunc_plain_spin", "runtime.cgocall"}
 	if !goexperiment.LogosFastCgo {
@@ -810,8 +824,8 @@ func TestFastcallProfileAttribution(t *testing.T) {
 	met := false
 	deadline := time.Now().Add(fastcallProfileCap)
 	for {
-		collectBusyProfile(t, fastProf, 30, callFastBusy, iters)
-		collectBusyProfile(t, plainProf, 30, callPlainBusy, iters)
+		collectBusyProfile(t, fastProf, 30, callFastBusy, fastIters)
+		collectBusyProfile(t, plainProf, 30, callPlainBusy, plainIters)
 		fastN, fastTotal = profileCallerSamples(t, fastProf, "callFastBusy")
 		plainN, plainTotal = profileCallerSamples(t, plainProf, "callPlainBusy")
 		t.Logf("fast caller %d of %d samples, plain caller %d of %d samples",
@@ -827,6 +841,8 @@ func TestFastcallProfileAttribution(t *testing.T) {
 		if time.Now().After(deadline) {
 			break
 		}
+		fastIters = growProfileWork(fastTotal, fastcallProfileFloorSamples, fastIters, maxIters)
+		plainIters = growProfileWork(plainTotal, fastcallProfileFloorSamples, plainIters, maxIters)
 	}
 	if !met {
 		if fastTotal == 0 && plainTotal == 0 {
@@ -1222,13 +1238,17 @@ func TestFastcallLogosProfileParity(t *testing.T) {
 	if !goexperiment.LogosFastCgo {
 		lgoWants = append(lgoWants, "logosCgocallFast", "runtime.cgocall")
 	}
+	plainIters := uint64(100000000)
+	const maxPlainIters = 1000000000
+	fixtureIters := uint64(3000000000)
+	const maxFixtureIters = 30000000000
 	var plainN, lgoN, plainTotal, lgoTotal int
 	met := false
 	deadline := time.Now().Add(fastcallProfileCap)
 	for {
-		collectBusyProfile(t, plainProf, 30, callPlainBusy, 100000000)
+		collectBusyProfile(t, plainProf, 30, callPlainBusy, plainIters)
 		plainN, plainTotal = profileCallerSamples(t, plainProf, "callPlainBusy")
-		out, err := runCmd(t, dir, bin, "busy", prof, "3000000000")
+		out, err := runCmd(t, dir, bin, "busy", prof, strconv.FormatUint(fixtureIters, 10))
 		if err != nil {
 			t.Fatalf("fixture busy: %v\n%s", err, out)
 		}
@@ -1246,6 +1266,8 @@ func TestFastcallLogosProfileParity(t *testing.T) {
 		if time.Now().After(deadline) {
 			break
 		}
+		plainIters = growProfileWork(plainTotal, fastcallProfileFloorSamples, plainIters, maxPlainIters)
+		fixtureIters = growProfileWork(lgoTotal, fastcallProfileFloorSamples, fixtureIters, maxFixtureIters)
 	}
 	if !met {
 		if lgoTotal == 0 && plainTotal == 0 {
