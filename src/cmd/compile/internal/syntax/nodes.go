@@ -128,7 +128,7 @@ func (d *TypeDecl) String() string {
 }
 
 func (d *VarDecl) String() string {
-	return fmt.Sprintf("FuncDecl{NameList:%v}", d.NameList)
+	return fmt.Sprintf("VarDecl{NameList:%v}", d.NameList)
 }
 
 type decl struct{ node }
