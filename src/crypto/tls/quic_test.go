@@ -742,6 +742,56 @@ func TestQUICEarlyData(t *testing.T) {
 	}
 }
 
+func TestQUICEarlyDataHelloRetryRequest(t *testing.T) {
+	clientConfig := &QUICConfig{TLSConfig: testConfigClient()}
+	clientConfig.TLSConfig.MinVersion = VersionTLS13
+	clientConfig.TLSConfig.ClientSessionCache = NewLRUClientSessionCache(1)
+	clientConfig.TLSConfig.NextProtos = []string{"h3"}
+	clientConfig.TLSConfig.CurvePreferences = []CurveID{CurveP256, CurveP384}
+
+	serverConfig := &QUICConfig{TLSConfig: testConfigServer()}
+	serverConfig.TLSConfig.MinVersion = VersionTLS13
+	serverConfig.TLSConfig.NextProtos = []string{"h3"}
+	// Require a key share that the client does not send in its first ClientHello.
+	serverConfig.TLSConfig.CurvePreferences = []CurveID{CurveP384}
+
+	cli := newTestQUICClient(t, clientConfig)
+	cli.conn.SetTransportParameters(nil)
+	srv := newTestQUICServer(t, serverConfig)
+	srv.conn.SetTransportParameters(nil)
+	srv.ticketOpts.EarlyData = true
+	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
+		t.Fatalf("error during first connection handshake: %v", err)
+	}
+	if cli.conn.ConnectionState().DidResume {
+		t.Errorf("first connection unexpectedly used session resumption")
+	}
+
+	cli2 := newTestQUICClient(t, clientConfig)
+	cli2.conn.SetTransportParameters(nil)
+	srv2 := newTestQUICServer(t, serverConfig)
+	srv2.conn.SetTransportParameters(nil)
+	if err := runTestQUICConnection(context.Background(), cli2, srv2, nil); err != nil {
+		t.Fatalf("error during second connection handshake: %v", err)
+	}
+	cs := cli2.conn.ConnectionState()
+	if !cs.HelloRetryRequest {
+		t.Errorf("second connection did not receive a HelloRetryRequest")
+	}
+	if !cs.DidResume {
+		t.Errorf("second connection did not use session resumption")
+	}
+	if cli2.writeSecret[QUICEncryptionLevelEarly].secret == nil {
+		t.Errorf("client did not receive early data write secret")
+	}
+	if !cli2.earlyDataRejected {
+		t.Errorf("client did not report rejected early data")
+	}
+	if _, ok := srv2.readSecret[QUICEncryptionLevelEarly]; ok {
+		t.Errorf("server received early data read secret")
+	}
+}
+
 func TestQUICEarlyDataDeclined(t *testing.T) {
 	t.Run("server", func(t *testing.T) {
 		testQUICEarlyDataDeclined(t, true)
