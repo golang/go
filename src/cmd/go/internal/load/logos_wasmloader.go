@@ -7,6 +7,7 @@ package load
 import (
 	"bytes"
 	"fmt"
+	"internal/logosfile"
 	"os"
 	"path/filepath"
 	"slices"
@@ -21,7 +22,10 @@ const (
 	wasmLoaderSuffix = ".loader.mjs"
 )
 
-const wasmExportDirective = "//go:wasmexport "
+const (
+	goWasmExportDirective    = "//go:wasmexport "
+	logosWasmExportDirective = "//logos:wasmexport "
+)
 
 // wantsWasmLoader reports the build-wide part of the loader decision (SPEC
 // Sec 12.2, R-U1): the --wasm-loader flag is on, the build command is
@@ -117,7 +121,7 @@ func collectPackageWasmLoaderHelpers(q *Package, found map[string]bool) {
 		if err != nil {
 			continue
 		}
-		for _, name := range fileWasmExportNames(data) {
+		for _, name := range fileWasmExportNames(f, data) {
 			if slices.Contains(loaderHelpers, name) {
 				found[name] = true
 			}
@@ -125,13 +129,14 @@ func collectPackageWasmLoaderHelpers(q *Package, found map[string]bool) {
 	}
 }
 
-func fileWasmExportNames(data []byte) []string {
-	s := wasmExportScanner{data: data, blank: true}
+func fileWasmExportNames(file string, data []byte) []string {
+	s := wasmExportScanner{data: data, logos: logosfile.Is(file), blank: true}
 	return s.scan()
 }
 
 type wasmExportScanner struct {
 	data    []byte
+	logos   bool
 	pos     int
 	blank   bool
 	pending string
@@ -171,13 +176,18 @@ func (s *wasmExportScanner) lineComment() {
 	end := s.lineEnd()
 	line := s.data[s.pos:end]
 	s.pos = end
-	if !s.blank || !bytes.HasPrefix(line, []byte(wasmExportDirective)) {
+	if !s.blank || !s.exportDirective(line) {
 		return
 	}
 	fields := strings.Fields(string(line))
 	if len(fields) == 2 {
 		s.pending = fields[1]
 	}
+}
+
+func (s *wasmExportScanner) exportDirective(line []byte) bool {
+	return bytes.HasPrefix(line, []byte(goWasmExportDirective)) ||
+		s.logos && bytes.HasPrefix(line, []byte(logosWasmExportDirective))
 }
 
 func (s *wasmExportScanner) lineEnd() int {

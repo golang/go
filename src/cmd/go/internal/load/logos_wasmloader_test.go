@@ -5,6 +5,7 @@
 package load
 
 import (
+	"cmp"
 	"slices"
 	"testing"
 )
@@ -12,6 +13,7 @@ import (
 func TestFileWasmExportNames(t *testing.T) {
 	for _, tt := range []struct {
 		name string
+		file string
 		src  string
 		want []string
 	}{
@@ -115,9 +117,32 @@ func TestFileWasmExportNames(t *testing.T) {
 			name: "funcs identifier",
 			src:  "package p\n//go:wasmexport exported\nfuncs()\n",
 		},
+		{
+			name: "logos spelling",
+			src:  "package p\n//logos:wasmexport exported\nfunc f() string { return $\"x\" }\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "mixed spellings",
+			src:  "package p\n//logos:wasmexport first\nfunc f() {}\n//go:wasmexport second\nfunc g() {}\n",
+			want: []string{"first", "second"},
+		},
+		{
+			name: "logos spelling in a Go file",
+			file: "p.go",
+			src:  "package p\n//logos:wasmexport exported\nfunc f() {}\n",
+		},
+		{
+			name: "logos spelling with a longer word",
+			src:  "package p\n//logos:wasmexported exported\nfunc f() {}\n",
+		},
+		{
+			name: "logos spelling with a tab separator",
+			src:  "package p\n//logos:wasmexport\texported\nfunc f() {}\n",
+		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := fileWasmExportNames([]byte(tt.src)); !slices.Equal(got, tt.want) {
+			if got := fileWasmExportNames(cmp.Or(tt.file, "p.lgo"), []byte(tt.src)); !slices.Equal(got, tt.want) {
 				t.Fatalf("fileWasmExportNames() = %q, want %q", got, tt.want)
 			}
 		})
