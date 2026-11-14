@@ -41,6 +41,10 @@ const (
 // is either not present in the request or not a file field.
 var ErrMissingFile = errors.New("http: no such file")
 
+// errReadingRequestLine marks errors encountered while reading the request line,
+// allowing the server to distinguish them from errors while reading headers.
+var errReadingRequestLine = errors.New("http: error reading request line")
+
 // ProtocolError represents an HTTP protocol error.
 //
 // Deprecated: Not all errors in the http package related to protocol errors
@@ -1108,7 +1112,7 @@ func readRequestLimit(b *bufio.Reader, maxHeaders int64) (req *Request, err erro
 	// First line: GET /index.html HTTP/1.0
 	var s string
 	if s, err = tp.ReadLine(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errReadingRequestLine, err)
 	}
 	defer func() {
 		if err == io.EOF {
@@ -1119,14 +1123,14 @@ func readRequestLimit(b *bufio.Reader, maxHeaders int64) (req *Request, err erro
 	var ok bool
 	req.Method, req.RequestURI, req.Proto, ok = parseRequestLine(s)
 	if !ok {
-		return nil, badStringError("malformed HTTP request", s)
+		return nil, fmt.Errorf("%w: %w", errReadingRequestLine, badStringError("malformed HTTP request", s))
 	}
 	if !validMethod(req.Method) {
-		return nil, badStringError("invalid method", req.Method)
+		return nil, fmt.Errorf("%w: %w", errReadingRequestLine, badStringError("invalid method", req.Method))
 	}
 	rawurl := req.RequestURI
 	if req.ProtoMajor, req.ProtoMinor, ok = ParseHTTPVersion(req.Proto); !ok {
-		return nil, badStringError("malformed HTTP version", req.Proto)
+		return nil, fmt.Errorf("%w: %w", errReadingRequestLine, badStringError("malformed HTTP version", req.Proto))
 	}
 
 	// CONNECT requests are used two different ways, and neither uses a full URL:
