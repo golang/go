@@ -59,6 +59,7 @@ func BuildInit(ld *modload.Loader) {
 
 	modload.Init(ld)
 	instrumentInit()
+	staticInit()
 	buildModeInit()
 	initCompilerConcurrencyPool()
 	cfgChangedEnv = makeCfgChangedEnv()
@@ -210,6 +211,54 @@ func instrumentInit() {
 	}
 	cfg.BuildContext.InstallSuffix += mode
 	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
+}
+
+// staticInit configures the build for producing a statically linked binary
+// when the -static flag is set. On Linux and other ELF platforms that support
+// fully static linking, it passes -extldflags=-static to the linker and enables
+// the osusergo and netgo build tags. On macOS, iOS, FreeBSD, OpenBSD, and
+// NetBSD, only the pure-Go resolver tags are enabled because the system linker
+// does not support fully static binaries.
+func staticInit() {
+	if !cfg.BuildStatic {
+		return
+	}
+
+	// Reject incompatible build modes.
+	switch cfg.BuildBuildmode {
+	case "c-shared":
+		base.Fatalf("go: cannot use -static with -buildmode=c-shared")
+	case "shared":
+		base.Fatalf("go: cannot use -static with -buildmode=shared")
+	case "plugin":
+		base.Fatalf("go: cannot use -static with -buildmode=plugin")
+	}
+	if cfg.BuildLinkshared {
+		base.Fatalf("go: cannot use -static with -linkshared")
+	}
+
+	// Enable pure-Go implementations of net and os/user on all platforms.
+	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "osusergo", "netgo")
+
+	// Add the "static" build tag so libraries can detect static builds.
+	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, "static")
+
+	switch cfg.Goos {
+	case "linux", "solaris", "illumos", "dragonfly":
+		// Fully static linking is supported; pass -extldflags=-static to the linker.
+		forcedLdflags = append(forcedLdflags, "-extldflags=-static")
+	case "darwin", "ios", "freebsd", "openbsd", "netbsd":
+		// Full static linking is not supported by the system linker on these
+		// platforms. The osusergo and netgo tags above ensure we use pure-Go
+		// implementations, which avoids dynamic linking of libc for DNS and
+		// user lookups. No additional linker flags are needed.
+	case "windows":
+		// Windows binaries are statically linked against the Go runtime by
+		// default. The osusergo and netgo tags are sufficient.
+	default:
+		// For unrecognized platforms, apply the same safe default as BSD:
+		// pure-Go tags only, no extra linker flags.
+	}
 }
 
 func buildModeInit() {

@@ -1,0 +1,21 @@
+# Test that -static rejects incompatible build modes.
+
+! go build -static -buildmode=c-shared .
+stderr 'cannot use -static with -buildmode=c-shared'
+
+! go build -static -buildmode=shared .
+stderr 'cannot use -static with -buildmode=shared'
+
+! go build -static -buildmode=plugin .
+stderr 'cannot use -static with -buildmode=plugin'
+
+! go build -static -linkshared .
+stderr 'cannot use -static with -linkshared'
+
+-- go.mod --
+module example.com/static
+go 1.24
+
+-- main.go --
+package main
+func main() {}
