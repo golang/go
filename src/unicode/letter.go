@@ -324,13 +324,13 @@ func (special SpecialCase) ToLower(r rune) rune {
 	return r1
 }
 
-// caseOrbit is defined in tables.go as []foldPair. Right now all the
-// entries fit in uint16, so use uint16. If that changes, compilation
-// will fail (the constants in the composite literal will not fit in uint16)
-// and the types here can change to uint32.
+// caseOrbit is defined in tables.go as []foldPair. All the
+// entries fit in uint16, with the sole exception of U+1DF95.
+// Bacause of this single codepoint,
+// the constants in the composite literal must fit in uint32 instead.
 type foldPair struct {
-	From uint16
-	To   uint16
+	From uint32
+	To   uint32
 }
 
 // SimpleFold iterates over Unicode code points equivalent under
