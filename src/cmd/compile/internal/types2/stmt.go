@@ -38,11 +38,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
 	}
 	check.indent = 0
 
-	if name == "<function literal>" {
-		check.logosEnterLit(body)
-	} else {
-		check.logosEnterFunc(body)
-	}
+	check.logosStmtEnterFunc(name, body)
 	check.logosPushFuncSig(sig) // logos T-201 hook: enclosing generic declaration for assertion effects.
 	defer check.logosPopFuncSig()
 	defer check.logosExitFunc() // logos M3-S4 hook.
@@ -108,7 +104,6 @@ const (
 	// additional context information
 	finalSwitchCase
 	inTypeSwitch
-	logosConstSwitchContinue
 )
 
 func (check *Checker) simpleStmt(s syntax.Stmt) {
@@ -132,8 +127,7 @@ func (check *Checker) stmtList(ctxt stmtContext, list []syntax.Stmt) {
 	list = trimTrailingEmptyStmts(list)   // trailing empty statements are "invisible" to fallthrough analysis
 	narrowBase := check.logosNarrowBase() // logos M3-S4 hook: early-exit narrowing scope.
 	for i, s := range list {
-		s = check.logosYieldForm(s)
-		list[i] = s
+		s = check.logosStmtYield(&list[i])
 		inner := inner
 		if ok && i+1 == len(list) {
 			inner |= fallthroughOk
@@ -342,9 +336,7 @@ L:
 			if !isValid(T) {
 				continue L
 			}
-			if logosContainsReadonlyDescendants(T) {
-				check.error(e, InvalidTypeSwitch, "cannot use readonly descendants in type switch cases")
-				T = Typ[Invalid]
+			if check.logosStmtReadonlyCase(e, &T) {
 				continue L
 			}
 		}
@@ -497,9 +489,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 	case *syntax.SendStmt:
 		var ch, val operand
 		check.expr(nil, &ch, s.Chan)
-		if !check.logosLambdaDefer(&val, s.Value) {
-			check.genericExpr(&val, s.Value, nil)
-		}
+		check.logosStmtSendValue(&val, s.Value)
 		if !ch.isValid() || !val.isValid() {
 			return
 		}
@@ -700,9 +690,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.SwitchStmt:
 		inner |= breakOk
-		if inner&logosConstSwitchContinue != 0 {
-			inner |= continueOk
-		}
+		inner = logosStmtSwitchContext(inner)
 		check.openScope(s, "switch")
 		defer check.closeScope()
 
@@ -716,9 +704,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
 
 	case *syntax.SelectStmt:
 		inner |= breakOk
-		if inner&logosConstSwitchContinue != 0 {
-			inner |= continueOk
-		}
+		inner = logosStmtSwitchContext(inner)
 
 		check.multipleSelectDefaults(s.Body)
 
@@ -882,17 +868,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
 	{
 		var x operand
 		check.expr(nil, &x, guard.X)
-		if x.isValid() {
-			if logosContainsReadonlyDescendants(x.typ()) {
-				check.error(&x, InvalidTypeSwitch, "cannot use type switch on value with readonly descendants")
-			} else if isTypeParam(x.typ()) {
-				check.errorf(&x, InvalidTypeSwitch, "cannot use type switch on type parameter value %s", &x)
-			} else if IsInterface(x.typ()) {
-				sx = &x
-			} else {
-				check.errorf(&x, InvalidTypeSwitch, "%s is not an interface", &x)
-			}
-		}
+		sx = check.logosStmtSwitchOperand(&x)
 	}
 
 	check.multipleSwitchDefaults(s.Body)
