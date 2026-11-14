@@ -5,6 +5,9 @@
 package test
 
 import (
+	"runtime"
+	"strings"
+
 	"cmd/go/internal/cfg"
 	"cmd/go/internal/work"
 )
@@ -14,4 +17,14 @@ func logosAppendTestEnv(env []string) []string {
 		return env
 	}
 	return append(env, work.LogosTargetArchEnv()...)
+}
+
+func logosInheritedTestEnv(name string) (string, bool) {
+	for i := len(cfg.OrigEnv) - 1; i >= 0; i-- {
+		key, value, ok := strings.Cut(cfg.OrigEnv[i], "=")
+		if ok && (key == name || runtime.GOOS == "windows" && strings.EqualFold(key, name)) {
+			return value, true
+		}
+	}
+	return "", false
 }

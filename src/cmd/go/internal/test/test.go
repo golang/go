@@ -17,7 +17,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -2077,21 +2076,9 @@ func computeTestInputsID(a *work.Action, testlog []byte) (cache.ActionID, error)
 	return sum, nil
 }
 
-// lookupTestEnv looks up the environment inherited by the test, not the
-// environment adjusted for the driver and its build tools.
-func lookupTestEnv(name string) (string, bool) {
-	for i := len(cfg.OrigEnv) - 1; i >= 0; i-- {
-		key, value, ok := strings.Cut(cfg.OrigEnv[i], "=")
-		if ok && (key == name || runtime.GOOS == "windows" && strings.EqualFold(key, name)) {
-			return value, true
-		}
-	}
-	return "", false
-}
-
 func hashGetenv(name string) cache.ActionID {
 	h := cache.NewHash("getenv")
-	v, ok := lookupTestEnv(name)
+	v, ok := logosInheritedTestEnv(name)
 	if !ok {
 		h.Write([]byte{0})
 	} else {
