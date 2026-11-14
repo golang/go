@@ -62,46 +62,84 @@ TEXT ·secretEraseRegistersMcall(SB),NOSPLIT|NOFRAME,$0-0
 	JMP	noavx512
 
 avx:
+	// Default to all vector/mask XINUSE bits set (0xE6 = XMM 0x02 | YMM_Hi128 0x04 |
+	// OpMask 0x20 | ZMM_Hi256 0x40 | Hi16_ZMM 0x80) if XGETBV(ECX=1) is unavailable.
+	MOVL $(const_xcr0_AX_SSE|const_xcr0_AX_YMM|const_xcr0_AX_OpMask|const_xcr0_AX_ZMM_Hi256|const_xcr0_AX_Hi16_ZMM), BX
+	CMPB	internal∕cpu·X86+const_offsetX86HasXGETBV1(SB), $1
+	JNE	have_xinuse
+	// Preserve AX (which holds mcall's fn argument) across XGETBV (which writes EAX:EDX),
+	// then re-zero R8, CX, and DX so no state leaks in GP registers.
+	MOVQ	AX, R8
+	MOVL	$1, CX
+	XGETBV
+	MOVL	AX, BX
+	MOVQ	R8, AX
+	XORL	R8, R8 // Not strictly necessary, since it is a copy of AX which is leaked on purpose.
+	XORL	CX, CX // Not strictly necessary, since "1" set above means OS/HW provides XGETBV
+	XORL	DX, DX // Don't leak XINUSE state.
+
+	// BX now holds the low 32 bits of (XCR0 & XINUSE)
+
+have_xinuse:
+	// Test whether any part of Z0-Z15 (XMM 0x02 | YMM_Hi128 0x04 | ZMM_Hi256 0x40)
+	// is non-INIT before executing VZEROALL.
+	TESTL	$(const_xcr0_AX_SSE|const_xcr0_AX_YMM|const_xcr0_AX_ZMM_Hi256), BX
+	JZ	clear_z16_31
+
 	// VZEROALL zeroes all of the X0-X15 registers, no matter how wide.
-	// That includes Y0-Y15 (256-bit avx) and Z0-Z15 (512-bit avx512).
+	// That includes Y0-Y15 (256-bit avx) and Z0-Z15 (512-bit avx512),
+	// and resets their XINUSE bits (1, 2, 6) to 0.
 	VZEROALL
 
-	// Clear all the avx512 state.
+clear_z16_31:
+	// Clear the avx512 state (Z16-Z31 and K0-K7) only if in use,
+	// to avoid setting their XINUSE bits when they are already in INIT state.
 	CMPB	internal∕cpu·X86+const_offsetX86HasAVX512(SB), $1
 	JNE	noavx512
 
-	// Zero X16-X31
-	// Note that VZEROALL above already cleared Z0-Z15.
-	VMOVAPD	Z0, Z16
-	VMOVAPD	Z0, Z17
-	VMOVAPD	Z0, Z18
-	VMOVAPD	Z0, Z19
-	VMOVAPD	Z0, Z20
-	VMOVAPD	Z0, Z21
-	VMOVAPD	Z0, Z22
-	VMOVAPD	Z0, Z23
-	VMOVAPD	Z0, Z24
-	VMOVAPD	Z0, Z25
-	VMOVAPD	Z0, Z26
-	VMOVAPD	Z0, Z27
-	VMOVAPD	Z0, Z28
-	VMOVAPD	Z0, Z29
-	VMOVAPD	Z0, Z30
-	VMOVAPD	Z0, Z31
+	TESTL	$const_xcr0_AX_Hi16_ZMM, BX
+	JZ	clear_k
 
-	// Zero k0-k7
+	// Zero Z16-Z31 via 128-bit EVEX zeroing idioms without touching Z0-Z15
+	// so XINUSE[1,2,6] stay 0 and without triggering 512-bit execution
+	// license transitions.
+	VPXORQ	X16, X16, X16
+	VPXORQ	X17, X17, X17
+	VPXORQ	X18, X18, X18
+	VPXORQ	X19, X19, X19
+	VPXORQ	X20, X20, X20
+	VPXORQ	X21, X21, X21
+	VPXORQ	X22, X22, X22
+	VPXORQ	X23, X23, X23
+	VPXORQ	X24, X24, X24
+	VPXORQ	X25, X25, X25
+	VPXORQ	X26, X26, X26
+	VPXORQ	X27, X27, X27
+	VPXORQ	X28, X28, X28
+	VPXORQ	X29, X29, X29
+	VPXORQ	X30, X30, X30
+	VPXORQ	X31, X31, X31
+
+clear_k:
+	TESTL	$const_xcr0_AX_OpMask, BX
+	JZ	noavx512
+
+	// Zero k0-k7 via self-XOR zeroing idioms so hardware resets XINUSE[5] (0x20)
+	// to INIT state (0).
 	KXORQ	K0, K0, K0
-	KXORQ	K0, K0, K1
-	KXORQ	K0, K0, K2
-	KXORQ	K0, K0, K3
-	KXORQ	K0, K0, K4
-	KXORQ	K0, K0, K5
-	KXORQ	K0, K0, K6
-	KXORQ	K0, K0, K7
+	KXORQ	K1, K1, K1
+	KXORQ	K2, K2, K2
+	KXORQ	K3, K3, K3
+	KXORQ	K4, K4, K4
+	KXORQ	K5, K5, K5
+	KXORQ	K6, K6, K6
+	KXORQ	K7, K7, K7
 
 noavx512:
-	// misc registers
-	CMPL	BX, BX	//eflags
+	// Clear (XCR0 & XINUSE) copy in BX. It leaks state about what registers were in use.
+	XORL	BX, BX
+	// Clear eflags (unlike XOR, CMP puts AF as well as CF/OF/SF/PF into known states)
+	CMPL	BX, BX
 	// segment registers? Direction flag? Both seem overkill.
 
 	RET
