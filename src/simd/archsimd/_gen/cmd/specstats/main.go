@@ -68,7 +68,7 @@ func load(genOpts *gentools.Options) *metrics {
 	simdDir := filepath.Clean(filepath.Join(specDir, "..", ".."))
 	genDir := filepath.Join(simdDir, "archsimd", "_gen")
 
-	spec, err := specgen.Load(specDir, nil)
+	spec, _, err := specgen.Load(specDir, nil)
 	if err != nil {
 		log.Fatalf("loading spec: %s", err)
 	}

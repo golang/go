@@ -49,6 +49,32 @@ type Arg struct {
 	Type specexpr.Type
 }
 
+// TypeDecl represents a vector or mask type in the SIMD API.
+//
+// TypeDecls come from exported generic type declarations in spec whose
+// underlying type is a Vec, such as
+//
+//	// Vector is a ...
+//	//
+//	//specgen:name {{.T}}
+//	type Vector[E Elt, W Width] Vec[E, W]
+//
+// Each instantiation of the type parameters produces one TypeDecl.
+type TypeDecl struct {
+	// Name is the API type name, such as "Int32x4" or "Mask8s". It always
+	// equals Shape.String().
+	Name string
+
+	// Shape is the vector shape of this type.
+	Shape specexpr.Vector
+
+	// Doc is the type documentation, split into classified paragraphs.
+	Doc []Paragraph
+
+	// Pos is the source position of the spec type declaration.
+	Pos token.Position
+}
+
 func (f *Func) Signature() string {
 	var buf strings.Builder
 	buf.WriteString("func ")

@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"go/types"
 	"log"
-	"maps"
 	"os"
 	"slices"
 	"strings"
@@ -39,7 +38,7 @@ func main() {
 	}
 	specDir := specgen.MustFindSpecDir(genOpts.GOROOT)
 
-	funcs, err := specgen.Load(specDir, nil)
+	funcs, apiTypes, err := specgen.Load(specDir, nil)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
@@ -59,13 +58,11 @@ import "simd/internal/spec"
 `)
 
 	// Define all vector types
-	vecTypeSet := make(map[specexpr.Vector]bool)
-	for _, fn := range funcs {
-		if fn.Recv.Type != nil {
-			vecTypeSet[fn.Recv.Type.(specexpr.Vector)] = true
-		}
+	var vecTypes []specexpr.Vector
+	for _, t := range apiTypes {
+		vecTypes = append(vecTypes, t.Shape)
 	}
-	vecTypes := slices.SortedFunc(maps.Keys(vecTypeSet), func(a, b specexpr.Vector) int {
+	slices.SortFunc(vecTypes, func(a, b specexpr.Vector) int {
 		if a.Elem != b.Elem {
 			return cmp.Compare(a.Elem.String(), b.Elem.String())
 		}

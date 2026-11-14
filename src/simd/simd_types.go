@@ -11,85 +11,115 @@ import "simd/internal/bridge"
 // internal SIMD marker, and hard dependence on simd/internal/bridge
 type _simd bridge.ZeroSized
 
-// Int8s represents a vector of 8-bit signed integers.
+// Int8s is a scalable SIMD vector of int8s.
+//
+// Values of type Int8s are comparable. a == b if a[i] == b[i] for all elements.
 type Int8s struct {
 	_ _simd
 	v [16]int8 // the actual vector size may be larger.
 }
 
-// Int16s represents a vector of 16-bit signed integers.
+// Int16s is a scalable SIMD vector of int16s.
+//
+// Values of type Int16s are comparable. a == b if a[i] == b[i] for all elements.
 type Int16s struct {
 	_ _simd
 	v [8]int16 // the actual vector size may be larger.
 }
 
-// Int32s represents a vector of 32-bit signed integers.
+// Int32s is a scalable SIMD vector of int32s.
+//
+// Values of type Int32s are comparable. a == b if a[i] == b[i] for all elements.
 type Int32s struct {
 	_ _simd
 	v [4]int32 // the actual vector size may be larger.
 }
 
-// Int64s represents a vector of 64-bit signed integers.
+// Int64s is a scalable SIMD vector of int64s.
+//
+// Values of type Int64s are comparable. a == b if a[i] == b[i] for all elements.
 type Int64s struct {
 	_ _simd
 	v [2]int64 // the actual vector size may be larger.
 }
 
-// Uint8s represents a vector of 8-bit unsigned integers.
+// Uint8s is a scalable SIMD vector of uint8s.
+//
+// Values of type Uint8s are comparable. a == b if a[i] == b[i] for all elements.
 type Uint8s struct {
 	_ _simd
 	v [16]uint8 // the actual vector size may be larger.
 }
 
-// Uint16s represents a vector of 16-bit unsigned integers.
+// Uint16s is a scalable SIMD vector of uint16s.
+//
+// Values of type Uint16s are comparable. a == b if a[i] == b[i] for all elements.
 type Uint16s struct {
 	_ _simd
 	v [8]uint16 // the actual vector size may be larger.
 }
 
-// Uint32s represents a vector of 32-bit unsigned integers.
+// Uint32s is a scalable SIMD vector of uint32s.
+//
+// Values of type Uint32s are comparable. a == b if a[i] == b[i] for all elements.
 type Uint32s struct {
 	_ _simd
 	v [4]uint32 // the actual vector size may be larger.
 }
 
-// Uint64s represents a vector of 64-bit unsigned integers.
+// Uint64s is a scalable SIMD vector of uint64s.
+//
+// Values of type Uint64s are comparable. a == b if a[i] == b[i] for all elements.
 type Uint64s struct {
 	_ _simd
 	v [2]uint64 // the actual vector size may be larger.
 }
 
-// Float32s represents a vector of 32-bit floating-point numbers.
+// Float32s is a scalable SIMD vector of float32s.
+//
+// Values of type Float32s are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
 type Float32s struct {
 	_ _simd
 	v [4]float32 // the actual vector size may be larger.
 }
 
-// Float64s represents a vector of 64-bit floating-point numbers.
+// Float64s is a scalable SIMD vector of float64s.
+//
+// Values of type Float64s are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
 type Float64s struct {
 	_ _simd
 	v [2]float64 // the actual vector size may be larger.
 }
 
-// Mask8s represents a boolean mask for Int8s/Uint8s vectors.
+// Mask8s is a mask for a scalable SIMD vector of 8-bit elements.
+//
+// Values of type Mask8s are comparable.
 type Mask8s struct {
 	_ _simd
 	m uint16 // the actual vector size may be larger.
 }
 
-// Mask16s represents a boolean mask for Int16s/Uint16s vectors.
+// Mask16s is a mask for a scalable SIMD vector of 16-bit elements.
+//
+// Values of type Mask16s are comparable.
 type Mask16s struct {
 	_ _simd
 	m uint8 // the actual vector size may be larger.
 }
 
-// Mask32s represents a boolean mask for Int32s/Uint32s vectors.
+// Mask32s is a mask for a scalable SIMD vector of 32-bit elements.
+//
+// Values of type Mask32s are comparable.
 type Mask32s struct {
 	_ _simd
 	m uint8 // the actual vector size may be larger.
 }
 
-// Mask64s represents a boolean mask for Int64s/Uint64s vectors.
+// Mask64s is a mask for a scalable SIMD vector of 64-bit elements.
+//
+// Values of type Mask64s are comparable.
 type Mask64s struct {
 	_ _simd
 	m uint8 // the actual vector size may be larger.

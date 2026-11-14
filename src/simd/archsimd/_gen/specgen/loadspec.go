@@ -21,6 +21,7 @@ type specPackage struct {
 	Pkg       *types.Package
 	TypesInfo *types.Info
 	Funcs     []*specFunc
+	Types     []*specType
 
 	TypeElems  map[types.Type]specexpr.Basic
 	TypeWidths map[types.Type]specexpr.Num
@@ -48,6 +49,23 @@ type specFunc struct {
 	Params       []*types.Var
 	Results      []*types.Var
 	Requirements []specexpr.Expr
+}
+
+// specType represents an exported generic type in the spec source whose
+// underlying type is a Vec. Each instantiation of its type parameters describes
+// one API vector or mask type.
+//
+// When expanding a specType, template variable T is bound to each instantiated
+// shape of the Vec, as if it were an argument named T, so name and doc
+// templates can refer to T, TE, TB, TN, TL, and TW.
+type specType struct {
+	Pkg        *specPackage
+	Name       string       // Source name
+	NameTmpl   specTemplate // API name template from `//specgen:name` directive, or same as Name.
+	Pos        token.Pos
+	Doc        specTemplate // Comment markers removed; \n-terminated unless ""
+	TypeParams []*types.TypeParam
+	Def        types.Type // The instantiated Vec type this type is defined as
 }
 
 // specGoVersion is the oldest Go toolchain version that must be able to parse
@@ -130,8 +148,9 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 
 	pkg.loadKnownTypes(ctx)
 
-	// Gather exported functions
+	// Gather exported functions and API types
 	var funcs []*specFunc
+	var specTypes []*specType
 	for _, file := range astFiles {
 		// Gather directives
 		var category string
@@ -169,15 +188,26 @@ func loadSpecPackage(ctx context, dir string, opts *LoadOptions) *specPackage {
 					break
 				}
 				funcs = append(funcs, f)
+
+			case *ast.GenDecl:
+				if decl.Tok != token.TYPE {
+					break
+				}
+				for _, spec := range decl.Specs {
+					if t := pkg.loadSpecType(ctx, decl, spec.(*ast.TypeSpec), directives); t != nil {
+						specTypes = append(specTypes, t)
+					}
+				}
 			}
 		}
 
 		for _, dir := range directives {
-			ctx.at(dir.Pos()).errorf("//%s:%s directive must be attached to a function", dir.Tool, dir.Name)
+			ctx.at(dir.Pos()).errorf("//%s:%s directive must be attached to a function or API type", dir.Tool, dir.Name)
 		}
 	}
 
 	pkg.Funcs = funcs
+	pkg.Types = specTypes
 	return pkg
 }
 
@@ -312,6 +342,57 @@ func (pkg *specPackage) loadSpecFunc(ctx context, d *ast.FuncDecl, category stri
 	}
 
 	return f
+}
+
+// loadSpecType returns the specType for the type spec ts in declaration gd, or
+// nil if ts does not describe API types. It removes the directives attached to
+// ts from directives.
+func (pkg *specPackage) loadSpecType(ctx context, gd *ast.GenDecl, ts *ast.TypeSpec, directives map[*ast.Comment]ast.Directive) *specType {
+	if !ts.Name.IsExported() || ts.TypeParams == nil {
+		return nil
+	}
+	def, ok := pkg.TypesInfo.Types[ts.Type].Type.(*types.Named)
+	if !ok || !types.Identical(def.Origin(), pkg.VecType) {
+		return nil
+	}
+
+	named := pkg.Pkg.Scope().Lookup(ts.Name.Name).Type().(*types.Named)
+	var typeParams []*types.TypeParam
+	for tparam := range named.TypeParams().TypeParams() {
+		typeParams = append(typeParams, tparam)
+	}
+
+	t := &specType{
+		Pkg:        pkg,
+		Name:       ts.Name.Name,
+		Pos:        ts.Pos(),
+		TypeParams: typeParams,
+		Def:        def,
+	}
+	t.NameTmpl = specTemplate{raw: t.Name}
+
+	// The doc comment of an ungrouped type declaration is attached to the
+	// GenDecl.
+	docGroup := ts.Doc
+	if docGroup == nil && !gd.Lparen.IsValid() {
+		docGroup = gd.Doc
+	}
+	doc, dirs := loadDoc(ctx, docGroup, directives)
+	t.Doc = doc
+	for _, dir := range dirs {
+		switch dir.Name {
+		case "name":
+			var err error
+			t.NameTmpl, err = newSpecTemplate(dir.Args)
+			if err != nil {
+				ctx.at(dir.Pos()).errorf("malformed //specgen:name directive: %s", err)
+			}
+		default:
+			ctx.at(dir.Pos()).errorf("//%s:%s directive cannot be attached to a type", dir.Tool, dir.Name)
+		}
+	}
+
+	return t
 }
 
 // loadDoc parses the doc comment doc as a spec doc template. It returns the

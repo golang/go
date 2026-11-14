@@ -14,6 +14,8 @@ type v128 struct {
 }
 
 // Int8x16 is a 128-bit SIMD vector of 16 int8s.
+//
+// Values of type Int8x16 are comparable. a == b if a[i] == b[i] for all elements.
 type Int8x16 struct {
 	int8x16 v128
 	vals    [16]int8
@@ -47,6 +49,8 @@ func (x Int8x16) Store(s []int8) {
 func BroadcastInt8x16(x int8) (z Int8x16)
 
 // Int16x8 is a 128-bit SIMD vector of 8 int16s.
+//
+// Values of type Int16x8 are comparable. a == b if a[i] == b[i] for all elements.
 type Int16x8 struct {
 	int16x8 v128
 	vals    [8]int16
@@ -80,6 +84,8 @@ func (x Int16x8) Store(s []int16) {
 func BroadcastInt16x8(x int16) (z Int16x8)
 
 // Int32x4 is a 128-bit SIMD vector of 4 int32s.
+//
+// Values of type Int32x4 are comparable. a == b if a[i] == b[i] for all elements.
 type Int32x4 struct {
 	int32x4 v128
 	vals    [4]int32
@@ -113,6 +119,8 @@ func (x Int32x4) Store(s []int32) {
 func BroadcastInt32x4(x int32) (z Int32x4)
 
 // Int64x2 is a 128-bit SIMD vector of 2 int64s.
+//
+// Values of type Int64x2 are comparable. a == b if a[i] == b[i] for all elements.
 type Int64x2 struct {
 	int64x2 v128
 	vals    [2]int64
@@ -146,6 +154,8 @@ func (x Int64x2) Store(s []int64) {
 func BroadcastInt64x2(x int64) (z Int64x2)
 
 // Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
+//
+// Values of type Uint8x16 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint8x16 struct {
 	uint8x16 v128
 	vals     [16]uint8
@@ -179,6 +189,8 @@ func (x Uint8x16) Store(s []uint8) {
 func BroadcastUint8x16(x uint8) (z Uint8x16)
 
 // Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
+//
+// Values of type Uint16x8 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint16x8 struct {
 	uint16x8 v128
 	vals     [8]uint16
@@ -212,6 +224,8 @@ func (x Uint16x8) Store(s []uint16) {
 func BroadcastUint16x8(x uint16) (z Uint16x8)
 
 // Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
+//
+// Values of type Uint32x4 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint32x4 struct {
 	uint32x4 v128
 	vals     [4]uint32
@@ -245,6 +259,8 @@ func (x Uint32x4) Store(s []uint32) {
 func BroadcastUint32x4(x uint32) (z Uint32x4)
 
 // Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
+//
+// Values of type Uint64x2 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint64x2 struct {
 	uint64x2 v128
 	vals     [2]uint64
@@ -278,6 +294,9 @@ func (x Uint64x2) Store(s []uint64) {
 func BroadcastUint64x2(x uint64) (z Uint64x2)
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
+//
+// Values of type Float32x4 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
 type Float32x4 struct {
 	float32x4 v128
 	vals      [4]float32
@@ -311,6 +330,9 @@ func (x Float32x4) Store(s []float32) {
 func BroadcastFloat32x4(x float32) (z Float32x4)
 
 // Float64x2 is a 128-bit SIMD vector of 2 float64s.
+//
+// Values of type Float64x2 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
 type Float64x2 struct {
 	float64x2 v128
 	vals      [2]float64
@@ -343,25 +365,33 @@ func (x Float64x2) Store(s []float64) {
 // result.
 func BroadcastFloat64x2(x float64) (z Float64x2)
 
-// Mask8x16 is a 128-bit SIMD mask of 16 int8s.
+// Mask8x16 is a mask for a SIMD vector of 16 8-bit elements.
+//
+// Values of type Mask8x16 are comparable.
 type Mask8x16 struct {
 	mask8x16 v128
 	vals     [16]int8
 }
 
-// Mask16x8 is a 128-bit SIMD mask of 8 int16s.
+// Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
+//
+// Values of type Mask16x8 are comparable.
 type Mask16x8 struct {
 	mask16x8 v128
 	vals     [8]int16
 }
 
-// Mask32x4 is a 128-bit SIMD mask of 4 int32s.
+// Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
+//
+// Values of type Mask32x4 are comparable.
 type Mask32x4 struct {
 	mask32x4 v128
 	vals     [4]int32
 }
 
-// Mask64x2 is a 128-bit SIMD mask of 2 int64s.
+// Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
+//
+// Values of type Mask64x2 are comparable.
 type Mask64x2 struct {
 	mask64x2 v128
 	vals     [2]int64

@@ -1185,7 +1185,6 @@ func Broadcast{{.Name}}(x {{.Elem}}) {{.Name}}
 `)
 
 var typeDecl = templateOf("type decl", `
-// {{.Name}} is a 128-bit SIMD vector of {{.Count}} {{.Elem}}s.
 type {{.Name}} struct {
 	{{.Elem}}x{{.Count}} v128
 	vals      [{{.Count}}]{{.Elem}}
@@ -1193,7 +1192,6 @@ type {{.Name}} struct {
 `)
 
 var maskTypeDecl = templateOf("type decl", `
-// {{.Name}} is a 128-bit SIMD mask of {{.Count}} {{.Elem}}s.
 type {{.Name}} struct {
 	mask{{slice .Elem 3}}x{{.Count}} v128
 	vals      [{{.Count}}]{{.Elem}}

@@ -28,8 +28,9 @@ type LoadOptions struct {
 }
 
 // Load loads a Go SIMD spec from the package in directory dir. This is the main
-// entrypoint to this package.
-func Load(dir string, opts *LoadOptions) ([]*Func, error) {
+// entrypoint to this package. It returns the API functions and API types
+// described by the spec.
+func Load(dir string, opts *LoadOptions) ([]*Func, []*TypeDecl, error) {
 	if opts == nil {
 		opts = new(LoadOptions)
 	}
@@ -39,7 +40,7 @@ func Load(dir string, opts *LoadOptions) ([]*Func, error) {
 
 	pkg := loadSpecPackage(ctx, dir, opts)
 	if err := root.gatherErrors(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var allFuncs []*Func
@@ -63,7 +64,20 @@ func Load(dir string, opts *LoadOptions) ([]*Func, error) {
 		}
 	}
 
-	return allFuncs, root.gatherErrors()
+	var allTypes []*TypeDecl
+	typeSet := make(map[string]*TypeDecl)
+	for _, sT := range pkg.Types {
+		for _, t := range sT.expand(ctx, opts) {
+			if ot := typeSet[t.Name]; ot != nil {
+				ctx.at(sT.Pos).errorf("conflicting declarations of API type %s (also at %s)", t.Name, ot.Pos)
+				continue
+			}
+			typeSet[t.Name] = t
+			allTypes = append(allTypes, t)
+		}
+	}
+
+	return allFuncs, allTypes, root.gatherErrors()
 }
 
 type contextRoot struct {

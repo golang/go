@@ -110,3 +110,39 @@ func TestLoadSpecNameTmpl(t *testing.T) {
 		t.Errorf("failed to find function MaskFromBits in parsed package")
 	}
 }
+
+func TestLoadTypes(t *testing.T) {
+	idx, err := LoadIndex("../../../internal/spec", nil)
+	if err != nil {
+		t.Fatalf("LoadIndex: %v", err)
+	}
+
+	// 10 element types and 4 mask types, each in 3 fixed widths plus scalable.
+	if got, want := len(idx.Types()), (10+4)*4; got != want {
+		t.Errorf("got %d API types, want %d", got, want)
+	}
+	for _, td := range idx.Types() {
+		if td.Name != td.Shape.String() {
+			t.Errorf("type %s has shape %s", td.Name, td.Shape)
+		}
+		if len(td.Doc) == 0 || !strings.HasPrefix(td.Doc[0].Text, td.Name+" ") {
+			t.Errorf("type %s doc does not start with its name: %q", td.Name, td.Doc)
+		}
+	}
+
+	for name, want := range map[string]string{
+		"Int32x4":  "Int32x4 is a 128-bit SIMD vector of 4 int32s.",
+		"Uint8s":   "Uint8s is a scalable SIMD vector of uint8s.",
+		"Mask64x8": "Mask64x8 is a mask for a SIMD vector of 8 64-bit elements.",
+		"Mask16s":  "Mask16s is a mask for a scalable SIMD vector of 16-bit elements.",
+	} {
+		td := idx.LookupType(name)
+		if td == nil {
+			t.Errorf("type %s not found", name)
+			continue
+		}
+		if len(td.Doc) == 0 || td.Doc[0].Text != want {
+			t.Errorf("type %s doc = %q, want first paragraph %q", name, td.Doc, want)
+		}
+	}
+}

@@ -84,6 +84,14 @@ var templateFuncs = template.FuncMap{
 		}
 		return name.(string) + ".Len()", nil
 	},
+	// scalable reports whether shape is a scalable vector.
+	"scalable": func(shape any) (bool, error) {
+		s, ok := shape.(specexpr.Vector)
+		if !ok {
+			return false, fmt.Errorf("want Vector, got %T", shape)
+		}
+		return s.Scalable(), nil
+	},
 	"reshapeDiagram": func(x, z any) (string, error) {
 		xx, ok := x.(specexpr.Vector)
 		if !ok {
@@ -293,6 +301,24 @@ func cleanDocNewlines(s string) string {
 // expandNameAndDoc instantiates the API function name and doc comment for sFn
 // using the solved variable bindings in b.
 func (sFn *specFunc) expandNameAndDoc(ctx context, b *specexpr.Bindings) (name, doc string) {
+	data := templateData(b)
+	name = sFn.NameTmpl.expandName(ctx, data, sFn.Name)
+	doc = sFn.Doc.expandDoc(ctx, data, sFn.Name, name)
+	return name, doc
+}
+
+// expandNameAndDoc instantiates the API type name and doc comment for t using
+// the solved variable bindings in b.
+func (t *specType) expandNameAndDoc(ctx context, b *specexpr.Bindings) (name, doc string) {
+	data := templateData(b)
+	name = t.NameTmpl.expandName(ctx, data, t.Name)
+	doc = t.Doc.expandDoc(ctx, data, t.Name, name)
+	return name, doc
+}
+
+// templateData returns the data for expanding name and doc templates with the
+// solved variable bindings in b.
+func templateData(b *specexpr.Bindings) map[string]any {
 	data := make(map[string]any)
 	for v, val := range b.All() {
 		data[string(v)] = val
@@ -300,26 +326,36 @@ func (sFn *specFunc) expandNameAndDoc(ctx context, b *specexpr.Bindings) (name, 
 			data[s] = val
 		}
 	}
+	return data
+}
 
-	var err error
-	name, err = sFn.NameTmpl.expand(data)
+// expandName expands name template s with data. If expansion fails, it reports
+// an error and returns srcName, the source name of the spec declaration.
+func (s *specTemplate) expandName(ctx context, data map[string]any, srcName string) string {
+	name, err := s.expand(data)
 	if err != nil {
-		ctx.errorf("expanding function name template: %s", err)
-		name = sFn.Name
+		ctx.errorf("expanding name template: %s", err)
+		return srcName
 	}
+	return name
+}
 
+// expandDoc expands doc template s with data for the API declaration name,
+// whose spec source name is srcName. Occurrences of srcName in the doc are
+// replaced with name. data["Name"] is set to name.
+func (s *specTemplate) expandDoc(ctx context, data map[string]any, srcName, name string) string {
 	data["Name"] = name
-	doc, err = sFn.Doc.expand(data)
+	doc, err := s.expand(data)
 	if err != nil {
 		ctx.errorf("expanding doc template: %s", err)
-		doc = sFn.Doc.raw
+		doc = s.raw
 	}
 
 	doc = cleanDocNewlines(doc)
 
-	if name != sFn.Name {
-		doc = regexp.MustCompile(`\b`+regexp.QuoteMeta(sFn.Name)+`\b`).ReplaceAllLiteralString(doc, name)
+	if name != srcName {
+		doc = regexp.MustCompile(`\b`+regexp.QuoteMeta(srcName)+`\b`).ReplaceAllLiteralString(doc, name)
 	}
 
-	return name, doc
+	return doc
 }

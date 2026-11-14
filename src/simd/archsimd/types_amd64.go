@@ -15,6 +15,9 @@ type v128 struct {
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
 //
+// Values of type Float32x4 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
+//
 // CPU Feature: AVX
 type Float32x4 struct {
 	float32x4 v128
@@ -54,6 +57,9 @@ func loadFloat32x4ArrayMasked(y *[4]float32, mask Mask32x4) Float32x4
 func (x Float32x4) StoreArrayMasked(y *[4]float32, mask Mask32x4)
 
 // Float64x2 is a 128-bit SIMD vector of 2 float64s.
+//
+// Values of type Float64x2 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
 //
 // CPU Feature: AVX
 type Float64x2 struct {
@@ -95,6 +101,8 @@ func (x Float64x2) StoreArrayMasked(y *[2]float64, mask Mask64x2)
 
 // Int8x16 is a 128-bit SIMD vector of 16 int8s.
 //
+// Values of type Int8x16 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Int8x16 struct {
 	int8x16 v128
@@ -116,6 +124,8 @@ func (x Int8x16) StoreArray(y *[16]int8)
 
 // Int16x8 is a 128-bit SIMD vector of 8 int16s.
 //
+// Values of type Int16x8 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Int16x8 struct {
 	int16x8 v128
@@ -136,6 +146,8 @@ func LoadInt16x8Array(x *[8]int16) (z Int16x8)
 func (x Int16x8) StoreArray(y *[8]int16)
 
 // Int32x4 is a 128-bit SIMD vector of 4 int32s.
+//
+// Values of type Int32x4 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX
 type Int32x4 struct {
@@ -177,6 +189,8 @@ func (x Int32x4) StoreArrayMasked(y *[4]int32, mask Mask32x4)
 
 // Int64x2 is a 128-bit SIMD vector of 2 int64s.
 //
+// Values of type Int64x2 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Int64x2 struct {
 	int64x2 v128
@@ -217,6 +231,8 @@ func (x Int64x2) StoreArrayMasked(y *[2]int64, mask Mask64x2)
 
 // Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
 //
+// Values of type Uint8x16 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Uint8x16 struct {
 	uint8x16 v128
@@ -238,6 +254,8 @@ func (x Uint8x16) StoreArray(y *[16]uint8)
 
 // Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
 //
+// Values of type Uint16x8 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Uint16x8 struct {
 	uint16x8 v128
@@ -258,6 +276,8 @@ func LoadUint16x8Array(x *[8]uint16) (z Uint16x8)
 func (x Uint16x8) StoreArray(y *[8]uint16)
 
 // Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
+//
+// Values of type Uint32x4 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX
 type Uint32x4 struct {
@@ -299,6 +319,8 @@ func (x Uint32x4) StoreArrayMasked(y *[4]uint32, mask Mask32x4)
 
 // Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
 //
+// Values of type Uint64x2 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX
 type Uint64x2 struct {
 	uint64x2 v128
@@ -339,6 +361,8 @@ func (x Uint64x2) StoreArrayMasked(y *[2]uint64, mask Mask64x2)
 
 // Mask8x16 is a mask for a SIMD vector of 16 8-bit elements.
 //
+// Values of type Mask8x16 are comparable.
+//
 // CPU Feature: AVX
 type Mask8x16 struct {
 	mask8x16 v128
@@ -358,6 +382,8 @@ func Mask8x16FromBits(x uint16) (z Mask8x16)
 func (x Mask8x16) ToBits() (z uint16)
 
 // Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
+//
+// Values of type Mask16x8 are comparable.
 //
 // CPU Feature: AVX
 type Mask16x8 struct {
@@ -379,6 +405,8 @@ func (x Mask16x8) ToBits() (z uint8)
 
 // Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
 //
+// Values of type Mask32x4 are comparable.
+//
 // CPU Feature: AVX
 type Mask32x4 struct {
 	mask32x4 v128
@@ -398,6 +426,8 @@ func Mask32x4FromBits(x uint8) (z Mask32x4)
 func (x Mask32x4) ToBits() (z uint8)
 
 // Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
+//
+// Values of type Mask64x2 are comparable.
 //
 // CPU Feature: AVX
 type Mask64x2 struct {
@@ -427,6 +457,9 @@ type v256 struct {
 }
 
 // Float32x8 is a 256-bit SIMD vector of 8 float32s.
+//
+// Values of type Float32x8 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
 //
 // CPU Feature: AVX
 type Float32x8 struct {
@@ -468,6 +501,9 @@ func (x Float32x8) StoreArrayMasked(y *[8]float32, mask Mask32x8)
 
 // Float64x4 is a 256-bit SIMD vector of 4 float64s.
 //
+// Values of type Float64x4 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
+//
 // CPU Feature: AVX
 type Float64x4 struct {
 	float64x4 v256
@@ -508,6 +544,8 @@ func (x Float64x4) StoreArrayMasked(y *[4]float64, mask Mask64x4)
 
 // Int8x32 is a 256-bit SIMD vector of 32 int8s.
 //
+// Values of type Int8x32 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Int8x32 struct {
 	int8x32 v256
@@ -529,6 +567,8 @@ func (x Int8x32) StoreArray(y *[32]int8)
 
 // Int16x16 is a 256-bit SIMD vector of 16 int16s.
 //
+// Values of type Int16x16 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Int16x16 struct {
 	int16x16 v256
@@ -549,6 +589,8 @@ func LoadInt16x16Array(x *[16]int16) (z Int16x16)
 func (x Int16x16) StoreArray(y *[16]int16)
 
 // Int32x8 is a 256-bit SIMD vector of 8 int32s.
+//
+// Values of type Int32x8 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX2
 type Int32x8 struct {
@@ -590,6 +632,8 @@ func (x Int32x8) StoreArrayMasked(y *[8]int32, mask Mask32x8)
 
 // Int64x4 is a 256-bit SIMD vector of 4 int64s.
 //
+// Values of type Int64x4 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Int64x4 struct {
 	int64x4 v256
@@ -630,6 +674,8 @@ func (x Int64x4) StoreArrayMasked(y *[4]int64, mask Mask64x4)
 
 // Uint8x32 is a 256-bit SIMD vector of 32 uint8s.
 //
+// Values of type Uint8x32 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Uint8x32 struct {
 	uint8x32 v256
@@ -651,6 +697,8 @@ func (x Uint8x32) StoreArray(y *[32]uint8)
 
 // Uint16x16 is a 256-bit SIMD vector of 16 uint16s.
 //
+// Values of type Uint16x16 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Uint16x16 struct {
 	uint16x16 v256
@@ -671,6 +719,8 @@ func LoadUint16x16Array(x *[16]uint16) (z Uint16x16)
 func (x Uint16x16) StoreArray(y *[16]uint16)
 
 // Uint32x8 is a 256-bit SIMD vector of 8 uint32s.
+//
+// Values of type Uint32x8 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX2
 type Uint32x8 struct {
@@ -712,6 +762,8 @@ func (x Uint32x8) StoreArrayMasked(y *[8]uint32, mask Mask32x8)
 
 // Uint64x4 is a 256-bit SIMD vector of 4 uint64s.
 //
+// Values of type Uint64x4 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX2
 type Uint64x4 struct {
 	uint64x4 v256
@@ -752,6 +804,8 @@ func (x Uint64x4) StoreArrayMasked(y *[4]uint64, mask Mask64x4)
 
 // Mask8x32 is a mask for a SIMD vector of 32 8-bit elements.
 //
+// Values of type Mask8x32 are comparable.
+//
 // CPU Feature: AVX
 type Mask8x32 struct {
 	mask8x32 v256
@@ -771,6 +825,8 @@ func Mask8x32FromBits(x uint32) (z Mask8x32)
 func (x Mask8x32) ToBits() (z uint32)
 
 // Mask16x16 is a mask for a SIMD vector of 16 16-bit elements.
+//
+// Values of type Mask16x16 are comparable.
 //
 // CPU Feature: AVX
 type Mask16x16 struct {
@@ -792,6 +848,8 @@ func (x Mask16x16) ToBits() (z uint16)
 
 // Mask32x8 is a mask for a SIMD vector of 8 32-bit elements.
 //
+// Values of type Mask32x8 are comparable.
+//
 // CPU Feature: AVX
 type Mask32x8 struct {
 	mask32x8 v256
@@ -811,6 +869,8 @@ func Mask32x8FromBits(x uint8) (z Mask32x8)
 func (x Mask32x8) ToBits() (z uint8)
 
 // Mask64x4 is a mask for a SIMD vector of 4 64-bit elements.
+//
+// Values of type Mask64x4 are comparable.
 //
 // CPU Feature: AVX
 type Mask64x4 struct {
@@ -840,6 +900,9 @@ type v512 struct {
 }
 
 // Float32x16 is a 512-bit SIMD vector of 16 float32s.
+//
+// Values of type Float32x16 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
 //
 // CPU Feature: AVX512
 type Float32x16 struct {
@@ -881,6 +944,9 @@ func (x Float32x16) StoreArrayMasked(y *[16]float32, mask Mask32x16)
 
 // Float64x8 is a 512-bit SIMD vector of 8 float64s.
 //
+// Values of type Float64x8 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
+//
 // CPU Feature: AVX512
 type Float64x8 struct {
 	float64x8 v512
@@ -920,6 +986,8 @@ func loadFloat64x8ArrayMasked(y *[8]float64, mask Mask64x8) Float64x8
 func (x Float64x8) StoreArrayMasked(y *[8]float64, mask Mask64x8)
 
 // Int8x64 is a 512-bit SIMD vector of 64 int8s.
+//
+// Values of type Int8x64 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX512
 type Int8x64 struct {
@@ -961,6 +1029,8 @@ func (x Int8x64) StoreArrayMasked(y *[64]int8, mask Mask8x64)
 
 // Int16x32 is a 512-bit SIMD vector of 32 int16s.
 //
+// Values of type Int16x32 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX512
 type Int16x32 struct {
 	int16x32 v512
@@ -1000,6 +1070,8 @@ func loadInt16x32ArrayMasked(y *[32]int16, mask Mask16x32) Int16x32
 func (x Int16x32) StoreArrayMasked(y *[32]int16, mask Mask16x32)
 
 // Int32x16 is a 512-bit SIMD vector of 16 int32s.
+//
+// Values of type Int32x16 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX512
 type Int32x16 struct {
@@ -1041,6 +1113,8 @@ func (x Int32x16) StoreArrayMasked(y *[16]int32, mask Mask32x16)
 
 // Int64x8 is a 512-bit SIMD vector of 8 int64s.
 //
+// Values of type Int64x8 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX512
 type Int64x8 struct {
 	int64x8 v512
@@ -1080,6 +1154,8 @@ func loadInt64x8ArrayMasked(y *[8]int64, mask Mask64x8) Int64x8
 func (x Int64x8) StoreArrayMasked(y *[8]int64, mask Mask64x8)
 
 // Uint8x64 is a 512-bit SIMD vector of 64 uint8s.
+//
+// Values of type Uint8x64 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX512
 type Uint8x64 struct {
@@ -1121,6 +1197,8 @@ func (x Uint8x64) StoreArrayMasked(y *[64]uint8, mask Mask8x64)
 
 // Uint16x32 is a 512-bit SIMD vector of 32 uint16s.
 //
+// Values of type Uint16x32 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX512
 type Uint16x32 struct {
 	uint16x32 v512
@@ -1160,6 +1238,8 @@ func loadUint16x32ArrayMasked(y *[32]uint16, mask Mask16x32) Uint16x32
 func (x Uint16x32) StoreArrayMasked(y *[32]uint16, mask Mask16x32)
 
 // Uint32x16 is a 512-bit SIMD vector of 16 uint32s.
+//
+// Values of type Uint32x16 are comparable. a == b if a[i] == b[i] for all elements.
 //
 // CPU Feature: AVX512
 type Uint32x16 struct {
@@ -1201,6 +1281,8 @@ func (x Uint32x16) StoreArrayMasked(y *[16]uint32, mask Mask32x16)
 
 // Uint64x8 is a 512-bit SIMD vector of 8 uint64s.
 //
+// Values of type Uint64x8 are comparable. a == b if a[i] == b[i] for all elements.
+//
 // CPU Feature: AVX512
 type Uint64x8 struct {
 	uint64x8 v512
@@ -1241,6 +1323,8 @@ func (x Uint64x8) StoreArrayMasked(y *[8]uint64, mask Mask64x8)
 
 // Mask8x64 is a mask for a SIMD vector of 64 8-bit elements.
 //
+// Values of type Mask8x64 are comparable.
+//
 // CPU Feature: AVX512
 type Mask8x64 struct {
 	mask8x64 v512
@@ -1260,6 +1344,8 @@ func Mask8x64FromBits(x uint64) (z Mask8x64)
 func (x Mask8x64) ToBits() (z uint64)
 
 // Mask16x32 is a mask for a SIMD vector of 32 16-bit elements.
+//
+// Values of type Mask16x32 are comparable.
 //
 // CPU Feature: AVX512
 type Mask16x32 struct {
@@ -1281,6 +1367,8 @@ func (x Mask16x32) ToBits() (z uint32)
 
 // Mask32x16 is a mask for a SIMD vector of 16 32-bit elements.
 //
+// Values of type Mask32x16 are comparable.
+//
 // CPU Feature: AVX512
 type Mask32x16 struct {
 	mask32x16 v512
@@ -1300,6 +1388,8 @@ func Mask32x16FromBits(x uint16) (z Mask32x16)
 func (x Mask32x16) ToBits() (z uint16)
 
 // Mask64x8 is a mask for a SIMD vector of 8 64-bit elements.
+//
+// Values of type Mask64x8 are comparable.
 //
 // CPU Feature: AVX512
 type Mask64x8 struct {

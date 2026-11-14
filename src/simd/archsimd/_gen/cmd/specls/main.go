@@ -53,7 +53,7 @@ func main() {
 		opts.Trace = os.Stderr
 	}
 
-	funcs, err := specgen.Load(specDir, &opts)
+	funcs, _, err := specgen.Load(specDir, &opts)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n\n", err.Error())
 		defer os.Exit(1)

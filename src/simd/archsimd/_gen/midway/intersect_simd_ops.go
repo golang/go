@@ -29,17 +29,10 @@ import (
 	"simd/archsimd/_gen/gentools"
 	"simd/archsimd/_gen/specdoc"
 	"simd/archsimd/_gen/specgen"
-
-	"gopkg.in/yaml.v3"
 )
 
 type MethodSet map[string]*ast.FuncDecl
 type TypeMethods map[string]MethodSet
-
-type Comments struct {
-	Types     map[string]string `yaml:"types"`
-	Functions map[string]string `yaml:"functions"`
-}
 
 var genFlags = gentools.RegisterFlags(nil)
 var verbose = flag.Bool("v", false, "Be much chattier about processing")
@@ -111,15 +104,6 @@ func main() {
 	}))
 
 	defer files.FlushOrExit()
-
-	var comments Comments
-	commentsData, err := os.ReadFile("comments.yaml")
-	if err != nil {
-		log.Fatalf("Failed to read comments.yaml: %v", err)
-	}
-	if err := yaml.Unmarshal(commentsData, &comments); err != nil {
-		log.Fatalf("Failed to parse comments.yaml: %v", err)
-	}
 
 	pv := func(f string, s ...any) {
 		if *verbose {
@@ -476,9 +460,6 @@ type _simd bridge.ZeroSized
 `)
 
 		for _, elem := range elems {
-			if c := comments.Types[elem+"s"]; c != "" {
-				pf("// %s\n", c)
-			}
 			pf("type %ss struct {\n\t_ _simd\n\t%s // the actual vector size may be larger.\n}\n", elem, emulatedLanes(elem))
 		}
 	}

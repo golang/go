@@ -12,6 +12,10 @@
 // parameter names, and allows shared documentation to be maintained in a single
 // place.
 //
+// Fill handles exported functions, methods, and vector and mask type
+// declarations. Type declarations have no signature to check; Fill only fills
+// their doc comments, following the same conventions as functions.
+//
 // # Doc-Ownership Convention
 //
 // Doc comments follow a three-part structural convention:
@@ -57,6 +61,7 @@ import (
 	"strings"
 
 	"simd/archsimd/_gen/specgen"
+	"simd/archsimd/_gen/specgen/specexpr"
 )
 
 // Options configures the behavior of [Fill].
@@ -148,9 +153,17 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 
 	f := &filler{fset: fset, src: src, spec: spec, opts: opts}
 	for _, d := range file.Decls {
-		if fd, ok := d.(*ast.FuncDecl); ok {
-			if err := f.fillFunc(fd); err != nil {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			if err := f.fillFunc(d); err != nil {
 				return src, err
+			}
+		case *ast.GenDecl:
+			if d.Tok != token.TYPE {
+				break
+			}
+			for _, spec := range d.Specs {
+				f.fillType(d, spec.(*ast.TypeSpec))
 			}
 		}
 	}
@@ -343,6 +356,43 @@ func recvTypeName(fl *ast.FieldList) string {
 			return "<unknown>"
 		}
 	}
+}
+
+// fillType checks and fills the doc comment of the type spec ts in declaration
+// gd, if it is an API vector or mask type.
+func (f *filler) fillType(gd *ast.GenDecl, ts *ast.TypeSpec) {
+	if !ts.Name.IsExported() {
+		return
+	}
+
+	// The doc comment of an ungrouped type declaration is attached to the
+	// GenDecl. In that case, the declaration starts at the "type" keyword, so
+	// a missing doc comment is inserted there.
+	docGroup, pos := ts.Doc, ts.Pos()
+	if !gd.Lparen.IsValid() {
+		docGroup, pos = gd.Doc, gd.Pos()
+	}
+	decl := Decl{
+		Pos:  f.fset.Position(pos),
+		Name: ts.Name.Name,
+	}
+
+	specType := f.spec.LookupType(decl.Name)
+	if specType == nil {
+		// Only vector and mask types are described by spec. Other exported
+		// types, such as CPU feature types, are not, so don't complain about
+		// those.
+		if f.opts.RejectUnknown {
+			if t, err := specexpr.ParseTypeName(decl.Name); err == nil {
+				if _, ok := t.(specexpr.Vector); ok {
+					f.report.UnknownDecls = append(f.report.UnknownDecls, UnknownDecl{decl})
+				}
+			}
+		}
+		return
+	}
+
+	f.fillDoc(decl, docGroup, specType.Doc)
 }
 
 // fillDoc checks the doc comment docGroup of decl, recording any findings.

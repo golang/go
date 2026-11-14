@@ -132,12 +132,16 @@ func Add[E Nums, W Width](x, y Vec[E, W]) (z Vec[E, W]) {
 ```
 
 `specgen.Load(dir string, opts *LoadOptions)` returns `([]*specgen.Func,
-error)`. Each `Func` is a **fully instantiated, concrete** API signature.
-`Recv`, `In`, and `Out` are `specgen.Arg` values — a parameter *name* plus a
-`specexpr.Type` — so a `Func` carries argument names as well as types, which
-matters to anything comparing signatures. There is also `Name` and `Doc`. Read
-`simd/internal/spec/doc.go` for the `//specgen:name`, `//specgen:require`, and
-`{{.var}}` doc-template mechanisms.
+[]*specgen.TypeDecl, error)`. Each `Func` is a **fully instantiated, concrete**
+API signature. `Recv`, `In`, and `Out` are `specgen.Arg` values — a parameter
+*name* plus a `specexpr.Type` — so a `Func` carries argument names as well as
+types, which matters to anything comparing signatures. There is also `Name` and
+`Doc`. Read `simd/internal/spec/doc.go` for the `//specgen:name`,
+`//specgen:require`, and `{{.var}}` doc-template mechanisms.
+
+Spec also describes the API's vector and mask types, so their docs come from
+spec too. Each `TypeDecl` is an API type name, its `specexpr.Vector` shape, and
+its doc.
 
 Two properties are worth knowing before you build anything on specgen:
 

@@ -538,9 +538,10 @@ covering every task with no `Needs` at all:
 After `cat-delete`, `simd/internal/spec` is the only hand-written description of
 the API: every operation's name, signature, and documentation derives from it,
 in both public packages and on all four targets, and `specfill` fails the build
-if any of them drift. `categories.yaml` is gone. `midway/comments.yaml`
-documents only what spec does not describe: the vector types, `VectorSize`,
-`String` and `Len`. wasmgen and tmplgen no longer carry doc strings.
+if any of them drift. `categories.yaml` is gone. `midway/comments.yaml` is
+also gone: the vector and mask type docs now come from spec too (see "API type
+docs" in `internal/spec/doc.go`). wasmgen and tmplgen no longer carry doc
+strings.
 Hand-written implementations remain hand-written, but their operation doc
 comments are generated.
 

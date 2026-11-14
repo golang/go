@@ -8,12 +8,15 @@ import "testing"
 
 func BenchmarkLoad(b *testing.B) {
 	for b.Loop() {
-		funcs, err := Load("../../../internal/spec", &LoadOptions{})
+		funcs, types, err := Load("../../../internal/spec", &LoadOptions{})
 		if err != nil {
 			b.Fatalf("Load failed: %s", err)
 		}
 		if len(funcs) < 100 {
 			b.Fatalf("Load only loaded %d Funcs, expect >= 100", len(funcs))
+		}
+		if len(types) == 0 {
+			b.Fatalf("Load loaded no TypeDecls")
 		}
 	}
 }

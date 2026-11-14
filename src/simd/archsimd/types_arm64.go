@@ -14,6 +14,9 @@ type v128 struct {
 }
 
 // Float32x4 is a 128-bit SIMD vector of 4 float32s.
+//
+// Values of type Float32x4 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float32 scalars, NaN != NaN, and +0 == -0.
 type Float32x4 struct {
 	float32x4 v128
 	vals      [4]float32
@@ -33,6 +36,9 @@ func LoadFloat32x4Array(x *[4]float32) (z Float32x4)
 func (x Float32x4) StoreArray(y *[4]float32)
 
 // Float64x2 is a 128-bit SIMD vector of 2 float64s.
+//
+// Values of type Float64x2 are comparable. a == b if a[i] == b[i] for all elements.
+// Like float64 scalars, NaN != NaN, and +0 == -0.
 type Float64x2 struct {
 	float64x2 v128
 	vals      [2]float64
@@ -52,6 +58,8 @@ func LoadFloat64x2Array(x *[2]float64) (z Float64x2)
 func (x Float64x2) StoreArray(y *[2]float64)
 
 // Int8x16 is a 128-bit SIMD vector of 16 int8s.
+//
+// Values of type Int8x16 are comparable. a == b if a[i] == b[i] for all elements.
 type Int8x16 struct {
 	int8x16 v128
 	vals    [16]int8
@@ -71,6 +79,8 @@ func LoadInt8x16Array(x *[16]int8) (z Int8x16)
 func (x Int8x16) StoreArray(y *[16]int8)
 
 // Int16x8 is a 128-bit SIMD vector of 8 int16s.
+//
+// Values of type Int16x8 are comparable. a == b if a[i] == b[i] for all elements.
 type Int16x8 struct {
 	int16x8 v128
 	vals    [8]int16
@@ -90,6 +100,8 @@ func LoadInt16x8Array(x *[8]int16) (z Int16x8)
 func (x Int16x8) StoreArray(y *[8]int16)
 
 // Int32x4 is a 128-bit SIMD vector of 4 int32s.
+//
+// Values of type Int32x4 are comparable. a == b if a[i] == b[i] for all elements.
 type Int32x4 struct {
 	int32x4 v128
 	vals    [4]int32
@@ -109,6 +121,8 @@ func LoadInt32x4Array(x *[4]int32) (z Int32x4)
 func (x Int32x4) StoreArray(y *[4]int32)
 
 // Int64x2 is a 128-bit SIMD vector of 2 int64s.
+//
+// Values of type Int64x2 are comparable. a == b if a[i] == b[i] for all elements.
 type Int64x2 struct {
 	int64x2 v128
 	vals    [2]int64
@@ -128,6 +142,8 @@ func LoadInt64x2Array(x *[2]int64) (z Int64x2)
 func (x Int64x2) StoreArray(y *[2]int64)
 
 // Uint8x16 is a 128-bit SIMD vector of 16 uint8s.
+//
+// Values of type Uint8x16 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint8x16 struct {
 	uint8x16 v128
 	vals     [16]uint8
@@ -147,6 +163,8 @@ func LoadUint8x16Array(x *[16]uint8) (z Uint8x16)
 func (x Uint8x16) StoreArray(y *[16]uint8)
 
 // Uint16x8 is a 128-bit SIMD vector of 8 uint16s.
+//
+// Values of type Uint16x8 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint16x8 struct {
 	uint16x8 v128
 	vals     [8]uint16
@@ -166,6 +184,8 @@ func LoadUint16x8Array(x *[8]uint16) (z Uint16x8)
 func (x Uint16x8) StoreArray(y *[8]uint16)
 
 // Uint32x4 is a 128-bit SIMD vector of 4 uint32s.
+//
+// Values of type Uint32x4 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint32x4 struct {
 	uint32x4 v128
 	vals     [4]uint32
@@ -185,6 +205,8 @@ func LoadUint32x4Array(x *[4]uint32) (z Uint32x4)
 func (x Uint32x4) StoreArray(y *[4]uint32)
 
 // Uint64x2 is a 128-bit SIMD vector of 2 uint64s.
+//
+// Values of type Uint64x2 are comparable. a == b if a[i] == b[i] for all elements.
 type Uint64x2 struct {
 	uint64x2 v128
 	vals     [2]uint64
@@ -204,24 +226,32 @@ func LoadUint64x2Array(x *[2]uint64) (z Uint64x2)
 func (x Uint64x2) StoreArray(y *[2]uint64)
 
 // Mask8x16 is a mask for a SIMD vector of 16 8-bit elements.
+//
+// Values of type Mask8x16 are comparable.
 type Mask8x16 struct {
 	mask8x16 v128
 	vals     [16]int8
 }
 
 // Mask16x8 is a mask for a SIMD vector of 8 16-bit elements.
+//
+// Values of type Mask16x8 are comparable.
 type Mask16x8 struct {
 	mask16x8 v128
 	vals     [8]int16
 }
 
 // Mask32x4 is a mask for a SIMD vector of 4 32-bit elements.
+//
+// Values of type Mask32x4 are comparable.
 type Mask32x4 struct {
 	mask32x4 v128
 	vals     [4]int32
 }
 
 // Mask64x2 is a mask for a SIMD vector of 2 64-bit elements.
+//
+// Values of type Mask64x2 are comparable.
 type Mask64x2 struct {
 	mask64x2 v128
 	vals     [2]int64

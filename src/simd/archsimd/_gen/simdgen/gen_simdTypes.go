@@ -368,13 +368,8 @@ type v{{.}} struct {
 {{end}}
 
 {{define "typeTmpl"}}
-{{- if eq .Type "mask"}}
-// {{.Name}} is a mask for a SIMD vector of {{.Lanes}} {{.ElemBits}}-bit elements.
-{{- else}}
-// {{.Name}} is a {{.Size}}-bit SIMD vector of {{.Lanes}} {{.Base}}s.
-{{- end}}
+{{- /* The leading doc paragraph comes from spec (see specdoc.Fill). */}}
 {{- if .CPUFeature}}
-//
 // CPU Feature: {{.CPUFeature}}
 {{- end}}
 type {{.Name}} struct {
@@ -384,21 +379,19 @@ type {{.Name}} struct {
 {{end}}
 
 {{define "scalableTypeTmpl"}}
+{{- /* The leading doc paragraph comes from spec (see specdoc.Fill). */}}
 {{- if eq .Type "mask"}}
-// {{.Name}} is a scalable mask for a SIMD vector of {{.ElemBits}}-bit elements.
-//
-// An SVE predicate holds one bit per byte of the vector it governs, so a
+// Note: An SVE predicate holds one bit per byte of the vector it governs, so a
 // {{.Name}} carries one bit for each byte of the runtime vector length, and
 // lane i is governed by bit {{if gt .ElemBytes 1}}{{.ElemBytes}}*i. The bits in between are ignored{{else}}i{{end}}.
-//
 // In memory a {{.Name}} is a uint64 holding those bits, bit 0 first; the bits
 // beyond the runtime vector length are zero. So the bits of m can be read with
 // *(*uint64)(unsafe.Pointer(&m)).
-{{- else}}
-// {{.Name}} is a scalable SIMD vector of {{.Base}}s.
-{{- end}}
 {{- if .CPUFeature}}
 //
+{{- end}}
+{{- end}}
+{{- if .CPUFeature}}
 // CPU Feature: {{.CPUFeature}}
 {{- end}}
 type {{.Name}} struct {

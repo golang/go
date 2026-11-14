@@ -19,7 +19,7 @@ func TestIndex(t *testing.T) {
 		Name: "GlobalFunc",
 	}
 
-	idx := NewIndex([]*Func{f1, f2})
+	idx := NewIndex([]*Func{f1, f2}, nil)
 	if idx.Len() != 2 {
 		t.Fatalf("expected Len 2, got %d", idx.Len())
 	}

@@ -138,6 +138,28 @@
 // particularly useful for constructor functions and conversion functions where
 // types must appear in the name, such as LoadZ.
 //
+// ## API type docs
+//
+// The documentation of the API's vector and mask types also comes from spec.
+// An exported generic type whose underlying type is a [Vec] describes a family
+// of API types, one per instantiation of its type parameters:
+//
+//	// Vector is a {{.TW}}-bit SIMD vector of {{.TL}} {{.TE}}s.
+//	//
+//	//specgen:name {{.T}}
+//	type Vector[E Elt, W Width] Vec[E, W]
+//
+// specgen binds template variable T to each instantiated shape of the Vec, so
+// name and doc templates can use T, TE, TB, TN, TL, and TW just like the
+// variables of a function argument. The `//specgen:name` directive must produce
+// the API name of the shape, which is always {{.T}}, and occurrences of the
+// spec type's name in its doc are replaced with the API name, as with
+// functions.
+//
+// Generators should not emit their own documentation for these types: specdoc
+// fills it in from spec, keeping any target-specific implementation notes
+// (such as "CPU Feature:" or "Note:" paragraphs).
+//
 // ## The spec type system
 //
 // This package defines a set of types that translate to API types. We saw the
