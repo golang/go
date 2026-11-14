@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//go:build freebsd && amd64
+//go:build freebsd && (amd64 || arm || arm64)
 
 #include <errno.h>
 #include <stddef.h>
@@ -14,7 +14,7 @@
 
 // go_sigaction_t is a C version of the sigactiont struct from
 // os_freebsd.go.  This definition — and its conversion to and from struct
-// sigaction — are specific to freebsd/amd64.
+// sigaction — are specific to freebsd/amd64, freebsd/arm, and freebsd/arm64.
 typedef struct {
         uint32_t __bits[_SIG_WORDS];
 } go_sigset_t;
