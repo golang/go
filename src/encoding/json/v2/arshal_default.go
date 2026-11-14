@@ -1899,7 +1899,7 @@ func makePointerMarshaler(t reflect.Type) *marshaler {
 	fnc.fnc = func(enc *jsontext.Encoder, vm maybeAddressableValue, mo *jsonopts.Struct) error {
 		// Check for cycles.
 		xe := export.Encoder(enc)
-		if xe.Tokens.Depth() > startDetectingCyclesAfter {
+		if vm.Value.Kind() == reflect.Pointer || xe.Tokens.Depth() > startDetectingCyclesAfter {
 			if err := visitPointer(&xe.SeenPointers, vm.Value, mo); err != nil {
 				return newMarshalErrorBefore(enc, t, err)
 			}
