@@ -336,7 +336,7 @@ func kindOf(v Value) Kind {
 }
 
 func (e *evaluator) complexOp(op syntax.Operator, x, y Value, t *Type, cst bool, pos syntax.Pos) (Value, error) {
-	if cst && t.Kind == KUntypedComplex {
+	if cst {
 		xr, xi := complexParts(x)
 		yr, yi := complexParts(y)
 		parts := new([2]big.Rat)
@@ -363,12 +363,25 @@ func (e *evaluator) complexOp(op syntax.Operator, x, y Value, t *Type, cst bool,
 		default:
 			return Value{}, e.fail(pos, "unsupported complex operator in const evaluation")
 		}
-		return Value{typ: t, constant: true, cparts: parts}, nil
+		if t.Kind == KUntypedComplex {
+			return Value{typ: t, constant: true, cparts: parts}, nil
+		}
+		if t.Kind == KComplex64 {
+			rf, _ := re.Float32()
+			imf, _ := im.Float32()
+			if math.IsInf(float64(rf), 0) || math.IsInf(float64(imf), 0) {
+				return Value{}, e.fail(pos, "constant overflows complex64 in const evaluation")
+			}
+			return complexConst(t, complex(float64(rf), float64(imf))), nil
+		}
+		rf, _ := re.Float64()
+		imf, _ := im.Float64()
+		if math.IsInf(rf, 0) || math.IsInf(imf, 0) {
+			return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
+		}
+		return complexConst(t, complex(rf, imf)), nil
 	}
 	xc, yc := toComplex(x), toComplex(y)
-	if op == syntax.Div && yc == 0 && cst {
-		return Value{}, e.fail(pos, "division by zero in const evaluation")
-	}
 	var r complex128
 	switch op {
 	case syntax.Add:
@@ -381,16 +394,6 @@ func (e *evaluator) complexOp(op syntax.Operator, x, y Value, t *Type, cst bool,
 		r = xc / yc
 	default:
 		return Value{}, e.fail(pos, "unsupported complex operator in const evaluation")
-	}
-	if cst {
-		if t.Kind == KComplex64 {
-			if math.IsInf(float64(float32(real(r))), 0) || math.IsInf(float64(float32(imag(r))), 0) {
-				return Value{}, e.fail(pos, "constant overflows complex64 in const evaluation")
-			}
-		} else if math.IsInf(real(r), 0) || math.IsInf(imag(r), 0) {
-			return Value{}, e.fail(pos, "constant overflows %s in const evaluation", typeName(t))
-		}
-		return complexConst(t, r), nil
 	}
 	return complexDyn(t, r), nil
 }
