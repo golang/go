@@ -64,6 +64,63 @@ func logosReadonlyProject(container, projected Type, throughReference bool) Type
 	return projected
 }
 
+func (check *Checker) logosReadonlyIndexBase(x *operand) Type {
+	readonlyContainer := x.typ()
+	if check.conf.Logos {
+		x.typ_, _, _ = logosReadonlyBase(x.typ())
+		if p, ok := x.typ().Underlying().(*Pointer); ok {
+			if b, d, _ := logosReadonlyBase(p.base); d {
+				readonlyContainer = p.base
+				x.typ_ = &Pointer{base: b}
+			}
+		}
+	}
+	check.logosConstUnwrapBase(x)
+	return readonlyContainer
+}
+
+func (check *Checker) logosReadonlyMapIndex(x *operand, readonlyContainer Type) {
+	if check.conf.Logos {
+		x.typ_ = logosReadonlyProject(readonlyContainer, x.typ(), true)
+	}
+	check.logosMapIndexOption(x)
+}
+
+func (check *Checker) logosReadonlyIndexResult(x *operand, baseExpr syntax.Expr, readonlyContainer Type) {
+	check.logosConstWrapBase(x, baseExpr)
+	if check.conf.Logos {
+		base, _, _ := logosReadonlyBase(readonlyContainer)
+		_, inline := base.Underlying().(*Array)
+		x.typ_ = logosReadonlyProject(readonlyContainer, x.typ(), !inline)
+	}
+}
+
+func (check *Checker) logosReadonlySliceArray(x *operand, e *syntax.SliceExpr) bool {
+	if check.logosConstSliceArray(e) {
+		return true
+	}
+	if x.mode() != variable {
+		check.errorf(x, NonSliceableOperand, "cannot slice unaddressable value %s", x)
+		return true
+	}
+	return false
+}
+
+func (check *Checker) logosReadonlySliceResult(x *operand, e *syntax.SliceExpr, readonlyContainer Type) {
+	check.logosConstSliceBound(x, e)
+	check.logosConstWrapBase(x, e.X)
+	if check.conf.Logos {
+		base, descendants, readonly := logosReadonlyBase(readonlyContainer)
+		if _, inline := base.Underlying().(*Array); inline && descendants && !readonly {
+			if s, ok := x.typ().Underlying().(*Slice); ok {
+				x.typ_ = &Slice{elem: logosWithReadonlyDescendants(s.elem)}
+			}
+		} else {
+			x.typ_ = logosReadonlyProject(readonlyContainer, x.typ(), true)
+		}
+	}
+}
+
 func logosIndexStoreProtected(container Type) bool {
 	base, descendants, readonly := logosReadonlyBase(container)
 	if !descendants {
