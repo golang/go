@@ -205,7 +205,7 @@ type Parser struct {
 	// with the same package names.
 	//
 	// Setting LookupPackage to nil is equivalent to setting it to
-	// a function that always returns "", false.
+	// [DefaultLookupPackage].
 	LookupPackage func(name string) (importPath string, ok bool)
 
 	// LookupSym reports whether a symbol name or method name
@@ -265,7 +265,8 @@ func isStdPkg(path string) bool {
 }
 
 // DefaultLookupPackage is the default package lookup
-// function, used when [Parser.LookupPackage] is nil.
+// function, used when [Parser.LookupPackage] is nil
+// or returns ok == false.
 // It recognizes names of the packages from the standard
 // library with single-element import paths, such as math,
 // which would otherwise be impossible to name.
