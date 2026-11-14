@@ -183,12 +183,12 @@ func check(name string, got int, want int) {
 }
 
 func main() {
-	check("slice", rSlice, 1)
-	check("array", rArray, 1)
-	check("struct", rStruct, 1)
-	check("map", rMapMap, 1)
-	check("slice-struct", rSliceStruct, 1)
-	check("nested", rNested, 1)
-	check("struct-slice", rStructSlice, 1)
+	check("slice", rSlice, 99)
+	check("array", rArray, 99)
+	check("struct", rStruct, 99)
+	check("map", rMapMap, 99)
+	check("slice-struct", rSliceStruct, 99)
+	check("nested", rNested, 99)
+	check("struct-slice", rStructSlice, 99)
 	check("ints", rInts, 99)
 }

@@ -21,7 +21,7 @@ const func outer() int {
 const out = outer()
 
 func main() {
-	if out != 1 {
+	if out != 99 {
 		fmt.Println("FAIL map-arg got", out)
 		return
 	}

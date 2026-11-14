@@ -134,69 +134,6 @@ func copyValue(v Value) Value {
 	return v
 }
 
-func copyCallArg(v Value) Value {
-	v = copyValue(v)
-	cloneReachableMaps(&v)
-	return v
-}
-
-func reachesMap(v Value) bool {
-	switch {
-	case v.mval != nil:
-		return true
-	case v.array != nil:
-		for i := range v.array {
-			if reachesMap(v.array[i]) {
-				return true
-			}
-		}
-	case v.strct != nil:
-		for i := range v.strct {
-			if reachesMap(v.strct[i]) {
-				return true
-			}
-		}
-	case v.slice != nil && v.slice.backing != nil:
-		for _, e := range *v.slice.backing {
-			if reachesMap(e) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func cloneReachableMaps(v *Value) {
-	switch {
-	case v.mval != nil:
-		out := &mapVal{keys: make([]Value, len(v.mval.keys)), vals: make([]Value, len(v.mval.vals))}
-		for i, e := range v.mval.keys {
-			out.keys[i] = copyCallArg(e)
-		}
-		for i, e := range v.mval.vals {
-			out.vals[i] = copyCallArg(e)
-		}
-		v.mval = out
-	case v.array != nil:
-		for i := range v.array {
-			cloneReachableMaps(&v.array[i])
-		}
-	case v.strct != nil:
-		for i := range v.strct {
-			cloneReachableMaps(&v.strct[i])
-		}
-	case v.slice != nil && v.slice.backing != nil:
-		if !reachesMap(*v) {
-			return
-		}
-		backing := make([]Value, len(*v.slice.backing))
-		for i, e := range *v.slice.backing {
-			backing[i] = copyCallArg(e)
-		}
-		v.slice = &sliceVal{backing: &backing, lo: v.slice.lo, length: v.slice.length, cap_: v.slice.cap_}
-	}
-}
-
 type storeKey struct {
 	first *Value
 	n     int

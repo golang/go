@@ -94,7 +94,7 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 	for i, p := range params {
 		if fn.Variadic && i == len(params)-1 {
 			if spread != nil && len(c.ArgList) == len(params) {
-				e.declare(nfr, p.Decl.Value, withVar(copyCallArg(*spread)))
+				e.declare(nfr, p.Decl.Value, withVar(copyValue(*spread)))
 				break
 			}
 			var elemT *Type
@@ -111,12 +111,12 @@ func (e *evaluator) evalUserCall(fr *frame, fn *Func, c *syntax.CallExpr) ([]Val
 						return nil, false, err
 					}
 				}
-				elems = append(elems, withVar(copyCallArg(v)))
+				elems = append(elems, withVar(copyValue(v)))
 			}
 			e.declare(nfr, p.Decl.Value, sliceValue(elemT, elems, len(elems)))
 			break
 		}
-		v := copyCallArg(args[i])
+		v := copyValue(args[i])
 		if p.Type != nil {
 			if v, err = e.convert(v, p.Type, posOf(c)); err != nil {
 				return nil, false, err
