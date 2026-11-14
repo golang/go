@@ -31,16 +31,22 @@ var escapedBox any
 var observed uintptr
 var placement = os.Getenv("LOGOS_ARENA_PLACEMENT") != "off"
 
-func requireGrowth(before int) {
-	if placement && heapBytes() != before {
-		panic("frame-local object did not use region")
+// SetFinalizer checks the address against the runtime's arena spans even when
+// the finalizer is nil. A uintptr observation does not make the object escape.
+func requireRegion(address uintptr) {
+	if !placement {
+		return
 	}
-}
-
-func heapBytes() int {
-	var stats runtime.MemStats
-	runtime.ReadMemStats(&stats)
-	return int(stats.TotalAlloc)
+	defer func() {
+		p := recover()
+		if p == nil {
+			panic("frame-local object did not use region")
+		}
+		if err, ok := p.(error); !ok || err.Error() != "runtime: SetFinalizer on loGo/s arena object" {
+			panic(p)
+		}
+	}()
+	runtime.SetFinalizer((*byte)(unsafe.Pointer(address)), nil)
 }
 
 //go:noinline
@@ -56,9 +62,9 @@ func heapReferent() *int {
 }
 
 //go:noinline
-func inspectBox(v any, before int) {
-	requireGrowth(before)
+func inspectBox(v any) {
 	observed = uintptr((*[2]unsafe.Pointer)(unsafe.Pointer(&v))[1])
+	requireRegion(observed)
 	runtime.GC()
 	switch x := v.(type) {
 	case boxedBytes:
@@ -77,25 +83,22 @@ func inspectBox(v any, before int) {
 
 //go:noinline
 func checkBoxes() {
-	before := heapBytes()
 	var b boxedBytes
 	b[0], b[len(b)-1] = 17, 29
-	inspectBox(b, before)
+	inspectBox(b)
 }
 
 //go:noinline
 func checkPointerBox() {
 	p := heapReferent()
-	before := heapBytes()
-	inspectBox(pointerBox{p: p, data: [2 << 10]byte{31}}, before)
+	inspectBox(pointerBox{p: p, data: [2 << 10]byte{31}})
 }
 
 //go:noinline
 func checkNew() {
-	before := heapBytes()
 	p := new(localBytes)
-	requireGrowth(before)
 	observed = addressOf(unsafe.Pointer(p))
+	requireRegion(observed)
 	if p[0] != 0 || p[len(p)-1] != 0 {
 		panic("new object was not zeroed")
 	}
@@ -110,9 +113,8 @@ func checkNew() {
 //go:noinline
 func checkLiteral() {
 	referent := heapReferent()
-	before := heapBytes()
 	p := &pointerObject{p: referent}
-	requireGrowth(before)
+	requireRegion(addressOf(unsafe.Pointer(p)))
 	runtime.GC()
 	if *p.p != 73 || p.data[0] != 0 {
 		panic("pointer literal lost referent or initialization")
@@ -124,10 +126,9 @@ func checkLiteral() {
 func checkLoop() {
 	var previous uintptr
 	for i := 0; i < 4; i++ {
-		before := heapBytes()
 		p := new(localBytes)
-		requireGrowth(before)
 		address := addressOf(unsafe.Pointer(p))
+		requireRegion(address)
 		if placement && previous != 0 && address != previous {
 			panic("loop object storage was not reused")
 		}
@@ -142,9 +143,8 @@ func checkLoop() {
 
 //go:noinline
 func panicObject() {
-	before := heapBytes()
 	p := new(localBytes)
-	requireGrowth(before)
+	requireRegion(addressOf(unsafe.Pointer(p)))
 	p[0] = 99
 	runtime.KeepAlive(p)
 	panic("object unwind")
@@ -191,6 +191,12 @@ func checkOverChunk() {
 }
 
 func main() {
+	// Keep a chunk live across scheduling points so address-reuse checks do not
+	// depend on which P's empty-chunk pool the goroutine resumes on.
+	var anchorBytes boxedBytes
+	anchorBytes[0] = 1
+	anchor := any(anchorBytes)
+	requireRegion(uintptr((*[2]unsafe.Pointer)(unsafe.Pointer(&anchor))[1]))
 	checkBoxes()
 	first := observed
 	checkBoxes()
@@ -211,15 +217,14 @@ func main() {
 	if placement && observed != first {
 		panic("panic exit did not restore object storage")
 	}
-	if placement && testing.AllocsPerRun(4, checkBoxes) != 0 {
-		panic("frame-local box allocated on heap")
-	}
-	if placement && testing.AllocsPerRun(4, checkNew) != 0 {
-		panic("frame-local new allocated on heap")
+	for i := 0; i < 4; i++ {
+		checkBoxes()
+		checkNew()
 	}
 	if testing.AllocsPerRun(4, checkEscapes) < 4 {
 		panic("escaping controls did not allocate on heap")
 	}
 	checkOverChunk()
+	runtime.KeepAlive(anchor)
 	fmt.Println("ok frame-local-object-region-lifetime")
 }
