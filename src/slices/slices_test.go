@@ -726,6 +726,56 @@ func TestDeleteFuncClearTail(t *testing.T) {
 	}
 }
 
+func TestSwapDelete(t *testing.T) {
+	for _, test := range []struct {
+		s    []int
+		i    int
+		want []int
+	}{
+		{[]int{42}, 0, []int{}},
+		{[]int{1, 2, 3}, 0, []int{3, 2}},
+		{[]int{1, 2, 3}, 1, []int{1, 3}},
+		{[]int{1, 2, 3}, 2, []int{1, 2}},
+		{[]int{1, 2, 3, 4, 5}, 2, []int{1, 2, 5, 4}},
+	} {
+		copy := Clone(test.s)
+		if got := SwapDelete(copy, test.i); !Equal(got, test.want) {
+			t.Errorf("SwapDelete(%v, %d) = %v, want %v", test.s, test.i, got, test.want)
+		}
+	}
+}
+
+func TestSwapDeletePanics(t *testing.T) {
+	for _, test := range []struct {
+		name string
+		s    []int
+		i    int
+	}{
+		{"empty slice", []int{}, 0},
+		{"nil slice", nil, 0},
+		{"negative index", []int{42}, -1},
+		{"out-of-bounds index", []int{1, 2, 3}, 3},
+	} {
+		if !panics(func() { _ = SwapDelete(test.s, test.i) }) {
+			t.Errorf("SwapDelete %s: got no panic, want panic", test.name)
+		}
+	}
+}
+
+func TestSwapDeleteClearTail(t *testing.T) {
+	mem := []*int{new(int), new(int), new(int), new(int)}
+	s := mem[0:3] // there is 1 element beyond len(s), within cap(s)
+
+	s = SwapDelete(s, 0)
+
+	if mem[2] != nil {
+		t.Errorf("SwapDelete: want nil at original last index, got %v", mem[2])
+	}
+	if mem[3] == nil {
+		t.Errorf("SwapDelete: want unchanged element beyond original len, got nil")
+	}
+}
+
 func TestClone(t *testing.T) {
 	s1 := []int{1, 2, 3}
 	s2 := Clone(s1)
