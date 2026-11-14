@@ -58,13 +58,29 @@ func OIDFromInts(oid []uint64) (OID, error) {
 		return OID{}, errInvalidOID
 	}
 
-	length := base128IntLength(oid[0]*40 + oid[1])
+	// The first two components are encoded together as oid[0]*40 + oid[1].
+	// When oid[0] is 2 and oid[1] is very large, this value does not fit
+	// in a uint64, so use a big.Int for it, like ParseOID does.
+	first, carry := bits.Add64(oid[0]*40, oid[1], 0)
+	var firstBig *big.Int
+	var length int
+	if carry != 0 {
+		firstBig = new(big.Int).SetUint64(oid[1])
+		firstBig.Add(firstBig, big.NewInt(int64(oid[0]*40)))
+		length = base128BigIntLength(firstBig)
+	} else {
+		length = base128IntLength(first)
+	}
 	for _, v := range oid[2:] {
 		length += base128IntLength(v)
 	}
 
 	der := make([]byte, 0, length)
-	der = appendBase128Int(der, oid[0]*40+oid[1])
+	if firstBig != nil {
+		der = appendBase128BigInt(der, firstBig)
+	} else {
+		der = appendBase128Int(der, first)
+	}
 	for _, v := range oid[2:] {
 		der = appendBase128Int(der, v)
 	}
