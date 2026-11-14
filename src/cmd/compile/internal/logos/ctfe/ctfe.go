@@ -256,6 +256,7 @@ type Value struct {
 	fval     *big.Rat
 	f64      float64
 	cval     complex128
+	cparts   *[2]big.Rat
 	sval     string
 	bval     bool
 	slice    *sliceVal
@@ -286,7 +287,14 @@ func (v Value) Float64() float64 {
 	return v.f64
 }
 
-func (v Value) Complex() complex128 { return v.cval }
+func (v Value) Complex() complex128 {
+	if v.cparts != nil {
+		re, _ := v.cparts[0].Float64()
+		im, _ := v.cparts[1].Float64()
+		return complex(re, im)
+	}
+	return v.cval
+}
 
 func (v Value) mapLen() int {
 	if v.mval == nil {

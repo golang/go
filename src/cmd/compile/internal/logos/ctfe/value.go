@@ -61,6 +61,10 @@ func defaulted(v Value) Value {
 	if v.typ == nil || !isUntyped(v.typ.Kind) {
 		return v
 	}
+	if v.typ.Kind == KUntypedComplex {
+		v.cval = v.Complex()
+		v.cparts = nil
+	}
 	v.typ = defaultType(v.typ.Kind)
 	return v
 }
@@ -560,8 +564,29 @@ func (e *evaluator) convertNumber(v Value, t *Type, pos syntax.Pos) (Value, erro
 
 func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, error) {
 	vk := kindOf(v)
+	if !isNumeric(vk) {
+		return Value{}, e.fail(pos, "cannot convert %s to %s in const evaluation", typeName(v.typ), typeName(t))
+	}
+	if v.constant && t.Kind == KUntypedComplex {
+		re, im := complexParts(v)
+		parts := new([2]big.Rat)
+		parts[0].Set(re)
+		parts[1].Set(im)
+		return Value{typ: t, constant: true, cparts: parts}, nil
+	}
 	var c complex128
 	switch {
+	case v.constant && isUntyped(vk):
+		re, im := complexParts(v)
+		if t.Kind == KComplex64 {
+			rf, _ := re.Float32()
+			imf, _ := im.Float32()
+			c = complex(float64(rf), float64(imf))
+		} else {
+			rf, _ := re.Float64()
+			imf, _ := im.Float64()
+			c = complex(rf, imf)
+		}
 	case isComplex(vk):
 		c = v.Complex()
 	case isFloat(vk):
@@ -569,8 +594,6 @@ func (e *evaluator) convertComplex(v Value, t *Type, pos syntax.Pos) (Value, err
 	case isInteger(vk):
 		f, _ := new(big.Rat).SetInt(v.ival).Float64()
 		c = complex(f, 0)
-	default:
-		return Value{}, e.fail(pos, "cannot convert %s to %s in const evaluation", typeName(v.typ), typeName(t))
 	}
 	if v.constant && (math.IsInf(real(c), 0) || math.IsInf(imag(c), 0)) {
 		if t.Kind == KComplex64 {
@@ -944,7 +967,7 @@ func (e *evaluator) canonKey(v Value) Value {
 			v.f64 = 0
 		}
 	}
-	if v.typ != nil && isComplex(v.typ.Kind) {
+	if v.typ != nil && isComplex(v.typ.Kind) && v.cparts == nil {
 		if real(v.cval) == 0 {
 			v.cval = complex(0, imag(v.cval))
 		}
@@ -1434,7 +1457,6 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 		if !isFloat(kindOf(im)) && !(isInteger(kindOf(im)) && isUntyped(kindOf(im))) {
 			return Value{}, e.fail(pos, "bad complex call in const evaluation")
 		}
-		rf, imf := toFloatParts(re), toFloatParts(im)
 		t := UntypedComplex()
 		if !isUntyped(kindOf(re)) || !isUntyped(kindOf(im)) {
 			t = &Type{Kind: KComplex128}
@@ -1443,8 +1465,16 @@ func (e *evaluator) evalBuiltin(fr *frame, name string, c *syntax.CallExpr) (Val
 			}
 		}
 		if re.constant && im.constant {
+			if t.Kind == KUntypedComplex {
+				parts := new([2]big.Rat)
+				parts[0].Set(xFloat(re))
+				parts[1].Set(xFloat(im))
+				return Value{typ: t, constant: true, cparts: parts}, nil
+			}
+			rf, imf := toFloatParts(re), toFloatParts(im)
 			return complexConst(t, complex(rf, imf)), nil
 		}
+		rf, imf := toFloatParts(re), toFloatParts(im)
 		return complexDyn(t, complex(rf, imf)), nil
 	case "real", "imag":
 		return Value{}, e.fail(pos, "complex numbers in const func not supported")

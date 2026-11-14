@@ -8,6 +8,7 @@ import (
 	"cmd/compile/internal/syntax"
 	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 )
@@ -101,7 +102,18 @@ func (r *renderer) floatLit(v Value) (syntax.Expr, error) {
 }
 
 func (r *renderer) complexLit(v Value) (syntax.Expr, error) {
-	re, im := real(v.cval), imag(v.cval)
+	if v.constant && kindOf(v) == KUntypedComplex {
+		re, im := complexParts(v)
+		if re == nil || im == nil {
+			return nil, fmt.Errorf("cannot spell non-finite complex constant in const evaluation")
+		}
+		return &syntax.CallExpr{
+			Fun:     syntax.NewName(r.pos, "complex"),
+			ArgList: []syntax.Expr{r.ratLit(re), r.ratLit(im)},
+		}, nil
+	}
+	c := v.Complex()
+	re, im := real(c), imag(c)
 	if v.typ != nil && v.typ.Kind == KComplex64 {
 		re = float64(float32(re))
 		im = float64(float32(im))
@@ -116,6 +128,18 @@ func (r *renderer) complexLit(v Value) (syntax.Expr, error) {
 		iexp = &syntax.Operation{Op: syntax.Sub, X: iexp}
 	}
 	return &syntax.CallExpr{Fun: syntax.NewName(r.pos, "complex"), ArgList: []syntax.Expr{rexp, iexp}}, nil
+}
+
+func (r *renderer) ratLit(v *big.Rat) syntax.Expr {
+	s := v.Num().String()
+	var x syntax.Expr = &syntax.BasicLit{Value: strings.TrimPrefix(s, "-") + ".0", Kind: syntax.FloatLit}
+	if v.Sign() < 0 {
+		x = &syntax.Operation{Op: syntax.Sub, X: x}
+	}
+	if !v.IsInt() {
+		x = &syntax.Operation{Op: syntax.Div, X: x, Y: &syntax.BasicLit{Value: v.Denom().String() + ".0", Kind: syntax.FloatLit}}
+	}
+	return x
 }
 
 func (r *renderer) floatText(f float64) (string, bool) {

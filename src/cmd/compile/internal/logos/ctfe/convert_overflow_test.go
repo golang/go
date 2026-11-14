@@ -86,7 +86,7 @@ func TestConstComplexOverflowReports(t *testing.T) {
 	}{
 		{"CxFloat128", "complex128", "complex128", "package p\nfunc CxFloat128() complex128 { return complex(1e400, 0) }"},
 		{"CxFloat64", "complex64", "complex64", "package p\nfunc CxFloat64() complex64 { return complex64(complex(1e400, 0)) }"},
-		{"CxMul128", "complex128", "untyped complex", "package p\nfunc CxMul128() complex128 { return complex(1e308, 1e308) * complex(1e308, 0) }"},
+		{"CxMul128", "complex128", "complex128", "package p\nfunc CxMul128() complex128 { return complex(1e308, 1e308) * complex(1e308, 0) }"},
 		{"CxMul64", "complex64", "complex64", "package p\nfunc CxMul64() complex64 { return complex64(complex(1e38, 0) * complex(1e38, 0)) }"},
 	}
 	for _, tc := range cases {

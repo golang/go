@@ -603,3 +603,95 @@ func Burn1(n int) int {
 		t.Fatalf("Burn1(%d) with zero Config err = %v, want step limit", n+1, err)
 	}
 }
+
+func TestExactComplexConstants(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		expr string
+		want bool
+	}{
+		{"imaginarySubtraction", `9007199254740993i - 9007199254740992i == 1i`, true},
+		{"product", `9007199254740993i * 1i + 9007199254740992 == -1`, true},
+		{"sum", `(9007199254740993 + 1i) - 9007199254740992 == 1 + 1i`, true},
+		{"quotient", `1i / 3 == 0.3333333333333333i`, false},
+		{"negation", `-9007199254740993i + 9007199254740992i == -1i`, true},
+		{"decimalSum", `0.1i + 0.2i == 0.3i`, true},
+		{"inequality", `9007199254740993i == 9007199254740992i`, false},
+		{"floatOperand", `9007199254740993.0 + 1i - 9007199254740992.0 == 1 + 1i`, true},
+		{"runeOperand", `(('a' << 53) + 1) + 1i - ('a' << 53) == 1 + 1i`, true},
+		{"complexBuiltin", `complex(9007199254740993, 0.1) - complex(9007199254740992, 0) == 1 + 0.1i`, true},
+		{"hexadecimal", `0x20000000000001p0i - 0x1p53i == 1i`, true},
+		{"underscores", `9_007_199_254_740_993i - 9_007_199_254_740_992i == 1i`, true},
+		{"decimalLeadingZero", `0123i == 123i && 08i == 8i`, true},
+		{"nonzeroTinyDivisor", `1e-1000i / 1e-1000i == 1`, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			v, _ := evalOne(t, newFakeHost(t), Config{}, parseExpr(t, tt.expr))
+			if v.Bool() != tt.want {
+				t.Fatalf("%s = %v, want %v", tt.expr, v.Bool(), tt.want)
+			}
+		})
+	}
+}
+
+func TestComplexEqualityCoercion(t *testing.T) {
+	for _, tt := range []struct {
+		name string
+		typ  string
+		expr string
+		arg  string
+		want bool
+	}{
+		{"complex64Right", "complex64", "x == 0.1", "complex64(0.1)", true},
+		{"complex64Left", "complex64", "0.1 == x", "complex64(0.1)", true},
+		{"complex64ImaginaryRight", "complex64", "x == 0.1 + 0.2i", "complex64(0.1 + 0.2i)", true},
+		{"complex64ImaginaryLeft", "complex64", "0.1 + 0.2i == x", "complex64(0.1 + 0.2i)", true},
+		{"complex128Right", "complex128", "x == 0.1", "complex128(complex64(0.1))", false},
+		{"complex128Left", "complex128", "0.1 == x", "complex128(complex64(0.1))", false},
+		{"typedComplex128", "complex128", "x == complex128(0.1)", "complex128(complex64(0.1))", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newFakeHost(t)
+			h.funcs["Equal"] = parseFunc(t, "package p\nfunc Equal(x "+tt.typ+") bool { return "+tt.expr+" }",
+				true, []*Type{BasicType(tt.typ)}, []*Type{BasicType("bool")})
+			v, _ := evalOne(t, h, Config{}, parseExpr(t, "Equal("+tt.arg+")"))
+			if v.Bool() != tt.want {
+				t.Fatalf("Equal(%s) with %s = %v, want %v", tt.arg, tt.expr, v.Bool(), tt.want)
+			}
+		})
+	}
+}
+
+func TestExactComplexRendering(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		expr  string
+		check string
+	}{
+		{"largeInteger", `9007199254740993 + 1i / 3`, `(res - 9007199254740992) * 3 == 3 + 1i`},
+		{"negativeRational", `-1.0 / 3 - 9007199254740993i`, `(res + 9007199254740992i) * 3 == -1 - 3i`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newFakeHost(t)
+			v, _ := evalOne(t, h, Config{}, parseExpr(t, tt.expr))
+			rendered, err := v.Expr(syntax.Pos{})
+			if err != nil {
+				t.Fatalf("Expr: %v", err)
+			}
+			h.vars["res"], _ = evalOne(t, h, Config{}, rendered)
+			eq, _ := evalOne(t, h, Config{}, parseExpr(t, tt.check))
+			if !eq.Bool() {
+				t.Fatalf("rendering %s did not preserve its exact value", tt.expr)
+			}
+		})
+	}
+}
+
+func TestExactComplexDivisionByZero(t *testing.T) {
+	for _, expr := range []string{`1i / (1i - 1i)`, `1i / (1e-1000i - 1e-1000i)`} {
+		cerr := evalErr(t, newFakeHost(t), Config{}, parseExpr(t, expr))
+		if cerr.Code != CodeEval || !strings.Contains(cerr.Detail, "division by zero") {
+			t.Fatalf("%s: error = %v, want division by zero CodeEval", expr, cerr)
+		}
+	}
+}

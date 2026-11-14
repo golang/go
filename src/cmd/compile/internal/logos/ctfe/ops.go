@@ -74,11 +74,23 @@ func (e *evaluator) evalLit(lit *syntax.BasicLit) (Value, error) {
 		return Value{typ: UntypedFloat(), constant: true, fval: r}, nil
 	case syntax.ImagLit:
 		s := strings.TrimSuffix(strings.ReplaceAll(lit.Value, "_", ""), "i")
-		f, err := strconv.ParseFloat(s, 64)
-		if err != nil {
-			return Value{}, e.fail(pos, "bad imaginary literal in const evaluation")
+		if !strings.ContainsAny(s, ".eEpPxXoObB") {
+			s = strings.TrimLeft(s, "0")
+			if s == "" {
+				s = "0"
+			}
 		}
-		return Value{typ: UntypedComplex(), constant: true, cval: complex(0, f)}, nil
+		r, ok := new(big.Rat).SetString(s)
+		if !ok {
+			f, err := strconv.ParseFloat(s, 64)
+			if err != nil {
+				return Value{}, e.fail(pos, "bad imaginary literal in const evaluation")
+			}
+			r = new(big.Rat).SetFloat64(f)
+		}
+		parts := new([2]big.Rat)
+		parts[1].Set(r)
+		return Value{typ: UntypedComplex(), constant: true, cparts: parts}, nil
 	case syntax.RuneLit:
 		r, _, _, err := strconv.UnquoteChar(lit.Value[1:len(lit.Value)-1], '\'')
 		if err != nil {
@@ -324,6 +336,35 @@ func kindOf(v Value) Kind {
 }
 
 func (e *evaluator) complexOp(op syntax.Operator, x, y Value, t *Type, cst bool, pos syntax.Pos) (Value, error) {
+	if cst && t.Kind == KUntypedComplex {
+		xr, xi := complexParts(x)
+		yr, yi := complexParts(y)
+		parts := new([2]big.Rat)
+		re, im := &parts[0], &parts[1]
+		switch op {
+		case syntax.Add:
+			re.Add(xr, yr)
+			im.Add(xi, yi)
+		case syntax.Sub:
+			re.Sub(xr, yr)
+			im.Sub(xi, yi)
+		case syntax.Mul:
+			var a, b big.Rat
+			re.Sub(a.Mul(xr, yr), b.Mul(xi, yi))
+			im.Add(a.Mul(xr, yi), b.Mul(xi, yr))
+		case syntax.Div:
+			if yr.Sign() == 0 && yi.Sign() == 0 {
+				return Value{}, e.fail(pos, "division by zero in const evaluation")
+			}
+			var a, b, den big.Rat
+			den.Add(a.Mul(yr, yr), b.Mul(yi, yi))
+			re.Quo(re.Add(a.Mul(xr, yr), b.Mul(xi, yi)), &den)
+			im.Quo(im.Sub(a.Mul(xi, yr), b.Mul(xr, yi)), &den)
+		default:
+			return Value{}, e.fail(pos, "unsupported complex operator in const evaluation")
+		}
+		return Value{typ: t, constant: true, cparts: parts}, nil
+	}
 	xc, yc := toComplex(x), toComplex(y)
 	if op == syntax.Div && yc == 0 && cst {
 		return Value{}, e.fail(pos, "division by zero in const evaluation")
@@ -580,6 +621,13 @@ func (e *evaluator) neg(x Value, pos syntax.Pos) (Value, error) {
 		return floatResult(x.typ, -toFloat64(x, x.typ), false, pos)
 	}
 	if isComplex(kindOf(x)) {
+		if x.constant && kindOf(x) == KUntypedComplex {
+			re, im := complexParts(x)
+			parts := new([2]big.Rat)
+			parts[0].Neg(re)
+			parts[1].Neg(im)
+			return Value{typ: x.typ, constant: true, cparts: parts}, nil
+		}
 		c := x.Complex()
 		if x.constant {
 			return complexConst(x.typ, complex(-real(c), -imag(c))), nil
@@ -674,6 +722,17 @@ func toComplex(v Value) complex128 {
 	}
 	f, _ := new(big.Rat).SetInt(v.ival).Float64()
 	return complex(f, 0)
+}
+
+func complexParts(v Value) (*big.Rat, *big.Rat) {
+	if v.cparts != nil {
+		return &v.cparts[0], &v.cparts[1]
+	}
+	if isComplex(kindOf(v)) {
+		c := v.Complex()
+		return new(big.Rat).SetFloat64(real(c)), new(big.Rat).SetFloat64(imag(c))
+	}
+	return xFloat(v), new(big.Rat)
 }
 
 func (e *evaluator) floatOp(op syntax.Operator, x, y Value, t *Type, cst bool, pos syntax.Pos) (Value, error) {
@@ -802,6 +861,18 @@ func (e *evaluator) equal(x, y Value, pos syntax.Pos) (bool, error) {
 		if !isNumeric(kindOf(x)) || !isNumeric(kindOf(y)) {
 			return false, e.fail(pos, "values not comparable in const evaluation")
 		}
+		if isUntyped(kindOf(x)) != isUntyped(kindOf(y)) {
+			cx, cy, _, err := e.numPair(x, y, pos)
+			if err != nil {
+				return false, err
+			}
+			x, y = cx, cy
+		}
+		if x.constant && y.constant && isUntyped(kindOf(x)) && isUntyped(kindOf(y)) {
+			xr, xi := complexParts(x)
+			yr, yi := complexParts(y)
+			return xr.Cmp(yr) == 0 && xi.Cmp(yi) == 0, nil
+		}
 		return toComplex(x) == toComplex(y), nil
 	case isInteger(kindOf(x)) && isInteger(kindOf(y)):
 		return x.ival.Cmp(y.ival) == 0, nil
@@ -873,7 +944,7 @@ func (e *evaluator) canon(v Value) Value {
 	if v.typ != nil && v.typ.Kind == KFloat64 && !v.constant && v.f64 == 0 {
 		v.f64 = 0
 	}
-	if v.typ != nil && isComplex(v.typ.Kind) {
+	if v.typ != nil && isComplex(v.typ.Kind) && v.cparts == nil {
 		if real(v.cval) == 0 {
 			v.cval = complex(0, imag(v.cval))
 		}

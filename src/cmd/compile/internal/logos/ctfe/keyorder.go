@@ -36,6 +36,14 @@ func CompareKeys(a, b Value) int {
 	case isFloat(t.Kind):
 		return cmp.Compare(keyFloat(a), keyFloat(b))
 	case isComplex(t.Kind):
+		if t.Kind == KUntypedComplex && a.constant && b.constant {
+			ar, ai := complexParts(a)
+			br, bi := complexParts(b)
+			if c := ar.Cmp(br); c != 0 {
+				return c
+			}
+			return ai.Cmp(bi)
+		}
 		ca, cb := keyComplex(a), keyComplex(b)
 		if c := cmp.Compare(real(ca), real(cb)); c != 0 {
 			return c
