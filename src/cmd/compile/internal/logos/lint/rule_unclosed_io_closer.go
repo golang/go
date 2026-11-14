@@ -18,11 +18,12 @@ import (
 // A variable is held when an assignment or declaration inside the function
 // sets it from a call, directly or through a loGo/s ?, and its type has a
 // Close() error method. Parameters, named results, and variables of another
-// function are not held; a conversion and a call of a builtin are not calls
-// that return an owner. The function closes the variable when a defer
-// statement, or a loGo/s scope defer, calls its Close, either directly, with
-// or without ?, or inside a deferred function literal. An errdefer does not
-// close it: it runs only on failure. The function hands the variable on when
+// function are not held; a conversion, a call of a builtin, and io.NopCloser
+// are not calls that return an owner. The function closes the variable when a
+// defer statement, or a loGo/s scope defer, calls its Close, either directly,
+// with or without ?, or inside a deferred function literal, or when a
+// non-deferred v.Close() call appears as a statement or a return operand. An
+// errdefer does not close it: it runs only on failure. The function hands the variable on when
 // the variable appears anywhere except as the receiver of a method call, a
 // field selection, an operand of == or !=, the target of an assignment, or
 // the value of an alias: returned, stored, sent, passed as an argument,
@@ -220,6 +221,9 @@ func (c *closerScan) hold(target, value syntax.Expr, t types2.Type) {
 	if call == nil || convertsType(call) || call.Fun.GetTypeInfo().IsBuiltin() || !c.isCloser(t) {
 		return
 	}
+	if fn := calleeFunc(c.pass, call); fn != nil && fn.FullName() == "io.NopCloser" {
+		return
+	}
 	v := localVar(c.pass, id)
 	if v == nil || !c.declaredHere(v) {
 		return
@@ -298,6 +302,18 @@ func (c *closerScan) mark(n syntax.Node) bool {
 		return false
 	case *syntax.AssignStmt:
 		c.markTargets(n)
+	case *syntax.ExprStmt:
+		if call := closerCall(n.X); call != nil {
+			c.closes(call)
+		}
+	case *syntax.ReturnStmt:
+		if n.Results != nil {
+			for _, r := range exprList(n.Results) {
+				if call := closerCall(r); call != nil {
+					c.closes(call)
+				}
+			}
+		}
 	case *syntax.CallExpr:
 		c.markReceiver(n)
 	case *syntax.SelectorExpr:

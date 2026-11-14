@@ -56,7 +56,7 @@ func selectNoDone(a, b chan int) int {
 
 func selectDefault(a chan int) {
 	select {
-	case a <- 1: // ERROR "unbounded_channel_op"
+	case a <- 1:
 	default:
 	}
 }
@@ -234,7 +234,7 @@ func selectCounts() {
 	ch := make(chan int, 1)
 	ch <- 1 // ERROR "unbounded_channel_op"
 	select {
-	case ch <- 2: // ERROR "unbounded_channel_op"
+	case ch <- 2:
 	default:
 	}
 }
@@ -288,9 +288,9 @@ func timerRecv() {
 
 func timerSelect(in chan int) int {
 	select {
-	case v := <-in: // ERROR "unbounded_channel_op"
+	case v := <-in:
 		return v
-	case <-time.After(time.Second): // ERROR "unbounded_channel_op"
+	case <-time.After(time.Second):
 		return 0
 	}
 }
@@ -343,4 +343,371 @@ func rangeTypeParamChan[C ~chan int](c C) {
 func rangeTypeParamSlice[S ~[]int](s S) {
 	for range s {
 	}
+}
+
+func waitTimeout(ch chan int, d time.Duration) (int, bool) {
+	select {
+	case v := <-ch:
+		return v, true
+	case <-time.After(d):
+		return 0, false
+	}
+}
+
+func tryRecv(ch chan int) (int, bool) {
+	select {
+	case v := <-ch:
+		return v, true
+	default:
+		return 0, false
+	}
+}
+
+func timerLocalBound(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+		return 0
+	}
+}
+
+func tickerLocalBound(in chan int, d time.Duration) int {
+	t := time.NewTicker(d)
+	defer t.Stop()
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+		return 0
+	}
+}
+
+func timerParamUnproven(in chan int, t *time.Timer) int {
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func timerParamAssignedUnproven(in chan int, t *time.Timer) int {
+	t = time.NewTimer(time.Second)
+	defer t.Stop()
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func timerAfterFuncUnproven(in chan int, d time.Duration) int {
+	t := time.AfterFunc(d, func() {})
+	defer t.Stop()
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func timerStoppedUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	t.Stop()
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func timerLoopUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	for range 3 {
+		select {
+		case v := <-in: // ERROR "unbounded_channel_op"
+			return v
+		case <-t.C: // ERROR "unbounded_channel_op"
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerCondResetUnproven(in chan int, d time.Duration, c bool) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	for range 3 {
+		if c {
+			t.Reset(d)
+		}
+		select {
+		case v := <-in: // ERROR "unbounded_channel_op"
+			return v
+		case <-t.C: // ERROR "unbounded_channel_op"
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerAliasUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	u := t
+	u.Stop()
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func timerDerefStopUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	(*t).Stop()
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+func tickerLoopBound(in chan int, d time.Duration) int {
+	t := time.NewTicker(d)
+	defer t.Stop()
+	for range 3 {
+		select {
+		case v := <-in:
+			return v
+		case <-t.C:
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerResetBound(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	for range 3 {
+		t.Reset(d)
+		select {
+		case v := <-in:
+			return v
+		case <-t.C:
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerResetArgRecv(in chan int, d time.Duration, ch chan int64) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	for range 3 {
+		t.Reset(time.Duration(<-ch)) // ERROR "unbounded_channel_op"
+		select {
+		case v := <-in:
+			return v
+		case <-t.C:
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerNoDeferBound(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+		return 0
+	}
+}
+
+func tickerChanOverwriteUnproven(in chan int, d time.Duration) int {
+	t := time.NewTicker(d)
+	defer t.Stop()
+	t.C = nil
+	select {
+	case <-in: // ERROR "unbounded_channel_op"
+		return 1
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 0
+	}
+}
+
+type timerBox struct{ t *time.Timer }
+
+func arm(t *time.Timer) {}
+
+func timerEscapedUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	arm(t)
+	select {
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 1
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	}
+}
+
+func timerFieldEscapeUnproven(in chan int, d time.Duration, b *timerBox) int {
+	t := time.NewTimer(d)
+	b.t = t
+	select {
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 1
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	}
+}
+
+func timerSendEscapeUnproven(in chan int, d time.Duration, ts chan *time.Timer) int {
+	t := time.NewTimer(d)
+	ts <- t // ERROR "unbounded_channel_op"
+	select {
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 1
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	}
+}
+
+func timerReturnEscapeUnproven(in chan int, d time.Duration) (int, *time.Timer) {
+	t := time.NewTimer(d)
+	select {
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 1, t
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v, t
+	}
+}
+
+func timerLiteralEscapeUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	func() { t.Reset(d) }()
+	select {
+	case <-t.C: // ERROR "unbounded_channel_op"
+		return 1
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	}
+}
+
+func timerLoopResetBound(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-in:
+	case <-t.C:
+	}
+	for range 3 {
+		t.Reset(d)
+		select {
+		case v := <-in:
+			return v
+		case <-t.C:
+			return 0
+		}
+	}
+	return 0
+}
+
+func timerGotoBackUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+retry:
+	select {
+	case v := <-in: // ERROR "unbounded_channel_op"
+		return v
+	case <-t.C: // ERROR "unbounded_channel_op"
+		goto retry
+	}
+}
+
+func timerGotoBackRecreatedBound(in chan int, d time.Duration) int {
+retry:
+	t := time.NewTimer(d)
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+		goto retry
+	}
+}
+
+func tickerGotoBackBound(in chan int, d time.Duration) int {
+	t := time.NewTicker(d)
+	defer t.Stop()
+retry:
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+		goto retry
+	}
+}
+
+func timerGotoForwardBound(in chan int, d time.Duration, skip bool) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	if skip {
+		goto done
+	}
+	select {
+	case v := <-in:
+		return v
+	case <-t.C:
+	}
+done:
+	return 0
+}
+
+func timerGotoBackLoopResetBound(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	rounds := 0
+retry:
+	for range 3 {
+		t.Reset(d)
+		select {
+		case v := <-in:
+			return v
+		case <-t.C:
+		}
+	}
+	if rounds < 2 {
+		rounds++
+		goto retry
+	}
+	return 0
+}
+
+func timerGotoBackPastResetUnproven(in chan int, d time.Duration) int {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	for range 3 {
+		t.Reset(d)
+	again:
+		select {
+		case v := <-in: // ERROR "unbounded_channel_op"
+			return v
+		case <-t.C: // ERROR "unbounded_channel_op"
+			goto again
+		}
+	}
+	return 0
 }

@@ -106,6 +106,6 @@ func (ts timespec) mustDowncastToTimespec32() (r timespec32) {
 	if ts.tv_sec != int64(r.tv_sec) {
 		throw("timespec64 value cannot be represented in timespec32")
 	}
-	r.tv_nsec = ts.tv_nsec
+	r.tv_nsec = int32(ts.tv_nsec)
 	return
 }

@@ -47,6 +47,19 @@ func explicitClose() {
 	}
 }
 
+func explicitReturnClose() error {
+	f, err := os.Open("x")
+	if err != nil {
+		return err
+	}
+	return f.Close()
+}
+
+func explicitStmtClose() {
+	f := mustOpen()
+	f.Close() // ERROR "discarded_error"
+}
+
 func declType() {
 	var c io.Closer = mustOpen() // ERROR "unclosed_io_closer"
 	if c == nil {
@@ -75,7 +88,7 @@ func inLiteral() {
 }
 
 func nopCloser(r io.Reader) {
-	c := io.NopCloser(r) // ERROR "unclosed_io_closer"
+	c := io.NopCloser(r)
 	if c == nil {
 		panic("nil")
 	}

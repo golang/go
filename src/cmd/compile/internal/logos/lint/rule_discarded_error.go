@@ -247,9 +247,11 @@ func (c *discardCheck) benignCall(call *syntax.CallExpr) bool {
 	case "fmt.Fprint", "fmt.Fprintf", "fmt.Fprintln":
 		return len(call.ArgList) > 0 && (isStdoutOrStderr(c.pass, call.ArgList[0]) ||
 			isBufferOrBuilder(c.pass, call.ArgList[0]))
+	case "io.WriteString":
+		return len(call.ArgList) > 0 && isBufferOrBuilder(c.pass, call.ArgList[0])
 	default:
 		if strings.HasPrefix(name, "(*bytes.Buffer).Write") ||
-			strings.HasPrefix(name, "(*strings.Builder).Write") {
+			strings.HasPrefix(name, "(*strings.Builder).Write") || isHashWrite(c.pass, call) {
 			return true
 		}
 	}
@@ -266,6 +268,70 @@ func (c *discardCheck) alwaysNil(fn *types2.Func) bool {
 	return facts.AlwaysNilCallee(fn)
 }
 
+// isHashWrite reports whether call writes on a receiver that implements
+// hash.Hash. Such a Write never returns an error.
+func isHashWrite(pass *Pass, call *syntax.CallExpr) bool {
+	sel, ok := syntax.Unparen(call.Fun).(*syntax.SelectorExpr)
+	if !ok || sel.Sel.Value != "Write" {
+		return false
+	}
+	hash := hashInterface(pass.Pkg)
+	if hash == nil {
+		return false
+	}
+	recv := TypeOf(sel.X)
+	if recv == nil {
+		return false
+	}
+	if types2.Implements(recv, hash) {
+		return true
+	}
+	_, isPtr := types2.Unalias(recv).Underlying().(*types2.Pointer)
+	return !isPtr && types2.Implements(types2.NewPointer(recv), hash)
+}
+
+// hashInterface returns the hash.Hash interface visible from pkg over its
+// transitive imports, or nil when no import chain reaches it.
+func hashInterface(pkg *types2.Package) *types2.Interface {
+	if pkg == nil {
+		return nil
+	}
+	hash := findPackage(pkg, "hash")
+	if hash == nil {
+		return nil
+	}
+	obj, ok := hash.Scope().Lookup("Hash").(*types2.TypeName)
+	if !ok {
+		return nil
+	}
+	iface, ok := obj.Type().Underlying().(*types2.Interface)
+	if !ok {
+		return nil
+	}
+	return iface
+}
+
+// findPackage returns the transitively imported package with the given path,
+// or nil.
+func findPackage(root *types2.Package, path string) *types2.Package {
+	seen := map[*types2.Package]bool{root: true}
+	queue := []*types2.Package{root}
+	for len(queue) > 0 {
+		pkg := queue[0]
+		queue = queue[1:]
+		if pkg.Path() == path {
+			return pkg
+		}
+		for _, imp := range pkg.Imports() {
+			if !seen[imp] {
+				seen[imp] = true
+				queue = append(queue, imp)
+			}
+		}
+	}
+	return nil
+}
+
 // isStdoutOrStderr reports whether w is os.Stdout or os.Stderr.
 func isStdoutOrStderr(pass *Pass, w syntax.Expr) bool {
 	sel, ok := w.(*syntax.SelectorExpr)
@@ -279,14 +345,18 @@ func isStdoutOrStderr(pass *Pass, w syntax.Expr) bool {
 }
 
 func isBufferOrBuilder(pass *Pass, w syntax.Expr) bool {
-	ptr, ok := underOrNil(TypeOf(w)).(*types2.Pointer)
+	ptr, ok := types2.Unalias(TypeOf(w)).(*types2.Pointer)
 	if !ok {
 		return false
 	}
-	named, ok := ptr.Elem().(*types2.Named)
-	if !ok || named.Obj().Pkg() == nil {
+	named, ok := types2.Unalias(ptr.Elem()).(*types2.Named)
+	if !ok {
 		return false
 	}
-	name := named.Obj().Pkg().Path() + "." + named.Obj().Name()
-	return name == "bytes.Buffer" || name == "strings.Builder"
+	obj := named.Obj()
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	return (obj.Pkg().Path() == "bytes" && obj.Name() == "Buffer") ||
+		(obj.Pkg().Path() == "strings" && obj.Name() == "Builder")
 }

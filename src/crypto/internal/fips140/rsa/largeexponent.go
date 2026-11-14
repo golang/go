@@ -282,6 +282,7 @@ func TestingOnlyLargeExponentDecryptOAEP(hash, mgfHash hash.Hash, priv *TestingO
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
+	checkApprovedHash(mgfHash)
 
 	k := priv.Size()
 	if len(ciphertext) > k || k < hash.Size()*2+2 {
@@ -334,6 +335,7 @@ func TestingOnlyLargeExponentEncryptOAEP(hash, mgfHash hash.Hash, random io.Read
 	fipsSelfTest()
 	fips140.RecordApproved()
 	checkApprovedHash(hash)
+	checkApprovedHash(mgfHash)
 	if err := checkLargeExponentPublicKey(pub); err != nil {
 		return nil, err
 	}

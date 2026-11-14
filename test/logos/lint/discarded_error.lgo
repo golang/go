@@ -5,6 +5,7 @@ package p
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -66,14 +67,14 @@ type nilIface interface {
 }
 
 func dropped() {
-	f() // ERROR "discarded_error"
-	g() // ERROR "discarded_error"
-	_ = f() // ERROR "discarded_error"
-	_, _ = g() // ERROR "discarded_error"
+	f()         // ERROR "discarded_error"
+	g()         // ERROR "discarded_error"
+	_ = f()     // ERROR "discarded_error"
+	_, _ = g()  // ERROR "discarded_error"
 	n, _ := g() // ERROR "discarded_error"
 	_ = n
 	h := func() error { return f() }
-	h() // ERROR "discarded_error"
+	h()       // ERROR "discarded_error"
 	_ = (f()) // ERROR "discarded_error"
 }
 
@@ -124,6 +125,27 @@ func printedToBuffer() {
 func printedToWriter(out io.Writer) {
 	fmt.Fprintf(out, "x") // ERROR "discarded_error"
 	fmt.Fprintln(out, "x") // ERROR "discarded_error"
+}
+
+func hashWriteInfallible(data []byte) [32]byte {
+	h := sha256.New()
+	h.Write(data)
+	s := h.Sum(nil)
+	var out [32]byte
+	copy(out[:], s)
+	return out
+}
+
+func fprintfToBuffer() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "n=%d", 42)
+	return buf.String()
+}
+
+func writeStringToBuilder(s string) string {
+	var b strings.Builder
+	io.WriteString(&b, s)
+	return b.String()
 }
 
 func handled() {

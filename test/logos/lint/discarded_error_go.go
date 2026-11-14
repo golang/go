@@ -4,8 +4,10 @@ package p
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -117,6 +119,27 @@ func printedToBuffer() {
 	fmt.Fprintf(&b, "x")
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "x")
+}
+
+func hashWriteInfallible(data []byte) [32]byte {
+	h := sha256.New()
+	h.Write(data)
+	s := h.Sum(nil)
+	var out [32]byte
+	copy(out[:], s)
+	return out
+}
+
+func fprintfToBuffer() string {
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "n=%d", 42)
+	return buf.String()
+}
+
+func writeStringToBuilder(s string) string {
+	var b strings.Builder
+	io.WriteString(&b, s)
+	return b.String()
 }
 
 func handled() {

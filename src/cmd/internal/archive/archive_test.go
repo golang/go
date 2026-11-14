@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"unicode/utf8"
@@ -372,6 +373,8 @@ func TestExactly16Bytes(t *testing.T) {
 		"123456789012345日本語67890",
 		"1234567890123456日本語7890",
 		"1234567890123456日本語7日本語890",
+		"12345678901234567890.syso",
+		"1234567890日本語.syso",
 	}
 	for _, str := range tests {
 		got := exactly16Bytes(str)
@@ -383,6 +386,9 @@ func TestExactly16Bytes(t *testing.T) {
 			if c == utf8.RuneError {
 				t.Errorf("exactly16Bytes(%q) is %q, has partial rune", str, got)
 			}
+		}
+		if strings.HasSuffix(str, ".syso") && !strings.HasSuffix(strings.TrimRight(got, " "), ".syso") {
+			t.Errorf("exactly16Bytes(%q) is %q, did not preserve .syso suffix", str, got)
 		}
 	}
 }

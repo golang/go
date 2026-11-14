@@ -403,7 +403,12 @@ func dynimport(obj string) {
 			name := strings.Split(ss[0], "@")[0]
 			checkImportSymName(name)
 			checkImportSymName(ss[0])
-			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", name, ss[0], strings.ToLower(ss[1]))
+			dll := strings.ToLower(ss[1])
+			checkImportSymName(dll)
+			if strings.Contains(dll, "/") || strings.Contains(dll, `\`) || strings.Contains(dll, "..") || strings.Contains(dll, ":") {
+				fatalf("dynamic library %q contains unsupported path characters", ss[1])
+			}
+			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", name, ss[0], dll)
 		}
 		return
 	}

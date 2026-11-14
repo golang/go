@@ -50,6 +50,7 @@ func (priv *PrivateKey) PublicKey() *PublicKey {
 // All values are in big-endian byte slice format, and may have leading zeros
 // or be shorter if leading zeroes were trimmed.
 func NewPrivateKey(N []byte, e int, d, P, Q []byte) (*PrivateKey, error) {
+	fipsSelfTest()
 	n, err := bigmod.NewModulus(N)
 	if err != nil {
 		return nil, err
@@ -110,6 +111,8 @@ func newPrivateKey(n *bigmod.Modulus, e int, d *bigmod.Nat, p, q *bigmod.Modulus
 // NewPrivateKeyWithPrecomputation creates a new RSA private key from the given
 // parameters, which include precomputed CRT values.
 func NewPrivateKeyWithPrecomputation(N []byte, e int, d, P, Q, dP, dQ, qInv []byte) (*PrivateKey, error) {
+	fipsSelfTest()
+
 	n, err := bigmod.NewModulus(N)
 	if err != nil {
 		return nil, err

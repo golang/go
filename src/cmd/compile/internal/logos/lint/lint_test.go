@@ -331,6 +331,7 @@ const discardedSrc = `package p
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -373,6 +374,12 @@ func a() {
 	sb.WriteString("x")
 	fmt.Fprintf(&b, "x")
 	fmt.Fprintf(&sb, "x")
+	hash := sha256.New()
+	hash.Write([]byte("x"))
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "x")
+	var bd strings.Builder
+	io.WriteString(&bd, "x")
 	err := f()
 	_ = err
 	defer f() // want

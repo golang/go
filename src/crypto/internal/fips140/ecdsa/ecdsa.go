@@ -161,6 +161,7 @@ var p521Order = []byte{0x01, 0xff,
 // slices. D must be the fixed-length big-endian encoding of the private scalar,
 // and Q must be the compressed or uncompressed encoding of the public point.
 func NewPrivateKey[P Point[P]](c *Curve[P], D, Q []byte) (*PrivateKey, error) {
+	fipsSelfTest()
 	fips140.RecordApproved()
 	pub, err := NewPublicKey(c, Q)
 	if err != nil {
@@ -198,6 +199,7 @@ func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
 
 // GenerateKey generates a new ECDSA private key pair for the specified curve.
 func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+	fipsSelfTest()
 	fips140.RecordApproved()
 
 	k, Q, err := randomPoint(c, func(b []byte) error {

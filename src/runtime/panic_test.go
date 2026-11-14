@@ -155,3 +155,57 @@ func TestPanicNilErrorPrefix(t *testing.T) {
 		})
 	}
 }
+
+// Issue 81959: nil-pointer panic in a promoted-method wrapper should not cause
+// "traceback did not unwind completely" when an intervening frame has a linked defer.
+type wrapperTestI interface {
+	m() wrapperTestI
+}
+
+type wrapperTestT struct {
+	x int
+}
+
+func (t *wrapperTestT) m() wrapperTestI {
+	return t
+}
+
+type wrapperTestW struct {
+	wrapperTestT
+}
+
+//go:noinline
+func testWrapperPanicLinked(i wrapperTestI) wrapperTestI {
+	for range 1 {
+		// Use a loop defer so open-coded defers are disabled, forcing a linked defer.
+		defer func() {}()
+	}
+	return i.m()
+}
+
+//go:noinline
+func testWrapperPanicOpen(i wrapperTestI) wrapperTestI {
+	defer func() {}()
+	return i.m()
+}
+
+func TestWrapperPanicUnwind(t *testing.T) {
+	t.Run("OpenCoded", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected panic, got nil")
+			}
+		}()
+		testWrapperPanicOpen((*wrapperTestW)(nil))
+	})
+	t.Run("Linked", func(t *testing.T) {
+		defer func() {
+			r := recover()
+			if r == nil {
+				t.Fatal("expected panic, got nil")
+			}
+		}()
+		testWrapperPanicLinked((*wrapperTestW)(nil))
+	})
+}
