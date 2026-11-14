@@ -1209,21 +1209,6 @@ type _defer struct {
 	head *atomic.Pointer[_defer]
 }
 
-const (
-	deferTryPtrs  = 4
-	deferTryWords = 4
-)
-
-type _deferTry struct {
-	d       _defer
-	fv      uintptr
-	errheap *error
-	erroff  uintptr
-	ext     *_deferTry
-	ptrs    [deferTryPtrs]unsafe.Pointer
-	words   [deferTryWords]uintptr
-}
-
 // A _panic holds information about an active panic.
 //
 // A _panic value must only ever live on the stack.

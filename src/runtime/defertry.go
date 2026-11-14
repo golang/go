@@ -10,6 +10,21 @@ import (
 	"unsafe"
 )
 
+const (
+	deferTryPtrs  = 4
+	deferTryWords = 4
+)
+
+type _deferTry struct {
+	d       _defer
+	fv      uintptr
+	errheap *error
+	erroff  uintptr
+	ext     *_deferTry
+	ptrs    [deferTryPtrs]unsafe.Pointer
+	words   [deferTryWords]uintptr
+}
+
 func deferprocTry(thunk uintptr, ctype *_type, clo unsafe.Pointer, roff uintptr) {
 	gp := getg()
 	if gp.m.curg != gp {
