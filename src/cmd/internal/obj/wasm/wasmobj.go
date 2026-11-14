@@ -117,25 +117,39 @@ func rconv(r int) string {
 }
 
 var unaryDst = map[obj.As]bool{
-	ASet:          true,
-	ATee:          true,
-	ACall:         true,
-	ACallIndirect: true,
-	ABr:           true,
-	ABrIf:         true,
-	ABrTable:      true,
-	AI32Store:     true,
-	AI64Store:     true,
-	AF32Store:     true,
-	AF64Store:     true,
-	AI32Store8:    true,
-	AI32Store16:   true,
-	AI64Store8:    true,
-	AI64Store16:   true,
-	AI64Store32:   true,
-	AV128Store:    true,
-	ASuspend:      true,
-	ACALLNORESUME: true,
+	ASet:               true,
+	ATee:               true,
+	ACall:              true,
+	ACallIndirect:      true,
+	ABr:                true,
+	ABrIf:              true,
+	ABrTable:           true,
+	AI32Store:          true,
+	AI64Store:          true,
+	AF32Store:          true,
+	AF64Store:          true,
+	AI32Store8:         true,
+	AI32Store16:        true,
+	AI64Store8:         true,
+	AI64Store16:        true,
+	AI64Store32:        true,
+	AV128Store:         true,
+	AI8x16ExtractLaneS: true,
+	AI8x16ExtractLaneU: true,
+	AI8x16ReplaceLane:  true,
+	AI16x8ExtractLaneS: true,
+	AI16x8ExtractLaneU: true,
+	AI16x8ReplaceLane:  true,
+	AI32x4ExtractLane:  true,
+	AI32x4ReplaceLane:  true,
+	AI64x2ExtractLane:  true,
+	AI64x2ReplaceLane:  true,
+	AF32x4ExtractLane:  true,
+	AF32x4ReplaceLane:  true,
+	AF64x2ExtractLane:  true,
+	AF64x2ReplaceLane:  true,
+	ASuspend:           true,
+	ACALLNORESUME:      true,
 }
 
 var Linkwasm = obj.LinkArch{
@@ -1377,6 +1391,9 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
 			AF32x4ReplaceLane,
 			AF64x2ExtractLane,
 			AF64x2ReplaceLane:
+			if p.To.Type != obj.TYPE_CONST || p.To.Offset < 0 || p.To.Offset >= lanes(p.As) {
+				ctxt.Diag("bad lane index in %v", p)
+			}
 			writeUleb128(w, uint64(p.To.Offset))
 
 		case ACallIndirect:
@@ -1561,6 +1578,21 @@ func align(as obj.As) uint64 {
 		return 0 // TODO do we want more alignment
 	default:
 		panic("align: bad op")
+	}
+}
+
+func lanes(as obj.As) int64 {
+	switch as {
+	case AI8x16ExtractLaneS, AI8x16ExtractLaneU, AI8x16ReplaceLane:
+		return 16
+	case AI16x8ExtractLaneS, AI16x8ExtractLaneU, AI16x8ReplaceLane:
+		return 8
+	case AI32x4ExtractLane, AI32x4ReplaceLane, AF32x4ExtractLane, AF32x4ReplaceLane:
+		return 4
+	case AI64x2ExtractLane, AI64x2ReplaceLane, AF64x2ExtractLane, AF64x2ReplaceLane:
+		return 2
+	default:
+		panic("lanes: bad op")
 	}
 }
 
