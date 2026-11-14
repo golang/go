@@ -17,6 +17,11 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
+// TicketVersion 0x03 are reserved for older TLS version first byte.
+// TicketVersion 0xff is reserved as an indication to read one more byte if
+//	we run out of all non-reserved version numbers.
+const currentTicketVersion = 0
+
 // A SessionState is a resumable session.
 type SessionState struct {
 	// Encoded as a SessionState (in the language of RFC 8446, Section 3).
@@ -30,6 +35,7 @@ type SessionState struct {
 	//   opaque Extra<0..2^24-1>;
 	//
 	//   struct {
+	//       uint8 ticket_version;
 	//       uint16 version;
 	//       SessionStateType type;
 	//       uint16 cipher_suite;
@@ -45,14 +51,16 @@ type SessionState struct {
 	//           case 1: opaque alpn<1..2^8-1>;
 	//       };
 	//       select (SessionState.version) {
-	//           case VersionTLS10..VersionTLS12: uint16 curve_id;
-	//           case VersionTLS13: select (SessionState.type) {
-	//               case server: Empty;
-	//               case client: struct {
-	//                   uint64 use_by;
-	//                   uint32 age_add;
+	//           case VersionTLS10..VersionTLS12:
+	//               uint16 curve_id;
+	//           case VersionTLS13:
+	//               uint32 age_add;
+	//               select (SessionState.type) {
+	//                   case server: Empty;
+	//                   case client: struct {
+	//                       uint64 use_by;
+	//                   };
 	//               };
-	//           };
 	//       };
 	//   } SessionState;
 	//
@@ -110,6 +118,7 @@ type SessionState struct {
 // between Go versions.
 func (s *SessionState) Bytes() ([]byte, error) {
 	var b cryptobyte.Builder
+	b.AddUint8(currentTicketVersion)
 	b.AddUint16(s.version)
 	if s.isClient {
 		b.AddUint8(2) // client
@@ -165,9 +174,9 @@ func (s *SessionState) Bytes() ([]byte, error) {
 		})
 	}
 	if s.version >= VersionTLS13 {
+		b.AddUint32(s.ageAdd)
 		if s.isClient {
 			addUint64(&b, s.useBy)
-			b.AddUint32(s.ageAdd)
 		}
 	} else {
 		b.AddUint16(uint16(s.curveID))
@@ -187,6 +196,12 @@ func certificatesToBytesSlice(certs []*x509.Certificate) [][]byte {
 func ParseSessionState(data []byte) (*SessionState, error) {
 	ss := &SessionState{}
 	s := cryptobyte.String(data)
+
+	var ticketVersion uint8
+	if !s.ReadUint8(&ticketVersion) || ticketVersion != ticketVersion {
+		return nil, errors.New("tls: invalid session encoding")
+	}
+
 	var typ, extMasterSecret, earlyData uint8
 	var cert Certificate
 	var extra cryptobyte.String
@@ -280,8 +295,11 @@ func ParseSessionState(data []byte) (*SessionState, error) {
 		ss.alpnProtocol = string(alpn)
 	}
 	if ss.version >= VersionTLS13 {
+		if !s.ReadUint32(&ss.ageAdd) {
+			return nil, errors.New("tls: invalid session encoding")
+		}
 		if ss.isClient {
-			if !s.ReadUint64(&ss.useBy) || !s.ReadUint32(&ss.ageAdd) {
+			if !s.ReadUint64(&ss.useBy) {
 				return nil, errors.New("tls: invalid session encoding")
 			}
 		}
