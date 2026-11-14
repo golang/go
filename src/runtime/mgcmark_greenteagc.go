@@ -271,7 +271,7 @@ func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
 	if ha == nil {
 		return false
 	}
-	pageIdx := ((p / pageSize) / 8) % uintptr(len(ha.pageInUse))
+	pageIdx := ((p / pageSize) / 8) % uintptr(len(ha.pageUseSpanInlineMarkBits))
 	pageMask := byte(1 << ((p / pageSize) % 8))
 	if ha.pageUseSpanInlineMarkBits[pageIdx]&pageMask == 0 {
 		return false
