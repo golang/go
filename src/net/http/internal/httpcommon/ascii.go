@@ -4,8 +4,6 @@
 
 package httpcommon
 
-import "strings"
-
 // The HTTP protocols are defined in terms of ASCII, not Unicode. This file
 // contains helper functions which may use Unicode-aware functions which would
 // otherwise be unsafe and could introduce vulnerabilities if used improperly.
@@ -32,22 +30,36 @@ func lower(b byte) byte {
 	return b
 }
 
-// isASCIIPrint returns whether s is ASCII and printable according to
+// isASCIIPrint returns whether b is ASCII and printable according to
 // https://tools.ietf.org/html/rfc20#section-4.2.
-func isASCIIPrint(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if s[i] < ' ' || s[i] > '~' {
-			return false
-		}
-	}
-	return true
+func isASCIIPrint(b byte) bool {
+	return ' ' <= b && b <= '~'
 }
 
 // asciiToLower returns the lowercase version of s if s is ASCII and printable,
 // and whether or not it was.
 func asciiToLower(s string) (lower string, ok bool) {
-	if !isASCIIPrint(s) {
-		return "", false
+	// Check s and find its first uppercase letter in a single pass.
+	for i, c := range []byte(s) {
+		if !isASCIIPrint(c) {
+			return "", false
+		}
+		if 'A' <= c && c <= 'Z' {
+			// Lowercase a copy of s. Most names fit in buf, so the copy does not allocate.
+			var buf [64]byte
+			b := append(buf[:0], s...)
+			b[i] = c + ('a' - 'A')
+			for i++; i < len(b); i++ {
+				c = b[i]
+				if !isASCIIPrint(c) {
+					return "", false
+				}
+				if 'A' <= c && c <= 'Z' {
+					b[i] = c + ('a' - 'A')
+				}
+			}
+			return string(b), true
+		}
 	}
-	return strings.ToLower(s), true
+	return s, true
 }
