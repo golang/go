@@ -200,6 +200,16 @@ func TestBitStringAt(t *testing.T) {
 	if bs.At(17) != 0 {
 		t.Error("#6: Failed")
 	}
+
+	// Test truncated or empty Bytes slice where BitLength exceeds slice capacity.
+	truncated := BitString{[]byte{0x82}, 16}
+	if truncated.At(10) != 0 {
+		t.Errorf("truncated.At(10) = %d; want 0", truncated.At(10))
+	}
+	empty := BitString{nil, 16}
+	if empty.At(0) != 0 {
+		t.Errorf("empty.At(0) = %d; want 0", empty.At(0))
+	}
 }
 
 type bitStringRightAlignTest struct {
@@ -215,6 +225,8 @@ var bitStringRightAlignTests = []bitStringRightAlignTest{
 	{[]byte{0xce}, 8, []byte{0xce}},
 	{[]byte{0xce, 0x47}, 16, []byte{0xce, 0x47}},
 	{[]byte{0x34, 0x50}, 12, []byte{0x03, 0x45}},
+	{[]byte{0x80}, -1, []byte{0x80}},
+	{[]byte{}, -5, []byte{}},
 }
 
 func TestBitStringRightAlign(t *testing.T) {
