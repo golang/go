@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1304,6 +1305,45 @@ func BenchmarkBNPrint(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.Logf("Printing from BenchmarkBNPrint")
 	}
+}
+
+func TestBenchmarkCPUList(t *testing.T) {
+	// Each result must be measured with the GOMAXPROCS of its -cpu value,
+	// including the first one, which reuses the first run of the benchmark.
+	// See issue 82824.
+	out := runTest(t, "BenchmarkCPUList", "-test.cpu=1,2", "-test.benchtime=1x")
+	re := regexp.MustCompile(`(?m)^(BenchmarkCPUList/\w+(?:-(\d+))?)\s.*\s(\S+) procs$`)
+	results := re.FindAllSubmatch(out, -1)
+	if len(results) != 4 {
+		t.Fatalf("got %d benchmark results, want 4", len(results))
+	}
+	for _, r := range results {
+		want := 1
+		if len(r[2]) > 0 {
+			want, _ = strconv.Atoi(string(r[2]))
+		}
+		if got, _ := strconv.ParseFloat(string(r[3]), 64); got != float64(want) {
+			t.Errorf("%s was measured with GOMAXPROCS=%v, want %d", r[1], got, want)
+		}
+	}
+}
+
+// BenchmarkCPUList reports the GOMAXPROCS it was measured with.
+func BenchmarkCPUList(b *testing.B) {
+	b.Run("Loop", func(b *testing.B) {
+		procs := 0
+		for b.Loop() {
+			procs = runtime.GOMAXPROCS(0)
+		}
+		b.ReportMetric(float64(procs), "procs")
+	})
+	b.Run("N", func(b *testing.B) {
+		procs := 0
+		for range b.N {
+			procs = runtime.GOMAXPROCS(0)
+		}
+		b.ReportMetric(float64(procs), "procs")
+	})
 }
 
 func TestArtifactDir(t *testing.T) {
