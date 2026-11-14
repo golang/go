@@ -150,11 +150,7 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
 			return
 		}
 		x.mode_ = value
-		if check.conf.Logos && logosAsReadonlyDescendants(x.typ()) != nil {
-			x.typ_ = &Pointer{base: x.typ()}
-			return
-		}
-		if check.logosConstAddr(x) {
+		if check.logosExprAddr(x) {
 			return
 		}
 		x.typ_ = &Pointer{base: x.typ()}
@@ -813,20 +809,7 @@ func init() {
 func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op syntax.Operator) {
 	var y operand
 
-	if e == nil {
-		check.logosLHSPush(lhs)
-	}
-	check.expr(nil, x, lhs)
-	if e == nil {
-		check.logosLHSPop()
-	}
-	anded := check.logosPushAndCond(op, lhs) // logos M3-S4 hook: `x != nil && rest` narrows x for rest.
-	top := len(check.delayed)
-	check.expr(nil, &y, rhs)
-	if anded {
-		check.processDelayed(top)
-		check.logosPopNarrow() // logos M3-S4 hook.
-	}
+	check.logosExprOperands(x, &y, e, lhs, rhs, op)
 
 	if e == nil {
 		check.logosUnwrapMapIndex(x) // logos M3-S6 hook: `m[k] += v` stores V.
@@ -973,8 +956,7 @@ func (check *Checker) matchTypes(x, y *operand) {
 	}
 
 	if mayConvert(x, y) {
-		if check.logosUnionConstMiss(x, y) {
-			x.invalidate()
+		if check.logosExprUnionConstMiss(x, y) {
 			return
 		}
 		check.convertUntyped(x, y.typ())
@@ -1111,9 +1093,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 
 	case *syntax.FuncLit:
 		check.funcLit(x, e)
-		if sig, _ := x.typ().(*Signature); sig != nil {
-			check.logosRegionLitMark(e, sig)
-		}
+		check.logosExprRegionLitMark(x, e)
 		if !x.isValid() {
 			goto Error
 		}
@@ -1249,10 +1229,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					check.validVarType(e.X, x.typ())
 					x.typ_ = &Pointer{base: x.typ()}
 				default:
-					readonlyContainer := x.typ()
-					if check.conf.Logos {
-						x.typ_, _, _ = logosReadonlyBase(x.typ())
-					}
+					readonlyContainer := check.logosExprReadonlyPrepare(x)
 					check.logosConstUnwrapBase(x) // logos M5-S1 hook: dereference through const views.
 					var base Type
 					if !underIs(x.typ(), func(u Type) bool {
@@ -1280,9 +1257,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
 					x.mode_ = variable
 					x.typ_ = base
 					check.logosConstWrapBase(x, e.X) // logos M5-S1 hook: dereference reads through const views.
-					if check.conf.Logos {
-						x.typ_ = logosReadonlyProject(readonlyContainer, x.typ(), true)
-					}
+					check.logosExprReadonlyProject(x, readonlyContainer)
 				}
 				break
 			}
@@ -1377,9 +1352,7 @@ func keyVal(x constant.Value) any {
 
 // typeAssertion checks x.(T). The type of x must be an interface.
 func (check *Checker) typeAssertion(e syntax.Expr, x *operand, T Type, typeSwitch bool) {
-	if check.conf.Logos && (logosContainsReadonlyDescendants(x.typ()) || logosContainsReadonlyDescendants(T)) {
-		check.errorf(e, ImpossibleAssert, "%s cannot erase readonly descendants in a type assertion", logosConstEscape)
-		x.invalidate()
+	if check.logosExprReadonlyAssert(e, x, T) {
 		return
 	}
 	if check.logosNonMemberAssert(e, x, T) { // logos M2-S2 hook.
