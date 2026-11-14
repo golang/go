@@ -229,7 +229,7 @@ func ownsKey(s trialMember) string {
 }
 
 func (js *jsonStruct) unionTrial(uc jsonUnionClass, target, scanner, errVar string) []string {
-	errRet := func(e string) []string { return unionFailure(errVar, e) }
+	errRet := func(e string) []string { return unionFailure("", e) }
 	var trials []string
 	trials = append(trials, "_logos_raw := "+scanner+".Value()")
 	trials = append(trials, "if _logos_value_err := "+scanner+".Err(); _logos_value_err != nil {")
@@ -252,7 +252,13 @@ func (js *jsonStruct) unionTrial(uc jsonUnionClass, target, scanner, errVar stri
 	trials = append(trials, fmt.Sprintf("if _logos_hit && _logos_out.Kind == %s.UnionTrialAmbiguous {", jsonAlias))
 	trials = append(trials, errRet(uc.errorExpr("_logos_out.Matched"))...)
 	trials = append(trials, "}")
-	return append(trials, unionResultLines(uc, target, errRet)...)
+	trials = append(trials, unionResultLines(uc, target, errRet)...)
+	trials = append(trials, "return nil")
+	out := []string{"if _logos_trial_err := func() error {"}
+	out = append(out, indentLines(trials)...)
+	out = append(out, "}(); _logos_trial_err != nil {")
+	out = append(out, indentLines(unionFailure(errVar, "_logos_trial_err"))...)
+	return append(out, "}")
 }
 
 func unionKeyScanLines(uc jsonUnionClass) []string {
