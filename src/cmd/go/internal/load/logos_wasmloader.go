@@ -73,7 +73,13 @@ var loaderHelpers = []string{
 }
 
 func pruneRedundantLogosRT(p *Package) {
-	found := graphLoaderHelperSet(p)
+	scan := graphWasmLoaderHelpers(p)
+	if len(scan.offenders) > 0 {
+		p.Error = &PackageError{Err: fmt.Errorf("%s; only the main module and %s may provide loader helpers", strings.Join(scan.offenders, "; "), logosRTModulePath)}
+		p.Incomplete = true
+		return
+	}
+	found := scan.found
 	if len(found) == 0 {
 		return
 	}
@@ -92,8 +98,15 @@ func pruneRedundantLogosRT(p *Package) {
 	p.Incomplete = true
 }
 
-func graphLoaderHelperSet(p *Package) map[string]bool {
-	found := make(map[string]bool)
+const logosRTModulePath = "github.com/gosuda/loGos/rt"
+
+type wasmLoaderHelperScan struct {
+	found     map[string]bool
+	offenders []string
+}
+
+func graphWasmLoaderHelpers(p *Package) wasmLoaderHelperScan {
+	scan := wasmLoaderHelperScan{found: make(map[string]bool)}
 	seen := make(map[*Package]bool)
 	stack := append([]*Package{p}, p.Internal.Imports...)
 	for len(stack) > 0 {
@@ -106,27 +119,42 @@ func graphLoaderHelperSet(p *Package) map[string]bool {
 		if q.ImportPath == LogosRTPkg || q.Standard {
 			continue
 		}
-		collectPackageWasmLoaderHelpers(q, found)
-		if len(found) == len(loaderHelpers) {
-			break
+		helpers := collectPackageWasmLoaderHelpers(q)
+		if wasmLoaderHelperAuthorized(q) {
+			for _, name := range helpers {
+				scan.found[name] = true
+			}
+		} else {
+			for _, name := range helpers {
+				scan.offenders = append(scan.offenders, fmt.Sprintf("wasm loader helper %s is exported by %s", name, q.ImportPath))
+			}
 		}
 		stack = append(stack, q.Internal.Imports...)
 	}
-	return found
+	slices.Sort(scan.offenders)
+	return scan
 }
 
-func collectPackageWasmLoaderHelpers(q *Package, found map[string]bool) {
+func wasmLoaderHelperAuthorized(q *Package) bool {
+	return q.ImportPath == logosRTModulePath || capIsMain(q)
+}
+
+func collectPackageWasmLoaderHelpers(q *Package) []string {
+	var names []string
+	seen := make(map[string]bool)
 	for _, f := range q.GoFiles {
 		data, err := os.ReadFile(filepath.Join(q.Dir, f))
 		if err != nil {
 			continue
 		}
 		for _, name := range fileWasmExportNames(f, data) {
-			if slices.Contains(loaderHelpers, name) {
-				found[name] = true
+			if slices.Contains(loaderHelpers, name) && !seen[name] {
+				seen[name] = true
+				names = append(names, name)
 			}
 		}
 	}
+	return names
 }
 
 func fileWasmExportNames(file string, data []byte) []string {

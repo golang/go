@@ -159,6 +159,26 @@ logos build -x -o logos.wasm .
 exists logos.loader.mjs
 cd ..
 
+cd depprov
+env GOOS=js
+env GOARCH=wasm
+cp $GOROOT/lib/wasm/wasm_exec.js wasm_exec.js
+# Only the main module and the github.com/gosuda/loGos/rt support
+# module may provide loader helpers: a dependency module that exports
+# the complete set still fails the build, naming the helper and the
+# offending package.
+! go build -o app.wasm .
+stderr '_logos_scratch_alloc'
+stderr 'example.com/dep'
+stderr 'only the main module'
+! exists app.loader.mjs
+! logos build -o logos.wasm .
+stderr '_logos_scratch_alloc'
+stderr 'example.com/dep'
+stderr 'only the main module'
+! exists logos.loader.mjs
+cd ..
+
 cd lgo
 logos eject -o out
 exists out/main.go
@@ -892,6 +912,42 @@ func scratchReset(p int32) {}
 func errmsgPtr() int32 { return 0 }
 
 //go:wasmexport   _logos_errmsg_len
+func errmsgLen() int32 { return 0 }
+
+-- depprov/go.mod --
+module example.com/depprov
+
+go 1.27
+
+require example.com/dep v0.0.0
+
+replace example.com/dep => ./dep
+
+-- depprov/main.go --
+package main
+
+import _ "example.com/dep"
+
+func main() {}
+
+-- depprov/dep/go.mod --
+module example.com/dep
+
+go 1.27
+
+-- depprov/dep/dep.go --
+package dep
+
+//go:wasmexport _logos_scratch_alloc
+func scratchAlloc(n int32) int32 { return 0 }
+
+//go:wasmexport _logos_scratch_reset
+func scratchReset(p int32) {}
+
+//go:wasmexport _logos_errmsg_ptr
+func errmsgPtr() int32 { return 0 }
+
+//go:wasmexport _logos_errmsg_len
 func errmsgLen() int32 { return 0 }
 
 -- runok.mjs --
