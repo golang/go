@@ -7,9 +7,6 @@ package load
 import (
 	"bytes"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"slices"
@@ -23,6 +20,8 @@ const (
 	wasmOutputSuffix = ".wasm"
 	wasmLoaderSuffix = ".loader.mjs"
 )
+
+const wasmExportDirective = "//go:wasmexport "
 
 // wantsWasmLoader reports the build-wide part of the loader decision (SPEC
 // Sec 12.2, R-U1): the --wasm-loader flag is on, the build command is
@@ -127,32 +126,271 @@ func collectPackageWasmLoaderHelpers(q *Package, found map[string]bool) {
 }
 
 func fileWasmExportNames(data []byte) []string {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", data, parser.ParseComments|parser.SkipObjectResolution)
-	if err != nil {
-		return nil
-	}
-	var names []string
-	for _, decl := range file.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Recv != nil || fn.Doc == nil {
-			continue
+	s := wasmExportScanner{data: data, blank: true}
+	return s.scan()
+}
+
+type wasmExportScanner struct {
+	data    []byte
+	pos     int
+	blank   bool
+	pending string
+	names   []string
+}
+
+func (s *wasmExportScanner) scan() []string {
+	for s.pos < len(s.data) {
+		switch c := s.data[s.pos]; {
+		case c == '/':
+			s.slash()
+		case isQuoteByte(c):
+			s.quoted()
+		case c == '$' && s.peek(1) == '"':
+			s.interpStart()
+		case isWordByte(c):
+			s.word()
+		default:
+			s.plain(c)
 		}
-		for _, comment := range fn.Doc.List {
-			if !strings.HasPrefix(comment.Text, "//go:wasmexport ") {
-				continue
-			}
-			pos := fset.PositionFor(comment.Pos(), false)
-			if len(bytes.TrimSpace(data[pos.Offset-pos.Column+1:pos.Offset])) != 0 {
-				continue
-			}
-			fields := strings.Fields(comment.Text)
-			if len(fields) == 2 {
-				names = append(names, fields[1])
-			}
+	}
+	return s.names
+}
+
+func (s *wasmExportScanner) slash() {
+	switch s.peek(1) {
+	case '/':
+		s.lineComment()
+	case '*':
+		s.blockComment()
+	default:
+		s.plain('/')
+	}
+}
+
+func (s *wasmExportScanner) lineComment() {
+	end := s.lineEnd()
+	line := s.data[s.pos:end]
+	s.pos = end
+	if !s.blank || !bytes.HasPrefix(line, []byte(wasmExportDirective)) {
+		return
+	}
+	fields := strings.Fields(string(line))
+	if len(fields) == 2 {
+		s.pending = fields[1]
+	}
+}
+
+func (s *wasmExportScanner) lineEnd() int {
+	end := s.pos
+	for end < len(s.data) && s.data[end] != '\n' {
+		end++
+	}
+	return end
+}
+
+func (s *wasmExportScanner) blockComment() {
+	s.pos += 2
+	s.blank = false
+	for s.pos < len(s.data) {
+		if s.data[s.pos] == '*' && s.peek(1) == '/' {
+			s.pos += 2
+			return
+		}
+		s.pos++
+	}
+}
+
+func (s *wasmExportScanner) word() {
+	start := s.pos
+	for s.pos < len(s.data) && isWordByte(s.data[s.pos]) {
+		s.pos++
+	}
+	if s.pending != "" && string(s.data[start:s.pos]) == "func" && s.startsIdentifier() {
+		s.names = append(s.names, s.pending)
+	}
+	s.code()
+}
+
+func (s *wasmExportScanner) quoted() {
+	s.code()
+	if s.data[s.pos] == '`' {
+		s.rawString()
+	} else {
+		s.quotedString()
+	}
+}
+
+func (s *wasmExportScanner) quotedString() {
+	quote := s.data[s.pos]
+	s.pos++
+	for s.pos < len(s.data) {
+		switch s.data[s.pos] {
+		case quote:
+			s.pos++
+			return
+		case '\\':
+			s.pos += 2
+		case '\n':
+			return
+		default:
+			s.pos++
 		}
 	}
-	return names
+}
+
+func (s *wasmExportScanner) rawString() {
+	s.pos++
+	for s.pos < len(s.data) {
+		if s.data[s.pos] == '`' {
+			s.pos++
+			return
+		}
+		s.pos++
+	}
+}
+
+func (s *wasmExportScanner) interpStart() {
+	s.code()
+	s.pos += 2
+	s.interp()
+}
+
+func (s *wasmExportScanner) interp() {
+	for s.pos < len(s.data) {
+		switch s.data[s.pos] {
+		case '"':
+			s.pos++
+			return
+		case '\\':
+			s.pos += 2
+		case '\n':
+			return
+		case '{', '}':
+			s.literalBrace()
+		default:
+			s.pos++
+		}
+	}
+}
+
+func (s *wasmExportScanner) literalBrace() {
+	if s.data[s.pos] == '{' {
+		if s.peek(1) == '{' {
+			s.pos += 2
+			return
+		}
+		s.pos++
+		s.hole()
+		return
+	}
+	if s.peek(1) == '}' {
+		s.pos += 2
+		return
+	}
+	s.pos++
+}
+
+func (s *wasmExportScanner) hole() {
+	depth := 1
+	for s.pos < len(s.data) && depth > 0 {
+		depth = s.holeStep(depth)
+	}
+}
+
+func (s *wasmExportScanner) holeStep(depth int) int {
+	switch c := s.data[s.pos]; {
+	case c == '{':
+		s.pos++
+		return depth + 1
+	case c == '}':
+		s.pos++
+		return depth - 1
+	case isQuoteByte(c):
+		s.holeLiteral()
+	case s.atComment():
+		s.holeComment()
+	case c == '\\':
+		s.pos += 2
+	default:
+		s.pos++
+	}
+	return depth
+}
+
+func (s *wasmExportScanner) holeLiteral() {
+	if s.data[s.pos] == '`' {
+		s.rawString()
+		return
+	}
+	s.quotedString()
+}
+
+func (s *wasmExportScanner) holeComment() {
+	if s.peek(1) == '/' {
+		s.skipLineComment()
+		return
+	}
+	s.blockComment()
+}
+
+func (s *wasmExportScanner) atComment() bool {
+	if s.data[s.pos] != '/' {
+		return false
+	}
+	next := s.peek(1)
+	return next == '/' || next == '*'
+}
+
+func (s *wasmExportScanner) skipLineComment() {
+	for s.pos < len(s.data) && s.data[s.pos] != '\n' {
+		s.pos++
+	}
+}
+
+func (s *wasmExportScanner) plain(c byte) {
+	if c == ' ' || c == '\t' || c == '\r' {
+		s.pos++
+		return
+	}
+	if c == '\n' {
+		s.pos++
+		s.blank = true
+		return
+	}
+	s.code()
+	s.pos++
+}
+
+func (s *wasmExportScanner) code() {
+	s.pending = ""
+	s.blank = false
+}
+
+func (s *wasmExportScanner) startsIdentifier() bool {
+	pos := s.pos
+	for pos < len(s.data) && (s.data[pos] == ' ' || s.data[pos] == '\t') {
+		pos++
+	}
+	return pos < len(s.data) && isLetterByte(s.data[pos])
+}
+
+func (s *wasmExportScanner) peek(n int) byte {
+	if s.pos+n < len(s.data) {
+		return s.data[s.pos+n]
+	}
+	return 0
+}
+
+func isQuoteByte(c byte) bool {
+	return c == '"' || c == '\'' || c == '`'
+}
+
+func isWordByte(c byte) bool {
+	return isLetterByte(c) || '0' <= c && c <= '9'
+}
+
+func isLetterByte(c byte) bool {
+	return c == '_' || c >= 0x80 || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 func dropLogosRTImport(pkgs []*Package) []*Package {

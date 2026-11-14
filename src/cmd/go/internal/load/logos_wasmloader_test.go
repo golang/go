@@ -63,8 +63,57 @@ func TestFileWasmExportNames(t *testing.T) {
 			want: []string{"first", "second"},
 		},
 		{
-			name: "invalid source",
-			src:  "package p\n//go:wasmexport exported\nfunc f() {\n",
+			name: "interpolated string",
+			src:  "package p\n//go:wasmexport exported\nfunc f() {}\nfunc label() string { return $\"helper\" }\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "postfix question",
+			src:  "package p\n//go:wasmexport exported\nfunc f() string { data := os.ReadFile(path)?\n\treturn string(data) }\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "raw string in hole",
+			src:  "package p\nvar s = $\"{f(`\n//go:wasmexport hidden\n`)}\"\nfunc f() {}\n",
+		},
+		{
+			name: "comment in hole",
+			src:  "package p\nvar s = $\"{\n//go:wasmexport hidden\n}\"\nfunc f() {}\n",
+		},
+		{
+			name: "literal braces in interpolation",
+			src:  "package p\nvar s = $\"{{ //go:wasmexport notreal }}\"\n//go:wasmexport exported\nfunc f() {}\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "blank line and comment",
+			src:  "package p\n//go:wasmexport exported\n\n// f docs\nfunc f() {}\n",
+			want: []string{"exported"},
+		},
+		{
+			name: "two directives",
+			src:  "package p\n//go:wasmexport first\n//go:wasmexport second\nfunc f() {}\n",
+			want: []string{"second"},
+		},
+		{
+			name: "type after directive",
+			src:  "package p\n//go:wasmexport exported\ntype T int\nfunc f() {}\n",
+		},
+		{
+			name: "truncated interpolation",
+			src:  "package p\nvar s = $\"{",
+		},
+		{
+			name: "truncated raw string",
+			src:  "package p\nvar s = `",
+		},
+		{
+			name: "truncated block comment",
+			src:  "package p\nvar /*",
+		},
+		{
+			name: "funcs identifier",
+			src:  "package p\n//go:wasmexport exported\nfuncs()\n",
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
