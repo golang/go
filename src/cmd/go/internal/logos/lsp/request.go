@@ -12,7 +12,10 @@ import (
 
 var nullResult = json.RawMessage("null")
 
-const codeRequestFailed = -32803
+const (
+	codeRequestFailed    = -32803
+	codeRequestCancelled = -32800
+)
 
 func (p *Proxy) clientRequest(ctx context.Context, m *message) {
 	switch m.Method {
@@ -175,8 +178,13 @@ func (p *Proxy) serverResponse(ctx context.Context, m *message) {
 	p.mu.Lock()
 	pend, ok := p.pending[string(m.ID)]
 	p.mu.Unlock()
+	if !ok && len(m.Error) == 0 {
+		p.fail(m.ID, codeRequestCancelled, "request canceled")
+		p.finish(m.ID)
+		return
+	}
 	result, err := decode(m.Result)
-	if !ok || len(m.Error) > 0 || err != nil {
+	if len(m.Error) > 0 || err != nil {
 		p.send(p.client, m)
 		p.finish(m.ID)
 		return

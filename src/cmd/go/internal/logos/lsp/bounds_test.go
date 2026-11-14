@@ -133,6 +133,34 @@ func TestPendingCapRefusesOverflow(t *testing.T) {
 	}
 }
 
+func TestLateResultOfCanceledRequestIsNotForwarded(t *testing.T) {
+	p := newProxy(io.Discard, Options{Stderr: new(syncBuffer), Compiler: newFakeCompiler()})
+	p.server = &writer{w: io.Discard}
+	p.addPending([]byte("7"), pending{method: "textDocument/definition"})
+	p.clientNotification(t.Context(), &message{Method: "$/cancelRequest", Params: []byte(`{"id":7}`)})
+	for len(p.toServer) > 0 {
+		<-p.toServer
+	}
+	const lowered = `[{"uri":"file:///w/.logos/a.lgo.go","range":{"start":{"line":9,"character":1},"end":{"line":9,"character":7}}}]`
+	p.serverResponse(t.Context(), &message{ID: []byte("7"), Result: []byte(lowered)})
+	select {
+	case m := <-p.toClient:
+		if len(m.Result) != 0 {
+			t.Fatalf("client got the untranslated result %s, want a canceled error", m.Result)
+		}
+		v, err := decode(m.Error)
+		if err != nil {
+			t.Fatalf("error payload = %s, want a JSON-RPC error: %v", m.Error, err)
+		}
+		code, _ := number(v.(map[string]any)["code"])
+		if code != codeRequestCancelled || string(m.ID) != "7" {
+			t.Fatalf("late result answered id %s code %v, want 7 and %d", m.ID, code, codeRequestCancelled)
+		}
+	default:
+		t.Fatal("late result of a canceled request got no reply")
+	}
+}
+
 func TestSlowFailingLoweringAnswersRequestFailed(t *testing.T) {
 	f := newFixture(t, map[string]string{"a/a.lgo": aLgo}, fixtureOptions{})
 	f.open("a/a.lgo", 1)
