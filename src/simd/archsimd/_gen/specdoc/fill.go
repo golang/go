@@ -146,111 +146,15 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		return src, fmt.Errorf("parsing %s: %w", filename, err)
 	}
 
-	var report Report
-	var edits []textEdit
-
+	f := &filler{fset: fset, src: src, spec: spec, opts: opts}
 	for _, d := range file.Decls {
-		fd, ok := d.(*ast.FuncDecl)
-		if !ok || !fd.Name.IsExported() {
-			continue
-		}
-
-		decl := Decl{
-			Pos:  fset.Position(fd.Pos()),
-			Recv: recvTypeName(fd.Recv),
-			Name: fd.Name.Name,
-		}
-
-		// Find the spec function
-		specFn := spec.Lookup(decl.Recv, decl.Name)
-		if specFn == nil {
-			if opts.RejectUnknown {
-				report.UnknownDecls = append(report.UnknownDecls, UnknownDecl{decl})
-			}
-			continue
-		}
-
-		// Now we know this is a spec API function and not some other one-off
-		// that might not even be representable in spec.
-		//
-		// Parse the API declaration into a specgen.Func.
-
-		doc := parseCommentGroup(fd.Doc)
-		if !opts.AllowDocRewrite {
-			for _, p := range doc {
-				if p.Kind == specgen.SpecOwned {
-					report.UnexpectedDocs = append(report.UnexpectedDocs, UnexpectedDoc{decl})
-					break
-				}
-			}
-		}
-
-		var recv specgen.Arg
-		if fd.Recv != nil && len(fd.Recv.List) == 1 {
-			recvs, err := fieldListArgs(fd.Recv)
-			if err != nil {
-				return src, fmt.Errorf("%s: %s receiver: %w", decl.Pos, decl.Name, err)
-			}
-			recv = recvs[0]
-		}
-
-		in, err := fieldListArgs(fd.Type.Params)
-		if err != nil {
-			return src, fmt.Errorf("%s: %s params: %w", decl.Pos, decl.Name, err)
-		}
-		out, err := fieldListArgs(fd.Type.Results)
-		if err != nil {
-			return src, fmt.Errorf("%s: %s results: %w", decl.Pos, decl.Name, err)
-		}
-
-		// Create a skeleton Func for the actual declaration
-		declFn := &specgen.Func{Doc: doc, Recv: recv, Name: decl.Name, In: in, Out: out}
-
-		// Check comment section ordering
-		var orderErr error
-		if len(declFn.Doc) > 0 {
-			if _, err := specgen.FormatComment(doc); err != nil {
-				orderErr = err
-				report.DocOrderViolations = append(report.DocOrderViolations, DocOrderViolation{
-					D:   decl,
-					Err: orderErr,
-				})
-			}
-		}
-
-		// Compare function signatures
-		nameDetails, typeDetails := compareFuncs(declFn, specFn, opts.NoFillNames)
-		if len(nameDetails) > 0 && !opts.AllowNameMismatches {
-			report.NameMismatches = append(report.NameMismatches, NameMismatch{
-				D:       decl,
-				DeclSig: declFn.Signature(),
-				SpecSig: specFn.Signature(),
-				Details: nameDetails,
-			})
-		}
-		if len(typeDetails) > 0 {
-			report.TypeMismatches = append(report.TypeMismatches, TypeMismatch{
-				D:       decl,
-				DeclSig: declFn.Signature(),
-				SpecSig: specFn.Signature(),
-				Details: typeDetails,
-			})
-		}
-
-		// Compose replacement comment and record text edits
-		if !opts.NoFillDoc && orderErr == nil {
-			if edit, ok := rewriteDoc(fset, src, fd, doc, specFn.Doc); ok {
-				edits = append(edits, edit)
-			}
-		}
-
-		// Rewrite parameter and result names
-		if !opts.NoFillNames && len(nameDetails) == 0 && len(typeDetails) == 0 {
-			if edit, ok := rewriteSignature(fset, src, fd, declFn, specFn); ok {
-				edits = append(edits, edit)
+		if fd, ok := d.(*ast.FuncDecl); ok {
+			if err := f.fillFunc(fd); err != nil {
+				return src, err
 			}
 		}
 	}
+	report, edits := f.report, f.edits
 
 	var repErr error
 	if !report.Empty() {
@@ -270,6 +174,95 @@ func Fill(src []byte, spec *specgen.Index, opts Options) ([]byte, error) {
 		return rewritten, fmt.Errorf("formatting source: %w", err)
 	}
 	return formatted, repErr
+}
+
+// filler holds the state of a single call to [Fill].
+type filler struct {
+	fset *token.FileSet
+	src  []byte
+	spec *specgen.Index
+	opts Options
+
+	report Report
+	edits  []textEdit
+}
+
+// fillFunc checks the function or method declaration fd against spec and
+// records the edits to fill it in.
+func (f *filler) fillFunc(fd *ast.FuncDecl) error {
+	if !fd.Name.IsExported() {
+		return nil
+	}
+
+	decl := Decl{
+		Pos:  f.fset.Position(fd.Pos()),
+		Recv: recvTypeName(fd.Recv),
+		Name: fd.Name.Name,
+	}
+
+	// Find the spec function
+	specFn := f.spec.Lookup(decl.Recv, decl.Name)
+	if specFn == nil {
+		if f.opts.RejectUnknown {
+			f.report.UnknownDecls = append(f.report.UnknownDecls, UnknownDecl{decl})
+		}
+		return nil
+	}
+
+	// Now we know this is a spec API function and not some other one-off
+	// that might not even be representable in spec.
+
+	// Check and fill the doc comment
+	f.fillDoc(decl, fd.Doc, specFn.Doc)
+
+	// Parse the API declaration into a specgen.Func.
+	var recv specgen.Arg
+	if fd.Recv != nil && len(fd.Recv.List) == 1 {
+		recvs, err := fieldListArgs(fd.Recv)
+		if err != nil {
+			return fmt.Errorf("%s: %s receiver: %w", decl.Pos, decl.Name, err)
+		}
+		recv = recvs[0]
+	}
+
+	in, err := fieldListArgs(fd.Type.Params)
+	if err != nil {
+		return fmt.Errorf("%s: %s params: %w", decl.Pos, decl.Name, err)
+	}
+	out, err := fieldListArgs(fd.Type.Results)
+	if err != nil {
+		return fmt.Errorf("%s: %s results: %w", decl.Pos, decl.Name, err)
+	}
+
+	// Create a skeleton Func for the actual declaration
+	declFn := &specgen.Func{Recv: recv, Name: decl.Name, In: in, Out: out}
+
+	// Compare function signatures
+	nameDetails, typeDetails := compareFuncs(declFn, specFn, f.opts.NoFillNames)
+	if len(nameDetails) > 0 && !f.opts.AllowNameMismatches {
+		f.report.NameMismatches = append(f.report.NameMismatches, NameMismatch{
+			D:       decl,
+			DeclSig: declFn.Signature(),
+			SpecSig: specFn.Signature(),
+			Details: nameDetails,
+		})
+	}
+	if len(typeDetails) > 0 {
+		f.report.TypeMismatches = append(f.report.TypeMismatches, TypeMismatch{
+			D:       decl,
+			DeclSig: declFn.Signature(),
+			SpecSig: specFn.Signature(),
+			Details: typeDetails,
+		})
+	}
+
+	// Rewrite parameter and result names
+	if !f.opts.NoFillNames && len(nameDetails) == 0 && len(typeDetails) == 0 {
+		if edit, ok := rewriteSignature(f.fset, f.src, fd, declFn, specFn); ok {
+			f.edits = append(f.edits, edit)
+		}
+	}
+	return nil
 }
 
 func namedArg(arg specgen.Arg) bool {
@@ -352,12 +345,40 @@ func recvTypeName(fl *ast.FieldList) string {
 	}
 }
 
-// rewriteDoc computes the textEdit to replace fd's doc comment with
-// the formatted combination of spec-owned doc paragraphs and existing
-// implementation notes and directives.
-func rewriteDoc(fset *token.FileSet, src []byte, fd *ast.FuncDecl, declDoc, specDoc []specgen.Paragraph) (textEdit, bool) {
+// fillDoc checks the doc comment docGroup of decl, recording any findings.
+// Unless opts.NoFillDoc is set, it then records an edit that replaces
+// docGroup's spec-owned paragraphs with specDoc, keeping existing
+// implementation notes and directives. If docGroup is nil, the new comment is
+// inserted at decl.Pos.
+func (f *filler) fillDoc(decl Decl, docGroup *ast.CommentGroup, specDoc []specgen.Paragraph) {
+	doc := parseCommentGroup(docGroup)
+	if !f.opts.AllowDocRewrite {
+		for _, p := range doc {
+			if p.Kind == specgen.SpecOwned {
+				f.report.UnexpectedDocs = append(f.report.UnexpectedDocs, UnexpectedDoc{decl})
+				break
+			}
+		}
+	}
+
+	// Check comment section ordering
+	if len(doc) > 0 {
+		if _, err := specgen.FormatComment(doc); err != nil {
+			f.report.DocOrderViolations = append(f.report.DocOrderViolations, DocOrderViolation{
+				D:   decl,
+				Err: err,
+			})
+			return
+		}
+	}
+
+	if f.opts.NoFillDoc {
+		return
+	}
+
+	// Compose replacement comment
 	newParas := append([]specgen.Paragraph(nil), specDoc...)
-	for _, p := range declDoc {
+	for _, p := range doc {
 		if p.Kind == specgen.ImplementationNote || p.Kind == specgen.DirectiveComment {
 			newParas = append(newParas, p)
 		}
@@ -365,23 +386,21 @@ func rewriteDoc(fset *token.FileSet, src []byte, fd *ast.FuncDecl, declDoc, spec
 
 	replacementComment, err := specgen.FormatComment(newParas)
 	if err != nil {
-		return textEdit{}, false
+		return
 	}
 
-	if fd.Doc != nil {
+	if docGroup != nil {
 		// Replace existing doc.
-		start := fset.Position(fd.Doc.Pos()).Offset
-		end := fset.Position(fd.Doc.End()).Offset + 1 // Include final \n
-		if string(src[start:end]) != replacementComment {
-			return textEdit{start: start, end: end, text: replacementComment}, true
+		start := f.fset.Position(docGroup.Pos()).Offset
+		end := f.fset.Position(docGroup.End()).Offset + 1 // Include final \n
+		if string(f.src[start:end]) != replacementComment {
+			f.edits = append(f.edits, textEdit{start: start, end: end, text: replacementComment})
 		}
 	} else if replacementComment != "" {
 		// Pure insertion.
-		start := fset.Position(fd.Pos()).Offset
-		return textEdit{start: start, end: start, text: replacementComment}, true
+		start := decl.Pos.Offset
+		f.edits = append(f.edits, textEdit{start: start, end: start, text: replacementComment})
 	}
-
-	return textEdit{}, false
 }
 
 // rewriteSignature computes the textEdit to fill unnamed parameter and result
