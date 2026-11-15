@@ -227,7 +227,7 @@ func TestEmitOwnedHelperMainModule(t *testing.T) {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nimport \"logos/rt\"\n\n// Generated is owned.\nfunc Generated() int { return rt.Zero() }\n", []logosowned.Declaration{})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-	usedRT, err := emitOwnedHelpers(plan, staging, out, map[string]string{})
+	usedRT, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{})
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -288,7 +288,7 @@ func TestEmitOwnedCollisions(t *testing.T) {
 	t.Run("source", func(t *testing.T) {
 		plan, staging, out, req := setup(t, "package sub\nfunc Clashing() {}\n")
 		writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-		if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err == nil {
+		if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err == nil {
 			t.Fatalf("emit accepted a collision with copied source")
 		}
 	})
@@ -296,7 +296,7 @@ func TestEmitOwnedCollisions(t *testing.T) {
 		plan, staging, out, req := setup(t, "package sub\nfunc Other() {}\n")
 		other := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\nfunc Clashing() int { return 1 }\n", []logosowned.Declaration{})
 		writeOwnedSidecar(t, staging, "example.com/mod/sub", req, other)
-		if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err == nil {
+		if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err == nil {
 			t.Fatalf("emit accepted conflicting generated declarations")
 		}
 	})
@@ -314,7 +314,7 @@ func TestEmitOwnedCollisions(t *testing.T) {
 			t.Fatal(err)
 		}
 		writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-		_, err = emitOwnedHelpers(plan, staging, out, map[string]string{})
+		_, err = emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{})
 		if err == nil {
 			t.Fatalf("emit accepted a collision hidden by a generated-looking source file name")
 		}
@@ -325,7 +325,7 @@ func TestEmitOwnedCollisions(t *testing.T) {
 			t.Fatal(err)
 		}
 		writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-		if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+		if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 			t.Fatalf("emit rejected a legal external-test declaration: %v", err)
 		}
 	})
@@ -336,7 +336,7 @@ func TestEmitOwnedRejectsStdlib(t *testing.T) {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "net/http", "http", "package http\nfunc Owned() {}\n", []logosowned.Declaration{})
 	writeOwnedSidecar(t, staging, "net/http", req)
-	_, err := emitOwnedHelpers(plan, staging, t.TempDir(), map[string]string{})
+	_, err := emitOwnedHelpers(t.Context(), plan, staging, t.TempDir(), map[string]string{})
 	if err == nil || !strings.Contains(err.Error(), "net/http") {
 		t.Fatalf("stdlib owner must fail naming the destination, got %v", err)
 	}
@@ -349,7 +349,7 @@ func TestEmitOwnedOutsideModule(t *testing.T) {
 	plan := ownedTestPlan(modDir, owner)
 	staging := t.TempDir()
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\nfunc X() {}\n", []logosowned.Declaration{}))
-	_, err := emitOwnedHelpers(plan, staging, t.TempDir(), map[string]string{})
+	_, err := emitOwnedHelpers(t.Context(), plan, staging, t.TempDir(), map[string]string{})
 	if err == nil || !strings.Contains(err.Error(), "example.com/mod/sub") {
 		t.Fatalf("emit outside module must fail and name the owner, got %v", err)
 	}
@@ -428,7 +428,7 @@ func TestEmitOwnedIncludesDepModule(t *testing.T) {
 	req := ownedTestRequest(t, "example.com/dep/pkg", "pkg", "package pkg\nfunc Owned() {}\n", []logosowned.Declaration{})
 	writeOwnedSidecar(t, staging, "example.com/dep/pkg", req)
 	ejected := map[string]string{}
-	if _, err := emitOwnedHelpers(plan, staging, out, ejected); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, ejected); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	dst, ok := ejected["example.com/dep"]
@@ -485,7 +485,7 @@ func TestEmitOwnedExplicitProvenance(t *testing.T) {
 	freeReq := ownedTestRequest(t, "example.com/mod/sub", "sub", "//go:build js\n\npackage sub\n\nfunc UseFree() int { return Free() }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "plain.go"}})
 
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", winReq, darReq, linuxReq, freeReq)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 
@@ -559,7 +559,7 @@ func TestEmitOwnedDistinctDeclarationAlternatives(t *testing.T) {
 		t.Fatalf("shared body must share input hash, got %s vs %s", reqA.ID, reqB.ID)
 	}
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", reqA, reqB)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -603,7 +603,7 @@ func TestEmitOwnedPlatformFilenameTags(t *testing.T) {
 	linReq := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseLinuxFeat() *linuxFeat { return new(linuxFeat) }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "feat_linux.go"}})
 	amdReq := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseAmd64Feat() *amd64Feat { return new(amd64Feat) }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "arch_amd64.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", linReq, amdReq)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	find := func(name string) string {
@@ -683,7 +683,7 @@ func TestEmitOwnedCrossOwnerRefs(t *testing.T) {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseOther() int { return 1 }\n", []logosowned.Declaration{{Owner: "example.com/mod/other", File: "cond_linux.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -743,7 +743,7 @@ func TestEmitOwnedTestOnly(t *testing.T) {
 	testReq := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseTest() *testKey { return new(testKey) }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "helper_test.go"}})
 	plainReq := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UsePlain() int { return A() }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "a.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", testReq, plainReq)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -795,7 +795,7 @@ func TestEmitOwnedLogosAliasExtension(t *testing.T) {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseAlias() *aliasFeat { return new(aliasFeat) }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "feat_linux.⚡"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -821,7 +821,7 @@ func TestEmitOwnedLogosAliasExtension(t *testing.T) {
 	bad := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseBad() int { return 1 }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "missing.⚡"}})
 	badDir := t.TempDir()
 	writeOwnedSidecar(t, badDir, "example.com/mod/sub", bad)
-	if _, err := emitOwnedHelpers(plan, badDir, out, map[string]string{}); err == nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, badDir, out, map[string]string{}); err == nil {
 		t.Fatalf("unselected alias file accepted")
 	}
 }
@@ -859,7 +859,7 @@ func TestEmitOwnedMixedProdTestGroupKeepsProduction(t *testing.T) {
 	prod := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "a.go"}})
 	testOnly := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "helper_test.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", prod, testOnly)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -904,7 +904,7 @@ func TestEmitOwnedMixedDistinctConditions(t *testing.T) {
 	prod := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "p.go"}})
 	testOnly := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "t_test.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", prod, testOnly)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -981,7 +981,7 @@ func TestEmitOwnedNilOr(t *testing.T) {
 	uncond := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{})
 	gated := ownedTestRequest(t, "example.com/mod/sub", "sub", shared, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "gated.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", uncond, gated)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -1033,7 +1033,7 @@ func TestEmitOwnedMissingUnselected(t *testing.T) {
 		req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc Use() int { return 1 }\n", []logosowned.Declaration{decl})
 		dir := t.TempDir()
 		writeOwnedSidecar(t, dir, "example.com/mod/sub", req)
-		_, err := emitOwnedHelpers(plan, dir, out, map[string]string{})
+		_, err := emitOwnedHelpers(t.Context(), plan, dir, out, map[string]string{})
 		return err
 	}
 	t.Run("missing file", func(t *testing.T) {
@@ -1107,7 +1107,7 @@ func TestEmitOwnedMissingUnselected(t *testing.T) {
 			t.Fatalf("shared source must share input hash")
 		}
 		writeOwnedSidecar(t, staging, "example.com/mod/sub", rx, ry)
-		if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+		if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 			t.Fatalf("emit: %v", err)
 		}
 		matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -1165,7 +1165,7 @@ func TestEmitOwnedBuildCondition(t *testing.T) {
 	reqFree := ownedTestRequest(t, "example.com/mod/sub", "sub", "//go:build js\n\npackage sub\n\nfunc UseFree() int { return Free() }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "plain.go"}})
 
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", reqPlatformWin, reqPlatformDar, reqLinux, reqFree)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 
@@ -1235,7 +1235,7 @@ func TestEmitOwnedCgoCondition(t *testing.T) {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc UseCgo() int { return 1 }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "cgo_linux.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -1298,7 +1298,7 @@ const func ComputeClosed(x int) int {
 	staging := t.TempDir()
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", "package sub\n\nfunc ComputeValue() int { return 1 }\n", []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "calc.lgo"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit with calc.lgo header failed: %v", err)
 	}
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
@@ -1335,7 +1335,7 @@ const func ComputeClosed(x int) int {
 	badStaging := t.TempDir()
 	badReq := ownedTestRequest(t, "example.com/mod/bad", "bad", "package bad\n\nfunc UnusedDecl() int { return 1 }\n", []logosowned.Declaration{{Owner: "example.com/mod/bad", File: "bad.lgo"}})
 	writeOwnedSidecar(t, badStaging, "example.com/mod/bad", badReq)
-	if _, err := emitOwnedHelpers(badPlan, badStaging, t.TempDir(), map[string]string{}); err == nil {
+	if _, err := emitOwnedHelpers(t.Context(), badPlan, badStaging, t.TempDir(), map[string]string{}); err == nil {
 		t.Fatalf("malformed header accepted unexpectedly")
 	}
 }
@@ -1363,10 +1363,10 @@ func TestOwnedHelperNameHashesFormattedOutput(t *testing.T) {
 	req := ownedTestRequest(t, "example.com/mod/sub", "sub", body, []logosowned.Declaration{{Owner: "example.com/mod/sub", File: "a.go"}})
 	writeOwnedSidecar(t, staging, "example.com/mod/sub", req)
 	ejectGofmtFiles = nil
-	if _, err := emitOwnedHelpers(plan, staging, out, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan, staging, out, map[string]string{}); err != nil {
 		t.Fatalf("emit: %v", err)
 	}
-	runEjectGofmt()
+	runEjectGofmt(t.Context())
 	matches, err := filepath.Glob(filepath.Join(out, "sub", "logos_owned_*.go"))
 	if err != nil || len(matches) != 1 {
 		t.Fatalf("expected 1 helper, got %v (err: %v)", matches, err)
@@ -1380,13 +1380,13 @@ func TestOwnedHelperNameHashesFormattedOutput(t *testing.T) {
 	if name := filepath.Base(matches[0]); name != want {
 		t.Fatalf("output name %q must hash the final bytes, want %q", name, want)
 	}
-	cmd := exec.Command(gofmtPath, "-l")
+	cmd := exec.CommandContext(t.Context(), gofmtPath, "-l")
 	cmd.Stdin = bytes.NewReader(data)
 	if dirty, err := cmd.CombinedOutput(); err != nil || len(dirty) > 0 {
 		t.Fatalf("helper bytes are not gofmt-clean: %q (%v)", dirty, err)
 	}
 	plan2, out2 := newTree()
-	if _, err := emitOwnedHelpers(plan2, staging, out2, map[string]string{}); err != nil {
+	if _, err := emitOwnedHelpers(t.Context(), plan2, staging, out2, map[string]string{}); err != nil {
 		t.Fatalf("emit again: %v", err)
 	}
 	matches2, err := filepath.Glob(filepath.Join(out2, "sub", "logos_owned_*.go"))

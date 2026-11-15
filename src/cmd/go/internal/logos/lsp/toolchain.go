@@ -77,25 +77,21 @@ func newOverlay(buffers map[string][]byte) (*overlay, error) {
 	for i, path := range slices.Sorted(maps.Keys(buffers)) {
 		dir := filepath.Join(root, strconv.Itoa(i))
 		if err := os.MkdirAll(dir, 0o700); err != nil {
-			os.RemoveAll(root)
-			return nil, err
+			return nil, errors.Join(err, os.RemoveAll(root))
 		}
 		backing := filepath.Join(dir, filepath.Base(path))
 		if err := os.WriteFile(backing, buffers[path], 0o600); err != nil {
-			os.RemoveAll(root)
-			return nil, err
+			return nil, errors.Join(err, os.RemoveAll(root))
 		}
 		replace[path] = backing
 		ov.back[backing] = path
 	}
 	data, err := json.Marshal(map[string]map[string]string{"Replace": replace})
 	if err != nil {
-		os.RemoveAll(root)
-		return nil, err
+		return nil, errors.Join(err, os.RemoveAll(root))
 	}
 	if err := os.WriteFile(ov.json, data, 0o600); err != nil {
-		os.RemoveAll(root)
-		return nil, err
+		return nil, errors.Join(err, os.RemoveAll(root))
 	}
 	return ov, nil
 }
@@ -131,7 +127,7 @@ func runKey(dir string, buffers map[string][]byte) string {
 	for _, path := range slices.Sorted(maps.Keys(buffers)) {
 		h.Write([]byte(path))
 		h.Write([]byte{0})
-		h.Write([]byte(fmt.Sprintf("%d:", len(buffers[path]))))
+		h.Write(fmt.Appendf(nil, "%d:", len(buffers[path])))
 		h.Write(buffers[path])
 	}
 	return string(h.Sum(nil))

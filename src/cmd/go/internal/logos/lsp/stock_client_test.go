@@ -238,7 +238,7 @@ func TestStockClientThroughRealProxy(t *testing.T) {
 	if _, err := os.Stat(logosBin); err != nil {
 		t.Skipf("logos binary not present: %v", err)
 	}
-	cmd := exec.Command(logosBin, "lsp")
+	cmd := exec.CommandContext(t.Context(), logosBin, "lsp")
 	cmd.Env = append(os.Environ(), "PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"), fakeEnv+"="+scriptPath, fakeLogEnv+"="+logPath)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

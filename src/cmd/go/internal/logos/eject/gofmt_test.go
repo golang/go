@@ -84,7 +84,7 @@ func TestRunEjectGofmtBatchesUnderArgLimit(t *testing.T) {
 			t.Setenv("EJECT_TEST_GOFMT_LOG", log)
 			ejectArgLengthLimit = l
 			ejectGofmtFiles = append(ejectGofmtFiles[:0], paths...)
-			runEjectGofmt()
+			runEjectGofmt(t.Context())
 			data, err := os.ReadFile(log)
 			if err != nil {
 				t.Fatal(err)

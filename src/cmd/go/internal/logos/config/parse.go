@@ -241,15 +241,6 @@ func keyOwner(table, key string) (string, bool) {
 	return owner, true
 }
 
-func isArrayKey(key string) bool {
-	switch key {
-	case "strict_files", "cgo_allowlist",
-		"reflect_allowlist", "transitive_exec_allowlist", "transitive_net_allowlist", "transitive_unsafe_allowlist":
-		return true
-	}
-	return false
-}
-
 func (p *parser) parseKeyVal() error {
 	keyStart := p.pos
 	for isKeyChar(p.peek()) {

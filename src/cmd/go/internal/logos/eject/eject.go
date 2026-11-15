@@ -191,12 +191,12 @@ func ejectToDir(ctx context.Context, out string) {
 	if !isEjectVariant() {
 		variantOuts = stageInactiveVariantsIntoStaging(ctx, plan, staging)
 	}
-	writeEjectedTree(plan, staging, out)
+	writeEjectedTree(ctx, plan, staging, out)
 	mergeVariantExtraDeps(out, variantOuts, plan)
 	for _, dir := range variantOuts {
 		_ = os.RemoveAll(dir)
 	}
-	runEjectGofmt()
+	runEjectGofmt(ctx)
 }
 
 var ejectGofmtFiles []string
@@ -211,22 +211,22 @@ func queueEjectGofmt(path string) {
 
 const ejectGofmtPasses = 3
 
-func runEjectGofmt() {
+func runEjectGofmt(ctx context.Context) {
 	files := ejectGofmtFiles
 	ejectGofmtFiles = nil
-	gofmtFiles("-w", files)
+	gofmtFiles(ctx, "-w", files)
 	for range ejectGofmtPasses {
-		files = unformattedFiles(files)
+		files = unformattedFiles(ctx, files)
 		if len(files) == 0 {
 			return
 		}
-		gofmtFiles("-w", files)
+		gofmtFiles(ctx, "-w", files)
 	}
 }
 
-func unformattedFiles(files []string) []string {
+func unformattedFiles(ctx context.Context, files []string) []string {
 	var out []string
-	for line := range strings.SplitSeq(string(gofmtFiles("-l", files)), "\n") {
+	for line := range strings.SplitSeq(string(gofmtFiles(ctx, "-l", files)), "\n") {
 		if line != "" {
 			out = append(out, line)
 		}
@@ -234,7 +234,7 @@ func unformattedFiles(files []string) []string {
 	return out
 }
 
-func gofmtFiles(flag string, files []string) []byte {
+func gofmtFiles(ctx context.Context, flag string, files []string) []byte {
 	gofmt := gofmtBinary()
 	args := []string{gofmt, flag}
 	argLen := len(gofmt) + 1 + len(flag)
@@ -242,7 +242,7 @@ func gofmtFiles(flag string, files []string) []byte {
 	var out []byte
 	flush := func() {
 		if len(args) > base {
-			out = append(out, gofmtRun(args, nil)...)
+			out = append(out, gofmtRun(ctx, args, nil)...)
 			args = args[:base]
 			argLen = baseLen
 		}
@@ -258,8 +258,8 @@ func gofmtFiles(flag string, files []string) []byte {
 	return out
 }
 
-func gofmtRun(args []string, stdin []byte) []byte {
-	cmd := exec.Command(args[0], args[1:]...)
+func gofmtRun(ctx context.Context, args []string, stdin []byte) []byte {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -611,7 +611,7 @@ func withoutEjectFlags(flags []string) []string {
 
 // writeEjectedTree assembles the output directory from copied sources,
 // compiler-emitted files, the support module, and rewritten go.mod files.
-func writeEjectedTree(plan *ejectPlan, staging, out string) {
+func writeEjectedTree(ctx context.Context, plan *ejectPlan, staging, out string) {
 	abs, err := filepath.Abs(out)
 	if err != nil {
 		base.Fatalf("logos eject: %s: %v", out, err)
@@ -640,7 +640,7 @@ func writeEjectedTree(plan *ejectPlan, staging, out string) {
 		}
 	}
 	// pulled in only by an owned helper still get their require lines.
-	if usesOwned, err := emitOwnedHelpers(plan, staging, out, ejected); err != nil {
+	if usesOwned, err := emitOwnedHelpers(ctx, plan, staging, out, ejected); err != nil {
 		base.Fatalf("logos eject: %v", err)
 	} else if usesOwned {
 		usedRT = true

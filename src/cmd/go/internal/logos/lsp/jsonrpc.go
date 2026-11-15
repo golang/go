@@ -175,11 +175,3 @@ type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
-
-func (w *writer) fail(id json.RawMessage, code int, text string) error {
-	raw, err := json.Marshal(rpcError{Code: code, Message: text})
-	if err != nil {
-		return err
-	}
-	return w.write(&message{ID: id, Error: raw})
-}
