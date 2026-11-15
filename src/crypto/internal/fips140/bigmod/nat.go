@@ -1102,6 +1102,8 @@ func (x *Nat) GCDVarTime(a, b *Nat) (*Nat, error) {
 // u will have the size of the larger of a and m, and A will have the size of m.
 //
 // It is an error if either a or m is zero, or if they are both even.
+//
+//go:norace
 func extendedGCD(a, m *Nat) (u, A *Nat, err error) {
 	// This is the extended binary GCD algorithm described in the Handbook of
 	// Applied Cryptography, Algorithm 14.61, adapted by BoringSSL to bound
