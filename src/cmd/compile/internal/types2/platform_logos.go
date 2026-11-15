@@ -252,7 +252,7 @@ func (check *Checker) logosNilToNonNil(x *operand, T Type) bool {
 // LogosCheck records one MustNonNil site: the stored expression (the
 // key of Info.LogosChecks) held a platform pointer for declared
 // non-nil Target. The lowering wraps the key in
-// _logos_rt.MustNonNil(expr, &site).
+// _logos_rt.MustNonNil(expr, "<type>", &site).
 type LogosCheck struct {
 	Target Type
 }
