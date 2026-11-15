@@ -34,9 +34,11 @@ var escapeASCII = [...]uint8{
 // It reports true for inputs with invalid UTF-8.
 func NeedEscape(src []byte) bool {
 	var i int
-	var hot bool
-	if len(src) >= hotSkip {
-		i, hot = skipEscapeHTML(src, i)
+	if len(src) >= probeLen {
+		var found bool
+		if i, found = needEscapeSparse(src); found {
+			return true
+		}
 	}
 	for uint(len(src)) > uint(i) {
 		if c := src[i]; c < utf8.RuneSelf {
@@ -50,9 +52,6 @@ func NeedEscape(src []byte) bool {
 				return true
 			}
 			i += rn
-			if hot {
-				i, hot = skipEscapeHTML(src, i)
-			}
 		}
 	}
 	return false
@@ -74,9 +73,8 @@ func AppendQuote(dst, src []byte, flags *jsonflags.Flags) ([]byte, error) {
 	var hasInvalidUTF8 bool
 	dst = slices.Grow(dst, len(`"`)+len(src)+len(`"`))
 	dst = append(dst, '"')
-	var hot bool
-	if len(src) >= hotSkip {
-		n, hot = skipEscape(src, n, flags)
+	if len(src) >= probeLen {
+		dst, i, n, hasInvalidUTF8 = appendQuoteSparse(dst, src, flags)
 	}
 	for uint(len(src)) > uint(n) {
 		if c := src[n]; c < utf8.RuneSelf {
@@ -96,9 +94,6 @@ func AppendQuote(dst, src []byte, flags *jsonflags.Flags) ([]byte, error) {
 			r, rn := utf8.DecodeRune(src[n:])
 			n += rn
 			if r != utf8.RuneError && r != '\u2028' && r != '\u2029' {
-				if hot {
-					n, hot = skipEscape(src, n, flags)
-				}
 				continue // no escaping possibly needed
 			}
 			// Handle escaping of multi-byte Unicode.
@@ -113,9 +108,6 @@ func AppendQuote(dst, src []byte, flags *jsonflags.Flags) ([]byte, error) {
 				dst = appendEscapedUnicode(dst, r)
 				i = n
 			}
-		}
-		if hot {
-			n, hot = skipEscape(src, n, flags)
 		}
 	}
 	dst = append(dst, src[i:n]...)
