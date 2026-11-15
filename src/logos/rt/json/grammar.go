@@ -4,7 +4,10 @@
 
 package json
 
-import "unicode/utf8"
+import (
+	"internal/jsonscan"
+	"unicode/utf8"
+)
 
 const maxDepth = 10000
 
@@ -132,9 +135,22 @@ func skipEscape(data []byte, j int) int {
 	return -1
 }
 
+func skipPlainBytes(data []byte, i int) int {
+	return i + jsonscan.IndexStringSpecial(data[i:])
+}
+
 func scanString(data []byte, i int) (end, flags int) {
+	run := 0
 	for j := i + 1; j < len(data); j++ {
-		switch stringClass[data[j]] {
+		class := stringClass[data[j]]
+		if class == classPlain {
+			if run++; run == kernelEntryRun {
+				j, run = skipPlainBytes(data, j+1)-1, 0
+			}
+			continue
+		}
+		run = 0
+		switch class {
 		case classQuote:
 			return j + 1, flags
 		case classBackslash:

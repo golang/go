@@ -28,6 +28,6 @@
 // continues, syntax errors are fatal and are taken from encoding/json
 // itself so that message and offset are identical.
 //
-// The package imports only encoding/json, math, reflect, strconv, unicode,
-// unicode/utf8 and unsafe.
+// The package imports only encoding/json, internal/jsonscan, math, reflect,
+// strconv, unicode, unicode/utf8 and unsafe.
 package json

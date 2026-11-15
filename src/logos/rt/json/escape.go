@@ -4,7 +4,10 @@
 
 package json
 
-import "unicode/utf8"
+import (
+	"internal/jsonscan"
+	"unicode/utf8"
+)
 
 const hexDigits = "0123456789abcdef"
 
@@ -96,7 +99,14 @@ func classifyMulti(s string, i int) (kind int, r rune, size int) {
 	return multiClean, r, size
 }
 
+const kernelEntryRun = 16
+
+func skipPlain(s string, i int) int {
+	return i + jsonscan.IndexEscapeHTML(s[i:])
+}
+
 func firstEscape(s string, i int) int {
+	run := 0
 	for i < len(s) {
 		c := s[i]
 		if c < utf8.RuneSelf {
@@ -104,6 +114,9 @@ func firstEscape(s string, i int) int {
 				return i
 			}
 			i++
+			if run++; run == kernelEntryRun {
+				i, run = skipPlain(s, i), 0
+			}
 			continue
 		}
 		kind, _, size := classifyMulti(s, i)
@@ -111,6 +124,7 @@ func firstEscape(s string, i int) int {
 			return i
 		}
 		i += size
+		run = 0
 	}
 	return i
 }
@@ -165,16 +179,24 @@ func AppendEscaped(dst []byte, s string) []byte {
 
 // EscapedLen returns the exact length of AppendEscaped(nil, s).
 func EscapedLen(s string) int {
-	n := len(s)
+	n, run := len(s), 0
 	for i := 0; i < len(s); {
 		if c := s[i]; c < utf8.RuneSelf {
-			n += int(escapeExtra[c])
 			i++
+			if extra := escapeExtra[c]; extra != 0 {
+				n += int(extra)
+				run = 0
+				continue
+			}
+			if run++; run == kernelEntryRun {
+				i, run = skipPlain(s, i), 0
+			}
 			continue
 		}
 		kind, _, size := classifyMulti(s, i)
 		n += multiEscapeExtra[kind]
 		i += size
+		run = 0
 	}
 	return n
 }
@@ -200,16 +222,24 @@ func AppendQuoted(dst []byte, s string) []byte {
 
 // QuotedLen returns the exact length of AppendQuoted(nil, s).
 func QuotedLen(s string) int {
-	n := len(s) + len(`\"\"`)
+	n, run := len(s)+len(`\"\"`), 0
 	for i := 0; i < len(s); {
 		if c := s[i]; c < utf8.RuneSelf {
-			n += int(quotedExtra[c])
 			i++
+			if extra := quotedExtra[c]; extra != 0 {
+				n += int(extra)
+				run = 0
+				continue
+			}
+			if run++; run == kernelEntryRun {
+				i, run = skipPlain(s, i), 0
+			}
 			continue
 		}
 		kind, _, size := classifyMulti(s, i)
 		n += multiQuotedExtra[kind]
 		i += size
+		run = 0
 	}
 	return n
 }
