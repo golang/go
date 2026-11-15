@@ -1432,6 +1432,9 @@ func (r *reader) funcBody(fn *ir.Func) {
 // syntheticBody adds a synthetic body to r.curfn if appropriate, and
 // reports whether it did.
 func (r *reader) syntheticBody(pos src.XPos) bool {
+	if logosTypeQueryBody(r, pos) {
+		return true
+	}
 	if r.synthetic != nil {
 		r.synthetic(pos, r)
 		return true
@@ -2229,7 +2232,7 @@ func (r *reader) expr() (res ir.Node) {
 
 	case exprFuncInst:
 		origPos, pos := r.origPos()
-		wrapperFn, baseFn, dictPtr := r.funcInst(pos)
+		wrapperFn, baseFn, dictPtr, _ := r.funcInst(pos)
 		if wrapperFn != nil {
 			return wrapperFn
 		}
@@ -2450,6 +2453,7 @@ func (r *reader) expr() (res ir.Node) {
 	case exprCall:
 		var fun ir.Node
 		var args ir.Nodes
+		var typeQueryResult ir.Node
 		if r.Bool() { // method call
 			recv := r.expr()
 			_, method, dictPtr := r.methodExpr()
@@ -2483,7 +2487,8 @@ func (r *reader) expr() (res ir.Node) {
 			}
 		} else if r.Bool() { // call to instanced function
 			pos := r.pos()
-			_, shapedFn, dictPtr := r.funcInst(pos)
+			var shapedFn, dictPtr ir.Node
+			_, shapedFn, dictPtr, typeQueryResult = r.funcInst(pos)
 			fun = shapedFn
 			args.Append(dictPtr)
 		} else {
@@ -2492,6 +2497,9 @@ func (r *reader) expr() (res ir.Node) {
 		pos := r.pos()
 		args.Append(r.multiExpr()...)
 		dots := r.Bool()
+		if typeQueryResult != nil {
+			return typeQueryResult
+		}
 		n := typecheck.Call(pos, fun, args, dots)
 		switch n.Op() {
 		case ir.OAPPEND:
@@ -2685,7 +2693,7 @@ func (r *reader) expr() (res ir.Node) {
 // For callers that want to return the function without invoking it,
 // they may return wrapperFn if it's non-nil; but otherwise, they need
 // to create their own wrapper.
-func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
+func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr, typeQueryResult ir.Node) {
 	// Like in methodExpr, I'm pretty sure this isn't needed.
 	var implicits []*types.Type
 	if r.dict != nil {
@@ -2711,6 +2719,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
 	explicits := r.p.typListIdx(info.explicits, r.dict)
 
 	wrapperFn = r.p.objIdx(info.idx, implicits, explicits, false).(*ir.Name)
+	typeQueryResult = logosConcreteImplements(pos, wrapperFn, explicits)
 	baseFn = r.p.objIdx(info.idx, implicits, explicits, true).(*ir.Name)
 
 	dictName := r.p.objDictName(info.idx, implicits, explicits)

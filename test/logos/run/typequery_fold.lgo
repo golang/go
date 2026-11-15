@@ -1,0 +1,168 @@
+// run
+
+package main
+
+import (
+	"comptime"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"logos/rt"
+	"os"
+	"strings"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type MyInt int
+type MyInt64 int64
+type Celsius float64
+
+func tildeKind[T any]() string {
+	const switch T {
+	case ~int:
+		return "int"
+	case ~int64:
+		return "int64"
+	case ~float64:
+		return "float64"
+	}
+	return "other"
+}
+
+func implKind[T any]() string {
+	const switch T {
+	case io.Writer:
+		return "writer"
+	}
+	return "other"
+}
+
+type Word struct{ S string }
+
+func (w Word) Write(p []byte) (int, error) { return copy(p, w.S), nil }
+
+type Person struct{ Name string }
+
+func (p Person) Greet() string { return "hi " + p.Name }
+
+type Pair struct {
+	Lo uint64
+	Hi uint64
+}
+
+type Padded struct {
+	A uint32
+	B uint64
+}
+
+type HasBool struct {
+	A uint32
+	B bool
+	C uint32
+}
+
+type I interface{ M() }
+
+type ShapeA struct{ X int64 }
+
+func (ShapeA) M() {}
+
+type ShapeB struct{ X int64 }
+
+func (ShapeB) N() {}
+
+type P struct{ V int }
+
+func (*P) M() {}
+
+func wrapImpl[T any]() string {
+	const switch T {
+	case I:
+		return "impl"
+	}
+	return "no"
+}
+
+func viewOK() {
+	b := make([]byte, 16)
+	for i := range b {
+		b[i] = byte(i*7 + 1)
+	}
+	p := comptime.ViewAs[Pair](b)
+	lo := binary.NativeEndian.Uint64(b)
+	hi := binary.NativeEndian.Uint64(b[8:])
+	check("viewas-pod", p.Lo == lo && p.Hi == hi, *p, Pair{lo, hi})
+}
+
+func panicMsg(f func()) (msg string) {
+	defer func() {
+		if r := recover(); r != nil {
+			msg = fmt.Sprint(r)
+		}
+	}()
+	f()
+	return "no panic"
+}
+
+func viewShort() {
+	msg := panicMsg(func() { _ = comptime.ViewAs[Pair](make([]byte, 8)) })
+	check("viewas-short", msg == "logos: ViewAs: need 16 bytes, have 8", msg, "logos: ViewAs: need 16 bytes, have 8")
+}
+
+func viewPadded() {
+	msg := panicMsg(func() { _ = rt.ViewAs[Padded](make([]byte, 16)) })
+	check("viewas-padded", strings.Contains(msg, "not POD"), msg, "not POD")
+}
+
+func viewBool() {
+	msg := panicMsg(func() { _ = rt.ViewAs[HasBool](make([]byte, 12)) })
+	check("viewas-bool", strings.Contains(msg, "not POD"), msg, "not POD")
+}
+
+func main() {
+	check("tildeis-named", rt.TildeIs[MyInt, int](), rt.TildeIs[MyInt, int](), true)
+	check("tildeis-named-miss", !rt.TildeIs[MyInt, int64](), rt.TildeIs[MyInt, int64](), false)
+	check("tildeis-kind-width", !rt.TildeIs[int, int64](), rt.TildeIs[int, int64](), false)
+	check("tildeis-array-kind", rt.TildeIs[[3]int, [3]int32](), rt.TildeIs[[3]int, [3]int32](), true)
+	check("tildeis-ptr-kind", rt.TildeIs[*int, *int32](), rt.TildeIs[*int, *int32](), true)
+	check("tilde-kind-mint", tildeKind[MyInt]() == "int", tildeKind[MyInt](), "int")
+	check("tilde-kind-mint64", tildeKind[MyInt64]() == "int64", tildeKind[MyInt64](), "int64")
+	check("tilde-kind-celsius", tildeKind[Celsius]() == "float64", tildeKind[Celsius](), "float64")
+	check("tilde-kind-string", tildeKind[string]() == "other", tildeKind[string](), "other")
+	check("tilde-kind-array", tildeKind[[3]int]() == "other", tildeKind[[3]int](), "other")
+
+	check("impl-writer", rt.Implements[Word, io.Writer](), rt.Implements[Word, io.Writer](), true)
+	check("impl-miss", !rt.Implements[Person, io.Writer](), rt.Implements[Person, io.Writer](), false)
+	check("impl-ptr", rt.Implements[*Word, io.Writer](), rt.Implements[*Word, io.Writer](), true)
+	check("impl-any", rt.Implements[Word, any](), rt.Implements[Word, any](), true)
+	check("impl-empty", !rt.Implements[any, io.Writer](), rt.Implements[any, io.Writer](), false)
+	check("impl-generic-hit", implKind[Word]() == "writer", implKind[Word](), "writer")
+	check("impl-generic-miss", implKind[Person]() == "other", implKind[Person](), "other")
+	check("impl-noniface-panic", strings.Contains(panicMsg(func() { _ = rt.Implements[Word, Person]() }), "non-interface"), panicMsg(func() { _ = rt.Implements[Word, Person]() }), "non-interface")
+
+	viewOK()
+	viewShort()
+	viewPadded()
+	viewBool()
+
+	check("impl-sameshape-a", rt.Implements[ShapeA, I](), rt.Implements[ShapeA, I](), true)
+	check("impl-sameshape-b", !rt.Implements[ShapeB, I](), rt.Implements[ShapeB, I](), false)
+	check("impl-ptr-recv-val", !rt.Implements[P, I](), rt.Implements[P, I](), false)
+	check("impl-ptr-recv-ptr", rt.Implements[*P, I](), rt.Implements[*P, I](), true)
+	check("impl-iface-any", rt.Implements[ShapeA, any](), rt.Implements[ShapeA, any](), true)
+	check("wrap-impl-a", wrapImpl[ShapeA]() == "impl", wrapImpl[ShapeA](), "impl")
+	check("wrap-impl-b", wrapImpl[ShapeB]() == "no", wrapImpl[ShapeB](), "no")
+	if failed {
+		os.Exit(1)
+	}
+}
