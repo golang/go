@@ -17,6 +17,7 @@ import (
 func testInt8x32Ternary(t *testing.T, f func(_, _, _ archsimd.Int8x32) archsimd.Int8x32, want func(_, _, _ []int8) []int8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, int8s, n, func(x, y, z []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x32(x)
@@ -33,6 +34,7 @@ func testInt8x32Ternary(t *testing.T, f func(_, _, _ archsimd.Int8x32) archsimd.
 func testInt16x16Ternary(t *testing.T, f func(_, _, _ archsimd.Int16x16) archsimd.Int16x16, want func(_, _, _ []int16) []int16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, int16s, n, func(x, y, z []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x16(x)
@@ -49,6 +51,7 @@ func testInt16x16Ternary(t *testing.T, f func(_, _, _ archsimd.Int16x16) archsim
 func testInt32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Int32x8) archsimd.Int32x8, want func(_, _, _ []int32) []int32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, int32s, n, func(x, y, z []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x8(x)
@@ -65,6 +68,7 @@ func testInt32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Int32x8) archsimd.
 func testInt64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Int64x4) archsimd.Int64x4, want func(_, _, _ []int64) []int64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, int64s, n, func(x, y, z []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x4(x)
@@ -81,6 +85,7 @@ func testInt64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Int64x4) archsimd.
 func testUint8x32Ternary(t *testing.T, f func(_, _, _ archsimd.Uint8x32) archsimd.Uint8x32, want func(_, _, _ []uint8) []uint8) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, uint8s, n, func(x, y, z []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x32(x)
@@ -97,6 +102,7 @@ func testUint8x32Ternary(t *testing.T, f func(_, _, _ archsimd.Uint8x32) archsim
 func testUint16x16Ternary(t *testing.T, f func(_, _, _ archsimd.Uint16x16) archsimd.Uint16x16, want func(_, _, _ []uint16) []uint16) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, uint16s, n, func(x, y, z []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x16(x)
@@ -113,6 +119,7 @@ func testUint16x16Ternary(t *testing.T, f func(_, _, _ archsimd.Uint16x16) archs
 func testUint32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Uint32x8) archsimd.Uint32x8, want func(_, _, _ []uint32) []uint32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, uint32s, n, func(x, y, z []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x8(x)
@@ -129,6 +136,7 @@ func testUint32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Uint32x8) archsim
 func testUint64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Uint64x4) archsimd.Uint64x4, want func(_, _, _ []uint64) []uint64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, uint64s, n, func(x, y, z []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x4(x)
@@ -145,6 +153,7 @@ func testUint64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Uint64x4) archsim
 func testFloat32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Float32x8) archsimd.Float32x8, want func(_, _, _ []float32) []float32) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, float32s, n, func(x, y, z []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -161,6 +170,7 @@ func testFloat32x8Ternary(t *testing.T, f func(_, _, _ archsimd.Float32x8) archs
 func testFloat64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Float64x4) archsimd.Float64x4, want func(_, _, _ []float64) []float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, float64s, n, func(x, y, z []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -177,6 +187,7 @@ func testFloat64x4Ternary(t *testing.T, f func(_, _, _ archsimd.Float64x4) archs
 func testInt8x64Ternary(t *testing.T, f func(_, _, _ archsimd.Int8x64) archsimd.Int8x64, want func(_, _, _ []int8) []int8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, int8s, n, func(x, y, z []int8) bool {
 		t.Helper()
 		a := archsimd.LoadInt8x64(x)
@@ -193,6 +204,7 @@ func testInt8x64Ternary(t *testing.T, f func(_, _, _ archsimd.Int8x64) archsimd.
 func testInt16x32Ternary(t *testing.T, f func(_, _, _ archsimd.Int16x32) archsimd.Int16x32, want func(_, _, _ []int16) []int16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, int16s, n, func(x, y, z []int16) bool {
 		t.Helper()
 		a := archsimd.LoadInt16x32(x)
@@ -209,6 +221,7 @@ func testInt16x32Ternary(t *testing.T, f func(_, _, _ archsimd.Int16x32) archsim
 func testInt32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Int32x16) archsimd.Int32x16, want func(_, _, _ []int32) []int32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, int32s, n, func(x, y, z []int32) bool {
 		t.Helper()
 		a := archsimd.LoadInt32x16(x)
@@ -225,6 +238,7 @@ func testInt32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Int32x16) archsim
 func testInt64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Int64x8) archsimd.Int64x8, want func(_, _, _ []int64) []int64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, int64s, n, func(x, y, z []int64) bool {
 		t.Helper()
 		a := archsimd.LoadInt64x8(x)
@@ -241,6 +255,7 @@ func testInt64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Int64x8) archsimd.
 func testUint8x64Ternary(t *testing.T, f func(_, _, _ archsimd.Uint8x64) archsimd.Uint8x64, want func(_, _, _ []uint8) []uint8) {
 	n := 64
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, uint8s, n, func(x, y, z []uint8) bool {
 		t.Helper()
 		a := archsimd.LoadUint8x64(x)
@@ -257,6 +272,7 @@ func testUint8x64Ternary(t *testing.T, f func(_, _, _ archsimd.Uint8x64) archsim
 func testUint16x32Ternary(t *testing.T, f func(_, _, _ archsimd.Uint16x32) archsimd.Uint16x32, want func(_, _, _ []uint16) []uint16) {
 	n := 32
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, uint16s, n, func(x, y, z []uint16) bool {
 		t.Helper()
 		a := archsimd.LoadUint16x32(x)
@@ -273,6 +289,7 @@ func testUint16x32Ternary(t *testing.T, f func(_, _, _ archsimd.Uint16x32) archs
 func testUint32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Uint32x16) archsimd.Uint32x16, want func(_, _, _ []uint32) []uint32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, uint32s, n, func(x, y, z []uint32) bool {
 		t.Helper()
 		a := archsimd.LoadUint32x16(x)
@@ -289,6 +306,7 @@ func testUint32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Uint32x16) archs
 func testUint64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Uint64x8) archsimd.Uint64x8, want func(_, _, _ []uint64) []uint64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, uint64s, n, func(x, y, z []uint64) bool {
 		t.Helper()
 		a := archsimd.LoadUint64x8(x)
@@ -305,6 +323,7 @@ func testUint64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Uint64x8) archsim
 func testFloat32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Float32x16) archsimd.Float32x16, want func(_, _, _ []float32) []float32) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, float32s, n, func(x, y, z []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -321,6 +340,7 @@ func testFloat32x16Ternary(t *testing.T, f func(_, _, _ archsimd.Float32x16) arc
 func testFloat64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Float64x8) archsimd.Float64x8, want func(_, _, _ []float64) []float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, float64s, n, func(x, y, z []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)
@@ -338,6 +358,7 @@ func testFloat64x8Ternary(t *testing.T, f func(_, _, _ archsimd.Float64x8) archs
 func testFloat32x8TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float32x8) archsimd.Float32x8, want func(x, y, z []float32) []float32, flakiness float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, float32s, n, func(x, y, z []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x8(x)
@@ -355,6 +376,7 @@ func testFloat32x8TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float32x8) 
 func testFloat64x4TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float64x4) archsimd.Float64x4, want func(x, y, z []float64) []float64, flakiness float64) {
 	n := 4
 	t.Helper()
+	requireVectorBits(t, 256)
 	forSliceTriple(t, float64s, n, func(x, y, z []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x4(x)
@@ -372,6 +394,7 @@ func testFloat64x4TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float64x4) 
 func testFloat32x16TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float32x16) archsimd.Float32x16, want func(x, y, z []float32) []float32, flakiness float64) {
 	n := 16
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, float32s, n, func(x, y, z []float32) bool {
 		t.Helper()
 		a := archsimd.LoadFloat32x16(x)
@@ -389,6 +412,7 @@ func testFloat32x16TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float32x16
 func testFloat64x8TernaryFlaky(t *testing.T, f func(x, y, z archsimd.Float64x8) archsimd.Float64x8, want func(x, y, z []float64) []float64, flakiness float64) {
 	n := 8
 	t.Helper()
+	requireVectorBits(t, 512)
 	forSliceTriple(t, float64s, n, func(x, y, z []float64) bool {
 		t.Helper()
 		a := archsimd.LoadFloat64x8(x)

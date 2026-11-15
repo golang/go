@@ -103,6 +103,7 @@ func TestTranspose4(t *testing.T) {
 }
 
 func TestTranspose8(t *testing.T) {
+	requireVectorBits(t, 256)
 	m := make([]int32, 8)
 
 	a := []int32{}
@@ -203,6 +204,9 @@ func BenchmarkTiled4Transpose(b *testing.B) {
 }
 
 func BenchmarkTiled8Transpose(b *testing.B) {
+	if !archsimd.X86.AVX2() {
+		b.Skip("256-bit benchmarks require AVX2")
+	}
 	d := dupe(bigMatrix())
 	for b.Loop() {
 		transposeTiled8(d)
@@ -316,6 +320,7 @@ func TestTransposeTiled4(t *testing.T) {
 }
 
 func TestTransposeTiled8(t *testing.T) {
+	requireVectorBits(t, 256)
 	d := dupe(thirtyMatrix())
 	transposeTiled8(d)
 	if !isTransposed(d) {
