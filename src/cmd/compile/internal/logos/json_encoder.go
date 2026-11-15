@@ -442,7 +442,7 @@ func (e *jsonEnc) kindStmts(lt types2.Type, x, p string) []string {
 
 func (e *jsonEnc) callStmts(lt types2.Type, x, p string) []string {
 	kind, arg := encValue, x
-	if p != "" && e.addrMatters(lt, map[string]bool{}) {
+	if p != "" {
 		kind, arg = encAddr, p
 	}
 	name, ok := e.encoder(lt, kind)
@@ -453,34 +453,6 @@ func (e *jsonEnc) callStmts(lt types2.Type, x, p string) []string {
 		return errStmts("_logos_s.AppendAny(_logos_buf, " + x + ")")
 	}
 	return errStmts(name + "(_logos_buf, " + arg + ", _logos_s)")
-}
-
-func (e *jsonEnc) addrMatters(t types2.Type, seen map[string]bool) bool {
-	lt := jsonLowered(t)
-	key := jsonTypeKey(lt)
-	if seen[key] {
-		return false
-	}
-	seen[key] = true
-	if found, viaPtr := jsonAddrMarshals(lt); found && !e.isGen(lt) {
-		return viaPtr
-	}
-	if _, ok := jsonStructOf(lt); ok {
-		return e.fieldsAddrMatter(lt, seen)
-	}
-	if a, ok := lt.Underlying().(*types2.Array); ok {
-		return e.addrMatters(a.Elem(), seen)
-	}
-	return false
-}
-
-func (e *jsonEnc) fieldsAddrMatter(lt types2.Type, seen map[string]bool) bool {
-	for _, f := range jsonEncodedFields(lt) {
-		if _, _, indirect := jsonFieldAccess(f, ""); !indirect && e.addrMatters(f.typ, seen) {
-			return true
-		}
-	}
-	return false
 }
 
 func (e *jsonEnc) compositeBody(lt types2.Type, x, p, a string) []string {
@@ -651,47 +623,65 @@ func (e *jsonEnc) quotedStmts(t types2.Type, x, p string) []string {
 	return e.valueStmts(lt, x, p)
 }
 
-func (fl *fileLower) jsonDispatcher(plan *jsonWalkPlan) string {
+func (fl *fileLower) jsonDispatcher(plan *jsonWalkPlan) (string, string) {
 	keys := make([]string, len(plan.table))
 	for i, named := range plan.table {
 		keys[i] = jsonTypeKey(named)
 	}
 	key := "gen:" + strings.Join(keys, ",")
+	addrKey := "genaddr:" + strings.Join(keys, ",")
 	if def, ok := fl.pkg.jsonHelpers[key]; ok {
-		return def.vname
+		if adef, ok := fl.pkg.jsonHelpers[addrKey]; ok {
+			return def.vname, adef.vname
+		}
 	}
 	e := &jsonEnc{fl: fl, plan: plan}
-	var cases []string
+	var cases, addrCases []string
 	for _, named := range plan.table {
-		cases = append(cases, e.dispatchCases(named)...)
+		v, a := e.dispatchCases(named)
+		cases = append(cases, v...)
+		addrCases = append(addrCases, a...)
 	}
 	if len(cases) == 0 {
-		return ""
+		return "", ""
 	}
 	def := e.register(key, "_logos_g")
-	lines := []string{
-		"func " + def.vname + "(_logos_s *" + jsonAlias + ".Walk, _logos_buf []byte, _logos_v any) ([]byte, bool, error) {",
-		"\tswitch _logos_x := _logos_v.(type) {",
-	}
+	var lines []string
+	lines = append(lines, "func "+def.vname+"(_logos_s *"+jsonAlias+".Walk, _logos_buf []byte, _logos_v any) ([]byte, bool, error) {",
+		"\tswitch _logos_x := _logos_v.(type) {")
 	lines = append(lines, indentLines(cases)...)
 	lines = append(lines, "\t}", "\treturn _logos_buf, false, nil", "}")
 	def.text = "\n" + strings.Join(lines, "\n") + "\n"
-	return def.vname
+	adef := e.register(addrKey, "_logos_g")
+	lines = []string{
+		"func " + adef.vname + "(_logos_s *" + jsonAlias + ".Walk, _logos_buf []byte, _logos_v any) ([]byte, bool, error) {",
+		"\tswitch _logos_x := _logos_v.(type) {",
+	}
+	lines = append(lines, indentLines(addrCases)...)
+	lines = append(lines, "\t}", "\treturn _logos_buf, false, nil", "}")
+	adef.text = "\n" + strings.Join(lines, "\n") + "\n"
+	return def.vname, adef.vname
 }
 
-func (e *jsonEnc) dispatchCases(named *types2.Named) []string {
-	var out []string
+func (e *jsonEnc) dispatchCases(named *types2.Named) (values, addrs []string) {
 	for _, t := range []types2.Type{named, types2.NewPointer(named)} {
 		name, ok := e.encoder(t, encValue)
 		if !ok {
 			continue
 		}
 		spell, _ := e.spell(t)
-		out = append(out, "case "+spell+":",
+		values = append(values, "case "+spell+":",
 			"\t_logos_out, _logos_err := "+name+"(_logos_buf, _logos_x, _logos_s)",
 			"\treturn _logos_out, true, _logos_err")
 	}
-	return out
+	name, ok := e.encoder(named, encAddr)
+	if ok {
+		spell, _ := e.spell(types2.NewPointer(named))
+		addrs = append(addrs, "case "+spell+":",
+			"\t_logos_out, _logos_err := "+name+"(_logos_buf, _logos_x, _logos_s)",
+			"\treturn _logos_out, true, _logos_err")
+	}
+	return values, addrs
 }
 
 type jsonEncField struct {

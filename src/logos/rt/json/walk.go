@@ -24,12 +24,17 @@ type Walk struct {
 	// struct types the root may meet, or a pointer to one, appending to
 	// the buffer with this walk's state. It reports false for any other
 	// type. Generated code sets it before any stateful edge.
-	Gen      func(*Walk, []byte, any) ([]byte, bool, error)
-	fields   map[reflect.Type][]walkField
-	ptrLevel uint
-	depth    uint
-	seen     map[walkVisit]struct{}
-	depthErr *stdjson.SyntaxError
+	Gen func(*Walk, []byte, any) ([]byte, bool, error)
+	// GenAddress encodes the original storage of an addressable struct
+	// value with the same callback contract as Gen. The pointer it
+	// receives denotes storage, not a traversal edge, so it adds no
+	// pointer visit of its own.
+	GenAddress func(*Walk, []byte, any) ([]byte, bool, error)
+	fields     map[reflect.Type][]walkField
+	ptrLevel   uint
+	depth      uint
+	seen       map[walkVisit]struct{}
+	depthErr   *stdjson.SyntaxError
 }
 
 type walkVisit struct {
@@ -186,10 +191,25 @@ func (s *Walk) AppendAddress(buf []byte, p any) ([]byte, error) {
 }
 
 func (s *Walk) appendGen(buf []byte, rv reflect.Value) ([]byte, bool, error) {
-	if s.Gen == nil || !rv.CanInterface() {
+	if !rv.CanInterface() {
 		return buf, false, nil
 	}
-	if k := rv.Kind(); k != reflect.Struct && k != reflect.Pointer {
+	switch rv.Kind() {
+	case reflect.Struct:
+		if rv.CanAddr() && s.GenAddress != nil {
+			out, ok, err := s.GenAddress(s, buf, rv.Addr().Interface())
+			if err != nil {
+				return out, true, err
+			}
+			if ok {
+				return out, true, nil
+			}
+		}
+	case reflect.Pointer:
+	default:
+		return buf, false, nil
+	}
+	if s.Gen == nil {
 		return buf, false, nil
 	}
 	return s.Gen(s, buf, rv.Interface())

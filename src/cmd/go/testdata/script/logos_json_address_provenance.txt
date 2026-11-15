@@ -1,0 +1,117 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^address provenance ok$'
+
+-- w/go.mod --
+module example.com/addrprov
+
+go 1.27
+
+require example.com/foreign v0.0.0
+
+replace example.com/foreign => ./foreign
+
+-- w/foreign/go.mod --
+module example.com/foreign
+
+go 1.27
+
+-- w/foreign/f.go --
+package f
+
+type N int
+
+func (n N) MarshalText() ([]byte, error) {
+	return []byte("text"), nil
+}
+
+func (n *N) MarshalJSON() ([]byte, error) {
+	return []byte(`"ptr"`), nil
+}
+
+type Payload struct {
+	Value any `json:"value"`
+}
+
+-- w/main.lgo --
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"example.com/foreign"
+)
+
+type Box struct {
+	B f.N `json:"B"`
+}
+
+type Root struct {
+	Static  Box       `json:"static"`
+	Dynamic f.Payload `json:"dynamic"`
+}
+
+func mirror(dynamic any) any {
+	return struct {
+		Static struct {
+			B f.N `json:"B"`
+		} `json:"static"`
+		Dynamic struct {
+			Value any `json:"value"`
+		} `json:"dynamic"`
+	}{
+		Static: struct {
+			B f.N `json:"B"`
+		}{B: 7},
+		Dynamic: struct {
+			Value any `json:"value"`
+		}{Value: dynamic},
+	}
+}
+
+func check(label string, root Root, oracle any) bool {
+	got, gerr := root.MarshalJSON()
+	if gerr != nil {
+		fmt.Println("FAIL", label, "generated marshal:", gerr)
+		return false
+	}
+	want, werr := json.Marshal(oracle)
+	if werr != nil {
+		fmt.Println("FAIL", label, "oracle marshal:", werr)
+		return false
+	}
+	if !bytes.Equal(got, want) {
+		fmt.Printf("FAIL %s got=%s want=%s\n", label, got, want)
+		return false
+	}
+	return true
+}
+
+func main() {
+	box := Box{B: 7}
+	if !check("static", Root{Static: box}, mirror(nil)) {
+		os.Exit(1)
+	}
+	if !check("dynamic-slice",
+		Root{Static: box, Dynamic: f.Payload{Value: []Box{{B: 7}}}},
+		mirror([]struct{ B f.N `json:"B"` }{{B: 7}})) {
+		os.Exit(1)
+	}
+	if !check("dynamic-array-pointer",
+		Root{Static: box, Dynamic: f.Payload{Value: &[1]Box{{B: 7}}}},
+		mirror(&[1]struct{ B f.N `json:"B"` }{{B: 7}})) {
+		os.Exit(1)
+	}
+	if !check("dynamic-map",
+		Root{Static: box, Dynamic: f.Payload{Value: map[string]Box{"k": {B: 7}}}},
+		mirror(map[string]struct{ B f.N `json:"B"` }{"k": {B: 7}})) {
+		os.Exit(1)
+	}
+	fmt.Println("address provenance ok")
+}

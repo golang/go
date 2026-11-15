@@ -2604,7 +2604,7 @@ Calls to `TextEntries(m, typeName)` and `PointerTextEntries(m, typeName)` MUST s
 
 Profile-sensitive behavior MUST use the existing build-tagged runtime `JSONV2` constant to select the ejected consumer's build mode, not the compiler host's mode. This rule includes pointer-only `IsZero` snapshot behavior and `TextMarshaler` map-key callback ordering. For an unaddressable value, classic mode MUST call pointer-only `IsZero` on a separate copy. Default mode MUST use the same snapshot for that check and later encoding. Fields and embedded paths backed by real pointers MUST remain shared in both modes.
 
-Addressable fallback MUST retain the actual supplied address and the same `Walk` state. It MUST NOT add a logical pointer or frame. Generated `MarshalJSON` MUST remain a value receiver with its required root copy. A temporary used for `IsZero` MUST NOT grant pointer-only legacy `MarshalJSON` eligibility.
+Addressable fallback MUST retain the actual supplied address and the same `Walk` state. Static and dynamic handoffs MUST distinguish a supplied storage address from a traversal edge: a storage address adds no logical pointer or frame, while an actual pointer traversal records its edge exactly once. Generated `MarshalJSON` MUST remain a value receiver with its required root copy. A temporary used for `IsZero` MUST NOT grant pointer-only legacy `MarshalJSON` eligibility.
 
 ### M11-S2 Generated `UnmarshalJSON`
 Anchor: Tony Hoare, Edsger W. Dijkstra

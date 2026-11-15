@@ -54,6 +54,44 @@ type Public struct {
 	hidden
 }
 
+type Count struct {
+	N int
+}
+
+func (c *Count) IsZero() bool {
+	c.N = 99
+	return false
+}
+
+type Box struct {
+	X Count `json:"x,omitzero"`
+}
+
+type Inner struct {
+	C Count `json:"c,omitzero"`
+}
+
+type Nest struct {
+	I Inner   `json:"i"`
+	A [1]Box `json:"a"`
+}
+
+type Embed struct {
+	*Box
+}
+
+type Mirror struct {
+	P  *Box           `json:"p"`
+	S  []Box          `json:"s"`
+	A  *[2]Box        `json:"a"`
+	M  map[string]Box `json:"m"`
+	N  Nest           `json:"n"`
+	V  Box            `json:"v"`
+	E  Embed          `json:"e"`
+	NP *Nest          `json:"np"`
+	NS []Nest         `json:"ns"`
+}
+
 -- w/main.lgo --
 package main
 
@@ -102,6 +140,110 @@ func mirrorRoot() any {
 	}{P: p, S: s, A: a, M: vals}
 }
 
+type BoxRoot struct {
+	P  *f.Box           `json:"p"`
+	S  []f.Box          `json:"s"`
+	A  *[2]f.Box        `json:"a"`
+	M  map[string]f.Box `json:"m"`
+	N  f.Nest           `json:"n"`
+	V  f.Box            `json:"v"`
+	E  f.Embed          `json:"e"`
+	NP *f.Nest          `json:"np"`
+	NS []f.Nest         `json:"ns"`
+}
+
+func freshBox(n int) f.Box {
+	return f.Box{X: f.Count{N: n}}
+}
+
+func freshBoxPtr(n int) *f.Box {
+	b := freshBox(n)
+	return &b
+}
+
+func freshNest(i, a int) f.Nest {
+	return f.Nest{I: f.Inner{C: f.Count{N: i}}, A: [1]f.Box{freshBox(a)}}
+}
+
+func freshNestPtr(i, a int) *f.Nest {
+	n := freshNest(i, a)
+	return &n
+}
+
+func boxTarget() BoxRoot {
+	p := freshBoxPtr(1)
+	s := []f.Box{freshBox(2), freshBox(3)}
+	a := [2]f.Box{freshBox(4), freshBox(5)}
+	abs := &a
+	vals := map[string]f.Box{"k": freshBox(6)}
+	n := freshNest(7, 8)
+	v := freshBox(9)
+	e := f.Embed{Box: freshBoxPtr(10)}
+	np := freshNestPtr(11, 12)
+	ns := []f.Nest{freshNest(13, 14)}
+	return BoxRoot{P: p, S: s, A: abs, M: vals, N: n, V: v, E: e, NP: np, NS: ns}
+}
+
+func boxMirror() f.Mirror {
+	p := freshBoxPtr(1)
+	s := []f.Box{freshBox(2), freshBox(3)}
+	a := [2]f.Box{freshBox(4), freshBox(5)}
+	abs := &a
+	vals := map[string]f.Box{"k": freshBox(6)}
+	n := freshNest(7, 8)
+	v := freshBox(9)
+	e := f.Embed{Box: freshBoxPtr(10)}
+	np := freshNestPtr(11, 12)
+	ns := []f.Nest{freshNest(13, 14)}
+	return f.Mirror{P: p, S: s, A: abs, M: vals, N: n, V: v, E: e, NP: np, NS: ns}
+}
+
+func checkBoxState(t BoxRoot, m f.Mirror) {
+	tp, ta, tnp, teb := t.P, t.A, t.NP, t.E.Box
+	mp, ma, mnp, meb := m.P, m.A, m.NP, m.E.Box
+	if tp == nil || ta == nil || tnp == nil || teb == nil || mp == nil || ma == nil || mnp == nil || meb == nil {
+		panic("FAIL box nil pointer input")
+	}
+	tv, tok := t.M["k"]
+	mv, mok := m.M["k"]
+	if !tok || !mok {
+		panic("FAIL box missing map input")
+	}
+	check := func(ok bool, msg string) {
+		if !ok {
+			fmt.Println("FAIL box", msg)
+			os.Exit(1)
+		}
+	}
+	check(tp.X.N == 99 && mp.X.N == 99, "pointer box")
+	check(t.S[0].X.N == 99 && t.S[1].X.N == 99 && m.S[0].X.N == 99 && m.S[1].X.N == 99, "slice boxes")
+	check(ta[0].X.N == 99 && ta[1].X.N == 99 && ma[0].X.N == 99 && ma[1].X.N == 99, "pointer array boxes")
+	check(teb.X.N == 99 && meb.X.N == 99, "embedded pointer box")
+	check(tnp.I.C.N == 99 && tnp.A[0].X.N == 99 && mnp.I.C.N == 99 && mnp.A[0].X.N == 99, "nested pointer")
+	check(t.NS[0].I.C.N == 99 && t.NS[0].A[0].X.N == 99 && m.NS[0].I.C.N == 99 && m.NS[0].A[0].X.N == 99, "nested slice")
+	check(tv.X.N == 6 && mv.X.N == 6, "map value copy")
+	check(t.N.I.C.N == 7 && t.N.A[0].X.N == 8 && m.N.I.C.N == 7 && m.N.A[0].X.N == 8, "nested value copies")
+	check(t.V.X.N == 9 && m.V.X.N == 9, "value field copy")
+}
+
+func checkBoxParity(t BoxRoot, m f.Mirror) {
+	got, gerr := json.Marshal(t)
+	if gerr != nil {
+		fmt.Println("FAIL box target", gerr)
+		os.Exit(1)
+	}
+	want, werr := json.Marshal(m)
+	if werr != nil {
+		fmt.Println("FAIL box mirror", werr)
+		os.Exit(1)
+	}
+	if string(got) != string(want) {
+		fmt.Println("FAIL box parity got=" + string(got) + " want=" + string(want))
+		os.Exit(1)
+	}
+	checkBoxState(t, m)
+}
+
 func main() {
 	got, gerr := json.Marshal(targetRoot())
 	if gerr != nil {
@@ -121,5 +263,7 @@ func main() {
 		fmt.Println("FAIL parity got=" + string(got) + " want=" + string(want))
 		os.Exit(1)
 	}
+	checkBoxParity(boxTarget(), boxMirror())
 	fmt.Println("parity ok")
 }
+

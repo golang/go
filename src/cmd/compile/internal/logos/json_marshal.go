@@ -1267,10 +1267,13 @@ func (g *marshalGen) edgePresence(f *jsonField, e jsonEdge, local string) (strin
 	return "!(" + g.omitted(f, local) + ")", true
 }
 
-func (js *jsonStruct) marshalTextWalk(b *strings.Builder, vname, gen string) {
+func (js *jsonStruct) marshalTextWalk(b *strings.Builder, vname, gen, genAddr string) {
 	body := []string{"var _logos_s " + jsonAlias + ".Walk"}
 	if gen != "" {
 		body = append(body, "_logos_s.Gen = "+gen)
+	}
+	if genAddr != "" {
+		body = append(body, "_logos_s.GenAddress = "+genAddr)
 	}
 	body = append(body,
 		"if _logos_err := "+jsonAlias+".EnterPointer(&_logos_s, &"+jsonRecv+"); _logos_err != nil { return nil, _logos_err }",
