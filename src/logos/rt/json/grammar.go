@@ -135,21 +135,22 @@ func skipEscape(data []byte, j int) int {
 	return -1
 }
 
-func skipPlainBytes(data []byte, i int) int {
-	return i + jsonscan.IndexStringSpecial(data[i:])
+func skipPlainBytes(data []byte, i int) (int, bool) {
+	if len(data)-i < sparseSkip {
+		return i, false
+	}
+	end := i + jsonscan.IndexStringSpecial(data[i:])
+	return end, end-i >= sparseSkip
 }
 
 func scanString(data []byte, i int) (end, flags int) {
-	run := 0
-	for j := i + 1; j < len(data); j++ {
+	j, sparse := skipPlainBytes(data, i+1)
+	for j < len(data) {
 		class := stringClass[data[j]]
 		if class == classPlain {
-			if run++; run == kernelEntryRun {
-				j, run = skipPlainBytes(data, j+1)-1, 0
-			}
+			j++
 			continue
 		}
-		run = 0
 		switch class {
 		case classQuote:
 			return j + 1, flags
@@ -162,6 +163,10 @@ func scanString(data []byte, i int) (end, flags int) {
 			return -1, 0
 		case classHigh:
 			flags |= strHigh
+		}
+		j++
+		if sparse {
+			j, sparse = skipPlainBytes(data, j)
 		}
 	}
 	return -1, 0

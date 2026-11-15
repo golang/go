@@ -280,8 +280,10 @@ func TestFirstEscapeRules(t *testing.T) {
 		{"a" + strings.Repeat("\u00e9", 20) + "\"", 0, 41},
 	}
 	for _, c := range cases {
-		if got := firstEscape(c.s, c.from); got != c.want {
-			t.Errorf("firstEscape(%q, %d) = %d, want %d", c.s, c.from, got, c.want)
+		for _, prevRun := range []int{0, sparseSkip} {
+			if got := firstEscape(c.s, c.from, prevRun); got != c.want {
+				t.Errorf("firstEscape(%q, %d, %d) = %d, want %d", c.s, c.from, prevRun, got, c.want)
+			}
 		}
 		if got := refFirstEscape(c.s, c.from); got != c.want {
 			t.Errorf("refFirstEscape(%q, %d) = %d, want %d", c.s, c.from, got, c.want)
@@ -313,20 +315,63 @@ func TestEscapeReferenceRules(t *testing.T) {
 	}
 }
 
+func checkFirstEscape(t *testing.T, s string, from int) {
+	t.Helper()
+	want := refFirstEscape(s, from)
+	for _, prevRun := range []int{0, sparseSkip} {
+		if got := firstEscape(s, from, prevRun); got != want {
+			t.Fatalf("firstEscape(%q, %d, %d) = %d, want %d", s, from, prevRun, got, want)
+		}
+	}
+}
+
+func checkEscapeLens(t *testing.T, s string) {
+	t.Helper()
+	want := refEscape(s)
+	if got := string(AppendEscaped(nil, s)); got != want {
+		t.Fatalf("AppendEscaped(%q) = %q, want %q", s, got, want)
+	}
+	if got := EscapedLen(s); got != len(want) {
+		t.Fatalf("EscapedLen(%q) = %d, want %d", s, got, len(want))
+	}
+	wantQ := refQuoted(s)
+	if got := string(AppendQuoted(nil, s)); got != wantQ {
+		t.Fatalf("AppendQuoted(%q) = %q, want %q", s, got, wantQ)
+	}
+	if got := QuotedLen(s); got != len(wantQ) {
+		t.Fatalf("QuotedLen(%q) = %d, want %d", s, got, len(wantQ))
+	}
+}
+
+func diffFiller(n int) string {
+	b := make([]byte, n)
+	for j := range b {
+		b[j] = diffPlainByte(j)
+	}
+	return string(b)
+}
+
+var gapRuns = []int{0, 1, 7, 8, 15, 16, 31, 32, 33, 63, 64, 65}
+
+var gapSequences = []string{"\"", "<", "\n", "\u00e9", "\u2028", "\xff", "\U0001f600"}
+
+func forEachGapInput(seqs []string, visit func(body []byte)) {
+	g, k := len(gapRuns), len(seqs)
+	for n := range k * k * g * g * g {
+		a, b := seqs[n%k], seqs[n/k%k]
+		g1, g2, g3 := gapRuns[n/(k*k)%g], gapRuns[n/(k*k*g)%g], gapRuns[n/(k*k*g*g)]
+		visit([]byte(diffFiller(g1) + a + diffFiller(g2) + b + diffFiller(g3)))
+	}
+}
+
 func TestFirstEscapeDifferential(t *testing.T) {
 	pad := strings.Repeat("p", 17)
 	forEachPlacement(escapeSequences, func(body []byte) {
 		for _, p := range []int{0, 3, 17} {
 			s := pad[:p] + string(body)
-			want := refFirstEscape(s, p)
-			if got := firstEscape(s, p); got != want {
-				t.Fatalf("firstEscape(%q, %d) = %d, want %d", s, p, got, want)
-			}
-			if want >= len(s) {
-				continue
-			}
-			if got, again := firstEscape(s, want+1), refFirstEscape(s, want+1); got != again {
-				t.Fatalf("firstEscape(%q, %d) = %d, want %d", s, want+1, got, again)
+			checkFirstEscape(t, s, p)
+			if want := refFirstEscape(s, p); want < len(s) {
+				checkFirstEscape(t, s, want+1)
 			}
 		}
 	})
@@ -334,20 +379,14 @@ func TestFirstEscapeDifferential(t *testing.T) {
 
 func TestEscapeLensDifferential(t *testing.T) {
 	forEachPlacement(lenSequences, func(body []byte) {
+		checkEscapeLens(t, string(body))
+	})
+}
+
+func TestEscapeGapDifferential(t *testing.T) {
+	forEachGapInput(gapSequences, func(body []byte) {
 		s := string(body)
-		want := refEscape(s)
-		if got := string(AppendEscaped(nil, s)); got != want {
-			t.Fatalf("AppendEscaped(%q) = %q, want %q", s, got, want)
-		}
-		if got := EscapedLen(s); got != len(want) {
-			t.Fatalf("EscapedLen(%q) = %d, want %d", s, got, len(want))
-		}
-		wantQ := refQuoted(s)
-		if got := string(AppendQuoted(nil, s)); got != wantQ {
-			t.Fatalf("AppendQuoted(%q) = %q, want %q", s, got, wantQ)
-		}
-		if got := QuotedLen(s); got != len(wantQ) {
-			t.Fatalf("QuotedLen(%q) = %d, want %d", s, got, len(wantQ))
-		}
+		checkEscapeLens(t, s)
+		checkFirstEscape(t, s, 0)
 	})
 }

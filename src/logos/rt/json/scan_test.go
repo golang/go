@@ -912,6 +912,8 @@ func TestScanStringRules(t *testing.T) {
 		{"\"" + strings.Repeat("a", 40), 0, -1, 0},
 		{"\"" + strings.Repeat("a", 40) + "\\\"", 0, -1, 0},
 		{"\"" + strings.Repeat("\xe2\x80\xa8", 20) + "\"", 0, 62, strHigh},
+		{"\"" + strings.Repeat("a", 40) + `\n` + strings.Repeat("a", 40) + "\"", 0, 84, strEscaped},
+		{"\"" + strings.Repeat("a", 40) + "\u00e9" + strings.Repeat("a", 40) + "\"", 0, 84, strHigh},
 	}
 	for _, c := range cases {
 		data := []byte(c.in)
@@ -924,15 +926,43 @@ func TestScanStringRules(t *testing.T) {
 	}
 }
 
+func checkScanString(t *testing.T, data []byte, from int) {
+	t.Helper()
+	wantEnd, wantFlags := refScanString(data, from)
+	gotEnd, gotFlags := scanString(data, from)
+	if gotEnd != wantEnd || gotFlags != wantFlags {
+		t.Fatalf("scanString(%q, %d) = (%d, %d), want (%d, %d)", data, from, gotEnd, gotFlags, wantEnd, wantFlags)
+	}
+}
+
+func checkAppendUnquoted(t *testing.T, body []byte, pad int) {
+	t.Helper()
+	data := make([]byte, pad+len(body))
+	copy(data[pad:], body)
+	in := data[pad:]
+	want, wantOK := refUnquote(t, in)
+	got, ok := appendUnquoted(make([]byte, 0, len(in)), in)
+	if ok != wantOK || !bytes.Equal(got, want) {
+		t.Fatalf("appendUnquoted(%q) = (%q, %v), want (%q, %v)", in, got, ok, want, wantOK)
+	}
+}
+
+var scanGapSequences = []string{`\n`, `\u00e9`, "\u00e9", `"`, "\x01", "\xff", `\x`}
+
+var unquoteGapSequences = []string{`\n`, `\u00e9`, "\u00e9", `"`, "\x01", "\xff", `\"`}
+
 func TestScanStringDifferential(t *testing.T) {
 	forEachPlacement(scanSequences, func(body []byte) {
 		for _, c := range scanConfigs {
-			data := quotedInput(c.pad, body, c.tail)
-			wantEnd, wantFlags := refScanString(data, c.pad)
-			gotEnd, gotFlags := scanString(data, c.pad)
-			if gotEnd != wantEnd || gotFlags != wantFlags {
-				t.Fatalf("scanString(%q, %d) = (%d, %d), want (%d, %d)", data, c.pad, gotEnd, gotFlags, wantEnd, wantFlags)
-			}
+			checkScanString(t, quotedInput(c.pad, body, c.tail), c.pad)
+		}
+	})
+}
+
+func TestScanStringGapDifferential(t *testing.T) {
+	forEachGapInput(scanGapSequences, func(body []byte) {
+		for _, c := range scanConfigs {
+			checkScanString(t, quotedInput(c.pad, body, c.tail), c.pad)
 		}
 	})
 }
@@ -940,14 +970,13 @@ func TestScanStringDifferential(t *testing.T) {
 func TestAppendUnquotedDifferential(t *testing.T) {
 	forEachPlacement(unquoteSequences, func(body []byte) {
 		for _, pad := range []int{0, 7} {
-			data := make([]byte, pad+len(body))
-			copy(data[pad:], body)
-			in := data[pad:]
-			want, wantOK := refUnquote(t, in)
-			got, ok := appendUnquoted(make([]byte, 0, len(in)), in)
-			if ok != wantOK || !bytes.Equal(got, want) {
-				t.Fatalf("appendUnquoted(%q) = (%q, %v), want (%q, %v)", in, got, ok, want, wantOK)
-			}
+			checkAppendUnquoted(t, body, pad)
 		}
+	})
+}
+
+func TestAppendUnquotedGapDifferential(t *testing.T) {
+	forEachGapInput(unquoteGapSequences, func(body []byte) {
+		checkAppendUnquoted(t, body, 0)
 	})
 }
