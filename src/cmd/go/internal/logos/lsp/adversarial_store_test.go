@@ -227,10 +227,10 @@ func TestAdvEnsureCancelledSkipsCompile(t *testing.T) {
 	select {
 	case <-done:
 	case <-time.After(30 * time.Second):
-		t.Fatal("ensure with a cancelled context did not return")
+		t.Fatal("ensure with a canceled context did not return")
 	}
 	if got := len(p.opts.Compiler.(*fakeCompiler).lowerCalls()); got != 0 {
-		t.Errorf("cancelled ensure compiled %d times, want none", got)
+		t.Errorf("canceled ensure compiled %d times, want none", got)
 	}
 }
 

@@ -5,6 +5,7 @@
 package eject
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -26,7 +27,7 @@ import (
 	"cmd/internal/logosowned"
 )
 
-func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]string) (bool, error) {
+func emitOwnedHelpers(ctx context.Context, plan *ejectPlan, staging, out string, ejected map[string]string) (bool, error) {
 	reqs, err := gatherOwnedRequests(staging)
 	if err != nil {
 		return false, err
@@ -71,7 +72,7 @@ func emitOwnedHelpers(plan *ejectPlan, staging, out string, ejected map[string]s
 		dests = append(dests, &ownedDest{req: req, owner: owner, dstRoot: dstRoot, dstDir: dstDir})
 	}
 
-	dests, err = applyOwnedConditionsAndCollisions(plan, dests)
+	dests, err = applyOwnedConditionsAndCollisions(ctx, plan, dests)
 	if err != nil {
 		return false, err
 	}
@@ -302,7 +303,7 @@ func gorootContains(dir string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*ownedDest, error) {
+func applyOwnedConditionsAndCollisions(ctx context.Context, plan *ejectPlan, dests []*ownedDest) ([]*ownedDest, error) {
 	groups := map[string][]*ownedDest{}
 	var keys []string
 	for _, d := range dests {
@@ -314,7 +315,7 @@ func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*
 	slices.Sort(keys)
 	writers := make([]*ownedDest, 0, len(dests))
 	for _, dir := range keys {
-		groupWriters, err := ownedResolveGroup(plan, dir, groups[dir])
+		groupWriters, err := ownedResolveGroup(ctx, plan, dir, groups[dir])
 		if err != nil {
 			return nil, fmt.Errorf("owned request for %q: %v", groups[dir][0].req.Owner, err)
 		}
@@ -323,7 +324,7 @@ func applyOwnedConditionsAndCollisions(plan *ejectPlan, dests []*ownedDest) ([]*
 	return writers, nil
 }
 
-func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*ownedDest, error) {
+func ownedResolveGroup(ctx context.Context, plan *ejectPlan, dir string, dests []*ownedDest) ([]*ownedDest, error) {
 	pkgName := dests[0].owner.Name
 
 	srcDecls := map[string]string{}
@@ -434,7 +435,7 @@ func ownedResolveGroup(plan *ejectPlan, dir string, dests []*ownedDest) ([]*owne
 			if !ok {
 				return fmt.Errorf("helper %s does not parse after condition merge", rep.req.ID)
 			}
-			fixed = gofmtRun([]string{gofmtBinary()}, fixed)
+			fixed = gofmtRun(ctx, []string{gofmtBinary()}, fixed)
 			sum := sha256.Sum256(fixed)
 			hash := hex.EncodeToString(sum[:])
 			if test {

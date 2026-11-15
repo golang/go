@@ -1620,7 +1620,7 @@ func probeGoplsThroughLogos(t *testing.T, logosBin, fakeDir string) ([]string, s
 		t.Fatal(err)
 	}
 	sep := string(os.PathListSeparator)
-	cmd := exec.Command(logosBin, "lsp")
+	cmd := exec.CommandContext(t.Context(), logosBin, "lsp")
 	cmd.Env = append(os.Environ(),
 		"PATH="+fakeDir+sep+"/usr/bin"+sep+"/bin",
 		fakeEnv+"="+scriptPath,
@@ -1661,7 +1661,7 @@ func TestLogosLspGoplsDiscovery(t *testing.T) {
 	}
 	binDir := filepath.Dir(logosBin)
 	t.Run("missing", func(t *testing.T) {
-		cmd := exec.Command(logosBin, "lsp")
+		cmd := exec.CommandContext(t.Context(), logosBin, "lsp")
 		cmd.Env = append(os.Environ(), "PATH="+t.TempDir())
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
@@ -1673,7 +1673,7 @@ func TestLogosLspGoplsDiscovery(t *testing.T) {
 		if _, err := exec.LookPath("gopls"); err != nil {
 			t.Skipf("real gopls not on PATH: %v", err)
 		}
-		cmd := exec.Command(logosBin, "lsp")
+		cmd := exec.CommandContext(t.Context(), logosBin, "lsp")
 		cmd.Env = os.Environ()
 		stdin, err := cmd.StdinPipe()
 		if err != nil {
@@ -1745,7 +1745,7 @@ func TestLogosLspStdioWiring(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(fakeDir, "gopls"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(logosBin, "lsp")
+	cmd := exec.CommandContext(t.Context(), logosBin, "lsp")
 	cmd.Env = append(os.Environ(),
 		"PATH="+fakeDir+string(os.PathListSeparator)+os.Getenv("PATH"),
 		fakeEnv+"="+scriptPath,
@@ -1860,7 +1860,9 @@ func TestServeRejectsBadFrames(t *testing.T) {
 			if _, err := io.WriteString(inW, c.in); err != nil {
 				t.Fatal(err)
 			}
-			inW.Close()
+			if err := inW.Close(); err != nil {
+				t.Errorf("closing stdin writer: %v", err)
+			}
 			select {
 			case err := <-done:
 				if err == nil {
@@ -1869,8 +1871,12 @@ func TestServeRejectsBadFrames(t *testing.T) {
 			case <-time.After(waitLimit):
 				t.Fatal("Serve did not return after the bad frame")
 			}
-			outW.Close()
-			outR.Close()
+			if err := outW.Close(); err != nil {
+				t.Errorf("closing stdout writer: %v", err)
+			}
+			if err := outR.Close(); err != nil {
+				t.Errorf("closing stdout reader: %v", err)
+			}
 		})
 	}
 	t.Run("good frames", func(t *testing.T) {
@@ -1899,7 +1905,9 @@ func TestServeRejectsBadFrames(t *testing.T) {
 		if _, err := io.WriteString(inW, good); err != nil {
 			t.Fatal(err)
 		}
-		inW.Close()
+		if err := inW.Close(); err != nil {
+			t.Errorf("closing stdin writer: %v", err)
+		}
 		select {
 		case err := <-done:
 			if err != nil {
@@ -1908,8 +1916,12 @@ func TestServeRejectsBadFrames(t *testing.T) {
 		case <-time.After(waitLimit):
 			t.Fatal("Serve did not return after the good frames")
 		}
-		outW.Close()
-		outR.Close()
+		if err := outW.Close(); err != nil {
+			t.Errorf("closing stdout writer: %v", err)
+		}
+		if err := outR.Close(); err != nil {
+			t.Errorf("closing stdout reader: %v", err)
+		}
 	})
 }
 
@@ -1960,7 +1972,9 @@ func TestServeAcceptsNonCanonicalHeaders(t *testing.T) {
 			if _, err := io.WriteString(inW, in); err != nil {
 				t.Fatal(err)
 			}
-			inW.Close()
+			if err := inW.Close(); err != nil {
+				t.Errorf("closing stdin writer: %v", err)
+			}
 			select {
 			case err := <-done:
 				if err != nil {
@@ -1969,8 +1983,12 @@ func TestServeAcceptsNonCanonicalHeaders(t *testing.T) {
 			case <-time.After(waitLimit):
 				t.Fatal("Serve did not return after the non-canonical headers")
 			}
-			outW.Close()
-			outR.Close()
+			if err := outW.Close(); err != nil {
+				t.Errorf("closing stdout writer: %v", err)
+			}
+			if err := outR.Close(); err != nil {
+				t.Errorf("closing stdout reader: %v", err)
+			}
 		})
 	}
 }
@@ -1992,8 +2010,14 @@ func TestServeAnswersParseErrorAndContinues(t *testing.T) {
 		t.Fatal(err)
 	}
 	outR, outW := io.Pipe()
-	defer outR.Close()
-	defer outW.Close()
+	defer func() {
+		if err := outW.Close(); err != nil {
+			t.Errorf("closing stdout writer: %v", err)
+		}
+		if err := outR.Close(); err != nil {
+			t.Errorf("closing stdout reader: %v", err)
+		}
+	}()
 	done := make(chan error, 1)
 	ctx := t.Context()
 	go func() { done <- Serve(ctx, inR, outW, opts) }()
@@ -2007,7 +2031,9 @@ func TestServeAnswersParseErrorAndContinues(t *testing.T) {
 	if _, err := io.WriteString(inW, zero+bad+shutdown+bye); err != nil {
 		t.Fatal(err)
 	}
-	inW.Close()
+	if err := inW.Close(); err != nil {
+		t.Errorf("closing stdin writer: %v", err)
+	}
 	deadline := time.After(waitLimit)
 	tick := time.NewTicker(time.Millisecond)
 	defer tick.Stop()
@@ -2078,8 +2104,6 @@ func TestServeAnswersParseErrorAndContinues(t *testing.T) {
 	case <-time.After(waitLimit):
 		t.Fatal("Serve did not return after the parse error and shutdown")
 	}
-	outW.Close()
-	outR.Close()
 }
 
 func TestServeLargeFrames(t *testing.T) {
@@ -2110,8 +2134,17 @@ func TestServeLargeFrames(t *testing.T) {
 		if _, err := io.WriteString(inW, in); err != nil {
 			t.Fatal(err)
 		}
-		inW.Close()
-		return done, newReader(outR), func() { outW.Close(); outR.Close() }
+		if err := inW.Close(); err != nil {
+			t.Errorf("closing stdin writer: %v", err)
+		}
+		return done, newReader(outR), func() {
+			if err := outW.Close(); err != nil {
+				t.Errorf("closing stdout writer: %v", err)
+			}
+			if err := outR.Close(); err != nil {
+				t.Errorf("closing stdout reader: %v", err)
+			}
+		}
 	}
 	readFrame := func(t *testing.T, rd *reader) *message {
 		t.Helper()
@@ -2672,7 +2705,9 @@ func TestServeDuplicateContentLengthFails(t *testing.T) {
 	if _, err := fmt.Fprintf(inW, "Content-Length: %d\r\n\r\n%s", len(bye), bye); err != nil {
 		t.Fatal(err)
 	}
-	inW.Close()
+	if err := inW.Close(); err != nil {
+		t.Errorf("closing stdin writer: %v", err)
+	}
 	select {
 	case err := <-done:
 		if err == nil || !strings.Contains(err.Error(), "duplicate Content-Length") {
@@ -2681,8 +2716,12 @@ func TestServeDuplicateContentLengthFails(t *testing.T) {
 	case <-time.After(waitLimit):
 		t.Fatal("Serve did not return after the duplicate Content-Length frame")
 	}
-	outW.Close()
-	outR.Close()
+	if err := outW.Close(); err != nil {
+		t.Errorf("closing stdout writer: %v", err)
+	}
+	if err := outR.Close(); err != nil {
+		t.Errorf("closing stdout reader: %v", err)
+	}
 }
 
 func TestProxyPackageSnapshotHoldsEveryVersion(t *testing.T) {

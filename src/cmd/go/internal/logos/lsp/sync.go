@@ -67,15 +67,15 @@ func (p *Proxy) fromClient(ctx context.Context, m *message) {
 func (p *Proxy) clientNotification(ctx context.Context, m *message) {
 	switch m.Method {
 	case "textDocument/didOpen":
-		p.didOpen(ctx, m)
+		p.didOpen(m)
 	case "textDocument/didChange":
-		p.didChange(ctx, m)
+		p.didChange(m)
 	case "textDocument/didSave":
 		p.didSave(ctx, m)
 	case "textDocument/didClose":
 		p.didClose(ctx, m)
 	case "workspace/didChangeWatchedFiles":
-		p.watched(ctx, m)
+		p.watched(m)
 	case "workspace/didChangeWorkspaceFolders":
 		p.changeWorkspaceFolders(m.Params)
 		p.send(p.server, m)
@@ -192,7 +192,7 @@ func (p *Proxy) forwardUnlessLogos(m *message, path string) {
 	}
 }
 
-func (p *Proxy) didOpen(ctx context.Context, m *message) {
+func (p *Proxy) didOpen(m *message) {
 	var params didOpenParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
 		p.logf("didOpen: %v", err)
@@ -211,7 +211,7 @@ func (p *Proxy) didOpen(ctx context.Context, m *message) {
 	p.forwardUnlessLogos(m, path)
 }
 
-func (p *Proxy) didChange(ctx context.Context, m *message) {
+func (p *Proxy) didChange(m *message) {
 	var params didChangeParams
 	if err := json.Unmarshal(m.Params, &params); err != nil {
 		p.logf("didChange: %v", err)
@@ -283,7 +283,7 @@ func (p *Proxy) didClose(ctx context.Context, m *message) {
 	p.publishAll()
 }
 
-func (p *Proxy) watched(ctx context.Context, m *message) {
+func (p *Proxy) watched(m *message) {
 	var params watchedParams
 	if err := json.Unmarshal(m.Params, &params); err == nil {
 		p.markIfRelevant(params)

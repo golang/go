@@ -24,7 +24,7 @@ func TestCancelRequestFreesPendingSlot(t *testing.T) {
 	n := len(p.pending)
 	p.mu.Unlock()
 	if n != 0 {
-		t.Fatalf("a cancelled request kept %d pending slots, want none", n)
+		t.Fatalf("a canceled request kept %d pending slots, want none", n)
 	}
 }
 
@@ -77,7 +77,7 @@ func TestOversizedDocumentNotStored(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.didOpen(t.Context(), &message{Method: "textDocument/didOpen", Params: raw})
+	p.didOpen(&message{Method: "textDocument/didOpen", Params: raw})
 	if p.st.open("/w/big.lgo") {
 		t.Fatal("didOpen stored a document past the size cap")
 	}

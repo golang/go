@@ -65,7 +65,7 @@ func TestServeFailsClosedWhenClientStopsReading(t *testing.T) {
 	var frames strings.Builder
 	for range 200 {
 		body := `{"m":}`
-		frames.WriteString(fmt.Sprintf("Content-Length: %d\r\n\r\n%s", len(body), body))
+		fmt.Fprintf(&frames, "Content-Length: %d\r\n\r\n%s", len(body), body)
 	}
 	go func() {
 		_, _ = io.WriteString(inW, frames.String())
