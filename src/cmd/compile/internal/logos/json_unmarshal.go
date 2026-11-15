@@ -121,7 +121,7 @@ func (js *jsonStruct) valueLines(f *jsonField) []string {
 		}
 		if f.quoted {
 			if isExactNumber(f.typ) {
-				return []string{fmt.Sprintf("_logos_s.FallbackQ(&%s)", field)}
+				return []string{fmt.Sprintf("%s.FallbackQ(&_logos_s, &%s)", jsonAlias, field)}
 			}
 			if hasUnmarshalMethods(f.typ) {
 				return []string{fmt.Sprintf("_logos_s.Fallback(&%s)", field)}

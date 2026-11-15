@@ -597,7 +597,7 @@ func TestFallbackQUnwrapsStringOption(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&r)
+		FallbackQ(&s, &r)
 	}
 	if err := s.End(); err != nil {
 		t.Fatalf("End() = %v, Saved() = %v", err, s.Saved())
@@ -614,7 +614,7 @@ func TestFallbackQNullLeavesValue(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&n)
+		FallbackQ(&s, &n)
 	}
 	if err := s.End(); err != nil {
 		t.Fatalf("End() = %v, Saved() = %v", err, s.Saved())
@@ -631,13 +631,14 @@ func TestFallbackQBareValueSavesError(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&r)
+		FallbackQ(&s, &r)
 	}
 	if s.Err() != nil {
 		t.Fatalf("Err() = %v, want nil (bare should be saved, not fatal)", s.Err())
 	}
-	if s.Saved() == nil {
-		t.Fatal("Saved() = nil, want invalid use of ,string error for bare value")
+	want := "json: invalid use of ,string struct tag, trying to unmarshal unquoted value into json.fallbackQRecorder"
+	if s.Saved() == nil || s.Saved().Error() != want {
+		t.Fatalf("Saved() = %v, want %q", s.Saved(), want)
 	}
 }
 

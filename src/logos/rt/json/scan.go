@@ -388,34 +388,25 @@ func (s *Scanner) Fallback(dst any) {
 
 // FallbackQ decodes a json.Number field carrying the `string` option: the
 // value must be a JSON string whose content is itself JSON, or null.
-// It unwraps the outer string before delegating to encoding/json, matching
-// encoding/json's destring branch for Number. A bare non-string value saves
-// the invalid use of ,string error; null decodes as null (pointer nil, value
-// unchanged) via the same path as Fallback. A field whose type declares its
-// own UnmarshalJSON or UnmarshalText method must use Fallback instead, so the
-// method receives the raw token exactly as encoding/json delivers it.
-func (s *Scanner) FallbackQ(dst any) {
+// dst points at the field and T is its type, which names the destination in
+// the saved error. It unwraps the outer string before delegating to
+// encoding/json, matching encoding/json's destring branch for Number. A bare
+// non-string value saves the invalid use of ,string error; null decodes as
+// null (pointer nil, value unchanged) via the same path as Fallback. A field
+// whose type declares its own UnmarshalJSON or UnmarshalText method must use
+// Fallback instead, so the method receives the raw token exactly as
+// encoding/json delivers it.
+func FallbackQ[T any](s *Scanner, dst *T) {
 	item, st := s.readQuoted()
 	switch st {
 	case quotedBare:
-		t := reflect.TypeOf(dst)
-		if t != nil && t.Kind() == reflect.Pointer {
-			t = t.Elem()
-		}
-		if t == nil {
-			t = reflect.TypeFor[any]()
-		}
-		s.save(tagUnquoted(t))
-		return
+		s.save(tagUnquoted(reflect.TypeFor[T]()))
 	case quotedContent:
 		s.decodeRaw([]byte(item), dst)
-		return
 	default:
-		if s.err != nil {
-			return
+		if s.err == nil {
+			s.decodeRaw(s.data[s.start:s.end], dst)
 		}
-		s.decodeRaw(s.data[s.start:s.end], dst)
-		return
 	}
 }
 
