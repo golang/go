@@ -6,8 +6,12 @@ package load
 
 import (
 	"cmp"
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
+
+	"cmd/go/internal/fsys"
 )
 
 func TestFileWasmExportNames(t *testing.T) {
@@ -160,5 +164,23 @@ func TestFileWasmExportNames(t *testing.T) {
 				t.Fatalf("fileWasmExportNames() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestWasmLoaderHelpersReadTheSourceBeingCompiled(t *testing.T) {
+	onDisk, replaced := t.TempDir(), t.TempDir()
+	write := func(dir, src string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "p.go"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(onDisk, "package p\n")
+	write(replaced, "package p\n\n//go:wasmexport _logos_scratch_alloc\nfunc alloc(n int32) int32 { return n }\n")
+	fsys.Bind(replaced, onDisk)
+	q := &Package{Dir: onDisk, GoFiles: []string{"p.go"}}
+	want := []string{"_logos_scratch_alloc"}
+	if got := collectPackageWasmLoaderHelpers(q); !slices.Equal(got, want) {
+		t.Fatalf("collectPackageWasmLoaderHelpers() = %q, want %q from the replacement source", got, want)
 	}
 }

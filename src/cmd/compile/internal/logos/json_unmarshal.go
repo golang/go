@@ -213,7 +213,7 @@ func unionFieldWrap(f *jsonField, field string, trials []string) []string {
 }
 
 func (uc jsonUnionClass) store(kind, winner, matched string) string {
-	return fmt.Sprintf("%s.StoreUnionTrial(%s, _logos_raw, %s.UnionTrialOutcome{Kind: %s.UnionTrial%s, Winner: %s, Matched: %s})", jsonAlias, strconv.Quote(uc.id), jsonAlias, jsonAlias, kind, winner, matched)
+	return fmt.Sprintf("_logos_trial.Store(%s, _logos_raw, %s.UnionTrialOutcome{Kind: %s.UnionTrial%s, Winner: %s, Matched: %s})", strconv.Quote(uc.id), jsonAlias, jsonAlias, kind, winner, matched)
 }
 
 func (uc jsonUnionClass) errorExpr(matched string) string {
@@ -235,9 +235,9 @@ func (js *jsonStruct) unionTrial(uc jsonUnionClass, target, scanner, errVar stri
 	trials = append(trials, "if _logos_value_err := "+scanner+".Err(); _logos_value_err != nil {")
 	trials = append(trials, errRet("\t_logos_value_err")...)
 	trials = append(trials, "}")
-	trials = append(trials, jsonAlias+".EnterUnionTrial()")
-	trials = append(trials, "defer "+jsonAlias+".ExitUnionTrial()")
-	trials = append(trials, fmt.Sprintf("_logos_hit, _logos_out := %s.LookupUnionTrial(%s, _logos_raw)", jsonAlias, strconv.Quote(uc.id)))
+	trials = append(trials, "_logos_trial := "+jsonAlias+".EnterUnionTrial(_logos_raw)")
+	trials = append(trials, "defer _logos_trial.Exit()")
+	trials = append(trials, fmt.Sprintf("_logos_hit, _logos_out := _logos_trial.Lookup(%s, _logos_raw)", strconv.Quote(uc.id)))
 	trials = append(trials, "var _logos_match int")
 	trials = append(trials, "var _logos_winidx int")
 	trials = append(trials, fmt.Sprintf("var _logos_target %s", uc.typ))
