@@ -365,7 +365,7 @@ func InlineImpossible(fn *ir.Func) string {
 	}
 
 	// If marked "go:norace" and -race compilation, don't inline.
-	if base.Flag.Race && fn.Pragma&ir.Norace != 0 {
+	if base.Flag.Cfg.Instrumenting && fn.Pragma&ir.Norace != 0 {
 		reason = "marked go:norace with -race compilation"
 		return reason
 	}
