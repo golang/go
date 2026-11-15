@@ -105,6 +105,11 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 		maxMemoryBytes = math.MaxInt64
 	}
 	var copyBuf []byte
+	// Reused across parts: values are copied out to strings.
+	var (
+		lr       io.LimitedReader
+		valueBuf bytes.Buffer
+	)
 	for {
 		p, err := r.nextPart(false, maxMemoryBytes, maxHeaders)
 		if err == io.EOF {
@@ -136,19 +141,18 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			return nil, ErrMessageTooLarge
 		}
 
-		var b bytes.Buffer
-
 		if filename == "" {
 			// value, store as string in memory
-			n, err := io.CopyN(&b, p, maxMemoryBytes+1)
-			if err != nil && err != io.EOF {
+			valueBuf.Reset()
+			n, err := copyN(&valueBuf, &lr, p, maxMemoryBytes+1)
+			if err != nil {
 				return nil, err
 			}
 			maxMemoryBytes -= n
 			if maxMemoryBytes < 0 {
 				return nil, ErrMessageTooLarge
 			}
-			form.Value[name] = append(form.Value[name], b.String())
+			form.Value[name] = append(form.Value[name], valueBuf.String())
 			continue
 		}
 
@@ -167,8 +171,9 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 			Filename: filename,
 			Header:   p.Header,
 		}
-		n, err := io.CopyN(&b, p, maxFileMemoryBytes+1)
-		if err != nil && err != io.EOF {
+		var b bytes.Buffer
+		n, err := copyN(&b, &lr, p, maxFileMemoryBytes+1)
+		if err != nil {
 			return nil, err
 		}
 		if n > maxFileMemoryBytes {
@@ -211,6 +216,16 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
 	}
 
 	return form, nil
+}
+
+// copyN is like [io.CopyN] without the EOF error, using lr to limit src.
+func copyN(dst *bytes.Buffer, lr *io.LimitedReader, src io.Reader, n int64) (int64, error) {
+	*lr = io.LimitedReader{R: src, N: n}
+	written, err := dst.ReadFrom(lr)
+	if lr.N == 0 {
+		return written, nil
+	}
+	return written, err
 }
 
 func mimeHeaderSize(h textproto.MIMEHeader) (size int64) {
