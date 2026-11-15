@@ -1208,6 +1208,9 @@ import (
 )
 
 func main() {
+	if os.Getenv("GOPARITY_SLEEPGEN_WARM") != "" {
+		return
+	}
 	pgid, _ := syscall.Getpgid(0)
 	_ = os.WriteFile(%q, []byte(fmt.Sprint(pgid)), 0o644)
 	time.Sleep(10 * time.Second)
@@ -1216,6 +1219,10 @@ func main() {
 	if err := os.WriteFile(filepath.Join(dir, "gen.go"), []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	env := baseEnv(forkCache(), fork.goroot)
+	if out, err := runGenerator(fork.bin, "sleepgen", dir, appendEnv(env, "GOPARITY_SLEEPGEN_WARM=1"), 5*time.Minute); err != nil {
+		t.Fatalf("building the sleeping generator: %v\n%s", err, clip(out))
+	}
 	start := time.Now()
 	type runRes struct {
 		out string
@@ -1223,7 +1230,7 @@ func main() {
 	}
 	ch := make(chan runRes, 1)
 	go func() {
-		out, err := runGenerator(fork.bin, "sleepgen", dir, baseEnv(forkCache(), fork.goroot), 2*time.Second)
+		out, err := runGenerator(fork.bin, "sleepgen", dir, env, 2*time.Second)
 		ch <- runRes{out, err}
 	}()
 	var pgid int
