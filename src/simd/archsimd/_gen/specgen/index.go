@@ -62,6 +62,20 @@ func (idx *Index) Lookup(recv, name string) *Func {
 	return idx.m[indexKey{recv: recv, name: name}]
 }
 
+// IsExperiment reports whether the function or method recv.name is
+// experimental, meaning it is enabled only by GOEXPERIMENT=simd rather than
+// being part of the generally available API (enabled by
+// GOEXPERIMENT=simdstable). An API is experimental if it isn't covered by spec
+// or is marked //specgen:experiment. For package-level functions, recv should
+// be "".
+//
+// Some APIs not covered by spec are generally available anyway, but that's up
+// to the caller to decide.
+func (idx *Index) IsExperiment(recv, name string) bool {
+	f := idx.Lookup(recv, name)
+	return f == nil || f.Experiment
+}
+
 // LookupType finds the API type with the given name, or returns nil.
 func (idx *Index) LookupType(name string) *TypeDecl {
 	if idx == nil {

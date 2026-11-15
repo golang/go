@@ -16,6 +16,7 @@ import (
 
 	"simd/archsimd/_gen/sgutil"
 	"simd/archsimd/_gen/simdgen/types"
+	"simd/archsimd/_gen/specgen"
 	"simd/archsimd/_gen/specgen/specexpr"
 )
 
@@ -303,11 +304,17 @@ func compareSimdTypePairs(x, y simdTypePair) int {
 }
 
 func simdPackageHeader() string {
+	return simdPackageHeaderFor("simd")
+}
+
+// simdPackageHeaderFor returns the header for a generated archsimd file that is
+// enabled by GOEXPERIMENT=experiment (either "simd" or "simdstable").
+func simdPackageHeaderFor(experiment string) string {
 	// A shared-package target's Go API files (SVE: types_sve.go, ops_sve.go) carry a
 	// "sve" name suffix, which is not a GOARCH, so unlike types_arm64.go they get
 	// no implicit build constraint. Add the GOARCH explicitly so they only build
 	// on their host arch and don't clash with other arches' tag types (e.g. v256).
-	constraint := "goexperiment.simd"
+	constraint := "goexperiment." + experiment
 	if a := CurrentArch(); a.sharesBackendPackage() {
 		constraint += " && " + a.Arch
 	}
@@ -517,12 +524,12 @@ func (x {{.Name}}) String() string {
 
 const simdFeaturesTemplate = `
 import "internal/cpu"
-
+{{if .DeclareVar}}
 type X86Features struct {}
 
 var X86 X86Features
-
-{{range .}}
+{{end}}
+{{range .Features}}
 {{$f := .}}
 // {{.Feature}} returns whether the CPU supports {{.Doc}}.
 {{- if ne .CPUIDDoc ""}}
@@ -1241,22 +1248,30 @@ func andList(list []string) string {
 	}
 }
 
-func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
+// writeSIMDFeatures writes the CPU feature checks required by ops. Each
+// feature check goes in the file for the most stable phase of any op that
+// requires it, and the feature check type and variable go in the phaseStable
+// file. files maps from each phase to its file.
+func writeSIMDFeatures(files map[phase]*bytes.Buffer, ops []Operation, specIdx *specgen.Index) {
 	// Gather all features
 	type featureKey struct {
 		GoArch  string
 		Feature string
 	}
-	featureSet := make(map[featureKey]struct{})
+	// featurePhase maps each feature to the most stable phase of an op that
+	// requires it.
+	featurePhase := make(map[featureKey]phase)
 	for _, op := range ops {
+		p := opPhase(op, specIdx)
 		// Generate a feature check for each independant feature in a
 		// composite feature.
 		for feature := range strings.SplitSeq(op.CPUFeature, ",") {
 			feature = strings.TrimSpace(feature)
-			featureSet[featureKey{op.GOARCH, feature}] = struct{}{}
+			k := featureKey{op.GOARCH, feature}
+			featurePhase[k] = max(featurePhase[k], p)
 		}
 	}
-	featureKeys := slices.SortedFunc(maps.Keys(featureSet), func(a, b featureKey) int {
+	featureKeys := slices.SortedFunc(maps.Keys(featurePhase), func(a, b featureKey) int {
 		if c := cmp.Compare(a.GoArch, b.GoArch); c != 0 {
 			return c
 		}
@@ -1274,20 +1289,25 @@ func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 		CPUIDDoc   string
 		ImpliesAll string
 	}
-	var features []feature
+	features := make(map[phase][]feature)
 	for _, k := range featureKeys {
+		p := featurePhase[k]
 		featureVar := goarchFeatureInfo[k.GoArch].featureVar
 		fi := goarchFeatureInfo[k.GoArch].features[k.Feature]
 		for _, dep := range fi.Implies {
-			if _, ok := featureSet[featureKey{k.GoArch, dep}]; !ok {
+			depPhase := featurePhase[featureKey{k.GoArch, dep}]
+			if depPhase == 0 {
 				panic(fmt.Errorf("feature %s implies %s, which has no feature check", k.Feature, dep))
+			}
+			if depPhase < p {
+				panic(fmt.Errorf("feature %s is in %s, but implies %s, which is in %s", k.Feature, p, dep, depPhase))
 			}
 		}
 		doc := fi.Doc
 		if doc == "" {
 			doc = "the " + k.Feature + " feature"
 		}
-		features = append(features, feature{
+		features[p] = append(features[p], feature{
 			featureKey: k,
 			FeatureVar: featureVar,
 			Virtual:    fi.Virtual,
@@ -1301,10 +1321,21 @@ func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 	// to be more careful about this.
 	t := templateOf(simdFeaturesTemplate, "features")
 
-	buffer.WriteString(simdPackageHeader())
-
-	if err := t.Execute(buffer, features); err != nil {
-		panic(fmt.Errorf("failed to execute features template: %w", err))
+	type data struct {
+		DeclareVar bool
+		Features   []feature
+	}
+	for p := range features {
+		if files[p] == nil {
+			panic(fmt.Errorf("no feature check file for %s", p))
+		}
+	}
+	for _, p := range slices.Sorted(maps.Keys(files)) {
+		f := files[p]
+		f.WriteString(simdPackageHeaderFor(p.experiment()))
+		if err := t.Execute(f, data{p == phaseStable, features[p]}); err != nil {
+			panic(fmt.Errorf("failed to execute features template: %w", err))
+		}
 	}
 }
 

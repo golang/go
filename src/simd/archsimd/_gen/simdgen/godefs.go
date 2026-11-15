@@ -5,6 +5,7 @@
 package main
 
 import (
+	"bytes"
 	"cmp"
 	"fmt"
 	"log"
@@ -763,7 +764,10 @@ func writeGoDefs(cl unify.Closure) error {
 	writeSIMDTypes(files.NewGoFile(simdPackage+"/types_"+goTypeArch+".go"), typeMap)
 	// TODO: Enable CPU feature generation for non-x86 architectures.
 	if archLower == "amd64" {
-		writeSIMDFeatures(files.NewGoFile(simdPackage+"/cpu.go"), deduped)
+		writeSIMDFeatures(map[phase]*bytes.Buffer{
+			phaseStable:     files.NewGoFile(simdPackage + "/cpu.go"),
+			phaseExperiment: files.NewGoFile(simdPackage + "/cpu_exp.go"),
+		}, deduped, specIdx)
 	}
 	writeSIMDStubs(
 		files.NewGoFile(simdPackage+"/ops_"+goTypeArch+".go"),
