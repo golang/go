@@ -3,3 +3,6 @@ ok group-second-present-wins
 ok group-first-present-wins
 ok group-present-outer-stops-at-first-operand
 ok group-present-outer-ignores-later-operands
+ok map-present-none-stops-group
+ok map-present-value-stops-group
+ok map-missing-falls-through-group

@@ -48,6 +48,14 @@ func main() {
 	r = pick(someNone(), two, 9)
 	check("group-present-outer-ignores-later-operands", r == nil, r == nil, true)
 
+	m := map[int](int?){1: none, 2: two}
+	r = m[1] ?? two ?? 9
+	check("map-present-none-stops-group", r == nil, r == nil, true)
+	r = m[2] ?? none ?? 9
+	check("map-present-value-stops-group", r != nil && (r ?? -1) == 2, r != nil, true)
+	r = m[3] ?? none ?? 9
+	check("map-missing-falls-through-group", r != nil && (r ?? -1) == 9, r != nil, true)
+
 	if failed {
 		os.Exit(1)
 	}
