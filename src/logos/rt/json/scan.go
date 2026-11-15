@@ -9,7 +9,6 @@ import (
 	"errors"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -519,9 +518,11 @@ func EnterUnionTrial(raw []byte) *UnionTrial {
 	unionTrials.mu.Lock()
 	defer unionTrials.mu.Unlock()
 	active := unionTrials.active
-	at := sort.Search(len(active), func(i int) bool {
-		rootLo, _ := addressRange(active[i].root)
-		return rootLo > lo
+	at, _ := slices.BinarySearchFunc(active, lo, func(t *UnionTrial, lo uintptr) int {
+		if rootLo, _ := addressRange(t.root); rootLo > lo {
+			return 1
+		}
+		return -1
 	})
 	if at > 0 {
 		if _, rootHi := addressRange(active[at-1].root); hi <= rootHi {
