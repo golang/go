@@ -216,7 +216,7 @@ func (z *zeroCopy) rewritePlainConv(e syntax.Expr) syntax.Expr {
 		return e
 	}
 	arg := syntax.Unparen(call.ArgList[0])
-	if !z.singleEval(arg) || !z.isStringType(z.info.TypeOf(arg)) {
+	if !z.isStringType(z.info.TypeOf(arg)) {
 		return e
 	}
 	return z.sliceOfString(call, arg)
@@ -275,7 +275,7 @@ func (z *zeroCopy) rewriteCall(e syntax.Expr) (syntax.Expr, bool) {
 			return nil, false
 		}
 		arg := syntax.Unparen(call.ArgList[0])
-		if !z.singleEval(arg) || !z.isStringType(z.info.TypeOf(arg)) {
+		if !z.isStringType(z.info.TypeOf(arg)) {
 			return nil, false
 		}
 		return z.sliceOfString(call, arg), true
@@ -303,14 +303,6 @@ func (z *zeroCopy) bareStringName(name *syntax.Name) bool {
 	return true
 }
 
-func (z *zeroCopy) singleEval(e syntax.Expr) bool {
-	switch e.(type) {
-	case *syntax.Name, *syntax.BasicLit:
-		return true
-	}
-	return false
-}
-
 func (z *zeroCopy) sliceOfString(call *syntax.CallExpr, arg syntax.Expr) syntax.Expr {
 	return z.runtimeConvert(call, arg, types2.Uint8)
 }
@@ -326,7 +318,7 @@ func (z *zeroCopy) runtimeConvert(call *syntax.CallExpr, arg syntax.Expr, target
 		base.Fatalf("logos: conversion at %s has no single operand", pos.String())
 	}
 	start := z.fl.off(syntax.Unparen(call.Fun).Pos())
-	text := z.fl.textOf(split.args[0])
+	text := z.fl.lazyText(split.args[0])
 	qual := z.fl.synthQualifier(types2.Unsafe)
 	name := fmt.Sprintf("_logos_zeroCopy_%x", pos.String())
 	header := "struct { data " + qual + ".Pointer; length Length }"
@@ -372,7 +364,10 @@ func (z *zeroCopy) isByteSlice(t types2.Type) bool {
 }
 
 func (z *zeroCopy) isStringType(t types2.Type) bool {
-	b, ok := types2.Unalias(t).(*types2.Basic)
+	if t == nil {
+		return false
+	}
+	b, ok := t.Underlying().(*types2.Basic)
 	return ok && (b.Kind() == types2.String || b.Kind() == types2.UntypedString)
 }
 
