@@ -332,9 +332,8 @@ func (st *parStage) ownership() {
 	}
 }
 
-func (cg *chainGen) parCloseOne(i int, v string) string {
-	p := cg.prefix
-	return fmt.Sprintf("if %[1]s_cc%[2]d, %[1]s_ok%[2]d := any(%[3]s).(interface{ Close() error }); %[1]s_ok%[2]d { %[1]s_cc%[2]d.Close() }", p, i, v)
+func (cg *chainGen) parCloseOne(i int, v string, t types2.Type) string {
+	return chainCloseOne(fmt.Sprintf("%s_cc%d", cg.prefix, i), v, t, cg.spellType(t))
 }
 
 func (cg *chainGen) parNotOwned(st *parStage) string {
@@ -347,7 +346,7 @@ func (cg *chainGen) parDrop(st *parStage, i int, cur string) string {
 	case closes && !parMapAfter(st.seg, i):
 		return "return " + cur + ", false, nil"
 	case closes:
-		return cg.parCloseOne(i, cur) + "; return " + cg.parNotOwned(st)
+		return cg.parCloseOne(i, cur, st.inType(i)) + "; return " + cg.parNotOwned(st)
 	case logosMayBeCloser(st.resT):
 		return "return " + cg.parNotOwned(st)
 	case parMapAfter(st.seg, i):
@@ -371,7 +370,7 @@ func (cg *chainGen) parStep(st *parStage, i int, cur string) (line, next string)
 		keep := fmt.Sprintf("%s_k%d", p, i)
 		examined := fail
 		if st.owned[i] && logosMayBeCloser(st.inType(i)) {
-			examined = cg.parCloseOne(i, cur) + "; " + fail
+			examined = cg.parCloseOne(i, cur, st.inType(i)) + "; " + fail
 		}
 		return fmt.Sprintf("%s, %s := %s(%s); if %s != nil { %s }; if !%s { %s }", keep, errN, fn, cur, errN, examined, keep, drop), cur
 	}

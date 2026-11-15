@@ -1,0 +1,49 @@
+// run
+
+package main
+
+import "fmt"
+
+type largeFlight struct {
+	data [4096]byte
+	id int
+	log *[]int
+}
+
+func (v largeFlight) Close() error {
+	*v.log = append(*v.log, v.id)
+	return nil
+}
+
+type nextFlight struct { largeFlight }
+
+func main() {
+	log := []int{}
+	func() {
+		defer func() {
+			if recover() != "predicate" { panic("missing predicate panic") }
+		}()
+		_ = []int{1, 2, 3}.map(x => largeFlight{id: x, log: &log}).filter(v => {
+			if v.id == 3 { panic("predicate") }
+			return true
+		}).map(v => v).filter(v => true)
+	}()
+	if fmt.Sprint(log) != "[3 2 1]" { panic(fmt.Sprint(log)) }
+	log = nil
+	out := []int{1, 2, 3}.map(x => largeFlight{id: x, log: &log}).filter(v => v.id != 2).map(v => v).filter(v => true)
+	if len(out) != 2 || out[0].id != 1 || out[1].id != 3 || fmt.Sprint(log) != "[2]" { panic("ownership transfer") }
+	log = nil
+	func() {
+		defer func() {
+			if recover() != "second predicate" { panic("missing second predicate panic") }
+		}()
+		_ = []int{1, 2, 3}.map(x => largeFlight{id: x, log: &log}).filter(v => true).map(v => {
+			v.Close()
+			return nextFlight{largeFlight: largeFlight{id: v.id + 100, log: &log}}
+		}).filter(v => {
+			if v.id == 103 { panic("second predicate") }
+			return true
+		}).map(v => v).filter(v => true)
+	}()
+	if fmt.Sprint(log) != "[1 2 3 103 102 101]" { panic(fmt.Sprint(log)) }
+}
