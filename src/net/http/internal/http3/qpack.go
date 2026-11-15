@@ -219,7 +219,7 @@ func (st *stream) decodeLiteralFieldLineWithLiteralName(b byte) (itype indexType
 func (st *stream) readPrefixedInt(prefixLen uint8) (firstByte byte, v int64, err error) {
 	firstByte, err = st.ReadByte()
 	if err != nil {
-		return 0, 0, errQPACKDecompressionFailed
+		return 0, 0, qpackReadError(err)
 	}
 	v, err = st.readPrefixedIntWithByte(firstByte, prefixLen)
 	return firstByte, v, err
@@ -234,7 +234,7 @@ func (st *stream) readPrefixedIntWithByte(firstByte byte, prefixLen uint8) (int6
 	}
 	v, err := binary.ReadUvarint(st)
 	if err != nil {
-		return 0, errQPACKDecompressionFailed
+		return 0, qpackReadError(err)
 	}
 	if v > math.MaxInt64-uint64(prefixMask) {
 		return 0, errQPACKDecompressionFailed
@@ -270,7 +270,7 @@ func appendPrefixedInt(b []byte, firstByte byte, prefixLen uint8, i int64) []byt
 func (st *stream) readPrefixedString(prefixLen uint8) (firstByte byte, s string, err error) {
 	firstByte, err = st.ReadByte()
 	if err != nil {
-		return 0, "", errQPACKDecompressionFailed
+		return 0, "", qpackReadError(err)
 	}
 	s, err = st.readPrefixedStringWithByte(firstByte, prefixLen)
 	return firstByte, s, err
@@ -281,7 +281,7 @@ func (st *stream) readPrefixedString(prefixLen uint8) (firstByte byte, s string,
 func (st *stream) readPrefixedStringWithByte(firstByte byte, prefixLen uint8) (s string, err error) {
 	size, err := st.readPrefixedIntWithByte(firstByte, prefixLen)
 	if err != nil {
-		return "", errQPACKDecompressionFailed
+		return "", err
 	}
 	if st.lim >= 0 && size > st.lim {
 		return "", errQPACKDecompressionFailed
@@ -293,7 +293,7 @@ func (st *stream) readPrefixedStringWithByte(firstByte byte, prefixLen uint8) (s
 	// TODO: Avoid allocating here.
 	data := make([]byte, size)
 	if _, err := io.ReadFull(st, data); err != nil {
-		return "", errQPACKDecompressionFailed
+		return "", qpackReadError(err)
 	}
 	if isHuffman {
 		// TODO: Move Huffman functions into a new package that hpack (HTTP/2)
@@ -306,6 +306,16 @@ func (st *stream) readPrefixedStringWithByte(firstByte byte, prefixLen uint8) (s
 		return s, nil
 	}
 	return string(data), nil
+}
+
+// qpackReadError preserves connection errors from the frame reader. In
+// particular, reading past a frame boundary invalidates the stream, so the
+// caller must abort the connection rather than attempt to reset the stream.
+func qpackReadError(err error) error {
+	if _, ok := err.(*connectionError); ok {
+		return err
+	}
+	return errQPACKDecompressionFailed
 }
 
 // appendPrefixedString appends an RFC 7541 string to st,
