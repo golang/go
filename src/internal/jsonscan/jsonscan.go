@@ -8,7 +8,10 @@
 // argument.
 package jsonscan
 
-import "unsafe"
+import (
+	"internal/abi"
+	"unsafe"
+)
 
 const minKernelLen = 16
 
@@ -18,8 +21,7 @@ func IndexStringSpecial[B ~[]byte | ~string](b B) int {
 	if len(b) < minKernelLen {
 		return indexStringSpecialRef(b)
 	}
-	s := view(b)
-	return indexStringSpecial(unsafe.StringData(s), len(s))
+	return indexStringSpecial(view(b))
 }
 
 // IndexEscapeHTML returns the index of the first byte c of b with
@@ -29,8 +31,7 @@ func IndexEscapeHTML[B ~[]byte | ~string](b B) int {
 	if len(b) < minKernelLen {
 		return indexEscapeHTMLRef(b)
 	}
-	s := view(b)
-	return indexEscapeHTML(unsafe.StringData(s), len(s))
+	return indexEscapeHTML(view(b))
 }
 
 // IndexEscape returns the index of the first byte c of b with
@@ -39,8 +40,13 @@ func IndexEscape[B ~[]byte | ~string](b B) int {
 	return IndexStringSpecial(b)
 }
 
-func view[B ~[]byte | ~string](b B) string {
-	return *(*string)(unsafe.Pointer(&b))
+func view[B ~[]byte | ~string](b B) (*byte, int) {
+	s := *(*string)(unsafe.Pointer(&b))
+	// SAFETY: the kernels only read s[0:len(s)] and keep no pointer, and the
+	// returned pointer keeps the bytes alive as a call argument. NoEscape
+	// stops the compiler from treating b as written by the bodyless assembly
+	// function, which would force callers to copy a string converted to []byte.
+	return (*byte)(abi.NoEscape(unsafe.Pointer(unsafe.StringData(s)))), len(s)
 }
 
 func indexStringSpecialRef[B ~[]byte | ~string](b B) int {
