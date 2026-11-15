@@ -115,12 +115,29 @@ func ConsumeSimpleString(b []byte) (n int) {
 // It reports the number of bytes consumed and whether an error was encountered.
 // If the input appears truncated, it returns io.ErrUnexpectedEOF.
 func ConsumeString(flags *ValueFlags, b []byte, validateUTF8 bool) (n int, err error) {
-	return ConsumeStringResumable(flags, b, 0, validateUTF8)
+	return ConsumeStringFinal(flags, b, 0, validateUTF8)
 }
 
-// ConsumeStringResumable is identical to [ConsumeString] but supports resuming
-// from a previous call that returned io.ErrUnexpectedEOF.
-func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, validateUTF8 bool) (n int, err error) {
+// ConsumeStringStreaming consumes the next JSON string per RFC 7159, section 7
+// from b, which may be followed by more input, resuming from a previous call
+// that returned io.ErrUnexpectedEOF at the reported offset.
+// A Unicode escape sequence truncated by the end of b always returns
+// io.ErrUnexpectedEOF so that the caller can provide more input, deferring
+// the diagnostic until the final chunk of input arrives.
+func ConsumeStringStreaming(flags *ValueFlags, b []byte, resumeOffset int, validateUTF8 bool) (n int, err error) {
+	return consumeString(flags, b, resumeOffset, validateUTF8, true)
+}
+
+// ConsumeStringFinal consumes the next JSON string per RFC 7159, section 7
+// from b, which must be the final chunk of input, resuming from a previous
+// call to [ConsumeStringStreaming] that returned io.ErrUnexpectedEOF at the
+// reported offset. A Unicode escape sequence truncated by the end of b is
+// diagnosed using only the input given.
+func ConsumeStringFinal(flags *ValueFlags, b []byte, resumeOffset int, validateUTF8 bool) (n int, err error) {
+	return consumeString(flags, b, resumeOffset, validateUTF8, false)
+}
+
+func consumeString(flags *ValueFlags, b []byte, resumeOffset int, validateUTF8 bool, streaming bool) (n int, err error) {
 	// Consume the leading double quote.
 	switch {
 	case resumeOffset > 0:
@@ -179,7 +196,7 @@ func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, valid
 				n += 2
 			case 'u':
 				if uint(len(b)) < uint(n+6) {
-					if hasEscapedUTF16Prefix(b[n:], false) {
+					if streaming || hasEscapedUTF16Prefix(b[n:], false) {
 						return resumeOffset, io.ErrUnexpectedEOF
 					}
 					flags.Join(stringNonCanonical)
@@ -214,7 +231,7 @@ func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, valid
 				r := rune(v1)
 				if validateUTF8 && utf16.IsSurrogate(r) {
 					if uint(len(b)) < uint(n+6) {
-						if hasEscapedUTF16Prefix(b[n:], true) {
+						if streaming || hasEscapedUTF16Prefix(b[n:], true) {
 							return resumeOffset, io.ErrUnexpectedEOF
 						}
 						flags.Join(stringNonCanonical)

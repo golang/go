@@ -927,18 +927,23 @@ func (d *decoderState) consumeLiteral(pos int, lit string) (newPos int, err erro
 func (d *decoderState) consumeString(flags *jsonwire.ValueFlags, pos int) (newPos int, err error) {
 	var n int
 	for {
-		n, err = jsonwire.ConsumeStringResumable(flags, d.buf[pos:], n, !d.Flags.Get(jsonflags.AllowInvalidUTF8))
-		if err == io.ErrUnexpectedEOF {
-			absPos := d.baseOffset + int64(pos)
-			err = d.fetch() // will mutate d.buf and invalidate pos
-			pos = int(absPos - d.baseOffset)
-			if err != nil {
-				return pos + n, err
-			}
+		n, err = jsonwire.ConsumeStringStreaming(flags, d.buf[pos:], n, !d.Flags.Get(jsonflags.AllowInvalidUTF8))
+		if err != io.ErrUnexpectedEOF {
+			return pos + n, err
+		}
+		absPos := d.baseOffset + int64(pos)
+		err = d.fetch()
+		pos = int(absPos - d.baseOffset)
+		if err == nil {
 			continue
 		}
-		return pos + n, err
+		if err != io.ErrUnexpectedEOF {
+			return pos + n, err
+		}
+		break
 	}
+	n, err = jsonwire.ConsumeStringFinal(flags, d.buf[pos:], n, !d.Flags.Get(jsonflags.AllowInvalidUTF8))
+	return pos + n, err
 }
 
 // consumeNumber consumes a single JSON number starting at d.buf[pos:].

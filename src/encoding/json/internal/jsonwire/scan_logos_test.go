@@ -404,12 +404,12 @@ func checkScanResume(t *testing.T, in []byte, c scanCase) {
 	wantN, wantFlags, wantErr := refConsumeString(in, false)
 	for cut := 1; cut <= len(in); cut++ {
 		var flags ValueFlags
-		n, err := ConsumeStringResumable(&flags, in[:cut], 0, false)
+		n, err := ConsumeStringStreaming(&flags, in[:cut], 0, false)
 		if errors.Is(err, io.ErrUnexpectedEOF) {
-			n, err = ConsumeStringResumable(&flags, in, n, false)
+			n, err = ConsumeStringFinal(&flags, in, n, false)
 		}
 		if n != wantN || flags != wantFlags || !reflect.DeepEqual(err, wantErr) {
-			t.Fatalf("ConsumeStringResumable(%q, cut=%d) [%v] = (%d, %v, %v), want (%d, %v, %v)",
+			t.Fatalf("ConsumeStringStreaming+ConsumeStringFinal(%q, cut=%d) [%v] = (%d, %v, %v), want (%d, %v, %v)",
 				in, cut, c, n, flags, err, wantN, wantFlags, wantErr)
 		}
 	}
