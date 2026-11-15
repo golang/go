@@ -117,6 +117,10 @@ func FreezeSlice[S ~[]E, E any](fr *Freezer, s S, copyElem func(*Freezer, *E, *E
 	ns := make(S, len(full))
 	view := ns[:len(s)]
 	fr.remember(key, view)
+	var zero E
+	if unsafe.Sizeof(zero) == 0 {
+		return view
+	}
 	if copyElem == nil {
 		copy(ns, full)
 		return view
