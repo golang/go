@@ -478,11 +478,20 @@ type UnionTrialOutcome struct {
 // their address range stays allocated and fixed until the outermost trial
 // returns, and a nested trial joins the root whose range contains its bytes.
 // Decodes of separate buffers therefore share no outcomes.
+//
+// Outcomes are keyed by content: first by typeID, then by the raw bytes
+// of the union value, so equal spans inside one root value share an
+// outcome regardless of address. Store snapshots the bytes, so a later
+// mutation of the caller's buffer can neither corrupt nor re-key an
+// already stored entry. entries counts stored outcomes across all
+// typeIDs and bytes counts their retained key payload; exceeding either
+// budget drops the whole cache.
 type UnionTrial struct {
 	root     []byte
 	depth    int
 	mu       sync.Mutex
-	outcomes map[string]UnionTrialOutcome
+	outcomes map[string]map[string]UnionTrialOutcome
+	entries  int
 	bytes    int
 }
 
@@ -494,14 +503,6 @@ var unionTrials struct {
 func addressRange(raw []byte) (lo, hi uintptr) {
 	lo = uintptr(unsafe.Pointer(unsafe.SliceData(raw)))
 	return lo, lo + uintptr(len(raw))
-}
-
-func unionTrialKey(typeID string, raw []byte) string {
-	key := make([]byte, 0, len(typeID)+1+len(raw))
-	key = append(key, typeID...)
-	key = append(key, 0)
-	key = append(key, raw...)
-	return string(key)
 }
 
 func EnterUnionTrial(raw []byte) *UnionTrial {
@@ -536,10 +537,9 @@ func (t *UnionTrial) Exit() {
 }
 
 func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome) {
-	key := unionTrialKey(typeID, raw)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	out, ok := t.outcomes[key]
+	out, ok := t.outcomes[typeID][string(raw)]
 	if !ok {
 		return false, UnionTrialOutcome{Kind: UnionTrialMiss, Winner: -1}
 	}
@@ -547,15 +547,28 @@ func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome)
 }
 
 func (t *UnionTrial) Store(typeID string, raw []byte, out UnionTrialOutcome) {
-	key := unionTrialKey(typeID, raw)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.outcomes == nil || len(t.outcomes) > 1024 || t.bytes > 1<<20 {
-		t.outcomes = make(map[string]UnionTrialOutcome)
+	if t.outcomes == nil || t.entries > 1024 || t.bytes > 1<<20 {
+		t.outcomes = make(map[string]map[string]UnionTrialOutcome)
+		t.entries = 0
 		t.bytes = 0
 	}
-	if _, dup := t.outcomes[key]; !dup {
-		t.bytes += len(key)
+	inner := t.outcomes[typeID]
+	if inner == nil {
+		inner = make(map[string]UnionTrialOutcome)
+		id := strings.Clone(typeID)
+		t.outcomes[id] = inner
+		t.bytes += len(id)
 	}
-	t.outcomes[key] = out
+	old, dup := inner[string(raw)]
+	if dup {
+		if old != out {
+			inner[string(raw)] = out
+		}
+		return
+	}
+	t.entries++
+	t.bytes += len(raw)
+	inner[string(raw)] = out
 }
