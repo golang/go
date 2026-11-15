@@ -45,6 +45,13 @@ func stable(label string, read func() string, want string) {
 	check(label, true, "", "")
 }
 
+func assertQuiet(label string, got, want string) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", label+":", "got", got, "want", want)
+	}
+}
+
 func nameKeys(m const map[name]int) string {
 	s := ""
 	for k := range m {
@@ -149,6 +156,48 @@ func nestedValues(m const map[nested]int) string {
 	return s
 }
 
+func shadowedPairWordsKeys(m const map[[2]pair]int, w const map[words]int, p pair, aw words) string {
+	type pair struct {
+		S string
+	}
+	type words [3]int
+	lp := pair{S: "local"}
+	lw := words{5, 6, 7}
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	for k := range w {
+		s += fmt.Sprintf("%v|", k)
+	}
+	if lp.S != "local" || lw[2] != 7 || p.A+p.B != 1 || aw[0] != "a" {
+		return ""
+	}
+	return s
+}
+
+func shadowedComparatorInt(m const map[pair]int) string {
+	int := 3
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%d:%d|", k.A, v)
+	}
+	if int != 3 {
+		return ""
+	}
+	return s
+}
+
+func checkComparatorBindings() {
+	assertQuiet("kind-shadow-pair-words", shadowedPairWordsKeys(
+		map[[2]pair]int{{{1, 2}, {0, 0}}: 0, {{1, 1}, {9, 9}}: 0, {{0, 5}, {7, 7}}: 0},
+		map[words]int{{"b", "a"}: 0, {"a", "z"}: 0, {"a", "b"}: 0},
+		pair{1, 0},
+		words{"a", "z"},
+	), "[{0 5} {7 7}]|[{1 1} {9 9}]|[{1 2} {0 0}]|[a b]|[a z]|[b a]|")
+	assertQuiet("kind-shadow-comparator-int", shadowedComparatorInt(map[pair]int{{2, 0}: 20, {1, 0}: 10}), "1:10|2:20|")
+}
+
 func main() {
 	stable("kind-named-string", func() string {
 		return nameKeys(map[name]int{"b": 0, "a": 0, "ab": 0, "": 0, "B": 0})
@@ -199,6 +248,7 @@ func main() {
 			{inner{3, "x"}, [2]int{0, 0}, false}: 30,
 		})
 	}, "1=10|2=20|3=30|")
+	checkComparatorBindings()
 	if failed {
 		os.Exit(1)
 	}

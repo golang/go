@@ -1,0 +1,147 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+mkdir $WORK/bin
+
+cd foreign
+logos build ./...
+logos build -o $WORK/bin/foreign$GOEXE ./cmd
+exec $WORK/bin/foreign$GOEXE
+stdout '^foreign-ok$'
+logos run ./cmd
+stdout '^foreign-ok$'
+logos eject -o eject
+exists eject/go.mod
+cd eject
+go build ./lib ./cmd
+go run ./cmd
+stdout '^foreign-ok$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run ./cmd
+stdout '^foreign-ok$'
+cd ../..
+
+-- foreign/go.mod --
+module example.com/foreign
+
+go 1.27
+
+-- foreign/lib/lib.lgo --
+package lib
+
+type Blank = struct {
+	N int
+	_ int
+}
+
+type Refd = struct {
+	N   int
+	ref *int
+}
+
+type Key struct {
+	N int
+}
+
+func NewBlank(n, hidden int) Blank {
+	return Blank{n, hidden}
+}
+
+func NewRefd(n, ref int) Refd {
+	p := ref
+	return Refd{n, &p}
+}
+
+func BlankMap() map[Blank]int {
+	return map[Blank]int{
+		NewBlank(2, 9): 20,
+		NewBlank(0, 7): 0,
+		NewBlank(1, 8): 10,
+	}
+}
+
+func RefdMap() map[Refd]int {
+	return map[Refd]int{
+		NewRefd(3, 300): 3,
+		NewRefd(1, 100): 1,
+		NewRefd(2, 200): 2,
+	}
+}
+
+func KeyMap() map[Key]int {
+	return map[Key]int{
+		Key{N: 2}: 20,
+		Key{N: 0}: 0,
+		Key{N: 1}: 10,
+	}
+}
+
+-- foreign/cmd/main.lgo --
+package main
+
+import (
+	"fmt"
+
+	"example.com/foreign/lib"
+)
+
+func blankKeys(m const map[lib.Blank]int) string {
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%d:%d|", k.N, v)
+	}
+	return s
+}
+
+func refdKeys(m const map[lib.Refd]int) string {
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%d:%d|", k.N, v)
+	}
+	return s
+}
+
+func keyKeys(m const map[lib.Key]int) string {
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%d:%d|", k.N, v)
+	}
+	return s
+}
+
+func qualShadowKeys(m const map[lib.Key]int) string {
+	lib := 3
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%d:%d|", k.N, v)
+	}
+	_ = lib
+	return s
+}
+
+func main() {
+	if got, want := blankKeys(lib.BlankMap()), "0:0|1:10|2:20|"; got != want {
+		fmt.Println("blank-bad", got)
+		return
+	}
+	if got, want := refdKeys(lib.RefdMap()), "1:1|2:2|3:3|"; got != want {
+		fmt.Println("refd-bad", got)
+		return
+	}
+	if got, want := keyKeys(lib.KeyMap()), "0:0|1:10|2:20|"; got != want {
+		fmt.Println("key-bad", got)
+		return
+	}
+	if got, want := qualShadowKeys(lib.KeyMap()), "0:0|1:10|2:20|"; got != want {
+		fmt.Println("qual-bad", got)
+		return
+	}
+	if got, want := blankKeys(map[lib.Blank]int{lib.Blank{N: 2}: 20, lib.Blank{N: 0}: 0, lib.Blank{N: 1}: 10}), "0:0|1:10|2:20|"; got != want {
+		fmt.Println("mainlit-bad", got)
+		return
+	}
+	fmt.Println("foreign-ok")
+}
