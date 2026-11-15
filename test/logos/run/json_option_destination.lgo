@@ -1,0 +1,58 @@
+// run
+
+package main
+
+import (
+ "encoding/json"
+ "strings"
+)
+
+type DestinationA struct { A int `json:"a"` }
+type DestinationB struct { B int `json:"b"` }
+type DestinationChoice interface { DestinationA | DestinationB }
+type DestinationValue struct {
+ Rows [][]DestinationChoice? `json:"rows"`
+ Maps map[string][]DestinationChoice? `json:"maps"`
+}
+type DestinationEffect int
+var destinationCalls int
+var destinationRaw = []byte(` { "value": "<tag>" } `)
+func (DestinationEffect) MarshalJSON() ([]byte, error) {
+ destinationCalls++
+ return destinationRaw, nil
+}
+type DestinationEffects struct {
+ Before DestinationEffect `json:"before"`
+ Value DestinationValue `json:"value"`
+ After DestinationEffect `json:"after"`
+}
+
+type DestinationRecursive struct { Children []DestinationBranch? `json:"children"` }
+type DestinationLeaf struct { Value int `json:"value"` }
+type DestinationBranch interface { DestinationRecursive | DestinationLeaf }
+type DestinationRoot struct { Value DestinationBranch? `json:"value"` }
+
+func main() {
+ input := []byte(`{"rows":[[{"a":1},null,{"b":2}],[],null],"maps":{"z":[{"b":3}],"a":[{"a":4}]}}`)
+ var value DestinationValue
+ if err := json.Unmarshal(input, &value); err != nil { panic(err) }
+ for i := range input { input[i] = 'x' }
+ want := `{"rows":[[{"a":1},null,{"b":2}],[],null],"maps":{"a":[{"a":4}],"z":[{"b":3}]}}`
+ got, err := value.MarshalJSON()
+ if err != nil { panic(err) }
+ if string(got) != want { panic(string(got)) }
+ out, err := (DestinationEffects{Before:1, Value:value, After:2}).MarshalJSON()
+ if err != nil { panic(err) }
+ if destinationCalls != 2 { panic("custom method called more than once") }
+ if !strings.Contains(string(out), `"before":{"value":"\u003ctag\u003e"}`) { panic(string(out)) }
+ if string(got) != want { panic("previous output changed") }
+ destinationRaw = []byte(`invalid`)
+ _, err = (DestinationEffects{Before:1, Value:value, After:2}).MarshalJSON()
+ if err == nil || destinationCalls != 3 { panic("custom error order") }
+ var root DestinationRoot
+ deep := `{"value":` + strings.Repeat(`{"children":[`, 32) + `{"value":1}` + strings.Repeat(`]}`, 32) + `}`
+ if err := json.Unmarshal([]byte(deep), &root); err != nil { panic(err) }
+ encoded, err := root.MarshalJSON()
+ if err != nil { panic(err) }
+ if string(encoded) != deep { panic(string(encoded)) }
+}

@@ -484,6 +484,11 @@ func (e *jsonEnc) compositeBody(lt types2.Type, x, p string) []string {
 	if _, ok := e.methodArg(lt, x, p); ok {
 		return e.valueStmts(lt, x, p)
 	}
+	if jsonOptionOf(lt) != nil && optionJSONPath(lt, make(map[types2.Type]bool)) {
+		return ifElseLines("_logos_part, _logos_err := "+e.fl.optionJSONCall(e.plan, lt, x)+"; _logos_err != nil",
+			[]string{"return _logos_buf, _logos_s.RebaseDepthError(_logos_err, int64(len(_logos_buf)))"},
+			[]string{"_logos_buf = append(_logos_buf, _logos_part...)"})
+	}
 	if _, ok := jsonStructOf(lt); ok {
 		return e.structBody(lt, x, p)
 	}
