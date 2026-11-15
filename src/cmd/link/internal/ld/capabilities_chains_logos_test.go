@@ -15,10 +15,7 @@ import (
 type capEdge [2]loader.Sym
 
 func buildCapGraph(roots []loader.Sym, edges []capEdge) *capGraph {
-	g := &capGraph{
-		parent: make(map[loader.Sym]loader.Sym),
-		preds:  make(map[loader.Sym][]loader.Sym),
-	}
+	g := &capGraph{}
 	adj := make(map[loader.Sym][]loader.Sym)
 	for _, e := range edges {
 		adj[e[0]] = append(adj[e[0]], e[1])
@@ -54,10 +51,7 @@ func capChainNames(chain []loader.Sym, names map[loader.Sym]string) []string {
 }
 
 func TestCapGraphVisitDedupesEdges(t *testing.T) {
-	g := &capGraph{
-		parent: make(map[loader.Sym]loader.Sym),
-		preds:  make(map[loader.Sym][]loader.Sym),
-	}
+	g := &capGraph{}
 	if !g.visit(1, 0) {
 		t.Fatal("root must be new")
 	}

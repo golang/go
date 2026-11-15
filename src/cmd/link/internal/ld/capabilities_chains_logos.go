@@ -11,17 +11,35 @@ import (
 )
 
 type capGraph struct {
-	parent map[loader.Sym]loader.Sym
-	preds  map[loader.Sym][]loader.Sym
+	parent  []loader.Sym
+	reached []bool
+	preds   [][]loader.Sym
+}
+
+func newCapGraph(n int) *capGraph {
+	g := &capGraph{}
+	g.reserve(n)
+	return g
+}
+
+func (g *capGraph) reserve(n int) {
+	if n <= len(g.reached) {
+		return
+	}
+	g.parent = append(g.parent, make([]loader.Sym, n-len(g.parent))...)
+	g.reached = append(g.reached, make([]bool, n-len(g.reached))...)
+	g.preds = append(g.preds, make([][]loader.Sym, n-len(g.preds))...)
 }
 
 func (g *capGraph) visit(s, p loader.Sym) bool {
+	g.reserve(int(s) + 1)
 	if ps := g.preds[s]; p != 0 && (len(ps) == 0 || ps[len(ps)-1] != p) {
 		g.preds[s] = append(ps, p)
 	}
-	if _, ok := g.parent[s]; ok {
+	if g.reached[s] {
 		return false
 	}
+	g.reached[s] = true
 	g.parent[s] = p
 	return true
 }
@@ -64,7 +82,7 @@ type capCandidate struct {
 }
 
 func (g *capGraph) blamedChains(sink loader.Sym, role func(loader.Sym) capRole) []capBlame {
-	if _, reached := g.parent[sink]; !reached {
+	if int(sink) >= len(g.reached) || !g.reached[sink] {
 		return nil
 	}
 	tails := map[loader.Sym]capTail{sink: {}}
