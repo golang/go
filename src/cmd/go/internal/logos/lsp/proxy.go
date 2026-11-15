@@ -24,6 +24,8 @@ const drainLimit = 30 * time.Second
 
 const outboxCap = 64
 
+const outboxStall = 2 * time.Second
+
 const maxPending = 1024
 
 const maxDiagURIs = 4096
@@ -100,6 +102,9 @@ type Proxy struct {
 	in            io.Reader
 	sendErr       error
 	clientPending atomic.Int64
+	clientServed  atomic.Int64
+	serverServed  atomic.Int64
+	failed        atomic.Bool
 	stopMu        sync.Mutex
 	stopped       bool
 	shutdown      bool
@@ -386,10 +391,39 @@ func (p *Proxy) send(w *writer, m *message) {
 		queued = true
 	case <-p.done:
 	default:
-		p.failSession(errors.New("logos lsp: outbound queue full"))
+		queued = p.enqueueBounded(w, ch, m)
 	}
 	if w == p.client && !queued {
 		p.clientDelivered()
+	}
+}
+
+func (p *Proxy) enqueueBounded(w *writer, ch chan *message, m *message) bool {
+	if p.failed.Load() {
+		return false
+	}
+	served := &p.serverServed
+	if w == p.client {
+		served = &p.clientServed
+	}
+	delivered := served.Load()
+	timer := time.NewTimer(outboxStall)
+	defer timer.Stop()
+	for {
+		select {
+		case ch <- m:
+			return true
+		case <-timer.C:
+		case <-p.done:
+			return false
+		}
+		now := served.Load()
+		if now == delivered {
+			p.failSession(errors.New("logos lsp: outbound queue full"))
+			return false
+		}
+		delivered = now
+		timer.Reset(outboxStall)
 	}
 }
 
@@ -402,6 +436,10 @@ func (p *Proxy) clientDelivered() {
 }
 
 func (p *Proxy) pump(w *writer, ch chan *message) {
+	served := &p.serverServed
+	if w == p.client {
+		served = &p.clientServed
+	}
 	for {
 		select {
 		case m := <-ch:
@@ -409,6 +447,7 @@ func (p *Proxy) pump(w *writer, ch chan *message) {
 				p.failSession(err)
 				return
 			}
+			served.Add(1)
 			if w == p.client {
 				p.clientDelivered()
 			}
@@ -428,7 +467,10 @@ func (p *Proxy) fail(id json.RawMessage, code int, text string) {
 }
 
 func (p *Proxy) failSession(err error) {
-	p.stopMu.Lock()
+	p.failed.Store(true)
+	if !p.stopMu.TryLock() {
+		return
+	}
 	stopped := p.stopped
 	p.stopMu.Unlock()
 	if stopped {
