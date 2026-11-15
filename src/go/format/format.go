@@ -22,6 +22,7 @@ import (
 	"go/printer"
 	"go/token"
 	"io"
+	"strconv"
 )
 
 // Keep these in sync with cmd/gofmt/gofmt.go.
@@ -65,7 +66,7 @@ func Node(dst io.Writer, fset *token.FileSet, node any) error {
 	}
 
 	// Sort imports if necessary.
-	if file != nil && hasUnsortedImports(file) {
+	if file != nil && hasUnsortedImports(fset, file) {
 		// Make a copy of the AST because ast.SortImports is destructive.
 		// TODO(gri) Do this more efficiently.
 		var buf bytes.Buffer
@@ -114,7 +115,7 @@ func Source(src []byte) ([]byte, error) {
 	return format(fset, file, sourceAdj, indentAdj, src, config)
 }
 
-func hasUnsortedImports(file *ast.File) bool {
+func hasUnsortedImports(fset *token.FileSet, file *ast.File) bool {
 	for _, d := range file.Decls {
 		d, ok := d.(*ast.GenDecl)
 		if !ok || d.Tok != token.IMPORT {
@@ -123,9 +124,28 @@ func hasUnsortedImports(file *ast.File) bool {
 			return false
 		}
 		if d.Lparen.IsValid() {
-			// For now assume all grouped imports are unsorted.
-			// TODO(gri) Should check if they are sorted already.
-			return true
+			var prevPath string
+			var prevEnd int
+			for i, spec := range d.Specs {
+				s := spec.(*ast.ImportSpec)
+				path, err := strconv.Unquote(s.Path.Value)
+				if err != nil {
+					return true
+				}
+				line := fset.PositionFor(s.Pos(), false).Line
+				// SortImports sorts each run of consecutive import lines
+				// separately. Equal paths may need sorting by name or
+				// comment, or deduplication, so leave those to SortImports.
+				if i > 0 && line <= prevEnd+1 && path <= prevPath {
+					return true
+				}
+				prevPath = path
+				prevEnd = fset.PositionFor(s.End(), false).Line
+			}
+			if len(d.Specs) > 0 && fset.PositionFor(d.Rparen, false).Line > prevEnd+1 {
+				// SortImports also removes blank lines before the closing paren.
+				return true
+			}
 		}
 		// Ungrouped imports are sorted by default.
 	}

@@ -9,12 +9,102 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"os"
 	"strings"
 	"testing"
 )
 
 const testfile = "format_test.go"
+
+func TestNodeSortedImports(t *testing.T) {
+	for _, imports := range []string{
+		"import ()",
+		"import (\"a\")",
+		"import (\n\"a\"\n\"b\"\n)",
+		"import (\n// A\n\"a\" // a\nother \"b\" // b\n)",
+		"import (\n\"z\"\n\n\"a\"\n\"b\"\n)",
+		"import (\n\"a\"\n`b`\n\"\\x63\"\n)",
+		"import (\"z\")\nimport (\"a\")",
+	} {
+		t.Run(imports, func(t *testing.T) {
+			src := []byte("package p\n" + imports + "\n")
+			fset := token.NewFileSet()
+			file, err := parser.ParseFile(fset, "", src, parserMode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			base := fset.Base()
+			var out bytes.Buffer
+			if err := Node(&out, fset, file); err != nil {
+				t.Fatal(err)
+			}
+			if fset.Base() != base {
+				t.Error("Node reparsed a file with sorted imports")
+			}
+			want, err := Source(src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(out.Bytes(), want) {
+				t.Errorf("Node = %q, want %q", out.Bytes(), want)
+			}
+		})
+	}
+}
+
+func TestNodeImportOrder(t *testing.T) {
+	for _, imports := range []string{
+		"\"b\"; \"a\"",
+		"\"b\"\n\"a\"",
+		"b \"a\"\na \"a\"",
+		"\"a\"\n\"a\"",
+		"\"a\" // b\n\"a\" // a",
+		"\"b\" // b\n// A\n\"a\" // a",
+		"\"z\"\n\n\"b\"\n\"a\"",
+		"\"a\"\n\n",
+	} {
+		src := []byte("package p\nimport (\n" + imports + "\n)\n")
+		fset := token.NewFileSet()
+		file, err := parser.ParseFile(fset, "", src, parserMode)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out bytes.Buffer
+		if err := Node(&out, fset, file); err != nil {
+			t.Fatal(err)
+		}
+		want, err := Source(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(out.Bytes(), want) {
+			t.Errorf("Node(%q) = %q, want %q", src, out.Bytes(), want)
+		}
+	}
+}
+
+func BenchmarkNodeImports(b *testing.B) {
+	for _, test := range []struct{ name, imports string }{
+		{"Sorted", "import (\n\"bytes\"\n\"fmt\"\n\"io\"\n\"os\"\n)\n"},
+		{"Unsorted", "import (\n\"os\"\n\"io\"\n\"fmt\"\n\"bytes\"\n)\n"},
+	} {
+		b.Run(test.name, func(b *testing.B) {
+			src := []byte("package p\n" + test.imports + "var x = 1\n")
+			b.ReportAllocs()
+			for b.Loop() {
+				fset := token.NewFileSet()
+				file, err := parser.ParseFile(fset, "", src, parserMode)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if err := Node(io.Discard, fset, file); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
 
 func diff(t *testing.T, dst, src []byte) {
 	line := 1
