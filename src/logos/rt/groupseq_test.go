@@ -43,19 +43,19 @@ func intChan(n int) <-chan int {
 }
 
 func seqStage(ctx context.Context, limit, n int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-	return GroupSeq(ctx, limit, intSeq(n), f)
+	return GroupSeq[int, int, LeaveResultOpen[int]](ctx, limit, intSeq(n), f)
 }
 
 func seqStageUnordered(ctx context.Context, limit, n int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-	return GroupSeqUnordered(ctx, limit, intSeq(n), f)
+	return GroupSeqUnordered[int, int, LeaveResultOpen[int]](ctx, limit, intSeq(n), f)
 }
 
 func chanStage(ctx context.Context, limit, n int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-	return GroupChan(ctx, limit, intChan(n), f)
+	return GroupChan[int, int, LeaveResultOpen[int]](ctx, limit, intChan(n), f)
 }
 
 func chanStageUnordered(ctx context.Context, limit, n int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-	return GroupChanUnordered(ctx, limit, intChan(n), f)
+	return GroupChanUnordered[int, int, LeaveResultOpen[int]](ctx, limit, intChan(n), f)
 }
 
 var (
@@ -313,7 +313,7 @@ func TestGroupSeqWindowBoundsInFlightChildren(t *testing.T) {
 		const limit, total = 3, 40
 		var inflight, high atomic.Int32
 		gate := make(chan struct{})
-		seq := GroupSeq(t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
 			raise(&high, inflight.Add(1))
 			<-gate
 			inflight.Add(-1)
@@ -341,7 +341,7 @@ func TestGroupSeqWindowBoundsFinishedUndelivered(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const limit, total = 4, 10000
 		var outstanding, high atomic.Int32
-		seq := GroupSeq(t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
 			raise(&high, outstanding.Add(1))
 			return i, true, nil
 		})
@@ -364,7 +364,7 @@ func TestGroupSeqSlowHeadFillsWindowWithoutDeadlock(t *testing.T) {
 		const limit, total = 8, 30
 		var entered atomic.Int32
 		head := make(chan struct{})
-		seq := GroupSeq(t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), limit, intSeq(total), func(_ context.Context, i int) (int, bool, error) {
 			entered.Add(1)
 			if i == 0 {
 				<-head
@@ -456,7 +456,7 @@ func TestGroupSeqSourcePanicCancelsAndJoins(t *testing.T) {
 			}
 			panic("src")
 		}
-		c := startStage(GroupSeq(t.Context(), 3, src, b.f), nil)
+		c := startStage(GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), 3, src, b.f), nil)
 		if d := b.joinedBeforeReturn(t, c); d.pan != "src" {
 			t.Fatalf("panic = %v, want the source's panic value", d.pan)
 		}
@@ -535,7 +535,7 @@ func TestGroupSeqOrderedFailedElementIsNeverPassedOver(t *testing.T) {
 }
 
 func TestGroupSeqClosesUndeliveredInReverseInputOrder(t *testing.T) {
-	all := entries[*tracked]()
+	all := entries[*tracked, CloseResult[*tracked]]()
 	for _, name := range []string{"seq", "chan"} {
 		t.Run(name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) {
@@ -574,7 +574,7 @@ func TestGroupSeqClosesUndeliveredInReverseInputOrder(t *testing.T) {
 }
 
 func TestGroupSeqClosesUndeliveredOnEarlyStop(t *testing.T) {
-	eachEntry(t, func(t *testing.T, run entryFunc[*tracked]) {
+	eachEntry[*tracked, CloseResult[*tracked]](t, func(t *testing.T, run entryFunc[*tracked]) {
 		var log closeLog
 		started := make(chan struct{}, 2)
 		stop := make(chan struct{})
@@ -605,7 +605,7 @@ func TestGroupSeqFilterDropsAreClosedOnce(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		const total = 200
 		var log closeLog
-		seq := GroupSeq(t.Context(), 3, intSeq(total), func(_ context.Context, i int) (*tracked, bool, error) {
+		seq := GroupSeq[int, *tracked, CloseResult[*tracked]](t.Context(), 3, intSeq(total), func(_ context.Context, i int) (*tracked, bool, error) {
 			return &tracked{i, &log}, i%2 == 0, nil
 		})
 		d := finished(t, startStage(seq, nil))
@@ -630,7 +630,7 @@ func TestGroupSeqClosePanicPropagatesAfterJoin(t *testing.T) {
 		errHead := errors.New("head")
 		started := make(chan struct{}, 3)
 		hold := make(chan struct{})
-		seq := GroupSeq(t.Context(), 4, intSeq(4), func(_ context.Context, i int) (*panicCloser, bool, error) {
+		seq := GroupSeq[int, *panicCloser, CloseResult[*panicCloser]](t.Context(), 4, intSeq(4), func(_ context.Context, i int) (*panicCloser, bool, error) {
 			if i == 0 {
 				<-started
 				<-started
@@ -686,10 +686,10 @@ func TestGroupSeqLimitMustBePositive(t *testing.T) {
 			ch <- 0
 			f := func(_ context.Context, i int) (int, bool, error) { return i, true, nil }
 			for name, seq := range map[string]iter.Seq2[int, error]{
-				"seq":            GroupSeq(t.Context(), limit, src, f),
-				"seq unordered":  GroupSeqUnordered(t.Context(), limit, src, f),
-				"chan":           GroupChan(t.Context(), limit, ch, f),
-				"chan unordered": GroupChanUnordered(t.Context(), limit, ch, f),
+				"seq":            GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), limit, src, f),
+				"seq unordered":  GroupSeqUnordered[int, int, LeaveResultOpen[int]](t.Context(), limit, src, f),
+				"chan":           GroupChan[int, int, LeaveResultOpen[int]](t.Context(), limit, ch, f),
+				"chan unordered": GroupChanUnordered[int, int, LeaveResultOpen[int]](t.Context(), limit, ch, f),
 			} {
 				if d := finished(t, startStage(seq, nil)); d.pan != want {
 					t.Errorf("%s with limit %d: panic = %v, want %q", name, limit, d.pan, want)
@@ -783,7 +783,7 @@ func TestGroupSeqSourceAndBodyRunOnRangingGoroutine(t *testing.T) {
 				}
 			}
 		}
-		seq := GroupSeq(t.Context(), 2, src, func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), 2, src, func(_ context.Context, i int) (int, bool, error) {
 			mu.Lock()
 			defer mu.Unlock()
 			childIDs = append(childIDs, goroutineID())
@@ -813,7 +813,7 @@ func TestGroupChanLoopBodyRunsOnRangingGoroutine(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		var bodyIDs []uint64
 		var ranging uint64
-		seq := GroupChan(t.Context(), 2, intChan(6), func(_ context.Context, i int) (int, bool, error) { return i, true, nil })
+		seq := GroupChan[int, int, LeaveResultOpen[int]](t.Context(), 2, intChan(6), func(_ context.Context, i int) (int, bool, error) { return i, true, nil })
 		done := make(chan struct{})
 		go func() {
 			defer close(done)
@@ -832,7 +832,7 @@ func TestGroupChanLoopBodyRunsOnRangingGoroutine(t *testing.T) {
 func TestGroupChanReceivesOnRangingGoroutine(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ch := make(chan int)
-		seq := GroupChan(t.Context(), 2, ch, func(_ context.Context, i int) (int, bool, error) { return i, true, nil })
+		seq := GroupChan[int, int, LeaveResultOpen[int]](t.Context(), 2, ch, func(_ context.Context, i int) (int, bool, error) { return i, true, nil })
 		var ranging uint64
 		done := make(chan struct{})
 		go func() {
@@ -866,7 +866,7 @@ func goroutineStack(id uint64) string {
 func TestGroupChanDeliversWhileChannelIsQuiet(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ch := make(chan int)
-		seq := GroupChan(t.Context(), 2, ch, func(_ context.Context, v int) (int, bool, error) { return v * 2, true, nil })
+		seq := GroupChan[int, int, LeaveResultOpen[int]](t.Context(), 2, ch, func(_ context.Context, v int) (int, bool, error) { return v * 2, true, nil })
 		got := make(chan int, 1)
 		c := startStage(seq, func(r int) bool {
 			got <- r
@@ -892,7 +892,7 @@ func TestGroupChanEndsWithChildErrorWhileChannelIsQuiet(t *testing.T) {
 		errBoom := errors.New("boom")
 		ch := make(chan int)
 		fail := make(chan struct{})
-		seq := GroupChan(t.Context(), 2, ch, func(_ context.Context, v int) (int, bool, error) {
+		seq := GroupChan[int, int, LeaveResultOpen[int]](t.Context(), 2, ch, func(_ context.Context, v int) (int, bool, error) {
 			<-fail
 			return 0, false, errBoom
 		})
@@ -984,7 +984,7 @@ func TestGroupSeqLeavesNoWorkerAliveAfterAnyExit(t *testing.T) {
 		for name, sc := range exits {
 			var entered atomic.Int32
 			allIn := make(chan struct{})
-			seq := GroupSeq(t.Context(), limit, sc.src, func(_ context.Context, i int) (int, bool, error) {
+			seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), limit, sc.src, func(_ context.Context, i int) (int, bool, error) {
 				if i < limit {
 					if entered.Add(1) == limit {
 						close(allIn)
@@ -1215,7 +1215,7 @@ func TestGroupSeqOrderedStopsPullingAfterFailure(t *testing.T) {
 				}
 			}
 		}
-		seq := GroupSeq(t.Context(), 4, src, func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupSeq[int, int, LeaveResultOpen[int]](t.Context(), 4, src, func(_ context.Context, i int) (int, bool, error) {
 			calls.Add(1)
 			switch i {
 			case 0:
@@ -1243,7 +1243,7 @@ func TestGroupChanOrderedStopsReceivingAfterFailure(t *testing.T) {
 		errBoom := errors.New("boom")
 		gate := make(chan struct{})
 		ch := make(chan int)
-		seq := GroupChan(t.Context(), 4, ch, func(_ context.Context, i int) (int, bool, error) {
+		seq := GroupChan[int, int, LeaveResultOpen[int]](t.Context(), 4, ch, func(_ context.Context, i int) (int, bool, error) {
 			switch i {
 			case 0:
 				<-gate

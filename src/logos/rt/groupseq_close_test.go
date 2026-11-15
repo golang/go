@@ -13,7 +13,7 @@ import (
 )
 
 func TestGroupStageClosePanicPropagatesAfterJoinOnEveryEntry(t *testing.T) {
-	eachEntry(t, func(t *testing.T, run entryFunc[*panicCloser]) {
+	eachEntry[*panicCloser, CloseResult[*panicCloser]](t, func(t *testing.T, run entryFunc[*panicCloser]) {
 		var log closeLog
 		errHead := errors.New("head")
 		var release [3]chan struct{}

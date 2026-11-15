@@ -238,7 +238,37 @@ func (cg *chainGen) parSeqText(st *parStage) ([]otext, otext) {
 	default:
 		src = gen(srcN)
 	}
-	return binds, cat(gen(rtAlias+"."+verb+"["+s+", "+r+"]("+ctxN+", "+limN+", "), src, gen(", "), child, gen(")"))
+	entry := rtAlias + "." + verb + "[" + s + ", " + r + ", " + rtAlias + "." + parDiscard(st.resT, r) + "[" + r + "]]"
+	return binds, cat(gen(entry+"("+ctxN+", "+limN+", "), src, gen(", "), child, gen(")"))
+}
+
+func parDiscard(t types2.Type, spelled string) string {
+	if spelled == "any" || !plainMethodSet(t) {
+		return "CloseResultIfCloser"
+	}
+	if types2.Implements(t, closerInterface()) {
+		return "CloseResult"
+	}
+	return "LeaveResultOpen"
+}
+
+func plainMethodSet(t types2.Type) bool {
+	switch u := types2.Unalias(t).(type) {
+	case *types2.Named:
+		return !types2.IsInterface(u)
+	case *types2.Pointer:
+		return plainMethodSet(u.Elem())
+	case *types2.Basic, *types2.Slice, *types2.Array, *types2.Map, *types2.Chan, *types2.Signature, *types2.Struct:
+		return true
+	}
+	return false
+}
+
+func closerInterface() *types2.Interface {
+	errType := types2.Universe.Lookup("error").Type()
+	results := types2.NewTuple(types2.NewVar(syntax.Pos{}, nil, "", errType))
+	sig := types2.NewSignatureType(nil, nil, nil, nil, results, false)
+	return types2.NewInterfaceType([]*types2.Func{types2.NewFunc(syntax.Pos{}, nil, "Close", sig)}, nil)
 }
 
 func (cg *chainGen) parOpName(i int) string {

@@ -17,7 +17,7 @@ import (
 const rangedTwice = "logos: group stage sequence ranged twice"
 
 func TestGroupStageSecondRangePanicsOnEveryEntry(t *testing.T) {
-	eachEntry(t, func(t *testing.T, run entryFunc[int]) {
+	eachEntry[int, LeaveResultOpen[int]](t, func(t *testing.T, run entryFunc[int]) {
 		seq := run(t.Context(), 2, 3, func(_ context.Context, i int) (int, bool, error) { return i, true, nil })
 		d := finished(t, startStage(seq, nil))
 		if d.err != nil || len(d.rs) != 3 {
@@ -36,10 +36,10 @@ func TestGroupStageSecondRangePanicsOnEveryEntry(t *testing.T) {
 func TestGroupStageDoesNothingUntilRangedOnSequenceEntries(t *testing.T) {
 	for name, entry := range map[string]func(context.Context, iter.Seq[int], func(context.Context, int) (int, bool, error)) iter.Seq2[int, error]{
 		"seq": func(ctx context.Context, src iter.Seq[int], f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupSeq(ctx, 2, src, f)
+			return GroupSeq[int, int, LeaveResultOpen[int]](ctx, 2, src, f)
 		},
 		"seq-unordered": func(ctx context.Context, src iter.Seq[int], f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupSeqUnordered(ctx, 2, src, f)
+			return GroupSeqUnordered[int, int, LeaveResultOpen[int]](ctx, 2, src, f)
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -70,10 +70,10 @@ func TestGroupStageDoesNothingUntilRangedOnSequenceEntries(t *testing.T) {
 func TestGroupStageDoesNothingUntilRangedOnChannelEntries(t *testing.T) {
 	for name, entry := range map[string]func(context.Context, chan int, func(context.Context, int) (int, bool, error)) iter.Seq2[int, error]{
 		"chan": func(ctx context.Context, src chan int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupChan(ctx, 2, src, f)
+			return GroupChan[int, int, LeaveResultOpen[int]](ctx, 2, src, f)
 		},
 		"chan-unordered": func(ctx context.Context, src chan int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupChanUnordered(ctx, 2, src, f)
+			return GroupChanUnordered[int, int, LeaveResultOpen[int]](ctx, 2, src, f)
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -103,10 +103,10 @@ func TestGroupStageDoesNothingUntilRangedOnChannelEntries(t *testing.T) {
 func TestGroupStageIgnoresSourceElementsAfterTheStop(t *testing.T) {
 	for name, entry := range map[string]func(context.Context, iter.Seq[int], func(context.Context, int) (int, bool, error)) iter.Seq2[int, error]{
 		"seq": func(ctx context.Context, src iter.Seq[int], f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupSeq(ctx, 1, src, f)
+			return GroupSeq[int, int, LeaveResultOpen[int]](ctx, 1, src, f)
 		},
 		"seq-unordered": func(ctx context.Context, src iter.Seq[int], f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupSeqUnordered(ctx, 1, src, f)
+			return GroupSeqUnordered[int, int, LeaveResultOpen[int]](ctx, 1, src, f)
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -137,10 +137,10 @@ func TestGroupStageIgnoresSourceElementsAfterTheStop(t *testing.T) {
 func TestGroupChanStopsReceivingAfterTheStop(t *testing.T) {
 	for name, entry := range map[string]func(context.Context, <-chan int, func(context.Context, int) (int, bool, error)) iter.Seq2[int, error]{
 		"chan": func(ctx context.Context, src <-chan int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupChan(ctx, 1, src, f)
+			return GroupChan[int, int, LeaveResultOpen[int]](ctx, 1, src, f)
 		},
 		"chan-unordered": func(ctx context.Context, src <-chan int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-			return GroupChanUnordered(ctx, 1, src, f)
+			return GroupChanUnordered[int, int, LeaveResultOpen[int]](ctx, 1, src, f)
 		},
 	} {
 		t.Run(name, func(t *testing.T) {

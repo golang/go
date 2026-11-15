@@ -223,6 +223,40 @@ func caseSourceElementLeftOpen(ctx context.Context) {
 	check("closers-source-element-left-open", err == nil && len(got) == 1 && untouched(&itemCloses), counts(&itemCloses), "no close")
 }
 
+func mixedResult(id int) any {
+	if id%2 == 0 {
+		return open(id)
+	}
+	return id
+}
+
+func caseInterfaceResultClosesOnlyClosers(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 6).map(i => {
+		if i.id == 0 {
+			waitOthers()
+		} else {
+			others.Add(1)
+		}
+		return mixedResult(i.id)
+	}).take(1)
+	want := []int64{0, 0, 1, 0, 1, 0}
+	check("closers-interface-result-closes-only-closers", err == nil && len(got) == 1 && fmt.Sprint(counts(&closes)) == fmt.Sprint(want), counts(&closes), want)
+}
+
+func caseNonCloserResultLeftOpen(ctx context.Context) {
+	reset()
+	got, err := items().group(ctx, limit = 6).map(i => {
+		if i.id == 0 {
+			waitOthers()
+		} else {
+			others.Add(1)
+		}
+		return i.id
+	}).take(1)
+	check("closers-non-closer-result-left-open", err == nil && len(got) == 1 && untouched(&itemCloses) && untouched(&closes), counts(&itemCloses), "no close")
+}
+
 func decide(h *handle) (bool, error) {
 	if h.id == 3 {
 		return false, errExamined
@@ -277,6 +311,8 @@ func main() {
 	caseBorrowedReadsLeftOpen(ctx)
 	caseOwnedUndelivered(ctx)
 	caseSourceElementLeftOpen(ctx)
+	caseInterfaceResultClosesOnlyClosers(ctx)
+	caseNonCloserResultLeftOpen(ctx)
 	caseFilterPredicateFailure(ctx)
 	caseClosePanic(ctx)
 	if failed {

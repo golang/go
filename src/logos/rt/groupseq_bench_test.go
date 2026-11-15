@@ -86,13 +86,13 @@ func benchStage(b *testing.B, build func(b *testing.B, limit int, f func(context
 
 func BenchmarkGroupSeq(b *testing.B) {
 	benchStage(b, func(b *testing.B, limit int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-		return GroupSeq(context.Background(), limit, intSeq(benchElements), f)
+		return GroupSeq[int, int, LeaveResultOpen[int]](context.Background(), limit, intSeq(benchElements), f)
 	})
 }
 
 func BenchmarkGroupSeqUnordered(b *testing.B) {
 	benchStage(b, func(b *testing.B, limit int, f func(context.Context, int) (int, bool, error)) iter.Seq2[int, error] {
-		return GroupSeqUnordered(context.Background(), limit, intSeq(benchElements), f)
+		return GroupSeqUnordered[int, int, LeaveResultOpen[int]](context.Background(), limit, intSeq(benchElements), f)
 	})
 }
 
@@ -101,6 +101,6 @@ func BenchmarkGroupChan(b *testing.B) {
 		b.StopTimer()
 		ch := intChan(benchElements)
 		b.StartTimer()
-		return GroupChan(context.Background(), limit, ch, f)
+		return GroupChan[int, int, LeaveResultOpen[int]](context.Background(), limit, ch, f)
 	})
 }
