@@ -8,6 +8,8 @@ import (
 	stdjson "encoding/json"
 	"errors"
 	"reflect"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -481,20 +483,30 @@ type UnionTrialOutcome struct {
 	Matched int
 }
 
-type unionTrialOutcome struct {
-	kind    int
-	winner  int
-	matched int
+// A UnionTrial memoizes union trial outcomes for one root value: the raw
+// bytes of the outermost union value in flight. It holds those bytes, so
+// their address range stays allocated and fixed until the outermost trial
+// returns, and a nested trial joins the root whose range contains its bytes.
+// Decodes of separate buffers therefore share no outcomes.
+type UnionTrial struct {
+	root     []byte
+	depth    int
+	mu       sync.Mutex
+	outcomes map[string]UnionTrialOutcome
+	bytes    int
 }
 
-var unionTrialMemo struct {
-	mu    sync.Mutex
-	m     map[string]unionTrialOutcome
-	bytes int
-	depth int
+var unionTrials struct {
+	mu     sync.Mutex
+	active []*UnionTrial
 }
 
-func unionTrialMemoKey(typeID string, raw []byte) string {
+func addressRange(raw []byte) (lo, hi uintptr) {
+	lo = uintptr(unsafe.Pointer(unsafe.SliceData(raw)))
+	return lo, lo + uintptr(len(raw))
+}
+
+func unionTrialKey(typeID string, raw []byte) string {
 	key := make([]byte, 0, len(typeID)+1+len(raw))
 	key = append(key, typeID...)
 	key = append(key, 0)
@@ -502,51 +514,56 @@ func unionTrialMemoKey(typeID string, raw []byte) string {
 	return string(key)
 }
 
-func EnterUnionTrial() {
-	unionTrialMemo.mu.Lock()
-	defer unionTrialMemo.mu.Unlock()
-	if unionTrialMemo.m == nil {
-		unionTrialMemo.m = make(map[string]unionTrialOutcome)
+func EnterUnionTrial(raw []byte) *UnionTrial {
+	lo, hi := addressRange(raw)
+	unionTrials.mu.Lock()
+	defer unionTrials.mu.Unlock()
+	active := unionTrials.active
+	at := sort.Search(len(active), func(i int) bool {
+		rootLo, _ := addressRange(active[i].root)
+		return rootLo > lo
+	})
+	if at > 0 {
+		if _, rootHi := addressRange(active[at-1].root); hi <= rootHi {
+			active[at-1].depth++
+			return active[at-1]
+		}
 	}
-	unionTrialMemo.depth++
+	t := &UnionTrial{root: raw, depth: 1}
+	unionTrials.active = slices.Insert(active, at, t)
+	return t
 }
 
-func ExitUnionTrial() {
-	unionTrialMemo.mu.Lock()
-	defer unionTrialMemo.mu.Unlock()
-	if unionTrialMemo.depth > 0 {
-		unionTrialMemo.depth--
-	}
-	if unionTrialMemo.depth == 0 {
-		unionTrialMemo.m = make(map[string]unionTrialOutcome)
-		unionTrialMemo.bytes = 0
+func (t *UnionTrial) Exit() {
+	unionTrials.mu.Lock()
+	defer unionTrials.mu.Unlock()
+	t.depth--
+	if t.depth == 0 {
+		unionTrials.active = slices.DeleteFunc(unionTrials.active, func(o *UnionTrial) bool { return o == t })
 	}
 }
 
-func LookupUnionTrial(typeID string, raw []byte) (bool, UnionTrialOutcome) {
-	key := unionTrialMemoKey(typeID, raw)
-	unionTrialMemo.mu.Lock()
-	defer unionTrialMemo.mu.Unlock()
-	out, ok := unionTrialMemo.m[key]
+func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome) {
+	key := unionTrialKey(typeID, raw)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	out, ok := t.outcomes[key]
 	if !ok {
 		return false, UnionTrialOutcome{Kind: UnionTrialMiss, Winner: -1}
 	}
-	return true, UnionTrialOutcome{Kind: out.kind, Winner: out.winner, Matched: out.matched}
+	return true, out
 }
 
-func StoreUnionTrial(typeID string, raw []byte, out UnionTrialOutcome) {
-	key := unionTrialMemoKey(typeID, raw)
-	unionTrialMemo.mu.Lock()
-	defer unionTrialMemo.mu.Unlock()
-	if unionTrialMemo.m == nil {
-		unionTrialMemo.m = make(map[string]unionTrialOutcome)
+func (t *UnionTrial) Store(typeID string, raw []byte, out UnionTrialOutcome) {
+	key := unionTrialKey(typeID, raw)
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.outcomes == nil || len(t.outcomes) > 1024 || t.bytes > 1<<20 {
+		t.outcomes = make(map[string]UnionTrialOutcome)
+		t.bytes = 0
 	}
-	if len(unionTrialMemo.m) > 1024 || unionTrialMemo.bytes > 1<<20 {
-		unionTrialMemo.m = make(map[string]unionTrialOutcome)
-		unionTrialMemo.bytes = 0
+	if _, dup := t.outcomes[key]; !dup {
+		t.bytes += len(key)
 	}
-	if _, dup := unionTrialMemo.m[key]; !dup {
-		unionTrialMemo.bytes += len(key)
-	}
-	unionTrialMemo.m[key] = unionTrialOutcome{kind: out.Kind, winner: out.Winner, matched: out.Matched}
+	t.outcomes[key] = out
 }

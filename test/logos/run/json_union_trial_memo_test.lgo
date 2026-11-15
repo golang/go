@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"logos/rt"
@@ -31,8 +32,13 @@ type MemoLeaf struct {
 
 var memoLeafCalls int
 
+var memoLeafProbe func(b []byte)
+
 func (m *MemoLeaf) UnmarshalJSON(b []byte) error {
 	memoLeafCalls++
+	if memoLeafProbe != nil {
+		memoLeafProbe(b)
+	}
 	type memoPlain MemoLeaf
 	return json.Unmarshal(b, (*memoPlain)(m))
 }
@@ -157,5 +163,37 @@ func TestMemoSingleMatchReplaysIdentically(t *testing.T) {
 	sel2, ok := second.Item.(MemoDuo)
 	if !ok || sel2.Only != 1 || sel2.Extra != 2 {
 		t.Fatalf("expected replay MemoDuo{1 2}, got %T(%v)", second.Item, second.Item)
+	}
+}
+
+func TestMemoSeparateBufferRunsItsOwnTrials(t *testing.T) {
+	doc := memoDoc(8, 9)
+	memoLeafCalls = 0
+	memoTrialErr(t, doc)
+	alone := memoLeafCalls
+	item := len(doc) - len(`{"item":}`)
+	during := -1
+	var separateErr error
+	memoLeafProbe = func(b []byte) {
+		if len(b) != item {
+			return
+		}
+		memoLeafProbe = nil
+		before := memoLeafCalls
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			var h MemoHolder
+			separateErr = json.Unmarshal([]byte(doc), &h)
+		})
+		wg.Wait()
+		during = memoLeafCalls - before
+	}
+	defer func() { memoLeafProbe = nil }()
+	memoTrialErr(t, doc)
+	if separateErr == nil {
+		t.Fatalf("the separate decode of an ambiguous document returned no error")
+	}
+	if during != alone {
+		t.Fatalf("a decode of a separate buffer ran the leaf decoder %d times while another decode was in flight, want %d as when alone", during, alone)
 	}
 }
