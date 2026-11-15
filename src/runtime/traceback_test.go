@@ -13,6 +13,7 @@ import (
 	"internal/msan"
 	"internal/race"
 	"internal/testenv"
+	"os"
 	"regexp"
 	"runtime"
 	"runtime/debug"
@@ -1017,4 +1018,41 @@ func TestTracebackGoroutineLabelsDisabledGODEBUG(t *testing.T) {
 	// and in this parent goroutine
 	verifyLabels()
 	wg.Wait()
+}
+
+// Test that tracebackHexdump does not throw when the frame's SP is not on
+// the stack it is given. That is the case when a signal arrives while a
+// goroutine is running C code on the system stack without having switched
+// g, as racecall, msancall, and asancall do.
+func TestTracebackHexdumpOffStack(t *testing.T) {
+	const env = "TEST_TRACEBACK_HEXDUMP"
+	switch os.Getenv(env) {
+	case "on":
+		runtime.TracebackHexdump(0)
+		return
+	case "below":
+		runtime.TracebackHexdump(-1)
+		return
+	case "above":
+		runtime.TracebackHexdump(1)
+		return
+	}
+
+	for _, where := range []string{"on", "below", "above"} {
+		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestTracebackHexdumpOffStack$"))
+		cmd.Env = append(cmd.Env, env+"="+where)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Errorf("SP %s the stack: %v\n%s", where, err, out)
+			continue
+		}
+		if want := "stack: frame={sp:"; !strings.Contains(string(out), want) {
+			t.Errorf("SP %s the stack: output does not contain %q:\n%s", where, want, out)
+		}
+		// The hexdump marks the word at SP.
+		const mark = "^ SP\n"
+		if got, want := strings.Contains(string(out), mark), where == "on"; got != want {
+			t.Errorf("SP %s the stack: hexdump printed = %v, want %v:\n%s", where, got, want, out)
+		}
+	}
 }

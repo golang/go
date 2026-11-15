@@ -2193,3 +2193,22 @@ func FuncNamePiecesForPrint(name string) (string, string, string, string, string
 }
 
 var InHeapOrStack = inHeapOrStack
+
+// TracebackHexdump calls tracebackHexdump on the calling goroutine's stack.
+// The frame's SP is on that stack if where is 0, below the stack if where
+// is negative, and above it if where is positive.
+func TracebackHexdump(where int) {
+	gp := getg()
+	sp := sys.GetCallerSP()
+	// Run on the system stack, as the callers of tracebackHexdump do,
+	// so that gp's stack cannot move while it is being dumped.
+	systemstack(func() {
+		frame := stkframe{sp: sp}
+		if where < 0 {
+			frame.sp = gp.stack.lo - 1<<20
+		} else if where > 0 {
+			frame.sp = gp.stack.hi + 1<<20
+		}
+		tracebackHexdump(gp.stack, &frame, 0)
+	})
+}
