@@ -13,6 +13,7 @@ package eject
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"go/ast"
 	"go/build/constraint"
 	"go/parser"
@@ -1520,6 +1521,11 @@ func supportPathEdit(fset *token.FileSet, imp *ast.ImportSpec, uses *bool) (text
 	if err != nil {
 		return textEdit{}, false
 	}
+	if path == "internal/jsonscan" {
+		start := fset.Position(imp.Path.Pos()).Offset
+		*uses = true
+		return textEdit{start, start + len(imp.Path.Value), strconv.Quote(rtModulePath + "/internal/jsonscan")}, true
+	}
 	rest, ok := strings.CutPrefix(path, "logos/")
 	if !ok {
 		return textEdit{}, false
@@ -1619,6 +1625,7 @@ func writeSupportModule(out, goVer string) {
 	goroot := cfg.GOROOT
 	rtDst := filepath.Join(out, "_logos_deps", "rt")
 	copySupportDir(filepath.Join(goroot, "src", "logos", "rt"), rtDst)
+	copyJSONScanSupport(filepath.Join(goroot, "src", "internal", "jsonscan"), filepath.Join(rtDst, "internal", "jsonscan"))
 	if st, err := os.Stat(filepath.Join(goroot, "src", "logos", "arena")); err == nil && st.IsDir() {
 		copySupportDir(filepath.Join(goroot, "src", "logos", "arena"), filepath.Join(rtDst, "arena"))
 	}
@@ -1628,6 +1635,140 @@ func writeSupportModule(out, goVer string) {
 	if err := os.WriteFile(filepath.Join(rtDst, "go.mod"), []byte("module "+rtModulePath+"\n\ngo "+goVer+"\n"), 0666); err != nil {
 		base.Fatalf("logos eject: %v", err)
 	}
+}
+
+func copyJSONScanSupport(src, dst string) {
+	if err := os.MkdirAll(dst, 0777); err != nil {
+		base.Fatalf("logos eject: %v", err)
+	}
+	for _, name := range []string{"jsonscan.go", "jsonscan_generic.go"} {
+		data, err := os.ReadFile(filepath.Join(src, name))
+		if err != nil {
+			base.Fatalf("logos eject: %v", err)
+		}
+		fixed, err := ejectedJSONScanSource(name, data)
+		if err != nil {
+			base.Fatalf("logos eject: %s: %v", name, err)
+		}
+		path := filepath.Join(dst, name)
+		if err := os.WriteFile(path, fixed, 0666); err != nil {
+			base.Fatalf("logos eject: %v", err)
+		}
+		queueEjectGofmt(path)
+	}
+}
+
+func ejectedJSONScanSource(name string, data []byte) ([]byte, error) {
+	if name != "jsonscan.go" && name != "jsonscan_generic.go" {
+		return nil, fmt.Errorf("unexpected scanner source %q", name)
+	}
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, name, data, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	if f.Name.Name != "jsonscan" {
+		return nil, fmt.Errorf("unexpected scanner package %q", f.Name.Name)
+	}
+	var edits []textEdit
+	source := func(n ast.Node) string {
+		return string(data[fset.Position(n.Pos()).Offset:fset.Position(n.End()).Offset])
+	}
+	replace := func(n ast.Node, text string) {
+		edits = append(edits, textEdit{fset.Position(n.Pos()).Offset, fset.Position(n.End()).Offset, text})
+	}
+	imports, calls, comments := 0, 0, 0
+	for _, imp := range f.Imports {
+		path, err := strconv.Unquote(imp.Path.Value)
+		if err != nil {
+			return nil, err
+		}
+		if imp.Name != nil {
+			return nil, fmt.Errorf("unexpected named scanner import %s", path)
+		}
+		switch {
+		case name == "jsonscan.go" && path == "internal/abi":
+			edits = append(edits, wholeLineEdit(data, fset, imp.Pos(), imp.End()))
+			imports++
+		case name == "jsonscan_generic.go" && path == "internal/byteorder":
+			replace(imp.Path, strconv.Quote("encoding/binary"))
+			imports++
+		case strings.HasPrefix(path, "internal/"):
+			return nil, fmt.Errorf("unexpected scanner import %s", path)
+		}
+	}
+	ast.Inspect(f, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if !ok {
+			return true
+		}
+		if name == "jsonscan.go" && source(call) == "(*byte)(abi.NoEscape(unsafe.Pointer(unsafe.StringData(s))))" {
+			replace(call, "unsafe.StringData(s)")
+			calls++
+			return false
+		}
+		if name == "jsonscan_generic.go" && source(call) == "byteorder.LEUint64(s[i:])" {
+			replace(call.Fun, "binary.LittleEndian.Uint64")
+			calls++
+			return false
+		}
+		return true
+	})
+	commentEdits, err := ejectedJSONScanCommentEdits(name, data, fset, f)
+	if err != nil {
+		return nil, err
+	}
+	edits = append(edits, commentEdits...)
+	comments = len(commentEdits)
+	wantCalls, wantComments := 1, 2
+	if name == "jsonscan_generic.go" {
+		wantCalls, wantComments = 2, 1
+	}
+	if imports != 1 || calls != wantCalls || comments != wantComments {
+		return nil, fmt.Errorf("unexpected scanner adaptation matches: imports=%d calls=%d comments=%d", imports, calls, comments)
+	}
+	fixed, ok := applyTextEdits(data, edits)
+	if !ok {
+		return nil, fmt.Errorf("overlapping scanner source edits")
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), name, fixed, parser.SkipObjectResolution); err != nil {
+		return nil, fmt.Errorf("invalid adapted scanner: %w", err)
+	}
+	return fixed, nil
+}
+
+func ejectedJSONScanCommentEdits(name string, data []byte, fset *token.FileSet, f *ast.File) ([]textEdit, error) {
+	var edits []textEdit
+	for _, group := range f.Comments {
+		if name == "jsonscan_generic.go" {
+			start, end := fset.Position(group.Pos()).Offset, fset.Position(group.End()).Offset
+			text := string(data[start:end])
+			switch {
+			case text == "//go:build !amd64 && !arm64":
+				edits = append(edits, wholeLineEdit(data, fset, group.Pos(), group.End()))
+			case strings.Contains(text, "//go:build") || strings.Contains(text, "// +build"):
+				return nil, fmt.Errorf("unexpected scanner build constraint")
+			}
+			continue
+		}
+		var expected, replacement string
+		switch {
+		case group == f.Doc:
+			expected = "// Package jsonscan finds the end of a run of plain ASCII bytes inside a JSON\n// string body. It uses SSE2 or AVX2 on amd64, NEON on arm64, and SWAR over\n// uint64 words on every other architecture. No function reads outside its\n// argument."
+			replacement = "// Package jsonscan finds the end of a run of plain ASCII bytes inside a JSON\n// string body using portable SWAR. No function reads outside its argument."
+		case strings.Contains(group.Text(), "NoEscape"):
+			expected = "// SAFETY: the kernels only read s[0:len(s)] and keep no pointer, and the\n\t// returned pointer keeps the bytes alive as a call argument. NoEscape\n\t// stops the compiler from treating b as written by the bodyless assembly\n\t// function, which would force callers to copy a string converted to []byte."
+			replacement = "// SAFETY: the kernels only read s[0:len(s)] and keep no pointer, and the\n\t// returned pointer keeps the bytes alive as a call argument."
+		default:
+			continue
+		}
+		start, end := fset.Position(group.Pos()).Offset, fset.Position(group.End()).Offset
+		if string(data[start:end]) != expected {
+			return nil, fmt.Errorf("unexpected scanner documentation")
+		}
+		edits = append(edits, textEdit{start, end, replacement})
+	}
+	return edits, nil
 }
 
 // copySupportDir copies the Go sources of one support directory,
