@@ -774,7 +774,7 @@ func (t *tester) registerTests() {
 	}
 
 	// Test GOEXPERIMENT=simd.
-	if !strings.Contains(goexperiment, "simd") {
+	if !slices.Contains(strings.Split(goexperiment, ","), "simd") {
 		// simd package is portable.
 		t.registerTest("GOEXPERIMENT=simd go test simd", &goTest{
 			variant: "simd",

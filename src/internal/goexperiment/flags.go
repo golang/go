@@ -117,8 +117,13 @@ type Flags struct {
 	RuntimeFreegc bool
 
 	// SIMD enables the simd package and the compiler's handling
-	// of SIMD intrinsics.
+	// of SIMD intrinsics. This includes APIs that are not yet
+	// slated for general availability. SIMD implies SIMDStable.
 	SIMD bool
+
+	// SIMDStable enables the subset of the simd and simd/archsimd
+	// packages that is slated for general availability.
+	SIMDStable bool
 
 	// RuntimeSecret enables the runtime/secret package.
 	RuntimeSecret bool

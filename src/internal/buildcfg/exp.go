@@ -92,6 +92,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 		Flags:    baseline,
 		baseline: baseline,
 	}
+	noSIMDStable := false
 
 	// Pick up any changes to the baseline configuration from the
 	// GOEXPERIMENT environment. This can be set at make.bash time
@@ -115,6 +116,13 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 			flags.RegabiArgs = v
 		}
 
+		// Track an explicit nosimdstable so we can reject it
+		// in combination with simd, which implies simdstable.
+		names["simdstable"] = func(v bool) {
+			flags.SIMDStable = v
+			noSIMDStable = !v
+		}
+
 		// Parse names.
 		for f := range strings.SplitSeq(goexp, ",") {
 			if f == "" {
@@ -125,6 +133,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 				// This is used by cmd/dist, which doesn't know how
 				// to build with any experiment flags.
 				flags.Flags = goexperiment.Flags{}
+				noSIMDStable = false
 				continue
 			}
 			val := true
@@ -151,6 +160,14 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
 	// Check regabi dependencies.
 	if flags.RegabiArgs && !flags.RegabiWrappers {
 		return nil, fmt.Errorf("GOEXPERIMENT regabiargs requires regabiwrappers")
+	}
+	// simd enables all of the SIMD API, including the simdstable subset, so
+	// simd implies simdstable (but isn't an alias for it).
+	if flags.SIMD {
+		if noSIMDStable {
+			return nil, fmt.Errorf("GOEXPERIMENT simd requires simdstable")
+		}
+		flags.SIMDStable = true
 	}
 	return flags, nil
 }
