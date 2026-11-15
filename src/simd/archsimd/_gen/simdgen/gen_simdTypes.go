@@ -1308,6 +1308,44 @@ func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 	}
 }
 
+// opStub returns the Go stub declaration for op, or false if op has no Go
+// declaration.
+func opStub(op Operation) ([]byte, bool) {
+	if op.NoTypes != nil && *op.NoTypes == "true" {
+		return nil, false
+	}
+	if op.SkipMaskedMethod() {
+		return nil, false
+	}
+	idxVecAsScalar, err := checkVecAsScalar(op)
+	if err != nil {
+		panic(err)
+	}
+	s, op, err := classifyOp(op)
+	if err != nil {
+		panic(fmt.Errorf("failed to classify op %v: %w", op.Go, err))
+	}
+	if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
+		return nil, false
+	}
+	if idxVecAsScalar != -1 {
+		if s == "op2" || s == "op3" || s == "op2Imm" {
+			s += "VecAsScalar"
+		} else {
+			panic(fmt.Errorf("simdgen only supports op2, op2Imm or op3, not %s with TreatLikeAScalarOfSize", s))
+		}
+	}
+	tpl := stubTemplates.Get(s)
+	if tpl == nil {
+		panic(fmt.Errorf("template %s not found", s))
+	}
+	var buf bytes.Buffer
+	if err := tpl.Execute(&buf, op); err != nil {
+		panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
+	}
+	return buf.Bytes(), true
+}
+
 // writeSIMDStubs returns two bytes.Buffers containing the declarations for the public
 // and internal-use vector intrinsics.
 func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, doDeprecatedPuns bool) {
@@ -1317,50 +1355,18 @@ func writeSIMDStubs(f, fI *bytes.Buffer, ops []Operation, typeMap simdTypeMap, d
 	slices.SortFunc(ops, compareOperations)
 
 	for i, op := range ops {
-		if op.NoTypes != nil && *op.NoTypes == "true" {
+		stub, ok := opStub(op)
+		if !ok {
 			continue
 		}
-		if op.SkipMaskedMethod() {
-			continue
+		out := fI
+		if unicode.IsUpper([]rune(op.Go)[0]) {
+			out = f
 		}
-		idxVecAsScalar, err := checkVecAsScalar(op)
-		if err != nil {
-			panic(err)
+		if i == 0 || op.Go != ops[i-1].Go {
+			fmt.Fprintf(out, "\n/* %s */\n", op.Go)
 		}
-		if s, op, err := classifyOp(op); err == nil {
-			if op.NoGenericOps != nil && *op.NoGenericOps == "true" {
-				continue
-			}
-			if idxVecAsScalar != -1 {
-				if s == "op2" || s == "op3" || s == "op2Imm" {
-					s += "VecAsScalar"
-				} else {
-					panic(fmt.Errorf("simdgen only supports op2, op2Imm or op3, not %s with TreatLikeAScalarOfSize", s))
-				}
-			}
-			if i == 0 || op.Go != ops[i-1].Go {
-				if unicode.IsUpper([]rune(op.Go)[0]) {
-					fmt.Fprintf(f, "\n/* %s */\n", op.Go)
-				} else {
-					fmt.Fprintf(fI, "\n/* %s */\n", op.Go)
-				}
-			}
-			tpl := stubTemplates.Get(s)
-			if tpl == nil {
-				panic(fmt.Errorf("template %s not found", s))
-			}
-			if unicode.IsUpper([]rune(op.Go)[0]) {
-				if err := tpl.Execute(f, op); err != nil {
-					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
-				}
-			} else {
-				if err := tpl.Execute(fI, op); err != nil {
-					panic(fmt.Errorf("failed to execute template %s for op %v: %w", s, op, err))
-				}
-			}
-		} else {
-			panic(fmt.Errorf("failed to classify op %v: %w", op.Go, err))
-		}
+		out.Write(stub)
 	}
 
 	vectorConversions := vConvertFromTypeMap(typeMap)
