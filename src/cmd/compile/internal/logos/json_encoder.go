@@ -290,16 +290,16 @@ func (e *jsonEnc) encoder(lt types2.Type, kind jsonEncKind) (string, bool) {
 }
 
 func (e *jsonEnc) encoderText(name, spell string, lt types2.Type, kind jsonEncKind) string {
-	param, x, p := spell, "_logos_x", ""
+	param, x, p, a := spell, "_logos_x", "", ""
 	if kind == encAddr {
-		param, x, p = "*"+spell, "(*_logos_x)", "_logos_x"
+		param, x, p, a = "*"+spell, "(*_logos_x)", "_logos_x", "_logos_x"
 	}
 	var body []string
 	switch kind {
 	case encQuoted:
 		body = e.quotedStmts(lt, x, p)
 	default:
-		body = e.compositeBody(lt, x, p)
+		body = e.compositeBody(lt, x, p, a)
 	}
 	lines := []string{fmt.Sprintf("func %s(_logos_buf []byte, _logos_x %s, _logos_s *%s.Walk) ([]byte, error) {", name, param, jsonAlias), "\tvar _logos_err error"}
 	lines = append(lines, indentLines(body)...)
@@ -447,6 +447,9 @@ func (e *jsonEnc) callStmts(lt types2.Type, x, p string) []string {
 	}
 	name, ok := e.encoder(lt, kind)
 	if !ok {
+		if kind == encAddr {
+			return errStmts("_logos_s.AppendAddress(_logos_buf, " + arg + ")")
+		}
 		return errStmts("_logos_s.AppendAny(_logos_buf, " + x + ")")
 	}
 	return errStmts(name + "(_logos_buf, " + arg + ", _logos_s)")
@@ -480,7 +483,7 @@ func (e *jsonEnc) fieldsAddrMatter(lt types2.Type, seen map[string]bool) bool {
 	return false
 }
 
-func (e *jsonEnc) compositeBody(lt types2.Type, x, p string) []string {
+func (e *jsonEnc) compositeBody(lt types2.Type, x, p, a string) []string {
 	if _, ok := e.methodArg(lt, x, p); ok {
 		return e.valueStmts(lt, x, p)
 	}
@@ -490,7 +493,7 @@ func (e *jsonEnc) compositeBody(lt types2.Type, x, p string) []string {
 			[]string{"_logos_buf = append(_logos_buf, _logos_part...)"})
 	}
 	if _, ok := jsonStructOf(lt); ok {
-		return e.structBody(lt, x, p)
+		return e.structBody(lt, x, p, a)
 	}
 	switch u := lt.Underlying().(type) {
 	case *types2.Pointer:
@@ -501,7 +504,7 @@ func (e *jsonEnc) compositeBody(lt types2.Type, x, p string) []string {
 		return e.arrayBody(u, x, p)
 	case *types2.Map:
 		if _, ok := jsonMapEntries(u.Key()); ok {
-			return e.mapBody(u, x)
+			return e.mapBody(lt, x)
 		}
 	}
 	return e.valueStmts(lt, x, p)
@@ -552,14 +555,19 @@ func (e *jsonEnc) arrayBody(u *types2.Array, x, p string) []string {
 	return append(body, "_logos_buf = append(_logos_buf, ']')")
 }
 
-func (e *jsonEnc) mapBody(u *types2.Map, x string) []string {
+func (e *jsonEnc) mapBody(lt types2.Type, x string) []string {
+	u, _ := lt.Underlying().(*types2.Map)
 	entries, _ := jsonMapEntries(u.Key())
+	args := x
+	if entries == "TextEntries" || entries == "PointerTextEntries" {
+		args += ", " + staticTypeNameLit(lt)
+	}
 	body := nullIfNil(x)
 	body = append(body, enterElemsStmts(x)...)
 	body = append(body, checkStmts(jsonAlias+".EnterMap(_logos_s, "+x+")")...)
 	body = append(body,
 		"defer "+jsonAlias+".LeaveMap(_logos_s, "+x+")",
-		"_logos_es, _logos_ke := "+jsonAlias+"."+entries+"("+x+")")
+		"_logos_es, _logos_ke := "+jsonAlias+"."+entries+"("+args+")")
 	body = append(body, ifLines("_logos_ke != nil", []string{"return _logos_buf, _logos_ke"})...)
 	body = append(body, "_logos_buf = append(_logos_buf, '{')")
 	loop := []string{
@@ -573,10 +581,10 @@ func (e *jsonEnc) mapBody(u *types2.Map, x string) []string {
 	return append(body, "_logos_buf = append(_logos_buf, '}')")
 }
 
-func (e *jsonEnc) structBody(lt types2.Type, x, p string) []string {
+func (e *jsonEnc) structBody(lt types2.Type, x, p, a string) []string {
 	body := append(enterFrameStmts(), "_logos_next := byte('{')")
 	for _, f := range jsonEncodedFields(lt) {
-		body = append(body, e.fieldStmts(f, x, p)...)
+		body = append(body, e.fieldStmts(f, x, p, a)...)
 	}
 	body = append(body, ifLines("_logos_next == '{'", []string{"_logos_buf = append(_logos_buf, '{')"})...)
 	return append(body, "_logos_buf = append(_logos_buf, '}')")
@@ -594,11 +602,15 @@ func jsonFieldAccess(f jsonEncField, x string) (string, []string, bool) {
 	return access, guards, len(guards) > 0
 }
 
-func (e *jsonEnc) fieldStmts(f jsonEncField, x, p string) []string {
+func (e *jsonEnc) fieldStmts(f jsonEncField, x, p, a string) []string {
 	access, guards, indirect := jsonFieldAccess(f, x)
 	fp := ""
 	if p != "" || indirect {
 		fp = "&" + access
+	}
+	fa := ""
+	if a != "" || indirect {
+		fa = "&" + access
 	}
 	stmts := []string{
 		"_logos_buf = append(_logos_buf, _logos_next)",
@@ -610,7 +622,7 @@ func (e *jsonEnc) fieldStmts(f jsonEncField, x, p string) []string {
 	} else {
 		stmts = append(stmts, e.valueStmts(f.typ, access, fp)...)
 	}
-	stmts = ifLines("!("+e.zero().omitted(f.typ, access, jsonOmitOpts{empty: f.omitEmpty, zero: f.omitZero})+")", stmts)
+	stmts = ifLines("!("+e.zero().omitted(f.typ, access, jsonOmitOpts{empty: f.omitEmpty, zero: f.omitZero, addr: fa})+")", stmts)
 	for i := len(guards) - 1; i >= 0; i-- {
 		stmts = ifLines(guards[i], stmts)
 	}

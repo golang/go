@@ -179,6 +179,12 @@ func (s *Walk) AppendAny(buf []byte, v any) ([]byte, error) {
 	return s.appendValue(buf, reflect.ValueOf(v))
 }
 
+// AppendAddress appends the encoding of the value at the non-nil pointer
+// p. The caller owns the pointer's visit edge; this entry does not add one.
+func (s *Walk) AppendAddress(buf []byte, p any) ([]byte, error) {
+	return s.appendValue(buf, reflect.ValueOf(p).Elem())
+}
+
 func (s *Walk) appendGen(buf []byte, rv reflect.Value) ([]byte, bool, error) {
 	if s.Gen == nil || !rv.CanInterface() {
 		return buf, false, nil
@@ -325,12 +331,24 @@ func (s *Walk) appendMapValue(buf []byte, rv reflect.Value) ([]byte, error) {
 
 func (s *Walk) appendMap(buf []byte, rv reflect.Value) ([]byte, error) {
 	es := make([]MapEntry[reflect.Value], 0, rv.Len())
-	for mi := rv.MapRange(); mi.Next(); {
-		key, err := resolveWalkKey(mi.Key())
-		if err != nil {
-			return buf, keyError(rv.Type().String(), err)
+	mi := rv.MapRange()
+	if n := rv.Len(); JSONV2 && n >= 2 {
+		for i := 0; i < n && mi.Next(); i++ {
+			value := mi.Value()
+			key, err := resolveWalkKey(mi.Key())
+			if err != nil {
+				return buf, keyError(rv.Type().String(), err)
+			}
+			es = append(es, MapEntry[reflect.Value]{key, value})
 		}
-		es = append(es, MapEntry[reflect.Value]{key, mi.Value()})
+	} else {
+		for mi.Next() {
+			key, err := resolveWalkKey(mi.Key())
+			if err != nil {
+				return buf, keyError(rv.Type().String(), err)
+			}
+			es = append(es, MapEntry[reflect.Value]{key, mi.Value()})
+		}
 	}
 	buf = append(buf, '{')
 	for i, e := range sortEntries(es) {
@@ -351,6 +369,14 @@ func (s *Walk) appendMap(buf []byte, rv reflect.Value) ([]byte, error) {
 func resolveWalkKey(k reflect.Value) (string, error) {
 	if k.Kind() == reflect.String {
 		return k.String(), nil
+	}
+	if k.Kind() == reflect.Interface {
+		if k.IsNil() {
+			return "", nilMapKeyError(k)
+		}
+		if text, ok := rawMapKeyText(k); ok {
+			return text, nil
+		}
 	}
 	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
 		if k.Kind() == reflect.Pointer && k.IsNil() {
@@ -540,14 +566,33 @@ func UintEntries[M ~map[K]V, K ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~u
 func TextEntries[M ~map[K]V, K interface {
 	comparable
 	encoding.TextMarshaler
-}, V any](m M) ([]MapEntry[V], error) {
+}, V any](m M, typeName string) ([]MapEntry[V], error) {
 	es := make([]MapEntry[V], 0, len(m))
-	for k, v := range m {
-		text, err := k.MarshalText()
-		if err != nil {
-			return nil, keyError(reflect.TypeFor[M]().String(), err)
+	var key K
+	var value V
+	kp := reflect.ValueOf(&key).Elem()
+	vp := reflect.ValueOf(&value).Elem()
+	mi := reflect.ValueOf(m).MapRange()
+	if n := len(m); JSONV2 && n >= 2 {
+		for i := 0; i < n && mi.Next(); i++ {
+			kp.SetIterKey(mi)
+			vp.SetIterValue(mi)
+			text, err := textKeyText(key, kp)
+			if err != nil {
+				return nil, keyError(typeNameOr[M](typeName), err)
+			}
+			es = append(es, MapEntry[V]{text, value})
 		}
-		es = append(es, MapEntry[V]{string(text), v})
+	} else {
+		for mi.Next() {
+			kp.SetIterKey(mi)
+			text, err := textKeyText(key, kp)
+			if err != nil {
+				return nil, keyError(typeNameOr[M](typeName), err)
+			}
+			vp.SetIterValue(mi)
+			es = append(es, MapEntry[V]{text, value})
+		}
 	}
 	return sortEntries(es), nil
 }
@@ -557,14 +602,33 @@ func TextEntries[M ~map[K]V, K interface {
 func PointerTextEntries[M ~map[K]V, K interface {
 	~*E
 	encoding.TextMarshaler
-}, E any, V any](m M) ([]MapEntry[V], error) {
+}, E any, V any](m M, typeName string) ([]MapEntry[V], error) {
 	es := make([]MapEntry[V], 0, len(m))
-	for k, v := range m {
-		key, err := pointerKeyText(k)
-		if err != nil {
-			return nil, keyError(reflect.TypeFor[M]().String(), err)
+	var key K
+	var value V
+	kp := reflect.ValueOf(&key).Elem()
+	vp := reflect.ValueOf(&value).Elem()
+	mi := reflect.ValueOf(m).MapRange()
+	if n := len(m); JSONV2 && n >= 2 {
+		for i := 0; i < n && mi.Next(); i++ {
+			kp.SetIterKey(mi)
+			vp.SetIterValue(mi)
+			text, err := pointerKeyText(key)
+			if err != nil {
+				return nil, keyError(typeNameOr[M](typeName), err)
+			}
+			es = append(es, MapEntry[V]{text, value})
 		}
-		es = append(es, MapEntry[V]{key, v})
+	} else {
+		for mi.Next() {
+			kp.SetIterKey(mi)
+			text, err := pointerKeyText(key)
+			if err != nil {
+				return nil, keyError(typeNameOr[M](typeName), err)
+			}
+			vp.SetIterValue(mi)
+			es = append(es, MapEntry[V]{text, value})
+		}
 	}
 	return sortEntries(es), nil
 }
@@ -578,6 +642,41 @@ func pointerKeyText[K interface {
 	}
 	text, err := k.MarshalText()
 	return string(text), err
+}
+
+func textKeyText[K encoding.TextMarshaler](key K, kv reflect.Value) (string, error) {
+	if any(key) == nil {
+		return "", nilMapKeyError(kv)
+	}
+	if text, ok := rawMapKeyText(kv); ok {
+		return text, nil
+	}
+	b, err := key.MarshalText()
+	return string(b), err
+}
+
+func typeNameOr[M any](name string) string {
+	if name != "" {
+		return name
+	}
+	return reflect.TypeFor[M]().String()
+}
+
+func nilMapKeyError(k reflect.Value) error {
+	return &stdjson.UnsupportedValueError{Value: k, Str: "nil map key"}
+}
+
+func rawMapKeyText(k reflect.Value) (string, bool) {
+	if !JSONV2 {
+		return "", false
+	}
+	if k.Kind() == reflect.Interface {
+		k = k.Elem()
+	}
+	if k.Kind() != reflect.String {
+		return "", false
+	}
+	return k.String(), true
 }
 
 func keyError(typeName string, err error) error {

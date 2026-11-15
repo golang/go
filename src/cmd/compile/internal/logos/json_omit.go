@@ -111,7 +111,7 @@ type jsonZero struct {
 	depth   int
 }
 
-func (z *jsonZero) zeroTest(t types2.Type, x string) string {
+func (z *jsonZero) zeroTest(t types2.Type, x, addr string) string {
 	lt := jsonLowered(t)
 	if _, isIface := lt.Underlying().(*types2.Interface); isIface {
 		return z.interfaceZero(lt, x)
@@ -119,8 +119,14 @@ func (z *jsonZero) zeroTest(t types2.Type, x string) string {
 	if _, isPtr := lt.Underlying().(*types2.Pointer); isPtr && jsonHasIsZero(lt) {
 		return x + " == nil || " + x + ".IsZero()"
 	}
-	if jsonHasIsZero(lt) || jsonHasIsZero(types2.NewPointer(lt)) {
+	if jsonHasIsZero(lt) {
 		return x + ".IsZero()"
+	}
+	if jsonHasIsZero(types2.NewPointer(lt)) {
+		if addr != "" {
+			return x + ".IsZero()"
+		}
+		return "(" + jsonAlias + ".JSONV2 && " + x + ".IsZero()) || (!" + jsonAlias + ".JSONV2 && func() bool { _logos_iz := " + x + "; return _logos_iz.IsZero() }())"
 	}
 	return z.plainZero(lt, x)
 }
@@ -135,11 +141,28 @@ func (z *jsonZero) interfaceZero(lt types2.Type, x string) string {
 	}
 	tests := []string{x + " == nil"}
 	for _, m := range members {
-		if _, isPtr := types2.Unalias(m.Type).(*types2.Pointer); isPtr {
-			tests = append(tests, x+" == ("+types2.TypeString(m.Type, z.qualify)+")(nil)")
+		if m.Type != nil {
+			if _, isPtr := types2.Unalias(m.Type).(*types2.Pointer); isPtr {
+				tests = append(tests, x+" == ("+types2.TypeString(m.Type, z.qualify)+")(nil)")
+			}
+			continue
 		}
+		if !m.Ptr {
+			continue
+		}
+		tests = append(tests, x+" == ("+z.importedMemberSpell(m)+")(nil)")
 	}
 	return strings.Join(append(tests, x+".IsZero()"), " || ")
+}
+
+func (z *jsonZero) importedMemberSpell(m types2.LogosUnionMember) string {
+	name := m.Name
+	if pkg := memberPackageFor(z.pkg, m.Pkg); pkg != nil {
+		if q := z.qualify(pkg); q != "" {
+			name = q + "." + m.Name
+		}
+	}
+	return "*" + name
 }
 
 func (z *jsonZero) plainZero(lt types2.Type, x string) string {
@@ -259,6 +282,7 @@ func (g *marshalGen) zero() *jsonZero {
 type jsonOmitOpts struct {
 	empty bool
 	zero  bool
+	addr  string
 }
 
 func (z *jsonZero) omitted(t types2.Type, x string, opts jsonOmitOpts) string {
@@ -267,7 +291,7 @@ func (z *jsonZero) omitted(t types2.Type, x string, opts jsonOmitOpts) string {
 		empty = jsonEmptyTest(t, x)
 	}
 	if opts.zero {
-		zero = z.zeroTest(t, x)
+		zero = z.zeroTest(t, x, opts.addr)
 	}
 	return joinOmit(empty, zero)
 }

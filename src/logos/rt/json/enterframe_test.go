@@ -212,8 +212,8 @@ func TestMapEntriesSortByKeyText(t *testing.T) {
 		{entryKeys(StringEntries(map[string]int{"b": 1, "a": 2, "": 3})), ",a,b"},
 		{entryKeys(IntEntries(map[int8]int{10: 1, 2: 2, -1: 3})), "-1,10,2"},
 		{entryKeys(UintEntries(map[uintptr]int{10: 1, 2: 2})), "10,2"},
-		{entryKeys(TextEntries(map[textKey]int{2: 1, 0: 2})), "ka,kc"},
-		{entryKeys(PointerTextEntries(map[*ptrKey]int{{n: 1}: 1, nil: 2})), ",pb"},
+		{entryKeys(TextEntries(map[textKey]int{2: 1, 0: 2}, "map[json.textKey]int")), "ka,kc"},
+		{entryKeys(PointerTextEntries(map[*ptrKey]int{{n: 1}: 1, nil: 2}, "map[*json.ptrKey]int")), ",pb"},
 	}
 	for _, c := range cases {
 		if c.got != c.want {
@@ -221,7 +221,7 @@ func TestMapEntriesSortByKeyText(t *testing.T) {
 		}
 	}
 	m := map[textKey]int{-1: 1}
-	_, err := TextEntries(m)
+	_, err := TextEntries(m, reflect.TypeFor[map[textKey]int]().String())
 	_, werr := stdjson.Marshal(m)
 	if err == nil || werr == nil {
 		t.Fatalf("failing MarshalText key: entries error %v, encoding/json error %v", err, werr)

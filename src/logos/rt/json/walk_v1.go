@@ -11,6 +11,8 @@ import (
 	"unsafe"
 )
 
+const JSONV2 = false
+
 func (s *Walk) checkDepth(offset int64) error {
 	return nil
 }

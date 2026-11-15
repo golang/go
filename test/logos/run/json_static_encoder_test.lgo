@@ -3,8 +3,10 @@
 package jsonstaticenc
 
 import (
+	"encoding"
 	"encoding/json"
 	"errors"
+	"math"
 	"math/big"
 	"reflect"
 	"strings"
@@ -59,6 +61,16 @@ func sameErrorKind(t *testing.T, label string, gerr, werr error) {
 	if reflect.TypeOf(gerr) != reflect.TypeOf(werr) {
 		t.Fatalf("%s: generated error type %T, encoding/json error type %T", label, gerr, werr)
 	}
+}
+
+func safeMarshalOutcome(f func() ([]byte, error)) (out outcome, panicked any) {
+	defer func() {
+		if p := recover(); p != nil {
+			panicked = p
+		}
+	}()
+	out = outcomeOf(f())
+	return
 }
 
 type Embed struct {
@@ -627,6 +639,42 @@ type IZTop struct {
 
 type izTopMirror IZTop
 
+type MutIZInt int
+
+func (v *MutIZInt) IsZero() bool {
+	*v = 99
+	return false
+}
+
+type Set99 struct {
+	N     int `json:"n"`
+	NoGen any `json:"-"`
+}
+
+func (z *Set99) IsZero() bool {
+	z.N = 99
+	return false
+}
+
+type MutIZRoot struct {
+	S MutIZInt `json:"s,omitzero"`
+	P *Set99?  `json:"p,omitzero"`
+}
+
+type mutIZRootMirror MutIZRoot
+
+type MutStructIZRoot struct {
+	S Set99 `json:"s,omitzero"`
+}
+
+type mutStructIZRootMirror MutStructIZRoot
+
+type MutAnyRoot struct {
+	Any []any `json:"any"`
+}
+
+type mutAnyRootMirror MutAnyRoot
+
 func TestStaticEncoderIsZero(t *testing.T) {
 	zero := IZBox{IS: 42, SS: "zero", BS: true, IO: 42, SO: "zero", BO: true, PO: 7, ISO: 42, SSO: "zero", BSO: true, JO: 0}
 	kept := IZBox{IS: 53, SS: "hi", BS: false, IO: 0, SO: "", BO: false, PO: 0, ISO: 0, SSO: "hi", BSO: false, JS: 53, JO: 53}
@@ -638,6 +686,51 @@ func TestStaticEncoderIsZero(t *testing.T) {
 	for i, r := range roots {
 		sameOutcome(t, "iszero "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(izTopMirror(r))))
 	}
+	t.Run("mutating iszero static value", func(t *testing.T) {
+		gv, sv := MutIZRoot{S: 1}, MutIZRoot{S: 1}
+		sameOutcome(t, "mutating iszero static value", outcomeOf(gv.MarshalJSON()), outcomeOf(json.Marshal(mutIZRootMirror(sv))))
+	})
+	t.Run("mutating iszero pointer", func(t *testing.T) {
+		gp, sp := &Set99{N: 1}, &Set99{N: 1}
+		gr, sr := MutIZRoot{S: 99, P: gp}, MutIZRoot{S: 99, P: sp}
+		sameOutcome(t, "mutating iszero pointer", outcomeOf(gr.MarshalJSON()), outcomeOf(json.Marshal(mutIZRootMirror(sr))))
+		if gp.N != 99 || sp.N != 99 {
+			t.Fatalf("mutating iszero pointer control: generated post-state %d, encoding/json post-state %d, want 99", gp.N, sp.N)
+		}
+	})
+	t.Run("mutating iszero fallback value", func(t *testing.T) {
+		type zeroBox struct {
+			Z Set99 `json:"z,omitzero"`
+		}
+		gf, sf := MutAnyRoot{Any: []any{zeroBox{Z: Set99{N: 1}}}}, MutAnyRoot{Any: []any{zeroBox{Z: Set99{N: 1}}}}
+		sameOutcome(t, "mutating iszero fallback value", outcomeOf(gf.MarshalJSON()), outcomeOf(json.Marshal(mutAnyRootMirror(sf))))
+	})
+	t.Run("mutating iszero fallback pointer", func(t *testing.T) {
+		type zeroBox struct {
+			Z Set99 `json:"z,omitzero"`
+		}
+		gpa, spa := &zeroBox{Z: Set99{N: 1}}, &zeroBox{Z: Set99{N: 1}}
+		gfp, sfp := MutAnyRoot{Any: []any{gpa}}, MutAnyRoot{Any: []any{spa}}
+		sameOutcome(t, "mutating iszero fallback pointer", outcomeOf(gfp.MarshalJSON()), outcomeOf(json.Marshal(mutAnyRootMirror(sfp))))
+		if gpa.Z.N != 99 || spa.Z.N != 99 {
+			t.Fatalf("mutating iszero fallback pointer control: generated post-state %d, encoding/json post-state %d, want 99", gpa.Z.N, spa.Z.N)
+		}
+	})
+	t.Run("mutating iszero fallback slice", func(t *testing.T) {
+		type zeroBox struct {
+			Z Set99 `json:"z,omitzero"`
+		}
+		gsl, ssl := []zeroBox{{Z: Set99{N: 1}}}, []zeroBox{{Z: Set99{N: 1}}}
+		gfs, sfs := MutAnyRoot{Any: []any{gsl}}, MutAnyRoot{Any: []any{ssl}}
+		sameOutcome(t, "mutating iszero fallback slice", outcomeOf(gfs.MarshalJSON()), outcomeOf(json.Marshal(mutAnyRootMirror(sfs))))
+		if gsl[0].Z.N != 99 || ssl[0].Z.N != 99 {
+			t.Fatalf("mutating iszero fallback slice control: generated post-state %d, encoding/json post-state %d, want 99", gsl[0].Z.N, ssl[0].Z.N)
+		}
+	})
+	t.Run("mutating iszero static struct", func(t *testing.T) {
+		gv, sv := MutStructIZRoot{S: Set99{N: 1}}, MutStructIZRoot{S: Set99{N: 1}}
+		sameOutcome(t, "mutating iszero static struct", outcomeOf(gv.MarshalJSON()), outcomeOf(json.Marshal(mutStructIZRootMirror(sv))))
+	})
 }
 
 type ZeroVal struct {
@@ -834,6 +927,143 @@ func TestStaticEncoderMapKeys(t *testing.T) {
 		t.Fatalf("failing MarshalText key error %q lost the method error", gerr.Error())
 	}
 }
+
+func TestStaticEncoderTextKeyMutation(t *testing.T) {
+	t.Run("mutating text keys", func(t *testing.T) {
+		for _, c := range []struct {
+			name  string
+			build func() MutKeyRoot
+		}{
+			{"value singleton", func() MutKeyRoot { return MutKeyRoot{One: []map[MutTextKey]int{newMutTextMap("a")}} }},
+			{"value two entries", func() MutKeyRoot { return MutKeyRoot{Two: []map[MutTextKey]int{newMutTextMap("a", "b")}} }},
+			{"pointer singleton", func() MutKeyRoot { return MutKeyRoot{POne: []map[*MutPtrKey]int{newMutPtrTextMap("a")}} }},
+			{"pointer two entries", func() MutKeyRoot { return MutKeyRoot{PTwo: []map[*MutPtrKey]int{newMutPtrTextMap("a", "b")}} }},
+			{"nan key", func() MutKeyRoot { return MutKeyRoot{Nan: []map[NanTextKey]int{{{f: math.NaN()}: 7}}} }},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				sameOutcome(t, c.name, outcomeOf(c.build().MarshalJSON()), outcomeOf(json.Marshal(mutKeyRootMirror(c.build()))))
+			})
+		}
+	})
+}
+
+func TestStaticEncoderInterfaceTextKeys(t *testing.T) {
+	t.Run("interface text key", func(t *testing.T) {
+		okIface := TMIfaceRoot{OK: []map[encoding.TextMarshaler]int{{TKey(2): 1, SKey("x"): 2}}}
+		sameOutcome(t, "interface text key", outcomeOf(okIface.MarshalJSON()), outcomeOf(json.Marshal(tmIfaceMirror(okIface))))
+	})
+	t.Run("nil interface text key", func(t *testing.T) {
+		nilIface := TMIfaceRoot{Bad: []map[encoding.TextMarshaler]int{{nil: 3}}}
+		got, gpanic := safeMarshalOutcome(func() ([]byte, error) { return nilIface.MarshalJSON() })
+		want, wpanic := safeMarshalOutcome(func() ([]byte, error) { return json.Marshal(tmIfaceMirror(nilIface)) })
+		if gpanic != nil {
+			t.Fatalf("nil interface text key: generated panicked with %v, encoding/json panicked with %v, want a generated encoding error", gpanic, wpanic)
+		}
+		if got.err == nil {
+			t.Fatalf("nil interface text key: generated encoded %s or panicked with %v, want a generated encoding error", got.b, gpanic)
+		}
+		if wpanic == nil && want.err == nil {
+			t.Fatalf("nil interface text key: encoding/json unexpectedly accepted a nil interface text key, encoded %s", want.b)
+		}
+	})
+}
+
+func TestStaticEncoderTextKeyTypeNames(t *testing.T) {
+	t.Run("named map text-key error", func(t *testing.T) {
+		namedBad := NamedKeyRoot{Named: []BadTextMap{{1: 1}}}
+		_, gerr := namedBad.MarshalJSON()
+		_, werr := json.Marshal(namedKeyRootMirror(namedBad))
+		if gerr == nil || werr == nil {
+			t.Fatalf("named map text-key error: generated error %v, encoding/json error %v, want both", gerr, werr)
+		}
+		wantNamed := reflect.TypeFor[BadTextMap]().String()
+		if !strings.Contains(gerr.Error(), wantNamed) || !strings.Contains(gerr.Error(), errBadText.Error()) {
+			t.Fatalf("named map text-key error %q, want type %q and method error %q (encoding/json %q)", gerr.Error(), wantNamed, errBadText.Error(), werr.Error())
+		}
+	})
+	t.Run("unnamed map text-key error", func(t *testing.T) {
+		plainBad := NamedKeyRoot{Plain: []map[BadText]int{{1: 1}}}
+		_, gerr := plainBad.MarshalJSON()
+		_, werr := json.Marshal(namedKeyRootMirror(plainBad))
+		if gerr == nil || werr == nil {
+			t.Fatalf("unnamed map text-key error: generated error %v, encoding/json error %v, want both", gerr, werr)
+		}
+		wantUnnamed := reflect.TypeFor[map[BadText]int]().String()
+		if !strings.Contains(gerr.Error(), wantUnnamed) || !strings.Contains(gerr.Error(), errBadText.Error()) {
+			t.Fatalf("unnamed map text-key error %q, want type %q and method error %q (encoding/json %q)", gerr.Error(), wantUnnamed, errBadText.Error(), werr.Error())
+		}
+	})
+}
+
+type MutTextKey struct {
+	m  *map[MutTextKey]int
+	id string
+}
+
+func (k MutTextKey) MarshalText() ([]byte, error) {
+	(*k.m)[k] = 99
+	return []byte(k.id), nil
+}
+
+func newMutTextMap(ids ...string) map[MutTextKey]int {
+	m := map[MutTextKey]int{}
+	for i, id := range ids {
+		m[MutTextKey{m: &m, id: id}] = i + 1
+	}
+	return m
+}
+
+type MutPtrKey struct {
+	m  *map[*MutPtrKey]int
+	id string
+}
+
+func (k *MutPtrKey) MarshalText() ([]byte, error) {
+	(*k.m)[k] = 99
+	return []byte(k.id), nil
+}
+
+func newMutPtrTextMap(ids ...string) map[*MutPtrKey]int {
+	m := map[*MutPtrKey]int{}
+	for i, id := range ids {
+		m[&MutPtrKey{m: &m, id: id}] = i + 1
+	}
+	return m
+}
+
+type NanTextKey struct {
+	f float64
+}
+
+func (k NanTextKey) MarshalText() ([]byte, error) {
+	return []byte("nan"), nil
+}
+
+type BadTextMap map[BadText]int
+
+type MutKeyRoot struct {
+	One  []map[MutTextKey]int `json:"one"`
+	Two  []map[MutTextKey]int `json:"two"`
+	POne []map[*MutPtrKey]int `json:"pone"`
+	PTwo []map[*MutPtrKey]int `json:"ptwo"`
+	Nan  []map[NanTextKey]int `json:"nan"`
+}
+
+type mutKeyRootMirror MutKeyRoot
+
+type TMIfaceRoot struct {
+	Bad []map[encoding.TextMarshaler]int `json:"bad"`
+	OK  []map[encoding.TextMarshaler]int `json:"ok"`
+}
+
+type tmIfaceMirror TMIfaceRoot
+
+type NamedKeyRoot struct {
+	Named []BadTextMap      `json:"named"`
+	Plain []map[BadText]int `json:"plain"`
+}
+
+type namedKeyRootMirror NamedKeyRoot
 
 type CNodeMap map[string](*CNode?)
 

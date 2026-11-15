@@ -187,19 +187,19 @@ func (g *marshalGen) presence(f *jsonField) string {
 	case shapeScalar:
 		if f.omitZero && f.shape.needsIsZero {
 			if f.omitEmpty {
-				return "!(" + f.codec().isZeroCond(x) + ") && !(" + g.zero().zeroTest(f.typ, x) + ")"
+				return "!(" + f.codec().isZeroCond(x) + ") && !(" + g.zero().zeroTest(f.typ, x, "") + ")"
 			}
-			return "!(" + g.zero().zeroTest(f.typ, x) + ")"
+			return "!(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return "!(" + f.codec().isZeroCond(x) + ")"
 	case shapePointer:
 		if f.omitZero && f.shape.needsIsZero {
-			return x + " != nil && !(" + g.zero().zeroTest(f.typ, x) + ")"
+			return x + " != nil && !(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return x + " != nil"
 	case shapeUnion:
 		if f.omitZero {
-			return "!(" + g.zero().zeroTest(f.typ, x) + ")"
+			return "!(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return x + " != nil"
 	}
@@ -1264,10 +1264,7 @@ func (g *marshalGen) edgePresence(f *jsonField, e jsonEdge, local string) (strin
 	if e == edgeHelper && !f.omitZero {
 		return "", false
 	}
-	if e == edgePtrHelper {
-		return "!(" + g.omitted(f, local) + ")", true
-	}
-	return "!(" + g.omitted(f, g.recv+"."+f.goName) + ")", true
+	return "!(" + g.omitted(f, local) + ")", true
 }
 
 func (js *jsonStruct) marshalTextWalk(b *strings.Builder, vname, gen string) {

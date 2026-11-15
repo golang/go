@@ -19,14 +19,15 @@ type isZeroer interface {
 var isZeroerType = reflect.TypeFor[isZeroer]()
 
 type walkField struct {
-	name      string
-	tag       bool
-	index     []int
-	omitEmpty bool
-	omitZero  bool
-	quoted    bool
-	nameHTML  string
-	isZero    func(reflect.Value) bool
+	name       string
+	tag        bool
+	index      []int
+	omitEmpty  bool
+	omitZero   bool
+	addrIsZero bool
+	quoted     bool
+	nameHTML   string
+	isZero     func(reflect.Value) bool
 }
 
 type walkType struct {
@@ -90,15 +91,17 @@ func (sc *walkScan) considerField(f walkType, sf reflect.StructField, i int, ft 
 		}
 		return
 	}
+	isZero, addrIsZero := walkIsZero(sf.Type)
 	field := walkField{
-		name:      cmp.Or(name, sf.Name),
-		tag:       name != "",
-		index:     index,
-		omitEmpty: walkTagHas(opts, "omitempty"),
-		omitZero:  walkTagHas(opts, "omitzero"),
-		quoted:    isQuotedWalkKind(ft.Kind()) && walkTagHas(opts, "string"),
-		nameHTML:  `"` + string(AppendEscaped(nil, cmp.Or(name, sf.Name))) + `":`,
-		isZero:    walkIsZero(sf.Type),
+		name:       cmp.Or(name, sf.Name),
+		tag:        name != "",
+		index:      index,
+		omitEmpty:  walkTagHas(opts, "omitempty"),
+		omitZero:   walkTagHas(opts, "omitzero"),
+		addrIsZero: addrIsZero,
+		quoted:     isQuotedWalkKind(ft.Kind()) && walkTagHas(opts, "string"),
+		nameHTML:   `"` + string(AppendEscaped(nil, cmp.Or(name, sf.Name))) + `":`,
+		isZero:     isZero,
 	}
 	sc.fields = append(sc.fields, field)
 	if sc.count[f.typ] > 1 {
@@ -122,22 +125,22 @@ func isQuotedWalkKind(k reflect.Kind) bool {
 	return false
 }
 
-func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
+func walkIsZero(ft reflect.Type) (func(reflect.Value) bool, bool) {
 	switch {
 	case !ft.Implements(isZeroerType) && !reflect.PointerTo(ft).Implements(isZeroerType):
-		return reflect.Value.IsZero
+		return reflect.Value.IsZero, false
 	case ft.Kind() == reflect.Interface && ft.Implements(isZeroerType):
 		return func(v reflect.Value) bool {
 			return v.IsNil() || (v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) || v.Interface().(isZeroer).IsZero()
-		}
+		}, false
 	case ft.Kind() == reflect.Pointer && ft.Implements(isZeroerType):
 		return func(v reflect.Value) bool {
 			return v.IsNil() || v.Interface().(isZeroer).IsZero()
-		}
+		}, false
 	case ft.Implements(isZeroerType):
 		return func(v reflect.Value) bool {
 			return v.Interface().(isZeroer).IsZero()
-		}
+		}, false
 	}
 	return func(v reflect.Value) bool {
 		if !v.CanAddr() {
@@ -146,7 +149,7 @@ func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
 			v = v2
 		}
 		return v.Addr().Interface().(isZeroer).IsZero()
-	}
+	}, true
 }
 
 func allWalkFields(t reflect.Type) []walkField {
@@ -220,8 +223,21 @@ func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
 	for i := range fields {
 		f := &fields[i]
 		fv, ok := fieldByWalkIndex(rv, f.index)
-		if !ok || f.omitted(fv) {
+		if !ok {
 			continue
+		}
+		copied := false
+		if JSONV2 && f.omitZero && f.addrIsZero && !fv.CanAddr() {
+			snapshot := reflect.New(fv.Type()).Elem()
+			snapshot.Set(fv)
+			fv = snapshot
+			copied = true
+		}
+		if f.omitted(fv) {
+			continue
+		}
+		if copied {
+			fv = reflect.ValueOf(fv.Interface())
 		}
 		buf = append(append(buf, next), f.nameHTML...)
 		next = ','

@@ -14,6 +14,8 @@ import (
 	"unsafe"
 )
 
+const JSONV2 = true
+
 const maxWalkDepth = 10000
 
 var walkMethodTypes = []reflect.Type{
