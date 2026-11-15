@@ -857,7 +857,12 @@ func (fl *fileLower) compositeFreezeAddr(e syntax.Expr, ref compositeRef) syntax
 func (fl *fileLower) compositeFreezeCall(ref compositeRef) (string, *syntax.CallExpr) {
 	fl.needRT = true
 	pos := syntax.StartPos(ref.root)
-	return rtAlias + ".Freeze(&" + renderExpr(ref.root) + ")", callOf(pos, rtSel(pos, "Freeze"), []syntax.Expr{addrOf(pos, ref.root)})
+	root := renderExpr(ref.root)
+	cp, ok := fl.freezeCopier(fl.pkg.info.TypeOf(ref.root), pos)
+	if !ok {
+		return rtAlias + ".Freeze(&" + root + ")", callOf(pos, rtSel(pos, "Freeze"), []syntax.Expr{addrOf(pos, ref.root)})
+	}
+	return rtAlias + ".FreezeRoot(&" + root + ", " + cp.text + ")", callOf(pos, rtSel(pos, "FreezeRoot"), []syntax.Expr{addrOf(pos, ref.root), cp.expr})
 }
 
 func (fl *fileLower) compositeRootSpan(root syntax.Expr) span {

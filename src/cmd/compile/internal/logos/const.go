@@ -583,8 +583,10 @@ func (fl *fileLower) constBoundValue(bound syntax.Expr) bool {
 // infoHasConstView reports whether the first-check info holds a const
 // view in a declared variable, an expression type, or an instantiation
 // argument (SPEC T-201, M5-S6): the rt.Freeze call result is a const
-// with no ConstType syntax node, so a file that uses only Freeze
-// reports no rewrite and would hand const types to the export writer.
+// with no ConstType syntax node, so a file whose only const view is a
+// Freeze call left to the dynamic copier (a type parameter, an open
+// interface, or a type it cannot spell) reports no rewrite and would
+// hand const types to the export writer.
 // A true result forces the plain recheck, which re-derives Go-facing
 // types for the writer and the backend. files covers the production
 // check, which stores types in the syntax tree and leaves info.Types

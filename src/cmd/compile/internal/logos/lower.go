@@ -153,6 +153,8 @@ type packageLower struct {
 	jsonHelpers        map[string]*jsonHelperDef
 	jsonHelperSeq      int
 	jsonUnionKeys      map[string]bool
+	freezeCopiers      []freezeEntry
+	freezeSeq          int
 }
 
 // fileLower carries the state of lowering one file.
@@ -649,6 +651,7 @@ func (fl *fileLower) lowerFile() {
 	fl.lowerLambdas()    // lambdas to function literals.
 	fl.lowerProperties() // property accessors, selector lowering, prop facts.
 	fl.lowerMakeLen()    // products in make lengths to MulLen; sets needRT before the import.
+	fl.lowerFreezes()
 
 	fl.lowerStaticJSON() // generated MarshalJSON and UnmarshalJSON; sets needRT and needJSON before the imports.
 	fl.flushTypeImports()
