@@ -9,26 +9,28 @@
 #define FracMask	0x000fffffffffffff
 #define C1		0x3cb0000000000000	// 2**-52
 
-DATA exprodata<>+0(SB)/8, $0.0
-DATA exprodata<>+8(SB)/8, $0.5
-DATA exprodata<>+16(SB)/8, $1.0
-DATA exprodata<>+24(SB)/8, $2.0
-DATA exprodata<>+32(SB)/8, $6.93147180369123816490e-01	// Ln2Hi
-DATA exprodata<>+40(SB)/8, $1.90821492927058770002e-10	// Ln2Lo
+DATA exprodata<>+0(SB)/8, $0.5
+DATA exprodata<>+8(SB)/8, $1.0
+DATA exprodata<>+16(SB)/8, $2.0
+DATA exprodata<>+24(SB)/8, $6.93147180369123816490e-01	// Ln2Hi
+DATA exprodata<>+32(SB)/8, $1.90821492927058770002e-10	// Ln2Lo
+DATA exprodata<>+40(SB)/8, $-1.90821492927058770002e-10	// -Ln2Lo
 DATA exprodata<>+48(SB)/8, $1.44269504088896338700e+00	// Log2e
-DATA exprodata<>+56(SB)/8, $7.09782712893383973096e+02	// Overflow
-DATA exprodata<>+64(SB)/8, $-7.45133219101941108420e+02	// Underflow
-DATA exprodata<>+72(SB)/8, $1.0239999999999999e+03	// Overflow2
-DATA exprodata<>+80(SB)/8, $-1.0740e+03			// Underflow2
-DATA exprodata<>+88(SB)/8, $3.7252902984619141e-09	// NearZero
-GLOBL exprodata<>+0(SB), NOPTR|RODATA, $96
+GLOBL exprodata<>+0(SB), NOPTR|RODATA, $56
 
-DATA expmultirodata<>+0(SB)/8, $1.66666666666666657415e-01	// P1
-DATA expmultirodata<>+8(SB)/8, $-2.77777777770155933842e-03	// P2
-DATA expmultirodata<>+16(SB)/8, $6.61375632143793436117e-05	// P3
-DATA expmultirodata<>+24(SB)/8, $-1.65339022054652515390e-06	// P4
-DATA expmultirodata<>+32(SB)/8, $4.13813679705723846039e-08	// P5
-GLOBL expmultirodata<>+0(SB), NOPTR|RODATA, $40
+DATA expspecialdata<>+0(SB)/8, $7.09782712893383973096e+02	// Overflow
+DATA expspecialdata<>+8(SB)/8, $-7.45133219101941108420e+02	// Underflow
+DATA expspecialdata<>+16(SB)/8, $1.0239999999999999e+03	// Overflow2
+DATA expspecialdata<>+24(SB)/8, $-1.0740e+03			// Underflow2
+DATA expspecialdata<>+32(SB)/8, $3.7252902984619141e-09	// NearZero
+GLOBL expspecialdata<>+0(SB), NOPTR|RODATA, $40
+
+DATA expmultidata<>+0(SB)/8, $1.66666666666666657415e-01	// P1
+DATA expmultidata<>+8(SB)/8, $-2.77777777770155933842e-03	// P2
+DATA expmultidata<>+16(SB)/8, $6.61375632143793436117e-05	// P3
+DATA expmultidata<>+24(SB)/8, $-1.65339022054652515390e-06	// P4
+DATA expmultidata<>+32(SB)/8, $4.13813679705723846039e-08	// P5
+GLOBL expmultidata<>+0(SB), NOPTR|RODATA, $40
 
 // Exp returns e**x, the base-e exponential of x.
 // This is an assembly implementation of the method used for function Exp in file exp.go.
@@ -38,67 +40,65 @@ TEXT ·archExp(SB),$0-16
 	MOVD	x+0(FP), F0	// F0 = x
 
 	MOV	$exprodata<>+0(SB), X5
-	MOVD	56(X5), F1	// Overflow
-	MOVD	64(X5), F2	// Underflow
-	MOVD	88(X5), F3	// NearZero
-	MOVD	16(X5), F17	// 1.0
-
+	MOV	$expspecialdata<>+0(SB), X6
 	FEQD	F0, F0, X7
 	BEQ	X0, X7, isNaN		// x = NaN, return NaN
 
+	MOVD	0(X6), F1	// Overflow
 	FLTD	F0, F1, X7
 	BNE	X0, X7, overflow	// x > Overflow, return PosInf
 
+	MOVD	8(X6), F2	// Underflow
 	FLTD	F2, F0, X7
 	BNE	X0, X7, underflow	// x < Underflow, return 0
 
 	FABSD	F0, F5
+	MOVD	32(X6), F3	// NearZero
 	FLTD	F3, F5, X7
 	BNE	X0, X7, nearzero	// fabs(x) < NearZero, return 1 + x
 
 	// argument reduction, x = k*ln2 + r,  |r| <= 0.5*ln2
 	// computed as r = hi - lo for extra precision.
-	MOVD	0(X5), F5
-	MOVD	8(X5), F3
-	MOVD	48(X5), F2
-	FLTD	F0, F5, X7
-	BNE	X0, X7, add		// x > 0
-sub:
-	FMSUBD	F0, F2, F3, F3	// Log2e*x - 0.5
-	JMP	2(PC)
-add:
-	FMADDD	F0, F2, F3, F3	// Log2e*x + 0.5
+	MOVD	0(X5), F3	// 0.5
+	MOVD	48(X5), F2	// Log2e
+	FSGNJD	F0, F3, F3	// F3 = copysign(0.5, x)
+	FMADDD	F0, F2, F3, F3	// Log2e*x + 0.5 or -0.5
 
 	FCVTLD.RTZ	F3, X16	// float64 -> int64
 	FCVTDL	X16, F3		// int64 -> float64
 
-	MOVD	32(X5), F4
-	MOVD	40(X5), F5
+	MOVD	24(X5), F4	// Ln2Hi
+	MOVD	32(X5), F5	// Ln2Lo
 	FNMSUBD	F3, F4, F0, F4
 	FMULD	F3, F5, F5
 	FSUBD	F5, F4, F6
 	FMULD	F6, F6, F7
 
 	// compute c
-	// r=(FMA x y z) -> FMADDD z, y, x, r
-	// r=(FMA x y z) -> FMADDD x, y, z, r
-	MOV	$expmultirodata<>+0(SB), X6
-	MOVD	32(X6), F8
-	MOVD	24(X6), F9
-	FMADDD	F7, F8, F9, F13
-	MOVD	16(X6), F10
-	FMADDD	F7, F13, F10, F13
-	MOVD	8(X6), F11
-	FMADDD	F7, F13, F11, F13
-	MOVD	0(X6), F12
-	FMADDD	F7, F13, F12, F13
+	// FMADDD x, y, z, r computes r = x*y + z.
+	MOV	$expmultidata<>+0(SB), X8
+	MOVD	0(X8), F12	// P1
+	MOVD	8(X8), F11	// P2
+	MOVD	16(X8), F10	// P3
+	MOVD	24(X8), F9	// P4
+	MOVD	32(X8), F8	// P5
+	// Estrin's scheme: A, B, r4 are mutually independent and
+	// can be computed in parallel; shortens the dependency
+	// chain from 4 serial FMAs to 3.
+	FMULD	F7, F7, F18		// F18 = r4 = r2*r2
+	FMADDD	F7, F11, F12, F19	// F19 = A = P1 + P2*r2
+	FMADDD	F7, F9, F10, F20	// F20 = B = P3 + P4*r2
+	FMADDD	F18, F8, F20, F20	// F20 = C = B + P5*r4
+	FMADDD	F18, F20, F19, F13	// F13 = A + C*r4
 	FNMSUBD	F7, F13, F6, F13
 
 	// compute y
-	MOVD	24(X5), F14
+	MOVD	16(X5), F14	// 2.0
 	FSUBD	F13, F14, F14
 	FMULD	F6, F13, F15
 	FDIVD	F14, F15, F15
+
+	MOVD	8(X5), F17	// 1.0
 	FSUBD	F15, F5, F15
 	FSUBD	F4, F15, F15
 	FSUBD	F15, F17, F16
@@ -124,6 +124,7 @@ normal:
 	MOVD	F0, ret+8(FP)
 	RET
 nearzero:
+	MOVD	8(X5), F17	// 1.0
 	FADDD	F17, F0, F0
 isNaN:
 	MOVD	F0, ret+8(FP)
@@ -145,62 +146,59 @@ TEXT ·archExp2(SB),$0-16
 	MOVD	x+0(FP), F0	// F0 = x
 
 	MOV	$exprodata<>+0(SB), X5
-	MOVD	72(X5), F1	// Overflow2
-	MOVD	80(X5), F2	// Underflow2
-	MOVD	88(X5), F3	// NearZero
-
+	MOV	$expspecialdata<>+0(SB), X6
 	FEQD	F0, F0, X7
 	BEQ	X0, X7, isNaN		// x = NaN, return NaN
 
+	MOVD	16(X6), F1	// Overflow2
 	FLTD	F0, F1, X7
-	BNE	X0, X7, overflow	// x > Overflow, return PosInf
+	BNE	X0, X7, overflow	// x > Overflow2, return PosInf
 
+	MOVD	24(X6), F2	// Underflow2
 	FLTD	F2, F0, X7
-	BNE	X0, X7, underflow	// x < Underflow, return 0
+	BNE	X0, X7, underflow	// x < Underflow2, return 0
 
 	// argument reduction; x = r*lg(e) + k with |r| <= ln(2)/2
 	// computed as r = hi - lo for extra precision.
-	MOVD	0(X5), F10
-	MOVD	8(X5), F2
-	FLTD	F0, F10, X7
-	BNE	X0, X7, add
-sub:
-	FSUBD	F2, F0, F3	// x - 0.5
-	JMP	2(PC)
-add:
-	FADDD	F2, F0, F3	// x + 0.5
+	MOVD	0(X5), F2	// 0.5
+	FSGNJD	F0, F2, F3	// F3 = copysign(0.5, x)
+	FADDD	F3, F0, F3	// F3 = x + 0.5 or -0.5
 
 	FCVTLD.RTZ	F3, X16
 	FCVTDL	X16, F3
 
-	MOVD	32(X5), F4
-	MOVD	40(X5), F5
+	MOVD	24(X5), F4	// Ln2Hi
+	MOVD	40(X5), F5	// -Ln2Lo
 	FSUBD	F3, F0, F3
 	FMULD	F3, F4, F4
-	FNMSUBD	F5, F3, F10, F5
+	FMULD	F3, F5, F5
 	FSUBD	F5, F4, F6
 	FMULD	F6, F6, F7
 
 	// compute c
-	MOV	$expmultirodata<>+0(SB), X6
-	MOVD	32(X6), F8
-	MOVD	24(X6), F9
-	FMADDD	F7, F8, F9, F13
-	MOVD	16(X6), F10
-	FMADDD	F7, F13, F10, F13
-	MOVD	8(X6), F11
-	FMADDD	F7, F13, F11, F13
-	MOVD	0(X6), F12
-	FMADDD	F7, F13, F12, F13
+	MOV	$expmultidata<>+0(SB), X8
+	MOVD	0(X8), F12	// P1
+	MOVD	8(X8), F11	// P2
+	MOVD	16(X8), F10	// P3
+	MOVD	24(X8), F9	// P4
+	MOVD	32(X8), F8	// P5
+	// Estrin's scheme: A, B, r4 are mutually independent and
+	// can be computed in parallel; shortens the dependency
+	// chain from 4 serial FMAs to 3.
+	FMULD	F7, F7, F18		// F18 = r4 = r2*r2
+	FMADDD	F7, F11, F12, F19	// F19 = A = P1 + P2*r2
+	FMADDD	F7, F9, F10, F20	// F20 = B = P3 + P4*r2
+	FMADDD	F18, F8, F20, F20	// F20 = C = B + P5*r4
+	FMADDD	F18, F20, F19, F13	// F13 = A + C*r4
 	FNMSUBD	F7, F13, F6, F13
 
 	// compute y
-	MOVD	24(X5), F14
+	MOVD	16(X5), F14	// 2.0
 	FSUBD	F13, F14, F14
 	FMULD	F6, F13, F15
 	FDIVD	F14, F15, F15
 
-	MOVD	16(X5), F17
+	MOVD	8(X5), F17	// 1.0
 	FSUBD	F15, F5, F15
 	FSUBD	F4, F15, F15
 	FSUBD	F15, F17, F16
