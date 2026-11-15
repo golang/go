@@ -8,12 +8,12 @@ import (
 	"bytes"
 	"fmt"
 	"internal/logosfile"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 
 	"cmd/go/internal/cfg"
+	"cmd/go/internal/fsys"
 	"cmd/go/internal/logos/settings"
 )
 
@@ -143,7 +143,7 @@ func collectPackageWasmLoaderHelpers(q *Package) []string {
 	var names []string
 	seen := make(map[string]bool)
 	for _, f := range q.GoFiles {
-		data, err := os.ReadFile(filepath.Join(q.Dir, f))
+		data, err := fsys.ReadFile(filepath.Join(q.Dir, f))
 		if err != nil {
 			continue
 		}
