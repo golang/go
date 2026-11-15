@@ -7,9 +7,11 @@
 package json
 
 import (
-	stdjson "encoding/json"
 	"reflect"
+	"unsafe"
 )
+
+const JSONV2 = false
 
 func (s *Walk) checkDepth(offset int64) error {
 	return nil
@@ -17,24 +19,24 @@ func (s *Walk) checkDepth(offset int64) error {
 
 var walkMethodTypes = []reflect.Type{marshalerType, textMarshalerType}
 
-func (s *Walk) checkMapKeys(rv reflect.Value) error {
-	if !walkMapKeySupported(rv.Type().Key()) {
-		return &stdjson.UnsupportedTypeError{Type: rv.Type()}
-	}
-	return nil
+func pointerVisit[P ~*T, T any](p P) walkVisit {
+	return walkVisit{typ: typeToken[P](), ptr: unsafe.Pointer(p)}
 }
 
-func visitKey(v reflect.Value) any {
+func sliceVisit[S ~[]E, E any](v S) walkVisit {
+	return walkVisit{ptr: sliceData(v), len: len(v)}
+}
+
+func mapVisit[M ~map[K]V, K comparable, V any](m M) walkVisit {
+	return walkVisit{ptr: mapData(m)}
+}
+
+func valueVisit(v reflect.Value) walkVisit {
 	switch v.Kind() {
 	case reflect.Pointer:
-		return v.Interface()
+		return walkVisit{typ: valueToken(v.Type()), ptr: v.UnsafePointer()}
 	case reflect.Slice:
-		return struct {
-			ptr any
-			len int
-		}{v.UnsafePointer(), v.Len()}
-	case reflect.Map:
-		return v.UnsafePointer()
+		return walkVisit{ptr: v.UnsafePointer(), len: v.Len()}
 	}
-	return nil
+	return walkVisit{ptr: v.UnsafePointer()}
 }

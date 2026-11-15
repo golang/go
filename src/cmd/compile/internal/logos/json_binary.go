@@ -35,9 +35,17 @@ func (fl *fileLower) lowerStaticBinary(_ *syntax.TypeDecl, named *types2.Named, 
 	if !ok {
 		return
 	}
+	codecTypes := make([]types2.Type, len(g.ids))
+	for t, codecID := range g.ids {
+		codecTypes[codecID] = t
+	}
+	for codecID, t := range codecTypes {
+		g.sizeCodec(t, codecID)
+	}
 	out.WriteString(g.text.String())
 	if needMarshal {
-		fmt.Fprintf(out, "func (_logos_v %s) MarshalBinary() ([]byte, error) { return %s_e%d([]byte{1}, _logos_v, 1) }\n", js.name, g.prefix, id)
+		fmt.Fprintf(out, "func %s_capacity(_logos_v *%s) int { _logos_bulk := 0; _logos_n, _logos_ok := %s_s%d(_logos_v, 1, &_logos_bulk); if !_logos_ok { _logos_n = 0 }; if _logos_n == int(^uint(0)>>1) { _logos_n = 0 }; if _logos_bulk >= _logos_n-_logos_bulk { _logos_n = 0 }; return _logos_n+1 }\n", g.prefix, js.name, g.prefix, id)
+		fmt.Fprintf(out, "func (_logos_v %s) MarshalBinary() ([]byte, error) { _logos_dst := make([]byte, 1, %s_capacity(&_logos_v)); _logos_dst[0] = 1; return %s_e%d(_logos_dst, _logos_v, 1) }\n", js.name, g.prefix, g.prefix, id)
 	}
 	if needAppend {
 		fmt.Fprintf(out, "func (_logos_v %s) AppendBinary(_logos_dst []byte) ([]byte, error) { return %s_e%d(append(_logos_dst, 1), _logos_v, 1) }\n", js.name, g.prefix, id)
@@ -52,6 +60,128 @@ type binaryGenerator struct {
 	prefix string
 	ids    map[types2.Type]int
 	text   strings.Builder
+}
+
+func binaryScalarWidth(t types2.Type) int {
+	b, ok := t.Underlying().(*types2.Basic)
+	if !ok {
+		return 0
+	}
+	s, _ := basicScalar(b)
+	switch s {
+	case scalarString:
+		return 0
+	case scalarBool:
+		return 1
+	case scalarFloat32:
+		return 4
+	default:
+		return 8
+	}
+}
+
+func (g *binaryGenerator) sizeCodec(t types2.Type, id int) {
+	name, _ := g.fl.spellLowered(t)
+	var body strings.Builder
+	p := func(format string, args ...any) { fmt.Fprintf(&body, format+"\n", args...) }
+	add := func(expr string) {
+		p("{ _logos_add := %s; if _logos_add < 0 || _logos_add > int(^uint(0)>>1)-_logos_n { return 0, false }; _logos_n += _logos_add }", expr)
+	}
+	count := func(value string) {
+		p("{ _logos_count := uint64(len(%s)); _logos_width := 1", value)
+		for _, shift := range [...]uint{56, 28, 14, 7} {
+			p("if _logos_count >= 1<<%d { _logos_count >>= %d; _logos_width += %d }", shift, shift, shift/7)
+		}
+		add("_logos_width")
+		p("}")
+	}
+	child := func(et types2.Type, address string) {
+		depth := "_logos_depth"
+		if g.isDepthComposite(et) {
+			depth = "_logos_depth+1"
+		}
+		p("{ _logos_child, _logos_ok := %s_s%d(%s, %s, _logos_bulk); if !_logos_ok { return 0, false }", g.prefix, g.ids[types2.Unalias(et)], address, depth)
+		add("_logos_child")
+		p("}")
+	}
+	value := "(*_logos_v)"
+	sequence := func(et types2.Type) {
+		count("(*_logos_v)")
+		if width := binaryScalarWidth(et); width != 0 {
+			p("if len(*_logos_v) > (int(^uint(0)>>1)-_logos_n)/%d { return 0, false }; _logos_n += len(*_logos_v)*%d", width, width)
+			return
+		}
+		p("for _logos_i := range (*_logos_v) {")
+		child(et, "&(*_logos_v)[_logos_i]")
+		p("}")
+	}
+	if opt := g.fl.asOption(t); opt != nil {
+		if types2.LogosOptionIsBare(opt.Elem) {
+			child(opt.Elem, "_logos_v")
+		} else {
+			add("1")
+			p("if _logos_v.Present {")
+			child(opt.Elem, "&_logos_v.Value")
+			p("}")
+		}
+	} else {
+		switch x := t.Underlying().(type) {
+		case *types2.Basic:
+			s, _ := basicScalar(x)
+			switch s {
+			case scalarString:
+				count(value)
+				add("len(" + value + ")")
+				p("*_logos_bulk = max(*_logos_bulk, len(%s))", value)
+			case scalarBool:
+				add("1")
+			case scalarFloat32:
+				add("4")
+			default:
+				add("8")
+			}
+		case *types2.Pointer:
+			add("1")
+			p("if %s != nil {", value)
+			child(x.Elem(), value)
+			p("}")
+		case *types2.Struct:
+			for i := range x.NumFields() {
+				if _, ok := types2.LogosJSONFieldOf(x, i); ok {
+					child(x.Field(i).Type(), "&_logos_v."+x.Field(i).Name())
+				}
+			}
+		case *types2.LogosTuple:
+			for i := range x.Len() {
+				child(x.Elem(i), "&_logos_v."+tupleLoweredName(x.Name(i), i))
+			}
+		case *types2.Slice:
+			if g.isZeroWire(x.Elem()) {
+				elem, _ := g.fl.spellLowered(x.Elem())
+				p("if uint64(len(%s)) > 1<<20 { return 0, false }; _logos_size := uint64(_logos_bunsafe.Sizeof(*new(%s))); if _logos_size == 0 { _logos_size = 1 }; if uint64(len(%s)) > (1<<23)/_logos_size { return 0, false }", value, elem, value)
+				count(value)
+			} else if b, ok := x.Elem().Underlying().(*types2.Basic); ok && b.Kind() == types2.Uint8 {
+				count(value)
+				add("len(" + value + ")")
+				if _, plain := types2.Unalias(x.Elem()).(*types2.Basic); plain {
+					p("*_logos_bulk = max(*_logos_bulk, len(%s))", value)
+				}
+			} else {
+				sequence(x.Elem())
+			}
+		case *types2.Array:
+			sequence(x.Elem())
+		case *types2.Map:
+			count(value)
+			p("for _logos_key, _logos_elem := range %s {", value)
+			child(x.Key(), "&_logos_key")
+			child(x.Elem(), "&_logos_elem")
+			p("}")
+		default:
+			p("return 0, false")
+		}
+	}
+	fmt.Fprintf(&g.text, "func %s_s%d(_logos_v *%s, _logos_depth int, _logos_bulk *int) (int, bool) { if _logos_depth > 10000 || _logos_v == nil || _logos_bulk == nil { return 0, false }; _logos_n := 0\n%sreturn _logos_n, true\n}\n", g.prefix, id, name, body.String())
 }
 
 func (g *binaryGenerator) codec(t types2.Type) (int, bool) {
@@ -212,25 +342,47 @@ func (g *binaryGenerator) codec(t types2.Type) (int, bool) {
 			if !ok {
 				return 0, false
 			}
-			e("_logos_dst = _logos_bbinary.AppendUvarint(_logos_dst, uint64(len(_logos_v))); for _, _logos_elem := range _logos_v {")
-			d("_logos_n, _logos_used := _logos_bbinary.Uvarint(_logos_src[*_logos_off:]); if _logos_used <= 0 { %s }; *_logos_off += _logos_used; if _logos_n > uint64(len(_logos_src)-*_logos_off) { %s }; var _logos_elem %s; _logos_size := uint64(_logos_bunsafe.Sizeof(_logos_elem)); if _logos_size == 0 { _logos_size = 1 }; _logos_cap64 := min(_logos_n, uint64(len(_logos_src)-*_logos_off)/2, (1<<20)/_logos_size); *_logos_v = make(%s, 0, int(_logos_cap64)); for _logos_i := uint64(0); _logos_i < _logos_n; _logos_i++ {", fail, fail, elemType, name)
+			width := binaryBulkWidth(x.Elem())
+			e("_logos_dst = _logos_bbinary.AppendUvarint(_logos_dst, uint64(len(_logos_v)))")
+			d("_logos_n, _logos_used := _logos_bbinary.Uvarint(_logos_src[*_logos_off:]); if _logos_used <= 0 { %s }; *_logos_off += _logos_used; if _logos_n > uint64(len(_logos_src)-*_logos_off) { %s }", fail, fail)
+			if width > 0 {
+				e("if %s { %s } else {", binaryLittleEndianHost, bulkSliceEncode(width))
+				d("if %s { %s } else {", binaryLittleEndianHost, bulkSliceDecode(name, width, fail))
+			}
+			e("for _, _logos_elem := range _logos_v {")
+			d("var _logos_elem %s; _logos_size := uint64(_logos_bunsafe.Sizeof(_logos_elem)); if _logos_size == 0 { _logos_size = 1 }; _logos_cap64 := min(_logos_n, uint64(len(_logos_src)-*_logos_off)/2, (1<<20)/_logos_size); *_logos_v = make(%s, 0, int(_logos_cap64)); for _logos_i := uint64(0); _logos_i < _logos_n; _logos_i++ {", elemType, name)
 			if !child(x.Elem(), "_logos_elem", "&_logos_elem", "_logos_field") {
 				return 0, false
 			}
 			e("}")
 			d("*_logos_v = append(*_logos_v, _logos_elem) }")
+			if width > 0 {
+				e("}")
+				d("}")
+			}
 		case *types2.Array:
 			elemType, ok := g.fl.spellLowered(x.Elem())
 			if !ok {
 				return 0, false
 			}
-			e("_logos_dst = _logos_bbinary.AppendUvarint(_logos_dst, uint64(len(_logos_v))); for _, _logos_elem := range _logos_v {")
-			d("_logos_n, _logos_used := _logos_bbinary.Uvarint(_logos_src[*_logos_off:]); if _logos_used <= 0 { %s }; *_logos_off += _logos_used; if _logos_n != %d { return _logos_bfmt.Errorf(\"binary field %%s at offset %%d: array count %%d, want %d\", _logos_field, *_logos_off-_logos_used, _logos_n) }; for _logos_i := range *_logos_v { var _logos_elem %s", fail, x.Len(), x.Len(), elemType)
+			width := binaryBulkWidth(x.Elem())
+			e("_logos_dst = _logos_bbinary.AppendUvarint(_logos_dst, uint64(len(_logos_v)))")
+			d("_logos_n, _logos_used := _logos_bbinary.Uvarint(_logos_src[*_logos_off:]); if _logos_used <= 0 { %s }; *_logos_off += _logos_used; if _logos_n != %d { return _logos_bfmt.Errorf(\"binary field %%s at offset %%d: array count %%d, want %d\", _logos_field, *_logos_off-_logos_used, _logos_n) }", fail, x.Len(), x.Len())
+			if width > 0 {
+				e("if %s { %s } else {", binaryLittleEndianHost, bulkArrayEncode(width))
+				d("if %s { %s } else {", binaryLittleEndianHost, bulkArrayDecode(x.Len(), width, fail))
+			}
+			e("for _, _logos_elem := range _logos_v {")
+			d("for _logos_i := range *_logos_v { var _logos_elem %s", elemType)
 			if !child(x.Elem(), "_logos_elem", "&_logos_elem", "_logos_field") {
 				return 0, false
 			}
 			e("}")
 			d("(*_logos_v)[_logos_i] = _logos_elem }")
+			if width > 0 {
+				e("}")
+				d("}")
+			}
 		case *types2.Map:
 			keyType, keyOK := g.fl.spellLowered(x.Key())
 			valueType, valueOK := g.fl.spellLowered(x.Elem())
@@ -330,6 +482,46 @@ func (g *binaryGenerator) zeroWire(t types2.Type, seen map[types2.Type]bool) boo
 	default:
 		return false
 	}
+}
+
+const binaryLittleEndianHost = rtAlias + ".BinaryHostLittleEndian"
+
+func binaryBulkWidth(t types2.Type) int {
+	b, ok := t.Underlying().(*types2.Basic)
+	if !ok {
+		return 0
+	}
+	switch b.Kind() {
+	case types2.Int64, types2.Uint64, types2.Float64:
+		return 8
+	case types2.Float32:
+		return 4
+	}
+	return 0
+}
+
+func binaryByteView(ptr, size string) string {
+	return fmt.Sprintf("_logos_bunsafe.Slice((*byte)(_logos_bunsafe.Pointer(%s)), %s)", ptr, size)
+}
+
+func bulkSliceEncode(width int) string {
+	view := binaryByteView("_logos_bunsafe.SliceData(_logos_v)", fmt.Sprintf("len(_logos_v)*%d", width))
+	return fmt.Sprintf("_logos_dst = append(_logos_dst, %s...)", view)
+}
+
+func bulkSliceDecode(name string, width int, fail string) string {
+	view := binaryByteView("_logos_bunsafe.SliceData(*_logos_v)", "_logos_by")
+	return fmt.Sprintf("_logos_m := min(_logos_n, uint64(len(_logos_src)-*_logos_off)/%[1]d); *_logos_v = make(%[2]s, int(_logos_m)); _logos_by := int(_logos_m)*%[1]d; copy(%[3]s, _logos_src[*_logos_off:*_logos_off+_logos_by]); *_logos_off += _logos_by; if _logos_m < _logos_n { %[4]s }", width, name, view, fail)
+}
+
+func bulkArrayEncode(width int) string {
+	view := binaryByteView("&_logos_v", fmt.Sprintf("len(_logos_v)*%d", width))
+	return fmt.Sprintf("_logos_dst = append(_logos_dst, %s...)", view)
+}
+
+func bulkArrayDecode(length int64, width int, fail string) string {
+	view := binaryByteView("_logos_v", "_logos_by")
+	return fmt.Sprintf("_logos_m := min(%[1]d, (len(_logos_src)-*_logos_off)/%[2]d); _logos_by := _logos_m*%[2]d; copy(%[3]s, _logos_src[*_logos_off:*_logos_off+_logos_by]); *_logos_off += _logos_by; if _logos_m < %[1]d { %[4]s }", length, width, view, fail)
 }
 
 type binaryImport struct{ alias, path string }

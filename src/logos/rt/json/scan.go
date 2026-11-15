@@ -9,7 +9,6 @@ import (
 	"errors"
 	"reflect"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -389,34 +388,25 @@ func (s *Scanner) Fallback(dst any) {
 
 // FallbackQ decodes a json.Number field carrying the `string` option: the
 // value must be a JSON string whose content is itself JSON, or null.
-// It unwraps the outer string before delegating to encoding/json, matching
-// encoding/json's destring branch for Number. A bare non-string value saves
-// the invalid use of ,string error; null decodes as null (pointer nil, value
-// unchanged) via the same path as Fallback. A field whose type declares its
-// own UnmarshalJSON or UnmarshalText method must use Fallback instead, so the
-// method receives the raw token exactly as encoding/json delivers it.
-func (s *Scanner) FallbackQ(dst any) {
+// dst points at the field and T is its type, which names the destination in
+// the saved error. It unwraps the outer string before delegating to
+// encoding/json, matching encoding/json's destring branch for Number. A bare
+// non-string value saves the invalid use of ,string error; null decodes as
+// null (pointer nil, value unchanged) via the same path as Fallback. A field
+// whose type declares its own UnmarshalJSON or UnmarshalText method must use
+// Fallback instead, so the method receives the raw token exactly as
+// encoding/json delivers it.
+func FallbackQ[T any](s *Scanner, dst *T) {
 	item, st := s.readQuoted()
 	switch st {
 	case quotedBare:
-		t := reflect.TypeOf(dst)
-		if t != nil && t.Kind() == reflect.Pointer {
-			t = t.Elem()
-		}
-		if t == nil {
-			t = reflect.TypeFor[any]()
-		}
-		s.save(tagUnquoted(t))
-		return
+		s.save(tagUnquoted(reflect.TypeFor[T]()))
 	case quotedContent:
 		s.decodeRaw([]byte(item), dst)
-		return
 	default:
-		if s.err != nil {
-			return
+		if s.err == nil {
+			s.decodeRaw(s.data[s.start:s.end], dst)
 		}
-		s.decodeRaw(s.data[s.start:s.end], dst)
-		return
 	}
 }
 
@@ -488,11 +478,20 @@ type UnionTrialOutcome struct {
 // their address range stays allocated and fixed until the outermost trial
 // returns, and a nested trial joins the root whose range contains its bytes.
 // Decodes of separate buffers therefore share no outcomes.
+//
+// Outcomes are keyed by content: first by typeID, then by the raw bytes
+// of the union value, so equal spans inside one root value share an
+// outcome regardless of address. Store snapshots the bytes, so a later
+// mutation of the caller's buffer can neither corrupt nor re-key an
+// already stored entry. entries counts stored outcomes across all
+// typeIDs and bytes counts their retained key payload; exceeding either
+// budget drops the whole cache.
 type UnionTrial struct {
 	root     []byte
 	depth    int
 	mu       sync.Mutex
-	outcomes map[string]UnionTrialOutcome
+	outcomes map[string]map[string]UnionTrialOutcome
+	entries  int
 	bytes    int
 }
 
@@ -506,22 +505,16 @@ func addressRange(raw []byte) (lo, hi uintptr) {
 	return lo, lo + uintptr(len(raw))
 }
 
-func unionTrialKey(typeID string, raw []byte) string {
-	key := make([]byte, 0, len(typeID)+1+len(raw))
-	key = append(key, typeID...)
-	key = append(key, 0)
-	key = append(key, raw...)
-	return string(key)
-}
-
 func EnterUnionTrial(raw []byte) *UnionTrial {
 	lo, hi := addressRange(raw)
 	unionTrials.mu.Lock()
 	defer unionTrials.mu.Unlock()
 	active := unionTrials.active
-	at := sort.Search(len(active), func(i int) bool {
-		rootLo, _ := addressRange(active[i].root)
-		return rootLo > lo
+	at, _ := slices.BinarySearchFunc(active, lo, func(t *UnionTrial, lo uintptr) int {
+		if rootLo, _ := addressRange(t.root); rootLo > lo {
+			return 1
+		}
+		return -1
 	})
 	if at > 0 {
 		if _, rootHi := addressRange(active[at-1].root); hi <= rootHi {
@@ -544,10 +537,9 @@ func (t *UnionTrial) Exit() {
 }
 
 func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome) {
-	key := unionTrialKey(typeID, raw)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	out, ok := t.outcomes[key]
+	out, ok := t.outcomes[typeID][string(raw)]
 	if !ok {
 		return false, UnionTrialOutcome{Kind: UnionTrialMiss, Winner: -1}
 	}
@@ -555,15 +547,28 @@ func (t *UnionTrial) Lookup(typeID string, raw []byte) (bool, UnionTrialOutcome)
 }
 
 func (t *UnionTrial) Store(typeID string, raw []byte, out UnionTrialOutcome) {
-	key := unionTrialKey(typeID, raw)
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	if t.outcomes == nil || len(t.outcomes) > 1024 || t.bytes > 1<<20 {
-		t.outcomes = make(map[string]UnionTrialOutcome)
+	if t.outcomes == nil || t.entries > 1024 || t.bytes > 1<<20 {
+		t.outcomes = make(map[string]map[string]UnionTrialOutcome)
+		t.entries = 0
 		t.bytes = 0
 	}
-	if _, dup := t.outcomes[key]; !dup {
-		t.bytes += len(key)
+	inner := t.outcomes[typeID]
+	if inner == nil {
+		inner = make(map[string]UnionTrialOutcome)
+		id := strings.Clone(typeID)
+		t.outcomes[id] = inner
+		t.bytes += len(id)
 	}
-	t.outcomes[key] = out
+	old, dup := inner[string(raw)]
+	if dup {
+		if old != out {
+			inner[string(raw)] = out
+		}
+		return
+	}
+	t.entries++
+	t.bytes += len(raw)
+	inner[string(raw)] = out
 }

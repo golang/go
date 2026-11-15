@@ -1,0 +1,11 @@
+ok basic
+ok map
+ok slice
+ok func
+ok interface
+ok named-other-package
+ok generic-instance
+ok flag-lookup
+ok list-front
+ok type-param-generic-instance
+ok type-param-basic

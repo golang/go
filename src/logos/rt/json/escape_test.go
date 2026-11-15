@@ -5,9 +5,12 @@
 package json
 
 import (
+	"bytes"
 	stdjson "encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func escapeCorpus() []string {
@@ -145,5 +148,245 @@ func FuzzEscape(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, s string) {
 		checkEscape(t, s)
+	})
+}
+
+const diffMaxLen = 200
+
+func diffPlainByte(j int) byte {
+	const plain = " !#$%()*+,-./0123456789:;=?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f"
+	return plain[j%len(plain)]
+}
+
+func forEachPlacement(seqs []string, visit func(body []byte)) {
+	filler := make([]byte, diffMaxLen)
+	for j := range filler {
+		filler[j] = diffPlainByte(j)
+	}
+	work := bytes.Clone(filler)
+	for n := range diffMaxLen + 1 {
+		visit(work[:n:n])
+		for _, seq := range seqs {
+			for pos := 0; pos+len(seq) <= n; pos++ {
+				copy(work[pos:], seq)
+				visit(work[:n:n])
+				copy(work[pos:pos+len(seq)], filler[pos:])
+			}
+		}
+	}
+}
+
+var escapeSequences = []string{
+	"\x00", "\x08", "\t", "\n", "\x1f", " ", "!", "\"", "&", "<", ">", "\\", "~", "\x7f",
+	"\x80", "\xbf", "\xc2", "\xc3", "\xe2", "\xf0", "\xf4", "\xff",
+	"\u00e9", "\u07ff", "\u0800", "\u2027", "\u2028", "\u2029", "\u202a", "\ufffd", "\U0001f600",
+	"\xe2\x80", "\xf0\x9f\x98", "\xc0\x80", "\xe0\x80\x80", "\xed\xa0\x80", "\xf4\x90\x80\x80",
+}
+
+var lenSequences = []string{
+	"\x00", "\n", "\"", "\\", "<", ">", "&", "\x7f", "\x80", "\xff",
+	"\u00e9", "\u2028", "\U0001f600", "\xe2\x80",
+}
+
+func refFirstEscape(s string, from int) int {
+	for off, r := range s[from:] {
+		i := from + off
+		if r < 0x20 || r == '"' || r == '\\' || r == '<' || r == '>' || r == '&' || r == '\u2028' || r == '\u2029' {
+			return i
+		}
+		if r == utf8.RuneError && !strings.HasPrefix(s[i:], "\ufffd") {
+			return i
+		}
+	}
+	return len(s)
+}
+
+func refEscape(s string) string {
+	var sb strings.Builder
+	for i := 0; i < len(s); {
+		r, size := utf8.DecodeRuneInString(s[i:])
+		unit := s[i : i+size]
+		i += size
+		switch r {
+		case '"', '\\':
+			sb.WriteByte('\\')
+			sb.WriteString(unit)
+		case '\b':
+			sb.WriteString(`\b`)
+		case '\f':
+			sb.WriteString(`\f`)
+		case '\n':
+			sb.WriteString(`\n`)
+		case '\r':
+			sb.WriteString(`\r`)
+		case '\t':
+			sb.WriteString(`\t`)
+		case '<', '>', '&', '\u2028', '\u2029':
+			fmt.Fprintf(&sb, `\u%04x`, r)
+		default:
+			switch {
+			case r < 0x20:
+				fmt.Fprintf(&sb, `\u%04x`, r)
+			case r == utf8.RuneError && size == 1:
+				sb.WriteString(invalidUTF8Escape)
+			default:
+				sb.WriteString(unit)
+			}
+		}
+	}
+	return sb.String()
+}
+
+func refQuoted(s string) string {
+	inner := `"` + refEscape(s) + `"`
+	var sb strings.Builder
+	for i := range len(inner) {
+		if inner[i] == '"' || inner[i] == '\\' {
+			sb.WriteByte('\\')
+		}
+		sb.WriteByte(inner[i])
+	}
+	return sb.String()
+}
+
+func TestFirstEscapeRules(t *testing.T) {
+	cases := []struct {
+		s    string
+		from int
+		want int
+	}{
+		{"", 0, 0},
+		{"plain text", 0, 10},
+		{`say "hi"`, 0, 4},
+		{`a\b`, 0, 1},
+		{"a<b", 0, 1},
+		{"a>b", 0, 1},
+		{"a&b", 0, 1},
+		{"ab\x00", 0, 2},
+		{"ab\x1f", 0, 2},
+		{"ab\x20\x7f", 0, 4},
+		{"\u00e9<", 0, 2},
+		{"\u65e5\u672c\u8a9e\n", 0, 9},
+		{"a\xffb", 0, 1},
+		{"\xe2\x80", 0, 0},
+		{"a\u2027b", 0, 5},
+		{"a\u2028b", 0, 1},
+		{"a\u2029b", 0, 1},
+		{"a\ufffdb", 0, 5},
+		{"xx<yy", 3, 5},
+		{"xx<yy", 2, 2},
+		{strings.Repeat("a", 40) + "<", 0, 40},
+		{strings.Repeat("a", 40), 0, 40},
+		{"a" + strings.Repeat("\u00e9", 20) + "\"", 0, 41},
+	}
+	for _, c := range cases {
+		for _, prevRun := range []int{0, sparseSkip} {
+			if got := firstEscape(c.s, c.from, prevRun); got != c.want {
+				t.Errorf("firstEscape(%q, %d, %d) = %d, want %d", c.s, c.from, prevRun, got, c.want)
+			}
+		}
+		if got := refFirstEscape(c.s, c.from); got != c.want {
+			t.Errorf("refFirstEscape(%q, %d) = %d, want %d", c.s, c.from, got, c.want)
+		}
+	}
+}
+
+func TestEscapeReferenceRules(t *testing.T) {
+	cases := []struct{ s, want string }{
+		{"a<b", `a\u003cb`},
+		{"a>b&c", `a\u003eb\u0026c`},
+		{"\n\r\t\b\f", `\n\r\t\b\f`},
+		{"\x01\x1f", `\u0001\u001f`},
+		{"\u2028\u2029", `\u2028\u2029`},
+		{`"\`, `\"\\`},
+		{"\x7f\u00e9", "\x7f\u00e9"},
+		{"a\xffb", "a" + invalidUTF8Escape + "b"},
+	}
+	for _, c := range cases {
+		if got := refEscape(c.s); got != c.want {
+			t.Errorf("refEscape(%q) = %q, want %q", c.s, got, c.want)
+		}
+		if got := string(AppendEscaped(nil, c.s)); got != c.want {
+			t.Errorf("AppendEscaped(%q) = %q, want %q", c.s, got, c.want)
+		}
+	}
+	if got, want := refQuoted("a<"), `\"a\\u003c\"`; got != want {
+		t.Errorf("refQuoted(%q) = %q, want %q", "a<", got, want)
+	}
+}
+
+func checkFirstEscape(t *testing.T, s string, from int) {
+	t.Helper()
+	want := refFirstEscape(s, from)
+	for _, prevRun := range []int{0, sparseSkip} {
+		if got := firstEscape(s, from, prevRun); got != want {
+			t.Fatalf("firstEscape(%q, %d, %d) = %d, want %d", s, from, prevRun, got, want)
+		}
+	}
+}
+
+func checkEscapeLens(t *testing.T, s string) {
+	t.Helper()
+	want := refEscape(s)
+	if got := string(AppendEscaped(nil, s)); got != want {
+		t.Fatalf("AppendEscaped(%q) = %q, want %q", s, got, want)
+	}
+	if got := EscapedLen(s); got != len(want) {
+		t.Fatalf("EscapedLen(%q) = %d, want %d", s, got, len(want))
+	}
+	wantQ := refQuoted(s)
+	if got := string(AppendQuoted(nil, s)); got != wantQ {
+		t.Fatalf("AppendQuoted(%q) = %q, want %q", s, got, wantQ)
+	}
+	if got := QuotedLen(s); got != len(wantQ) {
+		t.Fatalf("QuotedLen(%q) = %d, want %d", s, got, len(wantQ))
+	}
+}
+
+func diffFiller(n int) string {
+	b := make([]byte, n)
+	for j := range b {
+		b[j] = diffPlainByte(j)
+	}
+	return string(b)
+}
+
+var gapRuns = []int{0, 1, 7, 8, 15, 16, 31, 32, 33, 63, 64, 65}
+
+var gapSequences = []string{"\"", "<", "\n", "\u00e9", "\u2028", "\xff", "\U0001f600"}
+
+func forEachGapInput(seqs []string, visit func(body []byte)) {
+	g, k := len(gapRuns), len(seqs)
+	for n := range k * k * g * g * g {
+		a, b := seqs[n%k], seqs[n/k%k]
+		g1, g2, g3 := gapRuns[n/(k*k)%g], gapRuns[n/(k*k*g)%g], gapRuns[n/(k*k*g*g)]
+		visit([]byte(diffFiller(g1) + a + diffFiller(g2) + b + diffFiller(g3)))
+	}
+}
+
+func TestFirstEscapeDifferential(t *testing.T) {
+	pad := strings.Repeat("p", 17)
+	forEachPlacement(escapeSequences, func(body []byte) {
+		for _, p := range []int{0, 3, 17} {
+			s := pad[:p] + string(body)
+			checkFirstEscape(t, s, p)
+			if want := refFirstEscape(s, p); want < len(s) {
+				checkFirstEscape(t, s, want+1)
+			}
+		}
+	})
+}
+
+func TestEscapeLensDifferential(t *testing.T) {
+	forEachPlacement(lenSequences, func(body []byte) {
+		checkEscapeLens(t, string(body))
+	})
+}
+
+func TestEscapeGapDifferential(t *testing.T) {
+	forEachGapInput(gapSequences, func(body []byte) {
+		s := string(body)
+		checkEscapeLens(t, s)
+		checkFirstEscape(t, s, 0)
 	})
 }

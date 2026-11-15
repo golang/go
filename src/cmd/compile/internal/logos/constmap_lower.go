@@ -601,6 +601,7 @@ func parseConstMapEntryExpr(text string, pos syntax.Pos) (syntax.Expr, bool) {
 	syntax.Inspect(e, func(n syntax.Node) bool {
 		if n != nil {
 			n.SetPos(pos)
+			setRbrace(n, pos)
 		}
 		return true
 	})
@@ -921,32 +922,21 @@ func (fl *fileLower) lowerConstMapRanges() {
 }
 
 func (fl *fileLower) lowerSortedRange(rc *syntax.RangeClause) {
-	if !fl.rangesConstMap(rc.X) {
+	mt, ok := fl.rangedConstMap(rc.X)
+	if !ok {
 		return
 	}
 	pos := rc.X.Pos()
+	entry, compare := fl.sortedRangeEntry(mt.Key(), pos)
+	args, suffix := []syntax.Expr{rc.X}, ")"
+	if compare != "" {
+		args, suffix = append(args, sortedRangeCompare(compare, pos)), ", "+compare+")"
+	}
 	start, end := fl.off(syntax.StartPos(rc.X)), fl.endOff(rc.X)
-	fl.add(start, start, rtAlias+".SortedAll(")
-	fl.add(end, end, ")")
+	fl.add(start, start, rtAlias+"."+entry+"(")
+	fl.add(end, end, suffix)
 	fl.needRT = true
-	rc.X = callOf(pos, selOf(pos, nameOf(pos, rtAlias), "SortedAll"), []syntax.Expr{rc.X})
-}
-
-func (fl *fileLower) rangesConstMap(x syntax.Expr) bool {
-	t := fl.pkg.info.TypeOf(x)
-	if t == nil {
-		return false
-	}
-	if view := constAsView(t); view != nil {
-		_, isMap := compositeUnderlying(view.Elem).(*types2.Map)
-		return isMap
-	}
-	ref, ok := fl.compositeRefOf(x)
-	if !ok || ref.method != nil {
-		return false
-	}
-	_, isMap := compositeUnderlying(t).(*types2.Map)
-	return isMap
+	rc.X = callOf(pos, selOf(pos, nameOf(pos, rtAlias), entry), args)
 }
 
 func (fl *fileLower) lowerConstMapName(e *syntax.Name) (syntax.Expr, bool) {

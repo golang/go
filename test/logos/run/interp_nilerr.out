@@ -16,4 +16,12 @@ ok nil-receiver-deref-stringer
 ok nil-receiver-deref-error
 ok nil-receiver-deref-stringer-iface
 ok nil-receiver-deref-error-iface
+ok panic-ptr-stringer
+ok panic-ptr-error
+ok panic-ptr-stringer-iface
+ok panic-ptr-error-iface
+ok compile-error
+ok nil-receiver-other-package-stringer
+ok as-miss
+ok nil-receiver-other-package-error
 ok int-control

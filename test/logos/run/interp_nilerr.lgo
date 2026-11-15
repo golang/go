@@ -5,6 +5,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"regexp"
 )
 
 type bothVal struct{ s string }
@@ -66,6 +68,14 @@ type derefErr struct{ s string }
 
 func (p *derefErr) Error() string { return "D:" + p.s }
 
+type panPtrStr struct{}
+
+func (*panPtrStr) String() string { panic("kaboom") }
+
+type panPtrErr struct{}
+
+func (*panPtrErr) Error() string { panic("ebang") }
+
 func check(name, got, want string) {
 	if got != want {
 		fmt.Println("FAIL", name, "got", got, "want", want)
@@ -104,6 +114,20 @@ func main() {
 	check("nil-receiver-deref-stringer-iface", $"p {is}", fmt.Sprintf("p %s", fmt.Sprint(is)))
 	var ie error = de
 	check("nil-receiver-deref-error-iface", $"e {ie}", fmt.Sprintf("e %s", fmt.Sprint(ie)))
+	pps := &panPtrStr{}
+	check("panic-ptr-stringer", $"p {pps}", fmt.Sprintf("p %s", fmt.Sprint(pps)))
+	ppe := &panPtrErr{}
+	check("panic-ptr-error", $"e {ppe}", fmt.Sprintf("e %s", fmt.Sprint(ppe)))
+	var ips fmt.Stringer = pps
+	check("panic-ptr-stringer-iface", $"p {ips}", fmt.Sprintf("p %s", fmt.Sprint(ips)))
+	var ipe error = ppe
+	check("panic-ptr-error-iface", $"e {ipe}", fmt.Sprintf("e %s", fmt.Sprint(ipe)))
+	re, compileErr := regexp.Compile("(")
+	check("compile-error", fmt.Sprint(compileErr != nil), "true")
+	check("nil-receiver-other-package-stringer", $"r {re}", fmt.Sprintf("r %s", fmt.Sprint(re)))
+	pathErr, asOk := errors.AsType[*fs.PathError](errors.New("plain"))
+	check("as-miss", fmt.Sprint(asOk), "false")
+	check("nil-receiver-other-package-error", $"e {pathErr}", fmt.Sprintf("e %s", fmt.Sprint(pathErr)))
 	n := 42
 	check("int-control", $"n={n}", fmt.Sprintf("n=%s", fmt.Sprint(n)))
 }

@@ -11,6 +11,19 @@ var zbSinkB const []byte
 var zbSinkS string
 var zbSinkC string
 
+type zbString string
+
+var zbCalls int
+
+func zbSource(s string) zbString {
+	zbCalls++
+	return zbString(s)
+}
+
+func zbPair(a const []byte, b const []byte) bool {
+	return string(a) == "first" && string(b) == "second"
+}
+
 func zbComposite() string {
 	var c const []byte = []byte{7, 8, 9}
 	return string(c)
@@ -28,6 +41,15 @@ func main() {
 	}
 	s := "hello world, zero copy me"
 	var b const []byte = const []byte(s)
+	zbCheckViews(s, b, check)
+	zbCheckExpressions(s, b, check)
+	if failed {
+		os.Exit(1)
+	}
+}
+
+func zbCheckViews(s string, b const []byte, check func(string, bool)) {
+	b = const []byte(s)
 	zbSinkS = string(b)
 	check("const-view-roundtrip-preserves-string", zbSinkS == s)
 	check("string-to-const-needs-no-alloc", testing.AllocsPerRun(100, func() {
@@ -55,7 +77,42 @@ func main() {
 	p[0] = 'X'
 	_ = p
 	check("unrelated-mutation-keeps-source-string", s == "hello world, zero copy me")
-	if failed {
-		os.Exit(1)
+}
+
+func zbCheckExpressions(s string, b const []byte, check func(string, bool)) {
+	b = const []byte(s)
+	zbCalls = 0
+	check("call-result-no-alloc", testing.AllocsPerRun(100, func() {
+		zbSinkB = const []byte(zbSource(s))
+	}) == 0)
+	check("call-result-evaluated-once", zbCalls == 101)
+	holder := struct { text zbString }{zbString(s)}
+	values := []zbString{zbString(s)}
+	check("selector-and-index-no-alloc", testing.AllocsPerRun(100, func() {
+		zbSinkB = const []byte(holder.text)
+		zbSinkB = const []byte(values[0])
+	}) == 0)
+	check("plain-conversion-call-no-alloc", testing.AllocsPerRun(100, func() {
+		var view const []byte = []byte(zbSource(s))
+		zbSinkB = view
+	}) == 0)
+	check("nested-conversion-no-alloc", testing.AllocsPerRun(100, func() {
+		zbSinkB = const []byte(string(b))
+	}) == 0)
+	check("nested-conversion-value", string(zbSinkB) == s)
+	order := ""
+	next := func(want, value string) string {
+		if order != want {
+			panic("conversion evaluation order")
+		}
+		order += value
+		return value
 	}
+	check("conversion-argument-order", zbPair(const []byte(next("", "first")), const []byte(next("first", "second"))) && order == "firstsecond")
+	var empty const []byte = const []byte(zbSource(""))
+	var absent const []byte
+	check("empty-and-nil-view-strings", len(empty) == 0 && string(empty) == "" && string(absent) == "")
+	mutable := []byte(zbSource(s))
+	mutable[0] = 'Y'
+	check("call-result-mutable-conversion-isolated", s[0] == 'h' && mutable[0] == 'Y')
 }

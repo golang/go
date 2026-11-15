@@ -4,7 +4,10 @@
 
 package json
 
-import "unicode/utf8"
+import (
+	"internal/jsonscan"
+	"unicode/utf8"
+)
 
 const maxDepth = 10000
 
@@ -132,9 +135,23 @@ func skipEscape(data []byte, j int) int {
 	return -1
 }
 
+func skipPlainBytes(data []byte, i int) (int, bool) {
+	if len(data)-i < sparseSkip {
+		return i, false
+	}
+	end := i + jsonscan.IndexStringSpecial(data[i:])
+	return end, end-i >= sparseSkip
+}
+
 func scanString(data []byte, i int) (end, flags int) {
-	for j := i + 1; j < len(data); j++ {
-		switch stringClass[data[j]] {
+	j, sparse := skipPlainBytes(data, i+1)
+	for j < len(data) {
+		class := stringClass[data[j]]
+		if class == classPlain {
+			j++
+			continue
+		}
+		switch class {
 		case classQuote:
 			return j + 1, flags
 		case classBackslash:
@@ -146,6 +163,10 @@ func scanString(data []byte, i int) (end, flags int) {
 			return -1, 0
 		case classHigh:
 			flags |= strHigh
+		}
+		j++
+		if sparse {
+			j, sparse = skipPlainBytes(data, j)
 		}
 	}
 	return -1, 0

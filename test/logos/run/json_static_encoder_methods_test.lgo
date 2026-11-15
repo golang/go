@@ -1,0 +1,124 @@
+// run
+
+package jsonstaticencmethods
+
+import (
+	"encoding/json"
+	"encoding/json/jsontext"
+	"testing"
+)
+
+type ToOnly struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (ToOnly) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String("custom_to_only"))
+}
+
+type AppendOnly struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (AppendOnly) AppendText(b []byte) ([]byte, error) {
+	return append(b, "custom_append_only"...), nil
+}
+
+type PrecBoth struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (PrecBoth) MarshalJSON() ([]byte, error) {
+	return []byte(`"from_marshal_json"`), nil
+}
+
+func (PrecBoth) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String("from_marshal_json_to"))
+}
+
+type PrecPtrTo struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (PrecPtrTo) MarshalJSON() ([]byte, error) {
+	return []byte(`"from_val_marshal_json"`), nil
+}
+
+func (*PrecPtrTo) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String("from_ptr_marshal_json_to"))
+}
+
+type PtrTo struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (*PtrTo) MarshalJSONTo(enc *jsontext.Encoder) error {
+	return enc.WriteToken(jsontext.String("ptr_to"))
+}
+
+type PtrAppend struct {
+	V     int
+	NoGen any `json:"-"`
+}
+
+func (*PtrAppend) AppendText(b []byte) ([]byte, error) {
+	return append(b, "ptr_append"...), nil
+}
+
+type MBox struct {
+	To    ToOnly      `json:"to"`
+	App   AppendOnly  `json:"app"`
+	PB    PrecBoth    `json:"pb"`
+	PP    PrecPtrTo   `json:"pp"`
+	PT    PtrTo       `json:"pt"`
+	PA    PtrAppend   `json:"pa"`
+	NT    *PtrTo?     `json:"nt"`
+	NA    *PtrAppend? `json:"na"`
+	STo   ToOnly      `json:"sto,string"`
+	SApp  AppendOnly  `json:"sapp,string"`
+	NoGen any         `json:"-"`
+}
+
+type MRoot struct {
+	Val  MBox         `json:"val"`
+	Ptr  *MBox?       `json:"ptr"`
+	Tos  []ToOnly     `json:"tos"`
+	Apps []AppendOnly `json:"apps"`
+	Any  []any        `json:"any"`
+}
+
+type mRootMirror MRoot
+
+type outcome struct {
+	b   []byte
+	err error
+}
+
+func outcomeOf(b []byte, err error) outcome {
+	return outcome{b, err}
+}
+
+func TestStaticEncoderV2MethodDispatch(t *testing.T) {
+	toVal := PtrTo{V: 10}
+	v := MBox{To: ToOnly{V: 1}, App: AppendOnly{V: 2}, PB: PrecBoth{V: 3}, PP: PrecPtrTo{V: 4}, PT: toVal, PA: PtrAppend{V: 20}, NT: &toVal, STo: ToOnly{V: 30}, SApp: AppendOnly{V: 40}}
+	r := MRoot{Val: v, Ptr: &v, Tos: []ToOnly{{V: 1}}, Apps: []AppendOnly{{V: 2}}, Any: []any{ToOnly{V: 1}, AppendOnly{V: 2}, PtrTo{V: 3}, &PtrTo{V: 4}}}
+	gen := outcomeOf(r.MarshalJSON())
+	std := outcomeOf(json.Marshal(mRootMirror(r)))
+	if gen.err != nil || std.err != nil {
+		t.Fatalf("generated error %v, encoding/json error %v", gen.err, std.err)
+	}
+	if string(gen.b) != string(std.b) {
+		t.Fatalf("generated %s, encoding/json %s", gen.b, std.b)
+	}
+	const body = `{"val":{"to":"custom_to_only","app":"custom_append_only","pb":"from_marshal_json_to","pp":"from_val_marshal_json","pt":{"V":10},"pa":{"V":20},"nt":"ptr_to","na":null,"sto":"custom_to_only","sapp":"custom_append_only"},` +
+		`"ptr":{"to":"custom_to_only","app":"custom_append_only","pb":"from_marshal_json_to","pp":"from_ptr_marshal_json_to","pt":"ptr_to","pa":"ptr_append","nt":"ptr_to","na":null,"sto":"custom_to_only","sapp":"custom_append_only"},` +
+		`"tos":["custom_to_only"],"apps":["custom_append_only"],"any":["custom_to_only","custom_append_only",{"V":3},"ptr_to"]}`
+	if string(gen.b) != body {
+		t.Fatalf("v2 method precedence: got %s, want %s", gen.b, body)
+	}
+}

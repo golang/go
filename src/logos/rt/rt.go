@@ -53,22 +53,25 @@ type Context = context.Context
 // MustNonNil checks a platform pointer stored into a declared non-nil
 // location (SPEC T-202): it returns its argument, and panics with
 // `logos: nil from Go value stored into non-nil *T at <file>:<line>`
-// when the value is nil. A nil site reports the position as unknown.
-// Only pointer-shaped values can be nil; every other value passes
-// through untouched.
-func MustNonNil[T any](p T, site *Site) T {
-	v := reflect.ValueOf(p)
-	switch v.Kind() {
-	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface, reflect.UnsafePointer:
-		if v.IsNil() {
-			at := "unknown"
-			if site != nil {
-				at = site.File + ":" + strconv.Itoa(site.Line)
-			}
-			panic("logos: nil from Go value stored into non-nil " + reflect.TypeOf(p).String() + " at " + at)
-		}
+// when the pointer is nil. name is the stored type as reflect.Type.String
+// prints it, spelled by the lowering at compile time; an empty name marks
+// a type that mentions a type parameter, which is named at run time. A nil
+// site reports the position as unknown.
+//
+//go:noinline
+func MustNonNil[P ~*E, E any](p P, name string, site *Site) P {
+	if p == nil {
+		panic(nilStoreMessage(TypeNameOr[P](name), site))
 	}
 	return p
+}
+
+func nilStoreMessage(name string, site *Site) string {
+	at := "unknown"
+	if site != nil {
+		at = site.File + ":" + strconv.Itoa(site.Line)
+	}
+	return "logos: nil from Go value stored into non-nil " + name + " at " + at
 }
 
 // Option is the lowered form of a loGo/s option `T?` whose payload admits
@@ -111,7 +114,7 @@ func Lookup[M ~map[K]V, K comparable, V any](m M, k K) Option[V] {
 // of x is not a member of U, it panics with
 // &UnionAssertionError{Value: x, Union: "<pkg>.U"}. When u.(T) fails
 // because T is not a member of U, it panics with the same error plus
-// Asserted holding TypeName[T]().
+// Asserted holding the name of T.
 type UnionAssertionError struct {
 	Value    any
 	Union    string
@@ -132,10 +135,15 @@ func (e *UnionAssertionError) Error() string {
 	return "interface conversion: " + actual + " is not a member of " + e.Union
 }
 
-// TypeName returns the name of T as Go prints it in an interface
-// conversion panic: qualified by the package name, never by the
-// spelling or the import alias used where T was written.
-func TypeName[T any]() string {
+// TypeNameOr returns name when the lowering spelled the name of T at
+// compile time, and the name of T as Go prints it in an interface
+// conversion panic otherwise: qualified by the package name, never by the
+// spelling or the import alias used where T was written. The lowering
+// passes an empty name only for a T that mentions a type parameter.
+func TypeNameOr[T any](name string) string {
+	if name != "" {
+		return name
+	}
 	return reflect.TypeFor[T]().String()
 }
 
@@ -159,41 +167,108 @@ type PanicFormatter func(...any) string
 
 type stringer interface{ String() string }
 
+// InterpError renders an interface operand of an interpolation that
+// implements error: a nil interface gives `<nil>`, and a panic in Error
+// gives `<nil>` for a nil pointer receiver and `%!v(PANIC=Error method:
+// ...)` otherwise. The receiver is known only at run time.
 func InterpError(v error, format PanicFormatter) (s string) {
 	if v == nil {
 		return "<nil>"
 	}
-	return InterpErrorValue(v, format)
-}
-
-func InterpErrorValue[T error](v T, format PanicFormatter) (s string) {
 	defer func() {
 		if r := recover(); r != nil {
-			s = methodPanicText(v, "Error", r, format)
+			if nilPointer(v) {
+				s = "<nil>"
+				return
+			}
+			s = methodPanicText("Error", r, format)
 		}
 	}()
 	return v.Error()
 }
 
+// InterpErrorValue renders an operand whose static type is a concrete
+// non-pointer type that implements error.
+func InterpErrorValue[T error](v T, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = methodPanicText("Error", r, format)
+		}
+	}()
+	return v.Error()
+}
+
+// InterpErrorPtr renders an operand whose static type is a pointer type
+// that implements error; a panic with a nil receiver gives `<nil>`.
+func InterpErrorPtr[E any, P interface {
+	*E
+	error
+}](v P, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			if v == nil {
+				s = "<nil>"
+				return
+			}
+			s = methodPanicText("Error", r, format)
+		}
+	}()
+	return v.Error()
+}
+
+// InterpStringer renders an interface operand of an interpolation that
+// implements fmt.Stringer, like InterpError.
 func InterpStringer(v stringer, format PanicFormatter) (s string) {
 	if v == nil {
 		return "<nil>"
 	}
-	return InterpStringerValue(v, format)
-}
-
-func InterpStringerValue[T stringer](v T, format PanicFormatter) (s string) {
 	defer func() {
 		if r := recover(); r != nil {
-			s = methodPanicText(v, "String", r, format)
+			if nilPointer(v) {
+				s = "<nil>"
+				return
+			}
+			s = methodPanicText("String", r, format)
 		}
 	}()
 	return v.String()
 }
 
-func methodPanicText(receiver any, method string, panicValue any, format PanicFormatter) string {
-	if rv := reflect.ValueOf(receiver); rv.Kind() == reflect.Pointer && rv.IsNil() {
-		return "<nil>"
-	}
+// InterpStringerValue renders an operand whose static type is a concrete
+// non-pointer type that implements fmt.Stringer.
+func InterpStringerValue[T stringer](v T, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			s = methodPanicText("String", r, format)
+		}
+	}()
+	return v.String()
+}
+
+// InterpStringerPtr renders an operand whose static type is a pointer
+// type that implements fmt.Stringer; a panic with a nil receiver gives
+// `<nil>`.
+func InterpStringerPtr[E any, P interface {
+	*E
+	stringer
+}](v P, format PanicFormatter) (s string) {
+	defer func() {
+		if r := recover(); r != nil {
+			if v == nil {
+				s = "<nil>"
+				return
+			}
+			s = methodPanicText("String", r, format)
+		}
+	}()
+	return v.String()
+}
+
+func nilPointer(v any) bool {
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Pointer && rv.IsNil()
+}
+
+func methodPanicText(method string, panicValue any, format PanicFormatter) string {
 	return "%!v(PANIC=" + method + " method: " + format(panicValue) + ")"
 }

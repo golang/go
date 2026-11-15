@@ -275,6 +275,9 @@ func (d *decodeState) skip() {
 	for {
 		op := s.step(s, data[i])
 		i++
+		if op == scanBeginLiteral && data[i-1] == '"' {
+			i += s.skipStringBody(data[i:])
+		}
 		if len(s.parseState) < depth {
 			d.off = i
 			d.opcode = op
@@ -325,10 +328,15 @@ func (d *decodeState) rescanLiteral() {
 Switch:
 	switch data[i-1] {
 	case '"': // string
+		var hot bool
+		i, hot = skipStringSpecial(data, i)
 		for ; i < len(data); i++ {
 			switch data[i] {
 			case '\\':
 				i++ // escaped char
+				if hot {
+					i, hot = skipPlainAfter(data, i)
+				}
 			case '"':
 				i++ // tokenize the closing quote too
 				break Switch
@@ -1201,6 +1209,10 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 	// then no unquoting is needed, so return a slice of the
 	// original bytes.
 	r := 0
+	hot := len(s) >= hotSkip
+	if hot {
+		r, hot = skipStringSpecial(s, r)
+	}
 	for r < len(s) {
 		c := s[r]
 		if c == '\\' || c == '"' || c < ' ' {
@@ -1211,6 +1223,9 @@ func unquoteBytes(s []byte) (t []byte, ok bool) {
 			break
 		}
 		r += size
+		if size > 1 && hot {
+			r, hot = skipStringSpecial(s, r)
+		}
 	}
 	if r == len(s) {
 		return s, true

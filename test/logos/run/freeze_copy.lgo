@@ -1,0 +1,492 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"sync"
+	"testing"
+	"unsafe"
+
+	"logos/rt"
+)
+
+var failed bool
+
+var (
+	ptrTarget    = 42
+	leafTarget   = "leaf"
+	rejectTarget = 555
+)
+
+func check(name string, ok bool) {
+	if !ok {
+		failed = true
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+func panicOf(f func()) (text string) {
+	defer func() {
+		text = fmt.Sprint(recover())
+	}()
+	f()
+	return ""
+}
+
+func rejects(kind string, f func()) bool {
+	completed := false
+	text := panicOf(func() {
+		f()
+		completed = true
+	})
+	return !completed && text == "logos/rt: Freeze cannot isolate "+kind
+}
+
+type Leaf struct {
+	n    int
+	note string
+}
+
+type Inner struct {
+	leaves [2]*Leaf
+	byName map[string]*Leaf
+}
+
+type Config struct {
+	name   string
+	n      int
+	tags   []string
+	labels map[string]string
+	child  *Leaf
+	other  *Leaf
+	iface  any
+	arr    [2]int
+	inner  Inner
+}
+
+type Sparse struct {
+	tags   []string
+	labels map[string]string
+	child  *Leaf?
+	iface  any
+	fn     func()
+	ch     chan int
+	ptr    unsafe.Pointer
+	Fn     func(int) bool
+	Ch     chan string
+	Ptr    unsafe.Pointer
+}
+
+type Ring struct {
+	n     int
+	links []*Ring
+}
+
+type Pair struct {
+	left  *Leaf
+	right *Leaf
+}
+
+type Views struct {
+	a []int
+	b []int
+}
+
+type Keyed struct {
+	keys map[*Leaf]string
+	s    []int
+}
+
+type FuncField struct{ Fn func() }
+type funcField struct{ fn func(int) int }
+type ChanField struct{ Ch chan string }
+type chanField struct{ ch chan struct{} }
+type PtrField struct{ P unsafe.Pointer }
+type ptrField struct{ p unsafe.Pointer }
+
+type chanInner struct{ c chan int }
+type chanOuter struct{ next *chanInner }
+
+type container struct{ Payload any }
+
+type Hook struct{ fn func() }
+type Tag struct{ name string }
+type Event interface{ Hook | Tag }
+type Envelope struct{ ev Event }
+
+type Box[T any] struct {
+	items []T
+	ptr   *Leaf
+}
+
+func freezeBox[T any](b *Box[T]) const *Box[T] {
+	return rt.Freeze(b)
+}
+
+func sample() *Config {
+	c1 := &Leaf{n: 1, note: "c1"}
+	c2 := &Leaf{n: 2, note: "c2"}
+	c3 := &Leaf{n: 3, note: "c3"}
+	return &Config{
+		name:   "orig",
+		n:      7,
+		tags:   []string{"a", "b"},
+		labels: map[string]string{"k": "v"},
+		child:  c1,
+		other:  c2,
+		iface:  c3,
+		arr:    [2]int{4, 5},
+		inner:  Inner{leaves: [2]*Leaf{c1, c2}, byName: map[string]*Leaf{"c3": c3}},
+	}
+}
+
+func sampleOK(got const *Config) bool {
+	lk := got.labels["k"]
+	return got.name == "orig" && got.n == 7 && len(got.tags) == 2 && got.tags[0] == "a" && got.tags[1] == "b" &&
+		len(got.labels) == 1 && (lk ?? "!") == "v" && got.child.n == 1 && got.child.note == "c1" && got.other.n == 2 &&
+		got.arr[0] == 4 && got.arr[1] == 5 && got.inner.leaves[0].n == 1 && got.inner.leaves[1].n == 2
+}
+
+func byNameOK(got const *Config) bool {
+	found := 0
+	for k, v := range got.inner.byName {
+		if k == "c3" && v.n == 3 && v.note == "c3" {
+			found++
+		}
+	}
+	return found == 1 && len(got.inner.byName) == 1
+}
+
+func checkScalar() {
+	v := 42
+	got := rt.Freeze(&v)
+	v = 1
+	check("scalar", got != nil && *got == 42)
+}
+
+func checkDeepNoAlias() {
+	src := sample()
+	got := rt.Freeze(src)
+	check("deep-copy", sampleOK(got) && byNameOK(got) && got.iface != nil)
+	src.name = "changed"
+	src.n = 99
+	src.tags[0] = "CHANGED"
+	src.labels["k"] = "CHANGED"
+	src.labels["new"] = "CHANGED"
+	src.child.n = 100
+	src.child.note = "CHANGED"
+	src.other.n = 200
+	src.inner.byName["c3"] = &Leaf{n: 300}
+	src.arr[0] = 400
+	check("deep-no-alias", sampleOK(got) && byNameOK(got))
+}
+
+func checkCycle() {
+	a := &Ring{n: 1}
+	a.links = []*Ring{a}
+	got := rt.Freeze(a)
+	a.n = 99
+	check("cycle-terminates-into-copy", got.n == 1 && len(got.links) == 1 && got.links[0].n == 1 && got.links[0].links[0].links[0].n == 1)
+}
+
+func checkSharedAlias() {
+	shared := &Leaf{n: 5, note: "shared"}
+	one := Pair{left: shared, right: shared}
+	got := rt.Freeze(&one)
+	shared.n = 6
+	check("shared-child-values", got.left.n == 5 && got.right.n == 5 && got.right.note == "shared")
+	two := Pair{left: &Leaf{n: 5}, right: &Leaf{n: 5}}
+	sharedAllocs := testing.AllocsPerRun(50, func() {
+		_ = rt.Freeze(&one)
+	})
+	distinctAllocs := testing.AllocsPerRun(50, func() {
+		_ = rt.Freeze(&two)
+	})
+	check("shared-child-copied-once", distinctAllocs == sharedAllocs+1)
+}
+
+func checkNilInner() {
+	src := &Sparse{}
+	got := rt.Freeze(src)
+	check("nil-inner", got.tags == nil && got.labels == nil && got.child == nil && got.iface == nil &&
+		got.fn == nil && got.ch == nil && got.ptr == nil && got.Fn == nil && got.Ch == nil && got.Ptr == nil)
+}
+
+func checkConcurrent() {
+	src := sample()
+	var wg sync.WaitGroup
+	var oks [8]bool
+	for i := range 8 {
+		wg.Go(func() {
+			oks[i] = sampleOK(rt.Freeze(src))
+		})
+	}
+	wg.Wait()
+	all := true
+	for _, ok := range oks {
+		all = all && ok
+	}
+	check("concurrent", all)
+}
+
+func checkMapKeysAndCapacity() {
+	key := &Leaf{n: 4, note: "key"}
+	raw := []int{1, 2, 3}
+	src := &Keyed{keys: map[*Leaf]string{key: "value"}, s: raw[:2]}
+	got := rt.Freeze(src)
+	key.n = 9
+	raw[0] = 8
+	kn, kv := 0, ""
+	for k, v := range got.keys {
+		kn, kv = k.n, v
+	}
+	check("map-pointer-keys", len(got.keys) == 1 && kn == 4 && kv == "value")
+	check("slice-capacity", len(got.s) == 2 && cap(got.s) == 3 && got.s[0] == 1)
+}
+
+func checkSliceIdentity() {
+	s := []int{10, 20, 30}
+	view := s[:1]
+	got := rt.Freeze(&view)
+	check("slice-keeps-capacity", len(*got) == 1 && cap(*got) == 3 && (*got)[0] == 10)
+	empty := s[:0]
+	z := rt.Freeze(&empty)
+	check("empty-slice-keeps-capacity", len(*z) == 0 && cap(*z) == 3)
+	split := Views{a: s[:1:1], b: s[:1:3]}
+	gotSplit := rt.Freeze(&split)
+	check("capacity-is-identity", cap(gotSplit.a) == 1 && cap(gotSplit.b) == 3 && len(gotSplit.b) == 1)
+	rev := Views{a: s[:1:3], b: s[:1:1]}
+	gotRev := rt.Freeze(&rev)
+	check("capacity-is-identity-reversed", cap(gotRev.a) == 3 && cap(gotRev.b) == 1)
+	dup := Views{a: s[:1:3], b: s[:1:3]}
+	dupAllocs := testing.AllocsPerRun(50, func() {
+		_ = rt.Freeze(&dup)
+	})
+	splitAllocs := testing.AllocsPerRun(50, func() {
+		_ = rt.Freeze(&rev)
+	})
+	check("identical-headers-share", splitAllocs > dupAllocs)
+}
+
+func checkLocalType() {
+	type cell struct {
+		vals []int
+		next []*cell
+	}
+	c := &cell{vals: []int{1, 2, 3}}
+	c.next = []*cell{c}
+	got := rt.Freeze(c)
+	c.vals[0] = 9
+	check("local-type", got.vals[0] == 1 && len(got.next) == 1 && got.next[0].vals[0] == 1 && cap(got.next[0].vals) == 3)
+}
+
+func checkGenericBox() {
+	l := &Leaf{n: 4}
+	b := &Box[int]{items: []int{1, 2}, ptr: l}
+	got := freezeBox(b)
+	b.items[0] = 9
+	l.n = 9
+	check("generic-box", got.items[0] == 1 && len(got.items) == 2 && got.ptr.n == 4)
+}
+
+func checkUnion() {
+	hooked := Envelope{ev: Hook{fn: func() {}}}
+	check("union-member-func", rejects("func", func() { _ = rt.Freeze(&hooked) }))
+	quiet := Envelope{ev: Hook{}}
+	tagged := Envelope{ev: Tag{name: "t"}}
+	check("union-nil-leaf-and-plain-member", panicOf(func() {
+		_ = rt.Freeze(&quiet)
+		_ = rt.Freeze(&tagged)
+	}) == "<nil>")
+}
+
+func checkRejectsFunc() {
+	fn := func() {}
+	check("func-direct", rejects("func", func() { _ = rt.Freeze(&fn) }))
+	captured := false
+	closure := func() { captured = !captured }
+	check("func-closure", rejects("func", func() { _ = rt.Freeze(&closure) }) && !captured)
+	exp := FuncField{Fn: func() {}}
+	check("func-field-exported", rejects("func", func() { _ = rt.Freeze(&exp) }))
+	unexp := funcField{fn: func(x int) int { return x + 1 }}
+	check("func-field-unexported", rejects("func", func() { _ = rt.Freeze(&unexp) }))
+	sl := []func(){func() {}}
+	check("func-slice-element", rejects("func", func() { _ = rt.Freeze(&sl) }))
+	arr := [2]func(){func() {}, nil}
+	check("func-array-element", rejects("func", func() { _ = rt.Freeze(&arr) }))
+	m := map[string]func(){"key": func() {}}
+	check("func-map-value", rejects("func", func() { _ = rt.Freeze(&m) }))
+	var iface any = func() {}
+	check("func-interface-payload", rejects("func", func() { _ = rt.Freeze(&iface) }))
+	raw := make([]func(), 1, 3)
+	raw = raw[:3]
+	raw[2] = func() {}
+	view := raw[:1]
+	check("func-capacity-tail", rejects("func", func() { _ = rt.Freeze(&view) }))
+	mut := false
+	rawAny := make([]any, 1, 2)
+	rawAny = rawAny[:2]
+	rawAny[1] = func() { mut = !mut }
+	viewAny := rawAny[:1]
+	check("func-capacity-tail-any", rejects("func", func() { _ = rt.Freeze(&viewAny) }) && !mut)
+}
+
+func checkRejectsChan() {
+	ch := make(chan int, 1)
+	check("chan-direct", rejects("chan", func() { _ = rt.Freeze(&ch) }))
+	exp := ChanField{Ch: make(chan string)}
+	check("chan-field-exported", rejects("chan", func() { _ = rt.Freeze(&exp) }))
+	unexp := chanField{ch: make(chan struct{})}
+	check("chan-field-unexported", rejects("chan", func() { _ = rt.Freeze(&unexp) }))
+	sl := []chan int{make(chan int)}
+	check("chan-slice-element", rejects("chan", func() { _ = rt.Freeze(&sl) }))
+	arr := [1]chan int{make(chan int)}
+	check("chan-array-element", rejects("chan", func() { _ = rt.Freeze(&arr) }))
+	mKey := map[chan int]int{make(chan int): 1}
+	check("chan-map-key", rejects("chan", func() { _ = rt.Freeze(&mKey) }))
+	mVal := map[string]chan int{"c": make(chan int)}
+	check("chan-map-value", rejects("chan", func() { _ = rt.Freeze(&mVal) }))
+	var iface any = make(chan int, 2)
+	check("chan-interface-payload", rejects("chan", func() { _ = rt.Freeze(&iface) }))
+	raw := make([]chan int, 1, 2)
+	raw = raw[:2]
+	raw[1] = make(chan int)
+	view := raw[:1]
+	check("chan-capacity-tail", rejects("chan", func() { _ = rt.Freeze(&view) }))
+	rawAny := make([]any, 1, 2)
+	rawAny = rawAny[:2]
+	rawAny[1] = make(chan struct{})
+	viewAny := rawAny[:1]
+	check("chan-capacity-tail-any", rejects("chan", func() { _ = rt.Freeze(&viewAny) }))
+}
+
+func checkRejectsUnsafePointer() {
+	uptr := unsafe.Pointer(&ptrTarget)
+	check("ptr-direct", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&uptr) }))
+	exp := PtrField{P: unsafe.Pointer(&ptrTarget)}
+	check("ptr-field-exported", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&exp) }))
+	unexp := ptrField{p: unsafe.Pointer(&ptrTarget)}
+	check("ptr-field-unexported", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&unexp) }))
+	sl := []unsafe.Pointer{unsafe.Pointer(&ptrTarget)}
+	check("ptr-slice-element", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&sl) }))
+	arr := [1]unsafe.Pointer{unsafe.Pointer(&ptrTarget)}
+	check("ptr-array-element", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&arr) }))
+	mKey := map[unsafe.Pointer]int{unsafe.Pointer(&ptrTarget): 1}
+	check("ptr-map-key", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&mKey) }))
+	mVal := map[string]unsafe.Pointer{"ptr": unsafe.Pointer(&ptrTarget)}
+	check("ptr-map-value", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&mVal) }))
+	var iface any = unsafe.Pointer(&ptrTarget)
+	check("ptr-interface-payload", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&iface) }))
+	raw := make([]unsafe.Pointer, 1, 2)
+	raw = raw[:2]
+	raw[1] = unsafe.Pointer(&ptrTarget)
+	view := raw[:1]
+	check("ptr-capacity-tail", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&view) }))
+	rawAny := make([]any, 1, 2)
+	rawAny = rawAny[:2]
+	rawAny[1] = unsafe.Pointer(&ptrTarget)
+	viewAny := rawAny[:1]
+	check("ptr-capacity-tail-any", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&viewAny) }))
+}
+
+func checkRejectsNested() {
+	val := &chanOuter{next: &chanInner{c: make(chan int)}}
+	check("nested-pointer-to-unexported-chan", rejects("chan", func() { _ = rt.Freeze(&val) }))
+	state := false
+	m := map[string][]func(){"fns": {func() { state = !state }}}
+	check("nested-map-of-closure-slices", rejects("func", func() { _ = rt.Freeze(&m) }) && !state)
+	raw := make([]unsafe.Pointer, 1, 2)
+	raw = raw[:2]
+	raw[1] = unsafe.Pointer(&leafTarget)
+	c := container{Payload: raw[:1]}
+	check("nested-interface-capacity-tail-ptr", rejects("unsafe.Pointer", func() { _ = rt.Freeze(&c) }))
+}
+
+func checkNilLeaves() {
+	var fn func()
+	gotFn := rt.Freeze(&fn)
+	var ch chan int
+	gotCh := rt.Freeze(&ch)
+	var up unsafe.Pointer
+	gotUp := rt.Freeze(&up)
+	check("nil-leaves-direct", gotFn != nil && *gotFn == nil && gotCh != nil && *gotCh == nil && gotUp != nil && *gotUp == nil)
+	sFn := make([]func(), 1, 3)
+	gotSFn := rt.Freeze(&sFn)
+	sCh := make([]chan int, 1, 3)
+	gotSCh := rt.Freeze(&sCh)
+	sPtr := make([]unsafe.Pointer, 1, 3)
+	gotSPtr := rt.Freeze(&sPtr)
+	check("nil-leaves-slices", len(*gotSFn) == 1 && cap(*gotSFn) == 3 && (*gotSFn)[0] == nil &&
+		len(*gotSCh) == 1 && cap(*gotSCh) == 3 && (*gotSCh)[0] == nil &&
+		len(*gotSPtr) == 1 && cap(*gotSPtr) == 3 && (*gotSPtr)[0] == nil)
+	mFn := map[string]func(){"f": nil}
+	gotMFn := rt.Freeze(&mFn)
+	mCh := map[string]chan int{"c": nil}
+	gotMCh := rt.Freeze(&mCh)
+	mPtr := map[string]unsafe.Pointer{"p": nil}
+	gotMPtr := rt.Freeze(&mPtr)
+	nils := 0
+	for _, v := range *gotMFn {
+		if v == nil {
+			nils++
+		}
+	}
+	for _, v := range *gotMCh {
+		if v == nil {
+			nils++
+		}
+	}
+	for _, v := range *gotMPtr {
+		if v == nil {
+			nils++
+		}
+	}
+	check("nil-leaves-maps", nils == 3)
+}
+
+func checkIndependenceAfterRejection() {
+	captured := false
+	bad := func() { captured = !captured }
+	badSlice := make([]chan int, 1, 2)
+	badSlice = badSlice[:2]
+	badSlice[1] = make(chan int)
+	badTail := badSlice[:1]
+	badUptr := unsafe.Pointer(&rejectTarget)
+	rejected := rejects("func", func() { _ = rt.Freeze(&bad) }) &&
+		rejects("chan", func() { _ = rt.Freeze(&badTail) }) &&
+		rejects("unsafe.Pointer", func() { _ = rt.Freeze(&badUptr) })
+	src := sample()
+	got := rt.Freeze(src)
+	src.name = "mutated"
+	src.tags[0] = "MUTATED"
+	src.labels["k"] = "MUTATED"
+	src.child.n = 888
+	check("independent-after-rejection", rejected && !captured && sampleOK(got))
+}
+
+func main() {
+	checkScalar()
+	checkDeepNoAlias()
+	checkCycle()
+	checkSharedAlias()
+	checkNilInner()
+	checkConcurrent()
+	checkMapKeysAndCapacity()
+	checkSliceIdentity()
+	checkLocalType()
+	checkGenericBox()
+	checkUnion()
+	checkRejectsFunc()
+	checkRejectsChan()
+	checkRejectsUnsafePointer()
+	checkRejectsNested()
+	checkNilLeaves()
+	checkIndependenceAfterRejection()
+	if failed {
+		os.Exit(1)
+	}
+}

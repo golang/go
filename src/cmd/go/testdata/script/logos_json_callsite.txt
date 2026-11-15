@@ -16,6 +16,8 @@ exists $UPROOT1272/bin/go
 exec $UPROOT1272/bin/go version
 stdout '^go version go1\.27\.2 '
 exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^parity ok$'
 cd ..
 
 -- m/go.mod --
@@ -39,17 +41,23 @@ type User struct {
 }
 
 func main() {
-	user := User{ID: 7, Name: "ada"}
+	name := "0123456789012345678901234567890123456789\x3c\x3e\x26\"\\\x01\xc3\xa9\u2028\u2029\xff"
+	user := User{ID: 7, Name: name}
 	direct, err := user.MarshalJSON()
 	if err != nil {
 		panic(err)
 	}
-	payload := User{ID: 7, Name: "ada", Email: "a@x.y"}
+	payload := User{ID: 7, Name: name, Email: "a@x.y"}
 	via, err := json.Marshal(payload)
-	plain, err := json.Marshal(User{ID: 7, Name: "ada"})
 	if err != nil {
 		panic(err)
 	}
+	quotedName, err := json.Marshal(name)
+	if err != nil {
+		panic(err)
+	}
+	plain := append([]byte(`{"id":7,"name":`), quotedName...)
+	plain = append(plain, '}')
 	if !bytes.Equal(direct, plain) {
 		panic("direct call diverged")
 	}

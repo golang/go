@@ -14,5 +14,7 @@ ok closers-indexed-read-left-open
 ok closers-captured-read-left-open
 ok closers-owned-undelivered-closed
 ok closers-source-element-left-open
+ok closers-interface-result-closes-only-closers
+ok closers-non-closer-result-left-open
 ok closers-filter-predicate-failure-closes-examined
 ok closers-close-panic-propagates-after-join

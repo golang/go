@@ -1,0 +1,13 @@
+ok kind-named-string
+ok kind-int8
+ok kind-uint8
+ok kind-uint64-high-bit
+ok kind-float32
+ok kind-complex128
+ok kind-complex64
+ok kind-array-int
+ok kind-array-string
+ok kind-array-bool
+ok kind-array-struct
+ok kind-struct-nested
+ok kind-struct-nested-values

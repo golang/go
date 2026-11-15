@@ -8,8 +8,10 @@ import (
 	"bytes"
 	stdjson "encoding/json"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 	"unsafe"
 )
 
@@ -597,7 +599,7 @@ func TestFallbackQUnwrapsStringOption(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&r)
+		FallbackQ(&s, &r)
 	}
 	if err := s.End(); err != nil {
 		t.Fatalf("End() = %v, Saved() = %v", err, s.Saved())
@@ -614,7 +616,7 @@ func TestFallbackQNullLeavesValue(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&n)
+		FallbackQ(&s, &n)
 	}
 	if err := s.End(); err != nil {
 		t.Fatalf("End() = %v, Saved() = %v", err, s.Saved())
@@ -631,13 +633,14 @@ func TestFallbackQBareValueSavesError(t *testing.T) {
 		t.Fatalf("Object failed: %v", s.Err())
 	}
 	for s.Next() {
-		s.FallbackQ(&r)
+		FallbackQ(&s, &r)
 	}
 	if s.Err() != nil {
 		t.Fatalf("Err() = %v, want nil (bare should be saved, not fatal)", s.Err())
 	}
-	if s.Saved() == nil {
-		t.Fatal("Saved() = nil, want invalid use of ,string error for bare value")
+	want := "json: invalid use of ,string struct tag, trying to unmarshal unquoted value into json.fallbackQRecorder"
+	if s.Saved() == nil || s.Saved().Error() != want {
+		t.Fatalf("Saved() = %v, want %q", s.Saved(), want)
 	}
 }
 
@@ -754,5 +757,226 @@ func TestScannerValue(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func refEscapeLen(b []byte) int {
+	if len(b) < 2 {
+		return 0
+	}
+	if strings.IndexByte(`"\/bfnrt`, b[1]) >= 0 {
+		return 2
+	}
+	if b[1] != 'u' || len(b) < 6 {
+		return 0
+	}
+	for _, h := range b[2:6] {
+		if strings.IndexByte("0123456789abcdefABCDEF", h) < 0 {
+			return 0
+		}
+	}
+	return 6
+}
+
+func refScanString(data []byte, i int) (end, flags int) {
+	for j := i + 1; j < len(data); {
+		c := data[j]
+		switch {
+		case c == '"':
+			return j + 1, flags
+		case c < 0x20:
+			return -1, 0
+		case c == '\\':
+			n := refEscapeLen(data[j:])
+			if n == 0 {
+				return -1, 0
+			}
+			flags |= strEscaped
+			j += n
+		case c >= 0x80:
+			flags |= strHigh
+			j++
+		default:
+			j++
+		}
+	}
+	return -1, 0
+}
+
+func refEscapedRune(t testing.TB, esc []byte) rune {
+	t.Helper()
+	if len(esc) == 6 {
+		v, err := strconv.ParseUint(string(esc[2:]), 16, 32)
+		if err != nil || (v >= 0xd800 && v < 0xe000) {
+			t.Fatalf("unsupported escape %q", esc)
+		}
+		return rune(v)
+	}
+	switch esc[1] {
+	case 'b':
+		return '\b'
+	case 'f':
+		return '\f'
+	case 'n':
+		return '\n'
+	case 'r':
+		return '\r'
+	case 't':
+		return '\t'
+	}
+	return rune(esc[1])
+}
+
+func refUnquote(t testing.TB, body []byte) ([]byte, bool) {
+	t.Helper()
+	var out []byte
+	for i := 0; i < len(body); {
+		c := body[i]
+		switch {
+		case c == '"' || c < 0x20:
+			return out, false
+		case c == '\\':
+			n := refEscapeLen(body[i:])
+			if n == 0 {
+				return out, false
+			}
+			out = utf8.AppendRune(out, refEscapedRune(t, body[i:i+n]))
+			i += n
+		case c >= 0x80:
+			r, size := utf8.DecodeRune(body[i:])
+			out = utf8.AppendRune(out, r)
+			i += size
+		default:
+			out = append(out, c)
+			i++
+		}
+	}
+	return out, true
+}
+
+func quotedInput(pad int, body []byte, tail string) []byte {
+	data := make([]byte, pad, pad+1+len(body)+len(tail))
+	data = append(data, '"')
+	data = append(data, body...)
+	return append(data, tail...)
+}
+
+var scanSequences = []string{
+	"\x00", "\t", "\x1f", " ", "\"", "\\", "/", "<", "\x7f", "\x80", "\xbf", "\xc3", "\xff",
+	"\u00e9", "\U0001f600", "\u2028", "\xe2\x80",
+	`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\u0041`, `\u00Ff`, `\u00`, `\u00g1`, `\'`, `\a`, `\x41`,
+	"\\\x00", "\\\u00e9", "\\n\u00e9", "\u00e9\\n",
+}
+
+var scanConfigs = []struct {
+	pad  int
+	tail string
+}{
+	{0, `","z"`},
+	{7, ""},
+	{16, `"`},
+}
+
+var unquoteSequences = []string{
+	"\x00", "\x1f", "\"", "\\", "\x80", "\xbf", "\xc3", "\xff", "\u00e9", "\U0001f600", "\u2028", "\xe2\x80",
+	`\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t`, `\u0041`, `\u00e9`, `\u2028`, `\uffff`, `\u00`, `\u00g1`, `\x41`,
+	"\\\x00", "\\\u00e9", "\\n\u00e9",
+}
+
+func TestScanStringRules(t *testing.T) {
+	cases := []struct {
+		in        string
+		i         int
+		wantEnd   int
+		wantFlags int
+	}{
+		{`""`, 0, 2, 0},
+		{`"abc"x`, 0, 5, 0},
+		{`"a\"b"`, 0, 6, strEscaped},
+		{`"a\\"`, 0, 5, strEscaped},
+		{`"\/\b\f\n\r\t"`, 0, 14, strEscaped},
+		{`"\u00e9\uABCD"`, 0, 14, strEscaped},
+		{`"\u00e"`, 0, -1, 0},
+		{`"\u00g1"`, 0, -1, 0},
+		{`"\'"`, 0, -1, 0},
+		{`"\x"`, 0, -1, 0},
+		{`"abc`, 0, -1, 0},
+		{`"abc\`, 0, -1, 0},
+		{"\"a\x00\"", 0, -1, 0},
+		{"\"a\x1f\"", 0, -1, 0},
+		{"\"a\x7f\"", 0, 4, 0},
+		{"\"\xff\"", 0, 3, strHigh},
+		{"\"\xc3\xa9\\n\"", 0, 6, strHigh | strEscaped},
+		{"  \"ab\"", 2, 6, 0},
+		{"\"" + strings.Repeat("a", 40) + "\"", 0, 42, 0},
+		{"\"" + strings.Repeat("a", 40), 0, -1, 0},
+		{"\"" + strings.Repeat("a", 40) + "\\\"", 0, -1, 0},
+		{"\"" + strings.Repeat("\xe2\x80\xa8", 20) + "\"", 0, 62, strHigh},
+		{"\"" + strings.Repeat("a", 40) + `\n` + strings.Repeat("a", 40) + "\"", 0, 84, strEscaped},
+		{"\"" + strings.Repeat("a", 40) + "\u00e9" + strings.Repeat("a", 40) + "\"", 0, 84, strHigh},
+	}
+	for _, c := range cases {
+		data := []byte(c.in)
+		if end, flags := scanString(data, c.i); end != c.wantEnd || flags != c.wantFlags {
+			t.Errorf("scanString(%q, %d) = (%d, %d), want (%d, %d)", c.in, c.i, end, flags, c.wantEnd, c.wantFlags)
+		}
+		if end, flags := refScanString(data, c.i); end != c.wantEnd || flags != c.wantFlags {
+			t.Errorf("refScanString(%q, %d) = (%d, %d), want (%d, %d)", c.in, c.i, end, flags, c.wantEnd, c.wantFlags)
+		}
+	}
+}
+
+func checkScanString(t *testing.T, data []byte, from int) {
+	t.Helper()
+	wantEnd, wantFlags := refScanString(data, from)
+	gotEnd, gotFlags := scanString(data, from)
+	if gotEnd != wantEnd || gotFlags != wantFlags {
+		t.Fatalf("scanString(%q, %d) = (%d, %d), want (%d, %d)", data, from, gotEnd, gotFlags, wantEnd, wantFlags)
+	}
+}
+
+func checkAppendUnquoted(t *testing.T, body []byte, pad int) {
+	t.Helper()
+	data := make([]byte, pad+len(body))
+	copy(data[pad:], body)
+	in := data[pad:]
+	want, wantOK := refUnquote(t, in)
+	got, ok := appendUnquoted(make([]byte, 0, len(in)), in)
+	if ok != wantOK || !bytes.Equal(got, want) {
+		t.Fatalf("appendUnquoted(%q) = (%q, %v), want (%q, %v)", in, got, ok, want, wantOK)
+	}
+}
+
+var scanGapSequences = []string{`\n`, `\u00e9`, "\u00e9", `"`, "\x01", "\xff", `\x`}
+
+var unquoteGapSequences = []string{`\n`, `\u00e9`, "\u00e9", `"`, "\x01", "\xff", `\"`}
+
+func TestScanStringDifferential(t *testing.T) {
+	forEachPlacement(scanSequences, func(body []byte) {
+		for _, c := range scanConfigs {
+			checkScanString(t, quotedInput(c.pad, body, c.tail), c.pad)
+		}
+	})
+}
+
+func TestScanStringGapDifferential(t *testing.T) {
+	forEachGapInput(scanGapSequences, func(body []byte) {
+		for _, c := range scanConfigs {
+			checkScanString(t, quotedInput(c.pad, body, c.tail), c.pad)
+		}
+	})
+}
+
+func TestAppendUnquotedDifferential(t *testing.T) {
+	forEachPlacement(unquoteSequences, func(body []byte) {
+		for _, pad := range []int{0, 7} {
+			checkAppendUnquoted(t, body, pad)
+		}
+	})
+}
+
+func TestAppendUnquotedGapDifferential(t *testing.T) {
+	forEachGapInput(unquoteGapSequences, func(body []byte) {
+		checkAppendUnquoted(t, body, 0)
 	})
 }

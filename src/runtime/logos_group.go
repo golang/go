@@ -12,7 +12,9 @@ import (
 var logosWaitersLock mutex
 
 func init() {
-	lockInit(&logosWaitersLock, lockRankLogosWaiters)
+	if logosRuntimeHooks {
+		lockInit(&logosWaitersLock, lockRankLogosWaiters)
+	}
 }
 
 const logosSlotLimit = 1<<32 - 1

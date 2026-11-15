@@ -38,6 +38,12 @@ stdout '^ok u-field$'
 stdout '^ok u-slice$'
 stdout '^ok u-map$'
 
+# A union that declares IsZero with an imported pointer member must omit a
+# typed nil member without dereferencing it; local pointer members and
+# non-nil members are controls. Success is quiet; any parity failure or
+# panic fails the run.
+logos run ./impz
+
 # A holder of a union with a member that its own package keeps unexported
 # fails with the rule ID at the field, in every position, and a union that
 # names such a union fails the same way.
@@ -113,6 +119,116 @@ type A struct {
 
 type B struct {
 	Y string `json:"y"`
+}
+
+func (a A) IsZero() bool { return a.X == 0 }
+
+func (b B) IsZero() bool { return b.Y == "" }
+
+-- w/up/up.lgo --
+package up
+
+import "example.com/jq/m"
+
+type P interface {
+	IsZero() bool
+	*m.A | m.B
+}
+
+-- w/impz/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"example.com/jq/m"
+	"example.com/jq/up"
+)
+
+type iz interface {
+	IsZero() bool
+}
+
+type LA struct {
+	P int64 `json:"p"`
+}
+
+func (a LA) IsZero() bool { return a.P == 0 }
+
+type LB struct {
+	S string `json:"s"`
+}
+
+func (b LB) IsZero() bool { return b.S == "" }
+
+type LW interface {
+	IsZero() bool
+	*LA | LB
+}
+
+type HLoc struct {
+	V LW `json:"v,omitzero"`
+}
+
+type HImp struct {
+	V up.P `json:"v,omitzero"`
+}
+
+func parity(name string, holder any, mirror any) {
+	got, err := json.Marshal(holder)
+	if err != nil {
+		fmt.Println("FAIL", name, "holder", err)
+		os.Exit(1)
+	}
+	want, err := json.Marshal(mirror)
+	if err != nil {
+		fmt.Println("FAIL", name, "mirror", err)
+		os.Exit(1)
+	}
+	if string(got) != string(want) {
+		fmt.Println("FAIL", name, "got="+string(got), "want="+string(want))
+		os.Exit(1)
+	}
+}
+
+func main() {
+	hiNil := HImp{}
+	hiNil.V = (*m.A)(nil)
+	parity("imp-nil", hiNil, struct {
+		V iz `json:"v,omitzero"`
+	}{V: (*m.A)(nil)})
+
+	hiZero := HImp{}
+	hiZero.V = &m.A{}
+	parity("imp-zero", hiZero, struct {
+		V iz `json:"v,omitzero"`
+	}{V: &m.A{}})
+
+	hiFull := HImp{}
+	hiFull.V = &m.A{X: 9}
+	parity("imp-full", hiFull, struct {
+		V iz `json:"v,omitzero"`
+	}{V: &m.A{X: 9}})
+
+	hiVal := HImp{}
+	hiVal.V = m.B{Y: "y"}
+	parity("imp-val", hiVal, struct {
+		V iz `json:"v,omitzero"`
+	}{V: m.B{Y: "y"}})
+
+	hlNil := HLoc{}
+	hlNil.V = (*LA)(nil)
+	parity("loc-nil", hlNil, struct {
+		V iz `json:"v,omitzero"`
+	}{V: (*LA)(nil)})
+
+	hlFull := HLoc{}
+	hlFull.V = &LA{P: 5}
+	parity("loc-full", hlFull, struct {
+		V iz `json:"v,omitzero"`
+	}{V: &LA{P: 5}})
 }
 
 -- w/u/u.lgo --

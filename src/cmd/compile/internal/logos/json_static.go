@@ -110,8 +110,9 @@ func (fl *fileLower) lowerStaticJSONType(td *syntax.TypeDecl) {
 			}
 		}
 		if vname != "" {
+			gen := fl.jsonDispatcher(plan)
 			fl.emitJSONHelpers(td.Pos(), plan)
-			js.marshalTextWalk(&b, plan, vname)
+			js.marshalTextWalk(&b, vname, gen)
 		} else {
 			js.marshalText(&b)
 		}

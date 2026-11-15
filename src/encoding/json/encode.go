@@ -998,7 +998,11 @@ func resolveKeyName(k reflect.Value) (string, error) {
 func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool) []byte {
 	dst = append(dst, '"')
 	start := 0
-	for i := 0; i < len(src); {
+	first, hot := 0, false
+	if len(src) >= hotSkip {
+		first, hot = skipEscapeHTML(src, 0)
+	}
+	for i := first; i < len(src); {
 		if b := src[i]; b < utf8.RuneSelf {
 			if htmlSafeSet[b] || (!escapeHTML && safeSet[b]) {
 				i++
@@ -1028,6 +1032,9 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			}
 			i++
 			start = i
+			if hot {
+				i, hot = skipEscapeHTML(src, i)
+			}
 			continue
 		}
 		// TODO(https://go.dev/issue/56948): Use generic utf8 functionality.
@@ -1058,6 +1065,9 @@ func appendString[Bytes []byte | string](dst []byte, src Bytes, escapeHTML bool)
 			continue
 		}
 		i += size
+		if hot {
+			i, hot = skipEscapeHTML(src, i)
+		}
 	}
 	dst = append(dst, src[start:]...)
 	dst = append(dst, '"')

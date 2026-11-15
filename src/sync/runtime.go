@@ -45,10 +45,6 @@ func runtime_notifyListWait(l *notifyList, t uint32)
 // See runtime/sema.go for documentation.
 func runtime_notifyListNotifyAll(l *notifyList)
 
-// runtime_logosPinObject keeps the heap object holding p in place under the
-// moving collector. Cond records its own address as a uintptr (M19-S5).
-func runtime_logosPinObject(p unsafe.Pointer)
-
 // See runtime/sema.go for documentation.
 func runtime_notifyListNotifyOne(l *notifyList)
 

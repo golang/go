@@ -634,6 +634,8 @@ package main
 import (
 	"sync/atomic"
 	"unsafe"
+
+	_ "logos/rt"
 )
 
 type fields struct {

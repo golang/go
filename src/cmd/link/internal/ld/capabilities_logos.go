@@ -16,6 +16,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -140,6 +141,7 @@ type logosCapAuditor struct {
 	queue  []loader.Sym
 	impls  []logosCapImpl
 	hits   []logosCapHit
+	spans  []capInlineSpan
 	fanned bool
 	deps   []string
 }
@@ -163,14 +165,14 @@ func logosCapAudit(ctxt *Link, d *deadcodePass) {
 		ldr:    ctxt.loader,
 		policy: &policy,
 		std:    ctxt.loader.StdPackages(),
-		graph: &capGraph{
-			parent: make(map[loader.Sym]loader.Sym),
-			preds:  make(map[loader.Sym][]loader.Sym),
-		},
-		roles:  make(map[loader.Sym]capRole),
-		ifaced: make(map[loader.Sym]bool),
+		deps:   parseLogosModinfoDeps(strdata["runtime.modinfo"]),
 	}
-	a.deps = parseLogosModinfoDeps(strdata["runtime.modinfo"])
+	if !a.hasDepPackage() {
+		return
+	}
+	a.graph = newCapGraph(a.ldr.NSym())
+	a.roles = make(map[loader.Sym]capRole)
+	a.ifaced = make(map[loader.Sym]bool)
 	a.collectImpls(d)
 	a.seedRoots(d)
 	a.flood(d)
@@ -451,15 +453,19 @@ func (a *logosCapAuditor) followInlinedIface(d *deadcodePass, inlined loader.Sym
 	}
 }
 
+type capInlineSpan struct {
+	end int64
+	idx int32
+}
+
 type capInlineSite struct {
-	owner   loader.Sym
-	fi      loader.FuncInfo
-	table   []byte
-	quantum int
+	owner loader.Sym
+	fi    loader.FuncInfo
+	spans []capInlineSpan
 }
 
 func (a *logosCapAuditor) inlineSite(s loader.Sym) capInlineSite {
-	site := capInlineSite{owner: s, quantum: a.ctxt.Arch.MinLC}
+	site := capInlineSite{owner: s}
 	fi := a.ldr.FuncInfo(s)
 	if !fi.Valid() {
 		return site
@@ -469,14 +475,15 @@ func (a *logosCapAuditor) inlineSite(s loader.Sym) capInlineSite {
 		return site
 	}
 	if _, _, _, pcinline, _ := a.ldr.PcdataAuxs(s, nil); pcinline != 0 {
+		a.spans = capInlineSpans(a.spans[:0], a.ldr.Data(pcinline), a.ctxt.Arch.MinLC)
 		site.fi = fi
-		site.table = a.ldr.Data(pcinline)
+		site.spans = a.spans
 	}
 	return site
 }
 
 func (c *capInlineSite) at(off int64) loader.Sym {
-	idx := capInlineAt(c.table, off, c.quantum)
+	idx := capInlineIndex(c.spans, off)
 	if idx < 0 || int(idx) >= int(c.fi.NumInlTree()) {
 		return c.owner
 	}
@@ -486,26 +493,32 @@ func (c *capInlineSite) at(off int64) loader.Sym {
 	return c.owner
 }
 
-func capInlineAt(table []byte, off int64, quantum int) int32 {
+func capInlineSpans(spans []capInlineSpan, table []byte, quantum int) []capInlineSpan {
 	val, pc := int32(-1), int64(0)
 	for len(table) > 0 {
 		d, n := binary.Varint(table)
 		if n <= 0 {
-			return -1
+			break
 		}
 		table = table[n:]
 		span, n := binary.Uvarint(table)
 		if n <= 0 {
-			return -1
+			break
 		}
 		table = table[n:]
 		val += int32(d)
 		pc += int64(span) * int64(quantum)
-		if off < pc {
-			return val
-		}
+		spans = append(spans, capInlineSpan{end: pc, idx: val})
 	}
-	return -1
+	return spans
+}
+
+func capInlineIndex(spans []capInlineSpan, off int64) int32 {
+	i := sort.Search(len(spans), func(i int) bool { return off < spans[i].end })
+	if i == len(spans) {
+		return -1
+	}
+	return spans[i].idx
 }
 
 func (a *logosCapAuditor) followExportedImpls(from loader.Sym) {
@@ -550,7 +563,12 @@ type capFinding struct {
 func (a *logosCapAuditor) findings() []capFinding {
 	var out []capFinding
 	index := make(map[string]int)
+	seen := make(map[logosCapHit]bool, len(a.hits))
 	for _, hit := range a.hits {
+		if seen[hit] {
+			continue
+		}
+		seen[hit] = true
 		for _, b := range a.graph.blamedChains(hit.sink, a.blameRole(hit)) {
 			out = addFinding(out, index, capFinding{kind: hit.kind, sink: hit.report(), dep: b.dep, chain: b.chain})
 		}
@@ -690,6 +708,15 @@ func (a *logosCapAuditor) roleOf(s loader.Sym) capRole {
 		return capRole{}
 	}
 	return capRole{dep: pkg}
+}
+
+func (a *logosCapAuditor) hasDepPackage() bool {
+	for pkg := range a.ctxt.LibraryByPkg {
+		if pkg != "" && pkg != "runtime" && !a.exemptPkg(pkg) {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *logosCapAuditor) textPkg(s loader.Sym) string {

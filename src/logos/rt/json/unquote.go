@@ -71,7 +71,9 @@ func appendEscape(dst, body []byte, i int) ([]byte, int, bool) {
 }
 
 func appendUnquoted(dst, body []byte) ([]byte, bool) {
-	for i := 0; i < len(body); {
+	end, sparse := skipPlainBytes(body, 0)
+	dst = append(dst, body[:end]...)
+	for i := end; i < len(body); {
 		c := body[i]
 		switch {
 		case c == '\\':
@@ -84,10 +86,16 @@ func appendUnquoted(dst, body []byte) ([]byte, bool) {
 		case c < utf8.RuneSelf:
 			dst = append(dst, c)
 			i++
+			continue
 		default:
 			r, size := utf8.DecodeRune(body[i:])
 			dst = utf8.AppendRune(dst, r)
 			i += size
+		}
+		if sparse {
+			end, sparse = skipPlainBytes(body, i)
+			dst = append(dst, body[i:end]...)
+			i = end
 		}
 	}
 	return dst, true

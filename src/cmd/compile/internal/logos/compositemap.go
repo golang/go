@@ -725,7 +725,7 @@ func (fl *fileLower) compositeRewriteRoot(e syntax.Expr) (syntax.Expr, bool) {
 	}
 	fl.compositeDone[ref.root] = true
 	if ref.info == nil {
-		return fl.compositeImportedRewrite(e, ref), true
+		return e, true
 	}
 	return fl.compositeLocalRewrite(e, ref), true
 }
@@ -740,34 +740,6 @@ func (fl *fileLower) compositeLocalRewrite(e syntax.Expr, ref compositeRef) synt
 		return fl.compositeBuildAddr(e, ref)
 	}
 	return fl.compositeBuild(e, ref)
-}
-
-func (fl *fileLower) compositeImportedRewrite(e syntax.Expr, ref compositeRef) syntax.Expr {
-	t := fl.pkg.info.TypeOf(ref.recv)
-	switch {
-	case t != nil && compositeReferenceFree(t):
-		return e
-	case ref.method != nil && compositePointerReceiver(ref.method):
-		return fl.compositeFreezeAddr(e, ref)
-	}
-	return fl.compositeFreeze(e, ref)
-}
-
-func compositeReferenceFree(t types2.Type) bool {
-	switch u := compositeUnderlying(t).(type) {
-	case *types2.Basic:
-		return u.Kind() != types2.UnsafePointer
-	case *types2.Array:
-		return compositeReferenceFree(u.Elem())
-	case *types2.Struct:
-		for i := range u.NumFields() {
-			if !compositeReferenceFree(u.Field(i).Type()) {
-				return false
-			}
-		}
-		return true
-	}
-	return false
 }
 
 func (fl *fileLower) compositeShapeArg(call *syntax.CallExpr) {
@@ -833,31 +805,6 @@ func (fl *fileLower) compositeBuildAddr(e syntax.Expr, ref compositeRef) syntax.
 	tv.Type = types2.NewPointer(tv.Type)
 	fresh.SetTypeInfo(tv)
 	return fl.compositeSwapRoot(e, ref, "new("+ref.info.builder()+"())", fresh)
-}
-
-func (fl *fileLower) compositeFreeze(e syntax.Expr, ref compositeRef) syntax.Expr {
-	pos := syntax.StartPos(ref.root)
-	text, call := fl.compositeFreezeCall(ref)
-	deref := at(&syntax.ParenExpr{X: at(&syntax.Operation{Op: syntax.Mul, X: call}, pos)}, pos)
-	deref.SetTypeInfo(ref.root.GetTypeInfo())
-	return fl.compositeSwapRoot(e, ref, "(*"+text+")", deref)
-}
-
-func (fl *fileLower) compositeFreezeAddr(e syntax.Expr, ref compositeRef) syntax.Expr {
-	if compositeSliceRoot(ref) {
-		return fl.compositeFreeze(e, ref)
-	}
-	text, call := fl.compositeFreezeCall(ref)
-	tv := ref.root.GetTypeInfo()
-	tv.Type = types2.NewPointer(tv.Type)
-	call.SetTypeInfo(tv)
-	return fl.compositeSwapRoot(e, ref, text, call)
-}
-
-func (fl *fileLower) compositeFreezeCall(ref compositeRef) (string, *syntax.CallExpr) {
-	fl.needRT = true
-	pos := syntax.StartPos(ref.root)
-	return rtAlias + ".Freeze(&" + renderExpr(ref.root) + ")", callOf(pos, rtSel(pos, "Freeze"), []syntax.Expr{addrOf(pos, ref.root)})
 }
 
 func (fl *fileLower) compositeRootSpan(root syntax.Expr) span {

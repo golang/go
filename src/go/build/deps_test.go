@@ -91,6 +91,7 @@ var depsRules = `
 	structs,
 	simd/archsimd
 	< internal/bytealg
+	< internal/jsonscan
 	< internal/stringslite
 	< internal/unsafeheader
 	< internal/race

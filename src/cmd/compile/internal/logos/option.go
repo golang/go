@@ -1149,7 +1149,7 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 	yEnd := fl.exprEndThrough(yStart, through)
 	fl.add(qoff, qoff+2, "")
 	if mapRead {
-		mStart, lbrack, rbrack := fl.lookupSpans(ux)
+		mStart, _, rbrack := fl.lookupSpans(ux)
 		fl.deleteGroupingParens(mStart, qoff)
 		xStart := fl.off(fl.optHeadStart(e.X))
 		xEnd := rbrack + 1
@@ -1159,33 +1159,15 @@ func (fl *fileLower) lowerCoalesce(e *syntax.CoalesceExpr) syntax.Expr {
 		ux.X = fl.lowerOptExpr(ux.X)
 		ux.Index = fl.lowerOptExpr(ux.Index)
 		fl.convertIndexKey(ux, rawIdx, ux.Index, idxT)
-		if types2.LogosOptionIsBare(opt.Elem) {
-			fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+", "+optOk+" := ")
-			init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp), nameOf(pos, optOk)}, []syntax.Expr{ux})
-			body := []syntax.Stmt{
-				ifOf(pos, init, nameOf(pos, optOk), []syntax.Stmt{returnOf(pos, []syntax.Expr{nameOf(pos, optTemp)})}),
-				returnOf(pos, []syntax.Expr{wy}),
-			}
-			lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
-			fl.addOwned(id, xEnd, xEnd, "; "+optOk+" { return "+optTemp+closure.success()+" }; "+closure.prefix(body[1])+"return ")
-			out := callOf(pos, lit, nil)
-			fl.wrapSpan[out] = span{start: xStart, end: yEnd}
-			fl.wrapOwner[out] = id
-			fl.addOwned(id, yEnd, yEnd, closure.success()+" }()")
-			closure.bind(out, fl.wrapSpan[out], id)
-			return out
-		}
-		fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+" := "+rtAlias+".Lookup(")
-		call := fl.lookupFinish(ux, lbrack, rbrack, id)
-		init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp)}, []syntax.Expr{call})
-		cond := selOf(pos, nameOf(pos, optTemp), "Present")
-		then := []syntax.Stmt{returnOf(pos, []syntax.Expr{selOf(pos, nameOf(pos, optTemp), "Value")})}
+		fl.addOwned(id, xStart, xStart, closure.head("func() "+etext, []string{etext})+" { "+closure.prefix(nil)+"if "+optTemp+", "+optOk+" := ")
+		commaOKIndex := at(&syntax.IndexExpr{X: ux.X, Index: ux.Index}, ux.Pos())
+		init := defineOf(pos, []syntax.Expr{nameOf(pos, optTemp), nameOf(pos, optOk)}, []syntax.Expr{commaOKIndex})
 		body := []syntax.Stmt{
-			ifOf(pos, init, cond, then),
+			ifOf(pos, init, nameOf(pos, optOk), []syntax.Stmt{returnOf(pos, []syntax.Expr{nameOf(pos, optTemp)})}),
 			returnOf(pos, []syntax.Expr{wy}),
 		}
 		lit := at(&syntax.FuncLit{Type: signature, Body: blockOf(pos, body)}, pos)
-		fl.addOwned(id, xEnd, xEnd, "; "+optTemp+".Present { return "+optTemp+".Value"+closure.success()+" }; "+closure.prefix(body[1])+"return ")
+		fl.addOwned(id, xEnd, xEnd, "; "+optOk+" { return "+optTemp+closure.success()+" }; "+closure.prefix(body[1])+"return ")
 		out := callOf(pos, lit, nil)
 		fl.wrapSpan[out] = span{start: xStart, end: yEnd}
 		fl.wrapOwner[out] = id

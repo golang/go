@@ -10,34 +10,63 @@ import (
 	"errors"
 	"io"
 	"iter"
-	"reflect"
 	"slices"
 	"sync"
 	"sync/atomic"
 )
 
-var closerType = reflect.TypeFor[io.Closer]()
-
 var ErrNotOwned = errors.New("logos: group stage result is not owned by the stage")
 
-func GroupSeq[S, R any](ctx context.Context, limit int, src iter.Seq[S], f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
-	s := newGroupStage(limit, f)
+// Discarder disposes of a finished result that the stage owns and does not
+// deliver. The lowering names one of the three implementations below as the
+// last type argument of a group stage entry.
+type Discarder[R any] interface {
+	Discard(R)
+}
+
+// CloseResult closes every discarded result. The lowering picks it when the
+// result type implements io.Closer.
+type CloseResult[R io.Closer] struct{}
+
+func (CloseResult[R]) Discard(r R) {
+	_ = r.Close()
+}
+
+// CloseResultIfCloser closes a discarded result whose dynamic type
+// implements io.Closer. The lowering picks it when the result type is an
+// interface or a type parameter.
+type CloseResultIfCloser[R any] struct{}
+
+func (CloseResultIfCloser[R]) Discard(r R) {
+	if c, ok := any(r).(io.Closer); ok {
+		_ = c.Close()
+	}
+}
+
+// LeaveResultOpen leaves every discarded result open. The lowering picks it
+// when the result type cannot implement io.Closer.
+type LeaveResultOpen[R any] struct{}
+
+func (LeaveResultOpen[R]) Discard(R) {}
+
+func GroupSeq[S, R any, D Discarder[R]](ctx context.Context, limit int, src iter.Seq[S], f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
+	s := newGroupStage[S, R, D](limit, f)
 	return s.ranged(ctx, func() { s.fromSeq(src) })
 }
 
-func GroupSeqUnordered[S, R any](ctx context.Context, limit int, src iter.Seq[S], f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
-	s := newGroupStage(limit, f)
+func GroupSeqUnordered[S, R any, D Discarder[R]](ctx context.Context, limit int, src iter.Seq[S], f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
+	s := newGroupStage[S, R, D](limit, f)
 	s.completion = true
 	return s.ranged(ctx, func() { s.fromSeq(src) })
 }
 
-func GroupChan[S, R any](ctx context.Context, limit int, src <-chan S, f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
-	s := newGroupStage(limit, f)
+func GroupChan[S, R any, D Discarder[R]](ctx context.Context, limit int, src <-chan S, f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
+	s := newGroupStage[S, R, D](limit, f)
 	return s.ranged(ctx, func() { s.fromChan(src) })
 }
 
-func GroupChanUnordered[S, R any](ctx context.Context, limit int, src <-chan S, f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
-	s := newGroupStage(limit, f)
+func GroupChanUnordered[S, R any, D Discarder[R]](ctx context.Context, limit int, src <-chan S, f func(context.Context, S) (R, bool, error)) iter.Seq2[R, error] {
+	s := newGroupStage[S, R, D](limit, f)
 	s.completion = true
 	return s.ranged(ctx, func() { s.fromChan(src) })
 }
@@ -55,11 +84,10 @@ type groupJob[S any] struct {
 	v   S
 }
 
-type groupStage[S, R any] struct {
+type groupStage[S, R any, D Discarder[R]] struct {
 	limit      int
 	f          func(context.Context, S) (R, bool, error)
 	completion bool
-	closes     bool
 	used       atomic.Bool
 	failKnown  atomic.Bool
 
@@ -87,16 +115,11 @@ type groupStage[S, R any] struct {
 	next   int
 }
 
-func newGroupStage[S, R any](limit int, f func(context.Context, S) (R, bool, error)) *groupStage[S, R] {
-	return &groupStage[S, R]{limit: limit, f: f, closes: mayClose[R]()}
+func newGroupStage[S, R any, D Discarder[R]](limit int, f func(context.Context, S) (R, bool, error)) *groupStage[S, R, D] {
+	return &groupStage[S, R, D]{limit: limit, f: f}
 }
 
-func mayClose[R any]() bool {
-	t := reflect.TypeFor[R]()
-	return t.Kind() == reflect.Interface || t.Implements(closerType)
-}
-
-func (s *groupStage[S, R]) ranged(ctx context.Context, drive func()) iter.Seq2[R, error] {
+func (s *groupStage[S, R, D]) ranged(ctx context.Context, drive func()) iter.Seq2[R, error] {
 	return func(yield func(R, error) bool) {
 		s.start(ctx, yield)
 		defer s.join()
@@ -108,7 +131,7 @@ func (s *groupStage[S, R]) ranged(ctx context.Context, drive func()) iter.Seq2[R
 	}
 }
 
-func (s *groupStage[S, R]) start(ctx context.Context, yield func(R, error) bool) {
+func (s *groupStage[S, R, D]) start(ctx context.Context, yield func(R, error) bool) {
 	if s.limit <= 0 {
 		panic("logos: group stage limit must be positive")
 	}
@@ -124,7 +147,7 @@ func (s *groupStage[S, R]) start(ctx context.Context, yield func(R, error) bool)
 	s.buf = make(map[int]groupItem[R])
 }
 
-func (s *groupStage[S, R]) live() bool {
+func (s *groupStage[S, R, D]) live() bool {
 	if s.stopped || s.headErr != nil {
 		return false
 	}
@@ -136,11 +159,11 @@ func (s *groupStage[S, R]) live() bool {
 	}
 }
 
-func (s *groupStage[S, R]) pulling() bool {
+func (s *groupStage[S, R, D]) pulling() bool {
 	return s.live() && !s.failKnown.Load()
 }
 
-func (s *groupStage[S, R]) fromSeq(src iter.Seq[S]) {
+func (s *groupStage[S, R, D]) fromSeq(src iter.Seq[S]) {
 	src(func(v S) bool {
 		if !s.slot() {
 			return false
@@ -150,7 +173,7 @@ func (s *groupStage[S, R]) fromSeq(src iter.Seq[S]) {
 	})
 }
 
-func (s *groupStage[S, R]) fromChan(src <-chan S) {
+func (s *groupStage[S, R, D]) fromChan(src <-chan S) {
 	for {
 		s.flush()
 		if !s.pulling() {
@@ -173,7 +196,7 @@ func (s *groupStage[S, R]) fromChan(src <-chan S) {
 	}
 }
 
-func (s *groupStage[S, R]) slot() bool {
+func (s *groupStage[S, R, D]) slot() bool {
 	for {
 		s.flush()
 		if !s.pulling() {
@@ -186,7 +209,7 @@ func (s *groupStage[S, R]) slot() bool {
 	}
 }
 
-func (s *groupStage[S, R]) drain() {
+func (s *groupStage[S, R, D]) drain() {
 	for {
 		s.flush()
 		if s.held == 0 || !s.live() {
@@ -196,14 +219,14 @@ func (s *groupStage[S, R]) drain() {
 	}
 }
 
-func (s *groupStage[S, R]) await() {
+func (s *groupStage[S, R, D]) await() {
 	select {
 	case <-s.wake:
 	case <-s.gdone:
 	}
 }
 
-func (s *groupStage[S, R]) spawn(v S) {
+func (s *groupStage[S, R, D]) spawn(v S) {
 	idx := s.spawned
 	s.spawned++
 	s.held++
@@ -213,7 +236,7 @@ func (s *groupStage[S, R]) spawn(v S) {
 	}
 }
 
-func (s *groupStage[S, R]) enqueue(j groupJob[S]) bool {
+func (s *groupStage[S, R, D]) enqueue(j groupJob[S]) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.jobs) == cap(s.jobs) && s.jhead > 0 {
@@ -230,7 +253,7 @@ func (s *groupStage[S, R]) enqueue(j groupJob[S]) bool {
 	return true
 }
 
-func (s *groupStage[S, R]) work(ctx context.Context) error {
+func (s *groupStage[S, R, D]) work(ctx context.Context) error {
 	for {
 		j, ok := s.take()
 		if !ok {
@@ -244,7 +267,7 @@ func (s *groupStage[S, R]) work(ctx context.Context) error {
 	}
 }
 
-func (s *groupStage[S, R]) call(ctx context.Context, j groupJob[S]) (it groupItem[R]) {
+func (s *groupStage[S, R, D]) call(ctx context.Context, j groupJob[S]) (it groupItem[R]) {
 	it.idx = j.idx
 	if !s.completion {
 		defer func() {
@@ -260,7 +283,7 @@ func (s *groupStage[S, R]) call(ctx context.Context, j groupJob[S]) (it groupIte
 	return it
 }
 
-func (s *groupStage[S, R]) take() (groupJob[S], bool) {
+func (s *groupStage[S, R, D]) take() (groupJob[S], bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for s.jhead == len(s.jobs) && !s.closed {
@@ -279,14 +302,14 @@ func (s *groupStage[S, R]) take() (groupJob[S], bool) {
 	return j, true
 }
 
-func (s *groupStage[S, R]) stopWorkers() {
+func (s *groupStage[S, R, D]) stopWorkers() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.closed = true
 	s.cond.Broadcast()
 }
 
-func (s *groupStage[S, R]) finish(it groupItem[R]) {
+func (s *groupStage[S, R, D]) finish(it groupItem[R]) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if it.err != nil {
@@ -304,7 +327,7 @@ func (s *groupStage[S, R]) finish(it groupItem[R]) {
 	}
 }
 
-func (s *groupStage[S, R]) pop() (groupItem[R], bool) {
+func (s *groupStage[S, R, D]) pop() (groupItem[R], bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	it, ok := s.buf[s.next]
@@ -315,7 +338,7 @@ func (s *groupStage[S, R]) pop() (groupItem[R], bool) {
 	return it, ok
 }
 
-func (s *groupStage[S, R]) flush() {
+func (s *groupStage[S, R, D]) flush() {
 	for s.live() {
 		it, ok := s.pop()
 		if !ok {
@@ -325,15 +348,15 @@ func (s *groupStage[S, R]) flush() {
 	}
 }
 
-func (s *groupStage[S, R]) process(it groupItem[R]) {
+func (s *groupStage[S, R, D]) process(it groupItem[R]) {
 	s.held--
 	if it.err != nil {
 		s.headErr = it.err
 		return
 	}
 	if !it.keep {
-		if s.closes && !it.unowned {
-			closeValue(it.r)
+		if !it.unowned {
+			s.discard(it.r)
 		}
 		return
 	}
@@ -342,7 +365,7 @@ func (s *groupStage[S, R]) process(it groupItem[R]) {
 	}
 }
 
-func (s *groupStage[S, R]) conclude(ctx context.Context) {
+func (s *groupStage[S, R, D]) conclude(ctx context.Context) {
 	err := s.join()
 	if s.stopped {
 		return
@@ -354,7 +377,7 @@ func (s *groupStage[S, R]) conclude(ctx context.Context) {
 	}
 }
 
-func (s *groupStage[S, R]) join() error {
+func (s *groupStage[S, R, D]) join() error {
 	if !s.joined {
 		s.joined = true
 		s.cancel()
@@ -365,7 +388,7 @@ func (s *groupStage[S, R]) join() error {
 	return s.err
 }
 
-func (s *groupStage[S, R]) abandon() {
+func (s *groupStage[S, R, D]) abandon() {
 	lost := make([]groupItem[R], 0, len(s.buf))
 	for _, it := range s.buf {
 		if it.err == nil && !it.unowned {
@@ -373,19 +396,18 @@ func (s *groupStage[S, R]) abandon() {
 		}
 	}
 	slices.SortFunc(lost, func(a, b groupItem[R]) int { return cmp.Compare(b.idx, a.idx) })
-	closeAll(lost)
+	s.discardAll(lost)
 }
 
-func closeAll[R any](items []groupItem[R]) {
+func (s *groupStage[S, R, D]) discardAll(items []groupItem[R]) {
 	if len(items) == 0 {
 		return
 	}
-	defer closeAll(items[1:])
-	closeValue(items[0].r)
+	defer s.discardAll(items[1:])
+	s.discard(items[0].r)
 }
 
-func closeValue[R any](r R) {
-	if c, ok := any(r).(io.Closer); ok {
-		_ = c.Close()
-	}
+func (s *groupStage[S, R, D]) discard(r R) {
+	var d D
+	d.Discard(r)
 }

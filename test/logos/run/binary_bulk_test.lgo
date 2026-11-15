@@ -1,0 +1,824 @@
+// run
+
+// Copyright 2026 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
+package main
+
+import (
+	"bytes"
+	"encoding"
+	"fmt"
+	"math"
+	"os"
+	"reflect"
+)
+
+type Dur int64
+type Tick uint64
+type Ratio float64
+type Gain float32
+
+type I64K struct {
+	S     []int64     `json:"s"`
+	A0    [0]int64    `json:"a0"`
+	A1    [1]int64    `json:"a1"`
+	A7    [7]int64    `json:"a7"`
+	A8    [8]int64    `json:"a8"`
+	A9    [9]int64    `json:"a9"`
+	A1000 [1000]int64 `json:"a1000"`
+}
+
+type U64K struct {
+	S     []uint64     `json:"s"`
+	A0    [0]uint64    `json:"a0"`
+	A1    [1]uint64    `json:"a1"`
+	A7    [7]uint64    `json:"a7"`
+	A8    [8]uint64    `json:"a8"`
+	A9    [9]uint64    `json:"a9"`
+	A1000 [1000]uint64 `json:"a1000"`
+}
+
+type F64K struct {
+	S     []float64     `json:"s"`
+	A0    [0]float64    `json:"a0"`
+	A1    [1]float64    `json:"a1"`
+	A7    [7]float64    `json:"a7"`
+	A8    [8]float64    `json:"a8"`
+	A9    [9]float64    `json:"a9"`
+	A1000 [1000]float64 `json:"a1000"`
+}
+
+type F32K struct {
+	S     []float32     `json:"s"`
+	A0    [0]float32    `json:"a0"`
+	A1    [1]float32    `json:"a1"`
+	A7    [7]float32    `json:"a7"`
+	A8    [8]float32    `json:"a8"`
+	A9    [9]float32    `json:"a9"`
+	A1000 [1000]float32 `json:"a1000"`
+}
+
+type DurK struct {
+	S     []Dur     `json:"s"`
+	A0    [0]Dur    `json:"a0"`
+	A1    [1]Dur    `json:"a1"`
+	A7    [7]Dur    `json:"a7"`
+	A8    [8]Dur    `json:"a8"`
+	A9    [9]Dur    `json:"a9"`
+	A1000 [1000]Dur `json:"a1000"`
+}
+
+type TickK struct {
+	S     []Tick     `json:"s"`
+	A0    [0]Tick    `json:"a0"`
+	A1    [1]Tick    `json:"a1"`
+	A7    [7]Tick    `json:"a7"`
+	A8    [8]Tick    `json:"a8"`
+	A9    [9]Tick    `json:"a9"`
+	A1000 [1000]Tick `json:"a1000"`
+}
+
+type RatioK struct {
+	S     []Ratio     `json:"s"`
+	A0    [0]Ratio    `json:"a0"`
+	A1    [1]Ratio    `json:"a1"`
+	A7    [7]Ratio    `json:"a7"`
+	A8    [8]Ratio    `json:"a8"`
+	A9    [9]Ratio    `json:"a9"`
+	A1000 [1000]Ratio `json:"a1000"`
+}
+
+type GainK struct {
+	S     []Gain     `json:"s"`
+	A0    [0]Gain    `json:"a0"`
+	A1    [1]Gain    `json:"a1"`
+	A7    [7]Gain    `json:"a7"`
+	A8    [8]Gain    `json:"a8"`
+	A9    [9]Gain    `json:"a9"`
+	A1000 [1000]Gain `json:"a1000"`
+}
+
+type IntK struct {
+	S     []int     `json:"s"`
+	A0    [0]int    `json:"a0"`
+	A1    [1]int    `json:"a1"`
+	A7    [7]int    `json:"a7"`
+	A8    [8]int    `json:"a8"`
+	A9    [9]int    `json:"a9"`
+	A1000 [1000]int `json:"a1000"`
+}
+
+type UintK struct {
+	S     []uint     `json:"s"`
+	A0    [0]uint    `json:"a0"`
+	A1    [1]uint    `json:"a1"`
+	A7    [7]uint    `json:"a7"`
+	A8    [8]uint    `json:"a8"`
+	A9    [9]uint    `json:"a9"`
+	A1000 [1000]uint `json:"a1000"`
+}
+
+type I8K struct {
+	S     []int8     `json:"s"`
+	A0    [0]int8    `json:"a0"`
+	A1    [1]int8    `json:"a1"`
+	A7    [7]int8    `json:"a7"`
+	A8    [8]int8    `json:"a8"`
+	A9    [9]int8    `json:"a9"`
+	A1000 [1000]int8 `json:"a1000"`
+}
+
+type I16K struct {
+	S     []int16     `json:"s"`
+	A0    [0]int16    `json:"a0"`
+	A1    [1]int16    `json:"a1"`
+	A7    [7]int16    `json:"a7"`
+	A8    [8]int16    `json:"a8"`
+	A9    [9]int16    `json:"a9"`
+	A1000 [1000]int16 `json:"a1000"`
+}
+
+type I32K struct {
+	S     []int32     `json:"s"`
+	A0    [0]int32    `json:"a0"`
+	A1    [1]int32    `json:"a1"`
+	A7    [7]int32    `json:"a7"`
+	A8    [8]int32    `json:"a8"`
+	A9    [9]int32    `json:"a9"`
+	A1000 [1000]int32 `json:"a1000"`
+}
+
+type U16K struct {
+	S     []uint16     `json:"s"`
+	A0    [0]uint16    `json:"a0"`
+	A1    [1]uint16    `json:"a1"`
+	A7    [7]uint16    `json:"a7"`
+	A8    [8]uint16    `json:"a8"`
+	A9    [9]uint16    `json:"a9"`
+	A1000 [1000]uint16 `json:"a1000"`
+}
+
+type U32K struct {
+	S     []uint32     `json:"s"`
+	A0    [0]uint32    `json:"a0"`
+	A1    [1]uint32    `json:"a1"`
+	A7    [7]uint32    `json:"a7"`
+	A8    [8]uint32    `json:"a8"`
+	A9    [9]uint32    `json:"a9"`
+	A1000 [1000]uint32 `json:"a1000"`
+}
+
+type BoolK struct {
+	S     []bool     `json:"s"`
+	A0    [0]bool    `json:"a0"`
+	A1    [1]bool    `json:"a1"`
+	A7    [7]bool    `json:"a7"`
+	A8    [8]bool    `json:"a8"`
+	A9    [9]bool    `json:"a9"`
+	A1000 [1000]bool `json:"a1000"`
+}
+
+type Series []float64
+type Vec3 [3]Ratio
+
+type Shapes struct {
+	Series Series      `json:"series"`
+	Vec    Vec3        `json:"vec"`
+	Rows   [][]float64 `json:"rows"`
+}
+
+type TruncI64 struct {
+	V []int64 `json:"v"`
+}
+
+type TruncInt struct {
+	V []int `json:"v"`
+}
+
+type TruncF32 struct {
+	V []float32 `json:"v"`
+}
+
+type TruncArr struct {
+	V [9]float64 `json:"v"`
+}
+
+type Flags struct {
+	V []bool `json:"v"`
+}
+
+type Narrow struct {
+	V []int32 `json:"v"`
+}
+
+var lengths = []int{0, 1, 7, 8, 9, 1000}
+
+func wire8(x uint64) []byte {
+	out := make([]byte, 8)
+	for i := range out {
+		out[i] = byte(x >> (8 * i))
+	}
+	return out
+}
+
+func wire4(x uint32) []byte {
+	out := make([]byte, 4)
+	for i := range out {
+		out[i] = byte(x >> (8 * i))
+	}
+	return out
+}
+
+func uvarint(n uint64) []byte {
+	var out []byte
+	for n >= 0x80 {
+		out = append(out, byte(n)|0x80)
+		n >>= 7
+	}
+	return append(out, byte(n))
+}
+
+func mix(i int) uint64 {
+	return uint64(i+1) * 0x9E3779B97F4A7C15
+}
+
+func double(i int) float64 {
+	switch i % 7 {
+	case 1:
+		return math.Inf(1)
+	case 2:
+		return math.Inf(-1)
+	case 3:
+		return math.Copysign(0, -1)
+	case 4:
+		return math.Float64frombits(0x7ff8000000000123)
+	}
+	return float64(i)*0.37 - 11.5
+}
+
+func single(i int) float32 {
+	switch i % 7 {
+	case 1:
+		return float32(math.Inf(1))
+	case 2:
+		return float32(math.Inf(-1))
+	case 3:
+		return math.Float32frombits(0x80000000)
+	case 4:
+		return math.Float32frombits(0x7fc00123)
+	}
+	return float32(i)*0.37 - 11.5
+}
+
+func genInt64(i int) (int64, []byte) {
+	x := int64(mix(i))
+	return x, wire8(uint64(x))
+}
+
+func genUint64(i int) (uint64, []byte) {
+	x := mix(i)
+	return x, wire8(x)
+}
+
+func genFloat64(i int) (float64, []byte) {
+	x := double(i)
+	return x, wire8(math.Float64bits(x))
+}
+
+func genFloat32(i int) (float32, []byte) {
+	x := single(i)
+	return x, wire4(math.Float32bits(x))
+}
+
+func genDur(i int) (Dur, []byte) {
+	x, w := genInt64(i)
+	return Dur(x), w
+}
+
+func genTick(i int) (Tick, []byte) {
+	x, w := genUint64(i)
+	return Tick(x), w
+}
+
+func genRatio(i int) (Ratio, []byte) {
+	x, w := genFloat64(i)
+	return Ratio(x), w
+}
+
+func genGain(i int) (Gain, []byte) {
+	x, w := genFloat32(i)
+	return Gain(x), w
+}
+
+func genInt(i int) (int, []byte) {
+	x := int(int32(mix(i)))
+	return x, wire8(uint64(int64(x)))
+}
+
+func genUint(i int) (uint, []byte) {
+	x := uint(uint32(mix(i)))
+	return x, wire8(uint64(x))
+}
+
+func genInt8(i int) (int8, []byte) {
+	x := int8(mix(i))
+	return x, wire8(uint64(int64(x)))
+}
+
+func genInt16(i int) (int16, []byte) {
+	x := int16(mix(i))
+	return x, wire8(uint64(int64(x)))
+}
+
+func genInt32(i int) (int32, []byte) {
+	x := int32(mix(i))
+	return x, wire8(uint64(int64(x)))
+}
+
+func genUint16(i int) (uint16, []byte) {
+	x := uint16(mix(i))
+	return x, wire8(uint64(x))
+}
+
+func genUint32(i int) (uint32, []byte) {
+	x := uint32(mix(i))
+	return x, wire8(uint64(x))
+}
+
+func genBool(i int) (bool, []byte) {
+	x := (mix(i)>>32)&1 == 1
+	if x {
+		return x, []byte{1}
+	}
+	return x, []byte{0}
+}
+
+func fill[E any](gen func(int) (E, []byte), n int) ([]E, [][]byte) {
+	vals := make([]E, n)
+	wires := make([][]byte, n)
+	for i := range n {
+		vals[i], wires[i] = gen(i)
+	}
+	return vals, wires
+}
+
+func appendList(out []byte, elems [][]byte) []byte {
+	out = append(out, uvarint(uint64(len(elems)))...)
+	for _, e := range elems {
+		out = append(out, e...)
+	}
+	return out
+}
+
+func reference(slice, array [][]byte) []byte {
+	out := appendList([]byte{1}, slice)
+	for _, n := range lengths {
+		out = appendList(out, array[:n])
+	}
+	return out
+}
+
+func populate[E any](target any, s, a []E) {
+	v := reflect.ValueOf(target).Elem()
+	v.FieldByName("S").Set(reflect.ValueOf(s))
+	for _, n := range lengths {
+		reflect.Copy(v.FieldByName(fmt.Sprintf("A%d", n)), reflect.ValueOf(a[:n]))
+	}
+}
+
+type holder interface {
+	encoding.BinaryMarshaler
+	encoding.BinaryAppender
+}
+
+type decoder interface {
+	holder
+	encoding.BinaryUnmarshaler
+}
+
+type subject struct {
+	name   string
+	build  func(n int) (holder, []byte)
+	decode func(data []byte) (holder, error)
+}
+
+func subjectOf[E any](name string, gen func(int) (E, []byte), fresh func() decoder) subject {
+	return subject{
+		name: name,
+		build: func(n int) (holder, []byte) {
+			s, sw := fill(gen, n)
+			a, aw := fill(gen, 1000)
+			h := fresh()
+			populate(h, s, a)
+			return h, reference(sw, aw)
+		},
+		decode: func(data []byte) (holder, error) {
+			h := fresh()
+			err := h.UnmarshalBinary(data)
+			return h, err
+		},
+	}
+}
+
+func subjects() []subject {
+	return []subject{
+		subjectOf("int64", genInt64, func() decoder { return new(I64K) }),
+		subjectOf("uint64", genUint64, func() decoder { return new(U64K) }),
+		subjectOf("float64", genFloat64, func() decoder { return new(F64K) }),
+		subjectOf("float32", genFloat32, func() decoder { return new(F32K) }),
+		subjectOf("Dur", genDur, func() decoder { return new(DurK) }),
+		subjectOf("Tick", genTick, func() decoder { return new(TickK) }),
+		subjectOf("Ratio", genRatio, func() decoder { return new(RatioK) }),
+		subjectOf("Gain", genGain, func() decoder { return new(GainK) }),
+		subjectOf("int", genInt, func() decoder { return new(IntK) }),
+		subjectOf("uint", genUint, func() decoder { return new(UintK) }),
+		subjectOf("int8", genInt8, func() decoder { return new(I8K) }),
+		subjectOf("int16", genInt16, func() decoder { return new(I16K) }),
+		subjectOf("int32", genInt32, func() decoder { return new(I32K) }),
+		subjectOf("uint16", genUint16, func() decoder { return new(U16K) }),
+		subjectOf("uint32", genUint32, func() decoder { return new(U32K) }),
+		subjectOf("bool", genBool, func() decoder { return new(BoolK) }),
+	}
+}
+
+func difference(got, want []byte) string {
+	i := 0
+	for i < len(got) && i < len(want) && got[i] == want[i] {
+		i++
+	}
+	return fmt.Sprintf("length %d, want %d, first difference at byte %d", len(got), len(want), i)
+}
+
+func errText(err error) string {
+	if err == nil {
+		return "no error"
+	}
+	return err.Error()
+}
+
+func checkAppend(name string, n int, v holder, want []byte) error {
+	prefix := []byte{0xde, 0xad, 0xbe}
+	roomy := make([]byte, len(prefix), len(prefix)+len(want)+16)
+	copy(roomy, prefix)
+	for _, dst := range [][]byte{roomy, append([]byte(nil), prefix...)} {
+		got, err := v.AppendBinary(dst)
+		if err != nil {
+			return fmt.Errorf("%s n=%d: AppendBinary: %w", name, n, err)
+		}
+		if !bytes.Equal(got[:len(prefix)], prefix) || !bytes.Equal(got[len(prefix):], want) {
+			return fmt.Errorf("%s n=%d: AppendBinary %s", name, n, difference(got[len(prefix):], want))
+		}
+	}
+	return nil
+}
+
+func checkDecode(s subject, n int, want []byte) error {
+	for shift := 0; shift < 8; shift++ {
+		buf := make([]byte, shift+len(want))
+		data := buf[shift:]
+		copy(data, want)
+		back, err := s.decode(data)
+		if err != nil {
+			return fmt.Errorf("%s n=%d shift=%d: UnmarshalBinary: %w", s.name, n, shift, err)
+		}
+		for i := range data {
+			data[i] ^= 0xff
+		}
+		again, err := back.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("%s n=%d shift=%d: MarshalBinary after decode: %w", s.name, n, shift, err)
+		}
+		if !bytes.Equal(again, want) {
+			return fmt.Errorf("%s n=%d shift=%d: decode then encode %s", s.name, n, shift, difference(again, want))
+		}
+		if reflect.Indirect(reflect.ValueOf(back)).FieldByName("S").IsNil() {
+			return fmt.Errorf("%s n=%d shift=%d: decoded slice is nil", s.name, n, shift)
+		}
+	}
+	return nil
+}
+
+func checkSubject(s subject) error {
+	for _, n := range lengths {
+		v, want := s.build(n)
+		got, err := v.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("%s n=%d: MarshalBinary: %w", s.name, n, err)
+		}
+		if !bytes.Equal(got, want) {
+			return fmt.Errorf("%s n=%d: MarshalBinary %s", s.name, n, difference(got, want))
+		}
+		if err := checkAppend(s.name, n, v, want); err != nil {
+			return err
+		}
+		if err := checkDecode(s, n, want); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkNested() error {
+	series, sw := fill(genFloat64, 5)
+	vec, vw := fill(genRatio, 3)
+	want := appendList(appendList([]byte{1}, sw), vw)
+	rowLengths := []int{0, 1, 7, 8, 9}
+	want = append(want, uvarint(uint64(len(rowLengths)))...)
+	var rows [][]float64
+	for _, n := range rowLengths {
+		row, rw := fill(genFloat64, n)
+		rows = append(rows, row)
+		want = appendList(want, rw)
+	}
+	v := Shapes{Series: series, Vec: Vec3(vec), Rows: rows}
+	got, err := v.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(got, want) {
+		return fmt.Errorf("MarshalBinary %s", difference(got, want))
+	}
+	var back Shapes
+	if err := back.UnmarshalBinary(want); err != nil {
+		return err
+	}
+	again, err := back.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(again, want) {
+		return fmt.Errorf("decode then encode %s", difference(again, want))
+	}
+	return nil
+}
+
+type probe interface {
+	prime()
+	decode(data []byte) error
+	touched() int
+	reserved() int
+}
+
+type truncCase struct {
+	owner string
+	wire  []byte
+	count int
+	width int
+	array bool
+	probe func() probe
+}
+
+func touchedSlice[E comparable](v []E, sentinel E) int {
+	if len(v) == 1 && v[0] == sentinel {
+		return 0
+	}
+	return len(v)
+}
+
+func touchedArray[E comparable](v []E, sentinel E) int {
+	n := 0
+	for _, x := range v {
+		if x != sentinel {
+			n++
+		}
+	}
+	return n
+}
+
+type probeI64 struct{ v TruncI64 }
+
+func (p *probeI64) prime() {
+	p.v = TruncI64{V: []int64{42}}
+}
+
+func (p *probeI64) decode(data []byte) error {
+	return p.v.UnmarshalBinary(data)
+}
+
+func (p *probeI64) touched() int {
+	return touchedSlice(p.v.V, 42)
+}
+
+func (p *probeI64) reserved() int {
+	return cap(p.v.V) * 8
+}
+
+type probeInt struct{ v TruncInt }
+
+func (p *probeInt) prime() {
+	p.v = TruncInt{V: []int{42}}
+}
+
+func (p *probeInt) decode(data []byte) error {
+	return p.v.UnmarshalBinary(data)
+}
+
+func (p *probeInt) touched() int {
+	return touchedSlice(p.v.V, 42)
+}
+
+func (p *probeInt) reserved() int {
+	return cap(p.v.V) * 8
+}
+
+type probeF32 struct{ v TruncF32 }
+
+func (p *probeF32) prime() {
+	p.v = TruncF32{V: []float32{42}}
+}
+
+func (p *probeF32) decode(data []byte) error {
+	return p.v.UnmarshalBinary(data)
+}
+
+func (p *probeF32) touched() int {
+	return touchedSlice(p.v.V, 42)
+}
+
+func (p *probeF32) reserved() int {
+	return cap(p.v.V) * 4
+}
+
+type probeArr struct{ v TruncArr }
+
+func (p *probeArr) prime() {
+	for i := range p.v.V {
+		p.v.V[i] = 7.5
+	}
+}
+
+func (p *probeArr) decode(data []byte) error {
+	return p.v.UnmarshalBinary(data)
+}
+
+func (p *probeArr) touched() int {
+	return touchedArray(p.v.V[:], 7.5)
+}
+
+func (p *probeArr) reserved() int {
+	return 0
+}
+
+func newI64() probe { return new(probeI64) }
+func newInt() probe { return new(probeInt) }
+func newF32() probe { return new(probeF32) }
+func newArr() probe { return new(probeArr) }
+
+func wireFor[E any](gen func(int) (E, []byte), n int) []byte {
+	_, w := fill(gen, n)
+	return appendList([]byte{1}, w)
+}
+
+func truncCases() []truncCase {
+	return []truncCase{
+		{"TruncI64", wireFor(genInt64, 300), 300, 8, false, newI64},
+		{"TruncInt", wireFor(genInt, 300), 300, 8, false, newInt},
+		{"TruncF32", wireFor(genFloat32, 300), 300, 4, false, newF32},
+		{"TruncI64", wireFor(genInt64, 2), 2, 8, false, newI64},
+		{"TruncInt", wireFor(genInt, 2), 2, 8, false, newInt},
+		{"TruncArr", wireFor(genFloat64, 9), 9, 8, true, newArr},
+	}
+}
+
+func truncRule(c truncCase, cut int) (string, int) {
+	if cut == 0 {
+		return "binary field $version at offset 0: truncated input", 0
+	}
+	field := c.owner + ".V"
+	body := 1 + len(uvarint(uint64(c.count)))
+	if cut < body {
+		return fmt.Sprintf("binary field %s at offset 1: truncated input", field), 0
+	}
+	rest := cut - body
+	if !c.array && c.count > rest {
+		return fmt.Sprintf("binary field %s at offset %d: truncated input", field, body), 0
+	}
+	whole := rest / c.width
+	return fmt.Sprintf("binary field %s at offset %d: truncated input", field, body+whole*c.width), whole
+}
+
+func checkTruncation(c truncCase) error {
+	for cut := 0; cut < len(c.wire); cut++ {
+		wantErr, wantTouched := truncRule(c, cut)
+		p := c.probe()
+		p.prime()
+		err := p.decode(c.wire[:cut])
+		if err == nil {
+			return fmt.Errorf("%s count %d cut %d: accepted", c.owner, c.count, cut)
+		}
+		if got := errText(err); got != wantErr {
+			return fmt.Errorf("%s count %d cut %d: error %q, want %q", c.owner, c.count, cut, got, wantErr)
+		}
+		if got := p.touched(); got != wantTouched {
+			return fmt.Errorf("%s count %d cut %d: %d elements decoded before the error, want %d", c.owner, c.count, cut, got, wantTouched)
+		}
+	}
+	whole := c.probe()
+	whole.prime()
+	if err := whole.decode(c.wire); err != nil {
+		return fmt.Errorf("%s count %d: whole wire rejected: %w", c.owner, c.count, err)
+	}
+	if got := whole.touched(); got != c.count {
+		return fmt.Errorf("%s count %d: whole wire decoded %d elements", c.owner, c.count, got)
+	}
+	extra := append(append([]byte(nil), c.wire...), 0)
+	err := c.probe().decode(extra)
+	wantErr := fmt.Sprintf("binary field $trailing at offset %d: trailing bytes", len(c.wire))
+	if got := errText(err); got != wantErr {
+		return fmt.Errorf("%s count %d: trailing byte error %q, want %q", c.owner, c.count, got, wantErr)
+	}
+	return nil
+}
+
+func checkTruncations() error {
+	for _, c := range truncCases() {
+		if err := checkTruncation(c); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkArrayCount() error {
+	_, w := fill(genFloat64, 8)
+	var v TruncArr
+	err := v.UnmarshalBinary(appendList([]byte{1}, w))
+	want := "binary field TruncArr.V at offset 1: array count 8, want 9"
+	if got := errText(err); got != want {
+		return fmt.Errorf("array count 8 for [9]float64: error %q, want %q", got, want)
+	}
+	return nil
+}
+
+func checkValidation() error {
+	var f Flags
+	err := f.UnmarshalBinary(append([]byte{1, 3}, 0, 1, 2))
+	want := "binary field Flags.V at offset 4: bad bool byte 2"
+	if got := errText(err); got != want {
+		return fmt.Errorf("bool byte 2: error %q, want %q", got, want)
+	}
+	var n Narrow
+	err = n.UnmarshalBinary(append([]byte{1, 1}, wire8(1<<40)...))
+	want = "binary field Narrow.V at offset 2: value 1099511627776 out of range"
+	if got := errText(err); got != want {
+		return fmt.Errorf("int32 element 1<<40: error %q, want %q", got, want)
+	}
+	return nil
+}
+
+func checkPrealloc() error {
+	const body = 1 << 20
+	for _, d := range []struct {
+		name  string
+		probe func() probe
+	}{
+		{"TruncI64", newI64},
+		{"TruncF32", newF32},
+	} {
+		src := append(append([]byte{1}, uvarint(body)...), make([]byte, body)...)
+		full := d.probe()
+		if err := full.decode(src); err == nil {
+			return fmt.Errorf("%s: count %d over %d bytes accepted", d.name, body, body)
+		}
+		if got := full.reserved(); got > body {
+			return fmt.Errorf("%s: decoding %d input bytes reserved %d bytes of element storage", d.name, len(src), got)
+		}
+		header := uvarint(1 << 40)
+		src = append(append([]byte{1}, header...), make([]byte, 8)...)
+		hostile := d.probe()
+		err := hostile.decode(src)
+		want := fmt.Sprintf("binary field %s.V at offset %d: truncated input", d.name, 1+len(header))
+		if got := errText(err); got != want {
+			return fmt.Errorf("%s: count 1<<40: error %q, want %q", d.name, got, want)
+		}
+		if got := hostile.reserved(); got != 0 {
+			return fmt.Errorf("%s: count 1<<40 reserved %d bytes of element storage", d.name, got)
+		}
+	}
+	return nil
+}
+
+func main() {
+	failed := false
+	report := func(name string, err error) {
+		if err != nil {
+			fmt.Println("FAIL", name+":", err)
+			failed = true
+			return
+		}
+		fmt.Println("ok", name)
+	}
+	for _, s := range subjects() {
+		report("wire-"+s.name, checkSubject(s))
+	}
+	report("wire-nested", checkNested())
+	report("truncation", checkTruncations())
+	report("array-count", checkArrayCount())
+	report("validation", checkValidation())
+	report("prealloc-bound", checkPrealloc())
+	if failed {
+		os.Exit(1)
+	}
+}

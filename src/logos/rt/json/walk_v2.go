@@ -11,7 +11,10 @@ import (
 	jsonv2 "encoding/json/v2"
 	"reflect"
 	"strings"
+	"unsafe"
 )
+
+const JSONV2 = true
 
 const maxWalkDepth = 10000
 
@@ -38,23 +41,22 @@ func (s *Walk) checkDepth(offset int64) error {
 	return nil
 }
 
-func (s *Walk) checkMapKeys(rv reflect.Value) error {
-	if rv.IsNil() {
-		return nil
-	}
-	if !walkMapKeySupported(rv.Type().Key()) {
-		return &stdjson.UnsupportedTypeError{Type: rv.Type()}
-	}
-	return nil
+func pointerVisit[P ~*T, T any](p P) walkVisit {
+	return walkVisit{typ: typeToken[P](), ptr: unsafe.Pointer(p)}
 }
 
-func sliceWalkLen(v reflect.Value) int {
+func sliceVisit[S ~[]E, E any](v S) walkVisit {
+	return walkVisit{typ: typeToken[S](), ptr: sliceData(v), len: len(v)}
+}
+
+func mapVisit[M ~map[K]V, K comparable, V any](m M) walkVisit {
+	return walkVisit{typ: typeToken[M](), ptr: mapData(m)}
+}
+
+func valueVisit(v reflect.Value) walkVisit {
+	key := walkVisit{typ: valueToken(v.Type()), ptr: v.UnsafePointer()}
 	if v.Kind() == reflect.Slice {
-		return v.Len()
+		key.len = v.Len()
 	}
-	return 0
-}
-
-func visitKey(v reflect.Value) any {
-	return walkVisit{v.Type(), v.UnsafePointer(), sliceWalkLen(v)}
+	return key
 }

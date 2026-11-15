@@ -34,6 +34,12 @@ var escapeASCII = [...]uint8{
 // It reports true for inputs with invalid UTF-8.
 func NeedEscape(src []byte) bool {
 	var i int
+	if len(src) >= probeLen {
+		var found bool
+		if i, found = needEscapeSparse(src); found {
+			return true
+		}
+	}
 	for uint(len(src)) > uint(i) {
 		if c := src[i]; c < utf8.RuneSelf {
 			if escapeASCII[c] > 0 {
@@ -67,6 +73,9 @@ func AppendQuote(dst, src []byte, flags *jsonflags.Flags) ([]byte, error) {
 	var hasInvalidUTF8 bool
 	dst = slices.Grow(dst, len(`"`)+len(src)+len(`"`))
 	dst = append(dst, '"')
+	if len(src) >= probeLen {
+		dst, i, n, hasInvalidUTF8 = appendQuoteSparse(dst, src, flags)
+	}
 	for uint(len(src)) > uint(n) {
 		if c := src[n]; c < utf8.RuneSelf {
 			// Handle single-byte ASCII.
@@ -169,6 +178,7 @@ func ReformatString(dst, src []byte, flags *jsonflags.Flags) ([]byte, int, error
 	// [jsonflags.EscapeForHTML] and [jsonflags.EscapeForJS] options.
 	if flags.Get(jsonflags.PreserveRawStrings) {
 		var i, lastAppendIndex int
+		i, _ = skipEscape(src[:n], 1, flags)
 		for i < n {
 			if c := src[i]; c < utf8.RuneSelf {
 				if (c == '<' || c == '>' || c == '&') && flags.Get(jsonflags.EscapeForHTML) {

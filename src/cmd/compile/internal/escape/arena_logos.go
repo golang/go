@@ -96,18 +96,30 @@ type logosArenaRegistry struct {
 
 	producing map[*ir.Func]bool
 	live      map[*ir.Func]bool
+
+	byCaller map[*ir.Func][]int32
+	byCallee map[*ir.Func][]int32
+
+	prodQ []*ir.Func
+	liveQ []*ir.Func
 }
 
-var logosArenaReg = logosArenaRegistry{
-	fns:           make(map[*ir.Func]logosArenaFnInfo),
-	returns:       make(map[ir.Node]bool),
-	frameDeferred: make(map[*ir.Func]bool),
-	loopRestores:  make(map[*ir.Func]map[ir.Node]bool),
-	retSites:      make(map[*ir.MakeExpr]*ir.Func),
-	callByNode:    make(map[*ir.CallExpr]int),
-	producing:     make(map[*ir.Func]bool),
-	live:          make(map[*ir.Func]bool),
+func newLogosArenaRegistry() *logosArenaRegistry {
+	return &logosArenaRegistry{
+		fns:           make(map[*ir.Func]logosArenaFnInfo),
+		returns:       make(map[ir.Node]bool),
+		frameDeferred: make(map[*ir.Func]bool),
+		loopRestores:  make(map[*ir.Func]map[ir.Node]bool),
+		retSites:      make(map[*ir.MakeExpr]*ir.Func),
+		callByNode:    make(map[*ir.CallExpr]int),
+		producing:     make(map[*ir.Func]bool),
+		live:          make(map[*ir.Func]bool),
+		byCaller:      make(map[*ir.Func][]int32),
+		byCallee:      make(map[*ir.Func][]int32),
+	}
 }
+
+var logosArenaReg = newLogosArenaRegistry()
 
 func logosArenaInfo(fn *ir.Func) logosArenaFnInfo {
 	logosArenaReg.mu.RLock()
@@ -344,12 +356,6 @@ func logosArenaStaticCallee(fun ir.Node) *ir.Func {
 	return name.Func
 }
 
-func logosArenaProducing(fn *ir.Func) bool {
-	logosArenaReg.mu.RLock()
-	defer logosArenaReg.mu.RUnlock()
-	return logosArenaReg.producing[fn]
-}
-
 func logosArenaVetoLoopsLocked(fn *ir.Func, loops []ir.Node) {
 	restores := logosArenaReg.loopRestores[fn]
 	if restores == nil {
@@ -440,12 +446,14 @@ func (b *batch) logosArenaMark(fns []*ir.Func) {
 		}
 	}
 
+	var seeds []*ir.Func
 	for _, m := range b.logosArena.makes {
 		fn := m.shadow.curfn
 		if !logosArenaSolvedHeap(m.n) || logosArenaShadowSolvedHeap(m.shadow) || !logosArenaRetShape(m.n) {
 			continue
 		}
 		logosArenaReg.retSites[m.n] = fn
+		seeds = append(seeds, fn)
 	}
 	for _, c := range b.logosArena.calls {
 		if logosArenaShadowSolvedHeap(c.resNoRet) {
@@ -458,10 +466,20 @@ func (b *batch) logosArenaMark(fns []*ir.Func) {
 			}
 			kind = logosArenaCallChain
 		}
-		logosArenaReg.callByNode[c.call] = len(logosArenaReg.calls)
+		i := len(logosArenaReg.calls)
+		logosArenaReg.callByNode[c.call] = i
 		logosArenaReg.calls = append(logosArenaReg.calls, logosArenaCallSite{caller: c.caller, callee: c.callee, kind: kind})
+		logosArenaReg.byCaller[c.caller] = append(logosArenaReg.byCaller[c.caller], int32(i))
+		logosArenaReg.byCallee[c.callee] = append(logosArenaReg.byCallee[c.callee], int32(i))
+		site := &logosArenaReg.calls[i]
+		if site.kind == logosArenaCallChain && logosArenaReg.producing[site.callee] {
+			logosArenaReg.produceLocked(site.caller)
+		}
+		if logosArenaReg.producing[site.callee] && (site.kind == logosArenaCallLocal || logosArenaReg.live[site.caller]) {
+			logosArenaReg.liveLocked(site.callee)
+		}
 	}
-	logosArenaReg.recompute()
+	logosArenaReg.propagate(seeds)
 }
 
 func logosArenaRetCapableLocked(fn *ir.Func) bool {
@@ -513,35 +531,95 @@ func LogosArenaConstBytes(n *ir.MakeExpr) (int64, bool) {
 	return capVal * elemSize, true
 }
 
+func (r *logosArenaRegistry) produceLocked(fn *ir.Func) {
+	if !r.producing[fn] {
+		r.producing[fn] = true
+		r.prodQ = append(r.prodQ, fn)
+	}
+}
+
+func (r *logosArenaRegistry) liveLocked(fn *ir.Func) {
+	if !r.live[fn] {
+		r.live[fn] = true
+		r.liveQ = append(r.liveQ, fn)
+	}
+}
+
+// propagate runs the producing/live transitions queued since the last
+// update until neither queue yields more. Compilation only appends ret
+// sites and call sites, so the sets are monotone and each fn flips once;
+// propagation completes under the write lock, so mid-escape consumers see
+// every verdict of each SCC batch.
+func (r *logosArenaRegistry) propagate(seeds []*ir.Func) {
+	for _, fn := range seeds {
+		r.produceLocked(fn)
+	}
+	for len(r.prodQ) > 0 || len(r.liveQ) > 0 {
+		r.drainProducedLocked()
+		r.drainLivedLocked()
+	}
+}
+
+func (r *logosArenaRegistry) drainProducedLocked() {
+	for len(r.prodQ) > 0 {
+		fn := r.prodQ[len(r.prodQ)-1]
+		r.prodQ = r.prodQ[:len(r.prodQ)-1]
+		r.propagateProducedLocked(fn)
+	}
+}
+
+// propagateProducedLocked fires the edges into fn: a chain edge makes the
+// caller producing, and a local edge or a live caller makes fn live.
+func (r *logosArenaRegistry) propagateProducedLocked(fn *ir.Func) {
+	for _, ei := range r.byCallee[fn] {
+		site := &r.calls[ei]
+		if site.kind == logosArenaCallChain {
+			r.produceLocked(site.caller)
+		}
+		if site.kind == logosArenaCallLocal || r.live[site.caller] {
+			r.liveLocked(fn)
+		}
+	}
+}
+
+func (r *logosArenaRegistry) drainLivedLocked() {
+	for len(r.liveQ) > 0 {
+		fn := r.liveQ[len(r.liveQ)-1]
+		r.liveQ = r.liveQ[:len(r.liveQ)-1]
+		r.propagateLivedLocked(fn)
+	}
+}
+
+// propagateLivedLocked fires the edges out of fn: a live caller makes a
+// producing callee live.
+func (r *logosArenaRegistry) propagateLivedLocked(fn *ir.Func) {
+	for _, ei := range r.byCaller[fn] {
+		site := &r.calls[ei]
+		if r.producing[site.callee] {
+			r.liveLocked(site.callee)
+		}
+	}
+}
+
+// recompute rebuilds the producing/live fixed points and the callee/caller
+// indexes from all accumulated ret sites and call sites. Compilation only
+// appends sites and goes through propagate; tests use recompute after
+// dropping ret sites to reset the derived state.
 func (r *logosArenaRegistry) recompute() {
-	producing := make(map[*ir.Func]bool)
+	r.producing = make(map[*ir.Func]bool)
+	r.live = make(map[*ir.Func]bool)
+	r.byCaller = make(map[*ir.Func][]int32, len(r.calls))
+	r.byCallee = make(map[*ir.Func][]int32, len(r.calls))
+	for i := range r.calls {
+		site := &r.calls[i]
+		r.byCaller[site.caller] = append(r.byCaller[site.caller], int32(i))
+		r.byCallee[site.callee] = append(r.byCallee[site.callee], int32(i))
+	}
+	seeds := make([]*ir.Func, 0, len(r.retSites))
 	for _, fn := range r.retSites {
-		producing[fn] = true
+		seeds = append(seeds, fn)
 	}
-	for changed := true; changed; {
-		changed = false
-		for _, c := range r.calls {
-			if c.kind == logosArenaCallChain && producing[c.callee] && !producing[c.caller] {
-				producing[c.caller] = true
-				changed = true
-			}
-		}
-	}
-	live := make(map[*ir.Func]bool)
-	for changed := true; changed; {
-		changed = false
-		for _, c := range r.calls {
-			if live[c.callee] || !producing[c.callee] {
-				continue
-			}
-			if c.kind == logosArenaCallLocal || live[c.caller] {
-				live[c.callee] = true
-				changed = true
-			}
-		}
-	}
-	r.producing = producing
-	r.live = live
+	r.propagate(seeds)
 }
 
 func LogosArenaCandidate(fn *ir.Func) bool {

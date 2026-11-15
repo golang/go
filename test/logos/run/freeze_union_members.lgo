@@ -1,0 +1,100 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"logos/rt"
+)
+
+var failed bool
+
+func check(name string, cond bool) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Gear struct{ teeth int }
+
+func (g Gear) Teeth() int { return g.teeth }
+
+type Wheel struct {
+	spin *Gear
+	ring []int
+}
+
+func (w Wheel) Teeth() int { return w.spin.teeth }
+
+type Teeth interface {
+	const Teeth() int
+}
+
+type Part interface {
+	Teeth
+	Gear | Wheel
+}
+
+type Ring struct{ vals []int }
+
+func (r Ring) Sum() int {
+	s := 0
+	for _, v := range r.vals {
+		s += v
+	}
+	return s
+}
+
+func (r Ring) Cap() int { return cap(r.vals) }
+
+func (r Ring) Tail() int {
+	s := 0
+	for _, v := range r.vals[len(r.vals):cap(r.vals)] {
+		s += v
+	}
+	return s
+}
+
+type Machine struct {
+	drive Part
+	spare *Gear
+	log   Ring
+}
+
+func main() {
+	g := &Gear{teeth: 12}
+	m := Machine{drive: Wheel{spin: g, ring: []int{1, 2}}, spare: g}
+	frozen := rt.Freeze(&m)
+
+	m.drive = nil
+	m.spare.teeth = 99
+
+	check("union-wheel-member-frozen", frozen.drive.Teeth() == 12)
+	check("union-member-frozen-vs-source", frozen.spare.teeth == 12 && m.spare.teeth == 99)
+
+	tail := make([]int, 3, 8)
+	tail[0], tail[1], tail[2] = 5, 6, 7
+	limb := Machine{drive: Gear{teeth: 3}, spare: &Gear{teeth: 4}, log: Ring{vals: tail[:2]}}
+	frozenLimb := rt.Freeze(&limb)
+	check("cap-tail-values-copied", frozenLimb.log.Cap() == 8 && frozenLimb.log.Tail() == 7 && frozenLimb.log.Sum() == 11)
+	tail[2] = 777
+	check("cap-tail-independent", frozenLimb.log.Tail() == 7 && frozenLimb.log.Sum() == 11 && tail[2] == 777)
+	check("union-plain-member-frozen", frozenLimb.drive.Teeth() == 3)
+
+	n := Machine{spare: &Gear{teeth: 0}}
+	frozenNil := rt.Freeze(&n)
+	check("union-nil-member", frozenNil.drive == nil && frozenNil.spare.teeth == 0)
+
+	plain := Machine{drive: Gear{teeth: 4}, spare: g}
+	frozenPlain := rt.Freeze(&plain)
+	plain.drive = Gear{teeth: 40}
+	check("union-plain-member-copied", frozenPlain.drive.Teeth() == 4 && plain.drive.Teeth() == 40)
+
+	if failed {
+		os.Exit(1)
+	}
+}

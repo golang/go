@@ -249,6 +249,35 @@ func TestLogosCapExemptPkgNestedModule(t *testing.T) {
 	}
 }
 
+func TestLogosCapHasDepPackage(t *testing.T) {
+	tests := []struct {
+		name string
+		libs []string
+		want bool
+	}{
+		{"std and main only", []string{"runtime", "os/exec", "main", "example.com/app/util"}, false},
+		{"empty link", nil, false},
+		{"third-party package", []string{"runtime", "main", "example.com/dep"}, true},
+		{"std lookalike", []string{"runtime", "os/execx"}, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			libs := make(map[string]*sym.Library)
+			for _, pkg := range tc.libs {
+				libs[pkg] = &sym.Library{Pkg: pkg}
+			}
+			a := &logosCapAuditor{
+				ctxt:   &Link{LibraryByPkg: libs},
+				std:    map[string]bool{"os/exec": true, "runtime": true},
+				policy: &logosCapPolicy{MainModules: []string{"example.com/app"}},
+			}
+			if got := a.hasDepPackage(); got != tc.want {
+				t.Errorf("hasDepPackage() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestLogosCapModinfoDeps(t *testing.T) {
 	blob := "\x30\x77\xaf\x0c\x92\x74\x08\x02\x41\xe1\xc1\x07\xe6\xd6\x18\xe6" +
 		"path\tcommand-line-arguments\n" +
@@ -397,7 +426,7 @@ func TestLogosCapEntryFile(t *testing.T) {
 	}
 }
 
-func TestLogosCapInlineAt(t *testing.T) {
+func TestLogosCapInlineIndex(t *testing.T) {
 	table := []byte{0x02, 0x04, 0x01, 0x02, 0x04, 0x03, 0x00}
 	tests := []struct {
 		name    string
@@ -419,8 +448,9 @@ func TestLogosCapInlineAt(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := capInlineAt(tc.table, tc.off, tc.quantum); got != tc.want {
-				t.Errorf("capInlineAt(%x, %d, %d) = %d, want %d", tc.table, tc.off, tc.quantum, got, tc.want)
+			spans := capInlineSpans(nil, tc.table, tc.quantum)
+			if got := capInlineIndex(spans, tc.off); got != tc.want {
+				t.Errorf("capInlineIndex(capInlineSpans(%x, %d), %d) = %d, want %d", tc.table, tc.quantum, tc.off, got, tc.want)
 			}
 		})
 	}

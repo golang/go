@@ -1,0 +1,8 @@
+ok pointer-elem-read
+ok nil-source-empty-read
+ok empty-source-empty-read
+ok nil-iface-stays-nil
+ok value-elem-covariance
+ok snapshot-bindings
+ok pointee-alias-kept
+ok iface-elem-snapshot

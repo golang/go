@@ -1,0 +1,89 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type tagged struct {
+	N int
+	P *int
+}
+
+type boxed struct {
+	N int
+	V any
+}
+
+var failed bool
+
+var cells [4]int
+
+func check(label string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", label+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", label)
+}
+
+func stable(label string, read func() string, want string) {
+	for range 64 {
+		if got := read(); got != want {
+			check(label, false, got, want)
+			return
+		}
+	}
+	check(label, true, "", "")
+}
+
+func taggedKeys(m const map[tagged]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%d|", k.N)
+	}
+	return s
+}
+
+func boxedKeys(m const map[boxed]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%d|", k.N)
+	}
+	return s
+}
+
+func pointerEntries(m const map[*int]int) bool {
+	mask, count := 0, 0
+	for k, v := range m {
+		if v < 1 || v > 3 || mask&(1<<v) != 0 || k != &cells[v] {
+			return false
+		}
+		mask |= 1 << v
+		count++
+	}
+	return count == 3 && mask == 14
+}
+
+func main() {
+	stable("unordered-pointer-field", func() string {
+		return taggedKeys(map[tagged]int{{3, &cells[3]}: 0, {1, &cells[1]}: 0, {2, &cells[2]}: 0})
+	}, "1|2|3|")
+	stable("unordered-interface-field", func() string {
+		return boxedKeys(map[boxed]int{{3, "c"}: 0, {1, nil}: 0, {2, 5}: 0})
+	}, "1|2|3|")
+	pointers := map[*int]int{&cells[1]: 1, &cells[2]: 2, &cells[3]: 3}
+	pointersOK := true
+	for range 64 {
+		if !pointerEntries(pointers) {
+			pointersOK = false
+		}
+	}
+	check("unordered-pointer-key-entries", pointersOK, pointersOK, true)
+	if failed {
+		os.Exit(1)
+	}
+}

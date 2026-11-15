@@ -90,7 +90,7 @@ func TestPlatformSpanEnclosesOperand(t *testing.T) {
 	}
 	reparseLowered(t, "platform_span.lgo", out)
 	text := string(out)
-	for _, want := range []string{"MustNonNil(n, &", "MustNonNil(h.next, &"} {
+	for _, want := range []string{`MustNonNil(n, "*main.node", &`, `MustNonNil(h.next, "*main.node", &`} {
 		if !strings.Contains(text, want) {
 			t.Errorf("lowered text misses %q:\n%s", want, text)
 		}

@@ -164,13 +164,11 @@ func (fl *fileLower) interpHelper(op syntax.Expr, kind types2.LogosInterpKind) s
 	if c := constAsView(t); c != nil {
 		t = c.Elem
 	}
-	if _, ok := types2.Unalias(t).(*types2.Interface); ok {
+	switch types2.Unalias(t).Underlying().(type) {
+	case *types2.Interface:
 		return helper
-	}
-	if n, ok := types2.Unalias(t).(*types2.Named); ok {
-		if _, ok := n.Underlying().(*types2.Interface); ok {
-			return helper
-		}
+	case *types2.Pointer:
+		return helper + "Ptr"
 	}
 	return helper + "Value"
 }

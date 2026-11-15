@@ -4,7 +4,10 @@
 
 package json
 
-import "unicode/utf8"
+import (
+	"internal/jsonscan"
+	"unicode/utf8"
+)
 
 const hexDigits = "0123456789abcdef"
 
@@ -96,7 +99,69 @@ func classifyMulti(s string, i int) (kind int, r rune, size int) {
 	return multiClean, r, size
 }
 
-func firstEscape(s string, i int) int {
+const sparseSkip = 32
+
+func skipPlain(s string, i int) (int, bool) {
+	if len(s)-i < sparseSkip {
+		return i, false
+	}
+	end := i + jsonscan.IndexEscapeHTML(s[i:])
+	return end, end-i >= sparseSkip
+}
+
+func extraAt(s string, i int, ascii *[utf8.RuneSelf]uint8, multi *[multiKinds]int) (int, int) {
+	if c := s[i]; c < utf8.RuneSelf {
+		return int(ascii[c]), 1
+	}
+	kind, _, size := classifyMulti(s, i)
+	return multi[kind], size
+}
+
+func extraSparse(s string, ascii *[utf8.RuneSelf]uint8, multi *[multiKinds]int) (int, int) {
+	n := 0
+	i, sparse := skipPlain(s, 0)
+	for sparse && i < len(s) {
+		extra, size := extraAt(s, i, ascii, multi)
+		n += extra
+		i, sparse = skipPlain(s, i+size)
+	}
+	return n, i
+}
+
+func extraLen(s string, ascii *[utf8.RuneSelf]uint8, multi *[multiKinds]int) int {
+	n, i := 0, 0
+	if len(s) >= sparseSkip {
+		n, i = extraSparse(s, ascii, multi)
+	}
+	for i < len(s) {
+		if c := s[i]; c < utf8.RuneSelf {
+			n += int(ascii[c])
+			i++
+			continue
+		}
+		kind, _, size := classifyMulti(s, i)
+		n += multi[kind]
+		i += size
+	}
+	return n
+}
+
+func firstEscapeSparse(s string, i int) int {
+	i, sparse := skipPlain(s, i)
+	for sparse && i < len(s) {
+		extra, size := extraAt(s, i, &escapeExtra, &multiEscapeExtra)
+		if extra != 0 {
+			return i
+		}
+		i, sparse = skipPlain(s, i+size)
+	}
+	return i
+}
+
+func firstEscape(s string, i, prevRun int) int {
+	if prevRun >= sparseSkip {
+		i = firstEscapeSparse(s, i)
+	}
 	for i < len(s) {
 		c := s[i]
 		if c < utf8.RuneSelf {
@@ -147,36 +212,26 @@ func appendDoubled(dst []byte, unit []byte) []byte {
 // invalid UTF-8 byte follows the jsonv2 experiment rule. A string that
 // needs no escape is appended with a single copy.
 func AppendEscaped(dst []byte, s string) []byte {
-	i := firstEscape(s, 0)
+	i := firstEscape(s, 0, len(s))
 	if i == len(s) {
 		return append(dst, s...)
 	}
 	start := 0
 	for i < len(s) {
+		run := i - start
 		dst = append(dst, s[start:i]...)
 		u, n, size := escapeUnit(s, i)
 		dst = append(dst, u[:n]...)
 		i += size
 		start = i
-		i = firstEscape(s, i)
+		i = firstEscape(s, i, run)
 	}
 	return append(dst, s[start:]...)
 }
 
 // EscapedLen returns the exact length of AppendEscaped(nil, s).
 func EscapedLen(s string) int {
-	n := len(s)
-	for i := 0; i < len(s); {
-		if c := s[i]; c < utf8.RuneSelf {
-			n += int(escapeExtra[c])
-			i++
-			continue
-		}
-		kind, _, size := classifyMulti(s, i)
-		n += multiEscapeExtra[kind]
-		i += size
-	}
-	return n
+	return len(s) + extraLen(s, &escapeExtra, &multiEscapeExtra)
 }
 
 // AppendQuoted appends to dst the body, without outer quotes, of the JSON
@@ -187,12 +242,15 @@ func EscapedLen(s string) int {
 func AppendQuoted(dst []byte, s string) []byte {
 	dst = append(dst, '\\', '"')
 	start := 0
-	for i := firstEscape(s, 0); i < len(s); i = firstEscape(s, i) {
+	i := firstEscape(s, 0, len(s))
+	for i < len(s) {
+		run := i - start
 		dst = append(dst, s[start:i]...)
 		u, n, size := escapeUnit(s, i)
 		dst = appendDoubled(dst, u[:n])
 		i += size
 		start = i
+		i = firstEscape(s, i, run)
 	}
 	dst = append(dst, s[start:]...)
 	return append(dst, '\\', '"')
@@ -200,16 +258,5 @@ func AppendQuoted(dst []byte, s string) []byte {
 
 // QuotedLen returns the exact length of AppendQuoted(nil, s).
 func QuotedLen(s string) int {
-	n := len(s) + len(`\"\"`)
-	for i := 0; i < len(s); {
-		if c := s[i]; c < utf8.RuneSelf {
-			n += int(quotedExtra[c])
-			i++
-			continue
-		}
-		kind, _, size := classifyMulti(s, i)
-		n += multiQuotedExtra[kind]
-		i += size
-	}
-	return n
+	return len(s) + len(`\"\"`) + extraLen(s, &quotedExtra, &multiQuotedExtra)
 }

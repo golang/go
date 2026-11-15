@@ -7,3 +7,12 @@ ok composite-const-roundtrip-preserves-bytes
 ok mutable-source-snapshot-is-immutable
 ok mutated-source-conversion-allocates
 ok unrelated-mutation-keeps-source-string
+ok call-result-no-alloc
+ok call-result-evaluated-once
+ok selector-and-index-no-alloc
+ok plain-conversion-call-no-alloc
+ok nested-conversion-no-alloc
+ok nested-conversion-value
+ok conversion-argument-order
+ok empty-and-nil-view-strings
+ok call-result-mutable-conversion-isolated

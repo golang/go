@@ -13,26 +13,26 @@ import (
 
 type entryFunc[R any] func(ctx context.Context, limit, n int, f func(context.Context, int) (R, bool, error)) iter.Seq2[R, error]
 
-func entries[R any]() map[string]entryFunc[R] {
+func entries[R any, D Discarder[R]]() map[string]entryFunc[R] {
 	return map[string]entryFunc[R]{
 		"seq": func(ctx context.Context, limit, n int, f func(context.Context, int) (R, bool, error)) iter.Seq2[R, error] {
-			return GroupSeq(ctx, limit, intSeq(n), f)
+			return GroupSeq[int, R, D](ctx, limit, intSeq(n), f)
 		},
 		"seq-unordered": func(ctx context.Context, limit, n int, f func(context.Context, int) (R, bool, error)) iter.Seq2[R, error] {
-			return GroupSeqUnordered(ctx, limit, intSeq(n), f)
+			return GroupSeqUnordered[int, R, D](ctx, limit, intSeq(n), f)
 		},
 		"chan": func(ctx context.Context, limit, n int, f func(context.Context, int) (R, bool, error)) iter.Seq2[R, error] {
-			return GroupChan(ctx, limit, intChan(n), f)
+			return GroupChan[int, R, D](ctx, limit, intChan(n), f)
 		},
 		"chan-unordered": func(ctx context.Context, limit, n int, f func(context.Context, int) (R, bool, error)) iter.Seq2[R, error] {
-			return GroupChanUnordered(ctx, limit, intChan(n), f)
+			return GroupChanUnordered[int, R, D](ctx, limit, intChan(n), f)
 		},
 	}
 }
 
-func eachEntry[R any](t *testing.T, body func(t *testing.T, run entryFunc[R])) {
+func eachEntry[R any, D Discarder[R]](t *testing.T, body func(t *testing.T, run entryFunc[R])) {
 	t.Helper()
-	for name, run := range entries[R]() {
+	for name, run := range entries[R, D]() {
 		t.Run(name, func(t *testing.T) {
 			synctest.Test(t, func(t *testing.T) { body(t, run) })
 		})

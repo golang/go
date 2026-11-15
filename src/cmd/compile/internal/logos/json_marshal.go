@@ -5,7 +5,6 @@
 package logos
 
 import (
-	"cmp"
 	"fmt"
 	"strings"
 
@@ -188,19 +187,19 @@ func (g *marshalGen) presence(f *jsonField) string {
 	case shapeScalar:
 		if f.omitZero && f.shape.needsIsZero {
 			if f.omitEmpty {
-				return "!(" + f.codec().isZeroCond(x) + ") && !" + jsonAlias + ".OmitZero(" + x + ")"
+				return "!(" + f.codec().isZeroCond(x) + ") && !(" + g.zero().zeroTest(f.typ, x, "") + ")"
 			}
-			return "!" + jsonAlias + ".OmitZero(" + x + ")"
+			return "!(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return "!(" + f.codec().isZeroCond(x) + ")"
 	case shapePointer:
 		if f.omitZero && f.shape.needsIsZero {
-			return x + " != nil && !" + jsonAlias + ".OmitZero(" + x + ")"
+			return x + " != nil && !(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return x + " != nil"
 	case shapeUnion:
 		if f.omitZero {
-			return x + " != nil && !" + jsonAlias + ".OmitZero(" + x + ")"
+			return "!(" + g.zero().zeroTest(f.typ, x, "") + ")"
 		}
 		return x + " != nil"
 	}
@@ -257,6 +256,10 @@ func (g *marshalGen) sliceCode(f *jsonField) fieldCode {
 	out := fieldCode{pins: []string{x + " := " + g.recv + "." + f.goName}}
 	if g.snapshot {
 		out.pre = []string{x + " = append(" + x + "[:0:0], " + x + "...)"}
+	}
+	if g.edges != nil {
+		frame := append(ifLines("_logos_err := _logos_s.EnterElems(0, len("+x+")); _logos_err != nil", g.depthErrorBody(f, "_logos_err")), "_logos_s.LeaveFrame()")
+		out.pre = append(out.pre, frame...)
 	}
 	if chk := c.checkStmt("_logos_x"); chk != "" {
 		loop := append([]string{"for _, _logos_x := range " + x + " {"}, indentLines([]string{chk})...)
@@ -322,7 +325,7 @@ func (g *marshalGen) fallbackCode(f *jsonField) fieldCode {
 		return c
 	}
 	p := f.presenceName()
-	c.pre = []string{p + " := " + omitCall(f, field), "var " + b + " []byte"}
+	c.pre = []string{p + " := !(" + g.omitted(f, field) + ")", "var " + b + " []byte"}
 	inner := []string{fmt.Sprintf("var %s error", e), fmt.Sprintf("%s, %s = %s.MarshalField(%s)", b, e, jsonAlias, field)}
 	c.pre = append(c.pre, ifLines(p, append(inner, check...))...)
 	c.size = ifLines(p, []string{fmt.Sprintf("_logos_n += %d + len(%s)", g.litLen(f, ""), b)})
@@ -410,7 +413,7 @@ func (g *marshalGen) fallbackNumberQuotedCode(f *jsonField) fieldCode {
 		return c
 	}
 	p := f.presenceName()
-	c.pre = []string{p + " := " + omitCall(f, field), "var " + b + " []byte"}
+	c.pre = []string{p + " := !(" + g.omitted(f, field) + ")", "var " + b + " []byte"}
 	inner := []string{fmt.Sprintf("var %s error", e), fmt.Sprintf("%s, %s = %s.MarshalField(%s)", b, e, jsonAlias, field)}
 	c.pre = append(c.pre, ifLines(p, append(inner, check...))...)
 	if !isPtr {
@@ -421,17 +424,6 @@ func (g *marshalGen) fallbackNumberQuotedCode(f *jsonField) fieldCode {
 	c.size = ifLines(p, ifElseLines(field+" == nil", []string{nullSize}, []string{quotedSize}))
 	c.emit = ifLines(p, ifElseLines(field+" == nil", nullEmit, quotedEmit))
 	return c
-}
-
-func omitCall(f *jsonField, field string) string {
-	var tests []string
-	if f.omitEmpty {
-		tests = append(tests, jsonAlias+".OmitEmpty("+field+")")
-	}
-	if f.omitZero {
-		tests = append(tests, jsonAlias+".OmitZero("+field+")")
-	}
-	return "!(" + strings.Join(tests, " || ") + ")"
 }
 
 func unionPackage(t types2.Type) *types2.Package {
@@ -587,7 +579,7 @@ const (
 	edgeLegacy jsonEdge = iota
 	edgeHelper
 	edgePtrHelper
-	edgeWalk
+	edgeEncode
 )
 
 type jsonHelperDef struct {
@@ -598,6 +590,7 @@ type jsonHelperDef struct {
 	js    *jsonStruct
 	edges map[*jsonField]jsonEdge
 	calls map[*jsonField]string
+	text  string
 	made  bool
 }
 
@@ -606,7 +599,7 @@ type jsonWalkPlan struct {
 	edges       map[*jsonField]jsonEdge
 	calls       map[*jsonField]string
 	order       []string
-	table       []string
+	table       []*types2.Named
 	tableSeen   map[string]bool
 	descendSeen map[*types2.Named]bool
 }
@@ -620,14 +613,14 @@ func (fl *fileLower) jsonEdgeOf(t types2.Type) jsonEdge {
 		if key, _, _ := fl.helperModelFor(p.Elem()); key != "" {
 			return edgePtrHelper
 		}
-		return edgeWalk
+		return edgeEncode
 	}
 	if key, _, _ := fl.helperModelFor(core); key != "" {
 		return edgeHelper
 	}
 	switch types2.Unalias(core).Underlying().(type) {
 	case *types2.Slice, *types2.Array, *types2.Map, *types2.Struct, *types2.Interface:
-		return edgeWalk
+		return edgeEncode
 	}
 	return edgeLegacy
 }
@@ -674,22 +667,33 @@ func (fl *fileLower) planJSONWalk(js *jsonStruct, rootNamed *types2.Named) *json
 }
 
 func (fl *fileLower) planEdgeCall(plan *jsonWalkPlan, f *jsonField, e jsonEdge) string {
-	switch e {
-	case edgeHelper, edgePtrHelper:
-		key := fl.ensureJSONHelper(plan, f.typ)
-		if key == "" {
-			return ""
-		}
-		def := fl.pkg.jsonHelpers[key]
-		if def.vname == "" {
-			return ""
-		}
-		if e == edgePtrHelper {
-			return def.pname
-		}
-		return def.vname
+	call := fl.helperEdgeCall(plan, f, e)
+	if optionJSONPath(f.typ, make(map[types2.Type]bool)) {
+		return fl.optionJSONCall(plan, f.typ, f.local())
 	}
-	return ""
+	if call != "" {
+		return call
+	}
+	enc := &jsonEnc{fl: fl, plan: plan}
+	if f.quoted {
+		return enc.quotedCall(f.typ, f.local())
+	}
+	return enc.freshCall(f.typ, f.local())
+}
+
+func (fl *fileLower) helperEdgeCall(plan *jsonWalkPlan, f *jsonField, e jsonEdge) string {
+	if e != edgeHelper && e != edgePtrHelper {
+		return ""
+	}
+	key := fl.ensureJSONHelper(plan, f.typ)
+	if key == "" || fl.pkg.jsonHelpers[key].vname == "" {
+		return ""
+	}
+	name := fl.pkg.jsonHelpers[key].vname
+	if e == edgePtrHelper {
+		name = fl.pkg.jsonHelpers[key].pname
+	}
+	return fmt.Sprintf("%s(%s, _logos_s)", name, f.local())
 }
 
 func (fl *fileLower) ensureJSONHelper(plan *jsonWalkPlan, t types2.Type) string {
@@ -731,10 +735,18 @@ func (fl *fileLower) visitJSONTable(plan *jsonWalkPlan, t types2.Type) {
 		return
 	}
 	plan.tableSeen[key] = true
-	plan.table = append(plan.table, reflectAlias+".TypeFor["+spell+"]()")
+	plan.table = append(plan.table, helperNamed(fl, t))
 	for _, f := range js.fields {
 		fl.descendJSONTable(plan, f.typ)
 	}
+}
+
+func helperNamed(fl *fileLower, t types2.Type) *types2.Named {
+	core := jsonEdgeCore(fl, t)
+	if p, ok := core.(*types2.Pointer); ok {
+		core = types2.Unalias(p.Elem())
+	}
+	return core.(*types2.Named)
 }
 
 func (fl *fileLower) descendJSONTable(plan *jsonWalkPlan, t types2.Type) {
@@ -780,14 +792,13 @@ func (fl *fileLower) addPromotedJSONDispatchType(plan *jsonWalkPlan, named *type
 	if !ok || promoted.Obj() == nil || promoted.Obj().Pkg() != fl.pkg.tpkg || promoted == named || fl.helperEligibleType(promoted) == nil {
 		return
 	}
-	spell, ok := fl.jsonTypeName(named)
-	if !ok || named.TypeArgs().Len() != 0 || named.TypeParams().Len() != 0 {
+	if _, ok := fl.jsonTypeName(named); !ok || named.TypeArgs().Len() != 0 || named.TypeParams().Len() != 0 {
 		return
 	}
 	key := named.Obj().Pkg().Path() + "." + named.Obj().Name()
 	if !plan.tableSeen[key] {
 		plan.tableSeen[key] = true
-		plan.table = append(plan.table, reflectAlias+".TypeFor["+spell+"]()")
+		plan.table = append(plan.table, named)
 	}
 }
 
@@ -1063,13 +1074,6 @@ func (js *jsonStruct) marshalText(b *strings.Builder) {
 	b.WriteString("}\n")
 }
 
-func helperCall(name, local string) string {
-	if name == "" {
-		return ""
-	}
-	return fmt.Sprintf("%s(%s, _logos_s)", name, local)
-}
-
 func optionJSONPath(t types2.Type, seen map[types2.Type]bool) bool {
 	wrapped := false
 	for {
@@ -1108,9 +1112,9 @@ func optionJSONPath(t types2.Type, seen map[types2.Type]bool) bool {
 	}
 }
 
-func (js *jsonStruct) optionJSONCall(t types2.Type, x string) string {
+func (fl *fileLower) optionJSONCall(plan *jsonWalkPlan, t types2.Type, x string) string {
 	if !optionJSONPath(t, make(map[types2.Type]bool)) {
-		return walkCall(x)
+		return (&jsonEnc{fl: fl, plan: plan}).freshCall(t, x)
 	}
 	u := unaliasConstView(t)
 	if n, ok := u.(*types2.Named); ok {
@@ -1120,47 +1124,58 @@ func (js *jsonStruct) optionJSONCall(t types2.Type, x string) string {
 	switch v := u.(type) {
 	case *types2.Option:
 		if types2.LogosOptionIsBare(v.Elem) {
-			return js.optionJSONCall(v.Elem, x)
+			return fl.optionJSONCall(plan, v.Elem, x)
 		}
 		body = []string{
 			"if !" + x + ".Present { return []byte(\"null\"), nil }",
-			"return " + js.optionJSONCall(v.Elem, x+".Value"),
+			"return " + fl.optionJSONCall(plan, v.Elem, x+".Value"),
 		}
 	case *types2.Pointer:
 		body = []string{
 			"if " + x + " == nil { return []byte(\"null\"), nil }",
-			"if _logos_err := _logos_s.Enter(" + x + "); _logos_err != nil { return nil, _logos_err }",
-			"defer _logos_s.Leave(" + x + ")",
-			"return " + js.optionJSONCall(v.Elem(), "(*"+x+")"),
+			"if _logos_err := " + jsonAlias + ".EnterPointer(_logos_s, " + x + "); _logos_err != nil { return nil, _logos_err }",
+			"defer " + jsonAlias + ".LeavePointer(_logos_s, " + x + ")",
+			"return " + fl.optionJSONCall(plan, v.Elem(), "(*"+x+")"),
 		}
 	default:
-		return js.optionJSONContainerCall(u, x)
+		return fl.optionJSONContainerCall(plan, u, x)
 	}
 	return "func() ([]byte, error) {\n" + strings.Join(indentLines(body), "\n") + "\n}()"
 }
 
-func (js *jsonStruct) optionJSONContainerCall(u types2.Type, x string) string {
-	var body []string
+func optionJSONVisit(u types2.Type, x string) []string {
+	kind := "Slice"
+	switch u.(type) {
+	case *types2.Array:
+		return nil
+	case *types2.Map:
+		kind = "Map"
+	}
+	return []string{
+		"if " + x + " == nil { return []byte(\"null\"), nil }",
+		"if _logos_err := " + jsonAlias + ".Enter" + kind + "(_logos_s, " + x + "); _logos_err != nil { return nil, _logos_err }",
+		"defer " + jsonAlias + ".Leave" + kind + "(_logos_s, " + x + ")",
+	}
+}
+
+func (fl *fileLower) optionJSONContainerCall(plan *jsonWalkPlan, u types2.Type, x string) string {
 	var elem types2.Type
+	enter := "_logos_s.EnterElems(0, len(" + x + "))"
 	mapType, isMap := u.(*types2.Map)
 	switch c := u.(type) {
 	case *types2.Slice:
 		elem = c.Elem()
 	case *types2.Array:
 		elem = c.Elem()
+		enter = "_logos_s.EnterFrame(0)"
 	case *types2.Map:
 		elem = c.Elem()
 	default:
 		base.Fatalf("logos: option JSON path has non-container type %s", u)
 	}
-	if _, array := u.(*types2.Array); !array {
-		body = append(body,
-			"if "+x+" == nil { return []byte(\"null\"), nil }",
-			"if _logos_err := _logos_s.Enter("+x+"); _logos_err != nil { return nil, _logos_err }",
-			"defer _logos_s.Leave("+x+")")
-	}
+	body := optionJSONVisit(u, x)
 	body = append(body,
-		"if _logos_err := _logos_s.EnterFrame(0); _logos_err != nil { return nil, _logos_err }",
+		"if _logos_err := "+enter+"; _logos_err != nil { return nil, _logos_err }",
 		"defer _logos_s.LeaveFrame()")
 	open, close := "'['", "']'"
 	loop := "for _, _logos_item := range " + x
@@ -1170,18 +1185,17 @@ func (js *jsonStruct) optionJSONContainerCall(u types2.Type, x string) string {
 		body = append(body, sortedJSONMapKeys(x)...)
 		loop = "for _, _logos_key := range _logos_keys"
 		prefix = []string{
-			"_logos_kb, _logos_err := " + jsonAlias + ".MarshalField(_logos_key)",
-			"if _logos_err != nil { return nil, _logos_err }",
-			"_logos_buf = append(_logos_buf, _logos_kb...)",
-			"_logos_buf = append(_logos_buf, ':')",
-			"_logos_item := " + x + "[" + types2.TypeString(mapType.Key(), js.qualify) + "(_logos_key)]",
+			"_logos_buf = append(_logos_buf, '\"')",
+			"_logos_buf = " + jsonAlias + ".AppendEscaped(_logos_buf, _logos_key)",
+			"_logos_buf = append(_logos_buf, '\"', ':')",
+			"_logos_item := " + x + "[" + types2.TypeString(mapType.Key(), fl.genQualifier) + "(_logos_key)]",
 		}
 	}
 	body = append(body, "_logos_buf := []byte{"+open+"}")
 	inner := []string{"if len(_logos_buf) > 1 { _logos_buf = append(_logos_buf, ',') }"}
 	inner = append(inner, prefix...)
 	inner = append(inner,
-		"_logos_part, _logos_err := "+js.optionJSONCall(elem, "_logos_item"),
+		"_logos_part, _logos_err := "+fl.optionJSONCall(plan, elem, "_logos_item"),
 		"if _logos_err != nil { return nil, _logos_s.RebaseDepthError(_logos_err, int64(len(_logos_buf))) }",
 		"_logos_buf = append(_logos_buf, _logos_part...)")
 	body = append(body, blockLines(loop, inner)...)
@@ -1207,26 +1221,22 @@ func sortedJSONMapKeys(x string) []string {
 	}
 }
 
-func walkCall(local string) string {
-	return fmt.Sprintf("_logos_s.Marshal(%s)", local)
+func (g *marshalGen) depthErrorBody(f *jsonField, err string) []string {
+	body := []string{"var _logos_buf []byte"}
+	if g.runtimeSep && len(g.errorPrefix) != 0 {
+		body = append(body, "_logos_sep := byte('{')")
+	}
+	body = append(body, g.errorPrefix...)
+	return append(body, fmt.Sprintf("return nil, _logos_s.RebaseDepthError(%s, int64(len(_logos_buf) + %d))", err, g.litLen(f, "")))
 }
 
 func (g *marshalGen) edgeCode(f *jsonField, e jsonEdge) fieldCode {
 	local := f.local()
-	call := cmp.Or(helperCall(g.calls[f], local), walkCall(local))
-	if optionJSONPath(f.typ, make(map[types2.Type]bool)) {
-		call = g.js.optionJSONCall(f.typ, local)
-	}
+	call := g.calls[f]
 	b := fmt.Sprintf("_logos_b%d", f.pos)
 	ec := fmt.Sprintf("_logos_e%d", f.pos)
 	stmt := []string{fmt.Sprintf("%s, %s := %s", b, ec, call)}
-	errorBody := []string{"var _logos_buf []byte"}
-	if g.runtimeSep && len(g.errorPrefix) != 0 {
-		errorBody = append(errorBody, "_logos_sep := byte('{')")
-	}
-	errorBody = append(errorBody, g.errorPrefix...)
-	errorBody = append(errorBody, fmt.Sprintf("return nil, _logos_s.RebaseDepthError(%s, int64(len(_logos_buf) + %d))", ec, g.litLen(f, "")))
-	check := ifLines(ec+" != nil", errorBody)
+	check := ifLines(ec+" != nil", g.depthErrorBody(f, ec))
 	var c fieldCode
 	pins := []string{local + " := " + g.recv + "." + f.goName}
 	guard, ok := g.edgePresence(f, e, local)
@@ -1254,25 +1264,18 @@ func (g *marshalGen) edgePresence(f *jsonField, e jsonEdge, local string) (strin
 	if e == edgeHelper && !f.omitZero {
 		return "", false
 	}
-	if e == edgePtrHelper {
-		if f.omitZero {
-			return local + " != nil && !" + jsonAlias + ".OmitZero(" + local + ")", true
-		}
-		return local + " != nil", true
-	}
-	return omitCall(f, g.recv+"."+f.goName), true
+	return "!(" + g.omitted(f, local) + ")", true
 }
 
-func (js *jsonStruct) marshalTextWalk(b *strings.Builder, plan *jsonWalkPlan, vname string) {
-	var body []string
-	body = append(body, "var _logos_s "+jsonAlias+".Walk")
-	for _, t := range plan.table {
-		body = append(body, "_logos_s.AddType("+t+")")
+func (js *jsonStruct) marshalTextWalk(b *strings.Builder, vname, gen string) {
+	body := []string{"var _logos_s " + jsonAlias + ".Walk"}
+	if gen != "" {
+		body = append(body, "_logos_s.Gen = "+gen)
 	}
 	body = append(body,
-		"if _logos_err := _logos_s.Enter(&"+jsonRecv+"); _logos_err != nil { return nil, _logos_err }",
+		"if _logos_err := "+jsonAlias+".EnterPointer(&_logos_s, &"+jsonRecv+"); _logos_err != nil { return nil, _logos_err }",
 		"_logos_b, _logos_e := "+vname+"("+jsonRecv+", &_logos_s)",
-		"_logos_s.Leave(&"+jsonRecv+")",
+		jsonAlias+".LeavePointer(&_logos_s, &"+jsonRecv+")",
 		"return _logos_b, _logos_e")
 	fmt.Fprintf(b, "\nfunc (%s %s) MarshalJSON() ([]byte, error) {\n", jsonRecv, js.name)
 	for _, l := range indentLines(body) {
@@ -1289,12 +1292,15 @@ func (fl *fileLower) emitJSONHelpers(pos syntax.Pos, plan *jsonWalkPlan) {
 			continue
 		}
 		def.made = true
-		var b strings.Builder
-		def.emitInto(&b)
-		fl.addGeneratedDecls(pos, b.String())
+		text := def.text
+		if text == "" {
+			var b strings.Builder
+			def.emitInto(&b)
+			text = b.String()
+		}
+		fl.addGeneratedDecls(pos, text)
 	}
 	fl.needJSON = true
-	fl.needReflect = true
 }
 
 func (def *jsonHelperDef) emitInto(b *strings.Builder) {
@@ -1316,9 +1322,9 @@ func (def *jsonHelperDef) emitInto(b *strings.Builder) {
 	fmt.Fprintf(b, "\nfunc %s(_logos_w *%s, _logos_s *%s.Walk) ([]byte, error) {\n", def.pname, def.spell, jsonAlias)
 	inner := []string{
 		"if _logos_w == nil { return []byte(\"null\"), nil }",
-		"if _logos_err := _logos_s.Enter(_logos_w); _logos_err != nil { return nil, _logos_err }",
+		"if _logos_err := " + jsonAlias + ".EnterPointer(_logos_s, _logos_w); _logos_err != nil { return nil, _logos_err }",
 		"_logos_b, _logos_e := " + def.vname + "(*_logos_w, _logos_s)",
-		"_logos_s.Leave(_logos_w)",
+		jsonAlias + ".LeavePointer(_logos_s, _logos_w)",
 		"if _logos_e != nil { return nil, _logos_e }",
 		"return _logos_b, nil",
 	}

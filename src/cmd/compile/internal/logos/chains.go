@@ -1435,7 +1435,10 @@ func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 		prelude = append(prelude, gen(ce.outDecl()))
 	}
 	if ce.flight {
-		prelude = append(prelude, gen("var "+p+"_fl any"))
+		for i, t := range ce.flightTypes() {
+			slot := fmt.Sprintf("%s_fl%d", p, i)
+			prelude = append(prelude, gen("var "+slot+" "+cg.spellType(t)), gen(slot+"_live := false"))
+		}
 	}
 	if ce.guarded() {
 		prelude = append(prelude, gen(p+"_done := false"))
@@ -1468,11 +1471,11 @@ func (ce *chainEmit) loopO() (prelude []otext, body, epilogue []string) {
 		case "map":
 			mname := fmt.Sprintf("%s_m%d", p, i)
 			if ce.flight && ce.ownBefore[i] {
-				body = append(body, p+"_fl = nil")
+				body = append(body, ce.clearFlight(p, ce.inType(i)))
 			}
 			body = append(body, ce.mapLines(p, fname, cur, mname, i)...)
 			if ce.flight && i < ce.lastMap && ce.ownBefore[i+1] {
-				body = append(body, fmt.Sprintf("%s_fl = any(%s)", p, mname))
+				body = append(body, ce.setFlight(p, mname, ce.inType(i+1)))
 			}
 			if ce.owns && i == ce.lastMap {
 				body = append(body, fmt.Sprintf("%[1]s_out = append(%[1]s_out, %[2]s)", p, mname))
@@ -1563,7 +1566,7 @@ func (ce *chainEmit) ownedInLines(p string) []string {
 	case ce.lastMap < 0:
 		return []string{fmt.Sprintf("%[1]s_out = append(%[1]s_out, %[1]s_e)", p)}
 	case ce.flight:
-		return []string{fmt.Sprintf("%[1]s_fl = any(%[1]s_e)", p)}
+		return []string{ce.setFlight(p, p+"_e", ce.cg.elemT)}
 	}
 	return nil
 }
@@ -1591,11 +1594,11 @@ func (ce *chainEmit) dropStmt(p, cur string, i int) string {
 	case !ce.ownBefore[i]:
 		return "continue"
 	case i < ce.lastMap && ce.flight:
-		return ce.closeOne(p, cur) + "; " + p + "_fl = nil; continue"
+		return ce.closeOne(p, cur, ce.inType(i)) + "; " + ce.clearFlight(p, ce.inType(i)) + "; continue"
 	case i < ce.lastMap:
-		return ce.closeOne(p, cur) + "; continue"
+		return ce.closeOne(p, cur, ce.inType(i)) + "; continue"
 	}
-	return fmt.Sprintf("%s; %[2]s_out = %[2]s_out[:len(%[2]s_out)-1]; continue", ce.closeOne(p, cur), p)
+	return fmt.Sprintf("%s; %[2]s_out = %[2]s_out[:len(%[2]s_out)-1]; continue", ce.closeOne(p, cur, ce.inType(i)), p)
 }
 
 func (ce *chainEmit) mapLines(p, fname, cur, mname string, i int) []string {
@@ -1648,12 +1651,78 @@ func logosMayBeCloser(t types2.Type) bool {
 	return types2.Implements(sig.Results().At(0).Type(), errIface)
 }
 
-func (ce *chainEmit) closeOne(p, v string) string {
+func (ce *chainEmit) inType(i int) types2.Type {
+	t := ce.cg.elemT
+	for _, op := range ce.ops[:i] {
+		if op.method == "map" {
+			t = ce.cg.prodType(op)
+		}
+	}
+	return t
+}
+
+func (ce *chainEmit) flightTypes() []types2.Type {
+	var ts []types2.Type
+	for i := 0; i <= ce.lastMap; i++ {
+		if !ce.ownBefore[i] {
+			continue
+		}
+		t := ce.inType(i)
+		if ce.cg.spellType(t) == "any" {
+			t = nil
+		}
+		found := false
+		for _, prev := range ts {
+			if prev == t || prev != nil && t != nil && types2.Identical(prev, t) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			ts = append(ts, t)
+		}
+	}
+	return ts
+}
+
+func (ce *chainEmit) flightSlot(p string, t types2.Type) (string, types2.Type) {
+	if ce.cg.spellType(t) == "any" {
+		t = nil
+	}
+	for i, slotType := range ce.flightTypes() {
+		if slotType == t || slotType != nil && t != nil && types2.Identical(slotType, t) {
+			return fmt.Sprintf("%s_fl%d", p, i), slotType
+		}
+	}
+	panic("logos: missing chain flight slot")
+}
+
+func (ce *chainEmit) setFlight(p, v string, t types2.Type) string {
+	slot, _ := ce.flightSlot(p, t)
+	return slot + " = " + v + "; " + slot + "_live = true"
+}
+
+func (ce *chainEmit) clearFlight(p string, t types2.Type) string {
+	slot, slotType := ce.flightSlot(p, t)
+	return slot + " = " + ce.cg.zeroText(slotType) + "; " + slot + "_live = false"
+}
+
+func (ce *chainEmit) closeOne(p, v string, t types2.Type) string {
+	return chainCloseOne(p, v, t, ce.cg.spellType(t))
+}
+
+func chainCloseOne(p, v string, t types2.Type, spelled string) string {
+	if t != nil && spelled != "any" && plainMethodSet(t) {
+		if types2.Implements(t, closerInterface()) {
+			return v + ".Close()"
+		}
+		return ""
+	}
 	return fmt.Sprintf("if %[1]s_c, %[1]s_ok := any(%[2]s).(interface{ Close() error }); %[1]s_ok { %[1]s_c.Close() }", p, v)
 }
 
 func (ce *chainEmit) closeBut(p, handed string) string {
-	return fmt.Sprintf("for %[1]s_ci := len(%[1]s_out) - 1; %[1]s_ci >= 0; %[1]s_ci-- { if %[1]s_ci != %[2]s { %[3]s } }", p, handed, ce.closeOne(p, p+"_out["+p+"_ci]"))
+	return fmt.Sprintf("for %[1]s_ci := len(%[1]s_out) - 1; %[1]s_ci >= 0; %[1]s_ci-- { if %[1]s_ci != %[2]s { %[3]s } }", p, handed, ce.closeOne(p, p+"_out["+p+"_ci]", ce.inType(len(ce.ops))))
 }
 
 func (ce *chainEmit) handSlice(p string) string {
@@ -1701,7 +1770,10 @@ func (ce *chainEmit) failReturn(p, errVar string) string {
 func (ce *chainEmit) rollback(p string) string {
 	var steps []string
 	if ce.flight {
-		steps = append(steps, ce.closeOne(p, p+"_fl"))
+		for i, t := range ce.flightTypes() {
+			slot := fmt.Sprintf("%s_fl%d", p, i)
+			steps = append(steps, "if "+slot+"_live { "+ce.closeOne(p, slot, t)+" }")
+		}
 	}
 	if ce.owns {
 		steps = append(steps, ce.closeBut(p, "-1"))

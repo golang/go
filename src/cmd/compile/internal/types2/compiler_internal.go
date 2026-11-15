@@ -51,3 +51,44 @@ func (s *Signature) RenameResult(results []*syntax.Field, i int) (*Var, *syntax.
 
 // Comment returns the scope comment, for debugging purposes.
 func (s *Scope) Comment() string { return s.comment }
+
+// LookupParent follows the parent chain of scopes starting with s until
+// it finds an object named name, considering only objects whose scope
+// begins at or before pos. It returns nil when there is no such object.
+// This mirrors go/types (*Scope).LookupParent.
+func (s *Scope) LookupParent(name string, pos syntax.Pos) Object {
+	for ; s != nil; s = s.parent {
+		if obj := s.Lookup(name); obj != nil {
+			if sp := obj.scopePos(); !pos.IsKnown() || !sp.IsKnown() || sp.Cmp(pos) <= 0 {
+				return obj
+			}
+		}
+	}
+	return nil
+}
+
+// Innermost returns the innermost child scope containing pos, or nil when
+// pos is outside every child scope. This mirrors go/types (*Scope).Innermost.
+func (s *Scope) Innermost(pos syntax.Pos) *Scope {
+	if s.parent == Universe {
+		for _, child := range s.children {
+			if inner := child.Innermost(pos); inner != nil {
+				return inner
+			}
+		}
+	}
+	if s.contains(pos) {
+		for _, child := range s.children {
+			if child.contains(pos) {
+				return child.Innermost(pos)
+			}
+		}
+		return s
+	}
+	return nil
+}
+
+// contains reports whether pos lies in the scope's extent [pos, end).
+func (s *Scope) contains(pos syntax.Pos) bool {
+	return s.pos.IsKnown() && pos.IsKnown() && s.pos.Cmp(pos) <= 0 && pos.Cmp(s.end) < 0
+}

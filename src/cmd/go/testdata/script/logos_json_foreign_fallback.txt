@@ -1,0 +1,125 @@
+env GOPROXY=off
+env GOTOOLCHAIN=local
+
+cd w
+logos run .
+stdout '^parity ok$'
+logos eject -o out
+cd out
+go run .
+stdout '^parity ok$'
+# SPEC 0.3: ejected output builds with upstream go1.27.2 from $UPROOT1272.
+exists $UPROOT1272/bin/go
+exec $UPROOT1272/bin/go version
+stdout '^go version go1\.27\.2 '
+exec env -u GOROOT $UPROOT1272/bin/go build ./...
+exec env -u GOROOT $UPROOT1272/bin/go run .
+stdout '^parity ok$'
+cd ..
+
+-- w/go.mod --
+module example.com/fback
+
+go 1.27
+
+require example.com/foreign v0.0.0
+
+replace example.com/foreign => ./foreign
+
+-- w/foreign/go.mod --
+module example.com/foreign
+
+go 1.27
+
+-- w/foreign/f.go --
+package f
+
+import "strconv"
+
+type N int64
+
+func (n *N) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote("ptr:" + strconv.FormatInt(int64(*n), 10))), nil
+}
+
+func (n N) MarshalText() ([]byte, error) {
+	return []byte("val:" + strconv.FormatInt(int64(n), 10)), nil
+}
+
+type hidden struct {
+	X N
+}
+
+type Public struct {
+	hidden
+}
+
+-- w/main.lgo --
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+
+	"example.com/foreign"
+)
+
+type Root struct {
+	P *f.Public           `json:"p"`
+	S []f.Public          `json:"s"`
+	A *[2]f.Public        `json:"a"`
+	M map[string]f.Public `json:"m"`
+}
+
+func freshPublic(n int64) f.Public {
+	var p f.Public
+	p.X = f.N(n)
+	return p
+}
+
+func buildInputs() (*f.Public, []f.Public, *[2]f.Public, map[string]f.Public) {
+	p := freshPublic(7)
+	s := []f.Public{freshPublic(1), freshPublic(2)}
+	a := [2]f.Public{freshPublic(3), freshPublic(4)}
+	vals := map[string]f.Public{"k": freshPublic(5)}
+	return &p, s, &a, vals
+}
+
+func targetRoot() Root {
+	p, s, a, vals := buildInputs()
+	return Root{P: p, S: s, A: a, M: vals}
+}
+
+func mirrorRoot() any {
+	p, s, a, vals := buildInputs()
+	return struct {
+		P *f.Public           `json:"p"`
+		S []f.Public          `json:"s"`
+		A *[2]f.Public        `json:"a"`
+		M map[string]f.Public `json:"m"`
+	}{P: p, S: s, A: a, M: vals}
+}
+
+func main() {
+	got, gerr := json.Marshal(targetRoot())
+	if gerr != nil {
+		fmt.Println("FAIL target", gerr)
+		os.Exit(1)
+	}
+	want, werr := json.Marshal(mirrorRoot())
+	if werr != nil {
+		fmt.Println("FAIL mirror", werr)
+		os.Exit(1)
+	}
+	if !strings.Contains(string(want), "ptr:") || !strings.Contains(string(want), "val:") {
+		fmt.Println("FAIL oracle", string(want))
+		os.Exit(1)
+	}
+	if string(got) != string(want) {
+		fmt.Println("FAIL parity got=" + string(got) + " want=" + string(want))
+		os.Exit(1)
+	}
+	fmt.Println("parity ok")
+}
