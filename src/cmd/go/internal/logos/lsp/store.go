@@ -304,6 +304,10 @@ type snapshotCountsResult struct {
 
 func (p *Proxy) snapshotCounts(ctx context.Context, m *message) {
 	p.ensure(ctx)
+	p.respond(m.ID, p.countSnapshots())
+}
+
+func (p *Proxy) countSnapshots() snapshotCountsResult {
 	p.work.Lock()
 	defer p.work.Unlock()
 	p.mu.Lock()
@@ -322,8 +326,9 @@ func (p *Proxy) snapshotCounts(ctx context.Context, m *message) {
 	for dir, set := range gens {
 		out[dir] = len(set)
 	}
-	p.respond(m.ID, snapshotCountsResult{Dirs: out, DiagCache: len(p.srvDiags)})
+	return snapshotCountsResult{Dirs: out, DiagCache: len(p.srvDiags)}
 }
+
 func (p *Proxy) staleLocked(path string) {
 	if lw := p.files[path]; lw != nil && lw.fresh {
 		stale := *lw
