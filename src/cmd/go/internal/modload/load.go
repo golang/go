@@ -729,7 +729,9 @@ func pathInModuleCache(ld *Loader, ctx context.Context, dir string, rs *Requirem
 		}
 		var root string
 		var err error
+		var isLocal bool
 		if repl := Replacement(ld, m); repl.Path != "" && repl.Version == "" {
+			isLocal = true
 			root = repl.Path
 			if !filepath.IsAbs(root) {
 				root = filepath.Join(replaceRelativeTo(ld), root)
@@ -752,7 +754,15 @@ func pathInModuleCache(ld *Loader, ctx context.Context, dir string, rs *Requirem
 			return "", false
 		}
 
-		return pathpkg.Join(m.Path, filepath.ToSlash(sub)), true
+		pkg := pathpkg.Join(m.Path, sub)
+		if isLocal {
+			// A local replacement may contain other modules. In that case,
+			// keep looking for the module that contains this package.
+			if _, ok, err := dirInModule(pkg, m.Path, root, true); err != nil || !ok {
+				return "", false
+			}
+		}
+		return pkg, true
 	}
 
 	if rs.pruning == pruned {
