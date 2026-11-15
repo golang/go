@@ -204,3 +204,35 @@ func TestSlowFailingLoweringAnswersRequestFailed(t *testing.T) {
 		t.Fatal("a killed lowering never answered the request")
 	}
 }
+
+func TestEditedDocumentDropsDiagnosticsOfTheOldLowering(t *testing.T) {
+	const path = "/w/a/a.lgo"
+	uri := pathURI(path)
+	low, edits, ok := lowerQuestion([]byte(aLgo))
+	if !ok {
+		t.Fatal("the fixture does not lower")
+	}
+	pm, err := newPosMap([]byte(aLgo), low, edits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := newProxy(io.Discard, Options{Stderr: new(syncBuffer), Compiler: newFakeCompiler()})
+	p.st.setDoc(uri, path, 1, newText([]byte(aLgo)))
+	lw := &lowered{src: path, virt: virtualPath(path), pm: pm, fresh: true}
+	p.mu.Lock()
+	p.files[path] = lw
+	p.pruneLocked(map[string]bool{path: true})
+	p.virt[lw.virt] = &virtDoc{lw: lw, version: 1}
+	p.srvDiags[lw.virtURI()] = serverDiags{version: 1, hasVer: true, raw: []byte(`[{"range":{"start":{"line":0,"character":0},"end":{"line":0,"character":7}},"message":"gopls: old"}]`)}
+	p.mu.Unlock()
+	if _, n := p.diagnosticsParams(uri); n != 1 {
+		t.Fatalf("the current lowering published %d diagnostics, want 1", n)
+	}
+	if !p.st.change(path, 2, []contentChange{{Text: "\n" + aLgo}}) {
+		t.Fatal("the edit was refused")
+	}
+	params, n := p.diagnosticsParams(uri)
+	if n != 0 {
+		t.Fatalf("version %v published %d diagnostics of the previous lowering, want none", params["version"], n)
+	}
+}
