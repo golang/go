@@ -41,6 +41,15 @@ func main() {
 	}
 	s := "hello world, zero copy me"
 	var b const []byte = const []byte(s)
+	zbCheckViews(s, b, check)
+	zbCheckExpressions(s, b, check)
+	if failed {
+		os.Exit(1)
+	}
+}
+
+func zbCheckViews(s string, b const []byte, check func(string, bool)) {
+	b = const []byte(s)
 	zbSinkS = string(b)
 	check("const-view-roundtrip-preserves-string", zbSinkS == s)
 	check("string-to-const-needs-no-alloc", testing.AllocsPerRun(100, func() {
@@ -68,6 +77,10 @@ func main() {
 	p[0] = 'X'
 	_ = p
 	check("unrelated-mutation-keeps-source-string", s == "hello world, zero copy me")
+}
+
+func zbCheckExpressions(s string, b const []byte, check func(string, bool)) {
+	b = const []byte(s)
 	zbCalls = 0
 	check("call-result-no-alloc", testing.AllocsPerRun(100, func() {
 		zbSinkB = const []byte(zbSource(s))
@@ -102,7 +115,4 @@ func main() {
 	mutable := []byte(zbSource(s))
 	mutable[0] = 'Y'
 	check("call-result-mutable-conversion-isolated", s[0] == 'h' && mutable[0] == 'Y')
-	if failed {
-		os.Exit(1)
-	}
 }
