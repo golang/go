@@ -7,9 +7,14 @@ cd m
 cp app/main.lgo $WORK/import-positive.lgo
 cp ../import-alias-attacks.lgo app/main.lgo
 ! logos build -o $WORK/bin/import-alias-attack$GOEXE ./app
-stderr -count=5 '\[correctness::const_view_mutation\]'
+stderr -count=8 '\[correctness::const_view_mutation\]'
 ! logos eject -o $WORK/import-alias-out
-stderr -count=5 '\[correctness::const_view_mutation\]'
+stderr -count=8 '\[correctness::const_view_mutation\]'
+cp ../import-escape.lgo app/main.lgo
+! logos build -o $WORK/bin/import-escape$GOEXE ./app
+stderr '\[correctness::const_view_escape\]'
+! logos eject -o $WORK/import-escape-out
+stderr '\[correctness::const_view_escape\]'
 cp $WORK/import-positive.lgo app/main.lgo
 logos build -o $WORK/bin/importcc$GOEXE ./app
 exec $WORK/bin/importcc$GOEXE
@@ -99,6 +104,11 @@ ok promoted-range-sorted
 ok index-range-sorted
 ok array-leak-copy 1
 ok detached-whole 1 99
+ok aggregate-values
+ok detached-references
+ok nested-references 1 11
+ok capacity 3
+ok aggregate-read-allocations 0
 -- m/lib/lib.lgo --
 package lib
 
@@ -108,6 +118,7 @@ type S struct {
 	M map[string]int
 	L []int
 	N int
+	Deep map[string]map[string][]int
 }
 
 type Box struct {
@@ -138,7 +149,7 @@ type Arr struct {
 	A [3]int
 }
 
-const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, N: 7}
+const C = S{M: map[string]int{"a": 1}, L: []int{1, 2, 3}, N: 7, Deep: map[string]map[string][]int{"outer": {"inner": {11, 12}}}}
 
 const Items = []Box{{M: map[string]int{"a": 1}, N: 1}, {M: map[string]int{"a": 1, "b": 2, "c": 3, "d": 4, "e": 5, "f": 6, "g": 7, "h": 8, "i": 9, "j": 10}, N: 2}}
 
@@ -155,6 +166,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"testing"
 
 	"example.com/ccimport/lib"
 )
@@ -200,9 +212,45 @@ func main() {
 	w.N = 99
 	z := lib.C
 	fmt.Println("ok detached-whole", z.M["a"] ?? -1, w.N)
+	left := lib.C
+	right := lib.C
+	if left.L[0] != right.L[0] || len(left.L) != len(right.L) || cap(left.L) != cap(right.L) {
+		panic("imported read changed aggregate values")
+	}
+	fmt.Println("ok aggregate-values")
+	detached := &lib.C
+	detached.N = 101
+	if detached.L[0] != left.L[0] || cap(detached.L) != cap(left.L) || lib.C.N != 7 {
+		panic("inline detachment changed nested values")
+	}
+	fmt.Println("ok detached-references")
+	nested := left.Deep["outer"] ?? nil
+	leaf := nested["inner"] ?? nil
+	fmt.Println("ok nested-references", len(nested), leaf[0])
+	fmt.Println("ok capacity", cap(left.L))
+	checkImportedAllocations()
 	if failed {
 		os.Exit(1)
 	}
+}
+
+var importedResult int
+
+func checkImportedAllocations() {
+	allocs := testing.AllocsPerRun(1000, func() { importedResult = readImported() })
+	if allocs != 0 {
+		panic("imported aggregate read allocated")
+	}
+	fmt.Println("ok aggregate-read-allocations", allocs)
+}
+
+//go:noinline
+func readImported() int {
+	a := lib.C
+	b := lib.C
+	outer := a.Deep["outer"] ?? nil
+	leaf := outer["inner"] ?? nil
+	return a.N + b.N + a.L[0] + b.L[1] + len(a.L) + cap(b.L) + leaf[0]
 }
 -- import-alias-attacks.lgo --
 package main
@@ -220,6 +268,21 @@ func main() {
 	w.M["a"] = 50
 	p := &lib.C
 	p.L[0] = 70
+	inner := w.Deep["outer"] ?? nil
+	inner["new"] = []int{3}
+	leaf := inner["inner"] ?? nil
+	leaf[0] = 99
+	_ = &lib.C.L[0]
+}
+-- import-escape.lgo --
+package main
+
+import "example.com/ccimport/lib"
+
+var escaped []int
+
+func main() {
+	escaped = lib.C.L
 }
 -- unnamed/go.mod --
 module example.com/ccunnamed
