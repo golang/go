@@ -44,7 +44,8 @@ func (fl *fileLower) lowerStaticBinary(_ *syntax.TypeDecl, named *types2.Named, 
 	}
 	out.WriteString(g.text.String())
 	if needMarshal {
-		fmt.Fprintf(out, "func (_logos_v %s) MarshalBinary() ([]byte, error) { _logos_bulk := 0; _logos_n, _logos_ok := %s_s%d(&_logos_v, 1, &_logos_bulk); if !_logos_ok || _logos_n == int(^uint(0)>>1) || _logos_bulk >= _logos_n-_logos_bulk { return %s_e%d([]byte{1}, _logos_v, 1) }; _logos_dst := make([]byte, 1, _logos_n+1); _logos_dst[0] = 1; return %s_e%d(_logos_dst, _logos_v, 1) }\n", js.name, g.prefix, id, g.prefix, id, g.prefix, id)
+		fmt.Fprintf(out, "func %s_capacity(_logos_v *%s) int { _logos_bulk := 0; _logos_n, _logos_ok := %s_s%d(_logos_v, 1, &_logos_bulk); if !_logos_ok { _logos_n = 0 }; if _logos_n == int(^uint(0)>>1) { _logos_n = 0 }; if _logos_bulk >= _logos_n-_logos_bulk { _logos_n = 0 }; return _logos_n+1 }\n", g.prefix, js.name, g.prefix, id)
+		fmt.Fprintf(out, "func (_logos_v %s) MarshalBinary() ([]byte, error) { _logos_dst := make([]byte, 1, %s_capacity(&_logos_v)); _logos_dst[0] = 1; return %s_e%d(_logos_dst, _logos_v, 1) }\n", js.name, g.prefix, g.prefix, id)
 	}
 	if needAppend {
 		fmt.Fprintf(out, "func (_logos_v %s) AppendBinary(_logos_dst []byte) ([]byte, error) { return %s_e%d(append(_logos_dst, 1), _logos_v, 1) }\n", js.name, g.prefix, id)
@@ -87,7 +88,10 @@ func (g *binaryGenerator) sizeCodec(t types2.Type, id int) {
 		p("{ _logos_add := %s; if _logos_add < 0 || _logos_add > int(^uint(0)>>1)-_logos_n { return 0, false }; _logos_n += _logos_add }", expr)
 	}
 	count := func(value string) {
-		p("{ _logos_count := uint64(len(%s)); _logos_width := 1; for _logos_count >= 128 { _logos_count >>= 7; _logos_width++ }", value)
+		p("{ _logos_count := uint64(len(%s)); _logos_width := 1", value)
+		for _, shift := range [...]uint{56, 28, 14, 7} {
+			p("if _logos_count >= 1<<%d { _logos_count >>= %d; _logos_width += %d }", shift, shift, shift/7)
+		}
 		add("_logos_width")
 		p("}")
 	}
@@ -177,7 +181,7 @@ func (g *binaryGenerator) sizeCodec(t types2.Type, id int) {
 			p("return 0, false")
 		}
 	}
-	fmt.Fprintf(&g.text, "func %s_s%d(_logos_v *%s, _logos_depth int, _logos_bulk *int) (int, bool) { if _logos_depth > 10000 { return 0, false }; _logos_n := 0\n%sreturn _logos_n, true\n}\n", g.prefix, id, name, body.String())
+	fmt.Fprintf(&g.text, "func %s_s%d(_logos_v *%s, _logos_depth int, _logos_bulk *int) (int, bool) { if _logos_depth > 10000 || _logos_v == nil || _logos_bulk == nil { return 0, false }; _logos_n := 0\n%sreturn _logos_n, true\n}\n", g.prefix, id, name, body.String())
 }
 
 func (g *binaryGenerator) codec(t types2.Type) (int, bool) {
