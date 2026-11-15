@@ -90,8 +90,8 @@ generic FromArch functions (such as Float32sFromArch) that convert a
 corresponding simd type. They panic if [Emulated] is true or if the input is
 not for vector width [VectorBits].
 
-For an example of converting between [simd] and [simd/archsimd] types,
-see the test file sum_amd64_test.go.
+See the [Int16s.ToArch] example for converting between [simd] and
+[simd/archsimd] types.
 */
 package simd
 
