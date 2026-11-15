@@ -389,6 +389,31 @@ func TestParseCopy(t *testing.T) {
 	testParse(true, t)
 }
 
+func TestFieldAndVariablePositions(t *testing.T) {
+	for _, input := range []string{
+		"{{.A}}",
+		"{{.A.B.C.D}}",
+		"{{printf .Z.Y.X.W}}",
+		"\nπ{{.Moo.N.P}}",
+		"{{$x := .}}{{$x}}",
+		"{{$x := .}}{{$x.A.B}}",
+	} {
+		t.Run(input, func(t *testing.T) {
+			tree, err := New("test").Parse(input, "", "", make(map[string]*Tree), builtins)
+			if err != nil {
+				t.Fatal(err)
+			}
+			action := tree.Root.Nodes[len(tree.Root.Nodes)-1].(*ActionNode)
+			args := action.Pipe.Cmds[0].Args
+			node := args[len(args)-1]
+			want := Pos(strings.LastIndex(input, node.String()))
+			if got := node.Position(); got != want {
+				t.Errorf("%s.Position() = %d, want %d", node, got, want)
+			}
+		})
+	}
+}
+
 func TestParseWithComments(t *testing.T) {
 	textFormat = "%q"
 	defer func() { textFormat = "%s" }()
