@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -67,16 +68,20 @@ func (p *Proxy) diagnosticsParams(uri string) (map[string]any, int) {
 	u := p.st.unitFor(path)
 	extra := p.compilerItems(path, doc, u)
 	open, version := doc != nil, 0
+	var buffer []byte
 	if doc != nil {
 		version = doc.version
+		buffer = doc.text.data
 	}
 	p.st.mu.Unlock()
 	tb := p.tables.Load()
 	p.mu.Lock()
-	lw := tb.bySrc[path]
 	var items []any
-	if open || !isLogosPath(path) {
-		items = p.serverItems(tb, uri, path, lw)
+	switch {
+	case !isLogosPath(path):
+		items = decodeItems(p.srvDiags[uri].raw, tb, nil)
+	case open:
+		items = p.loweredItems(tb, tb.bySrc[path], buffer)
 	}
 	p.mu.Unlock()
 	items = mergeDiagnostics(items, extra)
@@ -87,11 +92,8 @@ func (p *Proxy) diagnosticsParams(uri string) (map[string]any, int) {
 	return params, len(items)
 }
 
-func (p *Proxy) serverItems(tb *tables, uri, path string, lw *lowered) []any {
-	if !isLogosPath(path) {
-		return decodeItems(p.srvDiags[uri].raw, tb, nil)
-	}
-	if lw == nil || !lw.fresh {
+func (p *Proxy) loweredItems(tb *tables, lw *lowered, buffer []byte) []any {
+	if lw == nil || !lw.fresh || !bytes.Equal(lw.pm.orig.data, buffer) {
 		return nil
 	}
 	sd := p.srvDiags[lw.virtURI()]
