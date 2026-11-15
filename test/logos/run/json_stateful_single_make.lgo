@@ -111,7 +111,7 @@ func main() {
 			sink = must(o.MarshalJSON())
 		})
 		fmt.Printf("n=%d stateful=%g ordinary=%g\n", n, stateful, ordinary)
-		if stateful != 6 || ordinary != 1 {
+		if stateful != 3 || ordinary != 1 {
 			panic("T-Sec10 single make")
 		}
 		fmt.Println("ok stateful-single-make", n)

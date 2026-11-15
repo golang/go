@@ -1,0 +1,1152 @@
+// run -goexperiment nojsonv2
+
+package jsonstaticencv1
+
+import (
+	"encoding/json"
+	"errors"
+	"math/big"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+)
+
+type outcome struct {
+	b   []byte
+	err error
+}
+
+func outcomeOf(b []byte, err error) outcome {
+	return outcome{b, err}
+}
+
+func sameOutcome(t *testing.T, label string, gen, std outcome) []byte {
+	t.Helper()
+	if (gen.err == nil) != (std.err == nil) {
+		t.Fatalf("%s: generated error %v, encoding/json error %v", label, gen.err, std.err)
+	}
+	if gen.err != nil {
+		if gen.err.Error() != std.err.Error() {
+			t.Fatalf("%s: generated error %q, encoding/json error %q", label, gen.err.Error(), std.err.Error())
+		}
+		if reflect.TypeOf(gen.err) != reflect.TypeOf(std.err) {
+			t.Fatalf("%s: generated error type %T, encoding/json error type %T", label, gen.err, std.err)
+		}
+		return nil
+	}
+	if string(gen.b) != string(std.b) {
+		t.Fatalf("%s: generated %s, encoding/json %s", label, gen.b, std.b)
+	}
+	return gen.b
+}
+
+func sameDepthOutcome(t *testing.T, label string, gen, std outcome) {
+	t.Helper()
+	sameOutcome(t, label, gen, std)
+	gs, gok := gen.err.(*json.SyntaxError)
+	ws, wok := std.err.(*json.SyntaxError)
+	if gok && wok && gs.Offset != ws.Offset {
+		t.Fatalf("%s: generated offset %d, encoding/json offset %d", label, gs.Offset, ws.Offset)
+	}
+}
+
+func sameErrorKind(t *testing.T, label string, gerr, werr error) {
+	t.Helper()
+	if gerr == nil || werr == nil {
+		t.Fatalf("%s: generated error %v, encoding/json error %v, want both", label, gerr, werr)
+	}
+	if reflect.TypeOf(gerr) != reflect.TypeOf(werr) {
+		t.Fatalf("%s: generated error type %T, encoding/json error type %T", label, gerr, werr)
+	}
+}
+
+type Embed struct {
+	E     string `json:"e"`
+	NoGen any    `json:"-"`
+}
+
+type Outer struct {
+	Embed
+	Name   string `json:"name"`
+	Skip   int    `json:"-"`
+	Omit   []int  `json:"omit,omitempty"`
+	Zero   string `json:"zero,omitzero"`
+	QS     int    `json:"qs,string"`
+	HTML   string `json:"html"`
+	hidden string
+}
+
+type TextT struct {
+	V     int `json:"v"`
+	NoGen any `json:"-"`
+}
+
+func (TextT) MarshalText() ([]byte, error) {
+	return []byte("text"), nil
+}
+
+type UserT struct {
+	V     int `json:"v"`
+	NoGen any `json:"-"`
+}
+
+func (UserT) MarshalJSON() ([]byte, error) {
+	return []byte(`"user"`), nil
+}
+
+type Mixed struct {
+	A    int       `json:"a,string"`
+	B    bool      `json:"b,string"`
+	S    string    `json:"s,string"`
+	F    float64   `json:"f,string"`
+	M    TextT     `json:"m"`
+	U    UserT     `json:"u"`
+	T    time.Time `json:"t"`
+	P    *int?     `json:"p"`
+	Any  any       `json:"any"`
+	Arr  [2]int    `json:"arr"`
+	Html string    `json:"html"`
+}
+
+type SweepRoot struct {
+	Vals  []any             `json:"vals"`
+	Bytes []byte            `json:"bytes"`
+	Ints  [][]int           `json:"ints"`
+	Maps  []map[int]string  `json:"maps"`
+	Uints []map[uint8]bool  `json:"uints"`
+	Outer []Outer           `json:"outer"`
+	Mixed Mixed             `json:"mixed"`
+	Arr   [2]map[string]int `json:"arr"`
+	Nil   map[string]any    `json:"nil"`
+	Empty map[string]any    `json:"empty"`
+	SM    map[string]int    `json:"sm"`
+	Users []UserT           `json:"users"`
+	Texts map[string]TextT  `json:"texts"`
+}
+
+type sweepRootMirror SweepRoot
+
+func TestStaticEncoderParitySweep(t *testing.T) {
+	ts := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	roots := []SweepRoot{
+		{},
+		{
+			Vals:  []any{nil, true, -42, uint64(1 << 63), 2.5, "a<b>&\u2028\"q\"\\", []byte("bytes"), []int{3, 1, 2}, []any{"s", 1.5, true, nil}, []string{}, map[string]int{"b": 2, "a": 1}},
+			Bytes: []byte("bytes<&>"),
+			Ints:  [][]int{{3, 1, 2}, nil, {}},
+			Maps:  []map[int]string{{10: "j", 2: "b", -1: "m"}, nil},
+			Uints: []map[uint8]bool{{200: true, 3: false}},
+			Outer: []Outer{
+				{E: "e", Name: "n", Zero: "", QS: 7, HTML: "<>&"},
+				{E: "e", Name: "n", Omit: []int{1}, Zero: "z", HTML: "x"},
+			},
+			Mixed: Mixed{A: 1, B: true, S: "s<&>", F: 0.5, M: TextT{V: 1}, U: UserT{V: 2}, T: ts, Any: []int{9}, Html: "a<b>&\u2029"},
+			Arr:   [2]map[string]int{{"a": 1}, nil},
+			Empty: map[string]any{},
+			SM:    map[string]int{"z": 26, "<a>": 1},
+			Users: []UserT{{V: 1}},
+			Texts: map[string]TextT{"k": {V: 3}},
+		},
+	}
+	for i, r := range roots {
+		sameOutcome(t, "sweep "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(sweepRootMirror(r))))
+	}
+}
+
+type StringOpts struct {
+	I     int      `json:"i,string"`
+	PI    *int?    `json:"pi,string"`
+	NI    *int?    `json:"ni,string"`
+	U     uint64   `json:"u,string"`
+	S     string   `json:"s,string"`
+	PS    *string? `json:"ps,string"`
+	B     bool     `json:"b,string"`
+	F     float64  `json:"f,string"`
+	F32   float32  `json:"f32,string"`
+	NoGen any      `json:"-"`
+}
+
+type StringRoot struct {
+	Val StringOpts            `json:"val"`
+	Ptr *StringOpts?          `json:"ptr"`
+	Map map[string]StringOpts `json:"map"`
+	Any []any                 `json:"any"`
+}
+
+type stringRootMirror StringRoot
+
+func TestStaticEncoderStringOption(t *testing.T) {
+	i := 42
+	str := "a<b>&\"\\"
+	v := StringOpts{I: 42, PI: &i, U: 1 << 63, S: str, PS: &str, B: true, F: 0.5, F32: 1e21}
+	r := StringRoot{Val: v, Ptr: &v, Map: map[string]StringOpts{"k": v}, Any: []any{map[string]any{"k": []any{"x&y", ""}}}}
+	sameOutcome(t, "string option", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(stringRootMirror(r))))
+}
+
+type Link struct {
+	Name  string `json:"name"`
+	Next  *Link? `json:"next,omitempty"`
+	NoGen any    `json:"-"`
+}
+
+type LinkList [](*Link?)
+
+type LinkRoot struct {
+	Head *Link?   `json:"head"`
+	L    *Link?   `json:"l"`
+	R    *Link?   `json:"r"`
+	Arr  LinkList `json:"arr"`
+}
+
+type linkRootMirror LinkRoot
+
+type AnyRoot struct {
+	M  map[string]any `json:"m"`
+	Xs []any          `json:"xs"`
+}
+
+type anyRootMirror AnyRoot
+
+func cyclePrefix() string {
+	return "json: unsupported value: encountered a cycle via "
+}
+
+func sameCycle(t *testing.T, label string, gerr, werr error) {
+	t.Helper()
+	sameErrorKind(t, label, gerr, werr)
+	for _, err := range []error{gerr, werr} {
+		if !strings.HasPrefix(err.Error(), cyclePrefix()) {
+			t.Fatalf("%s: error %q, want the encoding/json cycle error", label, err.Error())
+		}
+	}
+	if _, ok := gerr.(*json.UnsupportedValueError); !ok {
+		t.Fatalf("%s: error type %T, want *json.UnsupportedValueError", label, gerr)
+	}
+}
+
+func TestStaticEncoderCycleTerminates(t *testing.T) {
+	n := &Link{Name: "a"}
+	n.Next = n
+	_, gerr := LinkRoot{Head: n}.MarshalJSON()
+	_, werr := json.Marshal(linkRootMirror(LinkRoot{Head: n}))
+	sameCycle(t, "pointer cycle", gerr, werr)
+	inner := map[string]any{"self": nil}
+	m := map[string]any{"n": inner}
+	inner["self"] = m
+	_, gerr = AnyRoot{M: m}.MarshalJSON()
+	_, werr = json.Marshal(anyRootMirror(AnyRoot{M: m}))
+	sameCycle(t, "map cycle", gerr, werr)
+	xs := []any{nil}
+	xs[0] = xs
+	_, gerr = AnyRoot{Xs: xs}.MarshalJSON()
+	_, werr = json.Marshal(anyRootMirror(AnyRoot{Xs: xs}))
+	sameCycle(t, "slice cycle", gerr, werr)
+}
+
+func TestStaticEncoderDAGIsNotACycle(t *testing.T) {
+	shared := &Link{Name: "s"}
+	r := LinkRoot{L: &Link{Name: "l", Next: shared}, R: &Link{Name: "r", Next: shared}, Arr: LinkList{shared, shared, nil}}
+	got := sameOutcome(t, "dag", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(linkRootMirror(r))))
+	if strings.Count(string(got), `"s"`) != 4 {
+		t.Fatalf("shared tail not encoded at every reference: %s", got)
+	}
+}
+
+func buildLinks(n int) *Link {
+	head := &Link{Name: "h"}
+	cur := head
+	for range n {
+		next := &Link{Name: "n"}
+		cur.Next = next
+		cur = next
+	}
+	return head
+}
+
+func TestStaticEncoderDeepNestingMatchesCap(t *testing.T) {
+	for _, n := range []int{3000, 9000, 20000} {
+		r := LinkRoot{Head: buildLinks(n)}
+		sameDepthOutcome(t, "deep chain", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(linkRootMirror(r))))
+	}
+}
+
+type BothT int
+
+func (BothT) MarshalText() ([]byte, error) {
+	return []byte("text"), nil
+}
+
+func (*BothT) MarshalJSON() ([]byte, error) {
+	return []byte(`"ptr"`), nil
+}
+
+type BothBox struct {
+	B     BothT `json:"b"`
+	NoGen any   `json:"-"`
+}
+
+type BothRoot struct {
+	Val   BothBox          `json:"val"`
+	Ptr   *BothBox?        `json:"ptr"`
+	Slice []BothT          `json:"slice"`
+	Map   map[string]BothT `json:"map"`
+	Arr   [1]BothT         `json:"arr"`
+	PArr  *[1]BothT?       `json:"parr"`
+	Boxes []BothBox        `json:"boxes"`
+	Any   []any            `json:"any"`
+}
+
+type bothRootMirror BothRoot
+
+func TestStaticEncoderAddressabilityPrecedence(t *testing.T) {
+	arr := [1]BothT{2}
+	r := BothRoot{
+		Val:   BothBox{B: 3},
+		Ptr:   &BothBox{B: 4},
+		Slice: []BothT{5},
+		Map:   map[string]BothT{"k": 6},
+		Arr:   [1]BothT{7},
+		PArr:  &arr,
+		Boxes: []BothBox{{B: 8}},
+		Any:   []any{BothT(9)},
+	}
+	got := sameOutcome(t, "addressability", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(bothRootMirror(r))))
+	const body = `{"val":{"b":"text"},"ptr":{"b":"ptr"},"slice":["ptr"],"map":{"k":"text"},"arr":["text"],"parr":["ptr"],"boxes":[{"b":"ptr"}],"any":["text"]}`
+	if string(got) != body {
+		t.Fatalf("addressability precedence: got %s, want %s", got, body)
+	}
+}
+
+type GenItem struct {
+	Name string `json:"name"`
+	Kids []any  `json:"kids,omitempty"`
+}
+
+type DynRoot struct {
+	Items []GenItem `json:"items"`
+	Xs    []any     `json:"xs"`
+}
+
+type dynRootMirror DynRoot
+
+func TestStaticEncoderDynamicDispatch(t *testing.T) {
+	g := GenItem{Name: "g"}
+	r := DynRoot{
+		Items: []GenItem{{Name: "a", Kids: []any{"k"}}},
+		Xs:    []any{g, &g, UserT{V: 1}, TextT{V: 2}, json.Number("12"), "s", 1.5, nil},
+	}
+	sameOutcome(t, "dynamic dispatch", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(dynRootMirror(r))))
+	var gerr error
+	cyc := &GenItem{Name: "c"}
+	cyc.Kids = []any{cyc}
+	_, gerr = DynRoot{Xs: []any{cyc}}.MarshalJSON()
+	if gerr == nil || !strings.HasPrefix(gerr.Error(), cyclePrefix()) {
+		t.Fatalf("cycle through an interface value = %v, want the encoding/json cycle error", gerr)
+	}
+}
+
+type DiaA struct {
+	X     int `json:"x"`
+	NoGen any `json:"-"`
+}
+
+type DiaB struct {
+	DiaA
+}
+
+type DiaC struct {
+	DiaA
+}
+
+type DiaD struct {
+	DiaB
+	DiaC
+	Y int `json:"y"`
+}
+
+type DiaTagged struct {
+	DiaB
+	X int `json:"x"`
+}
+
+type EmbPtr struct {
+	*DiaA
+	Z int `json:"z"`
+}
+
+type DiamondRoot struct {
+	D DiaD      `json:"d"`
+	T DiaTagged `json:"t"`
+	P []EmbPtr  `json:"p"`
+}
+
+type diamondRootMirror DiamondRoot
+
+func TestStaticEncoderEmbeddedFields(t *testing.T) {
+	r := DiamondRoot{
+		D: DiaD{DiaB: DiaB{DiaA{X: 1}}, DiaC: DiaC{DiaA{X: 2}}, Y: 3},
+		T: DiaTagged{DiaB: DiaB{DiaA{X: 4}}, X: 5},
+		P: []EmbPtr{{DiaA: &DiaA{X: 6}, Z: 6}, {DiaA: &DiaA{X: 7}, Z: 8}},
+	}
+	sameOutcome(t, "embedded", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(diamondRootMirror(r))))
+}
+
+type BadKey struct {
+	A int
+}
+
+type UnsupBox struct {
+	F     []func()          `json:"f"`
+	M     []map[bool]int    `json:"m"`
+	C     []complex128      `json:"c"`
+	K     []map[BadKey]int  `json:"k"`
+	Ch    []chan int        `json:"ch"`
+	NoGen any               `json:"-"`
+}
+
+type UnsupRoot struct {
+	B UnsupBox `json:"b"`
+}
+
+type unsupRootMirror UnsupRoot
+
+func TestStaticEncoderUnsupportedKinds(t *testing.T) {
+	cases := []UnsupBox{
+		{},
+		{F: []func(){func() {}}},
+		{M: []map[bool]int{nil}},
+		{C: []complex128{complex(1, 2)}},
+		{K: []map[BadKey]int{nil}},
+		{Ch: []chan int{make(chan int)}},
+		{F: []func(){}, C: []complex128{}},
+	}
+	for i, c := range cases {
+		sameOutcome(t, "unsupported "+string(rune('0'+i)), outcomeOf(UnsupRoot{B: c}.MarshalJSON()), outcomeOf(json.Marshal(unsupRootMirror(UnsupRoot{B: c}))))
+	}
+}
+
+type unsupKeyCase struct {
+	box UnsupBox
+	key any
+}
+
+func TestStaticEncoderUnsupportedMapKeys(t *testing.T) {
+	boolKeys := map[bool]int{true: 1}
+	structKeys := map[BadKey]int{BadKey{1}: 1}
+	for _, c := range []unsupKeyCase{{UnsupBox{M: []map[bool]int{boolKeys}}, boolKeys}, {UnsupBox{K: []map[BadKey]int{structKeys}}, structKeys}} {
+		_, gerr := UnsupRoot{B: c.box}.MarshalJSON()
+		_, werr := json.Marshal(unsupRootMirror(UnsupRoot{B: c.box}))
+		_, direct := json.Marshal(c.key)
+		sameErrorKind(t, "unsupported map key", gerr, werr)
+		if gerr.Error() != direct.Error() {
+			t.Fatalf("unsupported map key: generated error %q, encoding/json error for the map %q", gerr.Error(), direct.Error())
+		}
+	}
+}
+
+type NumberAlias = json.Number
+
+type DefinedNumber json.Number
+
+type DefinedString string
+
+type NumBox struct {
+	N     json.Number   `json:"n"`
+	P     *json.Number? `json:"p"`
+	A     NumberAlias   `json:"a"`
+	D     DefinedNumber `json:"d"`
+	S     DefinedString `json:"s"`
+	NQ    json.Number   `json:"nq,string"`
+	PQ    *json.Number? `json:"pq,string"`
+	AQ    NumberAlias   `json:"aq,string"`
+	DQ    DefinedNumber `json:"dq,string"`
+	SQ    DefinedString `json:"sq,string"`
+	NoGen any           `json:"-"`
+}
+
+type NumRoot struct {
+	Ns   []json.Number            `json:"ns"`
+	Box  NumBox                   `json:"box"`
+	Map  map[string]json.Number   `json:"map"`
+	Any  []any                    `json:"any"`
+	Nest map[string][]json.Number `json:"nest"`
+}
+
+type numRootMirror NumRoot
+
+func TestStaticEncoderNumber(t *testing.T) {
+	seven := json.Number("7")
+	empty := json.Number("")
+	roots := []NumRoot{
+		{Ns: []json.Number{"123", "-0", "1E+2", "0.5e-3", ""}},
+		{Box: NumBox{N: "123", P: &seven, A: "99", D: "123", S: "123", NQ: "123", PQ: &seven, AQ: "99", DQ: "abc", SQ: "abc"}},
+		{Box: NumBox{N: "", P: nil, A: "", D: "", S: "", NQ: "", PQ: &empty, AQ: "", DQ: "", SQ: ""}},
+		{Map: map[string]json.Number{"a": "7", "zero": ""}, Any: []any{json.Number("42"), map[string]any{"num": json.Number("2")}}},
+		{Nest: map[string][]json.Number{"k": {"10", ""}}},
+	}
+	for i, r := range roots {
+		sameOutcome(t, "number "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(numRootMirror(r))))
+	}
+}
+
+func TestStaticEncoderInvalidNumber(t *testing.T) {
+	for _, bad := range []string{"-", "01", "1e", "1x", "+1", ".5", "1.", "NaN", " 1", "abc"} {
+		num := json.Number(bad)
+		_, direct := json.Marshal(num)
+		roots := []NumRoot{
+			{Ns: []json.Number{num}},
+			{Any: []any{num}},
+			{Map: map[string]json.Number{"bad": num}},
+			{Box: NumBox{N: num}},
+			{Box: NumBox{NQ: num}},
+			{Box: NumBox{PQ: &num}},
+		}
+		for _, r := range roots {
+			_, gerr := r.MarshalJSON()
+			_, werr := json.Marshal(numRootMirror(r))
+			sameErrorKind(t, "invalid "+bad, gerr, werr)
+			if gerr.Error() != direct.Error() {
+				t.Fatalf("invalid %q: generated error %q, encoding/json number error %q", bad, gerr.Error(), direct.Error())
+			}
+		}
+	}
+}
+
+type QuotedObj int
+
+func (QuotedObj) MarshalJSON() ([]byte, error) {
+	return []byte(`{"k":1}`), nil
+}
+
+type QuotedStringObj string
+
+func (QuotedStringObj) MarshalJSON() ([]byte, error) {
+	return []byte(`{"str_k":"custom"}`), nil
+}
+
+type QuotedText string
+
+func (QuotedText) MarshalText() ([]byte, error) {
+	return []byte("custom"), nil
+}
+
+type PtrJSON int
+
+func (*PtrJSON) MarshalJSON() ([]byte, error) {
+	return []byte(`"ptr"`), nil
+}
+
+type PtrText int
+
+func (*PtrText) MarshalText() ([]byte, error) {
+	return []byte("ptrtext"), nil
+}
+
+type QBox struct {
+	O     QuotedObj       `json:"o,string"`
+	SO    QuotedStringObj `json:"so,string"`
+	T     QuotedText      `json:"t,string"`
+	PJ    PtrJSON         `json:"pj,string"`
+	PT    PtrText         `json:"pt,string"`
+	B     BothT           `json:"b,string"`
+	NO    *QuotedObj?     `json:"no,string"`
+	NP    *int?           `json:"np,string"`
+	NoGen any             `json:"-"`
+}
+
+type QRoot struct {
+	Val QBox            `json:"val"`
+	Ptr *QBox?          `json:"ptr"`
+	Map map[string]QBox `json:"map"`
+}
+
+type qRootMirror QRoot
+
+func TestStaticEncoderQuotedMethodPrecedence(t *testing.T) {
+	obj := QuotedObj(9)
+	p := 123
+	v := QBox{O: 42, SO: "hello", T: "plain", PJ: 53, PT: 53, B: 13}
+	full := v
+	full.NO = &obj
+	full.NP = &p
+	for i, r := range []QRoot{{Val: v, Ptr: &v, Map: map[string]QBox{"k": v}}, {Val: full, Ptr: &full}} {
+		sameOutcome(t, "quoted precedence "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(qRootMirror(r))))
+	}
+}
+
+type IZInt int
+
+func (v IZInt) IsZero() bool { return v == 42 }
+
+type IZString string
+
+func (v IZString) IsZero() bool { return v == "zero" }
+
+type IZBool bool
+
+func (v IZBool) IsZero() bool { return bool(v) }
+
+type IZPtrRecv int
+
+func (v *IZPtrRecv) IsZero() bool { return *v == 7 }
+
+type IZPlusJSON int
+
+func (v IZPlusJSON) IsZero() bool { return v == 0 }
+
+func (v IZPlusJSON) MarshalJSON() ([]byte, error) { return []byte(`"custom"`), nil }
+
+type IZBox struct {
+	IS    IZInt      `json:"is,string"`
+	SS    IZString   `json:"ss,string"`
+	BS    IZBool     `json:"bs,string"`
+	IO    IZInt      `json:"io,omitzero"`
+	SO    IZString   `json:"so,omitzero"`
+	BO    IZBool     `json:"bo,omitzero"`
+	PO    IZPtrRecv  `json:"po,omitzero"`
+	ISO   IZInt      `json:"iso,string,omitzero"`
+	SSO   IZString   `json:"sso,string,omitzero"`
+	BSO   IZBool     `json:"bso,string,omitzero"`
+	JS    IZPlusJSON `json:"js,string"`
+	JO    IZPlusJSON `json:"jo,omitzero"`
+	NoGen any        `json:"-"`
+}
+
+type IZTop struct {
+	IO  IZInt      `json:"io,omitzero"`
+	SO  IZString   `json:"so,omitzero"`
+	BO  IZBool     `json:"bo,omitzero"`
+	PO  IZPtrRecv  `json:"po,omitzero"`
+	ISO IZInt      `json:"iso,string,omitzero"`
+	JO  IZPlusJSON `json:"jo,omitzero"`
+	EZ  IZInt      `json:"ez,omitempty,omitzero"`
+	Box IZBox      `json:"box"`
+	Ptr *IZBox?    `json:"ptr"`
+}
+
+type izTopMirror IZTop
+
+func TestStaticEncoderIsZero(t *testing.T) {
+	zero := IZBox{IS: 42, SS: "zero", BS: true, IO: 42, SO: "zero", BO: true, PO: 7, ISO: 42, SSO: "zero", BSO: true, JO: 0}
+	kept := IZBox{IS: 53, SS: "hi", BS: false, IO: 0, SO: "", BO: false, PO: 0, ISO: 0, SSO: "hi", BSO: false, JS: 53, JO: 53}
+	roots := []IZTop{
+		{IO: 42, SO: "zero", BO: true, PO: 7, ISO: 42, JO: 0, EZ: 42, Box: zero, Ptr: &zero},
+		{IO: 0, SO: "", BO: false, PO: 0, ISO: 0, JO: 53, EZ: 0, Box: kept, Ptr: &kept},
+		{EZ: 5},
+	}
+	for i, r := range roots {
+		sameOutcome(t, "iszero "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(izTopMirror(r))))
+	}
+}
+
+type ZeroVal struct {
+	N     int `json:"n"`
+	NoGen any `json:"-"`
+}
+
+func (z ZeroVal) IsZero() bool { return z.N == 7 }
+
+type ZeroPtr struct {
+	N     int `json:"n"`
+	NoGen any `json:"-"`
+}
+
+func (z *ZeroPtr) IsZero() bool { return z.N == 7 }
+
+type Zeroer interface {
+	IsZero() bool
+}
+
+type NamedSlice []int
+
+func (s NamedSlice) IsZero() bool { return len(s) == 3 }
+
+type PlainS struct {
+	A int
+	B string
+}
+
+type NonComp struct {
+	S []int
+	M map[string]int
+	P PlainS
+}
+
+type EmptyBox struct {
+	I     int            `json:"i,omitempty"`
+	I8    int8           `json:"i8,omitempty"`
+	U16   uint16         `json:"u16,omitempty"`
+	Up    uintptr        `json:"up,omitempty"`
+	S     string         `json:"s,omitempty"`
+	B     bool           `json:"b,omitempty"`
+	F     float64        `json:"f,omitempty"`
+	F32   float32        `json:"f32,omitempty"`
+	Sl    []int          `json:"sl,omitempty"`
+	M     map[string]int `json:"m,omitempty"`
+	A0    [0]int         `json:"a0,omitempty"`
+	A2    [2]int         `json:"a2,omitempty"`
+	P     *int?          `json:"p,omitempty"`
+	St    PlainS         `json:"st,omitempty"`
+	T     time.Time      `json:"t,omitempty"`
+	Any   any            `json:"any,omitempty"`
+	NS    NamedSlice     `json:"ns,omitempty"`
+	NoGen any            `json:"-"`
+}
+
+type ZeroBox struct {
+	I     int            `json:"i,omitzero"`
+	S     string         `json:"s,omitzero"`
+	F     float64        `json:"f,omitzero"`
+	B     bool           `json:"b,omitzero"`
+	Sl    []int          `json:"sl,omitzero"`
+	A2    [2]int         `json:"a2,omitzero"`
+	AS    [2][]int       `json:"as,omitzero"`
+	St    PlainS         `json:"st,omitzero"`
+	NC    NonComp        `json:"nc,omitzero"`
+	T     time.Time      `json:"t,omitzero"`
+	ZV    ZeroVal        `json:"zv,omitzero"`
+	ZP    ZeroPtr        `json:"zp,omitzero"`
+	PZP   *ZeroPtr?      `json:"pzp,omitzero"`
+	PZV   *ZeroVal?      `json:"pzv,omitzero"`
+	NS    NamedSlice     `json:"ns,omitzero"`
+	Z     Zeroer         `json:"z,omitzero"`
+	Big   big.Int        `json:"big,omitzero"`
+	NoGen any            `json:"-"`
+}
+
+type OmitRoot struct {
+	E   EmptyBox     `json:"e"`
+	Z   ZeroBox      `json:"z"`
+	PE  *EmptyBox?   `json:"pe"`
+	PZ  *ZeroBox?    `json:"pz"`
+	T   time.Time    `json:"t,omitzero"`
+	A   [2]int       `json:"a,omitzero"`
+	St  PlainS       `json:"st,omitzero"`
+	NC  NonComp      `json:"nc,omitzero"`
+	NS  NamedSlice   `json:"ns,omitzero"`
+	NSE NamedSlice   `json:"nse,omitempty"`
+	Big big.Int      `json:"big,omitzero"`
+	M   map[string]int `json:"m,omitempty,omitzero"`
+}
+
+type omitRootMirror OmitRoot
+
+func TestStaticEncoderOmitParity(t *testing.T) {
+	one := 1
+	full := EmptyBox{I: 5, I8: -1, U16: 3, Up: 1, S: "x", B: true, F: 1.5, F32: 1.5, Sl: []int{1}, M: map[string]int{"a": 1}, P: &one, St: PlainS{A: 1}, T: time.Unix(1, 0).UTC(), Any: 0, NS: NamedSlice{1, 2, 3}}
+	empties := EmptyBox{Sl: []int{}, M: map[string]int{}, NS: NamedSlice{}}
+	zeroes := ZeroBox{ZV: ZeroVal{N: 7}, ZP: ZeroPtr{N: 7}, PZP: &ZeroPtr{N: 7}, PZV: &ZeroVal{N: 7}, NS: NamedSlice{1, 2, 3}, Z: ZeroVal{N: 7}}
+	kept := ZeroBox{I: 1, S: "x", F: -1, B: true, Sl: []int{}, A2: [2]int{0, 1}, AS: [2][]int{nil, {}}, St: PlainS{B: "x"}, NC: NonComp{M: map[string]int{}}, T: time.Unix(1, 0).UTC(), ZV: ZeroVal{N: 1}, ZP: ZeroPtr{N: 1}, PZP: &ZeroPtr{N: 1}, PZV: &ZeroVal{N: 1}, NS: NamedSlice{}, Z: &ZeroPtr{N: 1}}
+	kept.Big = *big.NewInt(5)
+	ptrZero := ZeroBox{Z: &ZeroPtr{N: 7}}
+	roots := []OmitRoot{
+		{},
+		{E: full, Z: kept, PE: &full, PZ: &kept, T: time.Unix(2, 0).UTC(), A: [2]int{1, 0}, St: PlainS{A: 2}, NC: NonComp{S: []int{}}, NS: NamedSlice{1}, NSE: NamedSlice{1}, M: map[string]int{}},
+		{E: empties, Z: zeroes, PE: &empties, PZ: &zeroes, NS: NamedSlice{4, 5, 6}, NSE: NamedSlice{}, M: map[string]int{"a": 1}},
+		{Z: ptrZero, PZ: &ptrZero},
+	}
+	roots[1].Big = *big.NewInt(-3)
+	for i, r := range roots {
+		sameOutcome(t, "omit "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(omitRootMirror(r))))
+	}
+}
+
+type ZShape interface {
+	ZCircle | ZSquare
+}
+
+type ZCircle struct {
+	R int64 `json:"r"`
+}
+
+type ZSquare struct {
+	S int64 `json:"s"`
+}
+
+type UnionZero struct {
+	S ZShape   `json:"s,omitzero"`
+	E ZShape   `json:"e,omitempty"`
+	L []ZShape `json:"l"`
+}
+
+type unionZeroMirror UnionZero
+
+func TestStaticEncoderUnionOmitZero(t *testing.T) {
+	for i, r := range []UnionZero{{}, {S: ZCircle{}, E: ZSquare{}}, {S: ZSquare{S: 2}, L: []ZShape{ZCircle{R: 1}, ZSquare{}}}} {
+		sameOutcome(t, "union omit "+string(rune('0'+i)), outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(unionZeroMirror(r))))
+	}
+}
+
+type TKey int
+
+func (k TKey) MarshalText() ([]byte, error) {
+	return []byte("k" + string(rune('a'+int(k)))), nil
+}
+
+type PKey struct {
+	N int
+}
+
+func (k *PKey) MarshalText() ([]byte, error) {
+	return []byte("p" + string(rune('a'+k.N))), nil
+}
+
+type SKey string
+
+func (k SKey) MarshalText() ([]byte, error) {
+	return []byte("ignored"), nil
+}
+
+type BadText int
+
+func (BadText) MarshalText() ([]byte, error) {
+	return nil, errBadText
+}
+
+var errBadText = errors.New("bad text key")
+
+type KeyBox struct {
+	T     map[TKey]int    `json:"t"`
+	P     map[*PKey]int   `json:"p"`
+	S     map[SKey]int    `json:"s"`
+	NoGen any             `json:"-"`
+}
+
+type KeyRoot struct {
+	B   KeyBox             `json:"b"`
+	Bad []map[BadText]int  `json:"bad"`
+}
+
+type keyRootMirror KeyRoot
+
+func TestStaticEncoderMapKeys(t *testing.T) {
+	r := KeyRoot{B: KeyBox{T: map[TKey]int{2: 1, 0: 2}, P: map[*PKey]int{&PKey{N: 1}: 1, &PKey{N: 0}: 2}, S: map[SKey]int{"b": 1, "a": 2}}}
+	sameOutcome(t, "map keys", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(keyRootMirror(r))))
+	var gerr, werr error
+	bad := KeyRoot{Bad: []map[BadText]int{{1: 1}}}
+	_, gerr = bad.MarshalJSON()
+	_, werr = json.Marshal(keyRootMirror(bad))
+	if gerr == nil || werr == nil {
+		t.Fatalf("failing MarshalText key: generated error %v, encoding/json error %v", gerr, werr)
+	}
+	if !strings.Contains(gerr.Error(), "bad text key") {
+		t.Fatalf("failing MarshalText key error %q lost the method error", gerr.Error())
+	}
+}
+
+type CNodeMap map[string](*CNode?)
+
+type CNodeList [](*CNode?)
+
+type CNode struct {
+	Name string    `json:"name"`
+	Kids []any     `json:"kids"`
+	M    CNodeMap  `json:"m"`
+	S    CNodeList `json:"s"`
+}
+
+type CNodeMirrorMap map[string](*CNodeMirror?)
+
+type CNodeMirrorList [](*CNodeMirror?)
+
+type CNodeMirror struct {
+	Name  string          `json:"name"`
+	Kids  []any           `json:"kids"`
+	M     CNodeMirrorMap  `json:"m"`
+	S     CNodeMirrorList `json:"s"`
+	NoGen any             `json:"-"`
+}
+
+type CHolder struct {
+	C *CNode?
+}
+
+type CHolderMirror struct {
+	C *CNodeMirror?
+}
+
+type cycleCase struct {
+	name string
+	link func(c *CNode, m *CNodeMirror)
+}
+
+func TestStaticEncoderCycleAcrossDynamicValues(t *testing.T) {
+	cases := []cycleCase{
+		{"interface", func(c *CNode, m *CNodeMirror) { c.Kids, m.Kids = []any{c}, []any{m} }},
+		{"interface map", func(c *CNode, m *CNodeMirror) {
+			c.Kids, m.Kids = []any{map[string]any{"c": c}}, []any{map[string]any{"c": m}}
+		}},
+		{"interface slice", func(c *CNode, m *CNodeMirror) { c.Kids, m.Kids = []any{[]any{c}}, []any{[]any{m}} }},
+		{"interface struct", func(c *CNode, m *CNodeMirror) {
+			c.Kids, m.Kids = []any{CHolder{C: c}}, []any{CHolderMirror{C: m}}
+		}},
+		{"map edge", func(c *CNode, m *CNodeMirror) {
+			c.M, m.M = CNodeMap{"self": c}, CNodeMirrorMap{"self": m}
+		}},
+		{"slice edge", func(c *CNode, m *CNodeMirror) {
+			c.S, m.S = CNodeList{c}, CNodeMirrorList{m}
+		}},
+		{"map edge to interface", func(c *CNode, m *CNodeMirror) {
+			inner, innerMirror := map[string]any{}, map[string]any{}
+			inner["c"], innerMirror["c"] = c, m
+			c.Kids, m.Kids = []any{inner}, []any{innerMirror}
+			c.M, m.M = CNodeMap{"next": c}, CNodeMirrorMap{"next": m}
+		}},
+	}
+	for _, tc := range cases {
+		c, m := &CNode{Name: "c"}, &CNodeMirror{Name: "c"}
+		tc.link(c, m)
+		_, gerr := c.MarshalJSON()
+		_, werr := json.Marshal(m)
+		sameCycle(t, tc.name, gerr, werr)
+	}
+}
+
+type UWrap struct {
+	G *CNode?
+}
+
+func (u UWrap) MarshalJSON() ([]byte, error) {
+	g := u.G
+	if g == nil {
+		return []byte("null"), nil
+	}
+	return json.Marshal(g)
+}
+
+type UHolder struct {
+	U  UWrap `json:"u"`
+	Us []any `json:"us"`
+}
+
+type uHolderMirror UHolder
+
+func TestStaticEncoderUserMethodMarshalsGenerated(t *testing.T) {
+	inner := &CNode{Name: "inner", Kids: []any{"k", map[string]any{"n": json.Number("1")}}}
+	r := UHolder{U: UWrap{G: inner}, Us: []any{UWrap{G: inner}, UWrap{}}}
+	sameOutcome(t, "user method marshals a generated struct", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(uHolderMirror(r))))
+}
+
+type DNode struct {
+	Next []any `json:"next"`
+}
+
+type DNodeMirror struct {
+	Next  []any `json:"next"`
+	NoGen any   `json:"-"`
+}
+
+type DRoot struct {
+	Root DNode `json:"root"`
+}
+
+type DRootMirror struct {
+	Root  DNodeMirror `json:"root"`
+	NoGen any         `json:"-"`
+}
+
+type TNode struct {
+	Tags []int   `json:"tags"`
+	Next *TNode? `json:"next,omitempty"`
+}
+
+type TNodeMirror struct {
+	Tags  []int         `json:"tags"`
+	Next  *TNodeMirror? `json:"next,omitempty"`
+	NoGen any           `json:"-"`
+}
+
+func deepDirect(n int, end []any) (DNode, DNodeMirror) {
+	g, m := DNode{Next: end}, DNodeMirror{Next: end}
+	for range n {
+		g, m = DNode{Next: []any{g}}, DNodeMirror{Next: []any{m}}
+	}
+	return g, m
+}
+
+func deepThroughMaps(n int, end []any) (DNode, DNodeMirror) {
+	g, m := DNode{Next: end}, DNodeMirror{Next: end}
+	for range n {
+		g, m = DNode{Next: []any{map[string]any{"d": g}}}, DNodeMirror{Next: []any{map[string]any{"d": m}}}
+	}
+	return g, m
+}
+
+func deepThroughPointers(n int, end []any) (DNode, DNodeMirror) {
+	g, m := DNode{Next: end}, DNodeMirror{Next: end}
+	for range n {
+		inner, innerMirror := g, m
+		g, m = DNode{Next: []any{&inner}}, DNodeMirror{Next: []any{&innerMirror}}
+	}
+	return g, m
+}
+
+func deepTags(n int, tags []int) (TNode, TNodeMirror) {
+	g, m := TNode{Tags: tags}, TNodeMirror{Tags: tags}
+	for range n {
+		inner, innerMirror := g, m
+		g, m = TNode{Next: &inner}, TNodeMirror{Next: &innerMirror}
+	}
+	return g, m
+}
+
+type depthStep struct {
+	delta int
+	name  string
+}
+
+var depthSteps = []depthStep{{-1, "limit-1"}, {0, "limit"}, {1, "limit+1"}}
+
+func jsonDepthBounded() bool {
+	var v any
+	for range 10001 {
+		v = []any{v}
+	}
+	_, err := json.Marshal(v)
+	return err != nil
+}
+
+type depthChain struct {
+	name  string
+	limit int
+	run   func(n int) (outcome, outcome)
+}
+
+func checkDepthChains(t *testing.T, chains []depthChain) {
+	t.Helper()
+	bounded := jsonDepthBounded()
+	for _, c := range chains {
+		for _, step := range depthSteps {
+			gen, std := c.run(c.limit + step.delta)
+			label := c.name + ", n = " + step.name
+			if want := step.delta <= 0 || !bounded; (std.err == nil) != want {
+				t.Fatalf("%s: encoding/json error %v, want success %v", label, std.err, want)
+			}
+			sameDepthOutcome(t, label, gen, std)
+		}
+	}
+}
+
+func dynamicDepthChains(tail string, end []any) []depthChain {
+	return []depthChain{
+		{"direct, " + tail, 4999, func(n int) (outcome, outcome) {
+			g, m := deepDirect(n, end)
+			return outcomeOf(g.MarshalJSON()), outcomeOf(json.Marshal(m))
+		}},
+		{"direct under a root object, " + tail, 4999, func(n int) (outcome, outcome) {
+			g, m := deepDirect(n, end)
+			return outcomeOf(DRoot{Root: g}.MarshalJSON()), outcomeOf(json.Marshal(DRootMirror{Root: m}))
+		}},
+		{"through maps, " + tail, 3333, func(n int) (outcome, outcome) {
+			g, m := deepThroughMaps(n, end)
+			return outcomeOf(g.MarshalJSON()), outcomeOf(json.Marshal(m))
+		}},
+		{"through interface pointers, " + tail, 4999, func(n int) (outcome, outcome) {
+			g, m := deepThroughPointers(n, end)
+			return outcomeOf(g.MarshalJSON()), outcomeOf(json.Marshal(m))
+		}},
+		{"through interface pointers under a root object, " + tail, 4999, func(n int) (outcome, outcome) {
+			g, m := deepThroughPointers(n, end)
+			return outcomeOf(DRoot{Root: g}.MarshalJSON()), outcomeOf(json.Marshal(DRootMirror{Root: m}))
+		}},
+	}
+}
+
+func TestStaticEncoderDepthAcrossDynamicValues(t *testing.T) {
+	checkDepthChains(t, dynamicDepthChains("nil tail", nil))
+	checkDepthChains(t, dynamicDepthChains("empty tail", []any{}))
+}
+
+func tagChain(name string, tags []int, limit int) depthChain {
+	return depthChain{name, limit, func(n int) (outcome, outcome) {
+		g, m := deepTags(n, tags)
+		return outcomeOf(g.MarshalJSON()), outcomeOf(json.Marshal(m))
+	}}
+}
+
+func TestStaticEncoderDepthCountsScalarSlices(t *testing.T) {
+	checkDepthChains(t, []depthChain{
+		tagChain("nil tags", nil, 9999),
+		tagChain("empty tags", []int{}, 9999),
+		tagChain("one tag", []int{1}, 9998),
+	})
+}
+
+type OptStamp int64
+
+func (s OptStamp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(int64(s) * 10)
+}
+
+type OptWire struct {
+	OS  ([]int64)?              `json:"os"`
+	OM  (map[string]int64)?     `json:"om"`
+	OA  ([2]string)?            `json:"oa"`
+	SO  [](int64?)              `json:"so"`
+	MO  map[string](int64?)     `json:"mo"`
+	AO  [2](string?)            `json:"ao"`
+	OSP ([](*int64?))?          `json:"osp"`
+	SOS [](([]int64)?)          `json:"sos"`
+	OSS ([][]int64)?            `json:"oss"`
+	SSO [][](int64?)            `json:"sso"`
+	MOS map[string](([]int64)?) `json:"mos"`
+	OMS (map[string][]int64)?   `json:"oms"`
+	MSO map[string][](int64?)   `json:"mso"`
+	O   int?                    `json:"o"`
+	ST  [](OptStamp?)           `json:"st"`
+}
+
+type optWireMirror OptWire
+
+func TestStaticEncoderOptionComposites(t *testing.T) {
+	seven := int64(7)
+	cases := []struct {
+		name string
+		w    OptWire
+	}{
+		{"absent options", OptWire{}},
+		{"present empty payloads", OptWire{
+			OS: []int64{}, OM: map[string]int64{}, OA: [2]string{}, SO: [](int64?){}, MO: map[string](int64?){},
+			OSP: [](*int64?){}, SOS: [](([]int64)?){}, OSS: [][]int64{}, SSO: [][](int64?){},
+			MOS: map[string](([]int64)?){}, OMS: map[string][]int64{}, MSO: map[string][](int64?){}, ST: [](OptStamp?){},
+		}},
+		{"present nil payloads", OptWire{OS: []int64(nil), OM: map[string]int64(nil), OSP: [](*int64?)(nil), OSS: [][]int64(nil), OMS: map[string][]int64(nil)}},
+		{"every option present", OptWire{
+			OS:  []int64{1, 2},
+			OM:  map[string]int64{"y": 1, "x": 2},
+			OA:  [2]string{"p", "q"},
+			SO:  [](int64?){7, nil},
+			MO:  map[string](int64?){"b": 2, "a": nil, "c": 3},
+			AO:  [2](string?){"p", nil},
+			OSP: [](*int64?){&seven, nil},
+			SOS: [](([]int64)?){[]int64{1}, nil, []int64{}},
+			OSS: [][]int64{{1, 2}, nil},
+			SSO: [][](int64?){{3, nil}, nil},
+			MOS: map[string](([]int64)?){"k": []int64{4}, "n": nil},
+			OMS: map[string][]int64{"k": {5}, "n": nil},
+			MSO: map[string][](int64?){"k": {6, nil}},
+			O:   9,
+			ST:  [](OptStamp?){OptStamp(3), nil},
+		}},
+	}
+	for _, c := range cases {
+		sameOutcome(t, c.name, outcomeOf(c.w.MarshalJSON()), outcomeOf(json.Marshal(optWireMirror(c.w))))
+	}
+}
+
+type NumQuoteRoot struct {
+	P *json.Number `json:"p,string"`
+	O *QuotedObj   `json:"o,string"`
+}
+
+type numQuoteRootMirror NumQuoteRoot
+
+func TestStaticEncoderEdgeStringOption(t *testing.T) {
+	seven, obj := json.Number("7"), QuotedObj(1)
+	r := NumQuoteRoot{P: &seven, O: &obj}
+	got := sameOutcome(t, "edge string option", outcomeOf(r.MarshalJSON()), outcomeOf(json.Marshal(numQuoteRootMirror(r))))
+	if string(got) != `{"p":"7","o":{"k":1}}` {
+		t.Fatalf("edge string option: got %s", got)
+	}
+}

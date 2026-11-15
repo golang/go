@@ -13,55 +13,39 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unsafe"
 )
 
 // Walk is one root MarshalJSON call's traversal state. The zero value
-// is ready: Gen is filled by generated code before any stateful edge,
-// and the seen set is created lazily past the threshold so the flat
-// scalar path never allocates.
+// is ready, and the seen set is created lazily past the threshold so the
+// flat scalar path never allocates.
 type Walk struct {
-	// Gen holds the exact generated struct types this root may meet
-	// through interface or reflective edges, as built by generated
-	// AddType calls. Membership decides dispatch, never output.
-	Gen      []reflect.Type
+	// Gen encodes a dynamic value whose type is one of the generated
+	// struct types the root may meet, or a pointer to one, appending to
+	// the buffer with this walk's state. It reports false for any other
+	// type. Generated code sets it before any stateful edge.
+	Gen      func(*Walk, []byte, any) ([]byte, bool, error)
 	fields   map[reflect.Type][]walkField
 	ptrLevel uint
 	depth    uint
-	seen     map[any]struct{}
+	seen     map[walkVisit]struct{}
 	depthErr *stdjson.SyntaxError
 }
 
 type walkVisit struct {
-	typ reflect.Type
-	ptr any
+	typ any
+	ptr unsafe.Pointer
 	len int
 }
 
-// AddType records t and its pointer/value counterpart for dispatch. A
-// nil t is ignored so generated code needs no nil guard around
-// TypeOf on interface values. Generated code emits AddType only for
-// statically typed paths the compiler knows are generated-side (plus
-// the root pair); interface-typed paths never contribute, so a user
-// method type met only dynamically can never enter Gen.
-func (s *Walk) AddType(t reflect.Type) {
-	if t == nil {
-		return
-	}
-	s.Gen = append(s.Gen, t)
-	if t.Kind() == reflect.Pointer {
-		s.Gen = append(s.Gen, t.Elem())
-	} else {
-		s.Gen = append(s.Gen, reflect.PointerTo(t))
-	}
+const startDetectingCyclesAfter = 1000
+
+func typeToken[V any]() any {
+	return (*V)(nil)
 }
 
-func (s *Walk) inGen(t reflect.Type) bool {
-	for _, g := range s.Gen {
-		if g == t {
-			return true
-		}
-	}
-	return false
+func valueToken(t reflect.Type) any {
+	return reflect.Zero(reflect.PointerTo(t)).Interface()
 }
 
 func cycleError(v reflect.Value) error {
@@ -79,6 +63,17 @@ func (s *Walk) EnterFrame(offset int64) error {
 	return nil
 }
 
+// EnterElems records the frame of a slice or map holding n elements.
+// encoding/json writes an empty one as a single token without opening
+// a frame, so only a non-empty one counts against the depth bound.
+func (s *Walk) EnterElems(offset int64, n int) error {
+	if n == 0 {
+		s.depth++
+		return nil
+	}
+	return s.EnterFrame(offset)
+}
+
 // RebaseDepthError translates this walk's own depth error from a nested
 // value buffer to its caller's buffer. User errors, including user
 // SyntaxErrors, are returned untouched.
@@ -89,187 +84,288 @@ func (s *Walk) RebaseDepthError(err error, prefix int64) error {
 	return err
 }
 
-// LeaveFrame closes an enterFrame edge.
+// LeaveFrame closes an EnterFrame edge.
 func (s *Walk) LeaveFrame() {
 	s.depth--
 }
 
-// Enter records a pointer, map, or slice edge for the value held in p,
-// reporting the reflective cycle error on a repeat visit past the
-// threshold. Generated code calls Enter with the edge value itself;
-// other kinds are ignored so sites need no kind guard.
-func (s *Walk) Enter(p any) error {
-	v := reflect.ValueOf(p)
-	switch v.Kind() {
-	case reflect.Pointer, reflect.Map, reflect.Slice:
-	default:
-		return nil
+func (s *Walk) visit(key walkVisit) bool {
+	if _, ok := s.seen[key]; ok {
+		s.ptrLevel--
+		return false
 	}
-	return s.enterValue(v)
+	if s.seen == nil {
+		s.seen = make(map[walkVisit]struct{})
+	}
+	s.seen[key] = struct{}{}
+	return true
 }
 
-// Leave closes an Enter edge, dropping the visit from the ancestor set.
-func (s *Walk) Leave(p any) {
-	v := reflect.ValueOf(p)
-	switch v.Kind() {
-	case reflect.Pointer, reflect.Map, reflect.Slice:
-	default:
-		return
-	}
-	s.leaveValue(v)
-}
-
-func (s *Walk) enterValue(v reflect.Value) error {
-	s.ptrLevel++
-	if s.ptrLevel > 1000 {
-		k := visitKey(v)
-		if _, ok := s.seen[k]; ok {
-			s.ptrLevel--
-			return cycleError(v)
-		}
-		if s.seen == nil {
-			s.seen = make(map[any]struct{})
-		}
-		s.seen[k] = struct{}{}
-	}
-	return nil
-}
-
-func (s *Walk) leaveValue(v reflect.Value) {
-	if s.ptrLevel > 1000 {
-		delete(s.seen, visitKey(v))
+func (s *Walk) leave(key walkVisit) {
+	if s.ptrLevel > startDetectingCyclesAfter {
+		delete(s.seen, key)
 	}
 	s.ptrLevel--
 }
 
-// Marshal encodes v with shared traversal state, returning fresh bytes
-// like MarshalField. It is the funnel for every stateful edge the
-// generated helpers cannot spell: slices, arrays, maps, interfaces, and
-// unspellable or dynamic struct values.
-func (s *Walk) Marshal(v any) ([]byte, error) {
-	buf, err := s.appendValue(nil, reflect.ValueOf(v))
-	if err != nil {
-		return nil, err
+// EnterPointer records the non-nil pointer p as an ancestor of the
+// value being encoded. Past the pointer-depth threshold a repeat visit
+// reports the cycle error of encoding/json.
+func EnterPointer[P ~*T, T any](s *Walk, p P) error {
+	if s.ptrLevel++; s.ptrLevel <= startDetectingCyclesAfter || s.visit(pointerVisit(p)) {
+		return nil
 	}
-	return buf, nil
+	return cycleError(reflect.ValueOf(p))
+}
+
+// LeavePointer closes an EnterPointer edge.
+func LeavePointer[P ~*T, T any](s *Walk, p P) {
+	s.leave(pointerVisit(p))
+}
+
+// EnterSlice records the non-nil slice v as an ancestor, keyed by its
+// backing array and length, like EnterPointer.
+func EnterSlice[S ~[]E, E any](s *Walk, v S) error {
+	if s.ptrLevel++; s.ptrLevel <= startDetectingCyclesAfter || s.visit(sliceVisit(v)) {
+		return nil
+	}
+	return cycleError(reflect.ValueOf(v))
+}
+
+// LeaveSlice closes an EnterSlice edge.
+func LeaveSlice[S ~[]E, E any](s *Walk, v S) {
+	s.leave(sliceVisit(v))
+}
+
+// EnterMap records the non-nil map m as an ancestor, like EnterPointer.
+func EnterMap[M ~map[K]V, K comparable, V any](s *Walk, m M) error {
+	if s.ptrLevel++; s.ptrLevel <= startDetectingCyclesAfter || s.visit(mapVisit(m)) {
+		return nil
+	}
+	return cycleError(reflect.ValueOf(m))
+}
+
+// LeaveMap closes an EnterMap edge.
+func LeaveMap[M ~map[K]V, K comparable, V any](s *Walk, m M) {
+	s.leave(mapVisit(m))
+}
+
+func (s *Walk) enterValue(v reflect.Value) error {
+	if s.ptrLevel++; s.ptrLevel <= startDetectingCyclesAfter || s.visit(valueVisit(v)) {
+		return nil
+	}
+	return cycleError(v)
+}
+
+func (s *Walk) leaveValue(v reflect.Value) {
+	s.leave(valueVisit(v))
+}
+
+func sliceData[S ~[]E, E any](v S) unsafe.Pointer {
+	return unsafe.Pointer(unsafe.SliceData([]E(v)))
+}
+
+func mapData[M ~map[K]V, K comparable, V any](m M) unsafe.Pointer {
+	return *(*unsafe.Pointer)(unsafe.Pointer(&m))
+}
+
+// AppendAny appends the encoding of v with this walk's state. Generated
+// code calls it for a value whose dynamic type is known only at run time
+// and for a value of a type it cannot spell. A value whose type Gen knows
+// is encoded by generated code; any other value is walked the way
+// encoding/json walks it, so cycles and the nesting depth stay counted
+// across generated and dynamic values alike.
+func (s *Walk) AppendAny(buf []byte, v any) ([]byte, error) {
+	return s.appendValue(buf, reflect.ValueOf(v))
+}
+
+func (s *Walk) appendGen(buf []byte, rv reflect.Value) ([]byte, bool, error) {
+	if s.Gen == nil || !rv.CanInterface() {
+		return buf, false, nil
+	}
+	if k := rv.Kind(); k != reflect.Struct && k != reflect.Pointer {
+		return buf, false, nil
+	}
+	return s.Gen(s, buf, rv.Interface())
 }
 
 func (s *Walk) appendValue(buf []byte, rv reflect.Value) ([]byte, error) {
 	if !rv.IsValid() {
 		return append(buf, "null"...), nil
 	}
-	t := rv.Type()
-	if t == numberType {
+	if rv.Type() == numberType {
 		return appendNumber(buf, rv)
 	}
-	if s.honorsJSONMethod(rv) {
+	if out, ok, err := s.appendGen(buf, rv); ok {
+		return out, err
+	}
+	if hasJSONMethod(rv) {
 		return appendHonored(buf, rv)
 	}
+	return s.appendKind(buf, rv)
+}
+
+func (s *Walk) appendKind(buf []byte, rv reflect.Value) ([]byte, error) {
 	switch rv.Kind() {
-	case reflect.Interface:
-		if rv.IsNil() {
-			return append(buf, "null"...), nil
-		}
-		return s.appendValue(buf, rv.Elem())
-	case reflect.Pointer:
-		if rv.IsNil() {
-			return append(buf, "null"...), nil
-		}
-		if err := s.enterValue(rv); err != nil {
-			return buf, err
-		}
-		buf, err := s.appendValue(buf, rv.Elem())
-		s.leaveValue(rv)
-		return buf, err
+	case reflect.Interface, reflect.Pointer:
+		return s.appendIndirect(buf, rv)
+	case reflect.Slice:
+		return s.appendSlice(buf, rv)
+	case reflect.Array:
+		return s.appendArray(buf, rv)
+	case reflect.Map:
+		return s.appendMapValue(buf, rv)
+	case reflect.Struct:
+		return s.appendStruct(buf, rv)
+	}
+	return appendScalar(buf, rv)
+}
+
+func appendScalar(buf []byte, rv reflect.Value) ([]byte, error) {
+	switch rv.Kind() {
 	case reflect.Bool:
-		if rv.Bool() {
-			return append(buf, "true"...), nil
-		}
-		return append(buf, "false"...), nil
+		return strconv.AppendBool(buf, rv.Bool()), nil
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return AppendInt(buf, rv.Int()), nil
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
 		return AppendUint(buf, rv.Uint()), nil
 	case reflect.Float32, reflect.Float64:
-		bits := int(t.Size()) * 8
-		f := rv.Float()
-		if f-f != 0 {
-			return buf, FloatErr(rv.Interface(), f, bits)
-		}
-		return AppendFloat(buf, f, bits), nil
+		return appendFloatValue(buf, rv)
 	case reflect.String:
 		buf = append(buf, '"')
 		buf = AppendEscaped(buf, rv.String())
 		return append(buf, '"'), nil
-	case reflect.Slice:
-		if rv.IsNil() {
-			return append(buf, "null"...), nil
-		}
-		if rv.Type().Elem().Kind() == reflect.Uint8 && !sliceElemHasJSONMethod(rv.Type().Elem()) {
-			buf = append(buf, '"')
-			buf = append(buf, base64.StdEncoding.EncodeToString(rv.Bytes())...)
-			return append(buf, '"'), nil
-		}
-		if err := s.EnterFrame(int64(len(buf))); err != nil {
-			return buf, err
-		}
-		defer s.LeaveFrame()
-		if err := s.enterValue(rv); err != nil {
-			return buf, err
-		}
-		buf = append(buf, '[')
-		for i := range rv.Len() {
-			if i > 0 {
-				buf = append(buf, ',')
-			}
-			var err error
-			buf, err = s.appendValue(buf, rv.Index(i))
-			if err != nil {
-				s.leaveValue(rv)
-				return buf, err
-			}
-		}
-		buf = append(buf, ']')
-		s.leaveValue(rv)
-		return buf, nil
-	case reflect.Array:
-		if err := s.EnterFrame(int64(len(buf))); err != nil {
-			return buf, err
-		}
-		defer s.LeaveFrame()
-		buf = append(buf, '[')
-		for i := range rv.Len() {
-			if i > 0 {
-				buf = append(buf, ',')
-			}
-			var err error
-			buf, err = s.appendValue(buf, rv.Index(i))
-			if err != nil {
-				return buf, err
-			}
-		}
-		return append(buf, ']'), nil
-	case reflect.Map:
-		if err := s.checkMapKeys(rv); err != nil {
-			return buf, err
-		}
-		if rv.IsNil() {
-			return append(buf, "null"...), nil
-		}
-		if err := s.EnterFrame(int64(len(buf))); err != nil {
-			return buf, err
-		}
-		defer s.LeaveFrame()
-		if err := s.enterValue(rv); err != nil {
-			return buf, err
-		}
-		buf, err := s.appendMap(buf, rv)
-		s.leaveValue(rv)
-		return buf, err
-	case reflect.Struct:
-		return s.appendStruct(buf, rv)
 	}
-	return buf, &stdjson.UnsupportedTypeError{Type: t}
+	return buf, &stdjson.UnsupportedTypeError{Type: rv.Type()}
+}
+
+func appendFloatValue(buf []byte, rv reflect.Value) ([]byte, error) {
+	bits := int(rv.Type().Size()) * 8
+	f := rv.Float()
+	if f-f != 0 {
+		return buf, FloatErr(rv.Interface(), f, bits)
+	}
+	return AppendFloat(buf, f, bits), nil
+}
+
+func (s *Walk) appendIndirect(buf []byte, rv reflect.Value) ([]byte, error) {
+	if rv.IsNil() {
+		return append(buf, "null"...), nil
+	}
+	if rv.Kind() == reflect.Interface {
+		return s.appendValue(buf, rv.Elem())
+	}
+	if err := s.enterValue(rv); err != nil {
+		return buf, err
+	}
+	buf, err := s.appendValue(buf, rv.Elem())
+	s.leaveValue(rv)
+	return buf, err
+}
+
+func (s *Walk) appendSlice(buf []byte, rv reflect.Value) ([]byte, error) {
+	if rv.IsNil() {
+		return append(buf, "null"...), nil
+	}
+	if rv.Type().Elem().Kind() == reflect.Uint8 && !sliceElemHasJSONMethod(rv.Type().Elem()) {
+		return AppendBase64(buf, rv.Bytes()), nil
+	}
+	if err := s.EnterElems(int64(len(buf)), rv.Len()); err != nil {
+		return buf, err
+	}
+	defer s.LeaveFrame()
+	if err := s.enterValue(rv); err != nil {
+		return buf, err
+	}
+	buf, err := s.appendElems(buf, rv)
+	s.leaveValue(rv)
+	return buf, err
+}
+
+func (s *Walk) appendArray(buf []byte, rv reflect.Value) ([]byte, error) {
+	if err := s.EnterFrame(int64(len(buf))); err != nil {
+		return buf, err
+	}
+	defer s.LeaveFrame()
+	return s.appendElems(buf, rv)
+}
+
+func (s *Walk) appendElems(buf []byte, rv reflect.Value) ([]byte, error) {
+	buf = append(buf, '[')
+	for i := range rv.Len() {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		var err error
+		if buf, err = s.appendValue(buf, rv.Index(i)); err != nil {
+			return buf, err
+		}
+	}
+	return append(buf, ']'), nil
+}
+
+func (s *Walk) appendMapValue(buf []byte, rv reflect.Value) ([]byte, error) {
+	if !walkMapKeySupported(rv.Type().Key()) {
+		return appendMarshaled(buf, rv.Interface())
+	}
+	if rv.IsNil() {
+		return append(buf, "null"...), nil
+	}
+	if err := s.EnterElems(int64(len(buf)), rv.Len()); err != nil {
+		return buf, err
+	}
+	defer s.LeaveFrame()
+	if err := s.enterValue(rv); err != nil {
+		return buf, err
+	}
+	buf, err := s.appendMap(buf, rv)
+	s.leaveValue(rv)
+	return buf, err
+}
+
+func (s *Walk) appendMap(buf []byte, rv reflect.Value) ([]byte, error) {
+	es := make([]MapEntry[reflect.Value], 0, rv.Len())
+	for mi := rv.MapRange(); mi.Next(); {
+		key, err := resolveWalkKey(mi.Key())
+		if err != nil {
+			return buf, keyError(rv.Type().String(), err)
+		}
+		es = append(es, MapEntry[reflect.Value]{key, mi.Value()})
+	}
+	buf = append(buf, '{')
+	for i, e := range sortEntries(es) {
+		if i > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = AppendEscaped(buf, e.Key)
+		buf = append(buf, '"', ':')
+		var err error
+		if buf, err = s.appendValue(buf, e.Value); err != nil {
+			return buf, err
+		}
+	}
+	return append(buf, '}'), nil
+}
+
+func resolveWalkKey(k reflect.Value) (string, error) {
+	if k.Kind() == reflect.String {
+		return k.String(), nil
+	}
+	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
+		if k.Kind() == reflect.Pointer && k.IsNil() {
+			return "", nil
+		}
+		text, err := tm.MarshalText()
+		return string(text), err
+	}
+	switch k.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(k.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		return strconv.FormatUint(k.Uint(), 10), nil
+	}
+	panic("unexpected map key type")
 }
 
 var numberType = reflect.TypeFor[stdjson.Number]()
@@ -279,7 +375,11 @@ func numberBody(rv reflect.Value) ([]byte, error) {
 }
 
 func appendNumber(buf []byte, rv reflect.Value) ([]byte, error) {
-	b, err := numberBody(rv)
+	return appendMarshaled(buf, stdjson.Number(rv.String()))
+}
+
+func appendMarshaled(buf []byte, v any) ([]byte, error) {
+	b, err := MarshalField(v)
 	if err != nil {
 		return buf, err
 	}
@@ -303,7 +403,7 @@ func (s *Walk) appendStringOptionValue(buf []byte, rv reflect.Value) ([]byte, er
 	if rv.Kind() == reflect.Pointer && !rv.IsNil() && rv.Type().Elem() == numberType {
 		return appendQuotedNumber(buf, rv.Elem())
 	}
-	if s.honorsJSONMethod(rv) {
+	if hasJSONMethod(rv) {
 		return appendHonored(buf, rv)
 	}
 	if rv.Kind() == reflect.Pointer {
@@ -312,47 +412,27 @@ func (s *Walk) appendStringOptionValue(buf []byte, rv reflect.Value) ([]byte, er
 		}
 		return s.appendStringOptionValue(buf, rv.Elem())
 	}
-	switch rv.Kind() {
-	case reflect.Bool:
-		if rv.Bool() {
-			return append(buf, `"true"`...), nil
-		}
-		return append(buf, `"false"`...), nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		buf = append(buf, '"')
-		buf = AppendInt(buf, rv.Int())
-		return append(buf, '"'), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		buf = append(buf, '"')
-		buf = AppendUint(buf, rv.Uint())
-		return append(buf, '"'), nil
-	case reflect.Float32, reflect.Float64:
-		bits := int(rv.Type().Size()) * 8
-		f := rv.Float()
-		if f-f != 0 {
-			return buf, FloatErr(rv.Interface(), f, bits)
-		}
-		buf = append(buf, '"')
-		buf = AppendFloat(buf, f, bits)
-		return append(buf, '"'), nil
-	case reflect.String:
+	return s.appendQuotedScalar(buf, rv)
+}
+
+func (s *Walk) appendQuotedScalar(buf []byte, rv reflect.Value) ([]byte, error) {
+	if rv.Kind() == reflect.String {
 		buf = append(buf, '"')
 		buf = AppendQuoted(buf, rv.String())
 		return append(buf, '"'), nil
 	}
-	return s.appendValue(buf, rv)
-}
-
-func (s *Walk) honorsJSONMethod(rv reflect.Value) bool {
-	return !s.inGen(rv.Type()) && hasJSONMethod(rv)
-}
-
-func appendHonored(buf []byte, rv reflect.Value) ([]byte, error) {
-	b, err := MarshalField(addrWalkInterface(rv))
+	if !isQuotedWalkKind(rv.Kind()) {
+		return s.appendValue(buf, rv)
+	}
+	buf, err := appendScalar(append(buf, '"'), rv)
 	if err != nil {
 		return buf, err
 	}
-	return append(buf, b...), nil
+	return append(buf, '"'), nil
+}
+
+func appendHonored(buf []byte, rv reflect.Value) ([]byte, error) {
+	return appendMarshaled(buf, addrWalkInterface(rv))
 }
 
 func addrWalkInterface(rv reflect.Value) any {
@@ -383,10 +463,7 @@ func hasJSONMethod(rv reflect.Value) bool {
 
 func sliceElemHasJSONMethod(elem reflect.Type) bool {
 	for _, iface := range walkMethodTypes {
-		if elem.Implements(iface) {
-			return true
-		}
-		if reflect.PointerTo(elem).Implements(iface) {
+		if elem.Implements(iface) || reflect.PointerTo(elem).Implements(iface) {
 			return true
 		}
 	}
@@ -409,57 +486,100 @@ func walkMapKeySupported(t reflect.Type) bool {
 	return t.Implements(textMarshalerType)
 }
 
-func (s *Walk) appendMap(buf []byte, rv reflect.Value) ([]byte, error) {
-	type kv struct {
-		ks string
-		v  reflect.Value
-	}
-	kvs := make([]kv, 0, rv.Len())
-	mi := rv.MapRange()
-	for mi.Next() {
-		ks, err := resolveWalkKey(mi.Key())
-		if err != nil {
-			return buf, fmt.Errorf("json: encoding error for type %q: %q", rv.Type().String(), err.Error())
-		}
-		kvs = append(kvs, kv{ks: ks, v: mi.Value()})
-	}
-	slices.SortFunc(kvs, func(a, b kv) int { return strings.Compare(a.ks, b.ks) })
-	buf = append(buf, '{')
-	for i := range kvs {
-		if i > 0 {
-			buf = append(buf, ',')
-		}
-		buf = append(buf, '"')
-		buf = AppendEscaped(buf, kvs[i].ks)
-		buf = append(buf, '"', ':')
-		var err error
-		buf, err = s.appendValue(buf, kvs[i].v)
-		if err != nil {
-			return buf, err
-		}
-	}
-	return append(buf, '}'), nil
+// AppendBase64 appends b as a JSON string holding its standard base64
+// encoding, the encoding/json form of a byte slice.
+func AppendBase64[S ~[]E, E ~uint8](dst []byte, b S) []byte {
+	dst = append(dst, '"')
+	dst = base64.StdEncoding.AppendEncode(dst, unsafe.Slice((*byte)(sliceData(b)), len(b)))
+	return append(dst, '"')
 }
 
-func resolveWalkKey(k reflect.Value) (string, error) {
-	if k.Kind() == reflect.String {
-		return k.String(), nil
+// MapEntry is one map entry with its key in JSON text form.
+type MapEntry[V any] struct {
+	Key   string
+	Value V
+}
+
+func sortEntries[V any](es []MapEntry[V]) []MapEntry[V] {
+	slices.SortFunc(es, func(a, b MapEntry[V]) int { return strings.Compare(a.Key, b.Key) })
+	return es
+}
+
+// StringEntries returns the entries of a string-keyed map sorted by key.
+// The error is always nil; every entry builder shares one result shape.
+func StringEntries[M ~map[K]V, K ~string, V any](m M) ([]MapEntry[V], error) {
+	es := make([]MapEntry[V], 0, len(m))
+	for k, v := range m {
+		es = append(es, MapEntry[V]{string(k), v})
 	}
-	if tm, ok := reflect.TypeAssert[encoding.TextMarshaler](k); ok {
-		if k.Kind() == reflect.Pointer && k.IsNil() {
-			return "", nil
-		}
-		text, err := tm.MarshalText()
+	return sortEntries(es), nil
+}
+
+// IntEntries returns the entries of a signed-integer-keyed map sorted by
+// the decimal key text. The error is always nil.
+func IntEntries[M ~map[K]V, K ~int | ~int8 | ~int16 | ~int32 | ~int64, V any](m M) ([]MapEntry[V], error) {
+	es := make([]MapEntry[V], 0, len(m))
+	for k, v := range m {
+		es = append(es, MapEntry[V]{strconv.FormatInt(int64(k), 10), v})
+	}
+	return sortEntries(es), nil
+}
+
+// UintEntries returns the entries of an unsigned-integer-keyed map sorted
+// by the decimal key text. The error is always nil.
+func UintEntries[M ~map[K]V, K ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr, V any](m M) ([]MapEntry[V], error) {
+	es := make([]MapEntry[V], 0, len(m))
+	for k, v := range m {
+		es = append(es, MapEntry[V]{strconv.FormatUint(uint64(k), 10), v})
+	}
+	return sortEntries(es), nil
+}
+
+// TextEntries returns the entries of a map whose non-pointer key type
+// implements encoding.TextMarshaler, sorted by the key text.
+func TextEntries[M ~map[K]V, K interface {
+	comparable
+	encoding.TextMarshaler
+}, V any](m M) ([]MapEntry[V], error) {
+	es := make([]MapEntry[V], 0, len(m))
+	for k, v := range m {
+		text, err := k.MarshalText()
 		if err != nil {
-			return "", err
+			return nil, keyError(reflect.TypeFor[M]().String(), err)
 		}
-		return string(text), nil
+		es = append(es, MapEntry[V]{string(text), v})
 	}
-	switch k.Kind() {
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return strconv.FormatInt(k.Int(), 10), nil
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-		return strconv.FormatUint(k.Uint(), 10), nil
+	return sortEntries(es), nil
+}
+
+// PointerTextEntries is TextEntries for a pointer key type; a nil key
+// has the empty text.
+func PointerTextEntries[M ~map[K]V, K interface {
+	~*E
+	encoding.TextMarshaler
+}, E any, V any](m M) ([]MapEntry[V], error) {
+	es := make([]MapEntry[V], 0, len(m))
+	for k, v := range m {
+		key, err := pointerKeyText(k)
+		if err != nil {
+			return nil, keyError(reflect.TypeFor[M]().String(), err)
+		}
+		es = append(es, MapEntry[V]{key, v})
 	}
-	panic("unexpected map key type")
+	return sortEntries(es), nil
+}
+
+func pointerKeyText[K interface {
+	~*E
+	encoding.TextMarshaler
+}, E any](k K) (string, error) {
+	if k == nil {
+		return "", nil
+	}
+	text, err := k.MarshalText()
+	return string(text), err
+}
+
+func keyError(typeName string, err error) error {
+	return fmt.Errorf("json: encoding error for type %q: %q", typeName, err.Error())
 }

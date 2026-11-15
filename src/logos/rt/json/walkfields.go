@@ -12,11 +12,16 @@ import (
 	"unicode"
 )
 
+type isZeroer interface {
+	IsZero() bool
+}
+
+var isZeroerType = reflect.TypeFor[isZeroer]()
+
 type walkField struct {
 	name      string
 	tag       bool
 	index     []int
-	typ       reflect.Type
 	omitEmpty bool
 	omitZero  bool
 	quoted    bool
@@ -37,60 +42,47 @@ type walkScan struct {
 }
 
 func (s *Walk) walkFieldsOf(t reflect.Type) []walkField {
-	if s.fields == nil {
-		s.fields = make(map[reflect.Type][]walkField)
-	}
 	if f, ok := s.fields[t]; ok {
 		return f
 	}
-	f := walkFields(t)
+	if s.fields == nil {
+		s.fields = make(map[reflect.Type][]walkField)
+	}
+	f := finishWalkFields(allWalkFields(t))
 	s.fields[t] = f
 	return f
 }
 
 func (sc *walkScan) scanType(f walkType) {
-	st := f.typ
-	for i := range st.NumField() {
-		sf := st.Field(i)
-		ft := walkFieldType(sf)
-		if ft == nil {
-			continue
+	for i := range f.typ.NumField() {
+		sf := f.typ.Field(i)
+		if ft, ok := walkFieldType(sf); ok {
+			sc.considerField(f, sf, i, ft)
 		}
-		sc.considerField(f, sf, i, *ft)
 	}
 }
 
-func walkFieldType(sf reflect.StructField) *reflect.Type {
-	if sf.Anonymous {
-		ft := sf.Type
-		if ft.Name() == "" && ft.Kind() == reflect.Pointer {
-			ft = ft.Elem()
-		}
-		if sf.PkgPath != "" && ft.Kind() != reflect.Struct {
-			return nil
-		}
-	} else if sf.PkgPath != "" {
-		return nil
+func derefUnnamed(t reflect.Type) reflect.Type {
+	if t.Name() == "" && t.Kind() == reflect.Pointer {
+		return t.Elem()
 	}
-	if sf.Tag.Get("json") == "-" {
-		return nil
+	return t
+}
+
+func walkFieldType(sf reflect.StructField) (reflect.Type, bool) {
+	ft := derefUnnamed(sf.Type)
+	if !sf.IsExported() && (!sf.Anonymous || ft.Kind() != reflect.Struct) {
+		return nil, false
 	}
-	ft := sf.Type
-	if ft.Name() == "" && ft.Kind() == reflect.Pointer {
-		ft = ft.Elem()
-	}
-	return &ft
+	return ft, sf.Tag.Get("json") != "-"
 }
 
 func (sc *walkScan) considerField(f walkType, sf reflect.StructField, i int, ft reflect.Type) {
-	name, opts := parseWalkTag(sf.Tag.Get("json"))
+	name, opts, _ := strings.Cut(sf.Tag.Get("json"), ",")
 	if !isValidWalkTag(name) {
 		name = ""
 	}
-	index := make([]int, len(f.index)+1)
-	copy(index, f.index)
-	index[len(f.index)] = i
-
+	index := append(slices.Clone(f.index), i)
 	if name == "" && sf.Anonymous && ft.Kind() == reflect.Struct {
 		sc.nextC[ft]++
 		if sc.nextC[ft] == 1 {
@@ -98,26 +90,24 @@ func (sc *walkScan) considerField(f walkType, sf reflect.StructField, i int, ft 
 		}
 		return
 	}
-	tagged := name != ""
-	if name == "" {
-		name = sf.Name
-	}
 	field := walkField{
-		name:      name,
-		tag:       tagged,
+		name:      cmp.Or(name, sf.Name),
+		tag:       name != "",
 		index:     index,
-		typ:       ft,
-		omitEmpty: walkTagOptions(opts).Contains("omitempty"),
-		omitZero:  walkTagOptions(opts).Contains("omitzero"),
-		quoted:    isQuotedWalkKind(ft.Kind()) && walkTagOptions(opts).Contains("string"),
+		omitEmpty: walkTagHas(opts, "omitempty"),
+		omitZero:  walkTagHas(opts, "omitzero"),
+		quoted:    isQuotedWalkKind(ft.Kind()) && walkTagHas(opts, "string"),
+		nameHTML:  `"` + string(AppendEscaped(nil, cmp.Or(name, sf.Name))) + `":`,
+		isZero:    walkIsZero(sf.Type),
 	}
-	buf := AppendEscaped(nil, field.name)
-	field.nameHTML = `"` + string(buf) + `":`
-	field.isZero = walkIsZero(sf.Type)
 	sc.fields = append(sc.fields, field)
 	if sc.count[f.typ] > 1 {
-		sc.fields = append(sc.fields, sc.fields[len(sc.fields)-1])
+		sc.fields = append(sc.fields, field)
 	}
+}
+
+func walkTagHas(opts, name string) bool {
+	return slices.Contains(strings.Split(opts, ","), name)
 }
 
 func isQuotedWalkKind(k reflect.Kind) bool {
@@ -133,15 +123,12 @@ func isQuotedWalkKind(k reflect.Kind) bool {
 }
 
 func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
-	if !fieldNeedsIsZero(ft) {
-		return nil
-	}
 	switch {
+	case !ft.Implements(isZeroerType) && !reflect.PointerTo(ft).Implements(isZeroerType):
+		return reflect.Value.IsZero
 	case ft.Kind() == reflect.Interface && ft.Implements(isZeroerType):
 		return func(v reflect.Value) bool {
-			return v.IsNil() ||
-				(v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) ||
-				v.Interface().(isZeroer).IsZero()
+			return v.IsNil() || (v.Elem().Kind() == reflect.Pointer && v.Elem().IsNil()) || v.Interface().(isZeroer).IsZero()
 		}
 	case ft.Kind() == reflect.Pointer && ft.Implements(isZeroerType):
 		return func(v reflect.Value) bool {
@@ -151,129 +138,76 @@ func walkIsZero(ft reflect.Type) func(reflect.Value) bool {
 		return func(v reflect.Value) bool {
 			return v.Interface().(isZeroer).IsZero()
 		}
-	default:
-		return func(v reflect.Value) bool {
-			if !v.CanAddr() {
-				v2 := reflect.New(v.Type()).Elem()
-				v2.Set(v)
-				v = v2
-			}
-			return v.Addr().Interface().(isZeroer).IsZero()
-		}
 	}
-}
-
-func fieldNeedsIsZero(ft reflect.Type) bool {
-	return ft.Implements(isZeroerType) || reflect.PointerTo(ft).Implements(isZeroerType)
-}
-
-func walkFields(t reflect.Type) []walkField {
-	return finishWalkFields(allWalkFields(t))
+	return func(v reflect.Value) bool {
+		if !v.CanAddr() {
+			v2 := reflect.New(v.Type()).Elem()
+			v2.Set(v)
+			v = v2
+		}
+		return v.Addr().Interface().(isZeroer).IsZero()
+	}
 }
 
 func allWalkFields(t reflect.Type) []walkField {
 	next := []walkType{{typ: t}}
-	var current []walkType
-	var count, nextCount map[reflect.Type]int
+	var count map[reflect.Type]int
 	visited := map[reflect.Type]bool{}
-	sc := &walkScan{}
 	var done []walkField
 	for len(next) > 0 {
-		current, next = next, current[:0]
-		count, nextCount = nextCount, map[reflect.Type]int{}
-		sc.fields = nil
-		sc.count = count
-		sc.nextC = nextCount
-		sc.next = next
-		for _, f := range current {
-			if visited[f.typ] {
-				continue
+		sc := &walkScan{count: count, nextC: map[reflect.Type]int{}}
+		for _, f := range next {
+			if !visited[f.typ] {
+				visited[f.typ] = true
+				sc.scanType(f)
 			}
-			visited[f.typ] = true
-			sc.scanType(f)
 		}
-		next = sc.next
-		nextCount = sc.nextC
 		done = append(done, sc.fields...)
+		next, count = sc.next, sc.nextC
 	}
 	return done
 }
 
+func compareWalkFields(a, b walkField) int {
+	if c := strings.Compare(a.name, b.name); c != 0 {
+		return c
+	}
+	if c := cmp.Compare(len(a.index), len(b.index)); c != 0 {
+		return c
+	}
+	if a.tag != b.tag {
+		if a.tag {
+			return -1
+		}
+		return +1
+	}
+	return slices.Compare(a.index, b.index)
+}
+
 func finishWalkFields(fields []walkField) []walkField {
-	slices.SortFunc(fields, func(a, b walkField) int {
-		if c := strings.Compare(a.name, b.name); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(len(a.index), len(b.index)); c != 0 {
-			return c
-		}
-		if a.tag != b.tag {
-			if a.tag {
-				return -1
-			}
-			return +1
-		}
-		return slices.Compare(a.index, b.index)
-	})
-
-	out := fields[:0]
+	slices.SortFunc(fields, compareWalkFields)
+	var out []walkField
 	for i := 0; i < len(fields); {
-		advance := 1
-		for i+advance < len(fields) && fields[i+advance].name == fields[i].name {
-			advance++
+		n := 1
+		for i+n < len(fields) && fields[i+n].name == fields[i].name {
+			n++
 		}
-		if advance == 1 {
+		if n == 1 || len(fields[i].index) != len(fields[i+1].index) || fields[i].tag != fields[i+1].tag {
 			out = append(out, fields[i])
-		} else if dominant, ok := dominantWalkField(fields[i : i+advance]); ok {
-			out = append(out, dominant)
 		}
-		i += advance
+		i += n
 	}
-
-	fields = out
-	slices.SortFunc(fields, func(a, b walkField) int {
-		return slices.Compare(a.index, b.index)
-	})
-	return fields
-}
-
-func dominantWalkField(fields []walkField) (walkField, bool) {
-	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) && fields[0].tag == fields[1].tag {
-		return walkField{}, false
-	}
-	return fields[0], true
-}
-
-func parseWalkTag(tag string) (string, string) {
-	name, opt, _ := strings.Cut(tag, ",")
-	return name, opt
-}
-
-type walkTagOptions string
-
-func (o walkTagOptions) Contains(optionName string) bool {
-	for s := string(o); s != ""; {
-		var name string
-		name, s, _ = strings.Cut(s, ",")
-		if name == optionName {
-			return true
-		}
-	}
-	return false
+	slices.SortFunc(out, func(a, b walkField) int { return slices.Compare(a.index, b.index) })
+	return out
 }
 
 func isValidWalkTag(s string) bool {
-	if s == "" {
-		return false
-	}
 	for _, c := range s {
-		switch {
-		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
-		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+		if !strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c) && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
 			return false
 		}
 	}
-	return true
+	return s != ""
 }
 
 func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
@@ -281,41 +215,36 @@ func (s *Walk) appendStruct(buf []byte, rv reflect.Value) ([]byte, error) {
 		return buf, err
 	}
 	defer s.LeaveFrame()
-	fields := s.walkFieldsOf(rv.Type())
 	next := byte('{')
+	fields := s.walkFieldsOf(rv.Type())
 	for i := range fields {
-		fv, ok := fieldByWalkIndex(rv, fields[i].index)
-		if !ok {
-			continue
-		}
 		f := &fields[i]
-		if (f.omitEmpty && isEmptyWalkValue(fv)) ||
-			(f.omitZero && (f.isZero == nil && fv.IsZero() || (f.isZero != nil && f.isZero(fv)))) {
+		fv, ok := fieldByWalkIndex(rv, f.index)
+		if !ok || f.omitted(fv) {
 			continue
 		}
-		buf = append(buf, next)
+		buf = append(append(buf, next), f.nameHTML...)
 		next = ','
-		buf = append(buf, f.nameHTML...)
 		var err error
-		if f.quoted {
-			isNum := fv.Type() == numberType ||
-				(fv.Kind() == reflect.Pointer && !fv.IsNil() && fv.Type().Elem() == numberType)
-			if !isNum && s.honorsJSONMethod(fv) {
-				buf, err = appendHonored(buf, fv)
-			} else {
-				buf, err = s.appendStringOptionValue(buf, fv)
-			}
-		} else {
-			buf, err = s.appendValue(buf, fv)
-		}
-		if err != nil {
+		if buf, err = s.appendFieldValue(buf, f, fv); err != nil {
 			return buf, err
 		}
 	}
 	if next == '{' {
-		return append(buf, "{}"...), nil
+		buf = append(buf, '{')
 	}
 	return append(buf, '}'), nil
+}
+
+func (f *walkField) omitted(fv reflect.Value) bool {
+	return (f.omitEmpty && isEmptyWalkValue(fv)) || (f.omitZero && f.isZero(fv))
+}
+
+func (s *Walk) appendFieldValue(buf []byte, f *walkField, fv reflect.Value) ([]byte, error) {
+	if f.quoted {
+		return s.appendStringOptionValue(buf, fv)
+	}
+	return s.appendValue(buf, fv)
 }
 
 func fieldByWalkIndex(rv reflect.Value, index []int) (reflect.Value, bool) {

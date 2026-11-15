@@ -8,15 +8,17 @@
 // this package instead of reflecting over the receiver.
 //
 // The marshal side (AppendEscaped, AppendQuoted, EscapedLen, QuotedLen,
-// IntLen, UintLen, AppendInt, AppendUint, AppendFloat, FloatErr, OmitEmpty,
-// OmitZero and MarshalField) produces bytes identical to encoding/json for
-// the same value, under both settings of the jsonv2 GOEXPERIMENT. The two
-// settings differ in exactly one case, the encoding of an invalid UTF-8
-// byte inside a string, which is isolated in escape_v1.go and
-// escape_v2.go. Walk carries one root MarshalJSON call's traversal state
-// so cycles spanning static helpers and the reflective fallback
-// (walk.go, walkfields.go, with mode-specific visit keys in walk_v1.go
-// and walk_v2.go) terminate with the reflective cycle error.
+// IntLen, UintLen, AppendInt, AppendUint, AppendFloat, FloatErr,
+// AppendBase64, IsZero and MarshalField) produces bytes identical to
+// encoding/json for the same value, under both settings of the jsonv2
+// GOEXPERIMENT. The two settings differ in exactly one case, the encoding
+// of an invalid UTF-8 byte inside a string, which is isolated in
+// escape_v1.go and escape_v2.go. Walk carries one root MarshalJSON call's
+// traversal state, so cycles spanning generated encoders and dynamic
+// values terminate with the encoding/json cycle error and nesting stops at
+// the encoding/json depth bound. Walk.AppendAny walks a value whose type
+// is known only at run time with that state (walk.go, walkfields.go, with
+// mode-specific visit keys and depth checks in walk_v1.go and walk_v2.go).
 //
 // The unmarshal side is the Scanner, a cursor over one complete JSON
 // value held in memory, plus the typed readers (Bool, Int, Uint, Float,
