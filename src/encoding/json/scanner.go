@@ -32,10 +32,15 @@ func Valid(data []byte) bool {
 // checkValid returns nil or a SyntaxError.
 func checkValid(data []byte, scan *scanner) error {
 	scan.reset()
-	for _, c := range data {
+	for i := 0; i < len(data); i++ {
+		c := data[i]
 		scan.bytes++
-		if scan.step(scan, c) == scanError {
+		op := scan.step(scan, c)
+		if op == scanError {
 			return scan.err
+		}
+		if op == scanBeginLiteral && c == '"' {
+			i += scan.skipStringBody(data[i+1:])
 		}
 	}
 	if scan.eof() == scanError {

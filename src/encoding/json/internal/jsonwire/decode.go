@@ -133,11 +133,15 @@ func ConsumeStringResumable(flags *ValueFlags, b []byte, resumeOffset int, valid
 		return n, NewInvalidCharacterError(b[n:], `at start of string (expecting '"')`)
 	}
 
+	hot := len(b)-n >= hotSkip
 	// Consume every character in the string.
 	for uint(len(b)) > uint(n) {
 		// Optimize for long sequences of unescaped characters.
 		noEscape := func(c byte) bool {
 			return c < utf8.RuneSelf && ' ' <= c && c != '\\' && c != '"'
+		}
+		if hot {
+			n, hot = skipStringSpecial(b, n)
 		}
 		for uint(len(b)) > uint(n) && noEscape(b[n]) {
 			n++
@@ -268,11 +272,15 @@ func AppendUnquote(dst, src []byte) (v []byte, err error) {
 		return dst, NewInvalidCharacterError(src, `at start of string (expecting '"')`)
 	}
 
+	hot := len(src)-n >= hotSkip
 	// Consume every character in the string.
 	for uint(len(src)) > uint(n) {
 		// Optimize for long sequences of unescaped characters.
 		noEscape := func(c byte) bool {
 			return c < utf8.RuneSelf && ' ' <= c && c != '\\' && c != '"'
+		}
+		if hot {
+			n, hot = skipStringSpecial(src, n)
 		}
 		for uint(len(src)) > uint(n) && noEscape(src[n]) {
 			n++
