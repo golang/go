@@ -76,17 +76,19 @@ StorePart returns the number of elements actually stored.
 
 Vectors and masks provide a String method for conversion to strings.
 
-# Conversion to and from simd/archsimd types.
+# Conversion to and from simd/archsimd types
 
-Each SIMD vector type has a "ToArch() any" method that returns the type
-supported by the current hardware as an "any".  Code using
-these methods must be build-tagged to the relevant architecture(s)
-and type-assert the returned value to the appropriate type.
+Each SIMD vector and mask type has a ToArch() any method that returns the
+[simd/archsimd] value backing the receiver, or nil if [Emulated] is true.
+Callers inspecting the result for architecture-specific types must be
+build-tagged to the relevant architecture(s) and use a type switch with a
+default case.
 
-The simd package also includes generic functions for converting an
-architecture-dependent simd/archsimd value (e.g. [archsimd.Float32x4])
-into the corresponding simd type.  This function will panic if the
-correspondence is incorrect.
+On architectures supported by [simd/archsimd], the simd package also provides
+generic FromArch functions (such as Float32sFromArch) that convert a
+[simd/archsimd] vector or mask (e.g. [archsimd.Float32x4]) into the
+corresponding simd type. They panic if [Emulated] is true or if the input is
+not for vector width [VectorBits].
 
 For an example of converting between [simd] and [simd/archsimd] types,
 see the test file sum_amd64_test.go.

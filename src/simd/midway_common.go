@@ -60,6 +60,15 @@ func init() {
 	maxVectorSize, emulated, hwClmul = configure(actualMax, allFeatureSize, arch, simd.Value())
 }
 
+type fromArchError string
+
+func (e fromArchError) Error() string {
+	if emulated {
+		return string(e) + " when simd.Emulated() is true"
+	}
+	return string(e) + " when simd.VectorBits() is " + strconv.Itoa(maxVectorSize)
+}
+
 func configure(actualMax, allFeatureSize int, arch, gosimd string) (maxVectorSize int, emulated, hwClmul bool) {
 	explicitRequest := false
 	hwClmul = true

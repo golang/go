@@ -7,57 +7,57 @@
 package bridge
 
 func (x Float32s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Float64s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Int16s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Int32s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Int64s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Int8s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Mask16s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Mask32s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Mask64s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Mask8s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Uint16s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Uint32s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Uint64s) ToArch() any {
-	return x
+	return nil
 }
 
 func (x Uint8s) ToArch() any {
-	return x
+	return nil
 }

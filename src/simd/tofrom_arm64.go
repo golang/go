@@ -9,13 +9,20 @@ import (
 	"simd/internal/bridge"
 )
 
+// ToArch returns x as the [simd/archsimd] type backing Int8s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Int8s) ToArch() any
 
-type archSimdInt8s interface {
-	archsimd.Int8x16
-}
-
-func Int8sFromArch[T archSimdInt8s](x T) Int8s {
+// Int8sFromArch converts x to Int8s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Int8s{}).Len()).
+func Int8sFromArch[A archsimd.Int8x16](x A) Int8s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Int8s replaced by one of the arch types, and without the any-assert
@@ -24,22 +31,31 @@ func Int8sFromArch[T archSimdInt8s](x T) Int8s {
 	// assuming it inlines.
 	case archsimd.Int8x16:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Int8x16nclm = bridge.Int8x16nclm(a)
-			return (any(t)).(Int8s)
+			if z, ok := any(bridge.Int8x16nclm(a)).(Int8s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Int8x16(a)).(Int8s); ok {
+			return z
 		}
-		var t bridge.Int8x16 = bridge.Int8x16(a)
-		return (any(t)).(Int8s)
+		panic(fromArchError("simd.Int8sFromArch: cannot convert from archsimd.Int8x16"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Int16s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Int16s) ToArch() any
 
-type archSimdInt16s interface {
-	archsimd.Int16x8
-}
-
-func Int16sFromArch[T archSimdInt16s](x T) Int16s {
+// Int16sFromArch converts x to Int16s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Int16s{}).Len()).
+func Int16sFromArch[A archsimd.Int16x8](x A) Int16s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Int16s replaced by one of the arch types, and without the any-assert
@@ -48,22 +64,31 @@ func Int16sFromArch[T archSimdInt16s](x T) Int16s {
 	// assuming it inlines.
 	case archsimd.Int16x8:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Int16x8nclm = bridge.Int16x8nclm(a)
-			return (any(t)).(Int16s)
+			if z, ok := any(bridge.Int16x8nclm(a)).(Int16s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Int16x8(a)).(Int16s); ok {
+			return z
 		}
-		var t bridge.Int16x8 = bridge.Int16x8(a)
-		return (any(t)).(Int16s)
+		panic(fromArchError("simd.Int16sFromArch: cannot convert from archsimd.Int16x8"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Int32s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Int32s) ToArch() any
 
-type archSimdInt32s interface {
-	archsimd.Int32x4
-}
-
-func Int32sFromArch[T archSimdInt32s](x T) Int32s {
+// Int32sFromArch converts x to Int32s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Int32s{}).Len()).
+func Int32sFromArch[A archsimd.Int32x4](x A) Int32s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Int32s replaced by one of the arch types, and without the any-assert
@@ -72,22 +97,31 @@ func Int32sFromArch[T archSimdInt32s](x T) Int32s {
 	// assuming it inlines.
 	case archsimd.Int32x4:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Int32x4nclm = bridge.Int32x4nclm(a)
-			return (any(t)).(Int32s)
+			if z, ok := any(bridge.Int32x4nclm(a)).(Int32s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Int32x4(a)).(Int32s); ok {
+			return z
 		}
-		var t bridge.Int32x4 = bridge.Int32x4(a)
-		return (any(t)).(Int32s)
+		panic(fromArchError("simd.Int32sFromArch: cannot convert from archsimd.Int32x4"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Int64s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Int64s) ToArch() any
 
-type archSimdInt64s interface {
-	archsimd.Int64x2
-}
-
-func Int64sFromArch[T archSimdInt64s](x T) Int64s {
+// Int64sFromArch converts x to Int64s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Int64s{}).Len()).
+func Int64sFromArch[A archsimd.Int64x2](x A) Int64s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Int64s replaced by one of the arch types, and without the any-assert
@@ -96,22 +130,31 @@ func Int64sFromArch[T archSimdInt64s](x T) Int64s {
 	// assuming it inlines.
 	case archsimd.Int64x2:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Int64x2nclm = bridge.Int64x2nclm(a)
-			return (any(t)).(Int64s)
+			if z, ok := any(bridge.Int64x2nclm(a)).(Int64s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Int64x2(a)).(Int64s); ok {
+			return z
 		}
-		var t bridge.Int64x2 = bridge.Int64x2(a)
-		return (any(t)).(Int64s)
+		panic(fromArchError("simd.Int64sFromArch: cannot convert from archsimd.Int64x2"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Uint8s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Uint8s) ToArch() any
 
-type archSimdUint8s interface {
-	archsimd.Uint8x16
-}
-
-func Uint8sFromArch[T archSimdUint8s](x T) Uint8s {
+// Uint8sFromArch converts x to Uint8s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Uint8s{}).Len()).
+func Uint8sFromArch[A archsimd.Uint8x16](x A) Uint8s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Uint8s replaced by one of the arch types, and without the any-assert
@@ -120,22 +163,31 @@ func Uint8sFromArch[T archSimdUint8s](x T) Uint8s {
 	// assuming it inlines.
 	case archsimd.Uint8x16:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Uint8x16nclm = bridge.Uint8x16nclm(a)
-			return (any(t)).(Uint8s)
+			if z, ok := any(bridge.Uint8x16nclm(a)).(Uint8s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Uint8x16(a)).(Uint8s); ok {
+			return z
 		}
-		var t bridge.Uint8x16 = bridge.Uint8x16(a)
-		return (any(t)).(Uint8s)
+		panic(fromArchError("simd.Uint8sFromArch: cannot convert from archsimd.Uint8x16"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Uint16s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Uint16s) ToArch() any
 
-type archSimdUint16s interface {
-	archsimd.Uint16x8
-}
-
-func Uint16sFromArch[T archSimdUint16s](x T) Uint16s {
+// Uint16sFromArch converts x to Uint16s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Uint16s{}).Len()).
+func Uint16sFromArch[A archsimd.Uint16x8](x A) Uint16s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Uint16s replaced by one of the arch types, and without the any-assert
@@ -144,22 +196,31 @@ func Uint16sFromArch[T archSimdUint16s](x T) Uint16s {
 	// assuming it inlines.
 	case archsimd.Uint16x8:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Uint16x8nclm = bridge.Uint16x8nclm(a)
-			return (any(t)).(Uint16s)
+			if z, ok := any(bridge.Uint16x8nclm(a)).(Uint16s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Uint16x8(a)).(Uint16s); ok {
+			return z
 		}
-		var t bridge.Uint16x8 = bridge.Uint16x8(a)
-		return (any(t)).(Uint16s)
+		panic(fromArchError("simd.Uint16sFromArch: cannot convert from archsimd.Uint16x8"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Uint32s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Uint32s) ToArch() any
 
-type archSimdUint32s interface {
-	archsimd.Uint32x4
-}
-
-func Uint32sFromArch[T archSimdUint32s](x T) Uint32s {
+// Uint32sFromArch converts x to Uint32s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Uint32s{}).Len()).
+func Uint32sFromArch[A archsimd.Uint32x4](x A) Uint32s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Uint32s replaced by one of the arch types, and without the any-assert
@@ -168,22 +229,31 @@ func Uint32sFromArch[T archSimdUint32s](x T) Uint32s {
 	// assuming it inlines.
 	case archsimd.Uint32x4:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Uint32x4nclm = bridge.Uint32x4nclm(a)
-			return (any(t)).(Uint32s)
+			if z, ok := any(bridge.Uint32x4nclm(a)).(Uint32s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Uint32x4(a)).(Uint32s); ok {
+			return z
 		}
-		var t bridge.Uint32x4 = bridge.Uint32x4(a)
-		return (any(t)).(Uint32s)
+		panic(fromArchError("simd.Uint32sFromArch: cannot convert from archsimd.Uint32x4"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Uint64s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Uint64s) ToArch() any
 
-type archSimdUint64s interface {
-	archsimd.Uint64x2
-}
-
-func Uint64sFromArch[T archSimdUint64s](x T) Uint64s {
+// Uint64sFromArch converts x to Uint64s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Uint64s{}).Len()).
+func Uint64sFromArch[A archsimd.Uint64x2](x A) Uint64s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Uint64s replaced by one of the arch types, and without the any-assert
@@ -192,22 +262,31 @@ func Uint64sFromArch[T archSimdUint64s](x T) Uint64s {
 	// assuming it inlines.
 	case archsimd.Uint64x2:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Uint64x2nclm = bridge.Uint64x2nclm(a)
-			return (any(t)).(Uint64s)
+			if z, ok := any(bridge.Uint64x2nclm(a)).(Uint64s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Uint64x2(a)).(Uint64s); ok {
+			return z
 		}
-		var t bridge.Uint64x2 = bridge.Uint64x2(a)
-		return (any(t)).(Uint64s)
+		panic(fromArchError("simd.Uint64sFromArch: cannot convert from archsimd.Uint64x2"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Float32s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Float32s) ToArch() any
 
-type archSimdFloat32s interface {
-	archsimd.Float32x4
-}
-
-func Float32sFromArch[T archSimdFloat32s](x T) Float32s {
+// Float32sFromArch converts x to Float32s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Float32s{}).Len()).
+func Float32sFromArch[A archsimd.Float32x4](x A) Float32s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Float32s replaced by one of the arch types, and without the any-assert
@@ -216,22 +295,31 @@ func Float32sFromArch[T archSimdFloat32s](x T) Float32s {
 	// assuming it inlines.
 	case archsimd.Float32x4:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Float32x4nclm = bridge.Float32x4nclm(a)
-			return (any(t)).(Float32s)
+			if z, ok := any(bridge.Float32x4nclm(a)).(Float32s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Float32x4(a)).(Float32s); ok {
+			return z
 		}
-		var t bridge.Float32x4 = bridge.Float32x4(a)
-		return (any(t)).(Float32s)
+		panic(fromArchError("simd.Float32sFromArch: cannot convert from archsimd.Float32x4"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Float64s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Float64s) ToArch() any
 
-type archSimdFloat64s interface {
-	archsimd.Float64x2
-}
-
-func Float64sFromArch[T archSimdFloat64s](x T) Float64s {
+// Float64sFromArch converts x to Float64s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Float64s{}).Len()).
+func Float64sFromArch[A archsimd.Float64x2](x A) Float64s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Float64s replaced by one of the arch types, and without the any-assert
@@ -240,22 +328,31 @@ func Float64sFromArch[T archSimdFloat64s](x T) Float64s {
 	// assuming it inlines.
 	case archsimd.Float64x2:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Float64x2nclm = bridge.Float64x2nclm(a)
-			return (any(t)).(Float64s)
+			if z, ok := any(bridge.Float64x2nclm(a)).(Float64s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Float64x2(a)).(Float64s); ok {
+			return z
 		}
-		var t bridge.Float64x2 = bridge.Float64x2(a)
-		return (any(t)).(Float64s)
+		panic(fromArchError("simd.Float64sFromArch: cannot convert from archsimd.Float64x2"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Mask8s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Mask8s) ToArch() any
 
-type archSimdMask8s interface {
-	archsimd.Mask8x16
-}
-
-func Mask8sFromArch[T archSimdMask8s](x T) Mask8s {
+// Mask8sFromArch converts x to Mask8s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Mask8s{}).Len()).
+func Mask8sFromArch[A archsimd.Mask8x16](x A) Mask8s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Mask8s replaced by one of the arch types, and without the any-assert
@@ -264,22 +361,31 @@ func Mask8sFromArch[T archSimdMask8s](x T) Mask8s {
 	// assuming it inlines.
 	case archsimd.Mask8x16:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Mask8x16nclm = bridge.Mask8x16nclm(a)
-			return (any(t)).(Mask8s)
+			if z, ok := any(bridge.Mask8x16nclm(a)).(Mask8s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Mask8x16(a)).(Mask8s); ok {
+			return z
 		}
-		var t bridge.Mask8x16 = bridge.Mask8x16(a)
-		return (any(t)).(Mask8s)
+		panic(fromArchError("simd.Mask8sFromArch: cannot convert from archsimd.Mask8x16"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Mask16s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Mask16s) ToArch() any
 
-type archSimdMask16s interface {
-	archsimd.Mask16x8
-}
-
-func Mask16sFromArch[T archSimdMask16s](x T) Mask16s {
+// Mask16sFromArch converts x to Mask16s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Mask16s{}).Len()).
+func Mask16sFromArch[A archsimd.Mask16x8](x A) Mask16s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Mask16s replaced by one of the arch types, and without the any-assert
@@ -288,22 +394,31 @@ func Mask16sFromArch[T archSimdMask16s](x T) Mask16s {
 	// assuming it inlines.
 	case archsimd.Mask16x8:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Mask16x8nclm = bridge.Mask16x8nclm(a)
-			return (any(t)).(Mask16s)
+			if z, ok := any(bridge.Mask16x8nclm(a)).(Mask16s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Mask16x8(a)).(Mask16s); ok {
+			return z
 		}
-		var t bridge.Mask16x8 = bridge.Mask16x8(a)
-		return (any(t)).(Mask16s)
+		panic(fromArchError("simd.Mask16sFromArch: cannot convert from archsimd.Mask16x8"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Mask32s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Mask32s) ToArch() any
 
-type archSimdMask32s interface {
-	archsimd.Mask32x4
-}
-
-func Mask32sFromArch[T archSimdMask32s](x T) Mask32s {
+// Mask32sFromArch converts x to Mask32s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Mask32s{}).Len()).
+func Mask32sFromArch[A archsimd.Mask32x4](x A) Mask32s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Mask32s replaced by one of the arch types, and without the any-assert
@@ -312,22 +427,31 @@ func Mask32sFromArch[T archSimdMask32s](x T) Mask32s {
 	// assuming it inlines.
 	case archsimd.Mask32x4:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Mask32x4nclm = bridge.Mask32x4nclm(a)
-			return (any(t)).(Mask32s)
+			if z, ok := any(bridge.Mask32x4nclm(a)).(Mask32s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Mask32x4(a)).(Mask32s); ok {
+			return z
 		}
-		var t bridge.Mask32x4 = bridge.Mask32x4(a)
-		return (any(t)).(Mask32s)
+		panic(fromArchError("simd.Mask32sFromArch: cannot convert from archsimd.Mask32x4"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
 
+// ToArch returns x as the [simd/archsimd] type backing Mask64s in this process
+// (for vector width [VectorBits]), or nil if [Emulated] is true.
+//
+// Because the dynamic type of the result depends on CPU features and
+// GODEBUG=simd, and future Go releases may return other [simd/archsimd] types
+// (such as scalable types on arm64), callers should use a type switch with a
+// default case.
 func (x Mask64s) ToArch() any
 
-type archSimdMask64s interface {
-	archsimd.Mask64x2
-}
-
-func Mask64sFromArch[T archSimdMask64s](x T) Mask64s {
+// Mask64sFromArch converts x to Mask64s.
+//
+// It panics if [Emulated] is true or if x is not for vector width
+// [VectorBits] (that is, x.Len() != (Mask64s{}).Len()).
+func Mask64sFromArch[A archsimd.Mask64x2](x A) Mask64s {
 	switch a := any(x).(type) {
 	// The return expression is written this way because the code will be rewritten
 	// with Mask64s replaced by one of the arch types, and without the any-assert
@@ -336,11 +460,13 @@ func Mask64sFromArch[T archSimdMask64s](x T) Mask64s {
 	// assuming it inlines.
 	case archsimd.Mask64x2:
 		if !HasHardwareCarrylessMultiply() {
-			var t bridge.Mask64x2nclm = bridge.Mask64x2nclm(a)
-			return (any(t)).(Mask64s)
+			if z, ok := any(bridge.Mask64x2nclm(a)).(Mask64s); ok {
+				return z
+			}
+		} else if z, ok := any(bridge.Mask64x2(a)).(Mask64s); ok {
+			return z
 		}
-		var t bridge.Mask64x2 = bridge.Mask64x2(a)
-		return (any(t)).(Mask64s)
+		panic(fromArchError("simd.Mask64sFromArch: cannot convert from archsimd.Mask64x2"))
 	}
-	panic("wrong type")
+	panic("unreachable")
 }
