@@ -912,16 +912,22 @@ var isaSetVL = regexp.MustCompile("_(128N?|256N?|512)$")
 // name to expose in the SIMD feature check API.
 //
 // See XED's datafiles/*/cpuid.xed.txt for how ISA set names map to CPUID flags.
+//
+// Most names follow the CPUID flag names. The exceptions are AES and carryless
+// multiply, which each span three CPUID flag combinations, one per vector
+// width. Rather than expose those combinations (such as AVX+PCLMULQDQ versus
+// VPCLMULQDQ), we name these features after the vector level they extend:
+// AVX (128-bit), AVX2 (256-bit), and AVX512 (512-bit).
 var cpuFeatureMap = map[string]string{
 	"AVX":          "AVX",
 	"AVX_VNNI":     "AVXVNNI",
 	"AVX2":         "AVX2",
 	"AVXAES":       "AVXAES",
-	"AVXPCLMULQDQ": "AVXPCLMULQDQ",
+	"AVXPCLMULQDQ": "AVXCLMUL",
 	"SHA":          "SHA",
 	"FMA":          "FMA",
-	"VAES":         "VAES",
-	"VPCLMULQDQ":   "VPCLMULQDQ",
+	"VAES":         "AVX2AES",
+	"VPCLMULQDQ":   "AVX2CLMUL",
 
 	// AVX-512 foundational features. We combine all of these into one "AVX512" feature.
 	"AVX512F":  "AVX512",
@@ -938,8 +944,8 @@ var cpuFeatureMap = map[string]string{
 	"AVX512_VBMI2":      "AVX512VBMI2",
 	"AVX512_VNNI":       "AVX512VNNI",
 	"AVX512_VPOPCNTDQ":  "AVX512VPOPCNTDQ",
-	"AVX512_VAES":       "AVX512VAES",
-	"AVX512_VPCLMULQDQ": "AVX512VPCLMULQDQ",
+	"AVX512_VAES":       "AVX512AES",
+	"AVX512_VPCLMULQDQ": "AVX512CLMUL",
 
 	// AVX 10.2 (not yet supported)
 	"AVX10_2_RC": "ignore",
@@ -950,14 +956,50 @@ func init() {
 	// set, so this means our feature checks need to ensure these, just to be
 	// sure.
 	var features = map[string]featureInfo{
-		"AVX2":   {Implies: []string{"AVX"}},
-		"AVX512": {Implies: []string{"AVX2"}},
+		"AVX2": {Implies: []string{"AVX"}},
+		"AVX512": {
+			Implies: []string{"AVX2"},
+			Doc:     "AVX-512",
+		},
 
-		"AVXAES":       {Virtual: true, Implies: []string{"AVX", "AES"}},
-		"AVXPCLMULQDQ": {Virtual: true, Implies: []string{"AVX", "PCLMULQDQ"}},
-		"FMA":          {Implies: []string{"AVX"}},
-		"VAES":         {Implies: []string{"AVX"}},
-		"VPCLMULQDQ":   {Implies: []string{"AVX"}},
+		"FMA": {Implies: []string{"AVX"}},
+
+		// AES and carryless multiply at each vector level. The 128-bit forms
+		// need the original AES or PCLMULQDQ CPUID flag. The 256- and 512-bit
+		// forms need the VAES or VPCLMULQDQ flag instead, but we also require
+		// the 128-bit flag so that each level implies the narrower levels.
+		// Virtual lists every internal/cpu flag involved so that GODEBUG=cpu.*
+		// settings for any of them disable the feature.
+		"AVXAES": {
+			Virtual: []cpuFlag{"AVX", "AES"},
+			Implies: []string{"AVX"},
+			Doc:     "AES operations on 128-bit vectors",
+		},
+		"AVX2AES": {
+			Virtual: []cpuFlag{"AVX2", "VAES", "AES"},
+			Implies: []string{"AVX2", "AVXAES"},
+			Doc:     "AES operations on 256-bit vectors",
+		},
+		"AVX512AES": {
+			Virtual: []cpuFlag{"AVX512", "VAES", "AES"},
+			Implies: []string{"AVX512", "AVX2AES"},
+			Doc:     "AES operations on 512-bit vectors",
+		},
+		"AVXCLMUL": {
+			Virtual: []cpuFlag{"AVX", "PCLMULQDQ"},
+			Implies: []string{"AVX"},
+			Doc:     "carryless multiplication on 128-bit vectors",
+		},
+		"AVX2CLMUL": {
+			Virtual: []cpuFlag{"AVX2", "VPCLMULQDQ", "PCLMULQDQ"},
+			Implies: []string{"AVX2", "AVXCLMUL"},
+			Doc:     "carryless multiplication on 256-bit vectors",
+		},
+		"AVX512CLMUL": {
+			Virtual: []cpuFlag{"AVX512", "AVX512VPCLMULQDQ", "VPCLMULQDQ", "PCLMULQDQ"},
+			Implies: []string{"AVX512", "AVX2CLMUL"},
+			Doc:     "carryless multiplication on 512-bit vectors",
+		},
 
 		// AVX-512 subfeatures.
 		"AVX512BITALG":    {Implies: []string{"AVX512"}},
@@ -966,7 +1008,6 @@ func init() {
 		"AVX512VBMI2":     {Implies: []string{"AVX512"}},
 		"AVX512VNNI":      {Implies: []string{"AVX512"}},
 		"AVX512VPOPCNTDQ": {Implies: []string{"AVX512"}},
-		"AVX512VAES":      {Implies: []string{"AVX512"}},
 
 		// AVX-VNNI and AVX-IFMA are "backports" of the AVX512-VNNI/IFMA
 		// instructions to VEX encoding, limited to 256 bit vectors. They're
@@ -978,6 +1019,13 @@ func init() {
 	registerFeatureInfo("amd64", goarchFeatures{
 		featureVar: "X86",
 		features:   features,
+		flagCPUID: map[cpuFlag][]string{
+			"AVX512": {"AVX512F", "AVX512CD", "AVX512BW", "AVX512DQ", "AVX512VL"},
+			// AVX512VPCLMULQDQ checks VPCLMULQDQ (if the CPU has AVX512F).
+			// It exists separately from VPCLMULQDQ so that
+			// GODEBUG=cpu.vpclmulqdq can disable it.
+			"AVX512VPCLMULQDQ": {"VPCLMULQDQ"},
+		},
 	})
 }
 

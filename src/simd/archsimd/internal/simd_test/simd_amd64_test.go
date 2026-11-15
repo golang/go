@@ -1241,8 +1241,8 @@ func TestPermuteScalarsLoGrouped(t *testing.T) {
 }
 
 func TestClMul(t *testing.T) {
-	if !archsimd.X86.AVXPCLMULQDQ() {
-		t.Skip("Test requires X86.AVXPCLMULQDQ, not available on this hardware")
+	if !archsimd.X86.AVXCLMUL() {
+		t.Skip("Test requires X86.AVXCLMUL, not available on this hardware")
 	}
 	var x = archsimd.LoadUint64x2([]uint64{1, 5})
 	var y = archsimd.LoadUint64x2([]uint64{3, 9})
@@ -1262,8 +1262,8 @@ func TestClMul(t *testing.T) {
 }
 
 func TestClMul256(t *testing.T) {
-	if !archsimd.X86.VPCLMULQDQ() {
-		t.Skip("Test requires X86.VPCLMULQDQ, not available on this hardware")
+	if !archsimd.X86.AVX2CLMUL() {
+		t.Skip("Test requires X86.AVX2CLMUL, not available on this hardware")
 	}
 	x := archsimd.LoadUint64x4([]uint64{1, 5, 1 << 63, 5})
 	y := archsimd.LoadUint64x4([]uint64{3, 9, 2, 9})

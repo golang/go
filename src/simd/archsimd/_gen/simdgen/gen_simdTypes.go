@@ -524,15 +524,17 @@ var X86 X86Features
 
 {{range .}}
 {{$f := .}}
+// {{.Feature}} returns whether the CPU supports {{.Doc}}.
+{{- if ne .CPUIDDoc ""}}
+//
+// {{.CPUIDDoc}}
+{{- end}}
 {{- if eq .Feature "AVX512"}}
-// {{.Feature}} returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
 //
 // These five CPU features are bundled together, and no use of AVX-512
 // is allowed unless all of these features are supported together.
 // Nearly every CPU that has shipped with any support for AVX-512 has
 // supported all five of these features.
-{{- else -}}
-// {{.Feature}} returns whether the CPU supports the {{.Feature}} feature.
 {{- end}}
 {{- if ne .ImpliesAll ""}}
 //
@@ -543,7 +545,7 @@ var X86 X86Features
 // GOARCH {{.GoArch}}.
 func ({{.FeatureVar}}Features) {{.Feature}}() bool {
 {{- if .Virtual}}
-	return {{range $i, $dep := .Implies}}{{if $i}} && {{end}}cpu.{{$f.FeatureVar}}.Has{{$dep}}{{end}}
+	return {{range $i, $dep := .Virtual}}{{if $i}} && {{end}}cpu.{{$f.FeatureVar}}.Has{{$dep}}{{end}}
 {{- else}}
 	return cpu.{{.FeatureVar}}.Has{{.Feature}}
 {{- end}}
@@ -1129,19 +1131,41 @@ type goarchFeatures struct {
 
 	// features records per-feature information.
 	features map[string]featureInfo
+
+	// flagCPUID maps internal/cpu flags to the CPUID features they check, for
+	// documentation. Flags not in this map check the CPUID feature with the
+	// same name as the flag.
+	flagCPUID map[cpuFlag][]string
 }
 
+// A cpuFlag names an internal/cpu feature flag, without the "Has" prefix (for
+// example, "AVX2" for cpu.X86.HasAVX2). Many SIMD features are named after the
+// internal/cpu flag they check, but the two are separate namespaces.
+type cpuFlag string
+
 type featureInfo struct {
-	// Implies is a list of other CPU features that are required for this
-	// feature. These are allowed to chain.
+	// Implies is a list of other features that are required for this
+	// feature. These are SIMD feature names, like this feature's name, and
+	// must name features that have their own feature checks. These are
+	// allowed to chain.
 	//
 	// For example, if the Frob feature lists "Baz", then if X.Frob() returns
-	// true, it must also be true that the CPU has feature Baz.
+	// true, it must also be true that X.Baz() returns true.
 	Implies []string
 
-	// Virtual means this feature is not represented directly in internal/cpu,
-	// but is instead the logical AND of the features in Implies.
-	Virtual bool
+	// Virtual, if non-empty, means this feature is not represented directly
+	// by an internal/cpu flag, but is instead the logical AND of these
+	// internal/cpu flags. Virtual must be at least as strict as every feature
+	// in Implies.
+	//
+	// If Virtual is empty, this feature's check is the internal/cpu flag with
+	// the same name as the feature.
+	Virtual []cpuFlag
+
+	// Doc, if non-empty, describes what this feature supports, completing the
+	// sentence "X returns whether the CPU supports ...". The default is "the X
+	// feature".
+	Doc string
 }
 
 // goarchFeatureInfo maps from GOARCH to CPU feature to additional information
@@ -1153,21 +1177,58 @@ func registerFeatureInfo(goArch string, features goarchFeatures) {
 }
 
 func featureImplies(goarch string, base string) string {
-	// Compute the transitive closure of base.
+	// Compute the transitive closure of base, in dependency order.
 	var list []string
+	seen := map[string]bool{base: true}
 	var visit func(f string)
 	visit = func(f string) {
-		list = append(list, f)
 		for _, dep := range goarchFeatureInfo[goarch].features[f].Implies {
-			visit(dep)
+			if !seen[dep] {
+				seen[dep] = true
+				visit(dep)
+				list = append(list, dep)
+			}
 		}
 	}
 	visit(base)
-	// Drop base
-	list = list[1:]
-	// Put in "nice" order
-	slices.Reverse(list)
-	// Combine into a comment-ready form
+	return andList(list)
+}
+
+// featureCPUIDDoc returns a sentence documenting the CPUID features checked by
+// feature, or "" if feature checks just the CPUID feature of the same name.
+func featureCPUIDDoc(goarch, feature string) string {
+	info := goarchFeatureInfo[goarch]
+	flags := info.features[feature].Virtual
+	if len(flags) == 0 {
+		// A non-virtual feature checks the internal/cpu flag of the same name.
+		flags = []cpuFlag{cpuFlag(feature)}
+	}
+	// Collect the CPUID features checked by all of these internal/cpu flags.
+	var cpuid []string
+	for _, flag := range flags {
+		flagCPUID := info.flagCPUID[flag]
+		if flagCPUID == nil {
+			// The CPUID feature name matches the internal/cpu flag name.
+			flagCPUID = []string{string(flag)}
+		}
+		for _, c := range flagCPUID {
+			if !slices.Contains(cpuid, c) {
+				cpuid = append(cpuid, c)
+			}
+		}
+	}
+	if len(cpuid) == 1 && cpuid[0] == feature {
+		return ""
+	}
+	noun := "feature"
+	if len(cpuid) > 1 {
+		noun = "features"
+	}
+	return fmt.Sprintf("This corresponds to the %s CPUID %s.", andList(cpuid), noun)
+}
+
+// andList combines list into a comment-ready form, such as "A, B, and C".
+func andList(list []string) string {
 	switch len(list) {
 	case 0:
 		return ""
@@ -1176,8 +1237,7 @@ func featureImplies(goarch string, base string) string {
 	case 2:
 		return list[0] + " and " + list[1]
 	default:
-		list[len(list)-1] = "and " + list[len(list)-1]
-		return strings.Join(list, ", ")
+		return strings.Join(list[:len(list)-1], ", ") + ", and " + list[len(list)-1]
 	}
 }
 
@@ -1209,19 +1269,30 @@ func writeSIMDFeatures(buffer *bytes.Buffer, ops []Operation) {
 	type feature struct {
 		featureKey
 		FeatureVar string
-		Virtual    bool
-		Implies    []string
+		Virtual    []cpuFlag
+		Doc        string
+		CPUIDDoc   string
 		ImpliesAll string
 	}
 	var features []feature
 	for _, k := range featureKeys {
 		featureVar := goarchFeatureInfo[k.GoArch].featureVar
 		fi := goarchFeatureInfo[k.GoArch].features[k.Feature]
+		for _, dep := range fi.Implies {
+			if _, ok := featureSet[featureKey{k.GoArch, dep}]; !ok {
+				panic(fmt.Errorf("feature %s implies %s, which has no feature check", k.Feature, dep))
+			}
+		}
+		doc := fi.Doc
+		if doc == "" {
+			doc = "the " + k.Feature + " feature"
+		}
 		features = append(features, feature{
 			featureKey: k,
 			FeatureVar: featureVar,
 			Virtual:    fi.Virtual,
-			Implies:    fi.Implies,
+			Doc:        doc,
+			CPUIDDoc:   featureCPUIDDoc(k.GoArch, k.Feature),
 			ImpliesAll: featureImplies(k.GoArch, k.Feature),
 		})
 	}

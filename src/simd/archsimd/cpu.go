@@ -28,7 +28,33 @@ func (X86Features) AVX2() bool {
 	return cpu.X86.HasAVX2
 }
 
-// AVX512 returns whether the CPU supports the AVX512F+CD+BW+DQ+VL features.
+// AVX2AES returns whether the CPU supports AES operations on 256-bit vectors.
+//
+// This corresponds to the AVX2, VAES, and AES CPUID features.
+//
+// If it returns true, then the CPU also supports AVX, AVX2, and AVXAES.
+//
+// AVX2AES is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVX2AES() bool {
+	return cpu.X86.HasAVX2 && cpu.X86.HasVAES && cpu.X86.HasAES
+}
+
+// AVX2CLMUL returns whether the CPU supports carryless multiplication on 256-bit vectors.
+//
+// This corresponds to the AVX2, VPCLMULQDQ, and PCLMULQDQ CPUID features.
+//
+// If it returns true, then the CPU also supports AVX, AVX2, and AVXCLMUL.
+//
+// AVX2CLMUL is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVX2CLMUL() bool {
+	return cpu.X86.HasAVX2 && cpu.X86.HasVPCLMULQDQ && cpu.X86.HasPCLMULQDQ
+}
+
+// AVX512 returns whether the CPU supports AVX-512.
+//
+// This corresponds to the AVX512F, AVX512CD, AVX512BW, AVX512DQ, and AVX512VL CPUID features.
 //
 // These five CPU features are bundled together, and no use of AVX-512
 // is allowed unless all of these features are supported together.
@@ -43,6 +69,18 @@ func (X86Features) AVX512() bool {
 	return cpu.X86.HasAVX512
 }
 
+// AVX512AES returns whether the CPU supports AES operations on 512-bit vectors.
+//
+// This corresponds to the AVX512F, AVX512CD, AVX512BW, AVX512DQ, AVX512VL, VAES, and AES CPUID features.
+//
+// If it returns true, then the CPU also supports AVX, AVX2, AVX512, AVXAES, and AVX2AES.
+//
+// AVX512AES is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVX512AES() bool {
+	return cpu.X86.HasAVX512 && cpu.X86.HasVAES && cpu.X86.HasAES
+}
+
 // AVX512BITALG returns whether the CPU supports the AVX512BITALG feature.
 //
 // If it returns true, then the CPU also supports AVX, AVX2, and AVX512.
@@ -53,6 +91,18 @@ func (X86Features) AVX512BITALG() bool {
 	return cpu.X86.HasAVX512BITALG
 }
 
+// AVX512CLMUL returns whether the CPU supports carryless multiplication on 512-bit vectors.
+//
+// This corresponds to the AVX512F, AVX512CD, AVX512BW, AVX512DQ, AVX512VL, VPCLMULQDQ, and PCLMULQDQ CPUID features.
+//
+// If it returns true, then the CPU also supports AVX, AVX2, AVX512, AVXCLMUL, and AVX2CLMUL.
+//
+// AVX512CLMUL is defined on all GOARCHes, but will only return true on
+// GOARCH amd64.
+func (X86Features) AVX512CLMUL() bool {
+	return cpu.X86.HasAVX512 && cpu.X86.HasAVX512VPCLMULQDQ && cpu.X86.HasVPCLMULQDQ && cpu.X86.HasPCLMULQDQ
+}
+
 // AVX512GFNI returns whether the CPU supports the AVX512GFNI feature.
 //
 // If it returns true, then the CPU also supports AVX, AVX2, and AVX512.
@@ -61,16 +111,6 @@ func (X86Features) AVX512BITALG() bool {
 // GOARCH amd64.
 func (X86Features) AVX512GFNI() bool {
 	return cpu.X86.HasAVX512GFNI
-}
-
-// AVX512VAES returns whether the CPU supports the AVX512VAES feature.
-//
-// If it returns true, then the CPU also supports AVX, AVX2, and AVX512.
-//
-// AVX512VAES is defined on all GOARCHes, but will only return true on
-// GOARCH amd64.
-func (X86Features) AVX512VAES() bool {
-	return cpu.X86.HasAVX512VAES
 }
 
 // AVX512VBMI returns whether the CPU supports the AVX512VBMI feature.
@@ -103,14 +143,6 @@ func (X86Features) AVX512VNNI() bool {
 	return cpu.X86.HasAVX512VNNI
 }
 
-// AVX512VPCLMULQDQ returns whether the CPU supports the AVX512VPCLMULQDQ feature.
-//
-// AVX512VPCLMULQDQ is defined on all GOARCHes, but will only return true on
-// GOARCH amd64.
-func (X86Features) AVX512VPCLMULQDQ() bool {
-	return cpu.X86.HasAVX512VPCLMULQDQ
-}
-
 // AVX512VPOPCNTDQ returns whether the CPU supports the AVX512VPOPCNTDQ feature.
 //
 // If it returns true, then the CPU also supports AVX, AVX2, and AVX512.
@@ -121,9 +153,11 @@ func (X86Features) AVX512VPOPCNTDQ() bool {
 	return cpu.X86.HasAVX512VPOPCNTDQ
 }
 
-// AVXAES returns whether the CPU supports the AVXAES feature.
+// AVXAES returns whether the CPU supports AES operations on 128-bit vectors.
 //
-// If it returns true, then the CPU also supports AES and AVX.
+// This corresponds to the AVX and AES CPUID features.
+//
+// If it returns true, then the CPU also supports AVX.
 //
 // AVXAES is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
@@ -131,13 +165,15 @@ func (X86Features) AVXAES() bool {
 	return cpu.X86.HasAVX && cpu.X86.HasAES
 }
 
-// AVXPCLMULQDQ returns whether the CPU supports the AVXPCLMULQDQ feature.
+// AVXCLMUL returns whether the CPU supports carryless multiplication on 128-bit vectors.
 //
-// If it returns true, then the CPU also supports PCLMULQDQ and AVX.
+// This corresponds to the AVX and PCLMULQDQ CPUID features.
 //
-// AVXPCLMULQDQ is defined on all GOARCHes, but will only return true on
+// If it returns true, then the CPU also supports AVX.
+//
+// AVXCLMUL is defined on all GOARCHes, but will only return true on
 // GOARCH amd64.
-func (X86Features) AVXPCLMULQDQ() bool {
+func (X86Features) AVXCLMUL() bool {
 	return cpu.X86.HasAVX && cpu.X86.HasPCLMULQDQ
 }
 
@@ -167,24 +203,4 @@ func (X86Features) FMA() bool {
 // GOARCH amd64.
 func (X86Features) SHA() bool {
 	return cpu.X86.HasSHA
-}
-
-// VAES returns whether the CPU supports the VAES feature.
-//
-// If it returns true, then the CPU also supports AVX.
-//
-// VAES is defined on all GOARCHes, but will only return true on
-// GOARCH amd64.
-func (X86Features) VAES() bool {
-	return cpu.X86.HasVAES
-}
-
-// VPCLMULQDQ returns whether the CPU supports the VPCLMULQDQ feature.
-//
-// If it returns true, then the CPU also supports AVX.
-//
-// VPCLMULQDQ is defined on all GOARCHes, but will only return true on
-// GOARCH amd64.
-func (X86Features) VPCLMULQDQ() bool {
-	return cpu.X86.HasVPCLMULQDQ
 }
