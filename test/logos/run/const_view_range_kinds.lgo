@@ -1,0 +1,205 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+type name string
+
+type pair struct{ A, B int }
+
+type inner struct {
+	X int
+	Y string
+}
+
+type nested struct {
+	A inner
+	B [2]int
+	C bool
+}
+
+type words [2]string
+
+var failed bool
+
+func check(label string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", label+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", label)
+}
+
+func stable(label string, read func() string, want string) {
+	for range 64 {
+		if got := read(); got != want {
+			check(label, false, got, want)
+			return
+		}
+	}
+	check(label, true, "", "")
+}
+
+func nameKeys(m const map[name]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%q|", string(k))
+	}
+	return s
+}
+
+func int8Keys(m const map[int8]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func uint8Keys(m const map[uint8]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func uint64Keys(m const map[uint64]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func float32Keys(m const map[float32]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func complex128Keys(m const map[complex128]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func complex64Keys(m const map[complex64]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func arrayKeys(m const map[[2]int]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func wordsKeys(m const map[words]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func flagsKeys(m const map[[2]bool]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func pairsKeys(m const map[[2]pair]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func nestedKeys(m const map[nested]int) string {
+	s := ""
+	for k := range m {
+		s += fmt.Sprintf("%v|", k)
+	}
+	return s
+}
+
+func nestedValues(m const map[nested]int) string {
+	s := ""
+	for k, v := range m {
+		s += fmt.Sprintf("%v=%d|", k.A.X, v)
+	}
+	return s
+}
+
+func main() {
+	stable("kind-named-string", func() string {
+		return nameKeys(map[name]int{"b": 0, "a": 0, "ab": 0, "": 0, "B": 0})
+	}, `""|"B"|"a"|"ab"|"b"|`)
+	stable("kind-int8", func() string {
+		return int8Keys(map[int8]int{100: 0, -128: 0, 1: 0, -1: 0, 0: 0})
+	}, "-128|-1|0|1|100|")
+	stable("kind-uint8", func() string {
+		return uint8Keys(map[uint8]int{200: 0, 3: 0, 100: 0, 255: 0, 0: 0})
+	}, "0|3|100|200|255|")
+	stable("kind-uint64-high-bit", func() string {
+		return uint64Keys(map[uint64]int{1 << 63: 0, 1: 0, 1 << 62: 0, 0: 0})
+	}, "0|1|4611686018427387904|9223372036854775808|")
+	stable("kind-float32", func() string {
+		return float32Keys(map[float32]int{2.5: 0, -1.5: 0, 0.25: 0, 10: 0, -100: 0})
+	}, "-100|-1.5|0.25|2.5|10|")
+	stable("kind-complex128", func() string {
+		return complex128Keys(map[complex128]int{1 + 2i: 0, 1 + 1i: 0, 5i: 0, -1: 0})
+	}, "(-1+0i)|(0+5i)|(1+1i)|(1+2i)|")
+	stable("kind-complex64", func() string {
+		return complex64Keys(map[complex64]int{2 + 1i: 0, 1 + 9i: 0, 1 + 2i: 0})
+	}, "(1+2i)|(1+9i)|(2+1i)|")
+	stable("kind-array-int", func() string {
+		return arrayKeys(map[[2]int]int{{2, 1}: 0, {1, 5}: 0, {1, 2}: 0})
+	}, "[1 2]|[1 5]|[2 1]|")
+	stable("kind-array-string", func() string {
+		return wordsKeys(map[words]int{{"b", "a"}: 0, {"a", "z"}: 0, {"a", "b"}: 0})
+	}, "[a b]|[a z]|[b a]|")
+	stable("kind-array-bool", func() string {
+		return flagsKeys(map[[2]bool]int{{true, false}: 0, {false, true}: 0, {false, false}: 0, {true, true}: 0})
+	}, "[false false]|[false true]|[true false]|[true true]|")
+	stable("kind-array-struct", func() string {
+		return pairsKeys(map[[2]pair]int{{{1, 2}, {0, 0}}: 0, {{1, 1}, {9, 9}}: 0, {{0, 5}, {7, 7}}: 0})
+	}, "[{0 5} {7 7}]|[{1 1} {9 9}]|[{1 2} {0 0}]|")
+	stable("kind-struct-nested", func() string {
+		return nestedKeys(map[nested]int{
+			{inner{1, "b"}, [2]int{2, 0}, false}: 0,
+			{inner{1, "a"}, [2]int{3, 3}, true}:  0,
+			{inner{1, "b"}, [2]int{1, 9}, true}:  0,
+			{inner{0, "z"}, [2]int{0, 0}, false}: 0,
+			{inner{1, "b"}, [2]int{1, 9}, false}: 0,
+		})
+	}, "{{0 z} [0 0] false}|{{1 a} [3 3] true}|{{1 b} [1 9] false}|{{1 b} [1 9] true}|{{1 b} [2 0] false}|")
+	stable("kind-struct-nested-values", func() string {
+		return nestedValues(map[nested]int{
+			{inner{2, "x"}, [2]int{0, 0}, false}: 20,
+			{inner{1, "x"}, [2]int{0, 0}, false}: 10,
+			{inner{3, "x"}, [2]int{0, 0}, false}: 30,
+		})
+	}, "1=10|2=20|3=30|")
+	if failed {
+		os.Exit(1)
+	}
+}

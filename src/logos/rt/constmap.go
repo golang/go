@@ -165,42 +165,92 @@ func ConstAll[K comparable, V any](sorted []ConstEntry[K, V]) iter.Seq2[K, V] {
 	}
 }
 
+// CompareOrdered orders two string, integer, or float keys by value. A NaN
+// sorts before every other float and equals another NaN.
+func CompareOrdered[T cmp.Ordered](a, b T) int {
+	return cmp.Compare(a, b)
+}
+
+// CompareBool orders two bool keys, false before true.
+func CompareBool[T ~bool](a, b T) int {
+	switch x, y := bool(a), bool(b); {
+	case x == y:
+		return 0
+	case y:
+		return -1
+	}
+	return 1
+}
+
+// CompareComplex orders two complex keys by real part and then imaginary
+// part.
+func CompareComplex[T ~complex64 | ~complex128](a, b T) int {
+	x, y := complex128(a), complex128(b)
+	if c := cmp.Compare(real(x), real(y)); c != 0 {
+		return c
+	}
+	return cmp.Compare(imag(x), imag(y))
+}
+
 // SortedAll returns the range iterator of a map over its keys in the order
-// SPEC Sec 7 gives a const map: a string by its bytes, an integer or float
-// by numeric value, false before true, a complex number by real part and
-// then imaginary part, and a struct or array field by field or element by
-// element. Keys of any other kind, and keys of different dynamic types,
-// keep no defined relative order. Each captured entry is yielded once,
-// without looking its key up again (a NaN key cannot be looked up).
-func SortedAll[K comparable, V any](m map[K]V) iter.Seq2[K, V] {
+// compare gives. The generator writes compare from the key type at compile
+// time, in the order SPEC Sec 7 gives a const map: a string by its bytes, an
+// integer or float by numeric value, false before true, a complex number by
+// real part and then imaginary part, and a struct or array field by field or
+// element by element. A nil compare keeps map order, for a key kind with no
+// defined order. Each captured entry is yielded once, without looking its key
+// up again (a NaN key cannot be looked up).
+func SortedAll[K comparable, V any](m map[K]V, compare func(a, b K) int) iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
-		entries := make([]ConstEntry[K, V], 0, len(m))
-		var types map[reflect.Type]int
-		if reflect.TypeFor[K]().Kind() == reflect.Interface {
-			types = make(map[reflect.Type]int)
+		entries := captureEntries(m)
+		if compare != nil {
+			slices.SortFunc(entries, func(a, b ConstEntry[K, V]) int {
+				return compare(a.Key, b.Key)
+			})
 		}
-		for k, v := range m {
-			entries = append(entries, ConstEntry[K, V]{Key: k, Val: v})
-			if types != nil {
-				t := reflect.TypeOf(k)
-				if _, ok := types[t]; !ok {
-					types[t] = len(types)
-				}
-			}
-		}
-		slices.SortStableFunc(entries, func(a, b ConstEntry[K, V]) int {
-			if types != nil {
-				if c := cmp.Compare(types[reflect.TypeOf(a.Key)], types[reflect.TypeOf(b.Key)]); c != 0 {
-					return c
-				}
-			}
+		ConstAll(entries)(yield)
+	}
+}
+
+// SortedAllDynamic is SortedAll for a key type only the run time knows: an
+// interface, a type parameter, or a struct with a field the generated code
+// cannot name. Keys of different dynamic types stay grouped by type in
+// capture order, and the relative order of the groups is unspecified. Within
+// a group the order is SortedAll's, and a field of interface type has none.
+func SortedAllDynamic[K comparable, V any](m map[K]V) iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		entries := captureEntries(m)
+		slices.SortFunc(entries, dynamicEntryOrder(entries))
+		ConstAll(entries)(yield)
+	}
+}
+
+func captureEntries[K comparable, V any](m map[K]V) []ConstEntry[K, V] {
+	entries := make([]ConstEntry[K, V], 0, len(m))
+	for k, v := range m {
+		entries = append(entries, ConstEntry[K, V]{Key: k, Val: v})
+	}
+	return entries
+}
+
+func dynamicEntryOrder[K comparable, V any](entries []ConstEntry[K, V]) func(a, b ConstEntry[K, V]) int {
+	if reflect.TypeFor[K]().Kind() != reflect.Interface {
+		return func(a, b ConstEntry[K, V]) int {
 			return compareKeys(reflect.ValueOf(a.Key), reflect.ValueOf(b.Key))
-		})
-		for _, entry := range entries {
-			if !yield(entry.Key, entry.Val) {
-				return
-			}
 		}
+	}
+	types := make(map[reflect.Type]int)
+	for _, e := range entries {
+		t := reflect.TypeOf(e.Key)
+		if _, ok := types[t]; !ok {
+			types[t] = len(types)
+		}
+	}
+	return func(a, b ConstEntry[K, V]) int {
+		if c := cmp.Compare(types[reflect.TypeOf(a.Key)], types[reflect.TypeOf(b.Key)]); c != 0 {
+			return c
+		}
+		return compareKeys(reflect.ValueOf(a.Key), reflect.ValueOf(b.Key))
 	}
 }
 
@@ -215,13 +265,9 @@ func compareKeys(a, b reflect.Value) int {
 	case reflect.Float32, reflect.Float64:
 		return cmp.Compare(a.Float(), b.Float())
 	case reflect.Bool:
-		return compareBools(a.Bool(), b.Bool())
+		return CompareBool(a.Bool(), b.Bool())
 	case reflect.Complex64, reflect.Complex128:
-		x, y := a.Complex(), b.Complex()
-		if c := cmp.Compare(real(x), real(y)); c != 0 {
-			return c
-		}
-		return cmp.Compare(imag(x), imag(y))
+		return CompareComplex(a.Complex(), b.Complex())
 	case reflect.Struct:
 		for i := range a.NumField() {
 			if c := compareKeys(a.Field(i), b.Field(i)); c != 0 {
@@ -236,16 +282,6 @@ func compareKeys(a, b reflect.Value) int {
 		}
 	}
 	return 0
-}
-
-func compareBools(a, b bool) int {
-	switch {
-	case a == b:
-		return 0
-	case b:
-		return -1
-	}
-	return 1
 }
 
 // Opt converts a lookup result to the option form of a single-value read
