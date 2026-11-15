@@ -2028,13 +2028,13 @@ func TestZoneBounds(t *testing.T) {
 		// Note: We preloaded "America/Los_Angeles" as time.Local for testing
 		15: {makeLocalTime(0), makeLocalTime(-5756400), makeLocalTime(9972000)},
 		16: {makeLocalTime(1221681866), makeLocalTime(1205056800), makeLocalTime(1225616400)},
-		17: {makeLocalTime(2152173599), makeLocalTime(2145916800), makeLocalTime(2152173600)},
+		17: {makeLocalTime(2152173599), makeLocalTime(2140678800), makeLocalTime(2152173600)},
 		18: {makeLocalTime(2152173600), makeLocalTime(2152173600), makeLocalTime(2172733200)},
 		19: {makeLocalTime(2152173601), makeLocalTime(2152173600), makeLocalTime(2172733200)},
 		20: {makeLocalTime(2159200800), makeLocalTime(2152173600), makeLocalTime(2172733200)},
 		21: {makeLocalTime(2172733199), makeLocalTime(2152173600), makeLocalTime(2172733200)},
-		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2177452800)},
-		23: {makeLocalTime(2240568000), makeLocalTime(2235632400), makeLocalTime(2240611200)},
+		22: {makeLocalTime(2172733200), makeLocalTime(2172733200), makeLocalTime(2183623200)},
+		23: {makeLocalTime(2240568000), makeLocalTime(2235632400), makeLocalTime(2246522400)},
 	}
 	for i, tt := range realTests {
 		start, end := tt.giveTime.ZoneBounds()
