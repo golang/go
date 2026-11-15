@@ -30,11 +30,10 @@ func Int8sFromArch[A archsimd.Int8x16](x A) Int8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int8x16:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Int8x16nclm(a)).(Int8s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Int8x16(a)).(Int8s); ok {
+		if z, ok := any(bridge.Int8x16(a)).(Int8s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Int8x16nclm(a)).(Int8s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Int8sFromArch: cannot convert from archsimd.Int8x16"))
@@ -63,11 +62,10 @@ func Int16sFromArch[A archsimd.Int16x8](x A) Int16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int16x8:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Int16x8nclm(a)).(Int16s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Int16x8(a)).(Int16s); ok {
+		if z, ok := any(bridge.Int16x8(a)).(Int16s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Int16x8nclm(a)).(Int16s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Int16sFromArch: cannot convert from archsimd.Int16x8"))
@@ -96,11 +94,10 @@ func Int32sFromArch[A archsimd.Int32x4](x A) Int32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int32x4:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Int32x4nclm(a)).(Int32s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Int32x4(a)).(Int32s); ok {
+		if z, ok := any(bridge.Int32x4(a)).(Int32s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Int32x4nclm(a)).(Int32s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Int32sFromArch: cannot convert from archsimd.Int32x4"))
@@ -129,11 +126,10 @@ func Int64sFromArch[A archsimd.Int64x2](x A) Int64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Int64x2:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Int64x2nclm(a)).(Int64s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Int64x2(a)).(Int64s); ok {
+		if z, ok := any(bridge.Int64x2(a)).(Int64s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Int64x2nclm(a)).(Int64s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Int64sFromArch: cannot convert from archsimd.Int64x2"))
@@ -162,11 +158,10 @@ func Uint8sFromArch[A archsimd.Uint8x16](x A) Uint8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint8x16:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Uint8x16nclm(a)).(Uint8s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Uint8x16(a)).(Uint8s); ok {
+		if z, ok := any(bridge.Uint8x16(a)).(Uint8s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Uint8x16nclm(a)).(Uint8s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Uint8sFromArch: cannot convert from archsimd.Uint8x16"))
@@ -195,11 +190,10 @@ func Uint16sFromArch[A archsimd.Uint16x8](x A) Uint16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint16x8:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Uint16x8nclm(a)).(Uint16s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Uint16x8(a)).(Uint16s); ok {
+		if z, ok := any(bridge.Uint16x8(a)).(Uint16s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Uint16x8nclm(a)).(Uint16s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Uint16sFromArch: cannot convert from archsimd.Uint16x8"))
@@ -228,11 +222,10 @@ func Uint32sFromArch[A archsimd.Uint32x4](x A) Uint32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint32x4:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Uint32x4nclm(a)).(Uint32s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Uint32x4(a)).(Uint32s); ok {
+		if z, ok := any(bridge.Uint32x4(a)).(Uint32s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Uint32x4nclm(a)).(Uint32s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Uint32sFromArch: cannot convert from archsimd.Uint32x4"))
@@ -261,11 +254,10 @@ func Uint64sFromArch[A archsimd.Uint64x2](x A) Uint64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Uint64x2:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Uint64x2nclm(a)).(Uint64s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Uint64x2(a)).(Uint64s); ok {
+		if z, ok := any(bridge.Uint64x2(a)).(Uint64s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Uint64x2nclm(a)).(Uint64s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Uint64sFromArch: cannot convert from archsimd.Uint64x2"))
@@ -294,11 +286,10 @@ func Float32sFromArch[A archsimd.Float32x4](x A) Float32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Float32x4:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Float32x4nclm(a)).(Float32s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Float32x4(a)).(Float32s); ok {
+		if z, ok := any(bridge.Float32x4(a)).(Float32s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Float32x4nclm(a)).(Float32s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Float32sFromArch: cannot convert from archsimd.Float32x4"))
@@ -327,11 +318,10 @@ func Float64sFromArch[A archsimd.Float64x2](x A) Float64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Float64x2:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Float64x2nclm(a)).(Float64s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Float64x2(a)).(Float64s); ok {
+		if z, ok := any(bridge.Float64x2(a)).(Float64s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Float64x2nclm(a)).(Float64s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Float64sFromArch: cannot convert from archsimd.Float64x2"))
@@ -360,11 +350,10 @@ func Mask8sFromArch[A archsimd.Mask8x16](x A) Mask8s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask8x16:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Mask8x16nclm(a)).(Mask8s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Mask8x16(a)).(Mask8s); ok {
+		if z, ok := any(bridge.Mask8x16(a)).(Mask8s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Mask8x16nclm(a)).(Mask8s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Mask8sFromArch: cannot convert from archsimd.Mask8x16"))
@@ -393,11 +382,10 @@ func Mask16sFromArch[A archsimd.Mask16x8](x A) Mask16s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask16x8:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Mask16x8nclm(a)).(Mask16s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Mask16x8(a)).(Mask16s); ok {
+		if z, ok := any(bridge.Mask16x8(a)).(Mask16s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Mask16x8nclm(a)).(Mask16s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Mask16sFromArch: cannot convert from archsimd.Mask16x8"))
@@ -426,11 +414,10 @@ func Mask32sFromArch[A archsimd.Mask32x4](x A) Mask32s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask32x4:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Mask32x4nclm(a)).(Mask32s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Mask32x4(a)).(Mask32s); ok {
+		if z, ok := any(bridge.Mask32x4(a)).(Mask32s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Mask32x4nclm(a)).(Mask32s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Mask32sFromArch: cannot convert from archsimd.Mask32x4"))
@@ -459,11 +446,10 @@ func Mask64sFromArch[A archsimd.Mask64x2](x A) Mask64s {
 	// The backend of the compiler will eat this and turn it into no code at all,
 	// assuming it inlines.
 	case archsimd.Mask64x2:
-		if !HasHardwareCarrylessMultiply() {
-			if z, ok := any(bridge.Mask64x2nclm(a)).(Mask64s); ok {
-				return z
-			}
-		} else if z, ok := any(bridge.Mask64x2(a)).(Mask64s); ok {
+		if z, ok := any(bridge.Mask64x2(a)).(Mask64s); ok {
+			return z
+		}
+		if z, ok := any(bridge.Mask64x2nclm(a)).(Mask64s); ok {
 			return z
 		}
 		panic(fromArchError("simd.Mask64sFromArch: cannot convert from archsimd.Mask64x2"))

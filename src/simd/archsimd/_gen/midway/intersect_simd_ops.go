@@ -849,18 +849,13 @@ package simd
 
 				for _, t := range archTypes {
 					pf("\tcase archsimd.%s:\n", t)
+					pf("\t\tif z, ok := any(bridge.%s(a)).(%ss); ok {\n", t, elem)
+					pf("\t\t\treturn z\n")
+					pf("\t\t}\n")
 					key := variants.Key{Arch: arch, Size: sizeForType[t]}
 					if v := variants.Variants[key]; v != nil {
 						vt := v.Name(t)
-						pf("\t\tif !%s() {\n", v.DefaultRequires)
-						pf("\t\t\tif z, ok := any(bridge.%s(a)).(%ss); ok {\n", vt, elem)
-						pf("\t\t\t\treturn z\n")
-						pf("\t\t\t}\n")
-						pf("\t\t} else if z, ok := any(bridge.%s(a)).(%ss); ok {\n", t, elem)
-						pf("\t\t\treturn z\n")
-						pf("\t\t}\n")
-					} else {
-						pf("\t\tif z, ok := any(bridge.%s(a)).(%ss); ok {\n", t, elem)
+						pf("\t\tif z, ok := any(bridge.%s(a)).(%ss); ok {\n", vt, elem)
 						pf("\t\t\treturn z\n")
 						pf("\t\t}\n")
 					}
