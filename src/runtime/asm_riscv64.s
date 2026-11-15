@@ -717,15 +717,13 @@ havem:
 	MOV	(g_sched+gobuf_sp)(g), X6 // prepare stack as X6
 	MOV	(g_sched+gobuf_pc)(g), X7
 	MOV	X7, -(24+8)(X6)		// "saved LR"; must match frame size
-	// Gather our arguments into registers.
-	MOV	fn+0(FP), X7
-	MOV	frame+8(FP), X8
-	MOV	ctxt+16(FP), X9
+
+	// Gather our arguments into the registers expected by ABIInternal.
+	MOV	fn+0(FP), X10
+	MOV	frame+8(FP), X11
+	MOV	ctxt+16(FP), X12
 	MOV	$-(24+8)(X6), X2	// switch stack; must match frame size
-	MOV	X7, 8(X2)
-	MOV	X8, 16(X2)
-	MOV	X9, 24(X2)
-	CALL	runtime·cgocallbackg(SB)
+	CALL	runtime·cgocallbackg<ABIInternal>(SB)
 
 	// Restore g->sched (== m->curg->sched) from saved values.
 	MOV	0(X2), X7
