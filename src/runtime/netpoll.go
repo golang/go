@@ -246,7 +246,9 @@ func poll_runtime_isPollServerDescriptor(fd uintptr) bool {
 //go:linkname poll_runtime_pollOpen internal/poll.runtime_pollOpen
 func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 	pd := pollcache.alloc()
-	logosPollPurge(pd) // M8-S4 hook: a reused descriptor starts with no stale group waiters.
+	if logosRuntimeHooks {
+		logosPollPurge(pd) // M8-S4 hook: a reused descriptor starts with no stale group waiters.
+	}
 	lock(&pd.lock)
 	wg := pd.wg.Load()
 	if wg != pdNil && wg != pdReady {
@@ -294,7 +296,9 @@ func poll_runtime_pollClose(pd *pollDesc) {
 	if rg != pdNil && rg != pdReady {
 		throw("runtime: blocked read on closing polldesc")
 	}
-	logosPollPurge(pd) // M8-S4 hook: a closing descriptor drops its group waiters.
+	if logosRuntimeHooks {
+		logosPollPurge(pd) // M8-S4 hook: a closing descriptor drops its group waiters.
+	}
 	netpollclose(pd.fd)
 	pollcache.free(pd)
 }
@@ -353,7 +357,7 @@ func poll_runtime_pollWait(pd *pollDesc, mode int) int {
 	if GOOS == "solaris" || GOOS == "illumos" || GOOS == "aix" || GOOS == "wasip1" {
 		netpollarm(pd, mode)
 	}
-	if logosWaitRegister(pd, int32(mode)) {
+	if logosRuntimeHooks && logosWaitRegister(pd, int32(mode)) {
 		defer logosWaitRelease(pd, int32(mode))
 		if logosWaitAfterRegisterHook != nil {
 			logosWaitAfterRegisterHook()
@@ -528,7 +532,7 @@ func netpollcheckerr(pd *pollDesc, mode int32) int {
 	if info.closing() {
 		return pollErrClosing
 	}
-	if logosCancelled(pd, mode) {
+	if logosRuntimeHooks && logosCancelled(pd, mode) {
 		return pollErrTimeout
 	}
 	if (mode == 'r' && info.expiredReadDeadline()) || (mode == 'w' && info.expiredWriteDeadline()) {

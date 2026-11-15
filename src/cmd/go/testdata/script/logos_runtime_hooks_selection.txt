@@ -1,0 +1,264 @@
+# loGo/s runtime hook selection: the go command derives one boolean from the
+# full root action graph at Builder.Do entry. A feature-free graph compiles
+# package runtime from a generated objdir file defining
+# logosRuntimeHooks = false; anything that can reach logos/rt, package
+# plugin, or runtime's own test variant keeps the checked-in enabled
+# default. The boolean is hashed only into runtime's action ID, so cache
+# entries cannot cross-contaminate between selections and identical rebuilds
+# reuse the archive.
+
+[short] skip
+[!GOOS:linux] skip
+[!cgo] skip
+[!buildmode:plugin] skip
+
+env GOPROXY=off
+env GOTOOLCHAIN=local
+env CGO_ENABLED=1
+env GOCACHE=$WORK/gocache
+mkdir $WORK/bin
+
+# --- 1. Feature-free root: networking, defers, goroutines, no logos anywhere.
+
+cd plain
+go build -x -o $WORK/bin/plain$GOEXE .
+stderr '\-p runtime '
+stderr '_logos_features\.go'
+stderr 'logosRuntimeHooks = false'
+! stderr 'src/runtime/logos_features\.go'
+exec $WORK/bin/plain$GOEXE
+stdout '^7d ok$'
+
+# Disabled selection must also type-check under vet with the generated file.
+go vet runtime
+
+# --- 2. Explicit logos/rt import keeps the checked-in enabled default.
+
+cd ../usesrt
+go build -x -o $WORK/bin/usesrt$GOEXE .
+stderr '\-p runtime '
+stderr 'src/runtime/logos_features\.go'
+! stderr '_logos_features\.go'
+! stderr 'logosRuntimeHooks = false'
+exec $WORK/bin/usesrt$GOEXE
+stdout '^hash ok$'
+
+# Second identical ON build reuses the ON runtime archive: no recompile.
+go build -x -o $WORK/bin/usesrt2$GOEXE .
+! stderr '\-p runtime '
+! stderr '_logos_features\.go'
+
+# --- 3. OFF selection cache entry survives the intervening ON build.
+
+cd ../plain
+go build -x -o $WORK/bin/plain2$GOEXE .
+! stderr '\-p runtime '
+! stderr '_logos_features\.go'
+exec $WORK/bin/plain2$GOEXE
+stdout '^7d ok$'
+
+# --- 4. Test-only logos dependency forces the enabled default for go test.
+
+cd ../testonly
+# Runtime ON is already cached from step 2, so read the selection from the
+# compiled file list instead of a compile line: the checked-in default
+# survives cache replay as a package-relative name, the generated variant
+# would come back cache-hash-named. go list -deps prints dependencies
+# before the named package, so anchor with the multiline flag.
+go list -compiled -test -deps -f '{{.ImportPath}} {{.CompiledGoFiles}}' .
+stdout '(?m)^runtime .*logos_features\.go'
+go test .
+stdout '^ok\s'
+
+# --- 5. runtime's own internal tests run with hooks enabled.
+
+go test runtime -run TestLogosGroupNetpollCancelBeforeRegister -count=1 -x
+stderr 'src/runtime/logos_features\.go'
+! stderr '_logos_features\.go'
+stdout '^ok\s'
+
+# --- 6. Coverage rewriting of the default file under a disabled selection.
+
+cd ../plain
+go build -x -cover -coverpkg=runtime -o $WORK/bin/plaincov$GOEXE .
+stderr 'logosRuntimeHooks = false'
+# Coverage rewriting legitimately names the checked-in file as the cover
+# tool's input, and -x echoes coveroutfiles.txt listing every covered
+# output; those are generation diagnostics, not compile inputs. Pin the
+# runtime compile line itself: it must take the generated OFF file and
+# never the rewritten default.
+stderr '\-p runtime .*_logos_features\.go'
+! stderr '\-p runtime .*logos_features\.cover\.go'
+exec $WORK/bin/plaincov$GOEXE
+stdout '^7d ok$'
+
+# --- 7. Hook call sites: absent from a feature-free binary, present with logos/rt.
+
+# Filtered to the logosRuntimeHooks-gated families: arena and region helpers
+# carry their own GOEXPERIMENT gates and compile into feature-free binaries.
+# Empty output proves the DCE'd OFF selection.
+# The ON consumer calls group and trace APIs and checks their behavior; a
+# hash-only import would select ON but leave these hooks linker-dead.
+go tool objdump -s 'runtime\.logos(Group|Slot|Trace|Cancel)' $WORK/bin/plain$GOEXE
+! stdout '.'
+go tool objdump -s 'runtime\.logos(GroupAcquire|TraceRecord)' $WORK/bin/usesrt$GOEXE
+stdout 'TEXT runtime\.logosGroupAcquire'
+stdout 'TEXT runtime\.logosTraceRecord'
+
+# --- 8. Plugin pairing: logos-using plugin loaded by a plain Go host.
+
+cd ../plughost
+go build -buildmode=plugin -o $WORK/bin/logosplug.so ./plug
+go build -o $WORK/bin/host$GOEXE .
+exec $WORK/bin/host$GOEXE $WORK/bin/logosplug.so
+stdout '^plugin ok$'
+
+-- plain/go.mod --
+module plain
+
+go 1.27
+-- plain/main.go --
+package main
+
+import (
+	"fmt"
+	"net"
+)
+
+func work() (s string) {
+	defer func() { s += "d" }()
+	c := make(chan int, 1)
+	go func() { c <- 7 }()
+	return fmt.Sprint(<-c)
+}
+
+func main() {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		panic(err)
+	}
+	defer ln.Close()
+	done := make(chan error, 1)
+	go func() {
+		c, err := ln.Accept()
+		if err != nil {
+			done <- err
+			return
+		}
+		c.Close()
+		done <- nil
+	}()
+	go func() {
+		c, err := net.Dial("tcp", ln.Addr().String())
+		if err != nil {
+			done <- err
+			return
+		}
+		c.Close()
+		done <- nil
+	}()
+	if err := <-done; err != nil {
+		panic(err)
+	}
+	if err := <-done; err != nil {
+		panic(err)
+	}
+	fmt.Println(work(), "ok")
+}
+-- usesrt/go.mod --
+module usesrt
+
+go 1.27
+-- usesrt/main.go --
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"logos/rt"
+)
+
+func main() {
+	if rt.HashString("usesrt") == 0 {
+		panic("zero hash")
+	}
+	g, ctx := rt.NewGroup(context.Background(), 1)
+	traced := make(chan bool, 1)
+	g.Go(func(context.Context) error {
+		err := errors.New("trace probe")
+		first := rt.Site{File: "usesrt/main.go", Line: 1}
+		second := rt.Site{File: "usesrt/main.go", Line: 2}
+		rt.TraceErr(err, &first)
+		rt.TraceErr(err, &second)
+		trace := rt.ErrorTrace()
+		traced <- len(trace) == 2 && trace[0] == first && trace[1] == second
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		panic(err)
+	}
+	if !<-traced {
+		panic("error trace lost")
+	}
+	if ctx.Err() != context.Canceled {
+		panic("group context not canceled at join")
+	}
+	fmt.Println("hash ok")
+}
+-- testonly/go.mod --
+module testonly
+
+go 1.27
+-- testonly/x.go --
+package x
+
+func Add(a, b int) int { return a + b }
+-- testonly/x_test.go --
+package x
+
+import (
+	"testing"
+
+	_ "logos/rt"
+)
+
+func TestAdd(t *testing.T) {
+	if Add(1, 2) != 3 {
+		t.Fatal("Add is broken")
+	}
+}
+-- plughost/go.mod --
+module plughost
+
+go 1.27
+-- plughost/plug/plug.go --
+package main
+
+import "logos/rt"
+
+func Value() uint64 { return rt.HashString("plug") }
+-- plughost/host.go --
+package main
+
+import (
+	"fmt"
+	"os"
+	"plugin"
+)
+
+func main() {
+	p, err := plugin.Open(os.Args[1])
+	if err != nil {
+		panic(err)
+	}
+	v, err := p.Lookup("Value")
+	if err != nil {
+		panic(err)
+	}
+	f := v.(func() uint64)
+	if f() == 0 {
+		panic("zero value")
+	}
+	fmt.Println("plugin ok")
+}

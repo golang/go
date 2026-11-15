@@ -51,6 +51,12 @@ type Builder struct {
 	NeedCompiledGoFiles bool // list needs p.CompiledGoFiles
 	AllowErrors         bool // errors don't immediately exit the program
 
+	// logosRuntimeHooks reports whether runtime compiles with loGo/s hooks
+	// enabled (the checked-in default). NewBuilder presets true so any ID
+	// computed outside Do keeps today's behavior; Do re-derives it from the
+	// root action graph before any action ID is computed.
+	logosRuntimeHooks bool
+
 	objdirSeq int // counter for NewObjdir
 	pkgSeq    int
 
@@ -281,6 +287,7 @@ const (
 func NewBuilder(workDir string, getVendorDir func() string) *Builder {
 	b := new(Builder)
 	b.getVendorDir = getVendorDir
+	b.logosRuntimeHooks = true
 
 	b.actionCache = make(map[cacheKey]*Action)
 	b.gccToolIDCache = make(map[string]string)

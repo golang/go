@@ -554,7 +554,9 @@ func deferprocStack(d *_defer) {
 	// are initialized here.
 	d.heap = false
 	d.rangefunc = false
-	d.try = false
+	if logosRuntimeHooks {
+		d.try = false
+	}
 	d.sp = sys.GetCallerSP()
 	d.pc = sys.GetCallerPC()
 	// The lines below implement:
@@ -619,7 +621,7 @@ func popDefer(gp *g) {
 	d.link = nil
 	// After this point we can copy the stack.
 
-	if d.try {
+	if logosRuntimeHooks && d.try {
 		return
 	}
 

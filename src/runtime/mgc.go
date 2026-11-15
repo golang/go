@@ -2199,7 +2199,9 @@ func clearpools() {
 		d.link = nil
 	}
 	sched.deferpool = nil
-	logosClearDeferTryPoolLocked()
+	if logosRuntimeHooks {
+		logosClearDeferTryPoolLocked()
+	}
 	unlock(&sched.deferlock)
 }
 

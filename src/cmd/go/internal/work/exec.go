@@ -78,6 +78,8 @@ func (b *Builder) Do(ctx context.Context, root *Action) {
 	ctx, span := trace.StartSpan(ctx, "exec.Builder.Do ("+root.Mode+" "+root.Target+")")
 	defer span.Done()
 
+	b.logosRuntimeHooks = logosRuntimeHooksFor(root)
+
 	if !b.IsCmdList {
 		// If we're doing real work, take time at the end to trim the cache.
 		c := cache.Default()
@@ -358,6 +360,14 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
 	}
 	if p.Internal.BuildInfo != nil {
 		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo.String())
+	}
+
+	// loGo/s runtime hook selection: hashed only for the producer whose
+	// output depends on it, the compile of package runtime (plain or test
+	// variant). Consumer action IDs pick the change up through runtime's
+	// dependency content ID below.
+	if p.ImportPath == logosRuntimePkg {
+		fmt.Fprintf(h, "logosfeat %v\n", b.logosRuntimeHooks)
 	}
 
 	// Configuration specific to compiler toolchain.
@@ -834,6 +844,18 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
 		switch cfg.BuildBuildmode {
 		case "c-archive", "c-shared":
 			b.cacheCgoHdr(a)
+		}
+	}
+
+	// loGo/s runtime hook selection: for a disabled selection, swap the
+	// generated disabled constant file into the local compile list in place
+	// of the checked-in default, before srcfiles feeds cacheSrcFiles and the
+	// vet config. The generated file is objdir-prefixed, so cacheSrcFiles
+	// caches its content and cache replays restore it like cover output.
+	if p.ImportPath == logosRuntimePkg && !b.logosRuntimeHooks {
+		var err error
+		if gofiles, err = b.logosFeaturesOff(a, gofiles); err != nil {
+			return err
 		}
 	}
 
