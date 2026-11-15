@@ -43,7 +43,6 @@ func (fl *fileLower) lowerConstSlices() {
 			call.ArgList[i] = fl.covSliceWrap(a, iface)
 		}
 	}
-	fl.needRT = true
 	fl.flushTypeImports()
 }
 
@@ -51,6 +50,9 @@ func (fl *fileLower) covSliceWrap(a syntax.Expr, iface types2.Type) syntax.Expr 
 	pos := leftmostOf(a)
 	if c, ok := syntax.Unparen(a).(*syntax.CompositeLit); ok && c.Type != nil {
 		pos = syntax.StartPos(c)
+	}
+	if call := fl.covTypedWrap(a, iface, pos); call != nil {
+		return call
 	}
 	text, ok := fl.spellType(iface)
 	if !ok {
@@ -65,5 +67,48 @@ func (fl *fileLower) covSliceWrap(a syntax.Expr, iface types2.Type) syntax.Expr 
 	end := fl.exprEndOf(a)
 	fl.add(start, start, fmt.Sprintf("%s.CovSlice[%s](", rtAlias, text))
 	fl.add(end, end, ")")
+	fl.needRT = true
 	return callOf(pos, fun, []syntax.Expr{a})
+}
+
+func (fl *fileLower) covTypedWrap(a syntax.Expr, iface types2.Type, pos syntax.Pos) syntax.Expr {
+	argType := fl.pkg.info.TypeOf(a)
+	if argType == nil {
+		return nil
+	}
+	slc, ok := types2.Unalias(argType).Underlying().(*types2.Slice)
+	if !ok {
+		return nil
+	}
+	elem := types2.Unalias(slc.Elem())
+	if _, ok := elem.(*types2.TypeParam); ok {
+		return nil
+	}
+	itf, ok := types2.Unalias(iface).Underlying().(*types2.Interface)
+	if !ok || !types2.Implements(elem, itf) {
+		return nil
+	}
+	spellE, ok := fl.spellType(elem)
+	if !ok {
+		return nil
+	}
+	spellI, ok := fl.spellType(iface)
+	if !ok {
+		return nil
+	}
+	text := "func(_logos_cs_s []" + spellE + ") []" + spellI + " {\n" + covTypedBody(spellI) + "}"
+	fun := parseGeneratedDecls("var _ = "+text, pos)[0].(*syntax.VarDecl).Values
+	start := fl.off(pos)
+	end := fl.exprEndOf(a)
+	fl.add(start, start, text+"(")
+	fl.add(end, end, ")")
+	return callOf(pos, fun, []syntax.Expr{a})
+}
+
+func covTypedBody(spellI string) string {
+	return "if _logos_cs_s == nil {\nreturn nil\n}\n" +
+		"_logos_cs_r := make([]" + spellI + ", len(_logos_cs_s))\n" +
+		"for _logos_cs_i := range _logos_cs_s {\n" +
+		"_logos_cs_r[_logos_cs_i] = " + spellI + "(_logos_cs_s[_logos_cs_i])\n" +
+		"}\nreturn _logos_cs_r\n"
 }

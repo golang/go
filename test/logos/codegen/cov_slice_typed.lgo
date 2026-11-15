@@ -1,0 +1,36 @@
+// asmcheck
+
+package main
+
+import "logos/rt"
+
+type Creature interface {
+	const Name() string
+}
+
+type Monster struct{ name string }
+
+func (m *Monster) Name() string {
+	if m == nil {
+		return "<nil>"
+	}
+	return m.name
+}
+
+func passMon(cs const []Creature) const []Creature { return cs }
+
+//go:noinline
+func covDynamic(ms []*Monster) []Creature {
+	// amd64:"CALL.*assertE2I"
+	// arm64:"CALL.*assertE2I"
+	return rt.CovSlice[Creature](ms)
+}
+
+//go:noinline
+func covTyped(ms []*Monster) const []Creature {
+	// amd64:-"CALL.*CovSlice" -"CALL.*assertE2I" -"CALL.*assertI2I"
+	// arm64:-"CALL.*CovSlice" -"CALL.*assertE2I" -"CALL.*assertI2I"
+	return passMon(ms)
+}
+
+func main() {}

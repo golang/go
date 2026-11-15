@@ -1,0 +1,107 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+var failed bool
+
+func check(name string, cond bool, got, want any) {
+	if !cond {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Animal interface {
+	const Name() string
+}
+
+type Creature interface {
+	Animal
+	const Weight() int
+}
+
+type Monster struct{ name string }
+
+func (m *Monster) Name() string {
+	if m == nil {
+		return "<nil>"
+	}
+	return m.name
+}
+
+func (m *Monster) Weight() int { return len(m.name) }
+
+type Rock struct{ name string }
+
+func (r Rock) Name() string { return "rock:" + r.name }
+func (r Rock) Weight() int  { return len(r.name) }
+
+func read(cs const []Creature) string {
+	out := ""
+	for i, c := range cs {
+		if i > 0 {
+			out += ","
+		}
+		if c == nil {
+			out += "<none>"
+			continue
+		}
+		out += c.Name()
+	}
+	return out
+}
+
+func readAnimal(cs const []Animal) string {
+	out := ""
+	for i, c := range cs {
+		if i > 0 {
+			out += ","
+		}
+		if c == nil {
+			out += "<none>"
+			continue
+		}
+		out += c.Name()
+	}
+	return out
+}
+
+func keep(cs const []Creature) const []Creature { return cs }
+
+func keepAnimal(cs const []Animal) const []Animal { return cs }
+
+func main() {
+	ms := []*Monster{{name: "imp"}, {name: "orc"}}
+	check("pointer-elem-read", read(ms) == "imp,orc", read(ms), "imp,orc")
+
+	var none []*Monster
+	check("nil-source-empty-read", read(none) == "", read(none), "")
+	check("empty-source-empty-read", read([]*Monster{}) == "", read([]*Monster{}), "")
+
+	in := []Creature{nil, &Monster{name: "orc"}}
+	check("nil-iface-stays-nil", readAnimal(in) == "<none>,orc", readAnimal(in), "<none>,orc")
+
+	rocks := []Rock{{name: "a"}, {name: "b"}}
+	check("value-elem-covariance", read(rocks) == "rock:a,rock:b", read(rocks), "rock:a,rock:b")
+
+	shared := keep(ms)
+	ms[0] = &Monster{name: "ogre"}
+	check("snapshot-bindings", read(shared) == "imp,orc", read(shared), "imp,orc")
+	ms[1].name = "TROLL"
+	check("pointee-alias-kept", read(shared) == "imp,TROLL", read(shared), "imp,TROLL")
+
+	animalKept := keepAnimal(in)
+	in[0] = &Monster{name: "replaced"}
+	check("iface-elem-snapshot", readAnimal(animalKept) == "<none>,orc", readAnimal(animalKept), "<none>,orc")
+
+	if failed {
+		os.Exit(1)
+	}
+}

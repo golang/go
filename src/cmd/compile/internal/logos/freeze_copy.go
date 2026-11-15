@@ -384,7 +384,7 @@ func (s *freezeSite) unionBody(t types2.Type, iface *types2.Interface) string {
 	for _, m := range members {
 		spell, ok := s.fl.spellLowered(m)
 		if !ok {
-			return rtAlias + ".FreezeDynamic(_logos_fr, _logos_d, _logos_s)\n"
+			continue
 		}
 		if !types2.Implements(m, iface) {
 			continue

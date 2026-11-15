@@ -1,0 +1,79 @@
+// run
+
+package main
+
+import (
+	"fmt"
+	"os"
+	"testing"
+)
+
+var failed bool
+var sinkLen int
+
+func check(name string, got, want int) {
+	if got != want {
+		failed = true
+		fmt.Println("FAIL", name+":", "got", got, "want", want)
+		return
+	}
+	fmt.Println("ok", name)
+}
+
+type Creature interface {
+	const Name() string
+}
+
+type Monster struct{ name string }
+
+func (m *Monster) Name() string {
+	if m == nil {
+		return "<nil>"
+	}
+	return m.name
+}
+
+type Rock struct{ name string }
+
+func (r Rock) Name() string { return "rock:" + r.name }
+
+func keep(cs const []Creature) const []Creature { return cs }
+
+func keepAny(cs const []any) const []any { return cs }
+
+//go:noinline
+func keepMonsters(ms []*Monster) const []Creature {
+	return keep(ms)
+}
+
+//go:noinline
+func keepRocks(rs []Rock) const []Creature {
+	return keep(rs)
+}
+
+//go:noinline
+func keepCreatures(cs []Creature) const []any {
+	return keepAny(cs)
+}
+
+func allocs(f func()) int {
+	return int(testing.AllocsPerRun(100, f))
+}
+
+func main() {
+	var none []*Monster
+	ms4 := []*Monster{{name: "a"}, {name: "b"}, {name: "c"}, {name: "d"}}
+	rs4 := []Rock{{name: "a"}, {name: "b"}, {name: "c"}, {name: "d"}}
+	cs4 := []Creature{nil, &Monster{name: "a"}, &Monster{name: "b"}, &Monster{name: "c"}}
+
+	check("nil-source-zero-alloc", allocs(func() { sinkLen = len(keepMonsters(none)) }), 0)
+	check("empty-source-zero-alloc", allocs(func() { sinkLen = len(keepMonsters([]*Monster{})) }), 0)
+	check("pointer-elems-one-alloc", allocs(func() { sinkLen = len(keepMonsters(ms4)) }), 1)
+	check("value-elems-backing-plus-boxes", allocs(func() { sinkLen = len(keepRocks(rs4)) }), 5)
+	check("iface-elems-one-alloc", allocs(func() { sinkLen = len(keepCreatures(cs4)) }), 1)
+
+	_ = sinkLen
+	if failed {
+		os.Exit(1)
+	}
+}
