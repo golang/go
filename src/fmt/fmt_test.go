@@ -1264,6 +1264,11 @@ var reorderTests = []struct {
 	{"%d %d %d %#[1]o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015"},
 
 	// Erroneous cases.
+	{"%[100]%", SE{}, "%!%(BADINDEX)"},
+	{"%[-100]%", SE{}, "%!%(BADINDEX)"},
+	{"%[not a number]%", SE{}, "%!%(BADINDEX)"},
+	{"%[3]*% %d", SE{1, 2}, "%!%(BADINDEX) 2"},
+	{"%.[3]*% %d", SE{1, 2}, "%!%(BADINDEX) 2"},
 	{"%[d", SE{2, 1}, "%!d(BADINDEX)"},
 	{"%]d", SE{2, 1}, "%!](int=2)d%!(EXTRA int=1)"},
 	{"%[]d", SE{2, 1}, "%!d(BADINDEX)"},
